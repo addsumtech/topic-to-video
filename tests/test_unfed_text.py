@@ -4,9 +4,10 @@ The static scan (scripts/jsx_words.cjs) sees words written into the code; it can
 screen through a constant list, a single-word default, or a wrapped library register's own copy. The frame can.
 
 The matching rule (runtime/textSafe.tsx auditUnfedText) compares TOKENS, not pooled letters: a token is a
-maximal run of letters/digits of one script class, a run is fed when its tokens split into chunks each found,
-in order, inside one fed string (the run's last token may be a truncated prefix), a CJK token is covered by
-pieces of a fed CJK token instead (CJK has no word boundaries), and a figure-shaped numeral must match a fed
+maximal run of characters of one class — CJK, digit, or letter, so a value joined to its unit ("9bar") splits
+at the boundary — and a WORD or CJK token is fed when it is found among the words of every fed string pooled
+together, wherever it appears, not a chunk search inside one fed string. When the run ends in an ellipsis, its
+last token may instead be a prefix of a fed token of the same class. A figure-shaped numeral must match a fed
 numeral or a numeric prop value while a plain integer is presumed derived (an index, a tick) and passes."""
 import json
 import os
@@ -60,9 +61,9 @@ export const %(name)s: React.FC<ObjectProps> = ({w, h}) => (
 );
 """
 
-# I1: baked words the DNA object's OWN tokens spell ('motion: smooth', '…system-ui…') — a fixture whose
-# baked words are NOT among them (as round 0's own fixture happened to be) passes whether or not the object
-# is excluded, and is not load bearing.
+# Baked words chosen to spell DNA tokens ('motion: smooth', '…system-ui…'): a fixture whose baked words are
+# NOT among them would pass whether or not DNA text is excluded from the fed pool, so it would not be load
+# bearing.
 DNA_LEAK_SHOT = """import React from 'react';
 import {AbsoluteFill} from 'remotion';
 export const DURATION = 60;
@@ -96,7 +97,7 @@ export const META: ObjectMeta = {aspect: 1, provenance: 'industrial'};
 export const %(name)s: React.FC<ObjectProps> = ({w, h}) => <div style={{width: w, height: h}} />;
 """
 
-# M2: thirteen distinct baked words, none fed — one past MAX_REPORTED (12).
+# Thirteen distinct baked words, none fed — one past MAX_REPORTED (12).
 MANY_WORDS_SHOT = """import React from 'react';
 import {AbsoluteFill} from 'remotion';
 export const DURATION = 60;
@@ -111,7 +112,7 @@ export const %(name)s: React.FC<{}> = () => (
 );
 """
 
-# M2: one unfed word 50 characters long — past the report's own 40-character cap.
+# One unfed word 50 characters long — past the report's own 40-character cap.
 LONG_WORD_SHOT = """import React from 'react';
 import {AbsoluteFill} from 'remotion';
 export const DURATION = 60;
@@ -171,7 +172,7 @@ export const %(name)s: React.FC<{}> = () => (
       {['研', '磨'].map((c, i) => <span key={i}>{c}</span>)}
     </div>
     <div style={{position: 'absolute', left: 40, top: 140}}>新</div>
-    <div style={{position: 'absolute', left: 40, top: 200}}>均</div>
+    <div style={{position: 'absolute', left: 340, top: 140}}>均</div>
   </AbsoluteFill>
 );
 """
@@ -289,7 +290,8 @@ def test_the_matching_rule_covers_every_listed_english_case(tmp_path):
     # unfed: a baked word ("Step", found twice, once alone and once inside "Step 1: Heat the water" — the
     # rest of that sentence is fed and only "Step" is named), a per-glyph run ("NEW"), two fabricated
     # figures ("87%", "3.2×" — reported as their numeral, not the adjacent mark), a baked word ("Loading"),
-    # and a baked word under opacity 0 ("Draft", still read: rule 6 does not exempt it).
+    # and a baked word under opacity 0 ("Draft", still read — zero opacity does not exempt a word from the
+    # audit).
     # fed: a joined pair ("Grind · Tamp"), a re-cased whole match ("GRIND FINER"), a truncated prefix
     # ("Heat the wa…"), a per-glyph run of real copy ("Grind"), a plain unit reading ("93°C" — "93" is a
     # derived integer with no figure mark, "c" is a fed token), three plain-integer ticks (never copy), and
@@ -308,6 +310,59 @@ def test_the_matching_rule_covers_every_listed_cjk_case(tmp_path):
     # not the WHOLE token ("均" — a single CJK character must match a fed token exactly, or nearly every
     # glyph in the language would pass).
     assert sorted(got) == sorted(["新", "均"]), got
+
+
+@needs_toolchain
+def test_a_single_character_fed_cjk_token_covers_a_piece_at_any_position(tmp_path):
+    out = _workshop(tmp_path, shots={"WsLabels": LABELS}, objects={"WsInside": INSIDE})
+    env = _env(ws.workshop_dir(out))
+    fed = ["Grind", "Tamp", "研磨", "与", "压粉"]
+    got = _unfed("WsLabels", {"label": "研磨与压粉", "unfedText": fed, "unfedScope": "all"}, env, tmp_path / "e.png")
+    assert got == [], got
+    fed2 = ["Grind", "Tamp", "新", "咖啡豆"]
+    got2 = _unfed("WsLabels", {"label": "新咖啡豆", "unfedText": fed2, "unfedScope": "all"}, env, tmp_path / "f.png")
+    assert got2 == [], got2
+
+
+@needs_toolchain
+def test_a_value_and_its_unit_split_at_the_letter_digit_boundary(tmp_path):
+    out = _workshop(tmp_path, shots={"WsLabels": LABELS}, objects={"WsInside": INSIDE})
+    env = _env(ws.workshop_dir(out))
+    got = _unfed("WsLabels", {"label": "5ms", "unfedText": ["Grind", "Tamp", "5", "ms"], "unfedScope": "all"},
+                 env, tmp_path / "g.png")
+    assert got == [], got
+    # "ms" not fed: "5" still passes untested (a plain integer, no figure mark of its own) and only the
+    # unfed unit is named.
+    got2 = _unfed("WsLabels", {"label": "5ms", "unfedText": ["Grind", "Tamp"], "unfedScope": "all"},
+                  env, tmp_path / "h.png")
+    assert got2 == ["ms"], got2
+
+
+@needs_toolchain
+def test_the_letter_x_is_a_figure_mark_only_directly_against_a_numeral(tmp_path):
+    out = _workshop(tmp_path, shots={"WsLabels": LABELS}, objects={"WsInside": INSIDE})
+    env = _env(ws.workshop_dir(out))
+    got = _unfed("WsLabels", {"label": "Box 3", "unfedText": ["Grind", "Tamp", "Box"], "unfedScope": "all"},
+                 env, tmp_path / "i.png")
+    assert got == [], got
+
+
+@needs_toolchain
+def test_a_numeral_no_parser_reads_compares_as_a_string_not_nan(tmp_path):
+    out = _workshop(tmp_path, shots={"WsLabels": LABELS}, objects={"WsInside": INSIDE})
+    env = _env(ws.workshop_dir(out))
+    got = _unfed("WsLabels", {"label": "٨٧%", "unfedText": ["Grind", "Tamp", "٣"], "unfedScope": "all"},
+                 env, tmp_path / "j.png")
+    assert got == ["٨٧"], got
+
+
+@needs_toolchain
+def test_under_an_ellipsis_the_cjk_dp_s_final_piece_may_be_a_prefix(tmp_path):
+    out = _workshop(tmp_path, shots={"WsLabels": LABELS}, objects={"WsInside": INSIDE})
+    env = _env(ws.workshop_dir(out))
+    fed = ["Grind", "Tamp", "研磨更细", "压粉均匀"]
+    got = _unfed("WsLabels", {"label": "研磨更细压…", "unfedText": fed, "unfedScope": "all"}, env, tmp_path / "k.png")
+    assert got == [], got
 
 
 @needs_toolchain
@@ -522,7 +577,7 @@ def test_a_shot_template_alone_still_resolves_and_measures(tmp_path, capsys):
 
 
 RUN_MODEL_FED = ["FORM", "FOLLOWS", "Grind", "Tamp", "Preview", "Grind finer", "A", "B", "C", "Steps",
-                 "Output", "Café", "コーヒー", "数据中心", "中心化"]
+                 "Output", "Café", "コーヒー", "数据中心", "中心化", "研磨更细", "研磨", "Tilt"]
 
 # The run-building cases (what one run of text is), batched into one frame.
 RUN_MODEL = """import React from 'react';
@@ -588,6 +643,39 @@ export const %(name)s: React.FC<{}> = () => (
     <div style={{position: 'absolute', left: 40, top: 980}}>Outp…</div>
     <div style={{position: 'absolute', left: 340, top: 980}}>O</div>
     <div style={{position: 'absolute', left: 40, top: 1050}}>数据中心化</div>
+    {/* a flex column stacks one glyph per row; rows touch in the SAME COLUMN, so the glue gap is the
+        vertical one, not the horizontal-only measurement that read every row alone */}
+    <div style={{position: 'absolute', left: 40, top: 1120, display: 'flex', flexDirection: 'column'}}>
+      {glyphRow('研磨更细')}
+    </div>
+    {/* writing-mode: vertical-rl stacks glyphs the same way, without flex */}
+    <div style={{position: 'absolute', left: 340, top: 1120, writingMode: 'vertical-rl'}}>
+      {glyphRow('研磨')}
+    </div>
+    {/* row-reverse: DOM order A,B,C but each next box sits to the LEFT of the one before it — a signed,
+        left-to-right-only gap reads this as touching; the fix measures an absolute distance instead */}
+    <div style={{position: 'absolute', left: 40, top: 1300, display: 'flex', flexDirection: 'row-reverse',
+                  gap: 60}}>
+      {glyphRow('ABC')}
+    </div>
+    {/* a per-glyph word set on an absolutely positioned "scrap" per letter, each scrap inheriting the
+        frame's own font size while the letter itself is set much larger on an inner span — the glue
+        distance is measured against the INNER size, not the scrap's */}
+    <div style={{position: 'absolute', left: 40, top: 1450}}>
+      {Array.from('Tilt').map((c, i) => (
+        <div key={i} style={{position: 'absolute', left: i * 0.7 * 110, top: 0}}>
+          <span style={{fontSize: 110}}>{c}</span>
+        </div>
+      ))}
+    </div>
+    {/* two multi-character chips set apart by a real margin — absorption is proximity gated the same as a
+        glyph, so a wide-enough gap must not fuse them */}
+    <div style={{position: 'absolute', left: 40, top: 1650, display: 'flex'}}>
+      <span style={{marginRight: 40}}>Grind</span><span>Tamp</span>
+    </div>
+    {/* the library's own per-code-point idiom on an NFD string: the combining acute lands in its own span,
+        commonly a zero-area one, and must still be read onto the "e" before it */}
+    <div style={{position: 'absolute', left: 340, top: 1650}}>{glyphRow('Café')}</div>
   </AbsoluteFill>
 );
 """
@@ -606,8 +694,12 @@ def test_the_run_model_covers_every_listed_case(tmp_path):
     # comments) — <br>, the absorbed inline separator and <b>, all three per-glyph spellings of "Grind finer",
     # sibling option letters kept apart by their gap, nested glyphs, the echo not doubling, an NFD "Café"
     # matching an NFC fed "Café", "コーヒー" surviving its own prolonged-sound mark, "Outp…" truncating into
-    # "Output", and "数据中心化" splitting 数据｜中心化 across two fed CJK tokens dynamic programming finds
-    # and a greedy search missed.
+    # "Output", "数据中心化" splitting 数据｜中心化 across two fed CJK tokens dynamic programming finds and a
+    # greedy search missed, a flex column and a vertical-rl run gluing each own-column glyph along the
+    # vertical gap, a row-reverse run gluing by absolute distance despite each next box sitting to the left
+    # of the one before it, a per-glyph word on absolutely positioned scraps gluing by its own inner font
+    # size, two margin-set-apart chips staying two words, and a per-code-point NFD run whose lone combining
+    # mark still lands on the letter before it.
     assert sorted(got) == sorted(["NEW", "Ghost", "Overflow", "８７", "Step", "O"]), got
 
 

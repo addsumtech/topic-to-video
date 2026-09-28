@@ -1,6 +1,7 @@
 """validate.py knows what a film built: the build list and the workshop agree both ways, every reference names
 something that exists, and the stage registers' own previews never reach a film."""
 import os
+import subprocess
 import sys
 
 import pytest
@@ -404,6 +405,28 @@ def test_an_unmeasurable_workshop_check_is_a_skip_not_an_error(tmp_path, monkeyp
     res = v.evaluate(board, str(tmp_path))
     assert not [e for e in res["errors"] if "type-check could not run" in e], res["errors"]
     assert any("type-check could not run" in s for s in res["skipped"]), res["skipped"]
+
+
+def test_a_crashing_baked_words_scan_is_a_skip_not_an_error(tmp_path, monkeypatch):
+    """The workshop's own code check, for real — only jsx_words.cjs's own subprocess call is faked, so
+    `ws.baked_words` reaches its actual crash handling rather than a stand-in for it, and the type-check (its
+    own tests live in tests/test_workshop.py) is stubbed out to keep this one about the baked-words scan
+    alone."""
+    monkeypatch.undo()
+    monkeypatch.setattr(ws, "typecheck", lambda out_dir: [])
+    real_run = ws.subprocess.run
+
+    def _crash(cmd, **kw):
+        if any("jsx_words.cjs" in str(a) for a in cmd):
+            return subprocess.CompletedProcess(cmd, 1, stdout="",
+                                                stderr="TypeError: Cannot read properties of undefined")
+        return real_run(cmd, **kw)
+    monkeypatch.setattr(ws.subprocess, "run", _crash)
+    board = _board(tmp_path, [_holding(ref="WsDisc")], [_entry("WsDisc"), _entry("WsShotA", "shot")])
+    res = v.evaluate(board, str(tmp_path))
+    assert not [e for e in res["errors"] if "baked-words scan failed" in e], res["errors"]
+    assert any("baked-words scan failed" in s and s.endswith(ws.NOTHING_CHECKED) for s in res["skipped"]), \
+        res["skipped"]
 
 
 def test_a_workshop_shot_beat_with_the_wrong_verdict_is_refused(tmp_path):

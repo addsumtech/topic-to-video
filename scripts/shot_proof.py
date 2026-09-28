@@ -63,6 +63,16 @@ def _number_leaves(v, out=None):
     return out
 
 
+def _fmt_number(x):
+    """A numeral prop as fed text: an integral float prints without its trailing ".0" ("1200", not
+    "1200.0") — the numeral rule compares by VALUE, so the exact string never changes a match, but this pool
+    is also printed back into a finding, where a bare "1200" reads truer than "1200.0" for a value nothing
+    ever wrote as a float."""
+    if isinstance(x, float) and x.is_integer():
+        return str(int(x))
+    return str(x)
+
+
 def _unfed_text(shot, payload, frame, proof, beat, out_dir, scope, declared):
     """The words on this beat's frame that no prop supplied: (words, total, None) on a clean answer — `words`
     is what the runtime itself already capped (runtime/textSafe.tsx MAX_REPORTED), `total` the true count past
@@ -87,7 +97,7 @@ def _unfed_text(shot, payload, frame, proof, beat, out_dir, scope, declared):
         if isinstance(ref, dict) and isinstance(ref.get("id"), str):
             del ref["id"]
     fed = ([x for x in cjk_type_qa._string_leaves(props) if x.strip()]
-           + [str(x) for x in _number_leaves(props)]
+           + [_fmt_number(x) for x in _number_leaves(props)]
            + list(declared or []))
     pj = os.path.join(proof, "beat_%02d.unfed.json" % beat)
     with open(pj, "w", encoding="utf-8") as fh:
@@ -251,8 +261,8 @@ _STACK_LINE = re.compile(r"^\s*(at\s|\.\.\.\s|node:internal|Node\.js v)")
 def _stderr_reason(stderr, limit=220):
     """The MESSAGE a failed render actually carries, not the last line of its stack.
 
-    This used to report `(r.stderr or "").strip().split("\\n")[-1]`, and the last line of a node stack is
-    always `at process.processTicksAndRejections (node:internal/…)`. The ink gate shipped eight registers
+    The last line of `(r.stderr or "").strip().split("\\n")[-1]` is always a node stack's own tail,
+    `at process.processTicksAndRejections (node:internal/…)`. The ink gate shipped eight registers
     marked "skipped" behind exactly that non-reason: the run said something failed and named nothing a
     reader could act on. Stack frames are dropped, the first line that carries a thrown message wins, and
     when nothing does, the surviving prose is returned rather than a shrug.
@@ -530,11 +540,11 @@ def _flat(v, prefix=""):
 def static_checks(board, skips=None):
     """(errors, warnings). `skips` collects every beat/register that LEFT the measurement, with a reason.
 
-    Three paths used to drop an item in silence: a beat with no `shot`, a register whose exported props
-    could not be parsed (`exported_props` returns None and the caller reads that as "exempt" — its own
-    docstring says so), and a register whose .tsx could not be opened for the welded-copy check. None of
-    them moved a number in the headline, so a run blind to a register printed the same line as a run that
-    cleared it.
+    Three paths can drop an item in silence unless routed here: a beat with no `shot`, a register whose
+    exported props could not be parsed (`exported_props` returns None and the caller reads that as "exempt"
+    — its own docstring says so), and a register whose .tsx could not be opened for the welded-copy check.
+    None of them moves a number in the headline on its own, so a run blind to a register would print the
+    same line as a run that cleared it.
     """
     skips = skips if skips is not None else []
     errors, warns = [], []
@@ -893,11 +903,11 @@ def _prove(argv, out_dir, board, ws_durs):
 
     # THE RENDERED CHECKS RUN BY DEFAULT.
     #
-    # They used to be behind `--stills`, and an opt-in gate is not a detector. The consequence was concrete:
-    # two registers in a delivered film parked their own subtitle inside the band the renderer reserves for
-    # the burned caption, this script owns the check that measures exactly that, it was run — and it printed
-    # "OK (static only)". Nobody sees the flag they did not pass. The band violation was found by a human
-    # looking at a frame, which is the one review that does not scale.
+    # An opt-in gate behind `--stills` is not a detector: two registers in a delivered film parked their own
+    # subtitle inside the band the renderer reserves for the burned caption, this script owns the check that
+    # measures exactly that, and without the flag it prints "OK (static only)" — nobody sees the flag they
+    # did not pass. The band violation was found by a human looking at a frame, which is the one review that
+    # does not scale.
     #
     # The static checks read source; only a RENDER can see what the frame actually looks like, which is the
     # half that matters. `--no-stills` still exists for a fast source-only pass while authoring.
@@ -913,8 +923,8 @@ def _prove(argv, out_dir, board, ws_durs):
         film_shots, declared = _ws.shot_names(out_dir), _bw["declared"]
         # `problems` carries the scan's own HITS (a baked word it found) alongside a genuine "could not run"
         # reason, in the SAME list — treating any non-empty list as "the scan is broken" disabled the frame
-        # check's declared-word allowance for every beat the moment ONE baked word existed anywhere in the
-        # workshop. Only a problem ending in workshop.NOTHING_CHECKED means the scan itself did not run.
+        # check entirely for every beat the moment ONE baked word existed anywhere in the workshop. Only a
+        # problem ending in workshop.NOTHING_CHECKED means the scan itself did not run.
         declared_broken = [p for p in _bw["problems"] if p.endswith(_ws.NOTHING_CHECKED)]
         dna_hues = _dna_hues(board)
         beat_by_index = {i + 1: (sl.get("shot_props") or {})
