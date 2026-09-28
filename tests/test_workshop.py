@@ -683,6 +683,20 @@ def test_an_ambiguous_top_level_field_is_excluded_while_a_nested_one_is_found():
     assert sorted(ws.object_refs(src, props)) == [("art", {"id": "Puck"}), ("steps[0].screen.object", {"id": "Phone"})]
 
 
+def test_a_destructuring_rename_does_not_hide_a_top_level_object_slot():
+    """A register that destructures its own top-level ObjectRef prop under a local name (`object: OBJECT`,
+    HudReticle's own style) reads, by NAME alone, as the same field typed twice — once `ObjectRef` in its
+    declaration, once whatever follows the colon in the rename — which is the shape `_ambiguous_slot_keys`
+    reads as "typed otherwise elsewhere" and excludes: validate.py's own build check never saw a malformed
+    `"object": "a caption"` because of it. Named by its host, the TOP-LEVEL scan of the real declaration
+    overrules that false ambiguity; without a host name the old exclusion still applies, and a NESTED
+    occurrence of the same name keeps it regardless (test_an_ambiguous_top_level_field_is_excluded_while_a_
+    nested_one_is_found, unchanged by this)."""
+    src = "export const X: React.FC<{object?: ObjectRef}> = ({object: OBJECT}) => null;"
+    assert ws.object_refs(src, {"object": "a caption"}) == []
+    assert ws.object_refs(src, {"object": "a caption"}, "X") == [("object", "a caption")]
+
+
 def test_required_in_film_is_read_from_the_register():
     assert ws.required_in_film("export const REQUIRED_IN_FILM = ['object', 'stations'] as const;") == {"object", "stations"}
     assert ws.required_in_film("export const X = 1;") == set()

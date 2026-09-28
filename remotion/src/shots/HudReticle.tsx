@@ -126,9 +126,9 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
   const targetLead = leading(TARGET, 1);
   const targetPx = fitBlockPx(TARGET, targetW, innerR * 0.9, Math.round(84 * s), {usable: 1, leading: targetLead});
   // WITH AN OBJECT the reticle locks onto a THING the film drew (runtime/objectSlot): it sits in the upper part of
-  // the inner ring and the name moves under it, smaller, still inside the ring (every corner of the box is within
-  // 0.97 of the inner radius; the name's block ends by 0.7 of it). The object's clock is the lock-on window,
-  // 0.1–0.6, so it is whole before the lock at 0.76.
+  // the inner ring and the name moves under it, smaller, still inside the ring (every corner of the box is about
+  // 0.971 of the inner radius — hypot(0.55, 0.8); the name's block ends by 0.7 of it). The object's clock is the
+  // scan, 0.1–0.6, so it is whole well before the lock at 0.76.
   const objSide = innerR * 1.1;
   const objBox = {x: cx - objSide / 2, y: cy - innerR * 0.8, w: objSide, h: objSide};
   const nameW = Math.round(innerR * 1.3);

@@ -93,7 +93,7 @@ def _unfed_text(shot, payload, frame, proof, beat, out_dir, scope, declared):
     import workshop as _ws
     src = _ws.shot_source(out_dir, shot)
     props = copy.deepcopy({k: v for k, v in payload.items() if k not in ("dna", "aspect")})
-    for _p, ref in _ws.object_refs(src, props):
+    for _p, ref in _ws.object_refs(src, props, shot):
         if isinstance(ref, dict) and isinstance(ref.get("id"), str):
             del ref["id"]
     fed = ([x for x in cjk_type_qa._string_leaves(props) if x.strip()]
@@ -1005,7 +1005,7 @@ def _prove(argv, out_dir, board, ws_durs):
             # BUILT THINGS TAKE EVERY WORD FROM THE FILM — asked of the frame. On a film-local register every run
             # is asked; on a library register holding an object, only what is inside the object's slot. One more
             # render, only on beats that show a built thing.
-            _held = [ref for _p, ref in _ws.object_refs(_ws.shot_source(out_dir, shot), s.get("shot_props") or {})
+            _held = [ref for _p, ref in _ws.object_refs(_ws.shot_source(out_dir, shot), s.get("shot_props") or {}, shot)
                      if isinstance(ref, dict)]
             if shot in film_shots or _held:
                 if declared_broken:

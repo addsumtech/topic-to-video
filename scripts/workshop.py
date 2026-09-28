@@ -328,21 +328,33 @@ def _ambiguous_slot_keys(src):
     return amb
 
 
-def object_refs(src, props):
+def object_refs(src, props, host_name=None):
     """[(path, value)] for every object reference in a beat's props: each value under a key the register types
     ObjectRef, at any depth (a device's `steps[0].screen.object`, a compare's `left.object`). A key the source
     types ObjectRef and NOTHING else hands back every non-None value under it, well-formed or not — validate.py's
     build check is the one that reports a malformed one (a plain string where a ref belongs), so it must still
     see it here; a key the source ALSO types otherwise elsewhere is ambiguous, and only a dict-shaped value
     under it counts (a register's top-level `object` can be a caption, with a differently-typed `object` field
-    nested inside some other type in the same file)."""
+    nested inside some other type in the same file).
+
+    `host_name`, when given, names `src`'s own exported component. A key `_top_level_object_ref_keys` finds
+    typed ObjectRef at brace depth 1 of THAT declaration is a real slot, proven by the declaration itself — so
+    at the TOP LEVEL of `props`, every non-None value under such a key is reported regardless of the ambiguity
+    heuristic above. A register commonly RENAMES its own top-level prop while destructuring it (`object:
+    OBJECT`), which reads, by name alone, exactly like the same field typed a second time and made every value
+    under it ambiguous: HudReticle's `object: OBJECT` hid a malformed `"object": "a caption"` from validate.py's
+    build check this way, the one `art` already gets. A NESTED occurrence of the same name keeps the ambiguity
+    rule either way — a caption `object` at the top level beside a differently-typed `object` nested in some
+    other type must still exclude the top-level one."""
     keys, ambiguous, found = slot_keys(src), _ambiguous_slot_keys(src), []
+    top = set(_top_level_object_ref_keys(src, host_name)) if host_name else set()
 
     def walk(v, path):
         if isinstance(v, dict):
             for k, x in v.items():
                 p = "%s.%s" % (path, k) if path else str(k)
-                if k in keys and x is not None and (isinstance(x, dict) or k not in ambiguous):
+                if k in keys and x is not None and (
+                        (not path and k in top) or isinstance(x, dict) or k not in ambiguous):
                     found.append((p, x))
                 else:
                     walk(x, p)
@@ -411,7 +423,7 @@ def uses(slides, out_dir, refs=None):
         if isinstance(shot, str) and shot:
             out.setdefault(shot, []).append(num)
         beat_refs = (refs[pos - 1] if refs is not None else
-                     object_refs(shot_source(out_dir, shot), s.get("shot_props") or {}))
+                     object_refs(shot_source(out_dir, shot), s.get("shot_props") or {}, shot))
         for _path, ref in beat_refs:
             if isinstance(ref, dict) and isinstance(ref.get("id"), str):
                 lst = out.setdefault(ref["id"], [])

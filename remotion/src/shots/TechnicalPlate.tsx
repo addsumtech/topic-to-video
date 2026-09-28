@@ -9,7 +9,8 @@
 // plate says "look at the thing itself, here are its parts".
 //
 // The object is described by props as a list of STROKES in unit space (0..1 across, 0..1 down), so any film
-// can draw its own object without a new register: `parts` positions the callouts, `strokes` draws the thing.
+// can draw its own object without a new register: `parts` positions the callouts, `strokes` draws the thing —
+// or, for a drawing the film already built in its workshop, `art` takes the strokes' place in that same square.
 //
 // THE DRAWING AND ITS CALLOUTS ARE ONE CLAIM, SO THEY COME FROM ONE PLACE. Both props used to default
 // independently: a film that passed its own `parts` but no `strokes` got the demo BICYCLE, numbered with the
@@ -17,9 +18,9 @@
 // no `parts` got "the part that does the work" and "the part that steers" pinned to the bicycle's wheel and
 // head-tube coordinates on top of it. A part without `x`/`y` was also placed at the drawing's centre
 // (`p.x ?? 0.5`), and parts past the fourth started their fade at t >= 1 and were never seen at all. Now: pass
-// both `strokes` and `parts` or neither (neither is the standalone demo); every part needs `x` and `y`; a
-// stroke missing a coordinate it needs throws; and the callout timing is spread over however many parts there
-// are, up to six.
+// `strokes` and `parts` together, or `art` (a drawing the film built) and `parts` together, or neither (neither
+// is the standalone demo); every part needs `x` and `y`; a stroke missing a coordinate it needs throws; and
+// the callout timing is spread over however many parts there are, up to six.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -164,20 +165,12 @@ export const TechnicalPlate: React.FC<{
   // wheels overlapping. The drawing keeps its shape and is centred in the sheet; only the SHEET reflows.
   const unit = Math.min(fieldW, fieldH);
   const ox = fx0 + (fieldW - unit) / 2, oy = fy0 + (fieldH - unit) / 2;
-  const ux = (u: number) => ox + u * unit;
-  const uy = (v: number) => oy + v * unit;
-
-  const sheet = easeOutCubic(clamp01(seg(t, 0.02, 0.18)));
-  const draw = clamp01(seg(t, 0.14, 0.62));
-  const land = easeOutExpo(clamp01(seg(t, 0.66, 0.88)));
-  const lw = Math.max(2, Math.round(W * 0.0026));
-
-  const nS = Math.max(1, STROKES.length);
 
   // THE PLATE CAPTION IS TWO BLOCKS AT FIXED OFFSETS, and both assume one line — the same shape as
   // ProfileGrowth's, and it fails the same way: a Chinese object name wraps, the note starts inside it, and
   // the pair reaches 66px into the caption band. Derived from the lines the copy takes in `fieldW`, clamped
-  // to the zone, and identical to the old offsets for one-line Latin.
+  // to the zone, and identical to the old offsets for one-line Latin. Computed here, ahead of the drawing
+  // square below, because a drawing the film made is capped against it.
   const OBJ_PX = Math.round(W * 0.028), PNOTE_PX = Math.round(W * 0.0145);
   const objH = wrapLines(String(object ?? ''), OBJ_PX, fieldW) * OBJ_PX * 1.2;
   const pnoteH = note ? wrapLines(String(note), PNOTE_PX, fieldW) * PNOTE_PX * 1.4 : 0;
@@ -186,6 +179,25 @@ export const TechnicalPlate: React.FC<{
   const plateCapTop = Math.min(bottom + H * 0.030,
     contentBottom(W, H) - plateBlockH - (inkBlockH(PNOTE_PX) - PNOTE_PX));
   const plateNoteTop = plateCapTop + objH + pGap;
+
+  // A DRAWING THE FILM MADE USUALLY PAINTS ITS WHOLE BOX, where a hand-drawn stroke leaves room around itself —
+  // so at a full-height square (16:9, 4:3) a two-line name and note can rise into it: the identity film's own
+  // copy started 16px into the square for a one-line pair, ~55px for a two-line note, ~81px for both two lines.
+  // `art`'s own square is capped so its bottom never passes `plateCapTop`; the strokes path never asked for
+  // more than `unit` and keeps it, unchanged. The callouts map through the SAME square the art is actually
+  // drawn in (`ux`/`uy`, just below), so a part at y=0.9 still lands on the drawing rather than in the space
+  // this capping frees up.
+  const artUnit = art ? Math.max(1, Math.min(unit, plateCapTop - H * 0.02 - oy)) : unit;
+  const artX = art ? fx0 + (fieldW - artUnit) / 2 : ox;
+  const ux = (u: number) => artX + u * artUnit;
+  const uy = (v: number) => oy + v * artUnit;
+
+  const sheet = easeOutCubic(clamp01(seg(t, 0.02, 0.18)));
+  const draw = clamp01(seg(t, 0.14, 0.62));
+  const land = easeOutExpo(clamp01(seg(t, 0.66, 0.88)));
+  const lw = Math.max(2, Math.round(W * 0.0026));
+
+  const nS = Math.max(1, STROKES.length);
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
@@ -204,7 +216,7 @@ export const TechnicalPlate: React.FC<{
         border: `${hair}px solid ${LINE}`, boxSizing: 'border-box'}} />
 
       {/* the object, drawn stroke by stroke */}
-      {art ? <ObjectSlot object={art} box={{x: ox, y: oy, w: unit, h: unit}} t={draw} /> : STROKES.map((st, i) => {
+      {art ? <ObjectSlot object={art} box={{x: artX, y: oy, w: artUnit, h: artUnit}} t={draw} /> : STROKES.map((st, i) => {
         const on = easeOutCubic(clamp01(draw * nS - i));
         if (on <= 0) return null;
         if (st.kind === 'circle') {

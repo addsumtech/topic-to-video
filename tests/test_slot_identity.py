@@ -83,6 +83,18 @@ def _prepared(shot, aspect, public):
     return out
 
 
+# The two new registers' film-like prop set, each named once and reused across the product/null DNA entries
+# below (mirroring _prepared() being called twice for the device registers) rather than repeating the literal.
+_TECHNICAL_PLATE_FILM = lambda a, pub: {"kicker": "图版", "object": "咖啡压粉器", "plateNo": "图 3",
+    "strokes": [{"kind": "circle", "x": 0.5, "y": 0.45, "r": 0.25},
+                {"kind": "bar", "x": 0.3, "y": 0.72, "w": 0.4, "h": 0.05, "fill": True},
+                {"kind": "line", "x": 0.5, "y": 0.2, "x2": 0.5, "y2": 0.05}],
+    "parts": [{"n": 1, "label": "压粉面", "x": 0.5, "y": 0.45}, {"n": 2, "label": "底座", "x": 0.5, "y": 0.74, "side": "left"}],
+    "note": "它把粉压实"}
+_HUD_RETICLE_FILM = lambda a, pub: {"target": "冲煮头", "readouts": ["水温 · 稳定", "压力 · 上升", "流速 · 均匀"],
+    "title": "锁定", "scanLabel": "扫描中", "lockLabel": "● 已锁定"}
+
+
 # {register: [(label, make_props(aspect, public_dir), dna)]} — its standalone preview and a film-like set,
 # slot unset either way; DNA varies across entries so "product", a light DNA and the null DNA are each
 # exercised on both a demo and a film-prepared case, without crossing all three with every frame.
@@ -100,16 +112,13 @@ CASES = {
         ("film", lambda a, pub: _prepared("DeviceHero", a, pub), None),
     ],
     "TechnicalPlate": [("demo", lambda a, pub: {}, "product"),
-                       ("film", lambda a, pub: {"kicker": "图版", "object": "咖啡压粉器", "plateNo": "图 3",
-                                                "strokes": [{"kind": "circle", "x": 0.5, "y": 0.45, "r": 0.25},
-                                                            {"kind": "bar", "x": 0.3, "y": 0.72, "w": 0.4, "h": 0.05, "fill": True},
-                                                            {"kind": "line", "x": 0.5, "y": 0.2, "x2": 0.5, "y2": 0.05}],
-                                                "parts": [{"n": 1, "label": "压粉面", "x": 0.5, "y": 0.45},
-                                                          {"n": 2, "label": "底座", "x": 0.5, "y": 0.74, "side": "left"}],
-                                                "note": "它把粉压实"}, "product")],
+                       ("demo", lambda a, pub: {}, LIGHT_DNA),
+                       ("film", _TECHNICAL_PLATE_FILM, "product"),
+                       ("film", _TECHNICAL_PLATE_FILM, None)],
     "HudReticle": [("demo", lambda a, pub: {}, "product"),
-                   ("film", lambda a, pub: {"target": "冲煮头", "readouts": ["水温 · 稳定", "压力 · 上升", "流速 · 均匀"],
-                                            "title": "锁定", "scanLabel": "扫描中", "lockLabel": "● 已锁定"}, "product")],
+                   ("demo", lambda a, pub: {}, LIGHT_DNA),
+                   ("film", _HUD_RETICLE_FILM, "product"),
+                   ("film", _HUD_RETICLE_FILM, None)],
 }
 SLOTTED = sorted(CASES)
 
@@ -178,8 +187,8 @@ def _entry_frames(name, label, props, dur):
         drawing = _mid_frame_checked(dur, 0.14, 0.62)          # inside seg(t, 0.14, 0.62)'s stroke-by-stroke draw
         return [("drawing", drawing, ("16:9", "9:16")), settled]
     if name == "HudReticle":
-        lockon = _mid_frame_checked(dur, 0.1, 0.6)             # inside the object's own lock-on window
-        return [("lock-on", lockon, ("16:9", "9:16")), settled]
+        motion = _mid_frame_checked(dur, 0.42, 0.60)           # a readout slides in, the scan label fades
+        return [("motion", motion, ("16:9", "9:16")), settled]
     if label == "demo":
         # DEMO_STEPS = [screen, tap], spread evenly by scheduled()'s own formula: slot = (1-ENTRY_T)/2, and
         # step i=1 (the tap) acts across ta=ENTRY_T+1.35*slot .. t1=ENTRY_T+1.9*slot.

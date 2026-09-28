@@ -1381,7 +1381,7 @@ def _idiom_world(meta, slides, errors, warnings, out_dir=None):
         """(ids, worlds, is_stage) for one beat's shot: every object it holds, that object's own declared
         world (None when it has none), and whether the shot is a STAGE (see the docstring)."""
         src = _ws.shot_source(out_dir, shot)
-        ids = [ref["id"] for _p, ref in _ws.object_refs(src, sp or {})
+        ids = [ref["id"] for _p, ref in _ws.object_refs(src, sp or {}, shot)
                if isinstance(ref, dict) and isinstance(ref.get("id"), str)]
         worlds = [film_prov.get(o) or lib_obj_prov.get(o) for o in ids]
         is_stage = bool(src) and bool(_ws.required_in_film(src) & _ws.slot_keys(src))
@@ -2837,7 +2837,7 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
         shot = s.get("shot")
         src = _ws.shot_source(out_dir, shot)
         sp = s.get("shot_props") if isinstance(s.get("shot_props"), dict) else {}
-        refs = _ws.object_refs(src, sp) if src else []
+        refs = _ws.object_refs(src, sp, shot) if src else []
         beat_refs.append((shot, src, sp, refs))
         for _path, ref in refs:
             if shot and isinstance(ref, dict) and isinstance(ref.get("id"), str):

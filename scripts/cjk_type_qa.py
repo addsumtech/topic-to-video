@@ -630,9 +630,8 @@ def cjk_props(name, offset=0):
             continue
         if re.fullmatch(r"ObjectRef(\|undefined|\|null)?", t):
             # AN OBJECT SLOT IS NOT COPY. It names a thing a film drew (runtime/objectSlot); left unset the register
-            # shows its own picture, which is what a library sweep measures. Filed untestable it read as a coverage
-            # hole on every register that can hold an object — and no register had one until now, so no existing
-            # fixture changes.
+            # shows its own picture, which is what a library sweep measures. Filed untestable, it would read as a
+            # coverage hole on every register that can hold an object.
             continue
         if t.startswith("string[][]"):
             # a TABLE, and it must be routed BEFORE the plain string[] rule that startswith() also matches:
