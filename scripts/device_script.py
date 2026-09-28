@@ -107,6 +107,36 @@ def _frame_problems(props):
     return probs
 
 
+_PAGE_REFUSAL = "the register's own preview, never a film's — give an image, a video, or a screen the film drew"
+
+
+def _object_ref_problem(o, where=None):
+    """None, or the sentence for a screen's `object` that is not {"id": "<Name>", "props": {...}} — the ONE
+    shape check `_hero_screen_problems` (its own screen, no `where`) and `check_shape` (`where` names the
+    step) both refuse an object by. `props` is not inspected here: an object's OWN props are the object's
+    problem (runtime/objectSlot.tsx's own checks, exercised through the render), not a script's shape."""
+    if isinstance(o, dict) and isinstance(o.get("id"), str) and o["id"].strip():
+        return None
+    lead = ("%s: a screen's" % where) if where else "`screen`"
+    return '%s object is {"id": "<Name>", "props": {...}}%s (got %r)' \
+        % (lead, "" if where else " — a screen the film drew", o)
+
+
+def _text_target(st, k):
+    """Whether step `st`'s own target(s) for kind `k` are text-shaped (`{"text": ...}`) — the field that
+    HOLDS the target differs by kind: `into` for `type`, both ends of `from`/`to` for `drag` (the drag dict
+    itself has neither as a direct key, so checking it alone misses a text target inside either end), the
+    value at `k` for `tap`/`click`/`mark`. Shared by check_shape (an object screen has no screenshot to find
+    text in) and prepare (a missing screenshot leaves no image to measure a text target against either)."""
+    if k == "type":
+        vals = [st.get("into")]
+    elif k == "drag" and isinstance(st.get(k), dict):
+        vals = [st[k].get("from"), st[k].get("to")]
+    else:
+        vals = [st.get(k)]
+    return any(isinstance(v, dict) and "text" in v for v in vals)
+
+
 def _hero_screen_problems(props):
     """A film's DeviceHero shows the product's OWN screen — a screenshot or a recording, named by its path — or
     a screen the FILM drew, an object from its workshop. Its skeleton demo is the register's standalone preview
@@ -115,16 +145,13 @@ def _hero_screen_problems(props):
     if src is None:
         return ["DeviceHero needs `screen` — a screenshot (`image`), a recording (`video`) or a screen the film drew (`object`)"]
     if isinstance(src, dict) and "page" in src:
-        return ["`screen` page %r is the register's own preview, never a film's — give an image or a video"
-                % (src.get("page"),)]
+        return ["`screen` page %r is %s" % (src.get("page"), _PAGE_REFUSAL)]
     keys = [k for k in ("image", "video", "object") if isinstance(src, dict) and k in src]
     if len(keys) != 1:
         return ["`screen` is exactly one of image / video / object (got %r)" % (src,)]
     if keys[0] == "object":
-        o = src["object"]
-        if not isinstance(o, dict) or not isinstance(o.get("id"), str) or not o["id"].strip():
-            return ['`screen` object is {"id": "<Name>", "props": {...}} — a screen the film drew (got %r)' % (o,)]
-        return []
+        p = _object_ref_problem(src["object"])
+        return [p] if p else []
     if not isinstance(src[keys[0]], str) or not src[keys[0]].strip():
         return ["`screen` %s is a file path in the out dir (got %r)" % (keys[0], src[keys[0]])]
     return []
@@ -179,12 +206,11 @@ def check_shape(props):
             on_video = srcs[0] == "video"
             on_object = srcs[0] == "object"
             if srcs[0] == "page":
-                probs.append("%s: page %r is the register's own preview, never a film's — give an image or a video"
-                             % (where, src.get("page")))
+                probs.append("%s: page %r is %s" % (where, src.get("page"), _PAGE_REFUSAL))
             elif on_object:
-                o = src["object"]
-                if not isinstance(o, dict) or not isinstance(o.get("id"), str) or not o["id"].strip():
-                    probs.append('%s: a screen\'s object is {"id": "<Name>", "props": {...}} (got %r)' % (where, o))
+                p = _object_ref_problem(src["object"], where)
+                if p:
+                    probs.append(p)
             elif not isinstance(src[srcs[0]], str) or not src[srcs[0]].strip():
                 probs.append("%s: a screen's %s is a file path in the out dir (got %r)" % (where, srcs[0], src[srcs[0]]))
             if st.get("via") not in (None,) + VIAS:
@@ -204,9 +230,7 @@ def check_shape(props):
             # from its `t`. There is no field to measure and no long screenshot to scroll.
             probs.append("%s (%s): the screen is drawn by the film (an object) — animate the %s inside the object "
                          "from its `t`, or show a screenshot" % (where, k, "typing" if k == "type" else "scroll"))
-        elif on_object and any(isinstance(v, dict) and "text" in v for v in
-                               ([st.get(k)] + ([st[k].get("from"), st[k].get("to")]
-                                               if k == "drag" and isinstance(st.get(k), dict) else []))):
+        elif on_object and _text_target(st, k):
             probs.append("%s (%s): a text target needs a screenshot to find the text in — on a film-drawn screen, "
                          "target [x, y]" % (where, k))
         elif k == "type":
@@ -223,7 +247,7 @@ def check_shape(props):
             p = _target_problem(st[k], where)
             probs.extend([p] if p else [])
             if k == "mark" and not on_video:
-                probs.append("%s: `mark` is for recordings — a screenshot is tapped, not marked" % where)
+                probs.append("%s: `mark` is for recordings — everything else is tapped, not marked" % where)
             if k == "mark" and "video" in st and not isinstance(st["video"], (int, float)):
                 probs.append("%s: `video` is the recording's moment in seconds (got %r)" % (where, st["video"]))
         elif k == "scroll":
@@ -463,8 +487,7 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
             acc = min(1.0, acc + float(st["scroll"]))
             continue
         if cur_path is None or cur_path not in facts:
-            if k in ("type", "tap", "click", "drag", "mark") and any(isinstance(v, dict) and "text" in v
-                                                                    for v in (st.get(k), st.get("into"))):
+            if k in ("type", "tap", "click", "drag", "mark") and _text_target(st, k):
                 probs.append("%s: a text target needs a screenshot on the screen" % where)
             continue
         f = facts[cur_path]

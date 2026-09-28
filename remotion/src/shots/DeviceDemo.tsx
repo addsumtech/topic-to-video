@@ -2,8 +2,8 @@
 //
 // THE ARGUMENT SHAPE: "here, this is what you do." A product film that says "search last week's feedback,
 // open the summary, scroll to the pattern" makes a claim about an interface — that it works in these steps.
-// This shows the product's OWN screens (the user's screenshots or recording) inside a phone, tablet, laptop
-// or monitor, and performs each step when the voice names it
+// This shows the product's OWN screens (the user's screenshots or recording) — or a screen the film drew —
+// inside a phone, tablet, laptop or monitor, and performs each step when the voice names it
 // (docs/superpowers/specs/2026-09-26-device-layer-design.md).
 //
 // The script is PREPARED before it reaches here (scripts/device_script.py): every target is a point on the
@@ -129,9 +129,11 @@ export const DeviceDemo: React.FC<{
   };
   const layer = (x: {st: Step; i: number}) => {
     const src = x.st.screen!;
-    // A SCREEN THE FILM DREW (runtime/objectSlot): an interface or a scene built for this beat, drawn at the
-    // screen's own size on the beat's clock. Its taps target coordinates — scripts/device_script.py refuses a
-    // text target, typing and scrolling on it, since there is no screenshot to find text in or to scroll.
+    // A SCREEN THE FILM DREW (runtime/objectSlot): an interface or a scene built for this beat, fit to a box
+    // the size of the screen — letterboxed on the screen's own black if the object declares a META.aspect —
+    // on the beat's clock. Its taps still target [x, y] fractions of the SCREEN, not the letterboxed picture:
+    // scripts/device_script.py refuses a text target, typing and scrolling on it, since there is no
+    // screenshot to find text in or to scroll.
     if (src.object) return <ObjectSlot object={src.object} box={{x: 0, y: 0, w: s.w, h: s.h}} />;
     if (src.image) {
       if (!x.st.imageW || !x.st.imageH) {

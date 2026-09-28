@@ -64,7 +64,7 @@ def test_a_demo_object_screen_is_scheduled_and_the_camera_holds(tmp_path):
     assert "focus" not in out["steps"][1]              # nothing to measure a push-in against
 
 
-def test_validate_names_an_unknown_object_on_a_device_screen(tmp_path):
+def test_validate_names_an_unknown_object_on_a_device_hero_screen(tmp_path):
     import validate as v
     (tmp_path / "audio").mkdir()
     (tmp_path / "audio" / "01.mp3").write_bytes(b"\0")
@@ -75,21 +75,47 @@ def test_validate_names_an_unknown_object_on_a_device_screen(tmp_path):
     assert any("names object 'NoSuchUi'" in e for e in errs), errs
 
 
+def test_validate_names_an_unknown_object_on_a_device_demo_screen(tmp_path):
+    """DeviceHero's `object` sits one level down (`screen.object`); DeviceDemo's sits two (`steps[i].screen.object`)
+    — object_refs() walks a beat's props against the register's REAL source, so this pins that the deeper path is
+    found too, not just asserted true of the shallower one."""
+    import validate as v
+    (tmp_path / "audio").mkdir()
+    (tmp_path / "audio" / "01.mp3").write_bytes(b"\0")
+    board = {"meta": {"language": "zh", "renderer": "remotion", "design_dna": "product", "captions": False},
+             "slides": [{"index": 1, "shot": "DeviceDemo", "narration": "这就是它。", "audio": "audio/01.mp3",
+                         "duration": 3.0, "shot_props": {"device": "phone",
+                                                          "steps": [{"screen": {"object": {"id": "NoSuchUi"}}},
+                                                                    {"tap": [0.5, 0.5]}]}}]}
+    errs = v.evaluate(board, str(tmp_path))["errors"]
+    assert any("names object 'NoSuchUi'" in e for e in errs), errs
+
+
 @needs_toolchain
 def test_a_film_drawn_screen_shows_on_the_phone_and_on_the_laptop(tmp_path):
+    """Coverage alone proves some magenta is on screen somewhere; the object's box must be the device's own
+    screen rect (device_geometry's own numbers) — not spilling onto the bezel, not short of an edge."""
+    import device_geometry as dg
     out = tmp_path / "film"
     d = out / "workshop" / "objects"
     d.mkdir(parents=True)
     (d / "WsPhoneUi.tsx").write_text(PHONE_UI % {"name": "WsPhoneUi"}, encoding="utf-8")
     ws.write_index(str(out))
     env = _env(ws.workshop_dir(str(out)))
-    demo, _w = ds.prepare({"device": "phone", "steps": [{"screen": SCREEN}, {"tap": [0.5, 0.5]}]}, shot="DeviceDemo",
-                          out_dir=str(out), dur_frames=180, fps=30, W=1920, H=1080, lang="zh")
-    for comp, props, frame in (("DeviceDemo", demo, 150),
-                               ("DeviceHero", {"device": "laptop", "screen": SCREEN}, 130)):
+    demo, _w = ds.prepare({"device": "phone", "look": "flat", "steps": [{"screen": SCREEN}, {"tap": [0.5, 0.5]}]},
+                          shot="DeviceDemo", out_dir=str(out), dur_frames=180, fps=30, W=1920, H=1080, lang="zh")
+    for comp, props, frame, device, look in (
+        ("DeviceDemo", demo, 150, "phone", "flat"),
+        ("DeviceHero", {"device": "laptop", "look": "flat", "screen": SCREEN}, 130, "laptop", "flat"),
+    ):
         png = tmp_path / (comp + ".png")
         r = _still(comp, png, dict(props, dna="product"), env, frame=frame)
         assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
         a = np.asarray(Image.open(str(png)).convert("RGB")).astype(int)
-        magenta = int(((a[..., 0] > 200) & (a[..., 1] < 60) & (a[..., 2] > 200)).sum())
-        assert magenta > a.shape[0] * a.shape[1] * 0.03, (comp, magenta)
+        magenta = (a[..., 0] > 200) & (a[..., 1] < 60) & (a[..., 2] > 200)
+        assert magenta.sum() > a.shape[0] * a.shape[1] * 0.03, (comp, int(magenta.sum()))
+        ys, xs = np.nonzero(magenta)
+        bbox = (int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max()))
+        s = dg.geometry(device, look, 1920, 1080)["screen"]
+        want = (s["x"], s["y"], s["x"] + s["w"] - 1, s["y"] + s["h"] - 1)
+        assert all(abs(g - w) <= 1 for g, w in zip(bbox, want)), (comp, bbox, want)

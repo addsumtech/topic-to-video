@@ -1,10 +1,10 @@
 # DeviceDemo
 
-**Identity:** a phone, tablet, laptop or monitor showing the product's OWN screens — the user's screenshots or recording — and performing one operation on them: type into a field, tap, scroll, drag. Each step happens on the word the narration says; the camera pushes in wherever a screenshot's text would be too small to read.
+**Identity:** a phone, tablet, laptop or monitor showing the product's OWN screens — the user's screenshots or recording — or a screen the film drew, and performing one operation on them: type into a field, tap, scroll, drag. Each step happens on the word the narration says; the camera pushes in wherever a screenshot's text would be too small to read.
 
-**Use when:** the beat's claim is how an interface is USED — "search, open, scroll to it" — and real screens exist. **Not when:** there are no real screens (a concept, an unbuilt product — use an interface register such as `SurfaceCarousel`, or wait for the app templates); not a list of features in one place (`PointerTour`); not the product as an object with nothing done on it (`DeviceHero`).
+**Use when:** the beat's claim is how an interface is USED — "search, open, scroll to it" — shown on the product's real screens, or on a screen the film draws for an interface that does not exist yet. **Not when:** not a list of features in one place (`PointerTour`); not the product as an object with nothing done on it (`DeviceHero`).
 
-**Motion core:** the device is there from the first frame, showing its first screen; then only the steps move — a ripple where a finger lands, typed words at the caret, a fling that settles. The push-in is computed, not styled: it zooms exactly as far as the target's text needs to match the caption, capped at 4×.
+**Motion core:** the device is there from the first frame, showing its first screen; then only the steps move — a ripple where a finger lands, typed words at the caret, a fling that settles. The push-in is computed, not styled: it zooms exactly as far as the target's text needs to match the caption, capped at 4×. A screen the film drew gets the beat's own `t` (0→1 across the whole beat — the same clock a numeric `at` uses), not the moment ITS screen appears: on a later screen part of its animation has already played.
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
@@ -27,9 +27,11 @@
 - A placeholder set in lowercase x-height letters only ("username") types at about half size: the typed size is taken from the placeholder's ink, and those letters have no ascenders to measure. A capitalised or CJK placeholder is exact.
 - A label that nearly fills its button (a 44 px label in a 56 px button) is measured as the whole button — about 1.8× its ink — so the push-in stops short, silently: around such a label the button is the only ground the measure sees. A label with room above and below it inside its button is exact.
 - A screen the film drew (an `object` from its workshop) is tapped and dragged by coordinates only: there is no screenshot to find text in, and typing or scrolling on it is the object's own animation — both are refused by name. The camera holds on it: there is no text height to push in to.
+- An object that declares a `META.aspect` narrower or wider than the screen is letterboxed inside it, on the screen's own black — a 16:9 object on a phone screen fills about a quarter of its height. Taps still target `[x, y]` fractions of the whole SCREEN, not the letterboxed picture, so a tap meant for the object's own content must account for the bars.
+- A `tablet` with an object screen never turns to landscape: `_oriented` reads a screenshot's or recording's own file to decide, and an object has no file — it stays whatever `device` says (portrait, by default).
 
 **Step script:** `shot_props.steps` is a list, one object per step, each naming exactly one kind:
-- `{"screen": {"image": "<file in the out dir>"}}` or `{"screen": {"video": "<file>", "from": 0, "to": 6.5}}` (seconds; `to` required) — the first step is always a screen; a later one replaces the current screen, `"via": "push"` (default) or `"fade"`.
+- `{"screen": {"image": "<file in the out dir>"}}`, `{"screen": {"video": "<file>", "from": 0, "to": 6.5}}` (seconds; `to` required), or `{"screen": {"object": {"id": "<Name>", "props": {...}}}}` — a screen the film drew — the first step is always a screen; a later one replaces the current screen, `"via": "push"` (default) or `"fade"`.
 - `{"type": "上周的反馈", "into": T}` — Latin one key at a time, Chinese two glyphs a keystroke, or your own chunks as a list of strings.
 - `{"tap": T}` / `{"click": T}` — one step, two spellings: a phone or tablet draws a ring, a laptop or monitor moves its cursor and clicks.
 - `{"scroll": 0.6}` — a fraction of a LONG screenshot's overflow, added to what was scrolled before (downward only); a screenshot no longer than the screen has nothing to scroll and is refused.

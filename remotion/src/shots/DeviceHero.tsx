@@ -1,7 +1,8 @@
 // SHOT · DeviceHero — the product on its device, its screen shown whole: the beat that says "this is it".
 // Family A. The device rises into place and, in the realistic look, turns a few degrees toward the viewer and
 // settles; nothing is performed on it (that is DeviceDemo). The screen is the user's screenshot or recording,
-// prepared by scripts/device_script.py, or — standalone — the register's own skeleton page with no text.
+// or a screen the film drew, prepared by scripts/device_script.py — or, standalone, the register's own
+// skeleton page with no text.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic, ENTRY_T} from '../runtime/motion';
@@ -19,7 +20,7 @@ type HeroScreen = {image?: string; imageW?: number; imageH?: number; video?: str
 export const DeviceHero: React.FC<{
   device?: DeviceKind;   // phone | tablet | tablet-landscape | laptop | monitor
   look?: DeviceLook;     // flat | real | screen — absent: real on a dark beat, flat on a light one
-  screen?: HeroScreen;   // the screenshot or recording, prepared by scripts/device_script.py
+  screen?: HeroScreen;   // the screenshot, recording, or screen the film drew, prepared by scripts/device_script.py
   placement?: Placement; // center | left | right
   kicker?: string;       // an optional spaced label above the device
 }> = ({device = 'laptop', look, screen, placement = 'center', kicker = ''} = {}) => {

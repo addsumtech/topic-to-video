@@ -1,10 +1,10 @@
 # DeviceHero
 
-**Identity:** the product on its device — phone, tablet, laptop or monitor — rising into place with its screen shown whole: the user's own screenshot or recording. In the realistic look it turns a few degrees toward the viewer and settles.
+**Identity:** the product on its device — phone, tablet, laptop or monitor — rising into place with its screen shown whole: the user's own screenshot or recording, or a screen the film drew. In the realistic look it turns a few degrees toward the viewer and settles.
 
-**Use when:** the beat says THIS is the product — an introduction, a reveal, a return to the product after an argument. **Not when:** something is done on the screen (`DeviceDemo`); not several surfaces of one product (`SurfaceCarousel`); not when there is no real screen to show.
+**Use when:** the beat says THIS is the product — an introduction, a reveal, a return to the product after an argument — shown on the product's real screen, or on a screen the film draws for an interface that does not exist yet. **Not when:** something is done on the screen (`DeviceDemo`); not several surfaces of one product (`SurfaceCarousel`).
 
-**Motion core:** one rise and, in the realistic look, one small turn — both finished by a third of the beat; then the device holds and the screen carries the frame (a recording keeps playing).
+**Motion core:** one rise and, in the realistic look, one small turn — both finished by a third of the beat; then the device holds and the screen carries the frame (a recording keeps playing). A screen the film drew gets that same beat `t`, so its own animation's first third plays under the rise, not from its own zero.
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
@@ -19,6 +19,8 @@
 - A recording longer than the beat can hold at 2× is refused rather than sped past legibility.
 - The entrance never leaves the rect the geometry fitted above the caption band: the device grows upward from its bottom edge, its perspective is centred on that edge, and in the realistic look it is drawn a few percent smaller so its turn still fits.
 - A film's hero must name its `screen` — a screenshot, a recording, or a screen the film drew; its skeleton demo is the standalone preview only, and a missing or `page` screen is refused. A recording without `spans` is refused, not drawn black.
+- An object that declares a `META.aspect` narrower or wider than the screen is letterboxed inside it, on the screen's own black — a 16:9 object on a phone screen fills about a quarter of its height.
+- A `tablet` with an object screen never turns to landscape: `_oriented` reads a screenshot's or recording's own file to decide, and an object has no file — it stays whatever `device` says (portrait, by default).
 
 **Measured:** 9.7% ink (clip median) · 48.4% footprint · 0.0 motion · 8.7% ink on the settled frame. Measured on the register's own demo — a laptop showing skeleton rows — so the numbers describe the device, not a film's screen, which is what fills it in a film.
 
