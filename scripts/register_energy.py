@@ -248,7 +248,17 @@ def source_hash(name, ignore_follows=False):
 # changed. A sweep is a two-and-a-half hour render, so a check that cries wolf here is a check that gets
 # answered by re-measuring the whole library or by ignoring it; this repo has already recorded both.
 # What a reader actually depends on is the file's CODE plus its OWN row, so that is what is hashed.
-_LUMA_ENTRY = re.compile(r"^\s*(?:'|\")?([A-Za-z][A-Za-z0-9_]*)(?:'|\")?\s*:\s*'(?:dark|mid|light)'\s*,?",
+#
+# THE ROW'S OWN TRAILING COMMENT IS PART OF THE ROW, NOT THE SHARED CODE. `register_shot.py` scaffolds a
+# freshly registered, not-yet-measured row as `Name: 'dark',   // PROVISIONAL — ...`. Matching only up to
+# the optional comma leaves that trailing `//...` sitting in the text `_dep_bytes` strips entries OUT of —
+# which is exactly the "file's CODE" component every OTHER register's hash folds in, so one freshly
+# registered row moves the code hash for every reader whose pixels never changed: the same "cries wolf"
+# failure the table-narrowing above this line exists to prevent, reached through its one gap. The trailing
+# comment is consumed as part of its own row's match, the same way `_GROUND_TABLE` discards a row's whole
+# span rather than only its `key: value`.
+_LUMA_ENTRY = re.compile(r"^\s*(?:'|\")?([A-Za-z][A-Za-z0-9_]*)(?:'|\")?\s*:\s*'(?:dark|mid|light)'\s*,?"
+                         r"[ \t]*(?://[^\n]*)?",
                          re.M)
 
 
