@@ -77,7 +77,9 @@ and why the build list states `means` and `accept` before anything is drawn.
 
 1. Write the build-list entry first: `means` (what the viewer must see) and `accept` (how it is judged).
 2. `workshop.py <out_dir> new-object <Name> --means "…"`, draw it, `workshop.py <out_dir> still <Name>` — LOOK at the
-   settled frame, caption hidden.
+   settled frame, caption hidden. A screen on a device is previewed with `--host DeviceDemo` (or `DeviceHero`):
+   the still takes the beat that shows it and prepares its step script the way the film plays it; `--frame N`
+   looks at a tap's moment. `still` writes one `_stills/<Name>.png` per name, so copy it aside before a second host.
 3. `workshop.py check` until it is clean; then `validate.py`, render, and the film gates.
 4. The critic judges it against `means` and `accept` (S15). At delivery the user decides whether it is promoted
    (`scripts/promote.py`).

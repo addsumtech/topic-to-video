@@ -810,3 +810,46 @@ def test_the_workshop_never_writes_outside_its_folder(tmp_path, monkeypatch):
     after = {os.path.join(dp, f) for dp, _dn, fn in os.walk(str(tmp_path)) for f in fn}
     new = sorted(os.path.relpath(p, out) for p in after - before)
     assert all(p.startswith("workshop" + os.sep) for p in new), new
+
+
+def _device_board(out, steps, narration="打开它，点一下开始。", duration=None):
+    beat = {"index": 1, "shot": "DeviceDemo", "narration": narration,
+            "shot_props": {"device": "phone", "steps": steps}}
+    if duration:
+        beat["duration"] = duration
+    with open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8") as fh:
+        json.dump({"meta": {"renderer": "remotion", "language": "zh", "aspect": "16:9"}, "slides": [beat]}, fh,
+                  ensure_ascii=False)
+    return beat
+
+
+def test_still_on_a_device_host_renders_the_beat_that_shows_the_object(tmp_path, monkeypatch):
+    """A screen the film drew is previewed on its device the way the film plays it: DeviceDemo refuses a step
+    script nobody prepared, so still() takes the beat that shows the object and prepares it as the film does —
+    with no props there is no top-level slot to place it under, and the still used to stop there."""
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, objects=["WsDisc"])
+    _device_board(out, [{"screen": {"object": {"id": "WsDisc"}}}, {"tap": [0.5, 0.9], "at": 0.6}])
+    ws.still(out, "WsDisc", host="DeviceDemo")
+    steps = _stills_payload(out, "WsDisc")["steps"]
+    assert steps[0]["screen"]["object"]["id"] == "WsDisc"
+    assert all(k in steps[1] for k in ("t0", "ta", "t1")), steps
+
+
+def test_still_given_a_device_beats_own_props_prepares_its_cued_script(tmp_path, monkeypatch):
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, objects=["WsDisc"])
+    beat = _device_board(out, [{"screen": {"object": {"id": "WsDisc"}}}, {"tap": [0.5, 0.9], "at": {"cue": "点一下开始"}}],
+                         duration=6.0)
+    ws.still(out, "WsDisc", host="DeviceDemo", props=beat["shot_props"])
+    tap = _stills_payload(out, "WsDisc")["steps"][1]
+    assert isinstance(tap["at"], float) and tap["ta"] == tap["at"], tap
+
+
+def test_still_on_a_device_host_no_beat_shows_names_what_to_pass(tmp_path, monkeypatch):
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, objects=["WsDisc"])
+    _device_board(out, [{"screen": {"image": "screen.png"}}])
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.still(out, "WsDisc", host="DeviceDemo")
+    assert any("no beat" in p and "--props" in p for p in e.value.problems), e.value.problems

@@ -875,6 +875,45 @@ def _board(out_dir):
         return {}
 
 
+# The registers whose screen is a step of a script prepared from the narration (scripts/device_script.py): their
+# own render refuses a script nobody prepared, so an object on their screen is previewed through a beat.
+DEVICE_HOSTS = ("DeviceDemo", "DeviceHero")
+
+
+def _prepared_device_beat(slide, out_dir, src, host):
+    """A device beat's props as the film plays them: cues resolved, the step script prepared. A beat that has no
+    duration yet (before tts) is laid out on the host's own length, its cues placed by the narration's text."""
+    import render_remotion as rr
+    try:
+        if slide.get("duration"):
+            return rr.film_shot_props(slide, out_dir)
+        secs = _required_duration(src, host) / 30.0
+        narration = slide.get("narration") or ""
+        p = rr.resolve_cue_props(dict(slide.get("shot_props") or {}), out_dir, None, narration, secs, 30)
+        return rr._prepared_device_props(slide, p, out_dir, secs, 30)
+    except SystemExit as e:                       # a refusal the film itself would print, kept as a sentence
+        raise WorkshopError([str(e)]) from None
+
+
+def _device_still_props(board, out_dir, name, host, src, props):
+    """An object on a device's screen, previewed from the beat that shows it — with `props`, the beat whose own
+    shot_props are exactly those; without, the first beat that shows `name` on `host`. Props no beat carries are
+    prepared on the host's own length, where a cue has no narration to land on and is refused by name."""
+    for s in board.get("slides") or []:
+        if s.get("shot") != host:
+            continue
+        sp = s.get("shot_props") or {}
+        if props is not None and sp != props:
+            continue
+        if any(isinstance(ref, dict) and ref.get("id") == name for _p, ref in object_refs(src, sp, host)):
+            return _prepared_device_beat(s, out_dir, src, host)
+    if props is None:
+        raise WorkshopError(["no beat shows %s on %s, whose screen is a step of its script — pass --props with the "
+                             "host's full props (a script whose screen step holds {\"object\": {\"id\": \"%s\"}})"
+                             % (name, host, name)])
+    return _prepared_device_beat({"shot": host, "narration": "", "shot_props": props}, out_dir, src, host)
+
+
 def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None, slot=None):
     """Render `name`'s settled frame on its own into <workshop>/_stills/<name>.png and return that path — a shot
     as its own composition (props: the given ones, else its first beat's), an object on `host`.
@@ -901,7 +940,9 @@ def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None
         if src is None:
             raise WorkshopError(["%s is not a register with a slot this film can use" % host])
         placed = any(isinstance(ref, dict) and ref.get("id") == name for _p, ref in object_refs(src, props or {}))
-        if placed:
+        if host in DEVICE_HOSTS and (props is None or placed):
+            payload = _device_still_props(board, out_dir, name, host, src, props)
+        elif placed:
             payload = dict(props)
         else:
             top = _top_level_object_ref_keys(src, host)
