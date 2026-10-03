@@ -65,7 +65,12 @@ def build(out_dir):
 
     sys.path.insert(0, _HERE)
     import shot_director as sd
-    fams = collections.Counter(sd.FAMILY.get(s) for s in shots)
+    import workshop as _ws
+    # A FILM'S OWN SHOT BELONGS TO NO LIBRARY FAMILY. Counted with the library's, its family comes back None and
+    # the census cannot sort None against the family letters — a crash on exactly the films that built a shot.
+    film_shots = _ws.shot_names(out_dir)
+    fams = collections.Counter(sd.FAMILY.get(s) or "?" for s in shots if s not in film_shots)
+    built_shots = collections.Counter(s for s in shots if s in film_shots)
     fam_size = collections.Counter(sd.FAMILY.values())
 
     L = []
@@ -131,7 +136,7 @@ def build(out_dir):
     for _pos, s in enumerate(slides, start=1):
         b = _pos
         sh = s.get("shot") or "-"
-        L.append("| %d | %s | %s | %s |" % (b, sh, sd.FAMILY.get(sh, "?"),
+        L.append("| %d | %s | %s | %s |" % (b, sh, "built (this film)" if sh in film_shots else sd.FAMILY.get(sh, "?"),
                                             str(s.get("narration", ""))[:60].replace("|", "/")))
     L.append("")
     L.append("## 3 · What only you can judge")
@@ -149,8 +154,10 @@ def build(out_dir):
     L.append("**Register reuse** — %s" % (", ".join("%s x%d" % kv for kv in sorted(rep, key=lambda x: -x[1]))
                                           or "every beat on its own register"))
     L.append("")
-    L.append("**Families** — %d of %d used: %s"
-             % (len(fams), len(fam_size), ", ".join("%s x%d" % (f, n) for f, n in sorted(fams.items()))))
+    L.append("**Families** — %d of %d used: %s%s"
+             % (len(fams), len(fam_size), ", ".join("%s x%d" % (f, n) for f, n in sorted(fams.items())),
+                ("; and %d beat(s) on this film's own shots (%s), which belong to no library family"
+                 % (sum(built_shots.values()), ", ".join(sorted(built_shots)))) if built_shots else ""))
     thin = sorted({f for f in fams if fam_size.get(f, 0) <= 2})
     if thin:
         L.append("")

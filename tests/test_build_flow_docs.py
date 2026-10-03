@@ -77,3 +77,26 @@ def test_every_workshop_command_in_the_docs_puts_the_film_before_the_subcommand(
         assert e.code == 2
     else:
         raise AssertionError("workshop.py accepted a subcommand where the film's folder belongs")
+
+
+def test_the_critic_brief_reads_a_film_that_built_its_own_shot(tmp_path, monkeypatch):
+    """A film-built shot belongs to no library family. Counted as one, its family is None, and sorting None
+    against the family letters crashes the brief — on exactly the films the build flow exists for."""
+    import critic_brief
+    import workshop as ws
+    from test_workshop_bundle import SHOT
+    monkeypatch.setattr(critic_brief, "_run", lambda *a, **k: "(stubbed)")
+    d = tmp_path / "workshop" / "shots"
+    d.mkdir(parents=True)
+    (d / "WsGradient.tsx").write_text(SHOT % {"name": "WsGradient"}, encoding="utf-8")
+    board = {"meta": {"renderer": "remotion", "language": "zh",
+                      "build_list": [{"id": "WsGradient", "kind": "shot", "beats": [2], "slot": "own",
+                                      "means": "rates spread with position", "accept": "caption hidden, it spreads"}]},
+             "slides": [{"index": 1, "shot": "SpinningProton", "narration": "一"},
+                        {"index": 2, "shot": "WsGradient", "narration": "二",
+                         "shot_fit": {"verdict": "build", "ref": "WsGradient"}}]}
+    (tmp_path / "storyboard.json").write_text(json.dumps(board, ensure_ascii=False), encoding="utf-8")
+    text = critic_brief.build(str(tmp_path))
+    assert "| 2 | WsGradient | built (this film) |" in text, text
+    assert "and 1 beat(s) on this film's own shots (WsGradient)" in text, text
+    assert ws.shot_names(str(tmp_path)) == {"WsGradient"}
