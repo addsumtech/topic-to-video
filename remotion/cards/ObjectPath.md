@@ -20,6 +20,8 @@
 
 **Refuses:** fewer than 2 or more than 5 stations; a station with no name; a `route` other than `line`/`arc`; `stations` that is not a list.
 
+**Measured:** 1.4% ink (clip median) · 14.4% footprint · 0.0003 motion · 1.4% ink on the settled frame. Measured on the register's own preview — objects/DemoForm — so the numbers describe the stage with its preview form, not a film's object.
+
 **Reference:** `remotion/src/shots/ObjectPath.tsx`
 
-**Provenance:** motion-graphics (a beat holding an object is judged on the object's own world). **Family:** I.
+**Provenance:** motion-graphics (a beat holding an object is judged on the object's own world). **Family:** I. **Ground:** `bg` (`DNA_GROUND_TOKEN`), measured light.

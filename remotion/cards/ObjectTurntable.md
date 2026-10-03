@@ -22,6 +22,8 @@
 
 **Refuses:** a `sweep` outside 20–360; a sweep over 120 on an object that does not draw its own 3D; an object id nobody defines.
 
+**Measured:** 1.5% ink (clip median) · 8.6% footprint · 0.0008 motion · 1.5% ink on the settled frame. Measured on the register's own preview — objects/DemoForm — so the numbers describe the stage with its preview form, not a film's object.
+
 **Reference:** `remotion/src/shots/ObjectTurntable.tsx`
 
-**Provenance:** motion-graphics (a beat holding an object is judged on the object's own world). **Family:** K.
+**Provenance:** motion-graphics (a beat holding an object is judged on the object's own world). **Family:** K. **Ground:** `bg` (`DNA_GROUND_TOKEN`), measured light.

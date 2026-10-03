@@ -23,6 +23,8 @@
 
 **Refuses:** a malformed `labels` (not a list, more than six, a label with no `text`, without `x`/`y` in 0..1, or a `side` that is not `'left'`/`'right'`); an `object` that is not `{id, props?}`, names no object that exists, or sets `w`/`h`/`t`/`dna`/`yaw` in its props; a `title`/`note` (plus the key, in portrait or square) that cannot fit above the caption band even at half size — the message names the exact px it needed and the px the frame had, not just "too much text"; the same for a wide frame's side callouts, PER COLUMN — a short column is never refused (or shrunk) for a long one on the OTHER side, and a refusal names its own column's shortfall.
 
+**Measured:** 1.3% ink (clip median) · 7.8% footprint · 0.0018 motion · 1.3% ink on the settled frame. Measured on the register's own preview — objects/DemoForm — so the numbers describe the stage with its preview form, not a film's object.
+
 **Reference:** `remotion/src/shots/ObjectStage.tsx`
 
-**Provenance:** motion-graphics (a beat holding an object is judged on the object's own world). **Family:** E.
+**Provenance:** motion-graphics (a beat holding an object is judged on the object's own world). **Family:** E. **Ground:** `bg` (`DNA_GROUND_TOKEN`), measured light.

@@ -186,7 +186,11 @@
   "VoxelBuild": "bg",
   "WireGlobe": "bg",
   "WordTunnel": "bg",
-  "WorksThrough": "bg"
+  "WorksThrough": "bg",
+  "ObjectStage": "bg",
+  "ObjectCompare": "bg",
+  "ObjectPath": "bg",
+  "ObjectTurntable": "bg"
  },
  "unclassified": [
   "KineticManifesto",
@@ -194,7 +198,7 @@
   "PaperSlot"
  ],
  "failed": {},
- "universe": 187,
+ "universe": 191,
  "_source": {
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "4ba43ae79892f212",
@@ -379,6 +383,10 @@
   "VoxelBuild": "3ae03a5d4c40ecf2",
   "WireGlobe": "682228cf46421f58",
   "WordTunnel": "d019a23b69a16ceb",
-  "WorksThrough": "e2ad62366962a853"
+  "WorksThrough": "e2ad62366962a853",
+  "ObjectCompare": "42eb2fde844335ea",
+  "ObjectPath": "a1a84840a7430f2a",
+  "ObjectStage": "0f6462d80c4bca61",
+  "ObjectTurntable": "248735f48c850597"
  }
 }

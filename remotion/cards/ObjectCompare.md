@@ -22,6 +22,8 @@
 
 **Refuses:** an object that is not `{id, props?}` or that nobody defines; an `at` that is not `{x, y}` in 0..1; on a tall (stacked) frame, labels and a difference that still do not fit above the caption band at half size — the message names the px they needed and the px the frame had.
 
+**Measured:** 2.2% ink (clip median) · 18.9% footprint · 0.0017 motion · 2.2% ink on the settled frame. Measured on the register's own preview — objects/DemoForm — so the numbers describe the stage with its preview form, not a film's object.
+
 **Reference:** `remotion/src/shots/ObjectCompare.tsx`
 
-**Provenance:** motion-graphics (a beat holding objects is judged on their own world). **Family:** H.
+**Provenance:** motion-graphics (a beat holding objects is judged on their own world). **Family:** H. **Ground:** `bg` (`DNA_GROUND_TOKEN`), measured light.

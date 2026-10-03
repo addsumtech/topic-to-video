@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 187,
+  "_universe": 191,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -203,7 +203,11 @@
     "WorksThrough": "e2ad62366962a853",
     "SameStuffChanged": "a3d68fd218d23828",
     "DeviceDemo": "24036fbaad9912fb",
-    "DeviceHero": "01d9d9de243ca22b"
+    "DeviceHero": "01d9d9de243ca22b",
+    "ObjectCompare": "42eb2fde844335ea",
+    "ObjectPath": "a1a84840a7430f2a",
+    "ObjectStage": "0f6462d80c4bca61",
+    "ObjectTurntable": "248735f48c850597"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -392,7 +396,11 @@
     "WorksThrough": "f62d819aea214f09",
     "SameStuffChanged": "2a38e543f0976890",
     "DeviceDemo": "06d58b283ec3de16",
-    "DeviceHero": "921666e8c8995ee6"
+    "DeviceHero": "921666e8c8995ee6",
+    "ObjectCompare": "e53ddce0b8f1d353",
+    "ObjectPath": "fc562b2332d8c98f",
+    "ObjectStage": "3054bdc2c957d88c",
+    "ObjectTurntable": "1afd6f0831bd4ffe"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -842,6 +850,22 @@
     "NeuralField": {
       "reach": 0.18,
       "prop_diff": 0.8
+    },
+    "ObjectCompare": {
+      "reach": 0.216,
+      "prop_diff": 1.0
+    },
+    "ObjectPath": {
+      "reach": 0.43,
+      "prop_diff": 0.75
+    },
+    "ObjectStage": {
+      "reach": 0.46,
+      "prop_diff": 1.0
+    },
+    "ObjectTurntable": {
+      "reach": 0.281,
+      "prop_diff": 1.0
     },
     "OdometerRoll": {
       "reach": 0.212,

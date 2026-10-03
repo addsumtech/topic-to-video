@@ -187,7 +187,11 @@
     "WordTunnel": "d019a23b69a16ceb",
     "WorksThrough": "e2ad62366962a853",
     "DeviceDemo": "24036fbaad9912fb",
-    "DeviceHero": "01d9d9de243ca22b"
+    "DeviceHero": "01d9d9de243ca22b",
+    "ObjectCompare": "42eb2fde844335ea",
+    "ObjectPath": "a1a84840a7430f2a",
+    "ObjectStage": "0f6462d80c4bca61",
+    "ObjectTurntable": "248735f48c850597"
   },
   "_fed": {
     "MuseumLabel": "4befec7f07",
@@ -216,7 +220,7 @@
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 187,
+  "_universe": 191,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -1001,6 +1005,34 @@
       "luma_range": 0.016,
       "seconds": 5.2,
       "footprint": 0.514
+    },
+    "ObjectCompare": {
+      "motion_p75": 0.0017,
+      "ink_median": 0.022,
+      "luma_range": 0.008,
+      "seconds": 5.5,
+      "footprint": 0.189
+    },
+    "ObjectPath": {
+      "motion_p75": 0.0003,
+      "ink_median": 0.014,
+      "luma_range": 0.001,
+      "seconds": 6.0,
+      "footprint": 0.144
+    },
+    "ObjectStage": {
+      "motion_p75": 0.0018,
+      "ink_median": 0.013,
+      "luma_range": 0.006,
+      "seconds": 5.5,
+      "footprint": 0.078
+    },
+    "ObjectTurntable": {
+      "motion_p75": 0.0008,
+      "ink_median": 0.015,
+      "luma_range": 0.004,
+      "seconds": 6.0,
+      "footprint": 0.086
     },
     "OdometerRoll": {
       "motion_p75": 0.0021,

@@ -1650,6 +1650,62 @@
    "why": []
   },
   {
+   "shot": "ObjectCompare",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9992850378787879,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "ObjectPath",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9993963068181818,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "ObjectStage",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9992921401515151,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "ObjectTurntable",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9996780303030303,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "OdometerRoll",
    "bandY": {
     "light": 0.8879231810569763,
@@ -2920,10 +2976,14 @@
   "WordTunnel": "d6d3e69c7243da19",
   "WorksThrough": "e2ad62366962a853",
   "DeviceDemo": "6a0c23196b5249af",
-  "DeviceHero": "e1dca1e1de165427"
+  "DeviceHero": "e1dca1e1de165427",
+  "ObjectStage": "0f6462d80c4bca61",
+  "ObjectCompare": "42eb2fde844335ea",
+  "ObjectPath": "a1a84840a7430f2a",
+  "ObjectTurntable": "248735f48c850597"
  },
  "failed": {},
- "universe": 187,
+ "universe": 191,
  "inkRefused": {
   "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
   "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",
