@@ -276,7 +276,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 *(J · Experimental type — RETIRED: its one shot folded into P; the letter J is free for a future language.)*
 
 ## K · Generative — computed fields, not gradients
-215. **ObjectTurntable** — a thing the film drew turns on a platter so its shape in the round is seen; a `turns` object draws its own 3D, any other turns as a card (±60°). *Use: "this is what it is like from every side".* `object, sweep, title, note, kicker` · `object` required in a film; sweep 20–360 (a flat object ≤ 120).
+215. **ObjectTurntable** — a thing the film drew turns on a platter so its shape in the round is seen; a `turns` object draws its own 3D, any other turns as a card (±60°). *Use: "this is what it is like from every side".* `object, sweep, title, note, kicker` · `object` required in a film; sweep 20–360 either way — negative turns it clockwise seen from above (a flat object ≤ 120).
 68. **FlowField** — hundreds of streamlines trace a static curl field and draw on in waves, revealing an ambient generative field with a centred wordmark. *Use: flow / everything moving as one / ambient hero.*
 71. **LowPolyForm** — a jittered low-poly triangle mesh assembles centre-out, colour-graded across a duotone, with a wordmark over it. *Use: faceted crystalline hero / "many facets, one form".*
 83. **KaleidoMandala** — an N-fold mirror-symmetric kaleidoscope of shapes blooms + rotates with a colour cycle, settling behind a wordmark. *Use: order out of many / an ornate ambient hero.*

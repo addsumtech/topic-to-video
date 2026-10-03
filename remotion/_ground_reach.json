@@ -1701,7 +1701,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9996780303030303,
+   "moved": 0.9997514204545455,
    "ok": true,
    "why": []
   },
@@ -2980,7 +2980,7 @@
   "ObjectStage": "0f6462d80c4bca61",
   "ObjectCompare": "42eb2fde844335ea",
   "ObjectPath": "a1a84840a7430f2a",
-  "ObjectTurntable": "248735f48c850597"
+  "ObjectTurntable": "7461ac846b7a1baa"
  },
  "failed": {},
  "universe": 191,

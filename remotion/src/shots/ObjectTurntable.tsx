@@ -5,7 +5,9 @@
 // object that draws its own 3D (META.turns — its points projected with runtime/project3d, like objects/DemoForm)
 // is handed the yaw and turns for real. Any other object is turned as a CARD with CSS perspective, at most ±60°,
 // so its back never faces the camera; a `sweep` past 120° on such an object is refused, not quietly flattened.
-// The rim's ticks move with the yaw either way, so the turn reads even when the object itself is nearly symmetric.
+// The rim's ticks move with the yaw either way, so the turn reads even when the object itself is nearly symmetric —
+// and they travel the SAME WAY the object turns (rimTickDeg). A negative sweep turns it the other way, for an object
+// whose motion has a sense of its own (a gear, a precessing spin).
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
@@ -22,19 +24,27 @@ const BG_D0 = '#eef0f3', FG_D0 = '#1b1f27', DIM_D0 = '#5d6573', ACC_D0 = '#2f5bd
 const DEMO_OBJECT: ObjectRef = {id: DEMO_ID};
 const TICKS = 24;
 
+/** Where rim mark `k` sits on the platter's ellipse, in degrees of its screen angle (0 = the right end, 90 = the
+ *  near edge, since screen y runs DOWN), with the platter turned `yawDeg`. A rising yaw turns the object
+ *  counter-clockwise seen from above — runtime/project3d's yawPoint takes +x toward the back, and so does the
+ *  card's CSS rotateY — which on this ellipse is a FALLING angle. Adding the yaw would send the marks round
+ *  the platter the opposite way to the object they mark. */
+export const rimTickDeg = (k: number, yawDeg: number): number => (k * 360) / TICKS - yawDeg;
+
 export const ObjectTurntable: React.FC<{
   object?: ObjectRef;   // the thing the film drew (runtime/objectSlot); a `turns` object is handed the yaw
-  sweep?: number;       // degrees turned across the beat, 20-360 (a flat object: at most 120)
+  sweep?: number;       // degrees turned across the beat, 20-360 either way; negative turns it clockwise seen from above (a flat object: at most 120)
   title?: string;       // what it is, under the platter
   note?: string;        // one line under the title
   kicker?: string;      // a spaced label in the title band
 }> = ({object: OBJECT = DEMO_OBJECT, sweep = 80, title = '', note = '', kicker = ''} = {}) => {
-  if (!(typeof sweep === 'number' && Number.isFinite(sweep) && sweep >= 20 && sweep <= 360)) {
-    throw new Error(`ObjectTurntable: \`sweep\` is the turn in degrees, 20-360 — got ${JSON.stringify(sweep)}`);
+  if (!(typeof sweep === 'number' && Number.isFinite(sweep) && Math.abs(sweep) >= 20 && Math.abs(sweep) <= 360)) {
+    throw new Error(`ObjectTurntable: \`sweep\` is the turn in degrees, 20-360 either way (negative turns it ` +
+      `clockwise seen from above) — got ${JSON.stringify(sweep)}`);
   }
   const entry = useObjectEntry(OBJECT);
   const turns = entry.meta?.turns === true;
-  if (!turns && sweep > 2 * MAX_CARD_TURN) {
+  if (!turns && Math.abs(sweep) > 2 * MAX_CARD_TURN) {
     throw new Error(`ObjectTurntable: "${OBJECT.id}" is drawn flat, so it can turn at most ${2 * MAX_CARD_TURN}° ` +
       `(±${MAX_CARD_TURN}°) before its back faces the camera — give a sweep of ${2 * MAX_CARD_TURN} or less, or ` +
       'draw it in 3D from `yaw` and set META.turns (see objects/DemoForm).');
@@ -101,7 +111,7 @@ export const ObjectTurntable: React.FC<{
             fallback, or a film-authored ground coerceDna never pins to one polarity. */}
         <ellipse cx={pcx} cy={pcy} rx={pw / 2} ry={ph / 2} fill={separated(dna?.bg ?? BG_D0, FG)} stroke={LINE} strokeWidth={sw} />
         {Array.from({length: TICKS}).map((_, k) => {   // @decor: the rim's marks carry the turn, not a reading
-          const a = ((k * 360) / TICKS + yawDeg) * (Math.PI / 180);
+          const a = rimTickDeg(k, yawDeg) * (Math.PI / 180);
           const front = Math.sin(a) > 0;
           const x = pcx + Math.cos(a) * (pw / 2), y = pcy + Math.sin(a) * (ph / 2);
           const x2 = pcx + Math.cos(a) * (pw / 2) * 0.92, y2 = pcy + Math.sin(a) * (ph / 2) * 0.92;
