@@ -129,3 +129,112 @@ def test_search_builds_a_depicts_query_only_when_given_one(monkeypatch):
     assert seen["q"] == "a cat"
     F.search("a cat", depicts="Q146")
     assert seen["q"].startswith("haswbstatement:P180=Q146 "), seen["q"]
+
+
+# ── a failed request is not an empty result ─────────────────────────────────────────────────────────────
+# Commons answers a burst of searches with HTTP 429. fetch() used to swallow it and return None, which reads
+# as "no license-clean image exists" and degrades a documentary beat on a busy network. These drive the real
+# request path through a mocked urlopen, so they exercise the retry and the failure message end to end.
+
+import email.message
+import io
+import urllib.error
+
+_SEARCH_ANSWER = {"query": {"pages": {"1": {"title": "File:River and city.jpg", "imageinfo": [{
+    "thumburl": "https://upload.example/river.jpg", "url": "https://upload.example/river-full.jpg",
+    "mime": "image/jpeg", "thumbwidth": 1600, "thumbheight": 1100,
+    "descriptionurl": "https://commons.example/File:River_and_city.jpg",
+    "extmetadata": {"LicenseShortName": {"value": "CC BY-SA 3.0"}, "Artist": {"value": "A Photographer"}},
+}]}}}}
+_IMAGE_BYTES = b"\xff\xd8" + b"jpeg" * 600
+
+
+def _http_error(url, code, retry_after=None):
+    headers = email.message.Message()
+    if retry_after is not None:
+        headers["Retry-After"] = str(retry_after)
+    return urllib.error.HTTPError(url, code, "Too Many Requests" if code == 429 else "Error", headers, None)
+
+
+def _fake_commons(failures):
+    """A urlopen stand-in: each URL kind ('api' or 'file') first raises the queued errors, then answers."""
+    calls = []
+
+    def urlopen(req, timeout=None):
+        url = req.full_url if hasattr(req, "full_url") else str(req)
+        kind = "api" if "api.php" in url else "file"
+        calls.append(kind)
+        queue = failures.get(kind) or []
+        if queue:
+            raise queue.pop(0)(url)
+        body = json.dumps(_SEARCH_ANSWER).encode() if kind == "api" else _IMAGE_BYTES
+        return io.BytesIO(body)
+    return urlopen, calls
+
+
+def test_a_rate_limited_search_is_retried_and_the_image_still_arrives(tmp_path, monkeypatch):
+    urlopen, calls = _fake_commons({"api": [lambda u: _http_error(u, 429, retry_after=2)]})
+    monkeypatch.setattr(F.urllib.request, "urlopen", urlopen)
+    waits = []
+    monkeypatch.setattr(F, "_sleep", waits.append, raising=False)
+    out = tmp_path / "river.jpg"
+    meta = F.fetch("Shenzhen River", str(out))
+    assert meta is not None, "one 429 from Commons made fetch() report that no image exists"
+    assert out.read_bytes() == _IMAGE_BYTES
+    assert meta["artist"] == "A Photographer" and json.load(open(str(out) + ".json"))["license"] == "CC BY-SA 3.0"
+    assert calls == ["api", "api", "file"], calls          # the search was asked again, once
+    assert waits == [2.0], "the server's Retry-After (2 s) was not the wait used: %r" % waits
+
+
+def test_a_persistent_rate_limit_fails_loud_and_never_reads_as_nothing_found(tmp_path, monkeypatch):
+    error = getattr(F, "FetchError", None)
+    assert error is not None, "imagefetch has no distinct failure for a request Commons did not answer"
+    urlopen, calls = _fake_commons({"api": [lambda u: _http_error(u, 429)] * 50})
+    monkeypatch.setattr(F.urllib.request, "urlopen", urlopen)
+    waits = []
+    monkeypatch.setattr(F, "_sleep", waits.append, raising=False)
+    with pytest.raises(error) as got:
+        F.fetch("Shenzhen River", str(tmp_path / "river.jpg"))
+    msg = str(got.value)
+    assert got.value.kind == "rate-limit" and "429" in msg and "rate-limiting" in msg, msg
+    assert "NOT a finding" in msg and "no license-clean image found" not in msg, msg
+    assert len(calls) == F._RETRIES + 1, "the retries are not bounded: %d requests" % len(calls)
+    assert waits == [F._BACKOFF_S * 2 ** i for i in range(F._RETRIES)], waits   # backoff with no Retry-After
+    assert not (tmp_path / "river.jpg").exists()
+
+
+def test_the_cli_reports_a_rate_limit_as_a_failure_not_as_an_empty_search(tmp_path, monkeypatch, capsys):
+    urlopen, _calls = _fake_commons({"api": [lambda u: _http_error(u, 429)] * 50})
+    monkeypatch.setattr(F.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(F, "_sleep", lambda s: None, raising=False)
+    monkeypatch.setattr(sys, "argv", ["imagefetch.py", "Shenzhen River", str(tmp_path / "river.jpg")])
+    with pytest.raises(SystemExit) as code:
+        F.main()
+    out = capsys.readouterr()
+    assert code.value.code == 2, "exit %r — the same code as an empty search" % code.value.code
+    assert "no license-clean image found" not in out.out + out.err
+    assert "rate-limit" in out.err and "429" in out.err, out.err
+
+
+def test_a_missing_file_is_skipped_for_the_next_candidate_without_waiting(tmp_path, monkeypatch):
+    two = {"query": {"pages": {
+        "1": {"title": "File:gone.jpg", "imageinfo": [dict(_SEARCH_ANSWER["query"]["pages"]["1"]["imageinfo"][0],
+                                                             thumburl="https://upload.example/gone.jpg")]},
+        "2": {"title": "File:here.jpg", "imageinfo": [dict(_SEARCH_ANSWER["query"]["pages"]["1"]["imageinfo"][0],
+                                                             thumburl="https://upload.example/here.jpg")]}}}}
+    seen = []
+
+    def urlopen(req, timeout=None):
+        url = req.full_url
+        seen.append(url)
+        if "api.php" in url:
+            return io.BytesIO(json.dumps(two).encode())
+        if url.endswith("gone.jpg"):
+            raise _http_error(url, 404)
+        return io.BytesIO(_IMAGE_BYTES)
+    monkeypatch.setattr(F.urllib.request, "urlopen", urlopen)
+    waits = []
+    monkeypatch.setattr(F, "_sleep", waits.append, raising=False)
+    meta = F.fetch("a river", str(tmp_path / "r.jpg"))
+    assert meta and meta["title"] == "File:here.jpg"
+    assert waits == [] and seen.count("https://upload.example/gone.jpg") == 1   # a 404 is not retried

@@ -11,7 +11,8 @@ free/attributable licenses and record the attribution alongside each file, so th
 AND license-clean. Optional `duotone()` maps an image to the deck's ink→paper palette so a real photo
 blends with a styled deck ("treated to match").
 """
-import os, re, json, hashlib, urllib.request, urllib.parse
+import os, re, sys, json, time, socket, hashlib, http.client, email.utils
+import urllib.error, urllib.request, urllib.parse
 
 _API = "https://commons.wikimedia.org/w/api.php"
 # a descriptive UA is required by the Wikimedia API etiquette
@@ -27,6 +28,101 @@ _BAD_LICENSE = ("non-free", "fair use", "fair-use", "copyright", "all rights",
                 "noncommercial", "non-commercial", "-nc", "noderiv", "-nd")
 
 
+# A FAILED REQUEST IS NOT AN EMPTY RESULT. Commons rate-limits a burst of searches with HTTP 429, and
+# `fetch()` used to swallow that (and every 5xx, timeout and dropped connection) and return None, which its
+# callers read as "nothing license-clean exists" — so a documentary beat was degraded to atmosphere because
+# the network was busy for a few seconds. A transient failure is now retried with backoff, honouring the
+# server's Retry-After; one that persists raises FetchError, which says what failed and that it is not a
+# search result. None keeps exactly one meaning: Commons answered and nothing usable was in the answer.
+_RETRIES = 3                  # after the first try — four attempts in all
+_BACKOFF_S = 1.5              # the first wait; it doubles on each retry (1.5, 3, 6 seconds)
+_RETRY_AFTER_CAP_S = 30.0     # a server's Retry-After is honoured up to this many seconds per wait
+_TRANSIENT_HTTP = (429, 500, 502, 503, 504)
+_sleep = time.sleep           # a module attribute so a test can record the waits instead of sleeping them
+
+
+class FetchError(RuntimeError):
+    """A Commons request that failed — rate-limited, a server error, the network — rather than answered.
+
+    `kind` is 'rate-limit', 'server', 'network' or 'error'. It is never a finding about the images that
+    exist: the message says so, and says to run it again."""
+
+    def __init__(self, message, kind="error"):
+        super().__init__(message)
+        self.kind = kind
+
+
+def _transient(err):
+    """True for a failure worth waiting out: HTTP 429/5xx, a timeout, a dropped or refused connection."""
+    if isinstance(err, urllib.error.HTTPError):          # an HTTPError is also a URLError — decide it first
+        return err.code in _TRANSIENT_HTTP
+    return isinstance(err, (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError,
+                            http.client.IncompleteRead, http.client.RemoteDisconnected))
+
+
+def _kind(err):
+    if isinstance(err, urllib.error.HTTPError):
+        return "rate-limit" if err.code == 429 else "server" if err.code >= 500 else "error"
+    return "network" if _transient(err) else "error"
+
+
+def _describe(err):
+    if isinstance(err, urllib.error.HTTPError):
+        return "HTTP %d %s" % (err.code, err.reason or "")
+    return "%s: %s" % (type(err).__name__, getattr(err, "reason", None) or err)
+
+
+def _wait_for(err, attempt):
+    """Seconds to wait before retry `attempt` (0-based): the server's Retry-After when it sent one — as
+    delta-seconds or an HTTP date — capped at _RETRY_AFTER_CAP_S, else exponential backoff."""
+    after = None
+    headers = getattr(err, "headers", None)
+    raw = headers.get("Retry-After") if headers is not None else None
+    if raw:
+        raw = str(raw).strip()
+        if raw.isdigit():
+            after = float(raw)
+        else:
+            try:
+                when = email.utils.parsedate_to_datetime(raw)
+                after = when.timestamp() - time.time()
+            except (TypeError, ValueError, IndexError, OverflowError):
+                after = None
+    if after is not None:
+        return max(0.0, min(_RETRY_AFTER_CAP_S, after))
+    return _BACKOFF_S * (2 ** attempt)
+
+
+def _failure(what, err, tries=1):
+    kind = _kind(err)
+    reason = {"rate-limit": "Wikimedia is rate-limiting these requests",
+              "server": "the Wikimedia server answered with an error",
+              "network": "the network request did not complete",
+              "error": "the request was refused or its answer could not be read"}[kind]
+    return FetchError("%s failed after %d attempt%s: %s — %s. This is a failed request, NOT a finding that "
+                      "no license-clean image exists; wait a minute and run it again."
+                      % (what, tries, "" if tries == 1 else "s", _describe(err), reason), kind)
+
+
+def _get(url, timeout, what):
+    """GET `url` and return its bytes, retrying a transient failure (see the note above). A transient
+    failure that outlasts the retries raises FetchError; any other error propagates as it is, so a caller can
+    tell "this one file is gone" (a 404) from "the service is unreachable"."""
+    last = None
+    for attempt in range(_RETRIES + 1):
+        req = urllib.request.Request(url, headers={"User-Agent": _UA})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read()
+        except Exception as e:                       # noqa: BLE001 — sorted into transient or not just below
+            if not _transient(e):
+                raise
+            last = e
+            if attempt < _RETRIES:
+                _sleep(_wait_for(e, attempt))
+    raise _failure(what, last, _RETRIES + 1)
+
+
 def _strip_html(s):
     return re.sub(r"<[^>]+>", "", s or "").strip()
 
@@ -40,9 +136,7 @@ def _license_ok(lic):
 
 def _http_json(params, timeout=30, api=None):
     url = (api or _API) + "?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={"User-Agent": _UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.load(r)
+    return json.loads(_get(url, timeout, "the Commons API request"))
 
 
 def resolve_concept(term, timeout=12):
@@ -115,10 +209,8 @@ def search(query, limit=10, width=1600, depicts=None):
 
 
 def _download(url, out_path, timeout=60):
-    req = urllib.request.Request(url, headers={"User-Agent": _UA})
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = r.read()
+    data = _get(url, timeout, "downloading %s" % url)
     if len(data) < 1024:
         raise ValueError("download too small")
     with open(out_path, "wb") as f:
@@ -129,13 +221,17 @@ def fetch(query, out_path, width=1600, prefer=None, min_width=800, require_licen
     """Search + download the best license-clean image for `query` → out_path, and write a sidecar
     `out_path + '.json'` with {title, license, artist, source, query} (the ATTRIBUTION — a documentary
     image must carry it). `prefer` biases toward candidates whose title contains that substring
-    (e.g. 'map'). Returns the attribution dict, or None if nothing suitable was found.
+    (e.g. 'map'). Returns the attribution dict, or None when Commons ANSWERED and nothing in the answer was
+    license-clean, wide enough and downloadable. Raises FetchError when Commons could not be asked — a rate
+    limit, a server error, the network — which is never the same thing as "nothing exists".
     Faithfulness: the caller must ensure the QUERY genuinely names the beat's subject — this returns a
     real image OF that subject, so a wrong/over-specific query is a faithfulness risk, not a crash."""
     try:
         cands = search(query, limit=12, width=width)
-    except Exception:
-        return None
+    except FetchError:
+        raise
+    except Exception as e:                           # noqa: BLE001 — a refusal or an unreadable answer
+        raise _failure("the Commons search for %r" % query, e) from e
     if require_license:
         cands = [c for c in cands if _license_ok(c["license"])]
     cands = [c for c in cands if (c.get("width") or 0) >= min_width]
@@ -146,7 +242,9 @@ def fetch(query, out_path, width=1600, prefer=None, min_width=800, require_licen
             continue
         try:
             _download(c["url"], out_path)
-        except Exception:
+        except FetchError:
+            raise          # the service, not this file — every other candidate would wait out the same failure
+        except Exception:  # noqa: BLE001 — this one file is unusable (gone, too small): try the next candidate
             continue
         meta = {"title": c["title"], "license": c["license"], "artist": c["artist"],
                 "credit": c["credit"], "source": c["source"], "query": query}
@@ -207,7 +305,13 @@ def main():
     ap.add_argument("--duotone", nargs=2, metavar=("SHADOW", "HIGHLIGHT"), default=None,
                     help="hex shadow + highlight, e.g. --duotone '#161412' '#f5f2ea'")
     a = ap.parse_args()
-    meta = fetch(a.query, a.out, width=a.width, prefer=a.prefer)
+    try:
+        meta = fetch(a.query, a.out, width=a.width, prefer=a.prefer)
+    except FetchError as e:
+        # exit 2, not 1: the search never ran to an answer, so nothing may be concluded about the subject
+        print(f"[imagefetch] FAILED, no answer from Commons ({e.kind}) for: {a.query}\n             {e}",
+              file=sys.stderr)
+        raise SystemExit(2)
     if not meta:
         print(f"[imagefetch] no license-clean image found for: {a.query}")
         raise SystemExit(1)
