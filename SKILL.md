@@ -1567,6 +1567,14 @@ agent on the beats it points at.
    is a scene nothing measured. Then record the deck's register into the
    cross-deck ledger: `python scripts/register_ledger.py record <out_dir>` (feeds the next video's
    contest with "what the last decks looked like").
+   **Then hand the user the video WHERE THEY LOOK FOR IT — always, for every render they are asked to
+   watch (a sample, a preview, the final cut):** `python3 scripts/deliver.py <out_dir>` copies `out.mp4`
+   (and `out.srt` beside it, same name) to `~/Desktop`, or to `~/Downloads` when the Desktop cannot be
+   written, and prints the path — give the user THAT path, and send the file too when the session can.
+   Never point the user at a file inside this skill's folder, `~/.claude`, a `.superpowers/` or other
+   hidden work folder, or a temp directory: nobody browses there, and handing the user such a path has
+   cost real time more than once. If neither folder can be written (macOS can withdraw access
+   mid-session), ask the user for a folder and pass `--to`.
 10. **Iterate** — any change = edit `storyboard.json`, then re-run render (the per-slide
     clip cache re-renders only changed slides) and tts (`--only N`). For DESIGN experiments
     (register/theme/caption changes that bust many clips), iterate with `render.py --preview`
@@ -1783,6 +1791,8 @@ For anything else, read `references/troubleshooting.md` before guessing.
 - ❌ Read slide bullets aloud verbatim — write *spoken* narration (`references/narration-writing.md`).
 - ❌ Guess a slide's `duration` — it must come from ffprobe via `tts.py`.
 - ❌ Hand-edit `out.mp4`; change `storyboard.json` and re-render (`--only N`).
+- ❌ Tell the user to watch a file inside this skill's folder, `~/.claude`, a hidden work folder or a
+  temp directory — run `scripts/deliver.py <out_dir>` and give them the Desktop/Downloads path it prints.
 - ❌ Add callouts/emphasis boxes by default — they're OFF unless the user asks; never stack them.
 - ❌ Write the OpenAI API key into the storyboard, a script, the manifest, or any persisted/
   committed file — request it fresh each run, pass it only via `OPENAI_API_KEY`/`--key`, and
