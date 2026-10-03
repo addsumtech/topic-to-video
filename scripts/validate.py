@@ -2234,7 +2234,11 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
     elif design_dna is not None and not isinstance(design_dna, dict):
         errors.append("meta.design_dna must be a preset name or an object, got %s" % type(design_dna).__name__)
     if isinstance(design_dna, dict):
-        _miss = [k for k in _DNA_KEYS if not design_dna.get(k)]
+        # MISSING means absent, null or a blank string — not an empty LIST. `decoration: []` is the declaration
+        # "this system speaks no annotation cues", which NEUTRAL, PRODUCT and CINEMATIC themselves make; a
+        # truthiness test called it missing and sent the author to add a decoration nobody wanted.
+        _miss = [k for k in _DNA_KEYS
+                 if design_dna.get(k) is None or (isinstance(design_dna.get(k), str) and not design_dna[k].strip())]
         if _miss:
             warnings.append(f"meta.design_dna is missing core key(s) {_miss} — a Design DNA needs at least "
                             f"{list(_DNA_KEYS)} so every shot can inherit its type + palette (runtime/dna.tsx).")

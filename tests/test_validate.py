@@ -1824,3 +1824,23 @@ def test_family_spread_is_gated_not_left_to_the_rubric():
     # 4. under 10 beats the spread half does not apply — a short film has no room for six
     short = board([wide[0], wide[1], wide[0], wide[1]])
     assert not any("span only" in x for x in _v.evaluate(short, "/tmp")["warnings"])
+
+
+def test_an_empty_decoration_list_is_a_declaration_not_a_missing_key():
+    """`decoration: []` says the design system speaks no annotation cues — the shipped NEUTRAL, PRODUCT and
+    CINEMATIC presets say exactly that. Only an absent, null or blank key is missing."""
+    import validate as _v
+    dna = {"id": "reading-room", "fontDisplay": "Inter", "fontMono": "\"JetBrains Mono\"", "fontBody": "Inter",
+           "bg": "#07090c", "fg": "#e7ecf1", "dim": "#8592a0", "accent": "#ffb347", "accent2": "#5cc8e0",
+           "onAccent": "#1d1205", "surface": "#10151b", "line": "#1c2631", "decoration": [], "motion": "smooth"}
+
+    def missing(d):
+        data = {"meta": {"fps": 30, "renderer": "remotion", "aspect": "16:9", "design_dna": d},
+                "slides": [{"index": 1, "narration": "一句话。", "duration": 5.0, "audio": "a.mp3",
+                            "shot": "SpinningProton", "shot_props": {"label": "x", "sublabel": "y"}}]}
+        return [w for w in _v.evaluate(data, "/tmp")["warnings"] if "missing core key" in w]
+
+    assert missing(dna) == [], missing(dna)
+    for gone in ({k: v for k, v in dna.items() if k != "decoration"}, dict(dna, decoration=None),
+                 dict(dna, accent=""), dict(dna, motion="  ")):
+        assert missing(gone), gone
