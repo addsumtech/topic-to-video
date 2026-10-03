@@ -1362,7 +1362,9 @@ agent on the beats it points at.
     with `imagefetch.attribution_line(meta)` — placed as a DIRECT CHILD of `<body>` (a sibling of
     `.stage`, NOT inside it, so it can't trip `keyframe_qa`'s content-overflow probe). **Fallback:** if
     `fetch` returns None, degrade per the design plan — `atmosphere` if the beat wanted mood, else `none`
-    (never ship a blank). No spend + no checkpoint (it's free + real), but the critic panel (R1e) still
+    (never ship a blank). **A `FetchError` (the CLI's exit 2) is NOT that case:** Commons did not answer — a
+    rate limit, a server error, the network — after the retries. It says nothing about which images exist, so
+    run it again after a minute; never degrade the beat on it. No spend + no checkpoint (it's free + real), but the critic panel (R1e) still
     checks the query matched the subject and the credit is present. Keep it to the 2–4 most physical beats.
 4d. **Author the pages (HTML tiers).** **Skip on the 原样配音 tier** (the user's own slides, `type:"slide"` — the deck IS the design). This is where the deck's `pages/scene_NN.html` are actually
     written — one page per beat from the design plan (form + props + cue anchors + media), on
