@@ -373,6 +373,26 @@ def demo_content_props(shot):
             for pm in re.finditer(r"(\w+)\s*:\s*[A-Z_][A-Za-z0-9_]*\s*=\s*([A-Z][A-Z0-9_]{2,})\b", blk)}
 
 
+def slot_replaces(shot):
+    """{slot: [props it takes the place of]} from the register's own `export const SLOT_REPLACES = {…}`.
+
+    An object slot can stand in for a prop whose default is demo content: TechnicalPlate draws a film's `art`
+    INSTEAD of `strokes` and refuses the two together, so a film using the slot cannot pass `strokes` at all.
+    Without this, demo_content_props reported every such beat as drawing the demo bicycle — a finding the film
+    had no way to clear. The register declares the replacement beside its own slot; nothing here names a
+    register.
+    """
+    try:
+        src = open(_src_path(shot), encoding="utf-8").read()
+    except OSError:
+        return {}
+    m = re.search(r"export const SLOT_REPLACES\b[^=]*=\s*\{(.*?)\}", src, re.S)
+    if not m:
+        return {}
+    return {km.group(1): re.findall(r"['\"](\w+)['\"]", km.group(2))
+            for km in re.finditer(r"(\w+)\s*:\s*\[([^\]]*)\]", m.group(1))}
+
+
 def icon_capable(shot):
     """True when a register can draw a real icon per item — DERIVED from the source, never a hardcoded list.
 
@@ -599,8 +619,11 @@ def static_checks(board, skips=None):
         # is a named constant means the register supplies the content: TechnicalPlate drew a BICYCLE, full
         # size and centred, on a beat about enterprise data isolation, because `strokes` was not passed. The
         # copy checks are blind to it — there is no string to compare.
+        # A slot the beat FILLED that takes a demo prop's place (the register's SLOT_REPLACES) means that prop is
+        # not being drawn at all — the film supplied the content through the slot.
+        taken = {p for slot, ps in slot_replaces(shot).items() if props.get(slot) is not None for p in ps}
         for key, const in demo_content_props(shot).items():
-            if key not in props:
+            if key not in props and key not in taken:
                 errors.append("beat %d (%s): '%s' is unset, so the register draws its own demo content "
                               "(`%s`) — pass the prop or choose a register whose form this beat supplies"
                               % (beat, shot, key, const))

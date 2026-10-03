@@ -68,6 +68,10 @@ const BIKE_PARTS: Part[] = [
 ];
 
 export const MAX_PLATE_PARTS = 6;
+// A SLOT THAT TAKES ANOTHER PROP'S PLACE. `art` is drawn instead of `strokes` and the two are refused together, so a
+// beat that sets `art` has not left `strokes` to the demo bicycle; scripts/shot_proof.py reads this before it calls
+// an unset `strokes` the register's own demo content.
+export const SLOT_REPLACES = {art: ['strokes']} as const;
 
 const isNum = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
 

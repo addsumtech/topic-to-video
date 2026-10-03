@@ -2476,6 +2476,32 @@ def test_a_register_drawing_its_own_demo_object_is_caught():
     assert not any("BIKE" in e for e in errs2), errs2
 
 
+def test_a_slot_that_takes_the_demo_content_s_place_is_not_reported_as_the_demo():
+    """TechnicalPlate draws a film's `art` INSTEAD of `strokes` and refuses the two together, so a beat that
+    fills the slot cannot pass `strokes` at all. The demo-content check read the unset `strokes` as the demo
+    bicycle anyway — an error the film had no way to clear while the frame held its own drawing. The register
+    declares the replacement (SLOT_REPLACES); an EMPTY slot still leaves the bicycle, and is still caught."""
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+        "shot_proof_slot", os.path.join(root, "scripts", "shot_proof.py"))
+    sp = importlib.util.module_from_spec(spec); spec.loader.exec_module(sp)
+
+    assert sp.slot_replaces("TechnicalPlate") == {"art": ["strokes"]}
+    assert sp.slot_replaces("ObjectStage") == {}          # a stage's slot replaces nothing but its own preview
+
+    parts = [{"label": "粉饼", "x": 0.5, "y": 0.6}]
+    board = {"meta": {"language": "zh"}, "slides": [
+        {"index": 1, "shot": "TechnicalPlate",
+         "shot_props": {"art": {"id": "EspressoPuck"}, "parts": parts, "kicker": "图版", "object": "冲煮头"}}]}
+    errs, _ = sp.static_checks(board)
+    assert not any("BIKE" in e for e in errs), errs
+
+    board["slides"][0]["shot_props"]["art"] = None        # a slot named but empty draws the bicycle again
+    errs2, _ = sp.static_checks(board)
+    assert any("'strokes' is unset" in e and "BIKE" in e for e in errs2), errs2
+
+
 def test_the_direction_router_states_its_shortfall_instead_of_padding_it():
     """A slot that looks filled makes "conceive the rest" unreachable.
 
