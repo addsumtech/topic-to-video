@@ -204,6 +204,68 @@ def _ground_claim(png, shot, out_dir, dna_ref):
     return None
 
 
+# The two inks the film burns its caption in (runtime/light.tsx CAPTION_INK_DARK / CAPTION_INK_LIGHT), and the
+# floor under which a caption no longer reads: the caption is large type, so WCAG's large-text 3:1.
+CAPTION_INKS = ("#141414", "#ffffff")
+CAPTION_READABLE_MIN = 3.0
+
+
+def _contrast(y1, y2):
+    hi, lo = max(y1, y2), min(y1, y2)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _caption_ink_y(ground_y):
+    """Mirror of runtime/light.tsx `captionInk`: the luminance of whichever ink measures more on the ground."""
+    import seam_plan
+    dark, light = (seam_plan._rel_lum(c) for c in CAPTION_INKS)
+    return dark if _contrast(dark, ground_y) >= _contrast(light, ground_y) else light
+
+
+def caption_on_ground(expected_y, measured_y):
+    """None when the caption the film inks for `expected_y` (the ground it RESOLVES for this beat) still reads on
+    `measured_y` (the ground the beat really paints under it); otherwise (ink luminance, contrast) of that ink on
+    the real ground. Pure, so the rule is testable without a render."""
+    ink = _caption_ink_y(expected_y)
+    c = _contrast(ink, measured_y)
+    return None if c >= CAPTION_READABLE_MIN else (ink, c)
+
+
+def _library_caption_ground(png, shot, slide, dna_ref):
+    """A LIBRARY register's caption, judged against the ground it really paints under it.
+
+    The film inks every caption from the ground it RESOLVES for the beat — `DNA_GROUND_TOKEN` under the film's
+    DNA (`seam_plan.dna_ground_y`, the mirror of Film.tsx's `dnaGroundY`) — never from the pixels. That table is
+    measured under one probe DNA, and a register can paint a ground the probe never showed it painting: a
+    `@dark-world` register (BokehPull, StarfieldWarp, …) follows the film's ground only while it is dark and
+    keeps its own night on a light film, yet resolves to the film's paper. Its caption is then inked dark on a
+    dark frame — unreadable, with every other gate green. So the resolved ground is checked against the
+    caption band actually rendered, and only a caption that would no longer READ is an error.
+
+    Returns None, ("error", why) or ("n/a", why)."""
+    import seam_plan
+    if slide.get("ground") is not None:
+        return ("n/a", "the beat declares its own `ground`; the caption is inked from it, and a standalone still "
+                       "does not paint it")
+    dna = _resolved_dna(dna_ref)
+    expected = seam_plan.dna_ground_y(shot, dna) if dna else None
+    if expected is None:
+        return None              # no DNA, or a ground the table does not resolve: the film falls back to its bucket
+    measured = _band_luminance(png)
+    if measured is None:
+        return ("n/a", "the caption band could not be read from the rendered frame")
+    bad = caption_on_ground(expected, measured)
+    if bad is None:
+        return None
+    ink, c = bad
+    return ("error", "the burned caption will be inked %s for the ground this register resolves to under the "
+                     "film's DNA (Y=%.2f), but it paints Y=%.2f under the caption — %.1f:1, under the %.1f:1 a "
+                     "caption needs to read. A register that keeps its own ground (a `@dark-world` night on a "
+                     "light film) is not on the ground its row in DNA_GROUND_TOKEN names; cast a register that "
+                     "follows this film's ground here, or ground the beat yourself (`ground`)"
+                     % ("dark" if ink < 0.5 else "light", expected, measured, c, CAPTION_READABLE_MIN))
+
+
 def _src_path(shot):
     """Where register `shot` is defined for the film being proofed: the library first, then the film's own. One
     lookup, so no check here reads the library for a register the film built itself."""
@@ -1055,6 +1117,12 @@ def _prove(argv, out_dir, board, ws_durs):
                 if _gc:
                     kind, msg = _gc
                     (errors if kind == "error" else unmeasured).append("beat %d (%s): %s" % (beat, shot, msg))
+            else:
+                _lc = _library_caption_ground(png, shot, s, dna_ref)
+                if _lc:
+                    kind, msg = _lc
+                    (errors if kind == "error" else exempt).append("beat %d (%s): caption ground — %s"
+                                                                   % (beat, shot, msg))
             # A figure-bearing register must be showing the RIGHT figure at the frame the gate captures.
             if shot in FIGURE_SHOTS and not dm:
                 unmeasured.append("beat %d (%s): the figure-settle check needs the register's DURATION to "

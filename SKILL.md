@@ -698,7 +698,9 @@ agent on the beats it points at.
   With `--stills` (~5s/beat) it renders each beat's shot at its settled frame INSIDE the film's DNA
   (`--props='{"dna":"…"}'`) and adds: action-safe overflow, ink in the caption band, **colour
   outside the film's palette** (the arc BETWEEN its two accents — a blend of the two is in-system by
-  construction), and a **dead frame** (content spanning <45% of the width). Run it after the
+  construction), a **dead frame** (content spanning <45% of the width), and a **caption that will not read**
+  (the film inks a library beat's caption for the ground `DNA_GROUND_TOKEN` resolves to, and a register that
+  keeps its own ground — a `@dark-world` night on a light film — is not on it). Run it after the
   shot-director step and fix everything before rendering; the critic's pass is then spent on the half
   a script cannot judge — meaning, content-fit, faithfulness, register fit. Passing is a FLOOR, not a
   verdict.
