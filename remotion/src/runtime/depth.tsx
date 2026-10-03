@@ -349,6 +349,49 @@ export const cameraAt = (move: CameraMove, t: number): number => {
   return move === 'push' ? p : 1 - p;
 };
 
+// ── the baseline unlock ─────────────────────────────────────────────────────────────────────────────────
+// WHY A MOVING CAMERA CARRIES A SKEW NOBODY CAN SEE. Chrome draws text through Skia, and Skia SNAPS a glyph
+// run's baseline to a whole device pixel whenever the text's matrix keeps the x axis on the x axis
+// (`SkScalerContextRec::computeAxisAlignmentForHText`: skewY == 0 -> kX, y rounded to the pixel; x keeps
+// quarter-pixel positions). A scale plus a translate is exactly such a matrix. So under a push every line of
+// type advances in 1px steps while the rules, shapes and pictures beside it glide — the type trembles against
+// its own drawing. Measured on a delivered film's push (a kicker and a plate number, ink centroid against the
+// camera's own scale curve): y residual RMS 0.27px, a ±0.5px sawtooth with a 1px jump every few frames, while
+// the sheet's border in the same layer tracked to 0.05px. `will-change: transform` does not cure it — the
+// layer's raster scale then depends on what that tab rendered before, and the type popped 0.3px on scattered
+// frames — and `text-rendering: geometricPrecision` changes nothing on this platform.
+//
+// A skewY makes the matrix non-axis-aligned, and Skia then positions the run to a quarter pixel on BOTH axes:
+// measured on the same push, the type's vertical residual fell to 0.02-0.07px with no step above 0.3px —
+// the border's own floor. The horizontal one was already quarter-pixel and stays there.
+//
+// HOW SMALL IT CAN BE. Skia rounds each matrix entry to 1/1024 before deciding (`sk_relax`), so a skew under
+// 0.5/1024 rounds to zero and changes nothing — measured: a 0.02° rotation left the sawtooth intact, 0.03°
+// removed it. The entry Skia sees is the skew times every scale above the text, so 1/1024 keeps type down to
+// half size unlocked. It tilts a horizontal line by one pixel per 1024 — under a pixel at either edge of a
+// 1920-wide frame, constant over the beat, and far below anything a viewer can see.
+export const BASELINE_UNLOCK_SKEW = 1 / 1024;
+// what the skewed layer must reach past the frame edge, beyond the skew's own tilt: rounding and the edge's
+// anti-aliasing, so no sliver of whatever lies under the shot shows along the top or bottom of the frame
+const UNLOCK_EDGE_MARGIN_PX = 1;
+
+/**
+ * The extra scale a layer skewed by BASELINE_UNLOCK_SKEW about (W/2, originY) needs to keep covering the frame.
+ *
+ * A skewY leaves the left and right edges where they are and tilts the top and bottom ones by the skew times
+ * half the width, so at scale 1 a sliver of frame is uncovered at two corners. Solved for the smallest scale at
+ * which the nearer of the top and bottom edges still clears the frame: (s-1)*reach >= s*tilt + margin.
+ */
+export const baselineUnlockOverscan = (W: number, H: number, originY: number): number => {
+  const tilt = BASELINE_UNLOCK_SKEW * W / 2;
+  const reach = Math.min(originY, H - originY);
+  if (!(reach > tilt + UNLOCK_EDGE_MARGIN_PX)) {
+    throw new Error(`baselineUnlockOverscan: the camera's origin (y=${originY}) sits on the frame's edge ` +
+      `(${W}x${H}); no scale about it can keep a skewed layer covering the frame.`);
+  }
+  return (tilt + UNLOCK_EDGE_MARGIN_PX) / (reach - tilt);
+};
+
 /**
  * Wraps ONE scene's shot: applies the camera's 2D scale and publishes the push so `Plane`s can parallax.
  *
@@ -393,7 +436,17 @@ export const SceneCamera: React.FC<{
   // and 45% of it at 16:9: the same authored intent produced two different moves. Three-quarters of the
   // cap is the same fraction of the available headroom at every aspect and every drift level, which is
   // what "a gentle push" should mean.
-  const amp = reduced ? 0 : Math.max(0, Math.min(amount ?? cap * (bed ? BED_AMOUNT_FRAC : 0.75), cap));
+  const want = reduced ? 0 : Math.max(0, Math.min(amount ?? cap * (bed ? BED_AMOUNT_FRAC : 0.75), cap));
+  const originY = (CONTENT_TOP + contentBottom(W, H)) / 2;
+  // THE BASELINE UNLOCK RIDES EVERY FRAME OF A BEAT WHOSE CAMERA MOVES — the frames before a push starts and
+  // after a pull lands included. Switched on with the move instead, the type would jump from pixel-snapped to
+  // quarter-snapped on the frame the camera sets off: one pop in place of the sawtooth. A beat that holds (or
+  // runs under reduced motion) gets none of it, so its frames are exactly what they were. The overscan the
+  // skew needs comes out of the same cap as the move, so the two together never reach past maxCameraPush.
+  const unlockScale = baselineUnlockOverscan(W, H, originY);
+  const moves = !reduced && ((want > 0 && move !== 'hold') || clampPan(pan) !== null);
+  const unlock = moves && cap > unlockScale ? unlockScale : 0;
+  const amp = Math.max(0, Math.min(want, cap - unlock));
   const push = amp > 0 ? cameraAt(move, t) : 0;
   // A pan needs overscan to travel in. On a HOLD the push provides none, so the pan brings its own — the
   // same three-quarters-of-the-cap a gentle push would have taken, held CONSTANT so the frame does not also
@@ -401,8 +454,11 @@ export const SceneCamera: React.FC<{
   const px = reduced ? 0 : clampPan(pan);
   const panning = px !== null;
   const base = panning && amp * push < amp * 0.5 ? amp : 0;
-  const scale = 1 + Math.max(amp * push, base);
-  const over = (scale - 1) / 2;                     // fraction of the frame available beyond EACH edge
+  const moveScale = 1 + Math.max(amp * push, base);
+  // fraction of the frame available beyond EACH edge — the MOVE's overscan: the unlock's is reserved for
+  // the skew's own tilt, and a pan that spent it would uncover the corners the skew already reaches into
+  const over = (moveScale - 1) / 2;
+  const scale = moveScale + unlock;
   // Near-LINEAR travel. An ease-in-out spends most of its frames at the flat ends, which is where the
   // measured motion went missing; a gentle constant drift is what a Ken Burns move actually is.
   const trav = panning ? panAt(t) : 0;
@@ -415,10 +471,11 @@ export const SceneCamera: React.FC<{
   const downRoom = captionSlackPx(W, H, driftExtra, driftTranslate);
   const tyRaw = panning ? px[1] * over * H * trav : 0;
   const ty = Math.min(tyRaw, downRoom);              // upward travel is unconstrained; downward is not
-  const originY = (CONTENT_TOP + contentBottom(W, H)) / 2;
   const xf = [
     tx || ty ? `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)` : '',
     scale === 1 ? '' : `scale(${scale.toFixed(5)})`,
+    // CSS matrix(a, b, c, d, e, f) puts `b` in the y row's x column: the skewY entry Skia reads
+    unlock ? `matrix(1, ${BASELINE_UNLOCK_SKEW}, 0, 1, 0, 0)` : '',
   ].filter(Boolean).join(' ');
 
   return (
