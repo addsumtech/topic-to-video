@@ -52,6 +52,10 @@ type Mark = {x?: number; y?: number; label?: string; n?: number};   // x/y REQUI
 export const MAX_PHOTO_MARKS = 5;
 
 const CHIP_MEASURE = 24;   // characters per line — a callout is a phrase, not a paragraph
+// A FULL-WIDTH glyph: Han, kana, Hangul, and the CJK punctuation and full-width forms set among them. The class
+// used to stop at the ideographs, so a full-width colon or comma was counted at the Latin advance and rendered
+// a whole em wide — 「对岸：深圳」 came out a few pixels short and dropped 「圳」 onto a line of its own.
+const WIDE_CH = /[\u2e80-\u9fff\uf900-\ufaff\uac00-\ud7af\uff01-\uff60\uffe0-\uffe6]/;
 
 export const PhotoPlate: React.FC<{
   src?: string;             // the real photograph, relative to the film's public dir
@@ -224,8 +228,8 @@ export const PhotoPlate: React.FC<{
     const gap = dot + Math.round(W * 0.008);
     const items = shown.map((m, i) => {
       const text = String(m.label ?? '');
-      const mShare = text.length
-        ? text.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / text.length : 0;
+      const chars = [...text];
+      const mShare = chars.length ? chars.filter((ch) => WIDE_CH.test(ch)).length / chars.length : 0;
       const roomL = px0 - W * 0.045, roomR = W - px1 - W * 0.045;
       const marginated = Math.max(roomL, roomR) > W * 0.16;
 
@@ -238,29 +242,36 @@ export const PhotoPlate: React.FC<{
       // characters, so the labels stacked one word per line in a margin that had 453px to give. That is the
       // same cramping `marginated` was introduced to cure, reintroduced by the cap meant to bound it. Bound
       // it by the type instead and it holds at any frame size and any type scale.
+      // THE CHIP IS AS WIDE AS WHAT IT HOLDS, counted part by part with the advances that render it: the label
+      // glyph by glyph; the number in front of it with its two non-breaking spaces, in the Latin advance of the
+      // mono face (1.8em for one digit, 2.4em for two — a flat 1.6em under-counted both); and the box's own
+      // padding (1.4 pads a side) and border, which sit INSIDE the width under border-box and were budgeted as one
+      // pad a side. A short label has no slack to absorb those, so it broke its last glyph onto a second line.
+      // A quarter em of give covers the estimate; the measure still caps a long label, which then wraps.
+      const w1 = (ch: string) => chipFont * (WIDE_CH.test(ch) ? cjkAdvance(mono) : latinAdvance(mono));
+      const prefixW = m.n != null ? (String(m.n).length + 2) * chipFont * latinAdvance(mono) : 0;
+      const boxX = chipPad * 1.4 * 2 + hair * 2;
       const chipMax = marginated
-        ? Math.min(chipPad * 2 + CHIP_MEASURE * adv, Math.max(roomL, roomR))
+        ? Math.min(boxX + prefixW + CHIP_MEASURE * adv, Math.max(roomL, roomR))
         : PW * 0.42;
-      const chipW = Math.min(chipMax, chipPad * 2 + text.length * adv + chipFont * 1.6);
+      const chipW = Math.min(chipMax, boxX + prefixW + chars.reduce((a, c) => a + w1(c), 0) + chipFont * 0.25);
       const mx = px0 + onPlate[i].u * PW;
       const my = top + onPlate[i].v * PH;
       // The SAME advance estimate that sized the chip, reused to predict how the text wraps inside it —
       // one estimate, so the height cannot disagree with the width it was derived from.
-      const inner = Math.max(1, chipW - chipPad * 2.8);
+      const inner = Math.max(1, chipW - boxX);
       // GREEDY WORD WRAP, simulated — not total-width / line-width. CSS breaks at word boundaries, so a
       // line ends wherever the next word does not fit, and the ideal-packing estimate is optimistic by up
       // to a word per line. It under-counted by one on a 44-character label, and the extra line was CLIPPED
       // by the box height derived from the same count. The chip's face is MONOSPACE, so simulating the
       // break is not an approximation: per-character advance is a constant, taken from runtime/layout's
       // measured table — the same number that sized the chip, so height cannot disagree with width.
-      const w1 = (ch: string) => chipFont * (/[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(ch)
-        ? cjkAdvance(mono) : latinAdvance(mono));
       const wordW = (s2: string) => s2.split('').reduce((a, c) => a + w1(c), 0);
       // Standard greedy: the space BEFORE a word is paid only if the word joins the current line. Charging
       // it unconditionally counted a trailing space that CSS drops at a break, and over-counted by a line on
       // a label that fitted — the box then carried an empty line's worth of dead space under its last word.
       const spaceW = w1(' ');
-      let lines = 1, used = m.n != null ? adv * 3 : 0;
+      let lines = 1, used = prefixW;
       for (const word of text.split(/\s+/)) {
         if (!word) continue;
         const ww = wordW(word);
@@ -393,6 +404,8 @@ export const PhotoPlate: React.FC<{
                 // was respected by the layout and ignored by the text. The wrap simulation already COUNTS such
                 // a word as breaking inside itself; this is what makes the browser agree.
                 overflowWrap: 'anywhere',
+                // a label that does wrap (past the measure) shares its lines out, never leaving one glyph alone
+                textWrap: 'balance',
                 textAlign: leftSide ? 'right' : 'left'}}>
                 {m.n != null ? <span style={{color: ACC}}>{m.n}&nbsp;&nbsp;</span> : null}{text}
               </div>) : null}

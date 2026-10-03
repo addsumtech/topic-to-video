@@ -1831,12 +1831,12 @@
    },
    "fieldY": {
     "light": 0.7645482420921326,
-    "dark": 0.02416129969060421
+    "dark": 0.06605858355760574
    },
-   "moved": 0.47779829545454544,
+   "moved": 0.4741311553030303,
    "ok": false,
    "why": [
-    "only 48% of the frame moved"
+    "only 47% of the frame moved"
    ]
   },
   {
@@ -2908,7 +2908,7 @@
   "PaperSlot": "402cf1d906a5408c",
   "ParticleForm": "fca578a38371fab2",
   "PhaseEncodeStep": "c6cd903b075a2d0d",
-  "PhotoPlate": "f4019de8aad54f87",
+  "PhotoPlate": "88438adbd95ca10e",
   "PhysicsStack": "b3168176cdcab369",
   "PixelBuild": "d9223ab1bae08276",
   "PlanPalimpsest": "927d3bcc791a79a0",
