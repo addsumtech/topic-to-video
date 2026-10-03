@@ -14,8 +14,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import workshop as ws  # noqa: E402
 import text_safe_qa as g  # noqa: E402
 import cjk_type_qa as c  # noqa: E402
+from _caption_band import caption_band_px  # noqa: E402
 from test_workshop_bundle import _env, _still  # noqa: E402
-from test_object_stage import SQUARE, _mask  # noqa: E402
+from test_object_stage import SQUARE, _mask, cjk  # noqa: E402
 
 needs_toolchain = pytest.mark.skipif(not os.path.isdir(os.path.join(_REM, "node_modules")),
                                      reason="needs the remotion toolchain")
@@ -56,6 +57,30 @@ def test_two_objects_at_one_size_the_difference_named_and_the_type_inside_the_fr
     hits = c.sweep(["ObjectCompare"], dna="product", aspect=aspect, film_props={"ObjectCompare": PROPS},
                    out_dir=film)["ObjectCompare"]
     assert not hits["failed"] and not [h for h in hits["hits"] if h["kind"] in ("leading", "overlap", "orphan")], hits
+
+
+@needs_toolchain
+def test_two_full_labels_and_a_full_difference_stay_above_the_caption_band_or_refuse(film, tmp_path):
+    """Stacked (1:1): both labels run the two lines the card promises them, and the difference wraps to an
+    ordinary two lines of its own — a real combination, not a contrived one. The register must never let
+    that print silently onto the caption band: it either shrinks the words to fit above `contentBottom`, or
+    refuses by name."""
+    heavy = dict(PROPS, firstLabel=cjk(45, 3), secondLabel=cjk(45, 11), difference=cjk(32, 20),
+                 dna="product", aspect="1:1")
+    env = _env(ws.workshop_dir(film))
+    r = _still("ObjectCompare", tmp_path / "heavy.png", heavy, env, frame=150)
+    out = r.stdout + r.stderr
+    if r.returncode != 0:
+        assert "ObjectCompare" in out and "px" in out, out[-800:]
+        return
+    img = Image.open(str(tmp_path / "heavy.png")).convert("RGB")
+    W, H = img.size
+    a = np.asarray(img).astype(int)
+    ground = np.median(a.reshape(-1, 3), axis=0)
+    ink_rows = np.nonzero((np.abs(a - ground).sum(axis=-1) > 60).any(axis=1))[0]
+    bottom = int(ink_rows.max()) if len(ink_rows) else 0
+    band_top = H - caption_band_px(W, H)
+    assert bottom <= band_top, (bottom, band_top, out[-400:])
 
 
 @needs_toolchain

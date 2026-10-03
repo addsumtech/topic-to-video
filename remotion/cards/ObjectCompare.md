@@ -4,7 +4,7 @@
 
 **Use when:** the beat says "these two differ HERE": one object in two states (loose and tamped, before and after, 1900 and now) or two things with one decisive difference, and the film has built them. **Not when:** the difference is a number (`VersusSplit`, `EdCompare`), two photographs (`RealVersus`, `BeforeAfterSlider`), or more than two things.
 
-**Motion core:** the first object draws itself over 0.06–0.44 and the second over 0.16–0.54, so they are read in order; their labels follow (0.4–0.62). The rings draw on over 0.58–0.7, the tie over 0.64–0.76, the difference lands over 0.66–0.82.
+**Motion core:** the first object's `t` runs 0→1 over 0.06–0.44, the second's over 0.16–0.54, so they are read in order; their labels follow (0.4–0.62). The rings draw on over 0.58–0.7, the tie over 0.64–0.76, the difference lands over 0.66–0.82.
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
@@ -20,7 +20,7 @@
 - Two objects of one aspect are drawn at one size on purpose: the register refuses to emphasise one by scale. Objects of different aspects each fit the same room.
 - `at` is the SAME fraction on both boxes — it assumes the two objects share a layout (the same object in two states). For two different things, mark nothing, or draw the mark inside each object.
 
-**Refuses:** an object that is not `{id, props?}` or that nobody defines; an `at` that is not `{x, y}` in 0..1.
+**Refuses:** an object that is not `{id, props?}` or that nobody defines; an `at` that is not `{x, y}` in 0..1; on a tall (stacked) frame, labels and a difference that still do not fit above the caption band at half size — the message names the px they needed and the px the frame had.
 
 **Reference:** `remotion/src/shots/ObjectCompare.tsx`
 
