@@ -180,11 +180,19 @@ def _alternatives(slide, beat, lo, hi, motion, used, families, k=3):
     return out[:k]
 
 
-def unmeasured_reason(shot, stale_rows):
+def unmeasured_reason(shot, stale_rows, film_shots=()):
     """Why this beat carries no motion number, in words whose FIX differs — the whole point of separating
-    them. `None` when there is nothing to say (the beat is measured)."""
+    them. `None` when there is nothing to say (the beat is measured).
+
+    A FILM'S OWN WORKSHOP SHOT has no row by design: register_energy.py is a LIBRARY sweep and never sees a
+    workshop, so telling the author to run it is telling them to run something that cannot help. The beat is
+    still unmeasured here — its motion is read on the render instead."""
     if not shot:
         return "no register assigned yet — run the shot-director, then re-run this"
+    if shot in (film_shots or ()):
+        return ("%s is this film's own workshop shot — the library sweep never measures a workshop, so its "
+                "motion is not known before the render; read it on the rendered film "
+                "(`python3 scripts/film_energy_qa.py <out_dir>`), or promote the shot to have it measured" % shot)
     if shot in (stale_rows or {}):
         return ("%s's row in the sweep is STALE (%s), so it was dropped rather than trusted — run "
                 "`python3 scripts/register_energy.py`" % (shot, stale_rows[shot]))
@@ -192,7 +200,8 @@ def unmeasured_reason(shot, stale_rows):
             "register, run `python3 scripts/register_energy.py`" % shot)
 
 
-def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_rows=None, malformed=None):
+def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_rows=None, malformed=None,
+             film_shots=()):
     """The list of dicts described in the module docstring. Empty when the film follows its skeleton.
 
     A beat with no motion number is emitted as kind `unmeasured` rather than skipped: it is the one thing
@@ -215,7 +224,7 @@ def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_row
     for i, r in enumerate(rows):
         if r["motion"] is None:
             out.append(dict(r, kind="unmeasured", alternatives=[],
-                            why=malformed.get(i) or unmeasured_reason(r["shot"], stale_rows)))
+                            why=malformed.get(i) or unmeasured_reason(r["shot"], stale_rows, film_shots)))
             continue
         e, m = r["energy"], r["motion"]
         kind = None
@@ -293,7 +302,7 @@ def coverage(fs, slides, curve_pair=None):
     return len(slides) - len(miss), len(slides), miss
 
 
-def check_slides(slides, plan=None):
+def check_slides(slides, plan=None, film_shots=()):
     """(findings, curve_pair, why_none) for a storyboard's slides — what validate.py calls on the board it
     holds. Beats the sweep cannot measure arrive as `unmeasured` findings, so a caller that reports findings
     reports the coverage hole too without needing a second channel for it."""
@@ -301,7 +310,7 @@ def check_slides(slides, plan=None):
     slides, malformed = _normalise(slides)
     if why:
         return [], None, why
-    return (findings(slides, motion, floor, qc, kc, plan, stale_rows, malformed),
+    return (findings(slides, motion, floor, qc, kc, plan, stale_rows, malformed, film_shots),
             curve(slides, motion, qc, kc, plan), None)
 
 
@@ -318,7 +327,12 @@ def load_plan(out_dir):
 def check(out_dir):
     """(findings, curve_pair, why_none) for an out_dir — the CLI entry point."""
     data = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
-    return check_slides(data.get("slides") or [], load_plan(out_dir))
+    try:
+        import workshop
+        film_shots = workshop.shot_names(out_dir)
+    except Exception:                                               # noqa: BLE001 — a reason, never a crash
+        film_shots = set()
+    return check_slides(data.get("slides") or [], load_plan(out_dir), film_shots)
 
 
 def describe(f):

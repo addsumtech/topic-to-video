@@ -201,7 +201,7 @@ def test_the_mutation_that_hides_an_unmeasured_beat_is_caught(tmp_path, capsys):
     import types
     src = open(es.__file__, encoding="utf-8").read()
     old = ('            out.append(dict(r, kind="unmeasured", alternatives=[],\n'
-           '                            why=malformed.get(i) or unmeasured_reason(r["shot"], stale_rows)))\n'
+           '                            why=malformed.get(i) or unmeasured_reason(r["shot"], stale_rows, film_shots)))\n'
            '            continue')
     assert old in src, "the mutation target has drifted out of the source"
     mod = types.ModuleType("energy_skeleton_mutant")
@@ -209,6 +209,27 @@ def test_the_mutation_that_hides_an_unmeasured_beat_is_caught(tmp_path, capsys):
     exec(compile(src.replace(old, "            continue", 1), es.__file__, "exec"), mod.__dict__)
     with pytest.raises(RuntimeError, match="dropping a beat without recording it"):
         mod.main([_board(tmp_path, [min(_sweep()[0], key=_sweep()[0].get), "NoSuchRegister"], name="mut")])
+
+
+def test_a_film_s_own_workshop_shot_is_unmeasured_with_advice_that_can_help(tmp_path, capsys):
+    """A beat on a shot the film built has no row in the sweep BY DESIGN — register_energy.py is a library
+    sweep and never sees a workshop. The CLI told the author to run it anyway, on an espresso film's
+    ExtractionFlow beat; validate already said "unmeasured BY DESIGN". The beat stays unmeasured (exit 1,
+    named in the coverage), but its line now points at what can measure it: the render."""
+    motion = _sweep()[0]
+    calm = min(motion, key=motion.get)
+    out = _board(tmp_path, [calm, "FilmBuiltFlow"], name="ws")
+    shots = os.path.join(out, "workshop", "shots")
+    os.makedirs(shots)
+    open(os.path.join(shots, "FilmBuiltFlow.tsx"), "w", encoding="utf-8").write("export const DURATION = 150;\n")
+    rc = es.main([out])
+    text = capsys.readouterr().out
+    assert rc == 1, text                                            # still not measured — never a silent pass
+    assert "FilmBuiltFlow is this film's own workshop shot" in text, text
+    assert "film_energy_qa.py" in text and "register_energy.py" not in text, text
+    # the same name as a LIBRARY register that lacks a row keeps the old advice
+    rc2 = es.main([_board(tmp_path, [calm, "FilmBuiltFlow"], name="lib")])
+    assert rc2 == 1 and "register_energy.py" in capsys.readouterr().out
 
 
 def test_the_light_cut_is_the_librarys_own_and_not_a_whole_films_threshold():
