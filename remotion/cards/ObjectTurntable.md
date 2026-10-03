@@ -17,6 +17,8 @@
 **Known traps:**
 - A card turn foreshortens the object's words too: keep an object's text off a turntable, or make it a `turns` object that keeps its type facing the camera.
 - The object stands on the platter's centre line by its box's foot; an object with empty space at its foot looks like it hovers.
+- The object is fitted at its own declared aspect (`META.aspect` — the workshop's `new-object` scaffold defaults it to 1, a square) inside a square room; the platter is sized from that same room, not from the fitted box, so a wide or tall object leaves the room's spare width or height empty and turns on a platter sized as if it still filled the whole square.
+- `yaw` only reaches the object when it draws its own 3D (`META.turns`): in RADIANS, via `ObjectProps.yaw`, the same angle a `turns` object runs through `runtime/project3d`. A card's own turn is a CSS `rotateY()` in DEGREES, clamped to ±`MAX_CARD_TURN` (60°) around the whole object from the outside — the object itself never sees `yaw` and cannot read which way it is turned.
 
 **Refuses:** a `sweep` outside 20–360; a sweep over 120 on an object that does not draw its own 3D; an object id nobody defines.
 

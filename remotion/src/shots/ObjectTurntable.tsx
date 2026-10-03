@@ -11,7 +11,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
 import {CONTENT_TOP, TITLE_Y, contentBottom, fitBlockPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
-import {useDNA, mix} from '../runtime/dna';
+import {useDNA, separated} from '../runtime/dna';
 import {ObjectSlot, useObjectEntry, fitAspect, type ObjectRef} from '../runtime/objectSlot';
 import {DEMO_ID} from '../objects/DemoForm';
 
@@ -19,7 +19,6 @@ export const DURATION = 180;
 export const REQUIRED_IN_FILM = ['object'] as const;
 export const MAX_CARD_TURN = 60;         // degrees each way for an object that does not draw its own 3D
 const BG_D0 = '#eef0f3', FG_D0 = '#1b1f27', DIM_D0 = '#5d6573', ACC_D0 = '#2f5bd8', LINE_D0 = '#c9ced6';
-const SURF_D0 = '#ffffff';
 const DEMO_OBJECT: ObjectRef = {id: DEMO_ID};
 const TICKS = 24;
 
@@ -44,7 +43,6 @@ export const ObjectTurntable: React.FC<{
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0, ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
-  const SURF = dna?.surface ?? SURF_D0;
   const disp = 'var(--f-display, Inter, system-ui, sans-serif)';
   const bodyF = 'var(--f-body, Inter, system-ui, sans-serif)';
   const mono = 'var(--f-mono, "JetBrains Mono", ui-monospace, monospace)';
@@ -93,11 +91,15 @@ export const ObjectTurntable: React.FC<{
             floor (pcy) shifts with which corner the turn currently presents — objects/DemoForm, for one,
             settles flush only at its own default yaw and sits visibly higher at others. A platter whose fill
             barely lifts off the ground colour reads as an outline around empty air once the object sits that
-            way, so the fill is mixed well past the step a region needs to read as a lit surface rather than
-            the void (runtime/dna's own TONE_MIN_STEP is 0.10; objects/DemoForm's nearest comparable surface
-            clears it at 0.25) — enough that the object still plainly stands IN the platter even short of its
-            rim, on every shipped Design DNA (all eight dark-ground) and the null-DNA light fallback alike. */}
-        <ellipse cx={pcx} cy={pcy} rx={pw / 2} ry={ph / 2} fill={mix(SURF, FG, 0.16)} stroke={LINE} strokeWidth={sw} />
+            way, so the fill has to separate from the GROUND THAT IS ACTUALLY PAINTED, not from a fixed
+            fraction picked by eye: a flat mix toward FG clears every shipped (dark-ground) Design DNA by a
+            comfortable margin but, mixed from the SAME fraction, lands short of the null-DNA light
+            fallback's own ground by a visible amount — the identical "floating outline" this fill exists to
+            prevent, just on the one ground a fixed fraction was not checked against. `separated()` walks the
+            mix until it measurably clears the step a region needs to read as a lit surface rather than the
+            void, against whatever ground is actually loaded — the eight shipped presets, the null-DNA
+            fallback, or a film-authored ground coerceDna never pins to one polarity. */}
+        <ellipse cx={pcx} cy={pcy} rx={pw / 2} ry={ph / 2} fill={separated(dna?.bg ?? BG_D0, FG)} stroke={LINE} strokeWidth={sw} />
         {Array.from({length: TICKS}).map((_, k) => {   // @decor: the rim's marks carry the turn, not a reading
           const a = ((k * 360) / TICKS + yawDeg) * (Math.PI / 180);
           const front = Math.sin(a) > 0;
