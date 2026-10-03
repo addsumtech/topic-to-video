@@ -7,6 +7,7 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  ObjectPath: 'dark',   // PROVISIONAL — placeholder, not a measurement; run measure_ground_luma.py --luma --emit
   ObjectCompare: 'dark',   // PROVISIONAL — placeholder, not a measurement; run measure_ground_luma.py --luma --emit
   ObjectStage: 'dark',   // PROVISIONAL — placeholder, not a measurement; run measure_ground_luma.py --luma --emit
   DeviceHero: 'light',
@@ -123,6 +124,7 @@ const literalGround = (tok: GroundSpec | undefined): string | null =>
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
+  ObjectPath: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
   ObjectCompare: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
   ObjectStage: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
   DeviceHero: 'bg',

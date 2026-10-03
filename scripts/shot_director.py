@@ -94,6 +94,7 @@ FAMILY = {
     "PaperCutout": "G", "SpotlightStage": "G", "PixelBuild": "G", "RisoPrint": "G", "ComicPanels": "G",
     "BeforeAfterSlider": "H", "QuadSplit": "H", "PositioningMatrix": "H", "VersusSplit": "H",
     "SplitFlap": "I", "PhysicsStack": "I", "GearTrain": "I", "ConveyorBelt": "I",
+    "ObjectPath": "I",
     "SameStuffChanged": "I",
     "WorksThrough": "I",
     "HardBarrier": "I",
@@ -138,6 +139,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "ObjectPath":              'motion-graphics',
     "ObjectCompare":           'motion-graphics',
     "ObjectStage":             'motion-graphics',
     "DeviceHero":              'product-ui',

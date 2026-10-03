@@ -10,6 +10,7 @@ import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {ObjectPath, DURATION as D_OBJECTPATH} from './shots/ObjectPath';
 import {ObjectCompare, DURATION as D_OBJECTCOMPARE} from './shots/ObjectCompare';
 import {ObjectStage, DURATION as D_OBJECTSTAGE} from './shots/ObjectStage';
 import {DeviceHero, DURATION as D_DEVICEHERO} from './shots/DeviceHero';
@@ -608,6 +609,7 @@ export const RemotionRoot: React.FC = () => (
     {F('DeviceHero', DeviceHero, D_DEVICEHERO)}
     {F('ObjectStage', ObjectStage, D_OBJECTSTAGE)}
     {F('ObjectCompare', ObjectCompare, D_OBJECTCOMPARE)}
+    {F('ObjectPath', ObjectPath, D_OBJECTPATH)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}
