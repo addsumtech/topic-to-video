@@ -110,6 +110,41 @@ def test_the_plate_caps_the_art_above_a_two_line_name_and_note(film, tmp_path):
     assert found == [], found
 
 
+# A DNA whose every element has its own colour, so the plate's parts can be told apart by pixel: the sheet's
+# rule in pure green, the caption's name and note in white and grey, the film's art in the fixture's magenta.
+RULE_DNA = {"bg": "#000000", "fg": "#ffffff", "dim": "#9a9a9a", "line": "#00ff00", "accent": "#ff8800",
+            "accent2": "#0088ff", "surface": "#000000"}
+
+
+@needs_toolchain
+@pytest.mark.parametrize("aspect", ["16:9", "9:16", "1:1"])
+def test_the_plate_s_rule_never_runs_through_its_own_caption(film, tmp_path, aspect):
+    """A name with a note lifts the plate's caption out of the caption band — at 16:9 above the drawing field's
+    own bottom — and the sheet's rule, drawn at that bottom regardless, ran straight through the name (an
+    espresso film's 「冲煮头与手柄」 sat on the line). On the art path the sheet now ends above the caption; this
+    asks the rendered frame that the caption's first ink is below the sheet's lowest rule."""
+    props = {"art": {"id": "WsArt"}, "parts": PARTS, "dna": RULE_DNA, "aspect": aspect,
+             "object": "冲煮头与手柄（剖面）", "note": "泵加压到约 9 巴，分水网把水均匀地洒在粉饼上"}
+    png = tmp_path / "rule.png"
+    r = _still("TechnicalPlate", png, props, _env(ws.workshop_dir(film)), frame=_settled_frame("TechnicalPlate"))
+    assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
+    n, box = _magenta(png)
+    assert n > 20000 and box, (n, box)
+    a = np.asarray(Image.open(str(png)).convert("RGB")).astype(int)
+    H, W = a.shape[:2]
+    green = (a[..., 1] > 180) & (a[..., 0] < 90) & (a[..., 2] < 90)
+    # the sheet's lowest green: its bottom rule, or where its side rules end when the art covers that rule
+    rules = [y for y in range(H) if green[y].any()]
+    assert rules, "no sheet rule found — the sheet is no longer drawn in the DNA's `line`"
+    rule_bottom = max(rules)
+    light = a.min(axis=-1) > 110                                          # white name, grey note
+    band = light[:, box[0]:box[2] + 1]                                    # under the drawing, not the margins
+    cap_rows = [y for y in range(box[1], H) if band[y].any()]
+    assert cap_rows, "no caption ink found under the drawing"
+    assert min(cap_rows) > rule_bottom, (
+        "the caption starts at y=%d, on or above the sheet's rule at y=%d" % (min(cap_rows), rule_bottom))
+
+
 @needs_toolchain
 def test_the_plate_refuses_art_and_strokes_together_and_art_without_parts(film, tmp_path):
     env = _env(ws.workshop_dir(film))

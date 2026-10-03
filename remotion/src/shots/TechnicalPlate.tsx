@@ -191,10 +191,18 @@ export const TechnicalPlate: React.FC<{
   // more than `unit` and keeps it, unchanged. The callouts map through the SAME square the art is actually
   // drawn in (`ux`/`uy`, just below), so a part at y=0.9 still lands on the drawing rather than in the space
   // this capping frees up.
-  const artUnit = art ? Math.max(1, Math.min(unit, plateCapTop - H * 0.02 - oy)) : unit;
+  //
+  // THE SHEET ENDS ABOVE ITS CAPTION, on the art path. When the caption is lifted out of the caption band (a
+  // name with a note at 16:9 is enough), `plateCapTop` rises above the field's own bottom and the sheet's rule
+  // ran straight through the object's name. A drawing the film made is fitted to the sheet that is left, at
+  // the same gap an unlifted caption keeps from it; with no lift the sheet, the square and the callouts are
+  // exactly what they were. The strokes path keeps the sheet it has always drawn.
+  const sheetH = art ? Math.max(1, Math.min(fieldH, plateCapTop - H * 0.030 - fy0)) : fieldH;
+  const artUnit = art ? Math.max(1, Math.min(unit, sheetH, plateCapTop - H * 0.02 - oy)) : unit;
   const artX = art ? fx0 + (fieldW - artUnit) / 2 : ox;
+  const artY = art ? Math.max(fy0, Math.min(oy, fy0 + sheetH - artUnit)) : oy;
   const ux = (u: number) => artX + u * artUnit;
-  const uy = (v: number) => oy + v * artUnit;
+  const uy = (v: number) => artY + v * artUnit;
 
   const sheet = easeOutCubic(clamp01(seg(t, 0.02, 0.18)));
   const draw = clamp01(seg(t, 0.14, 0.62));
@@ -216,11 +224,11 @@ export const TechnicalPlate: React.FC<{
       ) : null}
 
       {/* the sheet: a ruled field with corner ticks, the way a drawing sheet is bounded */}
-      <div style={{position: 'absolute', left: fx0, top: fy0, width: fieldW * sheet, height: fieldH,
+      <div style={{position: 'absolute', left: fx0, top: fy0, width: fieldW * sheet, height: sheetH,
         border: `${hair}px solid ${LINE}`, boxSizing: 'border-box'}} />
 
       {/* the object, drawn stroke by stroke */}
-      {art ? <ObjectSlot object={art} box={{x: artX, y: oy, w: artUnit, h: artUnit}} t={draw} /> : STROKES.map((st, i) => {
+      {art ? <ObjectSlot object={art} box={{x: artX, y: artY, w: artUnit, h: artUnit}} t={draw} /> : STROKES.map((st, i) => {
         const on = easeOutCubic(clamp01(draw * nS - i));
         if (on <= 0) return null;
         if (st.kind === 'circle') {
