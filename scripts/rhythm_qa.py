@@ -153,7 +153,11 @@ def evaluate(data, meta=None):
     climax_positions = []
     for s, d in zip(slides, durs):
         mid = (cum + d / 2) / total if total else 0
-        if (s.get("props") or {}).get("climax"):
+        # A shot scene carries the mark ITSELF (`climax: true`): its register's props are `shot_props`, and a
+        # flag put there would be handed to the register as copy. energy_skeleton and script_audition read the
+        # scene's own field; reading only `props.climax` here told every narrative remotion film it had no
+        # payoff while its board declared one.
+        if (s.get("props") or {}).get("climax") or s.get("climax"):
             climax_positions.append((s.get("index"), mid))
         cum += d
     if climax_positions:
@@ -168,7 +172,8 @@ def evaluate(data, meta=None):
                 f"keep one climax and let the others be quieter heroes.")
     elif total > NO_CLIMAX_DURATION and not expository:
         warnings.append(
-            f"no climax beat in a {total:.0f}s video — mark the payoff/result beat `props.climax:true` "
+            f"no climax beat in a {total:.0f}s video — mark the payoff/result beat `props.climax:true` (a shot "
+            f"scene: `climax: true` on the scene itself) "
             f"so the video builds to a peak. (A tutorial/reference/survey legitimately has no single "
             f"payoff — set meta.arc_kind=\"expository\" to suppress this.)")
 

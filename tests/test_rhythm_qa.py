@@ -215,3 +215,27 @@ def test_a_remotion_beat_is_an_animated_register_not_a_held_still():
     # a slide held as long is still the defect it always was
     still = rq.evaluate(_board([_sc(0, 5.0), _sc(1, 17.5, type="slide"), _sc(2, 4.0, type="title")]))
     assert any("static image is held 18s" in e for e in still["errors"]), still["errors"]
+
+
+def test_a_remotion_beat_marks_its_climax_on_the_scene_itself():
+    """A shot scene has no `props` — its register's props are `shot_props`, which a climax flag would hand to the
+    register as copy. The scene carries `climax: true` itself, which is what energy_skeleton and
+    script_audition read; rhythm_qa must read the same mark, or every narrative remotion film past 75 s is
+    told it has no payoff while its board declares one."""
+    beats = [{"index": i, "shot": "SpinningProton", "narration": "一句话。", "duration": d}
+             for i, d in enumerate([16.0, 19.0, 14.0, 17.0, 10.0], start=1)]   # 76 s, past the 75 s floor
+    beats[3]["climax"] = True                                   # the payoff at ~75% of the runtime
+    meta = {"language": "zh", "renderer": "remotion", "arc_kind": "narrative"}
+    r = rq.evaluate(_board(beats, meta=meta))
+    assert not any("no climax" in w for w in r["warnings"]), r["warnings"]
+    assert not any("climax lands at" in w for w in r["warnings"]), r["warnings"]
+    beats[3]["climax"] = False
+    r = rq.evaluate(_board(beats, meta=meta))
+    assert any("no climax beat" in w for w in r["warnings"]), r["warnings"]
+
+
+def test_a_misplaced_scene_level_climax_is_judged_like_any_other():
+    beats = [{"index": i, "shot": "SpinningProton", "narration": "一句话。", "duration": 15.0} for i in range(1, 7)]
+    beats[0]["climax"] = True                                   # the payoff in the first sixth
+    r = rq.evaluate(_board(beats, meta={"language": "zh", "renderer": "remotion", "arc_kind": "narrative"}))
+    assert any("climax lands at" in w for w in r["warnings"]), r["warnings"]
