@@ -168,9 +168,18 @@ def build(out_dir):
     L.append("")
     fits = [(s.get("shot_fit") or {}).get("verdict") for s in slides]
     built = [i + 1 for i, s in enumerate(slides) if (s.get("shot_fit") or {}).get("verdict") == "build"]
-    L.append("**Library growth** — %s"
-             % ("this film built %d new register(s): beats %s" % (len(built), built) if built else
-                "this film built nothing; every beat came from the existing catalogue"))
+    # WHAT was built is the build list's to say: a beat that holds a built OBJECT on a library stage is a build
+    # beat too, so counting build beats as "new registers" would tell the critic that a film which drew one
+    # object for three beats had grown the library by three registers
+    kinds = collections.Counter(e.get("kind") for e in meta.get("build_list") or [] if isinstance(e, dict))
+    if built and kinds:
+        what = " and ".join("%d %s(s)" % (kinds[k], k) for k in ("shot", "object") if kinds.get(k))
+        growth = "this film built %s, used on beats %s" % (what, built)
+    elif built:
+        growth = "this film built %d new register(s): beats %s" % (len(built), built)
+    else:
+        growth = "this film built nothing; every beat came from the existing catalogue"
+    L.append("**Library growth** — %s" % growth)
     if not any(fits):
         L.append("")
         L.append("No beat recorded a `shot_fit` judgement, so nobody asked whether the catalogue could "

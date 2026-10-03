@@ -100,3 +100,18 @@ def test_the_critic_brief_reads_a_film_that_built_its_own_shot(tmp_path, monkeyp
     assert "| 2 | WsGradient | built (this film) |" in text, text
     assert "and 1 beat(s) on this film's own shots (WsGradient)" in text, text
     assert ws.shot_names(str(tmp_path)) == {"WsGradient"}
+
+
+def test_library_growth_counts_what_the_film_built_not_the_beats_that_use_it(tmp_path, monkeypatch):
+    """One object drawn for three beats is one built thing, not three new registers."""
+    import critic_brief
+    monkeypatch.setattr(critic_brief, "_run", lambda *a, **k: "(stubbed)")
+    board = {"meta": {"renderer": "remotion", "language": "zh",
+                      "build_list": [{"id": "EspressoPuck", "kind": "object", "beats": [1, 2, 3],
+                                      "slot": ["ObjectStage", "ObjectCompare"], "means": "m", "accept": "a"}]},
+             "slides": [{"index": i, "shot": "ObjectStage", "narration": "x",
+                         "shot_fit": {"verdict": "build", "ref": "EspressoPuck"}} for i in (1, 2, 3)]}
+    (tmp_path / "storyboard.json").write_text(json.dumps(board, ensure_ascii=False), encoding="utf-8")
+    text = critic_brief.build(str(tmp_path))
+    assert "this film built 1 object(s), used on beats [1, 2, 3]" in text, text
+    assert "new register(s)" not in text
