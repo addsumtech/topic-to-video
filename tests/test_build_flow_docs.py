@@ -52,3 +52,28 @@ def test_skill_md_names_the_workshop_the_build_list_and_promotion():
 def test_the_authoring_reference_points_at_the_builder_s_two_references():
     a = _read("references", "remotion-shot-authoring.md")
     assert "references/building-blocks.md" in a and "references/object-authoring.md" in a
+
+
+def test_every_workshop_command_in_the_docs_puts_the_film_before_the_subcommand():
+    """`workshop.py <out_dir> <subcommand> …` is the only order its parser accepts; a command written the other
+    way round (`workshop.py still <out_dir> <Name>`) exits 2 for whoever copies it. A bare subcommand name with
+    no argument after it is a mention, not a command, and is left alone."""
+    import re
+    import workshop
+    subs = "|".join(re.escape(c) for c in ("list", "check", "new-object", "new-shot", "still"))
+    wrong = re.compile(r"workshop\.py\s+(?:%s)\s+(?![|`)\]])\S" % subs)
+    found = []
+    for folder, ext in (("references", ".md"), ("agents", ".md"), (os.path.join("remotion", "cards"), ".md")):
+        for f in sorted(os.listdir(os.path.join(_ROOT, folder))):
+            if f.endswith(ext):
+                found += ["%s/%s: %s" % (folder, f, m.group(0)) for m in wrong.finditer(_read(folder, f))]
+    for f in ("SKILL.md", "README.md"):
+        found += ["%s: %s" % (f, m.group(0)) for m in wrong.finditer(_read(f))]
+    assert not found, found
+    # and the parser really does refuse the reversed order, so this is a real defect and not a style rule
+    try:
+        workshop.main(["still", "some_film", "SomeObject"])
+    except SystemExit as e:
+        assert e.code == 2
+    else:
+        raise AssertionError("workshop.py accepted a subcommand where the film's folder belongs")
