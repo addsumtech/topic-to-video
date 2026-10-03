@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the six object examples of references/object-authoring.md into references/object-examples/<Name>.png —
-each on ObjectStage (ComposeScreen on DeviceHero's screen), at half size, settled. The doc embeds what this writes;
-re-run it after changing an example.
+each on ObjectStage (ComposeScreen on DeviceHero's screen), at half size, at ITS OWN host's settled frame. The doc
+embeds what this writes; re-run it after changing an example.
 
     python3 scripts/object_examples.py
 """
@@ -14,6 +14,7 @@ import tempfile
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
+import render_remotion as rr  # noqa: E402
 import workshop as ws  # noqa: E402
 
 SKILL = os.path.dirname(_HERE)
@@ -33,6 +34,13 @@ SHOTS = {  # name: (host, props) — every word on the frame comes from these pr
 }
 
 
+def _settled_frame(out_dir, host):
+    """The frame at which `host`'s OWN `useT()` has settled — read from its real `DURATION`, the same inversion
+    `workshop.still()` uses by default, so a host shorter or longer than any host this script already renders
+    still lands past its entrance and before its exit instead of mid-animation or past its last frame."""
+    return int(round(rr.frame_at_t(ws._required_duration(ws.shot_source(out_dir, host), host), rr.SETTLED_T)))
+
+
 def main():
     film = tempfile.mkdtemp(prefix="object_examples_")
     try:
@@ -46,10 +54,11 @@ def main():
             with open(pf, "w", encoding="utf-8") as fh:
                 json.dump(dict(props, dna="product"), fh, ensure_ascii=False)
             png = os.path.join(EX, n + ".png")
-            subprocess.run(["npx", "remotion", "still", "src/index.ts", host, png, "--frame=149", "--scale=0.5",
-                            "--gl=angle", "--log=error", "--props=" + pf], cwd=ws.REMOTION, check=True,
-                           **ws.run_kwargs(film))
-            print("[object_examples] %s" % png)
+            frame = _settled_frame(film, host)
+            subprocess.run(["npx", "remotion", "still", "src/index.ts", host, png, "--frame=%d" % frame,
+                            "--scale=0.5", "--gl=angle", "--log=error", "--props=" + pf], cwd=ws.REMOTION,
+                           check=True, **ws.run_kwargs(film))
+            print("[object_examples] %s (frame %d)" % (png, frame))
     finally:
         shutil.rmtree(film, ignore_errors=True)
     return 0

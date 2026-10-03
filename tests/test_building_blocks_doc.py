@@ -1,5 +1,5 @@
 """references/building-blocks.md covers EVERY runtime module a film's code can import — by the module's own name,
-naming exports that really exist — because half of them used to be discoverable only from their source headers."""
+naming exports that really exist — so a builder reads one map instead of every runtime file's own source header."""
 import glob
 import os
 import re
