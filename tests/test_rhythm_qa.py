@@ -201,3 +201,17 @@ def test_the_mutation_that_drops_a_scene_is_caught():
     assert r["universe"] == 5 and r["measured"] == 4, r
     assert any("NO recorded reason" in e for e in r["errors"]), r["errors"]
     assert r["ok"] is False
+
+
+def test_a_remotion_beat_is_an_animated_register_not_a_held_still():
+    """A beat that names a `shot` (and no `type`) is a register animating on its own clock. Judged as a
+    held image it drew a 'static image is held' warning past 10s and a blocking ERROR past 16s."""
+    beats = [{"index": i, "shot": "SpinningProton", "narration": "一句话。", "duration": d}
+             for i, d in enumerate([12.4, 17.5, 15.3, 15.0], 1)]
+    r = rq.evaluate(_board(beats, meta={"language": "zh", "renderer": "remotion", "arc_kind": "expository"}))
+    assert r["ok"], r["errors"]
+    assert not any("static image is held" in m for m in r["errors"] + r["warnings"]), r
+    assert r["held_frame_scenes"] == 0 and r["held_frame_skipped"] == {"shot": 4}
+    # a slide held as long is still the defect it always was
+    still = rq.evaluate(_board([_sc(0, 5.0), _sc(1, 17.5, type="slide"), _sc(2, 4.0, type="title")]))
+    assert any("static image is held 18s" in e for e in still["errors"]), still["errors"]

@@ -43,6 +43,12 @@ _DENSE_TYPES  = {"chart", "keypoints", "compare", "timeline", "html"}
 
 
 def _stype(s):
+    # A remotion beat names its register in `shot` and carries no `type`. Defaulted to "slide" it would be
+    # judged as a held still — a warning on every beat over 10s, a blocking ERROR on one over 16s — when it
+    # is a register animating on its own clock. It is its own kind, which the held-frame rule reports as a
+    # type it does not inspect.
+    if s.get("type") is None and s.get("shot"):
+        return "shot"
     return s.get("type", "slide")
 
 
