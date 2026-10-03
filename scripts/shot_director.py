@@ -28,6 +28,7 @@ FAMILY = {
     "StatedBy": "JA",
     "ProfileGrowth": "J",
     "PhotoPlate": "H",
+    "ObjectCompare": "H",
     "TechnicalPlate": "J",
     "Inscription": "JA",
     "MuseumLabel": "JA",
@@ -137,6 +138,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "ObjectCompare":           'motion-graphics',
     "ObjectStage":             'motion-graphics',
     "DeviceHero":              'product-ui',
     "DeviceDemo":              'product-ui',

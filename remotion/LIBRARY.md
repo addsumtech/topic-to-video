@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (188 design languages)
+# Remotion2 — Bespoke Shot Library (189 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 188 registers across 27 families.** D×29 · A×23 · C×17 · B×14 · G×11 · F×10 · L×10 · E×9 · H×9 · I×8 · J×5 · JA×5 · K×5 · M×5 · S×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
+**Family census — 189 registers across 27 families.** D×29 · A×23 · C×17 · B×14 · G×11 · F×10 · H×10 · L×10 · E×9 · I×8 · J×5 · JA×5 · K×5 · M×5 · S×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -251,6 +251,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 85. **ComicPanels** — a comic page: action panels (speed-lines + burst captions) snap in one by one, building to a full-width SPLASH payoff panel. *Use: a process as a comic beat / playful sequence.*
 
 ## H · Comparison
+213. **ObjectCompare** — two things the film drew at one size on one floor, each named, a ring at the same point on both and the one difference set under the pair. *Use: "these two differ HERE" — one object in two states, or two things.* `first, second, firstLabel, secondLabel, difference, at, kicker` · `first`, `second`, `difference` required in a film.
 160. **TensionScale** — a beam teeters on a fulcrum and never settles — a trade-off with no resting point. *Use: two goods in permanent tension / a trade-off that cannot be resolved.* `title, leftLabel, leftSub, rightLabel, rightSub, note, accent, accent2`
 158. **RealVersus** — two real images side by side, the comparison carried by the photographs themselves. *Use: A vs B where real imagery makes the point.* `srcLeft`/`srcRight` **(REQUIRED)**`, labelLeft, labelRight, title, credit, accent` Past that it throws: both `srcLeft` and `srcRight` are required evidence.
 155. **KSpaceAnatomy** — the centre of k-space holds the overall contrast, the edges hold the detail — read on real data. *Use: how to READ a transformed space / centre vs edges.* `srcK, srcLow, srcHigh, accent, accent2, label, credit`
