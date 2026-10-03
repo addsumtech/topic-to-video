@@ -475,3 +475,23 @@ def test_an_object_entry_s_declared_slot_must_match_where_it_is_held(tmp_path):
                    [_entry("WsDisc", slot="SomeOtherShot"), _entry("WsShotA", "shot")])
     warns = v.evaluate(board, str(tmp_path))["warnings"]
     assert any("`WsDisc` names slot 'SomeOtherShot'" in w and "'WsShotA'" in w for w in warns), warns
+
+
+def test_an_object_held_by_several_templates_lists_them_all(tmp_path):
+    """One object serving several beats in different templates is the reuse the build flow is for, so `slot`
+    may list every template that holds it; only a holder it does not list is named."""
+    held_in_both = [_holding(ref="WsDisc"),
+                    {"shot": "WsShotB", "shot_props": {"object": {"id": "WsDisc"}},
+                     "shot_fit": {"verdict": "build", "ref": "WsDisc", "why": "x"}}]
+    entries = lambda slot: [_entry("WsDisc", slot=slot), _entry("WsShotA", "shot"), _entry("WsShotB", "shot")]
+    ok = v.evaluate(_board(tmp_path, held_in_both, entries(["WsShotA", "WsShotB"]),
+                           shots=("WsShotA", "WsShotB")), str(tmp_path))
+    assert not any("names slot" in w for w in ok["warnings"]), ok["warnings"]
+    assert not any("`slot`" in e for e in ok["errors"]), ok["errors"]
+    short = v.evaluate(_board(tmp_path, held_in_both, entries(["WsShotA"]), shots=("WsShotA", "WsShotB")),
+                       str(tmp_path))["warnings"]
+    assert any("names slot ['WsShotA']" in w and "'WsShotB'" in w and "'WsShotA', " not in w for w in short), short
+    for bad in ([], ["WsShotA", ""], ["WsShotA", 3]):
+        errs = v.evaluate(_board(tmp_path, held_in_both, entries(bad), shots=("WsShotA", "WsShotB")),
+                          str(tmp_path))["errors"]
+        assert any("a non-empty list of register names" in e for e in errs), (bad, errs)

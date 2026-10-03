@@ -2811,9 +2811,17 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
                        ("accept", "say how it is judged — with the caption hidden, what does a viewer still see?")):
             if not str(e.get(f) or "").strip():
                 errors.append("%s: `%s` is empty — %s" % (where, f, why))
-        if not str(e.get("slot") or "").strip():
+        slot_v = e.get("slot")
+        # an OBJECT is reusable across templates (agents/shot-director.md step 0.55), so its `slot` may list every
+        # template that holds it; a shot's slot is always the one word `own`
+        if isinstance(slot_v, list):
+            if not slot_v or not all(isinstance(x, str) and x.strip() for x in slot_v):
+                errors.append("%s: `slot` lists the templates it goes into — a non-empty list of register names "
+                              "(got %r)" % (where, slot_v))
+        elif not str(slot_v or "").strip():
             errors.append("%s: `slot` names the template it goes into — a register with an object slot, a stage "
-                          "register, or `own` for a shot" % where)
+                          "register, or `own` for a shot (an object held by several templates lists them all)"
+                          % where)
         promoted = e.get("promoted")
         if promoted is not None and not isinstance(promoted, bool):
             errors.append("%s: `promoted` must be a boolean (got %r)" % (where, promoted))
@@ -2866,10 +2874,11 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
         if kind == "shot" and str(slot or "").strip() and str(slot or "") != "own":
             warnings.append("meta.build_list `%s` is a shot; its `slot` should be \"own\" (got %r)" % (eid, slot))
         elif kind == "object":
-            wrong = sorted(h for h in hosts_by_object.get(eid, ()) if h != slot)
+            named = set(x for x in slot if isinstance(x, str)) if isinstance(slot, list) else {slot}
+            wrong = sorted(h for h in hosts_by_object.get(eid, ()) if h not in named)
             if wrong:
-                warnings.append("meta.build_list `%s` names slot %r, but this film holds it in %s"
-                                % (eid, slot, ", ".join(repr(h) for h in wrong)))
+                warnings.append("meta.build_list `%s` names slot %r, but this film holds it in %s — list every "
+                                "template that holds it" % (eid, slot, ", ".join(repr(h) for h in wrong)))
 
     for pos, (shot, src, sp, refs) in enumerate(beat_refs, 1):
         s = slides[pos - 1]

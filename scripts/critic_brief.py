@@ -176,7 +176,8 @@ def build(out_dir):
         for e in bl:
             still = os.path.join("workshop", "_stills", "%s.png" % e.get("id"))
             L.append("- `%s` (%s in `%s`, beats %s%s) — means: %s · accept: %s%s"
-                     % (e.get("id"), e.get("kind"), e.get("slot"), e.get("beats"),
+                     % (e.get("id"), e.get("kind"),
+                        "`, `".join(e["slot"]) if isinstance(e.get("slot"), list) else e.get("slot"), e.get("beats"),
                         ", promoted" if e.get("promoted") else "", e.get("means"), e.get("accept"),
                         " · settled frame: `%s`" % still if os.path.exists(os.path.join(out_dir, still)) else ""))
     L.append("")

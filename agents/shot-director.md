@@ -168,7 +168,9 @@ the test it must pass are written while the need is fresh:
  "accept": "caption hidden, a viewer still sees water pushed through a packed bed"}
 ```
 
-and every beat that uses it says so: `shot_fit = {"verdict": "build", "ref": "EspressoPuck", "why": "…"}`.
+and every beat that uses it says so: `shot_fit = {"verdict": "build", "ref": "EspressoPuck", "why": "…"}`. An object
+held by more than one template lists them all — `"slot": ["ObjectStage", "ObjectCompare"]` — since one object is
+meant to serve several beats; a shot's `slot` is always `"own"`.
 `validate.py` holds the two together both ways (a listed item with no file, a file with no entry, an entry no beat
 uses, a `ref` that names nothing), refuses an object id nobody defines and a stage's own preview form, and runs
 `workshop.py check`. Then build it:
