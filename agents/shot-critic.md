@@ -338,3 +338,16 @@ library already has; whether the FORMS are really this subject's is yours.
 > the shape it describes.
 > **Ask yourself:** Which beat's form did the catalogue not have — and what did the film do about it?
 
+**S15 · BUILT THINGS — does each thing the film built carry its beat?** For every `meta.build_list` entry (the
+brief lists them with their beats, `means` and `accept`), judge it on its rendered frames — its settled frame
+(`<out_dir>/workshop/_stills/<id>.png` when the maker rendered one) and its beats' keyframes: (a) with the caption
+hidden, does it carry its entry's `means` — does it pass its own `accept`? (b) can a first-time viewer name what it
+is in about a second? (c) does it belong to this film's Design DNA — its ink, type and motion — or read as another
+film pasted in? (d) is it better than the library's nearest register would have been, or a worse copy of something
+the library already had? And the other direction, which S1 and S14 begin: for each beat that did NOT build, name
+why the library register's STRUCTURE — not just its words — carries that beat. `na` only when the film built
+nothing AND every beat's structure fits; say which.
+> **Precedent — none on record.** This is doctrine, not case law: a film's own built things are new. When one fails
+> here, write it down as the first case.
+> **Ask yourself:** Hide the caption on each built thing — what does it say, and is that its beat?
+

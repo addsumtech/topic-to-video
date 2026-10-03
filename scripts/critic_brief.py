@@ -168,12 +168,28 @@ def build(out_dir):
         L.append("")
         L.append("No beat recorded a `shot_fit` judgement, so nobody asked whether the catalogue could "
                  "carry these arguments. Say so in your verdict.")
+    # THE BUILT THINGS, for S15: each with its purpose and its own test, and its settled frame when one was rendered.
+    bl = [e for e in meta.get("build_list") or [] if isinstance(e, dict)]
+    if bl:
+        L.append("")
+        L.append("**Built things** — judge each on S15, against its own `means` and `accept`:")
+        for e in bl:
+            still = os.path.join("workshop", "_stills", "%s.png" % e.get("id"))
+            L.append("- `%s` (%s in `%s`, beats %s%s) — means: %s · accept: %s%s"
+                     % (e.get("id"), e.get("kind"), e.get("slot"), e.get("beats"),
+                        ", promoted" if e.get("promoted") else "", e.get("means"), e.get("accept"),
+                        " · settled frame: `%s`" % still if os.path.exists(os.path.join(out_dir, still)) else ""))
     L.append("")
     L.append("## 5 · The registers this film uses")
     L.append("")
     for shot, line in sorted(_library_entries(set(shots)).items()):
         L.append("- " + re.sub(r"^\d+\. ", "", line))
-    missing = sorted(set(shots) - set(_library_entries(set(shots))))
+    import workshop as _ws
+    film_own = _ws.shot_names(out_dir)
+    missing = sorted(set(shots) - set(_library_entries(set(shots))) - film_own)
+    if film_own & set(shots):
+        L.append("")
+        L.append("Film-local registers (its workshop — see Built things): %s" % ", ".join(sorted(film_own & set(shots))))
     if missing:
         L.append("")
         L.append("Not in the catalogue (so nothing states what they are for): %s" % ", ".join(missing))

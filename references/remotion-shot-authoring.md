@@ -642,6 +642,13 @@ icon would be larger than its title. Never emoji.
 Which registers can take one is READ from the source — a register that imports `runtime/icons` is
 icon-capable — so wiring a new one brings it under the gate the same day.
 
+## Building what the library lacks
+
+A film builds the objects and templates it needs in its own workshop (`scripts/workshop.py`) instead of settling for
+the nearest register — see shot-director Step 0.55. What to build WITH is `references/building-blocks.md` (every
+runtime module, and recipes for the objects films keep needing); how to make a built object MEAN its beat is
+`references/object-authoring.md`. Everything in this file binds a film's own code exactly as it binds the library.
+
 ## E · The gates still bind
 
 None of the above relaxes the floor. Before delivery: `validate.py` (structure/faithfulness), `check_av.py`

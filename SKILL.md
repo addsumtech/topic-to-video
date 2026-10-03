@@ -1228,8 +1228,12 @@ agent on the beats it points at.
      + content for THIS topic — never a raw text-swap; §B2), keeping family-variety AND **boldness** (reach past
      the obvious register, scaled by audacity; note each beat's `rejected_default`), AND ensuring every shot
      ENCODES its beat (hide the caption — does the visual still carry THIS idea?) and COHERES with the chosen
-     direction (palette/motion/motif, not a random stack). When no register encodes a topic-specific idea, BUILD a bespoke shot (real imagery where
-     the topic is concrete) rather than force a near-miss. SKIP the HTML design plan (no `design_plan.json`).
+     direction (palette/motion/motif, not a random stack). **NEED FIRST, then the catalogue, then BUILD what it lacks** (shot-director Step 0.55): for each beat
+     write the ideal picture, then resolve it to fit / adapt / an OBJECT a library template holds / a new film-local
+     SHOT. Every built thing goes on `meta.build_list` with its `means` and `accept`, is written in the film's own
+     workshop (`scripts/workshop.py new-object | new-shot | still | check`; what to build with:
+     `references/building-blocks.md`; how to make it mean something: `references/object-authoring.md`) and never
+     touches the library. Real imagery where the topic is concrete stays the documentary tier's. SKIP the HTML design plan (no `design_plan.json`).
      **③ Then run `python scripts/seam_plan.py <out_dir>` — the film's CUTS and CAMERA.** It is a
      verify-and-fill pass, not a competitor: it SKIPS every beat the shot-director already marked, so
      authored intent always wins. What it adds is the half an author cannot do by reading — it mirrors the
@@ -1254,6 +1258,13 @@ agent on the beats it points at.
      no summary of what you fixed, no steer about where to look — and gate on
      `python3 scripts/critic_ledger.py <out_dir> --final`, which REFUSES a ledger the film's own maker wrote.
      The maker holds the intent, and the intent is what makes a wrong frame look right.
+     **PROMOTION IS THE USER'S CHOICE, AT DELIVERY.** When the film is delivered (`critic_ledger.py --final`
+     passed), list its built things — each with its settled frame (`workshop/_stills/`) and its gate results — and
+     ask the user with `AskUserQuestion` (multiSelect) which, if any, to promote into the library. For each one
+     chosen: `python3 scripts/promote.py <out_dir> <Name>` (an object: it joins remotion/src/objects and the
+     catalogue) or `... --family <X> --use-when "…" --motion "…"` (a shot: registered at every sync point and
+     measured in the right order). Nothing is promoted without the user's pick; nothing a film builds reaches
+     another film until it is.
      **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing

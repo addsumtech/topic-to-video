@@ -23,6 +23,9 @@ each scene in `storyboard.json`. You do NOT change facts, narration, or beat ord
    X Weather/atmosphere · Y Fire/energy · Z Textile/fabric), each with a one-line **"use when"** and its
    **props** (the Generalization table). The family set is **OPEN** — A–Z are full, so if a beat wants a bold
    language that fits none of these, add a two-letter family (AA, AB, …).
+3. **`references/building-blocks.md`** and **`references/object-authoring.md`** — what a film's own objects and
+   shots are drawn WITH (every runtime module, six recipes) and how an object is made to MEAN its beat (five rules,
+   three good and three bad rendered examples). Read them before the first build.
 
 ## Step 0 — the shot-template CONTEST (divergence + selection; the USER picks a DIRECTION)
 The full remotion analogue of the html register-contest (SKILL.md 3.55) — **divergence AND selection**, not just
@@ -110,8 +113,9 @@ Rules that make this a derivation rather than a shopping list:
 ### Then, per beat
 Choose the FORM first, from your own list. Only then ask the catalogue:
 * a register already carries that form → use it, adapted (`shot_fit.verdict: "fit"`/`"adapt"`);
-* nothing does → **BUILD it** (`"build"`, `scripts/register_shot.py`). This is the normal case on a subject
-  the library has not met, not an emergency.
+* nothing does → **BUILD it** (`"build"`) in the film's workshop — an OBJECT a library template holds, or a new
+  film-local SHOT — and put it on the build list first (Step 0.55). This is the normal case on a subject the
+  library has not met, not an emergency.
 * Record which form the beat realises: **`shot_fit.form` MUST name one of `meta.form_vocabulary`.**
   `validate.py` ERRORS on a beat whose `shot_fit.form` is missing or not in the list — which is what stops
   the catalogue from quietly supplying the vocabulary again.
@@ -138,6 +142,56 @@ It is not a licence to build 35 one-offs. A form used once is a one-off; a form 
 register. Build the FORM, give it an argument shape and props, and it joins the library for every later film
 — that is how family J (survey: gazetteer entry, map plate, strata column, plan palimpsest, tally ledger,
 museum label) came to exist, one film too late.
+
+## Step 0.55 — NEED FIRST: the ideal picture, then the catalogue; what the library lacks is BUILT
+
+For every beat, BEFORE you open LIBRARY.md, write down the IDEAL picture: the specific thing a viewer must SEE for
+this beat to land — an object (a coffee puck under pressure), a mechanism (water forced through it), a relation
+(loose against packed). Then resolve it to one of:
+
+* **fit** — a library register carries it as it is (`shot_fit.verdict: "fit"`);
+* **adapt** — a library register carries it re-sized and re-worded, its structure unchanged (`"adapt"`, §B2);
+* **object** — a library TEMPLATE holds it and the thing itself is built: a register with an object slot —
+  `ObjectStage` (one thing, named), `ObjectCompare` (two, one difference), `ObjectPath` (through stations,
+  changing), `ObjectTurntable` (in the round), `TechnicalPlate` `art`, `HudReticle` `object`, a device's
+  `screen` — plus a new object (`"build"`, `ref` = the object);
+* **shot** — no template arranges the frame the way the argument does: a new film-local register (`"build"`,
+  `ref` = the shot).
+
+Every object or shot you build goes on **`meta.build_list`** FIRST — before it is drawn — so the reason for it and
+the test it must pass are written while the need is fresh:
+
+```json
+{"id": "EspressoPuck", "kind": "object", "beats": [3, 4],
+ "means": "water forced through a compacted puck — the resistance is the point",
+ "slot": "ObjectStage", "uses": ["draw", "alongPath", "light"],
+ "accept": "caption hidden, a viewer still sees water pushed through a packed bed"}
+```
+
+and every beat that uses it says so: `shot_fit = {"verdict": "build", "ref": "EspressoPuck", "why": "…"}`.
+`validate.py` holds the two together both ways (a listed item with no file, a file with no entry, an entry no beat
+uses, a `ref` that names nothing), refuses an object id nobody defines and a stage's own preview form, and runs
+`workshop.py check`. Then build it:
+
+```
+python3 scripts/workshop.py <out_dir> new-object EspressoPuck --means "water forced through a packed bed"
+python3 scripts/workshop.py <out_dir> new-shot ExtractionFlow --means "pressure, flow and time on one frame"
+python3 scripts/workshop.py <out_dir> still EspressoPuck      # LOOK at it, caption hidden, before it enters the film
+python3 scripts/workshop.py <out_dir> check                   # type-check, imports, content contract, words from props
+```
+
+**Object or shot?** Build an OBJECT when a template's frame is right and only its subject is missing — the stage,
+the compare, the route, the turntable, a plate's field, a device's screen already say what the beat's FORM is.
+Build a SHOT when the form itself is new. An object is reusable across the film's beats (the same puck loose on
+beat 3 and tamped on beat 4, through its `props`) and across templates; a shot is one composition. A film-local
+shot declares `GROUND` (the DNA token its ground is painted from — the caption's ink is picked from it and
+`shot_proof.py` measures the claim) and `PROVENANCE` (its idiom world).
+
+**Do not be lazy about it.** Step 0.5 already requires half the form vocabulary to be forms the library lacks;
+each of those is a build-list entry, or a written reason it is not. A topic the library has never met with an empty
+build list is the signature of assembling from what exists — the critic's S14 and S15 look for exactly that. What
+the film builds stays in its workshop; at delivery the USER decides what is promoted into the library
+(`scripts/promote.py`).
 
 ## Step 0.6 — Extract the Design DNA (the GLOBAL visual system every shot inherits)
 The chosen template is **NOT a set of reusable frames — it is the whole film's visual system.** Before authoring a
@@ -306,22 +360,25 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    that settles it: could you fit this beat into the register only by **swapping its words**? Then the
    register does not carry the argument — build.
 
-   **Building is one command, and cheap on purpose:**
+   **Building happens in the film's own workshop, and is cheap on purpose** (Step 0.55; `scripts/workshop.py`):
    ```
-   python3 scripts/register_shot.py <Id> <FamilyLetter> --use-when "<one line>"   # stub + all 5 sync points
-   # write the shot body, then:
-   python3 scripts/measure_ground_luma.py --only <Id>     # sanity-check its ground
-   python3 scripts/shot_proof.py <out_dir>                # frame-craft, palette, reuse (rendered by
-                                                        # default now; --no-stills for a fast source-only pass)
+   python3 scripts/workshop.py <out_dir> new-object <Name> --means "<what the viewer must see>"   # a thing a template holds
+   python3 scripts/workshop.py <out_dir> new-shot <Name> --means "<the argument no register carries>"   # a new template
+   python3 scripts/workshop.py <out_dir> still <Name>    # LOOK at its settled frame before it enters the film
+   python3 scripts/workshop.py <out_dir> check           # type-check, imports, content contract, words from props
    ```
-   It used to mean editing five files by hand, four of which fail silently — which is exactly why in
-   practice nothing was ever built and every beat got matched to the closest existing register instead.
+   Nothing it builds touches the library: every render of THIS film sees it and no other film does; at delivery the
+   user decides what is promoted (`scripts/promote.py`, which registers and measures it). Writing a register
+   straight into the library mid-film (`register_shot.py`) was the only way to build, and it cost a full
+   registration and measurement — which is exactly why in practice nothing was ever built and every beat got
+   matched to the closest existing register instead.
 
    **A new register must be REUSABLE, not a one-off.** It carries an ARGUMENT SHAPE — "two populations a
    measure cannot separate", "correlated vs independent failure" — with the topic arriving entirely through
    props, so the next film making that kind of claim can reach for it and the library compounds. Its
    DEFAULTS stay generic demo copy. `shot_proof.py` ERRORS if a register hardcodes this film's own prose.
    Give it a family letter; if it fits none of A–Z, open a two-letter one (AA, AB, …) — the set is open.
+   A film-local shot is held to the same rule — its topic arrives through props — which is what makes it promotable.
 
    **A THIN FAMILY is a build signal, not a menu.** LIBRARY.md opens with a generated family census: nine
    of the twenty-five families hold ONE register. So "vary the family" quietly pushes every film toward the
@@ -511,7 +568,8 @@ concrete cues that tie THIS shot to the global visual system** (e.g. `["mono hea
 "green accent"]`) so the Design DNA verifiably runs through every frame; per the KEEP-THE-STYLE-REDESIGN-THE-REST
 rule above — keep what fits, redesign what doesn't, don't blindly change everything). Also set **`shot_fit` = `{verdict: "fit"|"adapt"|"build", why}`** per scene (rule 0) — the judgement of
 whether a register's structure actually carries the beat's argument, and the ONLY thing that can surface
-"nothing in the library can draw this". On the FEW beats that earn them, also set `transition_style` (Rule 5) and `camera` (the camera section); `python3 scripts/seam_plan.py <out_dir>` then fills the beats you left and skips every one you authored. Then record your choices for the critic: a short
+"nothing in the library can draw this". On a film that builds, also write **`meta.build_list`** (Step 0.55) and
+`shot_fit.ref` on every beat that uses a built item. On the FEW beats that earn them, also set `transition_style` (Rule 5) and `camera` (the camera section); `python3 scripts/seam_plan.py <out_dir>` then fills the beats you left and skips every one you authored. Then record your choices for the critic: a short
 `shot_rationale` per scene (why this register, which family) is encouraged. `validate.py` errors on a
 missing/unknown `shot`, a number-bearing register left on its demo default, or ANY copy prop left to its demo
 default on a partly-filled beat, and WARNs on empty `shot_props` or a
