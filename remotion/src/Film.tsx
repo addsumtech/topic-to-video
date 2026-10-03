@@ -164,6 +164,7 @@ const fitCaption = (chunks: string[], size: number, measure: number, lines: numb
 };
 
 const CAP_PAD = 4;   // clean-gap frames inside each scene's sole-visible window → guarantees exit-before-enter
+const CAP_PAD_X = 60; // the caption block's own side padding, inside its measure (border-box)
 const CAP_FADE = 3;  // tiny in/out ramp WITHIN the window (never across a transition, so captions never double)
 // FRAME-CRAFT FLOOR. An earlier version scaled the WHOLE world to 0.86 to pull edge content inside action-safe —
 // but that shrank each shot's OWN full-bleed background too, so a ~14% margin of the near-black atmosphere showed
@@ -216,9 +217,13 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   const sc = active >= 0 ? scenes[active] : undefined;
   if (!sc || !sc.caption) return null;
   // the measure the caption actually wraps in — must match the <div> below, or the fit is estimated against
-  // a width the browser never used
+  // a width the browser never used. The block is `capMeasure` wide border to border and its text wraps
+  // INSIDE its side padding, so the lines are `capMeasure - 2 * CAP_PAD_X` long: fitted against the whole
+  // block, a 68-glyph Chinese sentence passed as two lines of 35 and the browser set it in three lines of 32,
+  // the third climbing out of the band onto the shot's own words.
   const capMeasure = Math.min(1600, width - 120);
-  const merged = fitCaption(splitCaption(sc.caption), capSize, capMeasure, CAPTION_LINES, dnaFontBody, dnaUniform);
+  const capTextW = capMeasure - 2 * CAP_PAD_X;
+  const merged = fitCaption(splitCaption(sc.caption), capSize, capTextW, CAPTION_LINES, dnaFontBody, dnaUniform);
   // WEIGHT each chunk's on-screen time by its LENGTH (not equal slices) — else a 3-word chunk lingers while a
   // 20-word chunk races the voice. Advance idx by cumulative char-fraction of the caption.
   const lens = merged.map((c) => Math.max(1, c.length));
@@ -311,12 +316,13 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // fits, which is a guarantee rather than an estimate and holds for any language, length and aspect. In the
   // ordinary Latin two-line case the cap is well above the ideal size and nothing changes.
   const capBand = captionBand(width, height);
-  const perLine = Math.max(8, Math.floor(capMeasure / (capSize * advanceFor(capText, dnaFontBody, dnaUniform))));
+  const perLine = Math.max(8, Math.floor(capTextW / (capSize * advanceFor(capText, dnaFontBody, dnaUniform))));
   const capLines = Math.max(1, Math.ceil(capText.length / perLine));
   const fitSize = Math.max(12, Math.min(capSize, Math.floor((capBand - capMargin) / (capLead * capLines))));
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
-      <div style={{position: 'relative', maxWidth: capMeasure, margin: `0 auto ${capMargin}px`, padding: '0 60px', textAlign: 'center',
+      <div style={{position: 'relative', maxWidth: capMeasure, boxSizing: 'border-box', margin: `0 auto ${capMargin}px`,
+        padding: `0 ${CAP_PAD_X}px`, textAlign: 'center',
         // WEIGHT 600, NOT 700. The caption is already in the DNA's body face, but at 700 it was the
         // heaviest thing on screen — heavier than the display headlines it sits under — so the frame's own
         // hierarchy read second to its subtitle. Its legibility floor is about SIZE (>=5% of frame height,
