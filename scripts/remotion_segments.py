@@ -321,7 +321,9 @@ def render_segment(seg, last, props_path, public_dir, cache, cli_flags, run=subp
     # never silently drop the close — it surfaces below as a frame count that disagrees with the model
     frames = "%d-%s" % (seg["a"], "" if last else seg["b"])
     source = ([serve] if serve else ["src/index.ts"])
-    cmd = (["npx", "remotion", "render"] + source + ["Film", tmp, "--codec=h264", "--audio-codec=pcm-16",
+    # ABSOLUTE, like the props and the public dir: the CLI runs in remotion/, so a relative path would put the
+    # beat under remotion/<out_dir>/ while the cache looks for it under <out_dir>/ — found by nobody.
+    cmd = (["npx", "remotion", "render"] + source + ["Film", os.path.abspath(tmp), "--codec=h264", "--audio-codec=pcm-16",
            "--enforce-audio-track", "--frames=" + frames, "--props=" + os.path.abspath(props_path)]
            + ([] if serve else ["--public-dir=" + os.path.abspath(public_dir)]) + list(cli_flags))
     try:

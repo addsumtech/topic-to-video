@@ -397,6 +397,31 @@ def test_a_failed_beat_leaves_the_finished_ones_and_a_rerun_resumes(public):
 
 
 @needs_ffmpeg
+def test_a_relative_out_dir_still_caches_its_beats(public, monkeypatch):
+    """The render CLI runs in remotion/, so a relative output path is resolved against remotion/: the beat would
+    land under remotion/<out_dir>/ while the cache looks under <out_dir>/, the per-beat render would never find
+    what it made, and every render would fall back to one whole render. Every path handed to the CLI is
+    absolute — this fake refuses a relative one rather than writing it anywhere."""
+    p = _props([60, 70])
+    pf = public / ".remotion-props.json"
+    pf.write_text(json.dumps(p), encoding="utf-8")
+    total = rs.timeline(p["scenes"], TR)[1]
+
+    class _AbsoluteOnly(_FakeRemotion):
+        def __call__(self, cmd, cwd=None, check=True):
+            if cmd[2] != "bundle":
+                assert os.path.isabs(cmd[5]), "the render CLI was handed a relative output path: %s" % cmd[5]
+            return super().__call__(cmd, cwd=cwd, check=check)
+
+    monkeypatch.chdir(public.parent)
+    rel = public.name
+    rs.render_film(rel, p, str(pf), os.path.join(rel, "out.mp4"), [], {"gl": "angle"}, log=lambda *_: None,
+                   run=_AbsoluteOnly(total))
+    assert len([f for f in os.listdir(public / rs.CACHE_DIR) if f.endswith(".mov") and ".part" not in f]) == 2
+    assert rs.video_frames(str(public / "out.mp4")) == total
+
+
+@needs_ffmpeg
 def test_a_segment_the_wrong_length_is_refused_and_not_kept(public):
     """The model's other failure: Remotion renders a different number of frames than the timeline expects.
     That film is never assembled, and the segment is not cached under a key that would be trusted later."""
