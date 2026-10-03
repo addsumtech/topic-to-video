@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (190 design languages)
+# Remotion2 — Bespoke Shot Library (191 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 190 registers across 27 families.** D×29 · A×23 · C×17 · B×14 · G×11 · F×10 · H×10 · L×10 · E×9 · I×9 · J×5 · JA×5 · K×5 · M×5 · S×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
+**Family census — 191 registers across 27 families.** D×29 · A×23 · C×17 · B×14 · G×11 · F×10 · H×10 · L×10 · E×9 · I×9 · K×6 · J×5 · JA×5 · M×5 · S×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -276,6 +276,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 *(J · Experimental type — RETIRED: its one shot folded into P; the letter J is free for a future language.)*
 
 ## K · Generative — computed fields, not gradients
+215. **ObjectTurntable** — a thing the film drew turns on a platter so its shape in the round is seen; a `turns` object draws its own 3D, any other turns as a card (±60°). *Use: "this is what it is like from every side".* `object, sweep, title, note, kicker` · `object` required in a film; sweep 20–360 (a flat object ≤ 120).
 68. **FlowField** — hundreds of streamlines trace a static curl field and draw on in waves, revealing an ambient generative field with a centred wordmark. *Use: flow / everything moving as one / ambient hero.*
 71. **LowPolyForm** — a jittered low-poly triangle mesh assembles centre-out, colour-graded across a duotone, with a wordmark over it. *Use: faceted crystalline hero / "many facets, one form".*
 83. **KaleidoMandala** — an N-fold mirror-symmetric kaleidoscope of shapes blooms + rotates with a colour cycle, settling behind a wordmark. *Use: order out of many / an ornate ambient hero.*

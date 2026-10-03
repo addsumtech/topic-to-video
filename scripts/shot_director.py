@@ -100,6 +100,7 @@ FAMILY = {
     "HardBarrier": "I",
     "SectionRoute": "I",
     "FlowField": "K", "LowPolyForm": "K", "KaleidoMandala": "K", "RidgeField": "K", "GameOfLife": "K",
+    "ObjectTurntable": "K",
     "MagazineSpread": "L", "PaperSlot": "L", "PortRail": "B", "RansomZine": "L",
     "EdStat": "L", "EdTimeline": "L", "EdCompare": "L",   # editorial-native family (Ed*) — grouped like Term* above
     "GlitchDatamosh": "M", "CodeRain": "M",
@@ -139,6 +140,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "ObjectTurntable":         'motion-graphics',
     "ObjectPath":              'motion-graphics',
     "ObjectCompare":           'motion-graphics',
     "ObjectStage":             'motion-graphics',
