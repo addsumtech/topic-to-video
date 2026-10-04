@@ -152,10 +152,15 @@ export const PaperSlot: React.FC<{hub?: string; items?: string[]; note?: string}
         const startY = Math.max(CONTENT_TOP + Math.round(U * 0.01), restY - Math.round(zoneH * 0.30));
         const y = lerp(startY, restY, drop);
         const tilt = (hash01(i * 13 + 3) - 0.5) * 2.4;         // no two tags land at the same angle
+        // THE DROP IS A TRANSLATE, NOT `top`. The browser rounds a layout offset to whole pixels before anything
+        // is drawn, so a tag dropped by `top` came down its last pixels in whole-pixel stairs. The tilt is what
+        // keeps the label's baseline off Skia's pixel grid (every index tilts 0.3 deg or more), so no unlock is needed;
+        // the tag rests on the whole pixel its old layout position rounded to.
         return (
-          <div key={i} style={{position: 'absolute', left: sx - tagW / 2, top: y, width: tagW, height: tagH,
+          <div key={i} style={{position: 'absolute', left: 0, top: 0, width: tagW, height: tagH,
             opacity: clamp01(drop * 2),
-            transform: `rotate(${tilt}deg)`, transformOrigin: '50% 90%'}}>
+            transform: `translate(${Math.round(sx - tagW / 2)}px, ${y}px) rotate(${tilt}deg)`,
+            transformOrigin: '50% 90%'}}>
             {/* the tag: stock, a cut edge on the left, and the tone as a printed band at its head */}
             <div style={{position: 'absolute', inset: 0, borderRadius: 4,
               background: `linear-gradient(176deg, #fffdf8, #efe7d8)`,

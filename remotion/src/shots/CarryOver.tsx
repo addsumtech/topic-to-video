@@ -216,10 +216,11 @@ export const CarryOver: React.FC<{
     const px = carbon ? lerp(leftX, x, enter) : x;
     const py = carbon ? lerp(topY, y, enter) : y + lerp(U * 0.02, 0, enter);
     return (
-      // the sheet travels by its LAYOUT position, which Skia rounds the same way it rounds a translate: the
-      // type on it carries the unlock while it is being drawn out (runtime/glide.ts)
-      <div style={{position: 'absolute', left: px, top: py, width: sheetW, height: sheetH, boxSizing: 'border-box',
-        transform: glide(undefined, enter !== 1),
+      // the sheet travels by a TRANSLATE carrying the unlock while it is drawn out (runtime/glide.ts). Moved by
+      // `left`/`top` it stepped whatever unlocked it: the browser rounds a layout offset to whole pixels before
+      // Skia draws anything. It rests where it always did — every resting corner is a whole pixel.
+      <div style={{position: 'absolute', left: 0, top: 0, width: sheetW, height: sheetH, boxSizing: 'border-box',
+        transform: glide(`translate(${px}px, ${py}px)`, enter !== 1),
         background: carbon ? CARBON : SURF, border: `${BW}px solid ${LINE}`, borderRadius: RAD,
         opacity: carbon ? clamp01(enter * 4) : clamp01(enter * 1.2),
         boxShadow: carbon

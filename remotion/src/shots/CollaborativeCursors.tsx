@@ -110,12 +110,16 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
   const done = t > b.arrive + BUILD;
   const appear = easeOutBack(seg(t, b.arrive - 0.06, b.arrive + 0.06));
   // cursor GLIDES from its off-canvas start to a RESTING corner of the artboard, then holds still (no jitter)
-  const restX = b.x + w * 0.66, restY = b.y + h * 0.44;
+  // (rounded: the cursor used to be placed by `left`/`top`, which the browser rounds to whole pixels, and it rests
+  // on the pixel it always rested on)
+  const restX = Math.round(b.x + w * 0.66), restY = Math.round(b.y + h * 0.44);
   const march = easeCursor(seg(t, Math.max(0, b.arrive - 0.30), b.arrive));
   const cx = lerp(b.from[0], restX, march), cy = lerp(b.from[1], restY, march);
   const cursorShown = t > Math.max(0, b.arrive - 0.30) && t < b.arrive + BUILD + 0.22;
   // the name tag rides the cursor's glide inside a drop-shadow, and a drop-shadow keeps only the scale of the
-  // matrix above it (runtime/textSafe.tsx) — so the tag carries its own unlock, raised for the widest zoom (0.66)
+  // matrix above it (runtime/textSafe.tsx) — so the tag carries its own unlock, raised for the widest zoom (0.66).
+  // The cursor moves by a TRANSLATE: moved by `left`/`top` it stepped whatever unlocked it, because the browser
+  // rounds a layout offset to whole pixels before Skia draws anything.
   const glide = useGlide();
   return <>
     <div style={{position: 'absolute', left: b.x, top: b.y, width: w, height: h, opacity: clamp01(appear),
@@ -133,7 +137,8 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
       </>}
     </div>
     {cursorShown && (
-      <div style={{position: 'absolute', left: cx, top: cy, filter: 'drop-shadow(0 6px 12px rgba(30,45,80,.28))'}}>
+      <div style={{position: 'absolute', left: 0, top: 0, transform: `translate(${cx}px, ${cy}px)`,
+        filter: 'drop-shadow(0 6px 12px rgba(30,45,80,.28))'}}>
         <svg width="30" height="36" viewBox="0 0 22 26"><path d="M2,2 L2,22 L7,17 L10,24 L13,23 L10,16 L17,16 Z" fill={b.color} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" /></svg>
         <div style={{position: 'absolute', left: 24, top: 20, padding: '6px 13px', borderRadius: 8, background: b.color,
           color: '#fff', font: '700 21px/1 var(--f-body, Inter,system-ui,sans-serif)', whiteSpace: 'nowrap',
