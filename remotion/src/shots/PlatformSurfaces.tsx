@@ -20,6 +20,7 @@ import {useDNA, mix, dnaPalette, surfaceOn} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
 import {leading} from '../runtime/cjkType';
 import {contentBottom} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 
@@ -89,6 +90,7 @@ export const PlatformSurfaces: React.FC<{
   });
   const {width: W, height: H} = useVideoConfig();
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   const accent = dna?.accent ?? accent0, accent2 = dna?.accent2 ?? accent20;
   // THE TILE IS A CARD, AND A CARD TAKES THE FILM'S SURFACE. Its fill is a gradient whose top stop is
@@ -135,7 +137,7 @@ export const PlatformSurfaces: React.FC<{
       {/* hero panel */}
       <div style={{position: 'absolute', left: hx, top: hy, width: hw, height: hh, borderRadius: 22,
         background: `linear-gradient(150deg, ${accent}, #0e5c46)`, boxShadow: lit ? HERO_SHADOW_LIT : HERO_SHADOW_D0,
-        opacity: clamp01(heroE * 1.4), transform: `scale(${lerp(0.9, 1, heroE)})`, transformOrigin: 'center',
+        opacity: clamp01(heroE * 1.4), transform: glide(`scale(${lerp(0.9, 1, heroE)})`, heroE !== 1), transformOrigin: 'center',
         padding: 48, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
         <div style={{color: '#eafff7cc', font: `600 22px/${leading(markLabel, 1)} var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.14em'}}>{markLabel}</div>
         <div>
@@ -154,7 +156,7 @@ export const PlatformSurfaces: React.FC<{
         return (
           <div key={i} style={{position: 'absolute', left: x, top: y, width: tw, height: th, borderRadius: 20,
             background: TILE_BG, border: `1px solid ${tone}55`,
-            opacity: clamp01(e * 1.4), transform: `scale(${lerp(0.86, 1, e)})`, transformOrigin: 'center',
+            opacity: clamp01(e * 1.4), transform: glide(`scale(${lerp(0.86, 1, e)})`, e !== 1), transformOrigin: 'center',
             padding: 34, display: 'flex', flexDirection: 'column', justifyContent: tile.glyph ? 'space-between' : 'flex-end',
             boxShadow: `${lit ? TILE_SHADOW_LIT : TILE_SHADOW_D0}, inset 0 0 60px ${tone}0e`}}>
             {tile.glyph ? <Glyph kind={tile.glyph} c={tone} g={g} gap={TILE_GAP} /> : null}

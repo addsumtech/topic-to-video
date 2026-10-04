@@ -9,6 +9,7 @@ import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime
 import {useDNA, shade} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 const BG_D0 = '#070912', ACC_D0 = '#5b8cff', ACC2_D0 = '#c07bff';
@@ -31,6 +32,7 @@ export const MorphForms: React.FC<{title?: string; tagline?: string}> = ({
   // ground it becomes the same gesture at the other exposure: a slightly deeper wash of the film's own paper.
   const POOL = lit ? shade(BG, 0.06) : POOL_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // three target shapes per point index
   const pts = [] as {sph: number[]; cub: number[]; tor: number[]}[];
@@ -81,7 +83,7 @@ export const MorphForms: React.FC<{title?: string; tagline?: string}> = ({
         {/* the title and its kicker sit ON the ground, so they are the film's ink and its metadata. The
             separation shadow is the GROUND'S OWN colour, never a fixed black: black behind near-black type on
             paper is a smudge, and a white one would be the halo the caption rule forbids. */}
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: dna?.fg ?? '#eaf0ff',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: dna?.fg ?? '#eaf0ff',
           font: '800 76px/1.05 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em', textAlign: 'center',
           textShadow: lit ? `0 8px 40px ${BG}` : '0 8px 40px #000'}}>{TITLE}</div>
         {TAG ? <div style={{opacity: titleIn, marginTop: 16, color: dna?.dim ?? '#9fb0d0', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.16em'}}>{TAG}</div> : null}

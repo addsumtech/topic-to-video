@@ -23,6 +23,7 @@ import {ACCENT_CONTRAST_MIN, darkGround, readsOn} from '../runtime/light';
 import {Voice} from '../runtime/voice';
 import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#080611';
@@ -46,6 +47,7 @@ export const SpectrumPulse: React.FC<{title?: string; tagline?: string; accent?:
   const onNight = (c: string) => readsOn(c, BG, ACCENT_CONTRAST_MIN);
   const A1 = onNight(dna?.accent ?? ACC), A2 = onNight(dna?.accent2 ?? ACC2);
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
 
@@ -120,7 +122,7 @@ export const SpectrumPulse: React.FC<{title?: string; tagline?: string; accent?:
               </svg>
               <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center',
                 justifyContent: 'center', top: CONTENT_TOP, height: zoneH, textAlign: 'center'}}>
-                <div style={{opacity: titleIn, transform: `scale(${1 + beat * 0.03})`, color: '#fff',
+                <div style={{opacity: titleIn, transform: glide(`scale(${1 + beat * 0.03})`, true), color: '#fff',
                   font: `800 ${titlePx}px/${leading(String(TITLE), 1.05)} var(--f-display, Inter, system-ui, sans-serif)`,
                   letterSpacing: '-0.03em', textShadow: `0 0 ${U * 0.037}px ${A1}66`}}>{TITLE}</div>
                 <div style={{opacity: tagIn, marginTop: U * 0.017, color: '#c9b6e6',

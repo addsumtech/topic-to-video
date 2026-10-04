@@ -31,6 +31,7 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../ru
 import {useDNA, dnaPalette, mix} from '../runtime/dna';
 import {darkGround, groundFrom} from '../runtime/light';
 import {contentBottom, textWidthPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const OWN_NIGHT = '#05060d';
@@ -74,6 +75,7 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
     : null) ?? NEON0;
   const BG = night;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const flick = (seed: number) => 0.6 + 0.4 * (hash01(seed + Math.floor(t * 12)) > 0.15 ? 1 : 0.3);
   const marquee = easeOutBack(clamp01(seg(t, 0.24, 0.5)));
@@ -131,7 +133,7 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
 
       {/* central neon billboard marquee */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{transform: `scale(${lerp(0.8, 1, marquee)})`, opacity: clamp01(marquee * 1.3),
+        <div style={{transform: glide(`scale(${lerp(0.8, 1, marquee)})`, marquee !== 1), opacity: clamp01(marquee * 1.3),
           padding: '38px 66px', borderRadius: 18, background: '#07091a',
           border: `4px solid ${ACC}`, boxShadow: `0 0 60px ${ACC}88, inset 0 0 40px ${ACC}44`}}>
           <div style={{color: '#fff', font: '900 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em',

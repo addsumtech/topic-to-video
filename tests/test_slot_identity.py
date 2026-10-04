@@ -222,7 +222,10 @@ def test_an_empty_slot_draws_exactly_what_the_register_drew_before(bundle, name)
         for when, frame, aspects in _entry_frames(name, label, props0, dur):
             for aspect in aspects:
                 base = make(aspect, bundle["public"]) if label == "film" else {}
-                props = dict(base, dna=dna, aspect=aspect)
+                # the type unlock off on BOTH sides (runtime/glide.ts BaselineUnlockContext): the old source never
+                # asked for it, and a frame where the current one does would differ for a reason that has
+                # nothing to do with the slot — tests/test_type_glide.py proves the unlock on its own
+                props = dict(base, dna=dna, aspect=aspect, baselineUnlock=False)
                 tag = "%s-%s-%s-%s-%s" % (name, label, _dna_tag(dna), when, aspect.replace(":", "x"))
                 now = Image.open(_render(bundle, name, props, frame, tag + "-now")).convert("RGB")
                 was = Image.open(_render(bundle, name + "Before", props, frame, tag + "-before")).convert("RGB")

@@ -10,6 +10,7 @@ import {leading} from '../runtime/cjkType';
 import {CONTENT_TOP, contentBottom, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 import {darkGround} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 150; // 5s
 const BLOBS = [
@@ -24,6 +25,7 @@ export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines: lines_IN = ['Yo
   const lines = rows<string>(lines_IN, 'lines', 'AuroraFlow');
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   // 150px IS A LATIN NUMBER, and the stack is centred on the FRAME. A Han glyph is a full em, so each line
@@ -63,7 +65,7 @@ export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines: lines_IN = ['Yo
         {lines.map((ln, i) => {
           const r = easeOutCubic(seg(t, 0.16 + i * 0.16, 0.16 + i * 0.16 + 0.34));
           return <div key={i} style={{font: `900 ${typePx}px/${leading(ln, 1.02)} var(--f-display, Inter,system-ui,sans-serif)`, color: '#fff', letterSpacing: '-0.03em',
-            opacity: clamp01(r), transform: `translateY(${lerp(40, 0, clamp01(r))}px)`, textShadow: '0 20px 80px rgba(0,0,0,.35)'}}>{ln}</div>;
+            opacity: clamp01(r), transform: glide(`translateY(${lerp(40, 0, clamp01(r))}px)`, clamp01(r) !== 1), textShadow: '0 20px 80px rgba(0,0,0,.35)'}}>{ln}</div>;
         })}
       </AbsoluteFill>
     </AbsoluteFill>

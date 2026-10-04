@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {fitTextOnNLines} from '@remotion/layout-utils';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutBack, easeOutCubic} from '../runtime/motion';
+import {useGlide} from '../runtime/glide';
 import {captionBand} from '../runtime/layout';
 import {useDNA, mix, shade} from '../runtime/dna';
 import {onLight} from '../runtime/light';
@@ -94,6 +95,9 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
   const speed = Math.sin(clamp01(seg(t, 0.34, 0.74)) * Math.PI);  // speed-lines intensity, rise+fall
   const detail = easeOutCubic(seg(t, 0.72, 0.9));
   const titleIn = easeOutCubic(seg(t, 0.04, 0.18));
+  // the punch eases in and settles slowly on the target, which is when its type would step a pixel at a time
+  // against its own tile — so the grid carries the baseline unlock for the whole beat (runtime/glide.ts)
+  const glide = useGlide();
 
   // WIDTH-AWARE TYPE. Both strings are fitted against the UNSCALED tile, so the text/card ratio is fixed and
   // whatever fits in the overview still fits at full punch. Hardcoded 40/54px overflowed the card for any
@@ -117,7 +121,7 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
         letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <AbsoluteFill style={{transformOrigin: `${tcx}px ${tcy}px`,
-        transform: `translate(${dx}px, ${dy}px) scale(${scale})`}}>
+        transform: glide(`translate(${dx}px, ${dy}px) scale(${scale})`, true)}}>
         {ITEMS.map((it, i) => {
           const c = i % cols, r = Math.floor(i / cols);
           const isT = i === ti;

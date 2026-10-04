@@ -32,6 +32,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {useDNA, dnaPalette, separated, surfaceOn, readableOn, dimOn, TONE_MIN_STEP} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 175; // ~5.8s
 
@@ -66,6 +67,7 @@ export const RestsOn: React.FC<{
   const disp = dna?.fontDisplay ?? 'Inter, system-ui, sans-serif';
 
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const base = Math.min(W, H);
   const zoneTop = CONTENT_TOP;
@@ -149,7 +151,7 @@ export const RestsOn: React.FC<{
           <div key={idx} style={{position: 'absolute', left: (W - wpx) / 2, top, width: wpx, height: hgt,
             background: fill, opacity: on,
             // it SETTLES onto what is under it — a small drop, not a fade from nowhere
-            transform: `translateY(${((1 - on) * -base * 0.035).toFixed(1)}px)`,
+            transform: glide(`translateY(${((1 - on) * -base * 0.035).toFixed(1)}px)`, on !== 1),
             boxShadow: `inset 0 0 0 ${hair}px ${BG}`,
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
             padding: `0 ${Math.round(base * 0.03)}px`, boxSizing: 'border-box', overflow: 'hidden'}}>

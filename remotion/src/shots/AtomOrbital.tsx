@@ -25,6 +25,7 @@ import {useT, seg, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA, mix, shade, dnaPalette} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#060812', CORE_D0 = '#ffd36e', CORE2_D0 = '#ff8f5e';
@@ -97,6 +98,7 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: n
   // because on paper alpha adds ink rather than taking it away.
   const RING_OP = lit ? 0.9 : RING_OP_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2 + 10;
   const build = easeOutBack(clamp01(seg(t, 0.06, 0.44)));
@@ -175,7 +177,7 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: n
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: bottomInset(W, H, 110)}}>
         {/* the title and its tagline are ON the ground, so they are the film's ink and its metadata; the
             separation shadow is the ground's own colour on paper, never a fixed black under near-black type */}
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: TITLE_INK,
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: TITLE_INK,
           font: '800 104px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 16, color: TAG_INK,
           font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em'}}>{TAG}</div>

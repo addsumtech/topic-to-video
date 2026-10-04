@@ -20,6 +20,7 @@ import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 150;
 export const MAX_GAZETTEER_SENSES = 4;
@@ -41,6 +42,7 @@ export const GazetteerEntry: React.FC<{
   note = ''} = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
@@ -95,7 +97,7 @@ export const GazetteerEntry: React.FC<{
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
       {/* headword */}
       <div style={{position: 'absolute', left, top: yHead, right,
-        opacity: head, transform: `translateY(${(1 - head) * 12}px)`,
+        opacity: head, transform: glide(`translateY(${(1 - head) * 12}px)`, head !== 1),
         font: `700 ${headSize}px/${leading(headword, 1.02)} ${disp}`, letterSpacing: '-0.015em'}}>{headword}</div>
 
       {/* pronunciation, set on the same baseline family a real entry uses.
@@ -125,7 +127,7 @@ export const GazetteerEntry: React.FC<{
         const last = i === items.length - 1;
         return (
           <div key={i} style={{position: 'absolute', left, right, top: senseTop + i * gap,
-            opacity: on, transform: `translateY(${(1 - on) * 10}px)`,
+            opacity: on, transform: glide(`translateY(${(1 - on) * 10}px)`, on !== 1),
             display: 'flex', gap: Math.round(W * 0.016), alignItems: 'baseline'}}>
             <div style={{font: `600 ${Math.round(W * 0.0155)}px/1.5 ${mono}`, color: ACC,
               minWidth: Math.round(W * 0.022)}}>{i + 1}.</div>

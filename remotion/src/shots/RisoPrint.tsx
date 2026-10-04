@@ -10,6 +10,7 @@ import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 import {lumValue} from '../runtime/shotLuma';
 import {bottomInset} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 145; // ~4.8s
 const PAPER = '#f2ecdd', PINK = '#ff5c8a', BLUE = '#2b52d6';
@@ -17,6 +18,7 @@ const PAPER = '#f2ecdd', PINK = '#ff5c8a', BLUE = '#2b52d6';
 export const RisoPrint: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'PRINT IT', tagline: TAG = 'analog warmth, on purpose'} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // LEVEL-C: the two ink channels + paper follow the DNA. The riso look is multiply-on-light; on a dark DNA that
   // would go black-on-black, so we switch the blend to SCREEN (ink ADDS light on the dark ground — the same RGB-
@@ -38,7 +40,7 @@ export const RisoPrint: React.FC<{title?: string; tagline?: string}> = ({
   const font = `900 210px/${leading(TITLE, 0.9)} var(--f-display, Inter, system-ui, sans-serif)`;
   const Layer: React.FC<{c: string; ox: number; oy: number}> = ({c, ox, oy}) => (
     <div style={{position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      transform: `translate(${ox}px, ${oy}px)`, mixBlendMode: blend, color: c, font, letterSpacing: '-0.03em'}}>{TITLE}</div>
+      transform: glide(`translate(${ox}px, ${oy}px)`, true), mixBlendMode: blend, color: c, font, letterSpacing: '-0.03em'}}>{TITLE}</div>
   );
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
@@ -67,7 +69,7 @@ export const RisoPrint: React.FC<{title?: string; tagline?: string}> = ({
       ))}
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, 210), textAlign: 'center', opacity: tagIn,
-        transform: `translateY(${(1 - tagIn) * 12}px)`, color: tagC,
+        transform: glide(`translateY(${(1 - tagIn) * 12}px)`, tagIn !== 1), color: tagC,
         font: '700 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.22em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

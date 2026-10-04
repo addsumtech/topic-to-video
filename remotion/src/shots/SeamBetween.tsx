@@ -39,6 +39,7 @@ import {useT, seg, clamp01, lerp, easeOutCubic, easeInOutCubic} from '../runtime
 import {CONTENT_TOP, contentBottom, fitBlockPx, inkBlockH, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useDNA, mix, shade, readableOn, dimOn, contrastOf} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 180; // 6s
 
@@ -98,6 +99,7 @@ export const SeamBetween: React.FC<{
 } = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
 
   const TITLE = String(title ?? '').trim();
@@ -326,7 +328,7 @@ export const SeamBetween: React.FC<{
       {TITLE ? (
         <div style={{position: 'absolute', left: M, top: top + kickH, width: colW * 0.78, color: INK_PAPER,
           opacity: titleIn, textWrap: 'balance',
-          transform: `translateY(${lerp(Math.round(U * 0.012), 0, titleIn)}px)`,
+          transform: glide(`translateY(${lerp(Math.round(U * 0.012), 0, titleIn)}px)`, titleIn !== 1),
           font: `700 ${titlePx}px/${leading(TITLE, 1.06)} ${disp}`}}>{TITLE}</div>
       ) : null}
 
@@ -373,7 +375,7 @@ export const SeamBetween: React.FC<{
       <div style={{position: 'absolute', left: clampX(cx - seamBoxW / 2, seamBoxW), top: labelY,
         width: seamBoxW, textAlign: 'center', color: RULE_INK, textWrap: 'balance',
         opacity: clamp01(nameIn) * (1 - handOut),
-        transform: `translateY(${lerp(Math.round(U * 0.010), 0, nameIn)}px)`,
+        transform: glide(`translateY(${lerp(Math.round(U * 0.010), 0, nameIn)}px)`, nameIn !== 1),
         font: `600 ${seamFit.px}px/${leading(SEAM, 1.3)} ${body}`}}>{SEAM}</div>
 
       {/* and, once there is no gap, the ONE name the mass now has — in the place the measurement stood,
@@ -381,7 +383,7 @@ export const SeamBetween: React.FC<{
       {WHOLE ? (
         <div style={{position: 'absolute', left: clampX(cx - wholeBoxW / 2, wholeBoxW), top: labelY,
           width: wholeBoxW, textAlign: 'center', color: INK_PAPER, opacity: handIn, textWrap: 'balance',
-          transform: `translateY(${lerp(Math.round(U * 0.014), 0, handIn)}px)`,
+          transform: glide(`translateY(${lerp(Math.round(U * 0.014), 0, handIn)}px)`, handIn !== 1),
           font: `700 ${wholeFit.px}px/${leading(WHOLE, 1.18)} ${disp}`}}>{WHOLE}</div>
       ) : null}
 

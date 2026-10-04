@@ -25,6 +25,7 @@ import {captionBand, CONTENT_TOP, fitTextPx, inkBlockH} from '../runtime/layout'
 import {leading} from '../runtime/cjkType';
 import {useDNA, mix, readableOn, dimOn} from '../runtime/dna';
 import {onAccentInk} from '../runtime/onAccent';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 
@@ -74,6 +75,7 @@ export const CarryOver: React.FC<{
 } = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
 
   const rows = (Array.isArray(fields) ? fields : []).filter((f) => f && String(f.label ?? '').trim());
@@ -186,7 +188,7 @@ export const CarryOver: React.FC<{
           {value ? (
             <div style={{position: 'absolute', left: 0, right: 0, bottom: Math.round(rowH * 0.30),
               color: carbon ? CARRIED_INK : ink, opacity: show,
-              transform: `translateY(${lerp(Math.round(U * 0.012), 0, show)}px)`,
+              transform: glide(`translateY(${lerp(Math.round(U * 0.012), 0, show)}px)`, show !== 1),
               overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
               font: `600 ${vPx}px/${leading(value, 1.2)} ${body}`}}>{value}</div>
           ) : null}
@@ -214,7 +216,10 @@ export const CarryOver: React.FC<{
     const px = carbon ? lerp(leftX, x, enter) : x;
     const py = carbon ? lerp(topY, y, enter) : y + lerp(U * 0.02, 0, enter);
     return (
+      // the sheet travels by its LAYOUT position, which Skia rounds the same way it rounds a translate: the
+      // type on it carries the unlock while it is being drawn out (runtime/glide.ts)
       <div style={{position: 'absolute', left: px, top: py, width: sheetW, height: sheetH, boxSizing: 'border-box',
+        transform: glide(undefined, enter !== 1),
         background: carbon ? CARBON : SURF, border: `${BW}px solid ${LINE}`, borderRadius: RAD,
         opacity: carbon ? clamp01(enter * 4) : clamp01(enter * 1.2),
         boxShadow: carbon

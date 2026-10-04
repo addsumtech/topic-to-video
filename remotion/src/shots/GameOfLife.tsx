@@ -7,6 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, shade} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#060a09', LIVE = '#37ff9a';
@@ -30,6 +31,7 @@ export const GameOfLife: React.FC<{title?: string; tagline?: string; accent?: st
   // ground behind a mark is sampled locally rather than as the flat page.
   const ACC = lit && dna ? groundFrom(dna, {bg: dna.bg, fg: ACC0}).fg : ACC0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const cw = W / GX, ch = H / GY;
   const gens = Math.floor(t * 24);                                // generation at time t
@@ -69,7 +71,7 @@ export const GameOfLife: React.FC<{title?: string; tagline?: string; accent?: st
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         {/* the wordmark is on the ground, so it is the film's ink; its separation shadow is the ground's own
             colour on paper rather than a fixed black under near-black type */}
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: dna?.fg ?? '#eafff4',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: dna?.fg ?? '#eafff4',
           font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: lit ? `0 0 40px ${BG}, 0 12px 40px ${BG}` : `0 0 40px ${ACC}, 0 12px 40px #000`}}>{TITLE}</div>
         {/* the kicker's halo is the same lit device: on paper it is a green haze around green type, so it goes

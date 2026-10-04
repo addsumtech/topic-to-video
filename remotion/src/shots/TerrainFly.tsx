@@ -10,6 +10,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
 import {onLight} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 160; // ~5.3s
 const BG_D0 = '#070312', ACC_D0 = '#00e0c8', ACC2_D0 = '#ff4fa3';
@@ -37,6 +38,7 @@ export const TerrainFly: React.FC<{title?: string; tagline?: string}> = ({
   // ...and a black bloom under dark type is mud, not depth: the glow belongs to the emissive world only.
   const TITLE_GLOW = onLight(dna) ? `0 2px 10px ${ACC}55` : `0 0 44px ${ACC}88, 0 10px 40px #000`;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, horizon = H * 0.42, focal = 460, camH = 2.2;
   const scroll = t * 4;
@@ -69,7 +71,7 @@ export const TerrainFly: React.FC<{title?: string; tagline?: string}> = ({
         background: `radial-gradient(circle, ${ACC}66, ${ACC2}33 40%, #0000 70%)`, filter: 'blur(6px)'}} />
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{lines}</svg>
       <div style={{position: 'absolute', top: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        transform: `translateY(${(1 - titleIn) * 14}px)`, color: INK,
+        transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: INK,
         font: '800 120px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
         textShadow: TITLE_GLOW}}>{TITLE}</div>
       <div style={{position: 'absolute', top: 244, left: 0, right: 0, textAlign: 'center',

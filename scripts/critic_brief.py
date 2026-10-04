@@ -105,6 +105,9 @@ def build(out_dir):
                                 # it; the next one would have filed four revisions against frames that are
                                 # correct, while nothing measured the failure that actually destroys type.
                                 ("TYPE cut off (authoritative)", "text_safe_qa.py", ()),
+                                # type that MOVES and steps a whole pixel at a time against its own drawing — no
+                                # still can show it, so the census reads every frame (runtime/glide.ts)
+                                ("TYPE steps while it moves (every frame, census)", "text_safe_qa.py", ("--glide",)),
                                 ("frame-safe (ADVISORY — border ink; known inverted, see above)",
                                  "frame_safe_qa.py", ()),
                                 ("proof sheet", "shot_proof.py", ()),

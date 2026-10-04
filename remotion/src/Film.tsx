@@ -26,9 +26,10 @@ import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DA
         type SceneGroundDecl} from './runtime/light';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {SceneCamera, bedPan, type CameraMove} from './runtime/depth';
+import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
-import {TextSafeAudit} from './runtime/textSafe';
+import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
 import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
 import {FilmFinishLayer} from './runtime/finish';
@@ -371,10 +372,11 @@ const CarryPresentation = ({presentationProgress: p, presentationDirection, chil
   const clampBoth = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
   const op = isEnter ? interpolate(p, [0.46, 0.56], [0, 1], clampBoth) : interpolate(p, [0.44, 0.54], [1, 0], clampBoth);
   const lineOp = interpolate(p, [0.15, 0.5, 0.85], [0, 1, 0], clampBoth);
+  const glide = useGlide();
   return (
     <>
       {ground && isEnter ? <AbsoluteFill style={{backgroundColor: ground}} /> : null}
-      <AbsoluteFill style={{transform: `scaleY(${scaleY})`, transformOrigin: 'center', opacity: op}}>{children}</AbsoluteFill>
+      <AbsoluteFill style={{transform: glide(`scaleY(${scaleY})`, true), transformOrigin: 'center', opacity: op}}>{children}</AbsoluteFill>
       <AbsoluteFill style={{pointerEvents: 'none'}}>
         <div style={{position: 'absolute', left: 0, right: 0, top: '50%', height: 2, marginTop: -1,
           background: line, opacity: lineOp, boxShadow: `0 0 18px 3px ${line}`}} />
@@ -450,11 +452,15 @@ const FocusRelayPresentation = ({presentationProgress: p, presentationDirection,
   // ...and the ground under the leaving half — see SeamGround below. This seam has faded both halves since it
   // was built, so on a light film it dipped toward black at mid-seam exactly as `fadethrough` did; it was
   // found by the instrument written for the new seams, not by the eye, and the fix is the same floor.
+  //
+  // THE UNLOCK GOES INSIDE THE BLUR. Type near the centre of a scale crawls, and a blur keeps only the scale of
+  // the matrix above it (runtime/textSafe.tsx), so an unlock written beside the blur would never reach the glyphs.
+  const glide = useGlide();
   return (
     <SeamGround bg={passedProps?.bg} show={!isEnter}
       style={{opacity: op, filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined,
         transform: `scale(${scale.toFixed(4)})`, transformOrigin: 'center'}}>
-      {children}
+      <AbsoluteFill style={{transform: glide(undefined, true)}}>{children}</AbsoluteFill>
     </SeamGround>
   );
 };
@@ -553,7 +559,8 @@ const ReturnPresentation = ({presentationProgress: p, presentationDirection, chi
   // stay fully opaque and the offsets tile, exactly as `slide` does, so every pixel is always covered by
   // one beat or the other.
   const t = `translate(${(vx * kk).toFixed(2)}px, ${(vy * kk).toFixed(2)}px)`;
-  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{transform: t}}>{children}</SeamGround>;
+  const glide = useGlide();
+  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{transform: glide(t, true)}}>{children}</SeamGround>;
 };
 const travelBack = (dx: number, dy: number, W: number, H: number, bg?: string): TransitionPresentation<any> =>
   ({component: ReturnPresentation, props: {dx, dy, W, H, bg}});
@@ -569,7 +576,8 @@ const DriftPresentation = ({presentationProgress: p, presentationDirection, chil
   const travel = isEnter ? interpolate(p, [0, 1], [d, 0], c) : interpolate(p, [0, 1], [0, -d], c);
   const op = isEnter ? interpolate(p, [0.18, 0.82], [0, 1], c) : interpolate(p, [0.18, 0.82], [1, 0], c);
   const t = vertical ? `translateY(${travel.toFixed(2)}px)` : `translateX(${travel.toFixed(2)}px)`;
-  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{opacity: op, transform: t}}>{children}</SeamGround>;
+  const glide = useGlide();
+  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{opacity: op, transform: glide(t, true)}}>{children}</SeamGround>;
 };
 const drift = (direction: string | undefined, W: number, H: number, bg?: string): TransitionPresentation<any> =>
   ({component: DriftPresentation, props: {direction, bg, px: Math.round(Math.max(W, H) * DRIFT_FRAC)}});
@@ -636,9 +644,11 @@ const ThroughDarkPresentation = ({presentationProgress: p, presentationDirection
   const q = isEnter ? easeOutCubic(raw) : raw * raw * raw;
   const bright = isEnter ? q : 1 - q;
   const scale = isEnter ? FLIGHT_TOWARD + (1 - FLIGHT_TOWARD) * q : 1 + (FLIGHT_AWAY - 1) * q;
+  // brightness() is a colour filter: it passes an unlock written beside it through to the glyphs
+  const glide = useGlide();
   return (
     <AbsoluteFill style={{filter: `brightness(${bright.toFixed(4)})`,
-      transform: `scale(${scale.toFixed(4)})`, transformOrigin: 'center'}}>
+      transform: glide(`scale(${scale.toFixed(4)})`, true), transformOrigin: 'center'}}>
       {children}
     </AbsoluteFill>
   );
@@ -674,13 +684,14 @@ const PortalPresentation = ({presentationProgress: p, presentationDirection, chi
   // centre leaves an uncovered sliver along the bottom edge at 9:16.
   const far = Math.hypot(Math.max(W - W / 2, W / 2), Math.max(H - cy, cy));
   const r = easeOutCubic(p) * far;
+  const glide = useGlide();
   if (!isEnter) {
     // The leaving beat holds its light until the aperture has taken most of the frame; a long fade under an
     // opening portal is the dissolve this seam exists not to be.
     const op = interpolate(p, [0.62, 0.96], [1, 0], c);
     const scale = 1 + (PORTAL_PUSH - 1) * p * p * p;
     return (
-      <AbsoluteFill style={{opacity: op, transform: `scale(${scale.toFixed(4)})`,
+      <AbsoluteFill style={{opacity: op, transform: glide(`scale(${scale.toFixed(4)})`, true),
         transformOrigin: `50% ${((cy / H) * 100).toFixed(2)}%`}}>{children}</AbsoluteFill>
     );
   }
@@ -844,13 +855,25 @@ export const DRIFT_MAX_EXTRA = 0.045;
 // than the cap believed. Small, but it is the difference between a derived bound and an approximate one —
 // and this is the third time in this file a budget was computed from part of what spends it.
 export const DRIFT_MAX_TRANSLATE_Y = 4;
-const cameraTransform = (frame: number, amp: number): string => {
+// THE DRIFT MOVES EVERY FRAME OF EVERY BEAT, so it carries the baseline unlock (runtime/glide.ts) for the whole
+// film — without it every line of type in a drifting film steps a pixel at a time against its own drawing, on
+// the beats whose own camera holds as much as on any other. The skew tilts the layer's top and bottom edges, so
+// the scale is held at least at the size that still covers the frame (`unlockCoverScale`); the drift's own
+// breathing scale already clears that except at the smallest amplitudes.
+const cameraTransform = (frame: number, amp: number, W: number, H: number, unlock: boolean): string => {
   if (amp <= 0) return 'none';
   const s = 1 + amp * (0.035 + 0.010 * Math.sin((frame / 720) * TWO_PI));     // breathe, ~24s period
   const x = amp * 6 * Math.sin((frame / 930) * TWO_PI + 1.3);                  // float — offset periods so it never repeats
   const y = amp * 4 * Math.sin((frame / 810) * TWO_PI + 0.4);
-  return `scale(${s.toFixed(5)}) translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
+  if (!unlock) return `scale(${s.toFixed(5)}) translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
+  const sc = Math.max(s, unlockCoverScale(H / 2, W / 2, y));
+  return `scale(${sc.toFixed(5)}) translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) ${BASELINE_UNLOCK}`;
 };
+// The most EXTRA scale the drift can reach with the unlock's cover counted — what the per-beat camera's budget
+// must subtract. Usually DRIFT_MAX_EXTRA; at a very small amplitude the cover is the larger of the two.
+const driftExtraFor = (amp: number, W: number, H: number, unlock: boolean): number =>
+  amp <= 0 ? 0 : Math.max(amp * DRIFT_MAX_EXTRA,
+    unlock ? unlockCoverScale(H / 2, W / 2, amp * DRIFT_MAX_TRANSLATE_Y) - 1 : 0);
 
 // The terminal chrome drawn in THIS BEAT's ground tokens. It used to be handed the film DNA directly, so on a
 // beat that re-grounds to paper the breadcrumb kept the dark film's `dim` grey and vanished. It reads the DNA
@@ -894,8 +917,10 @@ const BrandMark: React.FC<{brand?: any}> = ({brand}) => {
   );
 };
 
-export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean}> =
-  ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false}) => {
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
+  typeGlide?: boolean}> =
+  ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
+    typeGlide = false}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -912,7 +937,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
       'already shipped once and had reported. Keep the per-beat pans and drop meta.camera_drift, or keep ' +
       'the drift and drop the pans.');
   }
-  const cam = cameraTransform(frame, ambient);
+  const unlockAllowed = React.useContext(BaselineUnlockContext);
+  const cam = cameraTransform(frame, ambient, width, height, unlockAllowed);
   const intro = interpolate(frame, [0, 12], [1, 0], {extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});
   const outro = interpolate(frame, [total - 16, total - 1], [0, 1], {extrapolateLeft: 'clamp'});
   // ONE Design DNA for the whole film (null = un-themed → every shot renders its original hardcoded look).
@@ -957,6 +983,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
       {/* Opt-in DOM audit — inert without the prop. Mounted on the FILM as well as on each shot preview so
           the caption HUD and the film's own furniture are audited too, not only the registers. */}
       <TextSafeAudit enabled={Boolean(textSafe)} />
+      {/* The type-glide census (runtime/textSafe.tsx): per frame, every line of type that can snap, with its true
+          position — read across frames by scripts/text_safe_qa.py --glide. Absent unless asked for. */}
+      {typeGlide ? <TypeGlideAudit /> : null}
       <DesignDNAContext.Provider value={activeDna}>
       {/* THE ATMOSPHERE MUST BELONG TO THIS FILM. With no explicit `theme` it fell back to its own
           defaults — a near-black field with a cyan/violet dot lattice, the palette of the MRI films this
@@ -1011,7 +1040,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                   <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
                     pan={sc.camera?.pan ?? bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)?.pan}
                     bed={!sc.camera && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
-                               driftExtra={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_EXTRA}
+                               driftExtra={driftExtraFor(ambient, width, height, unlockAllowed)}
                                driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
                     <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
                   </SceneCamera>

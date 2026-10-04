@@ -7,6 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, shade} from '../runtime/dna';
 import {ACCENT_CONTRAST_MIN, groundFrom, onLight, readsOn} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 // How far the wood may travel toward ink before it stops being wood. The old hand-rolled walk
 // stopped at 0.9 of the way; keeping that number keeps the frame this register was measured on.
@@ -57,6 +58,7 @@ export const FractalTree: React.FC<{title?: string; tagline?: string; branch?: s
     (lit ? readsOn(c, [BLOSSOM, BLOSSOM2, lit.bg], ACCENT_CONTRAST_MIN, KEEP_WOOD) : c);
   const BRANCH = apart(litHue(BR)), LEAF = apart(litHue(LEAF_D0));
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const segs: Seg[] = [];
   const grow = (x: number, y: number, ang: number, len: number, depth: number, seed: number) => {
@@ -98,7 +100,7 @@ export const FractalTree: React.FC<{title?: string; tagline?: string; branch?: s
       {/* the title and its kicker are on the ground, so they are the film's ink and its metadata; the
           separation shadow is the ground's own colour on paper, never a fixed black under near-black type */}
       <div style={{position: 'absolute', top: 120, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        transform: `translateY(${(1 - titleIn) * 14}px)`, color: dna?.fg ?? '#eafff2',
+        transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: dna?.fg ?? '#eafff2',
         font: '800 120px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
       <div style={{position: 'absolute', top: 268, left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.7, 0.9)), color: dna?.dim ?? '#9fc4b0',

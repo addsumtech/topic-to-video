@@ -23,7 +23,7 @@
 // FULL-BLEED GRAPHICS ARE NOT A CONCERN HERE, deliberately. A gradient, a flow field or a colour flood that
 // runs to the edge loses nothing a viewer needed. Only TYPE carries meaning that a frame edge can destroy.
 import React from 'react';
-import {cancelRender, continueRender, delayRender} from 'remotion';
+import {cancelRender, continueRender, delayRender, useCurrentFrame} from 'remotion';
 import {captionBand} from './layout';
 import {CJK_MIN_LEADING, hasCJK} from './cjkType';
 
@@ -1283,6 +1283,152 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
     });
   });
   return out;
+};
+
+// ── THE TYPE-GLIDE CENSUS ────────────────────────────────────────────────────────────────────────────────
+//
+// WHAT IT ASKS. Does any type MOVE while Skia snaps its baseline to whole pixels? That is the defect in
+// runtime/glide.ts: under an axis-aligned matrix a glyph run's baseline is rounded to the device pixel, so type
+// that crawls by less than a pixel a frame holds still and then jumps, while everything drawn beside it glides.
+// No still can show it and no single frame can either — it is a property of consecutive frames — so this records,
+// per frame, every visible line of type whose composed matrix is axis-aligned, with its TRUE position, and
+// `scripts/text_safe_qa.py --glide` reads the frames in order.
+//
+// WHY THE DOM AND NOT PIXELS. Both halves of the defect are things the layout engine knows exactly: the composed
+// 2x2 the type is drawn under (Skia's own test is whether its skewY entry survives rounding to 1/1024), and where
+// the line box truly sits — client rects are computed from the transform, before paint rounds anything. A pixel
+// measure has to guess where the type is and what it should have done; this reads both.
+//
+// WHAT IS LISTED. Only type that CAN snap: a line under a matrix whose skewY entry rounds to zero. Type under the
+// unlock, under a rotation, or tilted by a surface is counted (`u`) and not listed; type under a 3D chain, whose
+// raster path this cannot read, is counted separately (`z`). An element or ancestor carrying `data-type-steps`
+// is listed with flag `s`: type that is MEANT to step (a glitch's offset copies, a mechanical counter) — the
+// reader excuses it and names it.
+
+/** Prefix on each frame's census line in the browser log. */
+export const TYPE_GLIDE_TAG = 'TYPE-GLIDE ';
+
+/** One line of type that can snap, on one frame: key, true top of its first line box in px, effective opacity,
+ *  its text (cut), and flags — `f` drawn through a blur or drop-shadow filter, `s` declared stepped. */
+export type GlideLine = {k: string; y: number; o: number; t: string; fl?: string};
+
+type Mat2 = [number, number, number, number];
+type GlideChain = {M: Mat2 | null; L: Mat2 | null; ls: number; op: number; spatial: boolean; will: boolean;
+  steps: boolean; key: string};
+
+/** Skia's own test: the skewY entry, rounded to 1/1024 (`sk_relax`), is zero. */
+export const snapsBaseline = (b: number): boolean => Math.round(Math.abs(b) * 1024) === 0;
+
+// A BLUR OR A DROP-SHADOW RE-SNAPS TYPE THAT AN UNLOCK ABOVE IT HAD FREED. Measured on CameraTypeProbe's push:
+// with the camera's unlock, type inside `filter: blur(0.6px)` or `drop-shadow(…)` stepped exactly as if there were
+// no unlock (residual 0.267px against 0.011px without the filter) — Skia draws a spatial filter's content into a
+// layer whose matrix keeps only the SCALE of the transform above it, so the skew is applied to the finished layer
+// and never reaches the glyphs. Put the unlock INSIDE the filtered element and it works (0.012px). A colour filter
+// (`saturate`, `brightness`, …) needs no layer of that kind and passes the unlock through (0.011px). So the skew
+// that counts is the one composed BELOW the nearest blur/drop-shadow, times the scale that layer keeps.
+const SPATIAL_FILTER = /blur\(|drop-shadow\(|url\(/;
+const mul2 = (a: Mat2, b: Mat2): Mat2 =>
+  [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3]];
+
+export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; u: number; z: number} => {
+  const win = root.ownerDocument?.defaultView;
+  if (!win) return {lines: [], u: 0, z: 0};
+  // ONE getComputedStyle per element, memoised down the tree: the matrix, the opacity and the flags of an element
+  // are its parent's composed with its own. A character field draws a thousand text elements; walking each one's
+  // ancestors from scratch is the quadratic cost `rotatedUnder` already learned to avoid.
+  const memo = new Map<Element, GlideChain>();
+  const childIndex = new Map<Element, number>();
+  const chain = (el: Element): GlideChain => {
+    const hit = memo.get(el);
+    if (hit) return hit;
+    const parent = el.parentElement;
+    const up: GlideChain = parent ? chain(parent)
+      : {M: [1, 0, 0, 1], L: [1, 0, 0, 1], ls: 1, op: 1, spatial: false, will: false, steps: false, key: ''};
+    const cs = win.getComputedStyle(el);
+    const own = selfMatrix(cs);
+    const M = up.M === null || own === null ? null : mul2(up.M, own);
+    // `L` is the matrix composed BELOW the nearest blur/drop-shadow — what the glyphs are drawn under inside that
+    // filter's layer — and `ls` the scale the layer keeps. An element carrying such a filter starts a new layer:
+    // its own transform is above the layer, so the composition below it restarts at identity.
+    const spatial = SPATIAL_FILTER.test(cs.filter || '');
+    const L = spatial ? [1, 0, 0, 1] as Mat2 : (up.L === null || own === null ? null : mul2(up.L, own));
+    const ls = spatial && M ? Math.sqrt(Math.abs(M[0] * M[3] - M[1] * M[2])) : up.ls;
+    if (parent && !childIndex.has(el)) Array.from(parent.children).forEach((c, i) => childIndex.set(c, i));
+    const info: GlideChain = {
+      M, L, ls,
+      op: up.op * (parseFloat(cs.opacity || '1') || 0),
+      spatial: up.spatial || spatial,
+      will: up.will || /transform/.test(cs.willChange || ''),
+      steps: up.steps || el.hasAttribute('data-type-steps'),
+      key: `${up.key}/${el.tagName.toLowerCase()}${childIndex.get(el) ?? 0}`,
+    };
+    memo.set(el, info);
+    return info;
+  };
+  const lines: GlideLine[] = [];
+  let u = 0, z = 0;
+  root.querySelectorAll('*').forEach((el) => {
+    const text = hasOwnText(el);
+    if (!text || isEcho(el)) return;
+    if (!visibleRect(el, frame)) return;             // hidden, fully transparent, or clipped away entirely
+    const c = chain(el);
+    // A 3D chain or a will-change layer is rasterised once and moved by the compositor — not this path. Measured:
+    // under will-change the unlock trades the y staircase for an x jitter of 0.6px. Counted, never listed.
+    if (c.M === null || c.will) { z += 1; return; }
+    // SVG type outside any filter: the screen CTM is exact — it carries the viewBox's scale, which no css transform
+    // states. Inside a blur/drop-shadow layer the skew that reaches the glyphs is the one composed below it.
+    const ctm = c.spatial ? null : (el as unknown as {getScreenCTM?: () => DOMMatrix | null}).getScreenCTM?.();
+    const b = ctm ? ctm.b : c.spatial ? (c.L === null ? null : c.L[1] * c.ls) : c.M[1];
+    if (b === null) { z += 1; return; }
+    if (!snapsBaseline(b)) { u += 1; return; }
+    const r = inkRect(el) ?? el.getBoundingClientRect();
+    const fl = (c.spatial ? 'f' : '') + (c.steps ? 's' : '');
+    lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, o: Math.round(c.op * 100) / 100,
+      t: text.length > 32 ? text.slice(0, 32) + '…' : text, ...(fl ? {fl} : {})});
+  });
+  return {lines, u, z};
+};
+
+/**
+ * The census, mounted. INERT unless rendered — a composition mounts it only when asked (`typeGlide`).
+ *
+ * Every frame logs one line, `TYPE-GLIDE {"f": frame, "lines": [...], "u": n, "z": n}`, and never cancels the
+ * render: unlike the other audits this is read across frames, so the caller renders a range with no picture taken
+ * (scripts/glide_frames.cjs) and collects the lines from the browser log. Each frame holds its own delayRender
+ * until the walk is done, so the walk sees the frame the renderer would have captured.
+ */
+export const TypeGlideAudit: React.FC = () => {
+  const frame = useCurrentFrame();
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useLayoutEffect(() => {
+    const handle = delayRender(`type-glide census, frame ${frame}`, {timeoutInMilliseconds: 60000});
+    let released = false;
+    const release = () => {
+      if (!released) {
+        released = true;
+        continueRender(handle);
+      }
+    };
+    (async () => {
+      try {
+        await (document as unknown as {fonts?: {ready: Promise<unknown>}}).fonts?.ready;
+      } catch {
+        /* a browser without the API still lays out; measure what it has */
+      }
+      // after this frame's layout AND after any effect that re-renders on mount: one frame of the event loop
+      await new Promise((res) => requestAnimationFrame(() => res(null)));
+      await new Promise((res) => setTimeout(res, 0));
+      if (!released && ref.current) {
+        const host = ref.current;
+        const rec = auditGlide(host.ownerDocument.body, host.getBoundingClientRect());
+        // eslint-disable-next-line no-console
+        console.log(TYPE_GLIDE_TAG + JSON.stringify({f: frame, ...rec}));
+      }
+      release();
+    })();
+    return release;
+  }, [frame]);
+  return <div ref={ref} style={{position: 'absolute', inset: 0, pointerEvents: 'none'}} />;
 };
 
 /**

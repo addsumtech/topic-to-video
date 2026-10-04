@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01, radians} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 160; // ~5.3s
 const BG_D0 = '#0a0713';
@@ -15,6 +16,7 @@ export const MetaballMerge: React.FC<{title?: string; tagline?: string; accent?:
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const gather = easeOutCubic(seg(t, 0.2, 0.55));                 // spread → merged (stays a big soft mass)
@@ -55,7 +57,7 @@ export const MetaballMerge: React.FC<{title?: string; tagline?: string; accent?:
       </svg>
 
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 16}px)`, color: '#fff',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, titleIn !== 1), color: '#fff',
           font: '800 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: '0 6px 30px #000, 0 0 60px #000c, 0 2px 0 #ffffff40'}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: '#fff',

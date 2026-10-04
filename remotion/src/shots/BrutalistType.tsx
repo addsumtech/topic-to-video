@@ -17,6 +17,7 @@ import {leading} from '../runtime/cjkType';
 import {useT, seg, lerp, clamp01, easeOutExpo} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {captionBand, fitTextPx, wrapLines} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#ececec', INK_D0 = '#0a0a0a', ACC_D0 = '#ff3b00';
@@ -28,6 +29,7 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0, INK = dna?.fg ?? INK_D0, ACC = dna?.accent ?? ACC_D0;
   const t = useT();
+  const glide = useGlide();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   // glitch jolts at two moments
@@ -117,7 +119,7 @@ export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; m
           headline's own glyphs, and beat 23 of a delivered film became an unreadable blot of "1674" over
           "A TORNADO CAME". Derived from the statement's position, so the two cannot collide again. */}
       <div style={{position: 'absolute', left: 96, top: headTop, width: W - 200, height: headRoom,
-        transform: `translateY(${(1 - rise) * 60}px)`, opacity: rise}}>
+        transform: glide(`translateY(${(1 - rise) * 60}px)`, rise !== 1), opacity: rise}}>
         {glitch > 0.1 && <Head color="#ff004c" dx={-shift} blend="multiply" />}
         {glitch > 0.1 && <Head color="#00e5ff" dx={shift} blend="multiply" />}
         <Head color={INK} dx={0} />

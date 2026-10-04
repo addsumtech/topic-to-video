@@ -8,6 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {darkGround} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 150; // 5s
 // @dark-world: a star is a POINT OF LIGHT and the warp is the trail it leaves — the field is drawn as bright
@@ -24,6 +25,7 @@ export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?:
   const dna = useDNA();
   const BG = darkGround(dna?.bg, BG_D0);   // the film's ground while it is dark; this register's own night when not
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const speed = easeInOutCubic(clamp01(seg(t, 0.05, 0.62)));       // accelerate then hold
@@ -54,7 +56,7 @@ export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?:
         background: `radial-gradient(circle, #ffffff ${flash * 8}%, ${ACC}55 ${20 + flash * 20}%, #0000 60%)`,
         opacity: 0.4 + 0.6 * flash, pointerEvents: 'none'}} />
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: titleIn, transform: `scale(${lerp(1.3, 1, titleIn)})`, color: '#fff',
+        <div style={{opacity: titleIn, transform: glide(`scale(${lerp(1.3, 1, titleIn)})`, titleIn !== 1), color: '#fff',
           font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 0 60px ${ACC}, 0 0 120px ${ACC}88`}}>{TITLE}</div>
         <div style={{opacity: clamp01(seg(t, 0.82, 0.96)), marginTop: 20, color: '#c7d6ff',

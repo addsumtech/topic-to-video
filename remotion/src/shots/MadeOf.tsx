@@ -30,6 +30,7 @@ import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
 import {captionBand, CONTENT_TOP, textWidthPx} from '../runtime/layout';
 import {figureText, figureValue} from '../runtime/figure';
 import {useDNA, dnaPalette, separated, surfaceOn, readableOn, dimOn, pilL, TONE_MIN_STEP} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 
@@ -89,6 +90,7 @@ export const MadeOf: React.FC<{
   const disp = dna?.fontDisplay ?? 'Inter, system-ui, sans-serif';
 
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const base = Math.min(W, H);
   const zoneTop = CONTENT_TOP;
@@ -162,7 +164,7 @@ export const MadeOf: React.FC<{
           <div key={k} style={{position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h,
             background: fill, opacity: on,
             // the parts arrive by GROWING out of the whole, not by fading in from nowhere
-            transform: `scale(${(0.94 + 0.06 * on).toFixed(4)})`, transformOrigin: '50% 50%',
+            transform: glide(`scale(${(0.94 + 0.06 * on).toFixed(4)})`, on !== 1), transformOrigin: '50% 50%',
             boxShadow: `inset 0 0 0 ${hair}px ${BG}`,
             display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
             padding: Math.round(base * 0.022), boxSizing: 'border-box', overflow: 'hidden'}}>

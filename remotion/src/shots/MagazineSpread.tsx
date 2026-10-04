@@ -17,6 +17,7 @@ import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/mo
 import {useDNA} from '../runtime/dna';
 import {captionBand, contentBottom, fitBlockPx, fitTextPx, monoFit, textWidthPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 const PAPER_D0 = '#f3f0e8', INK_D0 = '#161512';
@@ -35,6 +36,7 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
   // then the register's own editorial red as the un-themed default — not a fixed red block on a terminal/blue film.
   const PAPER = dna?.bg ?? PAPER_D0, INK = dna?.fg ?? INK_D0, ACC = accentProp ?? dna?.accent ?? '#e8452e';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // THE SPREAD'S COLUMNS ARE FRACTIONS OF THE PAGE. Every width here was a literal measured once on a
   // 1920-wide frame: a 150px margin, a 560px plate and the 640 of sidebar the headline column subtracted.
@@ -130,7 +132,7 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
     <AbsoluteFill style={{background: PAPER, overflow: 'hidden', color: INK}}>
       {/* masthead */}
       <div style={{position: 'absolute', left: M, top: 92, opacity: clamp01(mast * 1.3),
-        transform: `translateY(${(1 - mast) * -20}px)`,
+        transform: glide(`translateY(${(1 - mast) * -20}px)`, mast !== 1),
         font: `800 ${mastPx}px/0.9 var(--f-display, "Playfair Display", Georgia, serif)`, letterSpacing: '-0.02em'}}>{TITLE}</div>
       <div style={{position: 'absolute', right: M, top: 128, opacity: clamp01(seg(t, 0.28, 0.44)),
         font: `600 ${ISSUE_PX}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.16em'}}>{ISSUE}</div>
@@ -167,7 +169,7 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
         {words.map((w, i) => {
           const on = easeOutCubic(clamp01(seg(t, WORD_IN + i * wordStep, WORD_IN + WORD_DUR + i * wordStep)));
           return <span key={i} style={{display: 'inline-block', marginRight: '0.28em', opacity: on,
-            transform: `translateY(${(1 - on) * 24}px)`}}>{w}</span>;
+            transform: glide(`translateY(${(1 - on) * 24}px)`, on !== 1)}}>{w}</span>;
         })}
       </div>
 

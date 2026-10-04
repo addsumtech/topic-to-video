@@ -23,6 +23,8 @@ that has a slot for one — `ObjectStage`, `ObjectCompare`, `ObjectPath`, `Objec
 5. **It is a pure function of `t`.** `t` runs 0 → 1 over the part of the beat its host gives it and then holds; at
    any frame the object is fully determined — no `Math.random`, no `Date`. What its host does with `t` is on the
    host's card (ObjectPath hands it the object's progress along the route; TechnicalPlate its drawing phase).
+   **Moving type glides:** a transform or position that moves words goes through `glide()` from `@runtime/glide`
+   over the span it moves in, or Skia steps the type a pixel at a time — `text_safe_qa.py <out_dir> --glide` refuses it.
 
 `META` carries `aspect`, `provenance` (the idiom world its look comes from — the film's `idiom_world` is judged on
 it) and, for an object that draws its own 3D from `yaw`, `turns: true` (objects/DemoForm is the reference).

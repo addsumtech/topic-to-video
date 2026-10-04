@@ -144,6 +144,35 @@ def _assert_frame_covered(frames, name):
 
 
 @needs_toolchain
+@pytest.mark.parametrize("layer", ["shadow", "blur"])
+def test_a_blur_or_drop_shadow_above_the_type_takes_the_unlock_away_and_one_inside_it_gives_it_back(
+        bundle, tmp_path, layer):
+    """Skia draws a spatial filter's content into a layer whose matrix keeps only the SCALE of the transform above
+    it, so the camera's skew never reaches glyphs inside a blur or a drop-shadow — measured: they step exactly as
+    under the old camera (0.267px). The same unlock written INSIDE the filtered element reaches them (0.012px).
+    That is why `runtime/depth`'s filtered planes carry their own unlock, and why the type-glide census reads the
+    skew below the nearest such filter. If a Chrome update ever stops re-snapping, the first assertion says so and
+    both can be simplified."""
+    above = _residual(_tracks(_render(bundle, tmp_path / "above", "%d-%d" % RENDERED,
+                                      {"move": "push", "layer": layer})[MOVING]), "y")
+    inside = _residual(_tracks(_render(bundle, tmp_path / "inside", "%d-%d" % RENDERED,
+                                       {"move": "push", "layer": layer, "inner": True})[MOVING]), "y")
+    assert above[0] > Y_RMS_MAX, "%s: type under the filter no longer snaps (y RMS %.3f) — the filter rule in " \
+                                 "runtime/textSafe.tsx and the planes' inner unlock may be dropped" % (layer, above[0])
+    assert inside[0] < Y_RMS_MAX and inside[1] < Y_STEP_MAX, (
+        "%s: the unlock inside the filter did not reach the type (y RMS %.3f, step %.3f)" % (layer, inside[0], inside[1]))
+
+
+@needs_toolchain
+def test_a_colour_filter_passes_the_cameras_unlock_through(bundle, tmp_path):
+    """`saturate()` (the planes' and the lens's colour anchor) needs no layer of the kind a blur does: the camera's
+    own unlock reaches type under it — measured 0.011px, the unfiltered floor."""
+    y = _residual(_tracks(_render(bundle, tmp_path / "sat", "%d-%d" % RENDERED,
+                                  {"move": "push", "layer": "saturate"})[MOVING]), "y")
+    assert y[0] < Y_RMS_MAX and y[1] < Y_STEP_MAX, "type under saturate() steps: y RMS %.3f, step %.3f" % (y[0], y[1])
+
+
+@needs_toolchain
 def test_a_held_camera_draws_the_page_exactly_as_no_camera_does(bundle, tmp_path):
     """A beat that holds gets none of the unlock: its frames are what they were before the unlock existed."""
     import numpy as np

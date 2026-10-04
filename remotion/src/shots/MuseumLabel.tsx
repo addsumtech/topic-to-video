@@ -16,6 +16,7 @@ import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165;
 
@@ -41,6 +42,7 @@ export const MuseumLabel: React.FC<{
   requireEvidence('MuseumLabel', 'src', src, 'the real object this label stands beside');
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
@@ -73,7 +75,7 @@ export const MuseumLabel: React.FC<{
     if (!text) return null;
     const on = easeOutCubic(clamp01(seg(t, at, at + 0.14)));
     return (
-      <div style={{opacity: on, transform: `translateY(${(1 - on) * 6}px)`,
+      <div style={{opacity: on, transform: glide(`translateY(${(1 - on) * 6}px)`, on !== 1),
         font: `${size >= 0.030 ? 700 : 500} ${Math.round(W * size)}px/1.3 ${face}`, color,
         letterSpacing: spacing, marginBottom: Math.round(W * 0.007)}}>{text}</div>
     );

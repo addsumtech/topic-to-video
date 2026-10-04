@@ -7,6 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutExpo, hash01} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
 import {onLight} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 150; // 5s
 const BG_D0 = '#080a12';
@@ -27,6 +28,7 @@ export const FractureIn: React.FC<{title?: string; tagline?: string; accent?: st
   const TAG_INK = dna ? mix(dna.onAccent, ACC, 0.14) : TAG_D0;
   const LIGHT = onLight(dna);
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const gw = COLS * TW, gh = ROWS * TH;
   const ox = (W - gw) / 2, oy = (H - gh) / 2 - 10;
@@ -67,7 +69,7 @@ export const FractureIn: React.FC<{title?: string; tagline?: string; accent?: st
 
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         pointerEvents: 'none'}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 20}px)`,
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 20}px)`, titleIn !== 1),
           color: INK, font: `800 128px/1 ${dna?.fontDisplay ?? 'var(--f-display, Inter, system-ui, sans-serif)'}`, letterSpacing: '-0.03em',
           textShadow: '0 20px 60px #000a'}}>{TITLE}</div>
         <div style={{opacity: clamp01(seg(t, 0.72, 0.9)), marginTop: 22, color: TAG_INK,

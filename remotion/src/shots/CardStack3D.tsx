@@ -17,6 +17,7 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeInOutCubic, easeOutCubic, has
 import {useDNA, dnaPalette, surfaceOn, shade} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitBlockPx, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 
@@ -43,6 +44,7 @@ export const MAX_STACK_CARDS = 7;
 export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
   items: ITEMS = ['Docs', 'Chat', 'Tasks', 'Code', 'Data', 'Calls'], title: TITLE = 'All of it, in hand'} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const {width: WIDTH} = useVideoConfig();
   const dna = useDNA(); const TONES = dnaPalette(dna, 6) ?? TONES0;
   // The card is a CONTAINER, and the token it is painted from is invisible on its own ground: all eight
@@ -197,7 +199,7 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
       </AbsoluteFill>
       <div style={{position: 'absolute', top: titleTop, height: titleH, left: 0, right: 0, textAlign: 'center',
         opacity: titleIn, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        transform: `translateY(${(1 - titleIn) * 16}px)`, color: dna?.fg ?? TITLE_D0, textWrap: 'balance',
+        transform: glide(`translateY(${(1 - titleIn) * 16}px)`, titleIn !== 1), color: dna?.fg ?? TITLE_D0, textWrap: 'balance',
         font: `800 ${titleSize}px/${leading(TITLE, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
         textShadow: deep ? '0 8px 30px #000' : 'none'}}>{TITLE}</div>
     </AbsoluteFill>

@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01, radians} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#0a0714';
@@ -16,6 +17,7 @@ export const KaleidoMandala: React.FC<{title?: string; tagline?: string; accent?
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const bloom = easeOutBack(clamp01(seg(t, 0.06, 0.5)));
@@ -57,7 +59,7 @@ export const KaleidoMandala: React.FC<{title?: string; tagline?: string; accent?
       </svg>
       <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(30% 30% at 50% 50%, #0a0714dd, #0000 72%)'}} />
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#fff',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: '#fff',
           font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: '0 10px 50px #000'}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: '#e7d8ff',
           font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em', textShadow: '0 4px 20px #000'}}>{TAG}</div>
