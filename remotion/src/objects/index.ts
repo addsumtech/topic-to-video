@@ -3,7 +3,9 @@
 // ObjectRef) by its id. See references/object-authoring.md.
 import type {ObjectEntry} from '../runtime/objectSlot';
 import * as O_DemoForm from './DemoForm';
+import * as O_EraStrata from './EraStrata';
 
 export const LIBRARY_OBJECTS: Record<string, ObjectEntry> = {
   DemoForm: {C: O_DemoForm.DemoForm, meta: O_DemoForm.META},
+  EraStrata: {C: O_EraStrata.EraStrata, meta: O_EraStrata.META},
 };
