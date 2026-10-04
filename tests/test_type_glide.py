@@ -94,6 +94,38 @@ def test_an_unlocked_line_that_moves_by_layout_still_steps():
     assert tq.glide_level(by_layout)[0] == "error" and "L" in by_layout[0]["fl"], by_layout
     by_transform = tq.judge_glide(unlocked(ys, [100] * len(ys)))
     assert by_transform == [], by_transform
+    # RE-SEATED, not stepped: the layout offset jumps from 404 to 0 once, the frame its place moves from `top` into
+    # a transform, while the line itself moves a hundredth of a pixel (QuadSplit's hero as its expand begins)
+    reseated = tq.judge_glide(unlocked([402.16, 402.16, 402.174, 402.216, 402.424], [404, 404, 0, 0, 0]))
+    assert reseated == [], reseated
+
+
+def test_type_re_set_at_a_new_size_is_not_a_step_but_a_lerped_size_still_is():
+    """InOrder's label picks a whole-px size off its growing band: going 26 -> 27px its top moved 0.36px and its
+    layout offset one pixel — a re-set, not a crawl, and the census called it a step. A size that is LERPED (a
+    fraction of a px each frame, as QuadSplit's hero label grows) is still one line crawling and stays judged."""
+    def sized(ys, lys, pxs):
+        out = _track(ys)
+        for rec, ly, px in zip(out.values(), lys, pxs):
+            for ln in rec["lines"]:
+                ln["u"], ln["ly"], ln["px"] = 1, ly, px
+        return out
+    jumped = tq.judge_glide(sized([823.157, 822.795, 822.777], [109, 110, 110], [26, 27, 27]))
+    assert jumped == [], jumped
+    # a SIBLING re-set re-flows the line after it: the note under a label refitted 30 -> 31px, its own size unchanged
+    note = sized([387.221, 387.82, 387.84], [43, 44, 44], [19, 19, 19])
+    label = _track([341.627, 341.525, 341.6], key="/body0/div1")
+    for f, rec in label.items():
+        rec["lines"][0].update({"u": 1, "ly": 0, "px": [30, 31, 31][f]})
+        note[f]["lines"] = [dict(ln, k="/body0/div2") for ln in note[f]["lines"]] + rec["lines"]
+    assert tq.judge_glide(note) == [], tq.judge_glide(note)
+    # ...but a size jump in ANOTHER parent excuses nothing
+    for f in note:
+        note[f]["lines"][1]["k"] = "/body1/div1"
+    assert tq.judge_glide(note), "a re-set elsewhere excused a step"
+    ys = [100 + 0.3 * i for i in range(12)]
+    lerped = tq.judge_glide(sized(ys, [int(round(y)) for y in ys], [40 + 0.05 * i for i in range(12)]))
+    assert tq.glide_level(lerped)[0] == "error", lerped
 
 
 def test_type_declared_stepped_is_named_and_excused():

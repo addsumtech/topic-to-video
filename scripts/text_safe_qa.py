@@ -287,6 +287,7 @@ GLIDE_TAG = "TYPE-GLIDE "
 GLIDE_STEPS_ERROR = 3          # whole-pixel steps inside one crawl: a staircase
 GLIDE_CRAWL_PX = 1.0           # px a frame: at or above this the line moves every frame and never holds
 GLIDE_STILL_PX = 1e-3          # px: below this a line did not move between two frames (layout noise)
+GLIDE_RESET_PX = 0.5           # px of font size: a jump this large between two frames is the type re-set, not moved
 GLIDE_MIN_OPACITY = 0.25       # fainter than this the line is still arriving, not being read
 _GLIDE_RUNNER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "glide_frames.cjs")
 
@@ -372,11 +373,19 @@ def judge_glide(frames):
             if "c" in (ln.get("fl") or ""):
                 continue                                  # a composited layer: listed for pixel checks, not judged
             tracks.setdefault(ln["k"], []).append((f, float(ln["y"]), float(ln.get("o", 1)), ln.get("t", ""),
-                                                   ln.get("fl", ""), bool(ln.get("u")), ln.get("ly")))
+                                                   ln.get("fl", ""), bool(ln.get("u")), ln.get("ly"),
+                                                   ln.get("px")))
+    # RE-SET between two frames: a line whose font size jumped (a whole-px size picked off a moving box). It moves
+    # where it is drawn, and it moves every line laid out after it in the same parent — a re-flow, not a crawl.
+    sized = {f: {ln["k"]: ln.get("px") for ln in (frames[f].get("lines") or [])} for f in frames}
+    def _resets(f0, f1):
+        a, b = sized.get(f0, {}), sized.get(f1, {})
+        return {k for k in b if a.get(k) and b[k] and abs(float(b[k]) - float(a[k])) >= GLIDE_RESET_PX}
     runs = []
     for key, pts in tracks.items():
+        parent = key.rsplit("/", 1)[0]
         cur = None
-        for (f0, y0, o0, _t0, fl0, u0, ly0), (f1, y1, o1, t1, fl1, u1, ly1) in zip(pts, pts[1:]):
+        for (f0, y0, o0, _t0, fl0, u0, ly0, px0), (f1, y1, o1, t1, fl1, u1, ly1, px1) in zip(pts, pts[1:]):
             dy = y1 - y0
             if (f1 != f0 + 1 or o0 < GLIDE_MIN_OPACITY or o1 < GLIDE_MIN_OPACITY
                     or abs(dy) >= GLIDE_CRAWL_PX):
@@ -389,8 +398,18 @@ def judge_glide(frames):
             if abs(dy) > GLIDE_STILL_PX:
                 cur["moved"] = True
                 cur["max_dy"] = max(cur["max_dy"], abs(dy))
-                laid = ly0 is not None and ly1 is not None and ly0 != ly1
-                if u0 and u1:
+                # a ROUNDING step moves the layout offset by about as much as the line moved; a jump far larger than
+                # the move is the line being RE-SEATED (its place moved from left/top into a transform, as QuadSplit's
+                # hero does when its expand begins: offset 404 -> 0 while the line moved 0.013px) — not a step
+                laid = (ly0 is not None and ly1 is not None and ly0 != ly1
+                        and abs(ly1 - ly0) <= abs(dy) + 1)
+                if any(k == key or k.rsplit("/", 1)[0] == parent for k in _resets(f0, f1)):
+                    # RE-SET, not stepped: this line's font size jumped between the frames, or a sibling's did and
+                    # re-flowed it. InOrder's label going 26 -> 27px moved its own top 0.36px; ViewSwitch's label
+                    # refitted a px larger pushed its note 0.6px. A size LERPED a little each frame stays judged:
+                    # below the threshold the line is still one size crawling.
+                    step, why = False, ""
+                elif u0 and u1:
                     step, why = laid, "L"                 # unlocked, but the layout offset moved a whole pixel
                 elif not u0 and not u1:
                     step, why = math.floor(y1) != math.floor(y0), "L" if laid else ""

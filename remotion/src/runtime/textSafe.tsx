@@ -1306,7 +1306,8 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
 // true position) with the unlock on the moving element and with it on a still wrapper; the same crawl moved by
 // a translate in the unlocked transform measured 0.007px. So each line also carries `ly`, its layout offset (the
 // offsetTop chain, which no transform moves): an unlocked line steps whenever `ly` does. Type under a 3D chain or
-// a will-change layer, whose raster path this cannot read, is counted (`z`) and not listed. An element or ancestor carrying `data-type-steps`
+// a will-change layer is moved by the compositor: counted (`z`) and listed with flag `c`, never judged. An element
+// or ancestor carrying `data-type-steps`
 // is listed with flag `s`: type that is MEANT to step (a glitch's offset copies, a mechanical counter) — the
 // reader excuses it and names it.
 
@@ -1315,9 +1316,10 @@ export const TYPE_GLIDE_TAG = 'TYPE-GLIDE ';
 
 /** One line of type on one frame: key, true top of its first line box in px, its box, effective opacity, its text
  *  (cut), `ly` — its LAYOUT offset in whole px (the offsetTop chain, which no transform moves) — `u` when its matrix
- *  is unlocked, and flags: `f` drawn through a blur or drop-shadow filter, `s` declared stepped. */
+ *  is unlocked, `px` its font size (a jump in it is the type re-set at a new size, not moved), and flags: `f` drawn
+ *  through a blur or drop-shadow filter, `s` declared stepped, `c` on a composited layer (listed, not judged). */
 export type GlideLine = {k: string; y: number; x?: number; w?: number; h?: number; o: number; t: string;
-  ly?: number; u?: 1; fl?: string};
+  ly?: number; u?: 1; fl?: string; px?: number};
 
 type Mat2 = [number, number, number, number];
 type GlideChain = {M: Mat2 | null; L: Mat2 | null; ls: number; op: number; spatial: boolean; will: boolean;
@@ -1432,6 +1434,7 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, x: Math.round(r.left * 100) / 100,
       w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, o: Math.round(c.op * 100) / 100,
       t: text.length > 32 ? text.slice(0, 32) + '…' : text, ly: layoutY(el), ...(unlocked ? {u: 1 as const} : {}),
+      px: Math.round(parseFloat(el.ownerDocument?.defaultView?.getComputedStyle(el).fontSize || '0') * 100) / 100,
       ...(fl ? {fl} : {})});
   });
   return {lines, u, z};
