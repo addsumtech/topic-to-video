@@ -40,6 +40,7 @@ import {frameCamera, boxCorners} from '../runtime/fitCamera';
 import {leading} from '../runtime/cjkType';
 import {useT, useAnimSpan, springAt, SPRING_SEAT, seg, clamp01, easeInOutCubic,
         lerp} from '../runtime/motion';
+import {useGlide, usePlaceGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 export const MAX_RAIL_MODULES = 6;
@@ -388,6 +389,11 @@ export const PortRail: React.FC<{
   const push = lerp(PUSH_OUT, PUSH_IN, easeInOutCubic(t));
   const u = base * push / Math.hypot(dir[0], dir[1], dir[2]);
   const cam: Vec3 = [aim[0] + dir[0] * u, aim[1] + dir[1] * u, aim[2] + dir[2] * u];
+  // every word placed off the projection moves for the whole beat: the lens closes in until the clock lands, and
+  // the rail keeps its slow yaw (YAW is a sine of the raw frame) after that
+  const lensMoves = true;
+  const place = usePlaceGlide();
+  const glide = useGlide();
 
   // THE LABEL IS SIZED TO THE PITCH IT ACTUALLY GETS, which is only knowable once the camera is chosen.
   //
@@ -449,8 +455,10 @@ export const PortRail: React.FC<{
       {/* A label appears only once its module is most of the way home. Drawn from the first frame, the ones
           still waiting rode above the row and read as debris. */}
       {labels.map(({text, i, s, at}) => at ? (
-        <div key={i} style={{position: 'absolute', left: at.x, top: at.y, width: labelBoxW,
-          transform: vert ? 'translate(0, -50%)' : 'translate(-50%, -100%)',
+        // placed by a TRANSLATE with the unlock while the lens closes in (runtime/glide.ts usePlaceGlide): a label
+        // moved by `left`/`top` steps a whole pixel at a time against the module it names
+        <div key={i} style={{position: 'absolute',
+          ...place(lensMoves, at.x, at.y, vert ? 'translate(0, -50%)' : 'translate(-50%, -100%)'), width: labelBoxW,
           textAlign: vert ? 'left' : 'center', textWrap: 'balance',
           opacity: clamp01(s * 2.6 - 1.25), color: FG,
           font: `700 ${labelFitted}px/${leading(text, 1.15)} var(--f-body, system-ui, sans-serif)`,
@@ -461,8 +469,9 @@ export const PortRail: React.FC<{
       ) : null)}
 
       {groupTags.map((g, i) => (
-        <div key={'g' + i} style={{position: 'absolute', left: g.x, top: Math.min(g.y, band - Math.round(U * 0.03)),
-          transform: 'translate(-50%, -50%)', textAlign: 'center', whiteSpace: 'nowrap',
+        <div key={'g' + i} style={{position: 'absolute',
+          ...place(lensMoves, g.x, Math.min(g.y, band - Math.round(U * 0.03)), 'translate(-50%, -50%)'),
+          textAlign: 'center', whiteSpace: 'nowrap',
           opacity: clamp01(seg(t, 0.50, 0.70)), color: DIM,
           font: `600 ${Math.round(notePx * 0.94)}px/1.25 var(--f-mono, "JetBrains Mono", monospace)`,
           letterSpacing: '0.04em', textShadow: `0 2px 12px ${HALO}`}}>{g.label}</div>
@@ -480,7 +489,8 @@ export const PortRail: React.FC<{
         const top = Math.min(rail.y + Math.round(U * 0.075), band - blockH - Math.round(U * 0.02));
         return (
           <>
-            <div style={{position: 'absolute', left: 0, right: 0, top, textAlign: 'center', color: FG,
+            <div style={{position: 'absolute', left: 0, right: 0, top: 0, transform: glide(`translateY(${top}px)`, lensMoves),
+              textAlign: 'center', color: FG,
               opacity: clamp01(seg(t, 0.02, 0.16)), textWrap: 'balance',
               padding: `0 ${Math.round(W * 0.14)}px`,
               font: `800 ${fitTextPx(STANDARD, W * 0.6, titlePx, {usable: 1.0})}px/${leading(STANDARD, 1.1)} var(--f-display, system-ui, sans-serif)`}}>
@@ -488,7 +498,8 @@ export const PortRail: React.FC<{
             </div>
 
             {NOTE ? (
-              <div style={{position: 'absolute', left: 0, right: 0, top: top + Math.round(titlePx * 1.6) + keyH,
+              <div style={{position: 'absolute', left: 0, right: 0, top: 0,
+                transform: glide(`translateY(${top + Math.round(titlePx * 1.6) + keyH}px)`, lensMoves),
                 textAlign: 'center', color: DIM, padding: `0 ${Math.round(W * 0.16)}px`, textWrap: 'balance',
                 opacity: clamp01(seg(t, 0.66, 0.84)),
                 font: `500 ${notePx}px/${leading(NOTE, 1.4)} var(--f-body, system-ui, sans-serif)`}}>

@@ -38,6 +38,7 @@ import {AimCamera} from '../runtime/aimCamera';
 import {captionBand, CONTENT_TOP, fitTextPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useT, seg, clamp01, easeOutCubic, easeOutBack, lerp} from '../runtime/motion';
+import {usePlaceGlide} from '../runtime/glide';
 
 export const DURATION = 150; // 5s
 
@@ -199,6 +200,7 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
   const n = list.length;
   const U = Math.min(W, H);
   const yaw = YAW(frame);
+  const place = usePlaceGlide();
   const CAM = camAt(W, H);
 
   // A LABEL IS PUSHED OUT IN SCREEN SPACE, NOT IN WORLD SPACE.
@@ -285,8 +287,10 @@ export const MaterialHero: React.FC<{title?: string; items?: string[]; note?: st
       {/* A label appears only once its arc is nearly home; drawn from frame one they ride outside the frame
           and read as debris. */}
       {labels.map(({text, i, s, at}) => at ? (
-        <div key={i} style={{position: 'absolute', left: at.x, top: at.y, width: Math.round(W * 0.15),
-          transform: 'translate(-50%, -50%)', textAlign: 'center', textWrap: 'balance',
+        // placed by a TRANSLATE with the unlock: the ring yaws for the whole beat, and a label moved by
+        // `left`/`top` steps a whole pixel at a time against the metal under it (runtime/glide.ts usePlaceGlide)
+        <div key={i} style={{position: 'absolute', ...place(true, at.x, at.y, 'translate(-50%, -50%)'),
+          width: Math.round(W * 0.15), textAlign: 'center', textWrap: 'balance',
           opacity: clamp01(s * 2.6 - 1.3), color: FG,
           font: `700 ${Math.round(U * 0.027)}px/${leading(text, 1.15)} var(--f-body, system-ui, sans-serif)`,
           // A LABEL HERE STRADDLES TWO SURFACES — the studio floor and, for the arcs nearest the lens, the

@@ -8,6 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA, mix, tint, shade} from '../runtime/dna';
 import {fitTextPx} from '../runtime/layout';
+import {BASELINE_UNLOCK_SKEW} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
@@ -56,7 +57,10 @@ export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
           <Word fill="url(#chrome)" />
         </g>
 
-        <g clipPath="url(#riseclip)" transform={`translate(0 ${(1 - settle) * 30}) `}>
+        {/* the word settles 30px on a long ease-out whose tail crawls; while it moves it carries the baseline unlock
+            (runtime/glide.ts) — as an SVG transform, so the skew is in the same matrix as the move */}
+        <g clipPath="url(#riseclip)"
+          transform={`translate(0 ${(1 - settle) * 30})${settle !== 1 ? ` matrix(1 ${BASELINE_UNLOCK_SKEW} 0 1 0 0)` : ''}`}>
           {/* chromatic-aberration fringe */}
           <Word fill={dna?.accent2 ?? '#ff2d55'} opacity={0.5} dx={-4} />
           <Word fill={dna?.accent ?? '#22d3ee'} opacity={0.5} dx={4} />
