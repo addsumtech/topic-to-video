@@ -179,3 +179,93 @@ def test_a_blur_or_drop_shadow_above_the_type_is_found_and_the_unlock_inside_it_
         assert got[name]["listed"] == 0, (name, got[name]["runs"][:2])
     # a will-change layer is rasterised once and moved by the compositor: not read, and SAID to be not read
     assert got["will-change"]["listed"] == 0 and got["will-change"]["z"] > 0
+
+
+# ── the paths that move type, by construction ────────────────────────────────────────────────────────────────
+@needs_toolchain
+def test_a_drifting_film_carrying_the_unlock_still_covers_the_frame():
+    """The whole-film drift (meta.camera_drift) carries the unlock, and the skew tilts its layer's top and bottom
+    edges. Its scale is held at least at `unlockCoverScale` for the translation it has on each frame; the corners of
+    the layer under scale(s) translate(x, y) skewY(k), about the frame centre, must clear every edge by the margin
+    at every amplitude a film can ask for — including the smallest, where the breathing scale alone does not."""
+    out = _tsprobe.run_ts(
+        "import {BASELINE_UNLOCK_SKEW as K, unlockCoverScale} from %s;" % _tsprobe.mod("glide"),
+        """
+        out.worst = Infinity;
+        for (const [W, H] of [[1920, 1080], [1080, 1920], [1080, 1080]]) {
+          for (const amp of [0.02, 0.05, 0.2, 1, 2]) {
+            for (let f = 0; f < 3000; f += 7) {
+              const s = 1 + amp * (0.035 + 0.010 * Math.sin((f / 720) * 2 * Math.PI));
+              const y = amp * 4 * Math.sin((f / 810) * 2 * Math.PI + 0.4);
+              const sc = Math.max(s, unlockCoverScale(H / 2, W / 2, y));
+              const Y = (px: number, py: number) => H / 2 + sc * ((py - H / 2) + y + K * (px - W / 2));
+              const top = Math.max(Y(0, 0), Y(W, 0)), bottom = Math.min(Y(0, H), Y(W, H));
+              out.worst = Math.min(out.worst, -top, bottom - H);
+            }
+          }
+        }
+        """)
+    assert out["worst"] >= 1 - 1e-6, "the drifting layer left %.2fpx of frame edge uncovered" % (1 - out["worst"])
+
+
+@needs_toolchain
+def test_a_mark_drawn_over_a_toured_page_lands_where_the_camera_put_the_page():
+    """pageToScreen must describe the transform PageCam2D draws, unlock and cover included — or the pointer, the
+    ripple and every label drawn over a page land up to a pixel off what they name."""
+    out = _tsprobe.run_ts(
+        "import {pageCamTransform, pageToScreen, type CamUnlock} from %s;" % _tsprobe.mod("pageCam2D"),
+        """
+        // apply a css transform list (translate/scale/matrix only, origin 0 0) to a point, right to left
+        const apply = (xf: string, p: [number, number]): [number, number] => {
+          const fns = [...xf.matchAll(/(translate|scale|matrix)\\(([^)]*)\\)/g)].map((m) => [m[1], m[2].split(',').map((v) => parseFloat(v))] as const);
+          let [x, y] = p;
+          for (let i = fns.length - 1; i >= 0; i--) {
+            const [fn, a] = fns[i];
+            if (fn === 'translate') { x += a[0]; y += a[1]; }
+            else if (fn === 'scale') { x *= a[0]; y *= (a.length > 1 ? a[1] : a[0]); }
+            else { const nx = a[0] * x + a[2] * y + a[4], ny = a[1] * x + a[3] * y + a[5]; x = nx; y = ny; }
+          }
+          return [x, y];
+        };
+        out.err = 0;
+        const unlocks: (CamUnlock | undefined)[] = [undefined, {on: true, under: 0.4, cover: false},
+          {on: true, under: 1, cover: true}, {on: false, under: 1, cover: true}];
+        for (const u of unlocks) for (const cam of [{x: 800, y: 500, s: 0.4}, {x: 1300, y: 300, s: 2.2}]) {
+          const xf = pageCamTransform(cam, 1920, 890, u);
+          for (const pt of [[0, 0], [2400, 1600], [810, 495]] as [number, number][]) {
+            const a = apply(xf, pt), b = pageToScreen(cam, 1920, 890, pt[0], pt[1], u);
+            out.err = Math.max(out.err, Math.abs(a[0] - b.x), Math.abs(a[1] - b.y));
+          }
+        }
+        out.plain = pageCamTransform({x: 800, y: 500, s: 0.4}, 1920, 890);
+        """)
+    assert out["err"] < 1e-6, "pageToScreen disagrees with the page camera by %.4fpx" % out["err"]
+    assert out["plain"] == "translate(640px, 245px) scale(0.4)", "a tour with no unlock must draw exactly as before"
+
+
+@needs_toolchain
+def test_the_films_moving_seams_and_drift_carry_the_unlock(census_bundle):
+    """A film whose beats hold still: every crawl in it is the FILM's — its seams and its whole-film drift. With the
+    unlock switched off (the film before it existed) the focus relay, the flight through dark and the drift are
+    staircases; with it on, nothing steps more than once (the carry's collapse to a line, where no skew survives a
+    0.006 scaleY, ticks once and is gone)."""
+    def film(scenes, camera):
+        return {"scenes": scenes, "camera": camera, "cameraBed": False, "reducedMotion": False, "aspect": "16:9",
+                "captions": False, "dna": "product", "typeGlide": True}
+    seams = [None, {"type": "drift", "direction": "from-bottom"}, {"type": "return", "dx": 0, "dy": 1},
+             {"type": "focus"}, {"type": "through-dark"}, {"type": "portal"}, {"type": "carry"}]
+    sc = [dict({"shot": "OpenQuestions", "props": {}, "durF": 120, "caption": ""},
+               **({"transitionIn": ti} if ti else {})) for ti in seams]
+    drift = [{"shot": "OpenQuestions", "props": {}, "durF": 240, "caption": ""} for _ in range(2)]
+    jobs = [{"tag": "seams", "id": "Film", "props": film(sc, 0)},
+            {"tag": "seams-old", "id": "Film", "props": dict(film(sc, 0), baselineUnlock=False)},
+            {"tag": "drift", "id": "Film", "props": film(drift, 1)},
+            {"tag": "drift-old", "id": "Film", "props": dict(film(drift, 1), baselineUnlock=False)}]
+    res = tq.glide_run(jobs, census_bundle)
+    level = {}
+    for j in jobs:
+        slot = res[j["tag"]]
+        assert slot["done"] and not slot["error"], (j["tag"], slot["error"])
+        level[j["tag"]] = tq.glide_level(tq.judge_glide(slot["frames"]))[0]
+    assert level["seams-old"] == "error" and level["drift-old"] == "error", level
+    assert level["seams"] in ("clean", "warn") and level["drift"] == "clean", level

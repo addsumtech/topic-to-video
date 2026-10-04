@@ -16,7 +16,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, useAnimSpan, ENTRY_T, ReducedMotionContext, clamp01, seg, easeInOutCubic, easeCursor} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
-import {camAt, clampToPage, type CamKey} from '../runtime/pageCam2D';
+import {camAt, clampToPage, camUnlock, pageCamTransform, useCamUnlock, type CamKey} from '../runtime/pageCam2D';
 import {textWidthPx, TITLE_Y, contentBottom} from '../runtime/layout';
 import {deviceGeometry, deviceFace, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type Placement, type Rect} from '../runtime/device';
 import {ScreenImage, ScreenVideo, scrollRangePx, flingAt, type VideoSpan} from '../runtime/screen';
@@ -259,6 +259,11 @@ export const DeviceDemo: React.FC<{
     });
   }
   const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, VIEW_H, W, VIEW_H);
+  // A PUSH-IN IS A PAGE CAMERA, and it carries the page camera's baseline unlock (runtime/pageCam2D): the push
+  // exists to make small screen type readable, and type pushed in under a plain scale steps a pixel at a time
+  // against the screen it is printed on. On for the whole beat when any step pushes in; a still device is
+  // drawn exactly as before.
+  const unlock = useCamUnlock(camUnlock(keys));
   // The view is clipped at the band only while it is pushed in: at rest the device is laid out above the band and
   // its soft shadow falls into it as DeviceHero's does — clipped at rest too, the shadow was cut in a hard line.
   const clipH = cam.s > 1.0005 ? VIEW_H : H;
@@ -266,8 +271,7 @@ export const DeviceDemo: React.FC<{
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? GROUND, overflow: 'hidden'}}>
       <div style={{position: 'absolute', left: 0, top: 0, width: W, height: clipH, overflow: 'hidden'}}>
-      <AbsoluteFill style={{transformOrigin: '0 0',
-        transform: `translate(${W / 2 - cam.x * cam.s}px, ${VIEW_H / 2 - cam.y * cam.s}px) scale(${cam.s})`}}>
+      <AbsoluteFill style={{transformOrigin: '0 0', transform: pageCamTransform(cam, W, VIEW_H, unlock)}}>
         <Device g={g} dna={dna}>
           {prev && change < 1 ? (
             <div style={{position: 'absolute', inset: 0, transform: push ? `translateX(${-change * s.w * 0.3}px)` : undefined}}>

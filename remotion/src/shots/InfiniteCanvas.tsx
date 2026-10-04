@@ -5,6 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, easeInOutCubic, easeOutBack, seg, clamp01, hash01} from '../runtime/motion';
+import {pageCamTransform, useCamUnlock} from '../runtime/pageCam2D';
 import {rows} from '../runtime/rows';
 import {useDNA} from '../runtime/dna';
 
@@ -44,8 +45,11 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
   const zt = easeInOutCubic(clamp01((t - 0.12) / 0.78));
   const z = lerp(0.5, 1.35, zt);
   const fx = lerp(WORLD_W / 2, hub.x + hub.w / 2, zt), fy = lerp(WORLD_H / 2, hub.y + hub.h / 2, zt);
+  // the zoom moves for the whole beat (wide at 0.5 → close at 1.35), so the board's type carries the page
+  // camera's baseline unlock throughout, raised for the widest scale (runtime/pageCam2D)
+  const unlock = useCamUnlock({on: true, under: 0.5, cover: false});
   const world: React.CSSProperties = {position: 'absolute', left: 0, top: 0, width: WORLD_W, height: WORLD_H,
-    transformOrigin: '0 0', transform: `translate(${W / 2 - fx * z}px, ${H / 2 - fy * z}px) scale(${z})`};
+    transformOrigin: '0 0', transform: pageCamTransform({x: fx, y: fy, s: z}, W, H, unlock)};
   const cx = hub.x + hub.w / 2, cy = hub.y + hub.h / 2;
   return (
     <AbsoluteFill style={{background: BG}}>

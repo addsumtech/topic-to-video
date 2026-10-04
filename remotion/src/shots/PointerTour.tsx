@@ -21,7 +21,8 @@ import {rows} from '../runtime/rows';
 import {useDNA} from '../runtime/dna';
 import {UiSurface, uiCardRects, type UiContent} from '../runtime/uiSurface';
 import {captionBand} from '../runtime/layout';
-import {PageCam2D, camAt, pageToScreen, fitScale, clampToPage, type CamKey} from '../runtime/pageCam2D';
+import {PageCam2D, camAt, pageToScreen, fitScale, clampToPage, camUnlock, useCamUnlock,
+  type CamKey} from '../runtime/pageCam2D';
 import {focusAt} from '../runtime/focus';
 
 export const DURATION = 180; // 6.0s
@@ -141,6 +142,9 @@ export const PointerTour: React.FC<{
   // Clamped AFTER interpolating, not per key: a lens that only obeys the page at its stops still drifts off
   // the edge on the way between two of them, and the frame with the fault in it is the one nobody rendered.
   const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, VIEW_H, pageW, pageH);
+  // the tour moves for the whole beat, so the page's type carries the baseline unlock for all of it
+  // (runtime/pageCam2D) — the same value goes to every pageToScreen below, so the pointer stays on its mark
+  const unlock = useCamUnlock(camUnlock(keys));
 
   // THE CURSOR AND THE CAMERA ARE ONE SYSTEM. The cursor's PAGE position runs on a table with the same
   // timings as the lens, so the two arrive together and, during a move, the pointer holds its place on the
@@ -162,7 +166,7 @@ export const PointerTour: React.FC<{
     return {at: k.at, x: r.x + r.w * 0.58, y: r.y + r.h * 0.62, s: 1};
   });
   const cur = camAt(cursorKeys, t, easeInOutCubic);
-  const target = pageToScreen(cam, W, VIEW_H, cur.x, cur.y);
+  const target = pageToScreen(cam, W, VIEW_H, cur.x, cur.y, unlock);
   const curPx = Math.round(U * 0.055);
   const shown = clamp01(seg(t, OPEN * 0.6, OPEN));
 
@@ -201,21 +205,21 @@ export const PointerTour: React.FC<{
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       <div style={{position: 'absolute', left: 0, top: 0, width: W, height: VIEW_H, overflow: 'hidden'}}>
-      <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH}>{page}</PageCam2D>
+      <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH} unlock={unlock}>{page}</PageCam2D>
       {dof > 0.002 ? (
         // `data-echo`: every string in here is the SAME string the sharp copy above already draws, at the
         // same place. Without the marker the type gates measure the page twice and report each label
         // colliding with itself — a true observation and a useless one. See runtime/textSafe.tsx.
         <div aria-hidden data-echo style={{position: 'absolute', inset: 0, opacity: dof,
           filter: `blur(${dofPx.toFixed(2)}px)`, WebkitMaskImage: mask, maskImage: mask}}>
-          <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH}>{page}</PageCam2D>
+          <PageCam2D cam={cam} W={W} H={VIEW_H} pageW={pageW} pageH={pageH} unlock={unlock}>{page}</PageCam2D>
         </div>
       ) : null}
       </div>
 
       {ripples.filter((r) => r.live).map((r) => {
         const rect = cards[r.i];
-        const c = pageToScreen(cam, W, VIEW_H, rect.x + rect.w * 0.58, rect.y + rect.h * 0.62);
+        const c = pageToScreen(cam, W, VIEW_H, rect.x + rect.w * 0.58, rect.y + rect.h * 0.62, unlock);
         const d = Math.round(U * 0.055) * (0.3 + r.u * 1.6);
         return (
           <div key={r.i} style={{position: 'absolute', left: c.x - d / 2, top: c.y - d / 2, width: d, height: d,

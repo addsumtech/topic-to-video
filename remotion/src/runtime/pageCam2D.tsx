@@ -19,6 +19,7 @@
 
 import React from 'react';
 import {clamp01} from './motion';
+import {BaselineUnlockContext, baselineUnlockOverscan, unlockSkewFor} from './glide';
 
 export type CamKey = {
   at: number;      // normalised time this key is reached
@@ -53,9 +54,57 @@ export const camAt = (keys: CamKey[], t: number, ease: (u: number) => number = (
   return {x: last.x, y: last.y, s: last.s};
 };
 
-/** Where a page point lands in the frame, under `cam`. The inverse of what the wrapper transform does. */
-export const pageToScreen = (cam: Cam, W: number, H: number, px: number, py: number) =>
-  ({x: W / 2 + (px - cam.x) * cam.s, y: H / 2 + (py - cam.y) * cam.s});
+// ── the baseline unlock, for a camera over a page ─────────────────────────────────────────────────────────
+// A tour is a translate and a scale — exactly the matrix under which Skia rounds every line of type on the page to
+// a whole pixel (runtime/glide.ts), so a page drifting under the lens steps a pixel at a time against its own
+// rules and pictures. A tour whose keys move carries the unlock for its whole beat; one that never moves carries
+// nothing and draws exactly what it drew before.
+//
+// Two things are particular to a page. Its scale goes far below 1 at the overview, and Skia judges the skew TIMES
+// that scale, so the skew is raised for the smallest scale the tour reaches (`under`). And the skew is applied in
+// SCREEN space about the view's centre, so its tilt is the same at every zoom and `pageToScreen` can say exactly
+// where a point lands — the cursor, the ripple and the labels drawn over the page stay registered to it. `cover`
+// adds the overscan the tilt needs when the page fills the view to its edge (runtime/glide.ts
+// `baselineUnlockOverscan`), folded into the scale so the camera and `pageToScreen` still agree.
+export type CamUnlock = {on: boolean; under: number; cover: boolean};
+
+/** Does a tour move at all? Its unlock rides the whole beat if any key differs from the first. */
+export const camMoves = (keys: CamKey[]): boolean =>
+  keys.some((k) => k.x !== keys[0].x || k.y !== keys[0].y || k.s !== keys[0].s);
+
+/** The unlock a tour over these keys carries. `cover`: the page can fill the view to its edges. */
+export const camUnlock = (keys: CamKey[], cover = true): CamUnlock => ({
+  on: keys.length > 0 && camMoves(keys), under: Math.min(1, ...keys.map((k) => k.s)), cover,
+});
+
+/** `unlock` with the identity proofs' off switch applied (runtime/glide.ts BaselineUnlockContext). */
+export const useCamUnlock = (unlock?: CamUnlock): CamUnlock | undefined => {
+  const allowed = React.useContext(BaselineUnlockContext);
+  return unlock && unlock.on && allowed ? unlock : undefined;
+};
+
+/** The scale the camera actually draws at: `cam.s`, plus the unlock's overscan when the page covers the view. */
+const drawnScale = (cam: Cam, W: number, H: number, unlock?: CamUnlock) =>
+  unlock && unlock.on && unlock.cover ? cam.s * (1 + baselineUnlockOverscan(W, H, H / 2)) : cam.s;
+
+/** The css transform that puts page point (cam.x, cam.y) at the centre of a W x H view — and the unlock with it.
+ *  Applied with `transform-origin: 0 0`. One description of the camera for every register that tours a page. */
+export const pageCamTransform = (cam: Cam, W: number, H: number, unlock?: CamUnlock): string => {
+  const s = drawnScale(cam, W, H, unlock);
+  const move = `translate(${W / 2 - cam.x * s}px, ${H / 2 - cam.y * s}px) scale(${s})`;
+  if (!unlock || !unlock.on) return move;
+  const k = unlockSkewFor(unlock.under);
+  return `translate(${W / 2}px, ${H / 2}px) matrix(1, ${k}, 0, 1, 0, 0) translate(${-W / 2}px, ${-H / 2}px) ${move}`;
+};
+
+/** Where a page point lands in the frame, under `cam`. The inverse of what the wrapper transform does — with the
+ *  same unlock the wrapper was given, or a mark drawn over the page lands up to a pixel off what it names. */
+export const pageToScreen = (cam: Cam, W: number, H: number, px: number, py: number, unlock?: CamUnlock) => {
+  const s = drawnScale(cam, W, H, unlock);
+  const x = W / 2 + (px - cam.x) * s;
+  const y = H / 2 + (py - cam.y) * s;
+  return unlock && unlock.on ? {x, y: y + unlockSkewFor(unlock.under) * (x - W / 2)} : {x, y};
+};
 
 /**
  * Keep the lens inside the page, so a close-up never shows the void beside it.
@@ -95,8 +144,10 @@ export const PageCam2D: React.FC<{
   H: number;
   pageW: number;
   pageH: number;
+  /** the tour's unlock (`camUnlock(keys)`); pass the SAME value to `pageToScreen` */
+  unlock?: CamUnlock;
   children?: React.ReactNode;
-}> = ({cam, W, H, pageW, pageH, children}) => {
+}> = ({cam, W, H, pageW, pageH, unlock, children}) => {
   if (!(pageW > 0 && pageH > 0)) {
     throw new Error(`pageCam2D: the page has no size (${pageW}x${pageH}). A camera over nothing renders an ` +
       'empty frame, which looks like a shot that has not started rather than like the bug it is.');
@@ -104,8 +155,7 @@ export const PageCam2D: React.FC<{
   return (
     <div style={{position: 'absolute', inset: 0, overflow: 'hidden'}}>
       <div style={{position: 'absolute', left: 0, top: 0, width: pageW, height: pageH,
-        transformOrigin: '0 0',
-        transform: `translate(${W / 2 - cam.x * cam.s}px, ${H / 2 - cam.y * cam.s}px) scale(${cam.s})`}}>
+        transformOrigin: '0 0', transform: pageCamTransform(cam, W, H, unlock)}}>
         {children}
       </div>
     </div>

@@ -405,9 +405,14 @@ const F = (id: string, C: React.FC<any>, d: number) => (
 );
 // The film's scenes find their OBJECTS (runtime/objectSlot) by id among the library's and the film's workshop's,
 // provided once for the whole Film — as DnaPreview provides them to a beat rendered on its own.
-const FilmWithObjects: React.FC<React.ComponentProps<typeof Film>> = (p) => (
-  <ObjectsContext.Provider value={OBJECTS}><Film {...p} /></ObjectsContext.Provider>
-);
+// `baselineUnlock: false` draws the whole film with the type unlock switched off (runtime/glide.ts) — the film
+// before the unlock existed, for a lossless before/after and for the census to be shown what it exists to find.
+const FilmWithObjects: React.FC<React.ComponentProps<typeof Film> & {baselineUnlock?: boolean}> = (
+  {baselineUnlock, ...p}) => {
+  const film = <ObjectsContext.Provider value={OBJECTS}><Film {...p} /></ObjectsContext.Provider>;
+  return baselineUnlock === false
+    ? <BaselineUnlockContext.Provider value={false}>{film}</BaselineUnlockContext.Provider> : film;
+};
 
 export const RemotionRoot: React.FC = () => (
   <>

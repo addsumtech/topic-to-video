@@ -24,6 +24,8 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeCursor, easeOutCubic, easeInOutCubic, easeOutBack, clamp01, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {camUnlock, pageCamTransform, useCamUnlock} from '../runtime/pageCam2D';
+import {useGlide} from '../runtime/glide';
 
 // A virtual camera over a LARGE canvas: interpolate {cx,cy,z} keyframes so the lens sweeps + dollies across
 // the board (the Miro/Figma "fly over the canvas" feel) instead of a flat, static, head-on grid.
@@ -112,6 +114,9 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
   const march = easeCursor(seg(t, Math.max(0, b.arrive - 0.30), b.arrive));
   const cx = lerp(b.from[0], restX, march), cy = lerp(b.from[1], restY, march);
   const cursorShown = t > Math.max(0, b.arrive - 0.30) && t < b.arrive + BUILD + 0.22;
+  // the name tag rides the cursor's glide inside a drop-shadow, and a drop-shadow keeps only the scale of the
+  // matrix above it (runtime/textSafe.tsx) — so the tag carries its own unlock, raised for the widest zoom (0.66)
+  const glide = useGlide();
   return <>
     <div style={{position: 'absolute', left: b.x, top: b.y, width: w, height: h, opacity: clamp01(appear),
       transform: `scale(${0.92 + 0.08 * appear})`, transformOrigin: 'center', background: PANELc,
@@ -131,7 +136,8 @@ const Artboard: React.FC<{b: Board; t: number}> = ({b, t}) => {
       <div style={{position: 'absolute', left: cx, top: cy, filter: 'drop-shadow(0 6px 12px rgba(30,45,80,.28))'}}>
         <svg width="30" height="36" viewBox="0 0 22 26"><path d="M2,2 L2,22 L7,17 L10,24 L13,23 L10,16 L17,16 Z" fill={b.color} stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" /></svg>
         <div style={{position: 'absolute', left: 24, top: 20, padding: '6px 13px', borderRadius: 8, background: b.color,
-          color: '#fff', font: '700 21px/1 var(--f-body, Inter,system-ui,sans-serif)', whiteSpace: 'nowrap'}}>{b.name}</div>
+          color: '#fff', font: '700 21px/1 var(--f-body, Inter,system-ui,sans-serif)', whiteSpace: 'nowrap',
+          transform: glide(undefined, true, 0.66)}}>{b.name}</div>
       </div>
     )}
   </>;
@@ -199,14 +205,18 @@ export const CollaborativeCursors: React.FC<{names?: (string | CollabBoard)[]}> 
   const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
   const zEnd = Math.min(1.04, ((zBot - zTop) * 0.96) / gridH, (W * 0.96) / gridW);
   const cyEnd = WORLD_H / 2 - ((zTop + zBot) / 2 - H / 2) / zEnd;
-  const cam = camAt(t, [
+  const camKeys: Cam[] = [
     {at: 0.0, cx: WORLD_W / 2, cy: WORLD_H / 2, z: Math.min(0.66, zEnd)},
     {at: 0.20, cx: WORLD_W / 2, cy: WORLD_H / 2, z: Math.min(0.70, zEnd)},
     {at: 0.60, cx: WORLD_W / 2 + 240, cy: WORLD_H / 2 + 150, z: lerp(Math.min(0.70, zEnd), zEnd, 0.75)},
     {at: 1.0, cx: WORLD_W / 2, cy: cyEnd, z: zEnd},
-  ]);
+  ];
+  const cam = camAt(t, camKeys);
+  // the fly-over is a page camera, and carries its baseline unlock for the whole beat (runtime/pageCam2D): the
+  // boards' type would otherwise step a pixel at a time against the boards it is printed on
+  const unlock = useCamUnlock(camUnlock(camKeys.map((k) => ({at: k.at, x: k.cx, y: k.cy, s: k.z})), false));
   const world: React.CSSProperties = {position: 'absolute', left: 0, top: 0, width: WORLD_W, height: WORLD_H,
-    transformOrigin: '0 0', transform: `translate(${W / 2 - cam.cx * cam.z}px, ${H / 2 - cam.cy * cam.z}px) scale(${cam.z})`};
+    transformOrigin: '0 0', transform: pageCamTransform({x: cam.cx, y: cam.cy, s: cam.z}, W, H, unlock)};
   const dots = [];
   for (let gx = 0; gx < 33; gx++) for (let gy = 0; gy < 20; gy++) dots.push(<circle key={`${gx}-${gy}`} cx={gx * 80 + 30} cy={gy * 80 + 30} r={1.8} fill={DOT} />);
   return (
