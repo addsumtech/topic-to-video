@@ -9,6 +9,7 @@ import {useT, seg, lerp, easeOutCubic, clamp01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {CONTENT_TOP, contentBottom, fitBlockPx, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 150; // 5s
 // LEVEL-C: the loud saturated colour FIELD is this shot's identity, so it's KEPT as a field — but on a themed DNA
@@ -57,6 +58,7 @@ export const MAX_MANIFESTO_PHRASES = 5;
 
 const Word: React.FC<{text: string; start: number; span: number; t: number; hero: boolean; ranked: boolean}> = ({text, start, span, t, hero, ranked}) => {
   const dna = useDNA();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // A null DNA keeps the original bold yellow-on-blue pair, which was never the failure: that flood is a
   // mid-dark hsl field and both inks are light on it.
@@ -96,6 +98,10 @@ const Word: React.FC<{text: string; start: number; span: number; t: number; hero
                           : lerp(settle, departTo * settle, easeOutCubic((lp - 0.62) / 0.38));
   const op = lp < 0.18 ? lp / 0.18 : lp > 0.72 ? clamp01((1 - lp) / 0.28) : 1;
   const blur = lp < 0.16 ? 18 * (1 - lp / 0.16) : lp > 0.66 ? 26 * ((lp - 0.66) / 0.34) : 0;
+  // approach and depart both scale the word (the blur above is lp's SAME two tails); the hold between them
+  // (lp .22-.62) is the one stretch where scale is truly constant, so the unlock stays off there and the
+  // settled frame it lands on stays byte-identical to before this fix
+  const scaling = lp < 0.22 || lp >= 0.62;
   // CENTRED ON THE CONTENT ZONE, NOT ON THE FRAME. The fit above sizes the block to the zone, and then
   // centring it on H/2 pushed the extra half of a tall (Chinese) block straight through the caption band
   // anyway — the size was right and the anchor was not. The padding makes the flex centre the zone's
@@ -103,10 +109,14 @@ const Word: React.FC<{text: string; start: number; span: number; t: number; hero
   return (
     <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center',
       paddingTop: CONTENT_TOP, paddingBottom: H - contentBottom(W, H)}}>
-      <div style={{font: `900 ${px}px/${lead} var(--f-display, Inter,system-ui,sans-serif)`, letterSpacing: '-0.03em', textAlign: 'center',
-        color: hero ? heroC : normC, opacity: op, transform: `scale(${scale})`,
-        filter: blur > 0.5 ? `blur(${blur}px)` : undefined, textShadow: '0 20px 60px rgba(0,0,0,.25)',
-        boxSizing: 'content-box', width: measure, padding: '0 60px'}}>{text}</div>
+      {/* the blur sits on a wrapper: it keeps only the scale of the matrix above it, so the rushing word's
+          unlock has to be BELOW the filter to reach its glyphs (runtime/glide.ts) */}
+      <div style={{filter: blur > 0.5 ? `blur(${blur}px)` : undefined}}>
+        <div style={{font: `900 ${px}px/${lead} var(--f-display, Inter,system-ui,sans-serif)`, letterSpacing: '-0.03em', textAlign: 'center',
+          color: hero ? heroC : normC, opacity: op, transform: glide(`scale(${scale})`, scaling),
+          textShadow: '0 20px 60px rgba(0,0,0,.25)',
+          boxSizing: 'content-box', width: measure, padding: '0 60px'}}>{text}</div>
+      </div>
     </AbsoluteFill>
   );
 };

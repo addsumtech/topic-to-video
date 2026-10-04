@@ -27,6 +27,7 @@ import {CONTENT_TOP, contentBottom, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useDNA, readableOn, dimOn, plane} from '../runtime/dna';
 import {drawOn} from '../runtime/draw';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 195; // 6.5s
 
@@ -72,6 +73,7 @@ export const NearTheLine: React.FC<{
        cases = DEMO, note = 'the guess and the certainty look the same from outside'} = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
 
   // ── the film's data, refused rather than trimmed ────────────────────────────────────────────────────
@@ -249,7 +251,7 @@ export const NearTheLine: React.FC<{
               ...(above ? {bottom: H - (c.y - U * 0.022)} : {top: c.y + U * 0.022}),
               opacity: on, font: `${c.near ? 700 : 500} ${CASE_PX}px/${leading(String(c.label), 1.25)} ${disp}`,
               color: c.near ? readableOn(BG, ACC, strong) : strong,
-              transform: `translateY(${(1 - pop) * U * 0.008}px)`, textWrap: 'balance'}}>
+              transform: glide(`translateY(${(1 - pop) * U * 0.008}px)`, pop !== 1), textWrap: 'balance'}}>
               {/* No register-authored words. A hardcoded "inside the band" shipped ENGLISH onto a
                   Chinese film and was the register talking over the beat; the glow, the accent and the
                   dot's position inside the band already say it, and `note` is where the film says what

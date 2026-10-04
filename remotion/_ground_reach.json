@@ -31,14 +31,14 @@
   {
    "shot": "AnalogTape",
    "bandY": {
-    "light": 0.009311217814683914,
+    "light": 0.009321039542555809,
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.020026199519634247,
+    "light": 0.02016874961555004,
     "dark": 0.0
    },
-   "moved": 8.996212121212121e-05,
+   "moved": 0.00023674242424242425,
    "ok": false,
    "why": [
     "band ink light wants #ffffff",
@@ -176,7 +176,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9973058712121212,
+   "moved": 0.9972064393939394,
    "ok": true,
    "why": []
   },
@@ -320,7 +320,7 @@
     "light": 1.0,
     "dark": 0.002428215928375721
    },
-   "moved": 0.9303764204545455,
+   "moved": 0.9284801136363636,
    "ok": true,
    "why": []
   },
@@ -334,7 +334,7 @@
     "light": 1.0,
     "dark": 0.0006070539820939302
    },
-   "moved": 0.9144294507575758,
+   "moved": 0.914045928030303,
    "ok": true,
    "why": []
   },
@@ -362,7 +362,7 @@
     "light": 1.0,
     "dark": 0.00023899714869912714
    },
-   "moved": 0.9408451704545454,
+   "moved": 0.9404427083333333,
    "ok": true,
    "why": []
   },
@@ -383,14 +383,14 @@
   {
    "shot": "ClothWave",
    "bandY": {
-    "light": 0.8533282279968262,
+    "light": 0.8528231382369995,
     "dark": 0.0014981485437601805
    },
    "fieldY": {
-    "light": 0.14593374729156494,
-    "dark": 0.061514344066381454
+    "light": 0.1457243710756302,
+    "dark": 0.06160840019583702
    },
-   "moved": 0.40948626893939394,
+   "moved": 0.40537642045454547,
    "ok": false,
    "why": [
     "field light reads dark",
@@ -468,10 +468,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.8387991189956665,
+    "light": 0.830769956111908,
     "dark": 0.002428215928375721
    },
-   "moved": 0.6396780303030303,
+   "moved": 0.6364914772727273,
    "ok": true,
    "why": []
   },
@@ -602,7 +602,7 @@
     "light": 1.0,
     "dark": 0.002124688820913434
    },
-   "moved": 0.9748816287878788,
+   "moved": 0.974654356060606,
    "ok": true,
    "why": []
   },
@@ -728,7 +728,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9737997159090909,
+   "moved": 0.9739607007575758,
    "ok": true,
    "why": []
   },
@@ -1107,7 +1107,7 @@
     "light": 0.7162252068519592,
     "dark": 0.01850021816790104
    },
-   "moved": 0.704124053030303,
+   "moved": 0.7042566287878788,
    "ok": true,
    "why": []
   },
@@ -1149,7 +1149,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9712002840909091,
+   "moved": 0.9705184659090909,
    "ok": true,
    "why": []
   },
@@ -1191,7 +1191,7 @@
     "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9193821022727273,
+   "moved": 0.9195146780303031,
    "ok": true,
    "why": []
   },
@@ -1287,12 +1287,12 @@
   {
    "shot": "KineticManifesto",
    "bandY": {
-    "light": 0.23399659991264343,
-    "dark": 0.23399659991264343
+    "light": 0.23403862118721008,
+    "dark": 0.23403862118721008
    },
    "fieldY": {
-    "light": 0.2894156873226166,
-    "dark": 0.2894156873226166
+    "light": 0.28936049342155457,
+    "dark": 0.28936049342155457
    },
    "moved": 0.0,
    "ok": false,
@@ -1313,7 +1313,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9787760416666667,
+   "moved": 0.9786813446969697,
    "ok": false,
    "why": [
     "ink: hub label was hardcoded near-white (17.41:1 native, 1.07:1 on the light key, render read); repaired 2026-09-21 and awaiting a re-measure by this sweep"
@@ -1329,7 +1329,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9990885416666667,
+   "moved": 0.9992400568181818,
    "ok": true,
    "why": []
   },
@@ -1513,7 +1513,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9985464015151515,
+   "moved": 0.9984019886363636,
    "ok": true,
    "why": []
   },
@@ -1541,7 +1541,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9855610795454546,
+   "moved": 0.9871614583333334,
    "ok": true,
    "why": []
   },
@@ -1627,7 +1627,7 @@
     "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9951704545454545,
+   "moved": 0.9952675189393939,
    "ok": true,
    "why": []
   },
@@ -2838,7 +2838,7 @@
  "_source": {
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "f85145ec3ec3ae79",
-  "AnalogTape": "f1a6d66505f779da",
+  "AnalogTape": "270d0b6a1d5069b1",
   "AnswerStream": "333c96d4965aff9c",
   "AntiDesignChaos": "d7eec2b4a7da1c1d",
   "AsciiField": "075fa4bfeffc000b",
@@ -2847,7 +2847,7 @@
   "AverageHides": "f5ace595e836139b",
   "BeforeAfterSlider": "d2ede4a45333e49c",
   "BentoReveal": "85ffeb7e580ac571",
-  "BlockAssembly": "2ac7ce39012e0a47",
+  "BlockAssembly": "a6141207240b90c3",
   "BlueprintGrid": "a3d1bee8130eff2d",
   "BokehPull": "1ea7a797f5db364a",
   "BreaksWhenAsked": "15c581f6f189eba4",
@@ -2857,17 +2857,17 @@
   "CarryOver": "17096a0428f04031",
   "CartoonPop": "28b177db4b1a1a9a",
   "ChartLive": "8cd146bf43370f69",
-  "ChartRace": "0aa037cc9f9c7f83",
-  "ChatThread": "8e8edaf9ba43cc67",
+  "ChartRace": "9c393e221b18eb9a",
+  "ChatThread": "f1d279a35cfd1a16",
   "CinematicTitle": "619e79e2643e5253",
-  "CircuitTrace": "6af5ba4ec5117559",
+  "CircuitTrace": "a9916440d7437b04",
   "ClayStack": "8d259af5eb7223d7",
-  "ClothWave": "7b506e4d2014b35d",
+  "ClothWave": "11786ef85b1da28d",
   "CodeCompose": "46cea6fef43ebe17",
   "CodeRain": "1a7f64ad3873f4ef",
   "CollaborativeCursors": "afe1666d6615ab13",
   "ComicPanels": "7bd3fb72ac55c742",
-  "CommandSummon": "91a10742ef27db7b",
+  "CommandSummon": "bb47f4f705809a94",
   "CompanionCard": "59cc1b8135f56f8c",
   "CompressedSensingEq": "802878ab61ea4364",
   "ConveyorBelt": "851fa970be9e86e6",
@@ -2876,14 +2876,14 @@
   "CubeRotate": "0db1129b0b4fd388",
   "CursorStory": "3817b69e5992d9f4",
   "DNAHelix": "b63011104bbc9419",
-  "DataMonolith": "d76b4ad5f85348ab",
+  "DataMonolith": "43c1f7c3d46a33b9",
   "DataOrrery": "03eb8db54d6238c1",
   "DiffusionDenoise": "415e2f8473771964",
   "DollyZoom": "36584203b534f558",
   "EdCompare": "9feaace964310dc8",
   "EdStat": "b7bfbb05ae3e6a74",
   "EdTimeline": "1b89ddacb79774df",
-  "ElasticType": "e0e6902f35cd0615",
+  "ElasticType": "39f51d8b9c118f8a",
   "EmberFlame": "8f88e60ae5e8fe3f",
   "Escalation": "35021cefef5fb078",
   "ExplodedSchematic": "b069556b83c75794",
@@ -2908,21 +2908,21 @@
   "HeldInstant": "1af1d22f88b05f53",
   "HoloFoil": "8ffe0a09ead405d8",
   "HudReticle": "1c1c934e60c23100",
-  "InOrder": "9d4765f6fddb1f31",
+  "InOrder": "ea9eecf58557ea2f",
   "InducedFID": "61b40781259e0130",
   "InfiniteCanvas": "f3547c42455be988",
-  "InflateType": "181f30308acf89b2",
+  "InflateType": "64b25875af48d2e8",
   "InkBloom": "9d6703e60ff7d0aa",
   "Inscription": "4306b11984d2d30c",
-  "IsoWorld": "6798a58fd3a3cff0",
+  "IsoWorld": "03043d33be61e161",
   "IsometricAssembly": "9950b3845906bbd7",
   "KSpaceAnatomy": "073e54016c9a0328",
   "KSpaceReal": "9132e3feb4b0a793",
   "KSpaceToImage": "a585948463cf995b",
   "KaleidoMandala": "69cb157d5f0796d7",
-  "KineticManifesto": "26aa4a7d08dfe5b6",
-  "KnowledgeGraph": "8938304b0b6201f8",
-  "LarmorPrecession": "da099df43127eb64",
+  "KineticManifesto": "06dacd653f7bd883",
+  "KnowledgeGraph": "2dd88ba722b44abf",
+  "LarmorPrecession": "87ae45a881eca16c",
   "LastLeg": "41fb09b097e79be7",
   "LightTrails": "ec85c82f31821cd5",
   "LiquidChrome": "63fc546335b50d53",
@@ -2934,15 +2934,15 @@
   "MRIPipeline": "3088da14c78f5fc8",
   "MadeOf": "a5654ba7334e4769",
   "MagazineSpread": "6b80d21b309225c9",
-  "MagnetizationTip": "6d29709d88ec602f",
+  "MagnetizationTip": "9856576d26759a88",
   "MapPlate": "22b8720cdc328d18",
-  "MapRoutes": "858d7b2d7903caeb",
+  "MapRoutes": "214d51b670349fb3",
   "MaterialHero": "4ec5fb519ad2d8b1",
   "MetaballMerge": "37a851f4df6b1a2a",
   "MoleculeBallStick": "274d8560d6cf6b00",
   "MorphForms": "c3f3cafac1233ce4",
   "MuseumLabel": "06f4c4dfda7b7138",
-  "NearTheLine": "cbc3f83e4981c332",
+  "NearTheLine": "5f83a016d733840a",
   "NeonGrid": "2a05dc110081ba97",
   "NeonTickerWall": "fba4a0d5ba2ed6d8",
   "NeuralField": "7f38d3bcfc1a0a83",

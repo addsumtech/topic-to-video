@@ -21,6 +21,7 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../ru
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 const BG_D0 = '#0a0d1a';
@@ -72,6 +73,7 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
   const CHIP = dna?.surface ?? '#0e1426';
   const CHIP_INK = dna?.fg ?? '#eef2ff';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H * 0.4;
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
@@ -141,8 +143,10 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
         const h = 150 * c.hFrac * rise;
         const on = clamp01(seg(t, 0.5 + wave * 0.2, 0.7 + wave * 0.2));
         return (
+          // the chip travels by its LAYOUT top as the building under it rises, which Skia rounds the same way
+          // it rounds a translate
           <div key={k} style={{position: 'absolute', left: c.sx, top: c.sy - TH / 2 - h - 54,
-            transform: 'translate(-50%, 0)', opacity: on, zIndex: 4,
+            transform: glide('translate(-50%, 0)', rise !== 1), opacity: on, zIndex: 4,
             padding: '8px 18px', borderRadius: 10, background: CHIP,
             border: `1px solid ${c.tone}`, color: CHIP_INK,
             font: `700 ${chipPx}px/${leading(c.label ?? '', 1)} var(--f-body, Inter, system-ui, sans-serif)`,

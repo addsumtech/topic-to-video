@@ -16,6 +16,7 @@ import {useT, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {bottomTextY, fitTextPx} from '../runtime/layout';
 import {figureText} from '../runtime/figure';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 
@@ -24,6 +25,7 @@ export const LarmorPrecession: React.FC<{accent?: string; accent2?: string; labe
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   // THE INK IS THE FILM'S, AND THIS IS A DIAGRAM, NOT A GLOW. μ, the B₀ axis, the cone and the relation were
   // literals picked for a near-black ground; all eight DNA presets are near-black, so a film whose DNA came
   // from a warm-white deck drew the whole diagram white on white — measured median 1.12:1 over 100% of the
@@ -67,7 +69,11 @@ export const LarmorPrecession: React.FC<{accent?: string; accent2?: string; labe
         <line x1={cx} y1={oy} x2={mx} y2={my} stroke={vec} strokeWidth={4} markerEnd="url(#lp)" />
         <defs><marker id="lp" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto"><path d="M0,0 L8,6 L0,12 Z" fill={vec} /></marker></defs>
         <circle cx={mx} cy={my} r={7} fill={vec} />
-        <text x={mx + 14} y={my - 8} fill={vec} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>μ</text>
+        {/* μ precesses for the WHOLE clip (the Larmor rate never stops, by design), so its label carries the
+            unlock for the whole beat rather than a span that would have to end on motion that does not
+            (runtime/glide.ts; an SVG element's own CSS transform is what the census reads) */}
+        <text x={mx + 14} y={my - 8} fill={vec} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}
+          style={{transform: glide(undefined, true)}}>μ</text>
         <text x={cx} y={Math.min(oy + L * 0.5 + 40, bottomTextY(W, H))} textAnchor="middle" fill={accent} fontSize={eqPx} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">{eq}</text>
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
