@@ -13,6 +13,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, easeOutBack} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {useDNA, dnaPalette, mix, readableOn, separated, TONE_MIN_STEP} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#0b0c11';
@@ -66,6 +67,7 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
   const IDX_INK = dna?.dim ?? '#7f879c';
   const TITLE_INK = dna?.dim ?? '#aeb6ca';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   if (!Array.isArray(ITEMS) || ITEMS.length < 2 || ITEMS.length > MAX_GEARS) {
     throw new Error(
@@ -130,7 +132,7 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
       {/* payoff badge off the last gear — only when the film named a payoff */}
       {String(LABEL ?? '').trim() ? (
       <div style={{position: 'absolute', left: x0 + (n - 1) * SPACING, top: cy - R - 96,
-        transform: `translate(-50%,0) scale(${payoff})`, opacity: clamp01(payoff * 1.4),
+        transform: glide(`translate(-50%,0) scale(${payoff})`, payoff !== 1), opacity: clamp01(payoff * 1.4),
         padding: '16px 34px', borderRadius: 999, background: 'linear-gradient(150deg, #22c197, #12916e)',
         color: '#04120d', font: '800 40px/1 var(--f-body, Inter, system-ui, sans-serif)',
         boxShadow: '0 18px 50px #22c19755', whiteSpace: 'nowrap'}}>{LABEL}</div>

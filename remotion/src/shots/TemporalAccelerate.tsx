@@ -17,6 +17,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, easeInOutCubic, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {figureAt, figureText, parseFigure} from '../runtime/figure';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 135; // 4.5s — short + punchy (it's about speed)
 // LEVEL-C: the whole light Arc/Raycast UI flips with the DNA (bg/ink/accent/success), coherent-dark on a dark DNA,
@@ -40,6 +41,7 @@ export const TemporalAccelerate: React.FC<{items?: string[]; seconds?: number | 
   const BG = dna?.bg ?? '#f3f4f7', ACC = dna?.accent ?? HOT, GOOD = dna?.accent2 ?? '#12b76a', FG = dna?.fg ?? '#1b2333';
   const DIM = dna?.dim ?? '#98a2b3', LINE = dna?.line ?? '#dfe3ea', ON = dna?.onAccent ?? '#fff';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const rowH = 96, listX = 150, listTop = 250, visN = STEPS.length;
   // scroll fraction (eased: slow→FAST→settle); analytic velocity drives the motion blur.
@@ -88,7 +90,7 @@ export const TemporalAccelerate: React.FC<{items?: string[]; seconds?: number | 
             fontVariantNumeric: 'tabular-nums'}}>{done ? figureText(seconds) : elapsed}<span style={{fontSize: 120, color: ACC}}>s</span></div>
         )}
         <div style={{font: '700 54px/1 var(--f-body, Inter,system-ui,sans-serif)', color: done ? GOOD : DIM, marginTop: 20,
-          transform: `scale(${done ? 0.94 + 0.06 * snap : 1})`, transformOrigin: 'right'}}>
+          transform: glide(`scale(${done ? 0.94 + 0.06 * snap : 1})`, done && snap !== 1), transformOrigin: 'right'}}>
           {/* counts the list it is actually showing. It counted a hardcoded 12 either way, so a film with
               five steps watched a counter run to twelve. */}
           {done ? `${visN} / ${visN}${doneLabel ? ` · ${doneLabel}` : ''}` : `${Math.min(visN, Math.floor(sf * visN + 0.5))} / ${visN}`}</div>

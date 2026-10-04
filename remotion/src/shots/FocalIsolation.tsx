@@ -39,6 +39,7 @@ import {focusAt, focusFilter} from '../runtime/focus';
 import {useDNA} from '../runtime/dna';
 import {onLight} from '../runtime/light';
 import {CONTENT_TOP, contentBottom, textWidthPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 135; // 4.5s
 const ACCENT0 = '#2E7BFF', SPOT = '#ffe6ad';
@@ -83,6 +84,7 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]; fo
     throw new Error(`FocalIsolation: \`focal\` is ${JSON.stringify(focal)}, but it must be an index into \`items\` (0-${items.length - 1}).`);
   }
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA(); const ACCENT = dna?.accent ?? ACCENT0;
   const light = onLight(dna);
   const captionInk = dna?.fg ?? CAPTION0;
@@ -144,7 +146,10 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]; fo
             border: `${isF ? 2 : 1}px solid ${isF ? ACCENT : '#26303f'}`, borderRadius: 16,
             boxShadow: isF ? `0 0 0 6px ${ACCENT}22, 0 30px 70px ${light ? FOCAL_SHADOW_LIGHT : FOCAL_SHADOW}` : 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+            {/* the unlock rides the label, INSIDE the card: an out-of-focus card's own filter is a blur, which keeps
+                only the scale of the matrix above it (runtime/glide.ts) */}
             <div style={{textWrap: 'balance', font: `${isF ? 700 : 500} ${isF ? 40 : 32}px/1.15 var(--f-body, Inter,system-ui,sans-serif)`,
+              transform: glide(undefined, iso > 0 && iso < 1),
               color: isF ? '#eaf1ff' : '#7f8da3', textAlign: 'center', padding: '0 24px'}}>{label}</div>
           </div>
         );

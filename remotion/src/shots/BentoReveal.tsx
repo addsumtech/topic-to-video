@@ -28,6 +28,7 @@ import {leading} from '../runtime/cjkType';
 import {useDNA, dnaPalette, mix} from '../runtime/dna';
 import {Icon, type IconName} from '../runtime/icons';
 import {CONTENT_TOP, contentBottom, fitTextPx, wrapLines, inkBlockH} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 const BG_D0 = '#0a0c12';
 const TONES0 = ['#5b8cff', '#ff6f91', '#37d4a6', '#f6a531', '#c07bff'];
@@ -102,6 +103,7 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: (stri
   const EDGE = dna?.line ?? '#20243a';
   const MONO = dna?.fontMono ?? 'var(--f-mono, "JetBrains Mono", monospace)';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const U = Math.min(W, H);
   const portrait = H > W * 1.1;
@@ -143,7 +145,7 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: (stri
         const tone = TONES[i % TONES.length];
         const pad = Math.round(Math.max(16, Math.min(w * 0.08, h * 0.12, hero ? U * 0.05 : U * 0.032)));
         const common: React.CSSProperties = {position: 'absolute', left: x, top: y, width: w, height: h,
-          boxSizing: 'border-box', opacity: clamp01(e * 1.4), transform: `scale(${lerp(0.86, 1, e)})`,
+          boxSizing: 'border-box', opacity: clamp01(e * 1.4), transform: glide(`scale(${lerp(0.86, 1, e)})`, e !== 1),
           transformOrigin: 'center', borderRadius: Math.round(U * 0.02), overflow: 'hidden', padding: pad,
           display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px #0006'};
 

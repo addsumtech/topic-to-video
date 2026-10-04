@@ -24,6 +24,7 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/mo
 import {useDNA, mix, shade} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#070a14';
@@ -71,6 +72,7 @@ export const MoleculeBallStick: React.FC<{title?: string; tagline?: string; mole
   const TITLE_INK = dna?.fg ?? TITLE_D0;
   const TAG_INK = dna ? mix(dna.fg, dna.dim, 0.4) : TAG_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   // THE MOLECULE LIVES ABOVE ITS TITLE. It was centred on the frame at a fixed 220px per unit, so the outer
@@ -192,7 +194,7 @@ export const MoleculeBallStick: React.FC<{title?: string; tagline?: string; mole
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: bottomInset(W, H, 110)}}>
         {/* the title and its tagline are ON the ground, so they are the film's ink and its metadata; the
             separation shadow is the ground's own colour on paper, never a fixed black under near-black type */}
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: TITLE_INK,
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: TITLE_INK,
           font: `800 ${titlePx}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
         <div style={{opacity: easeOutCubic(seg(t, 0.62, 0.84)), marginTop: Math.round(U * 0.015), color: TAG_INK,
           font: `600 ${tagPx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.18em'}}>{TAG}</div>

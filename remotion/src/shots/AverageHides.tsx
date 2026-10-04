@@ -28,6 +28,7 @@ import {CONTENT_TOP, contentBottom, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useDNA, readableOn, dimOn, plane} from '../runtime/dna';
 import {drawOn} from '../runtime/draw';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 195; // 6.5s
 
@@ -71,6 +72,7 @@ export const AverageHides: React.FC<{
        unit = '', note = 'the average is not the experience'} = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
 
   // ── the film's data, refused rather than trimmed ────────────────────────────────────────────────────
@@ -210,7 +212,7 @@ export const AverageHides: React.FC<{
       {/* the one it hides */}
       <div style={{position: 'absolute', left: centred(xx) - boxW / 2, width: boxW,
         textAlign: 'center', bottom: NUM_BOTTOM, opacity: tailIn,
-        transform: `translateY(${(1 - easeOutBack(tailIn)) * U * 0.012}px)`,
+        transform: glide(`translateY(${(1 - easeOutBack(tailIn)) * U * 0.012}px)`, tailIn !== 1),
         font: `700 ${NUM_PX}px/1.05 ${disp}`, color: readableOn(BG, ACC, strong)}}>
         {tail?.value}{unit ? <span style={{font: `500 ${Math.round(NUM_PX * 0.44)}px/1 ${mono}`,
           color: soft, marginLeft: U * 0.006}}>{unit}</span> : null}

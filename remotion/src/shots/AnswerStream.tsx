@@ -8,6 +8,7 @@ import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01} from '../runtime/mo
 import {useDNA, mix} from '../runtime/dna';
 import {contentBottom, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 const TEAL_D0 = '#22D3C5', BG_D0 = '#0b1220', PANEL_D0 = '#111a2b';
@@ -29,6 +30,7 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
   const DIM = dna?.dim ?? DIM_D0, EDGE = dna?.surfaceBorder ?? EDGE_D0, DOT = dna?.line ?? DOT_D0;
   const ON_TEAL = dna?.onAccent ?? BG;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const qIn = easeOutCubic(seg(t, 0, 0.14));
   const chars = Math.floor(A.length * easeOutCubic(seg(t, 0.2, 0.78)));
@@ -49,7 +51,7 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ??
       `radial-gradient(120% 100% at 50% 18%, #14203a, ${BG} 62%)`, padding: 0}}>
       {/* query */}
-      <div style={{position: 'absolute', left: X, top: 150, width: CW, opacity: qIn, transform: `translateY(${lerp(20, 0, qIn)}px)`,
+      <div style={{position: 'absolute', left: X, top: 150, width: CW, opacity: qIn, transform: glide(`translateY(${lerp(20, 0, qIn)}px)`, qIn !== 1),
         display: 'flex', alignItems: 'center', gap: 22}}>
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
         <div style={{font: '700 62px/1.1 var(--f-body, Inter,system-ui,sans-serif)', color: INK}}>{Q}</div>
@@ -67,7 +69,7 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
       <div style={{position: 'absolute', left: X, top: srcTop, width: CW, display: 'flex', gap: 26}}>
         {SRC.map((s, i) => {
           const r = easeOutBack(seg(t, 0.4 + i * 0.08, 0.4 + i * 0.08 + 0.22));
-          return <div key={i} style={{flex: 1, opacity: clamp01(r), transform: `translateY(${lerp(24, 0, clamp01(r))}px)`,
+          return <div key={i} style={{flex: 1, opacity: clamp01(r), transform: glide(`translateY(${lerp(24, 0, clamp01(r))}px)`, clamp01(r) !== 1),
             background: PANEL, border: `1px solid ${EDGE}`, borderRadius: dna?.radius ?? 14, padding: '26px 28px'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14}}>
               <div style={{width: 26, height: 26, borderRadius: 7, background: TEAL, color: ON_TEAL, font: '700 16px/26px var(--f-body, Inter)', textAlign: 'center'}}>{i + 1}</div>

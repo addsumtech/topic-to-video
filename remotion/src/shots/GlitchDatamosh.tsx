@@ -9,6 +9,7 @@ import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion'
 import {useDNA} from '../runtime/dna';
 import {darkGround} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 140; // ~4.7s
 // @dark-world: a BROKEN TRANSMISSION, which only exists as light coming off a screen. The tear is two offset
@@ -29,6 +30,7 @@ export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?:
   // register's own night when it is not (see @dark-world above)
   const BG = darkGround(dna?.bg, BG_D0);
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // glitch intensity: strong start, periodic bursts, resolves to ~0 by the end
   const base = clamp01(1 - seg(t, 0.55, 0.9));
@@ -41,8 +43,8 @@ export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?:
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       {/* RGB-split channels */}
-      <div style={{...wordStyle, color: '#ff004c', mixBlendMode: 'screen', transform: `translate(${-14 * g - 4}px, ${6 * g}px)`}}>{WORD}</div>
-      <div style={{...wordStyle, color: ACC, mixBlendMode: 'screen', transform: `translate(${14 * g + 4}px, ${-6 * g}px)`}}>{WORD}</div>
+      <div style={{...wordStyle, color: '#ff004c', mixBlendMode: 'screen', transform: glide(`translate(${-14 * g - 4}px, ${6 * g}px)`, true)}}>{WORD}</div>
+      <div style={{...wordStyle, color: ACC, mixBlendMode: 'screen', transform: glide(`translate(${14 * g + 4}px, ${-6 * g}px)`, true)}}>{WORD}</div>
       <div style={{...wordStyle, color: '#ffffff', opacity: 1 - 0.3 * g}}>{WORD}</div>
 
       {/* horizontal displacement / tear bands (copies of the word clipped to a strip, shoved sideways) */}

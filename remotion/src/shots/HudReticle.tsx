@@ -27,6 +27,7 @@ import {useDNA} from '../runtime/dna';
 import {onLight} from '../runtime/light';
 import {CONTENT_TOP, contentBottom, fitBlockPx, fitTextPx, textWidthPx, wrapLines} from '../runtime/layout';
 import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
+import {useGlide} from '../runtime/glide';
 
 // A reticle SCANS and then LOCKS: those two states are the form, not the topic — so they are
 // declared here AND exposed as props, because a Chinese film should be able to say them in Chinese.
@@ -66,6 +67,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
   const dna = useDNA();
   const CYAN = dna?.accent ?? CYAN_D0, GREEN = dna?.accent2 ?? GREEN_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   const zTop = CONTENT_TOP, zBot = contentBottom(W, H), zH = zBot - zTop;
@@ -186,7 +188,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
         </>
       ) : (
         <div style={{position: 'absolute', left: cx, top: cy, width: targetW,
-          transform: `translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, textAlign: 'center'}}>
+          transform: glide(`translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, brackets !== 1), textAlign: 'center'}}>
           <div style={{color: dna?.fg ?? '#eafffb', font: `800 ${targetPx}px/${targetLead} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
             textWrap: 'balance', textShadow: emits ? `0 0 40px ${col}66` : undefined}}>{TARGET}</div>
           <div style={{marginTop: Math.round(14 * s), color: col, font: `700 ${Math.round(26 * s)}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em',

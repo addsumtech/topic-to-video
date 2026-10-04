@@ -8,6 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, shade} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 160; // ~5.3s
 const BG_D0 = '#070a14';
@@ -35,6 +36,7 @@ export const FlowField: React.FC<{title?: string; tagline?: string; accent?: str
   // wrong side of it the moment the ground behind a mark is sampled locally rather than as the flat page.
   const litHue = (c: string) => (dna && lit ? groundFrom(dna, {bg: dna.bg, fg: c}).fg : c);
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const N = Math.max(20, Math.min(220, LINES));
   const ACC_L = litHue(ACC), ACC2_L = litHue(ACC2);
@@ -86,7 +88,7 @@ export const FlowField: React.FC<{title?: string; tagline?: string; accent?: str
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         {/* the wordmark and its kicker are on the ground, so they are the film's ink and its metadata; the
             separation shadow is the ground's OWN colour on paper, never a fixed black under dark type */}
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 16}px)`, color: dna?.fg ?? '#eafcff',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, titleIn !== 1), color: dna?.fg ?? '#eafcff',
           font: '800 132px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 0 50px ${ACC_L}55, 0 12px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 22, color: dna?.dim ?? '#9fb2c8',

@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG = '#f3eee4'; // a pale water ground so dark ink reads
@@ -18,6 +19,7 @@ export const InkBloom: React.FC<{title?: string; tagline?: string; ink?: string}
   const INKc = dna?.accent ?? INK, FG = dna?.fg ?? '#fff', TAGc = dna?.dim ?? '#26314f';
   const bgc = dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 50% 46%, #ffffff, ${BG} 78%)`;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const spread = easeOutCubic(clamp01(seg(t, 0.04, 0.7)));
@@ -51,7 +53,7 @@ export const InkBloom: React.FC<{title?: string; tagline?: string; ink?: string}
         </g>
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: FG,
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: FG,
           font: '800 132px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 4px 30px ${INKc}, 0 0 60px ${INKc}aa`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: TAGc,

@@ -8,6 +8,7 @@ import {useT, seg, lerp, clamp01, easeOutExpo, hash01} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
 import {fitTextPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 // THE FOIL IS A SURFACE, NOT A LIGHT, so this register takes the film's ground like any other — and it looks
@@ -25,6 +26,7 @@ const GLINT_D0 = '#fff', RIM_D0 = '#fff8';
 // CJK-EXEMPT (tight leading, no floor): the word is sized by fitTextPx to one line, so there is never a second line to collide with.
 export const HoloFoil: React.FC<{word?: string; tagline?: string}> = ({word: WORD = 'WORKBUDDY', tagline: TAGLINE = 'YOUR AI TEAM'} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const angle = (t * 220) % 360;                 // rotating foil hue
@@ -65,10 +67,14 @@ export const HoloFoil: React.FC<{word?: string; tagline?: string}> = ({word: WOR
       {/* the holo wordmark */}
       {/* sized to the WIDTH it ships at: 210px fits this word at 1920 and loses 107px off each edge at 1080 */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column'}}>
-        <div style={{position: 'relative', transform: `translateY(${(1 - rise) * 40}px)`, opacity: rise}}>
+        <div style={{position: 'relative', transform: glide(`translateY(${(1 - rise) * 40}px)`, rise !== 1), opacity: rise}}>
+          {/* the word's shadows sit on a wrapper: a drop-shadow keeps only the scale of the matrix above it, so the
+              rising word carries its own unlock BELOW the filter (runtime/glide.ts); the sheen above needs none */}
+          <div style={{filter: lit ? wordShadow : `${wordShadow} drop-shadow(0 0 2px ${RIM_D0})`}}>
           <div style={{font: `900 ${fitTextPx(WORD, W, 210, {track: 0.01})}px/0.9 var(--f-display, "Antonio", Impact, sans-serif)`, letterSpacing: '0.01em',
             background: foil, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
-            filter: lit ? wordShadow : `${wordShadow} drop-shadow(0 0 2px ${RIM_D0})`}}>{WORD}</div>
+            transform: glide(undefined, rise !== 1)}}>{WORD}</div>
+          </div>
           {/* specular sheen overlay (screen) */}
           <div style={{position: 'absolute', inset: 0, font: `900 ${fitTextPx(WORD, W, 210, {track: 0.01})}px/0.9 var(--f-display, "Antonio", Impact, sans-serif)`,
             letterSpacing: '0.01em', mixBlendMode: sheenBlend,

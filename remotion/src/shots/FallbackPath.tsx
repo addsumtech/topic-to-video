@@ -34,6 +34,7 @@ import {useT, seg, clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motio
 import {useDNA, readableOn, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, wrapLines, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+import {useGlide} from '../runtime/glide';
 
 // Where the single line out of the action ends and the two roads begin. Far enough that the
 // stub reads as a line rather than a nub, near enough that each road keeps most of its run.
@@ -82,6 +83,7 @@ export const FallbackPath: React.FC<{
   }
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
 
@@ -145,7 +147,7 @@ export const FallbackPath: React.FC<{
         border: `${isFallback ? 1 : 2}px ${isFallback ? 'dashed' : 'solid'} ${isFallback ? LINE : ACC}`,
         // the fallback recedes, but stays READABLE: it rested at 0.55 and its words measured 2.2:1 on the ground
         opacity: fork * (isFallback ? 0.82 + 0.18 * (1 - take) : 1),
-        transform: `translateX(${(1 - fork) * U * 0.02}px) scale(${1 + lit * 0.012})`,
+        transform: glide(`translateX(${(1 - fork) * U * 0.02}px) scale(${1 + lit * 0.012})`, fork !== 1 || (lit !== 0 && lit !== 1)),
         boxShadow: isFallback ? 'none' : `0 0 ${Math.round(U * 0.05 * lit)}px ${ACC}${lit > 0.5 ? '33' : '11'}`}}>
         <div style={{color: ink, textWrap: 'balance',
           font: `700 ${routePx}px/${leading(r.label ?? '', 1.25)} var(--f-display, Inter, system-ui, sans-serif)`}}>
@@ -205,7 +207,7 @@ export const FallbackPath: React.FC<{
       <div style={{position: 'absolute', left: actX, top: actY, width: boxW,
         padding: pad, boxSizing: 'border-box', borderRadius: Math.round(U * 0.014),
         background: SURF, border: `1px solid ${LINE}`, opacity: land,
-        transform: `translateY(${(1 - land) * U * 0.02}px)`}}>
+        transform: glide(`translateY(${(1 - land) * U * 0.02}px)`, land !== 1)}}>
         <div style={{color: FG, textWrap: 'balance',
           font: `700 ${actPx}px/${leading(action, 1.2)} var(--f-display, Inter, system-ui, sans-serif)`}}>
           {action}

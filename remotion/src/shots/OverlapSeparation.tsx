@@ -42,6 +42,7 @@ import {fitTextOnNLines} from '@remotion/layout-utils';
 import {useT, seg, clamp01, lerp, easeOutCubic} from '../runtime/motion';
 import {CONTENT_TOP, contentBottom, titleStyle} from '../runtime/layout';
 import {useDNA, dnaPalette, mix} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 150; // 5s
 
@@ -134,6 +135,7 @@ const Panel: React.FC<PanelProps> = ({
   box, uid, label, note, a, b, lo, hi, yFrac, ticks, fmt, ca, cb, muddy, fg, dim, line, card, border, radius,
   face, monoFace, labelSize, noteSize, legendSize, ownLegend, t, cardAt, growAt, overlapAt, sweep, cutLocks, noteAt,
 }) => {
+  const glide = useGlide();
   const {w, h} = box;
   const cardIn = clamp01(seg(t, cardAt, cardAt + 0.10));
   const grow = easeOutCubic(seg(t, growAt[0], growAt[1]));
@@ -178,7 +180,7 @@ const Panel: React.FC<PanelProps> = ({
   return (
     <div style={{position: 'absolute', left: box.x, top: box.y, width: w, height: h, background: card,
       border: `1px solid ${border}`, borderRadius: radius, overflow: 'hidden', opacity: cardIn,
-      transform: `translateY(${(1 - cardIn) * 12}px)`}}>
+      transform: glide(`translateY(${(1 - cardIn) * 12}px)`, cardIn !== 1)}}>
 
       {/* measure name — the panel's only claim about itself */}
       <div style={{position: 'absolute', left: w * 0.065, right: w * 0.05, top: h * 0.05, color: fg,
@@ -248,7 +250,7 @@ const Panel: React.FC<PanelProps> = ({
 
       {/* the panel's finding, in the film's own words */}
       <div style={{position: 'absolute', left: w * 0.065, right: w * 0.065, top: plotBot + h * 0.09, color: fg,
-        font: `500 ${noteSize}px/1.3 ${face}`, opacity: 0.9 * noteIn, transform: `translateY(${(1 - noteIn) * 8}px)`}}>
+        font: `500 ${noteSize}px/1.3 ${face}`, opacity: 0.9 * noteIn, transform: glide(`translateY(${(1 - noteIn) * 8}px)`, noteIn !== 1)}}>
         {note}
       </div>
     </div>
@@ -282,6 +284,7 @@ export const OverlapSeparation: React.FC<{
   }
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const portrait = W < H;
 
@@ -418,7 +421,7 @@ export const OverlapSeparation: React.FC<{
       ) : null}
 
       <div style={{...titleStyle, color: FG, opacity: headIn, font: `700 ${titleSize}px/1.1 ${dispFace}`,
-        transform: `translateY(${(1 - headIn) * -8}px)`, whiteSpace: 'nowrap'}}>{TITLE}</div>
+        transform: glide(`translateY(${(1 - headIn) * -8}px)`, headIn !== 1), whiteSpace: 'nowrap'}}>{TITLE}</div>
 
       {/* ONE legend for BOTH panels — the statement that the same two populations are being scored twice */}
       {shared ? (

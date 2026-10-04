@@ -7,6 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01, radians} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 160; // ~5.3s
 
@@ -26,6 +27,7 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
   const lit = dna && onLight(dna) ? groundFrom(dna, {bg: dna.bg}) : null;
   const RIM_W = 7;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H, durationInFrames, fps} = useVideoConfig();
   const cx = W / 2, cy = H / 2;
   const gather = easeOutCubic(seg(t, 0.16, 0.55));
@@ -68,12 +70,15 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
         ))}
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`,
+        {/* the shadows sit on a wrapper: a drop-shadow keeps only the scale of the matrix above it, so the moving
+            title's unlock has to be BELOW the filter to reach its glyphs (runtime/glide.ts) */}
+        <div style={{filter: 'drop-shadow(0 3px 0 #ffffffcc) drop-shadow(0 10px 22px #1a1f3aaa)'}}>
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1),
           font: '900 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.04em',
           background: 'linear-gradient(180deg, #ffffff, #6b76a0 44%, #171b33 51%, #9aa6cc 58%, #eef2ff)',
           WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          WebkitTextStroke: '2px #2b3050',
-          filter: 'drop-shadow(0 3px 0 #ffffffcc) drop-shadow(0 10px 22px #1a1f3aaa)'} as React.CSSProperties}>{TITLE}</div>
+          WebkitTextStroke: '2px #2b3050'} as React.CSSProperties}>{TITLE}</div>
+        </div>
         <div style={{opacity: tagIn, marginTop: 18, color: TAGc,
           font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em', textTransform: 'uppercase'}}>{TAG}</div>
       </AbsoluteFill>

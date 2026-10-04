@@ -8,6 +8,7 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/mo
 import {rows} from '../runtime/rows';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {contentBottom} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 // LEVEL-C: comic storytelling is the STRUCTURE (tilted panels, gutters, halftone wash, speed lines, a splash
@@ -29,6 +30,7 @@ export const ComicPanels: React.FC<{panels?: string[]; splash?: string}> = ({
   const HT = dna ? `${dna.fg}1a` : '#0000001a';          // halftone wash follows the ink
   const SPLASHINK = dna?.onAccent ?? '#fff';             // type on the accent-filled splash panel
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const M = 70, gut = 22;
   // THE PAGE IS TWO ROWS AND THE SECOND IS 0.82 OF THE FIRST, so the page is 1.82 rows deep from `topY` —
@@ -56,7 +58,7 @@ export const ComicPanels: React.FC<{panels?: string[]; splash?: string}> = ({
         const rot = (i - (cols - 1) / 2) * 1.4;
         return (
           <div key={i} style={{position: 'absolute', left: x, top: topY, width: colW, height: rowH,
-            opacity: clamp01(pop * 1.4), transform: `translateY(${(1 - pop) * 40}px) rotate(${rot}deg) scale(${lerp(0.92, 1, pop)})`,
+            opacity: clamp01(pop * 1.4), transform: glide(`translateY(${(1 - pop) * 40}px) rotate(${rot}deg) scale(${lerp(0.92, 1, pop)})`, pop !== 1),
             background: `radial-gradient(120% 120% at 30% 20%, ${col}22, ${PAPER})`, border: `6px solid ${INK}`,
             boxShadow: '10px 12px 0 #0000001f', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
             {/* speed lines converging */}
@@ -77,7 +79,7 @@ export const ComicPanels: React.FC<{panels?: string[]; splash?: string}> = ({
 
       {/* splash payoff panel */}
       <div style={{position: 'absolute', left: M, top: topY + rowH + gut, width: W - 2 * M, height: rowH * 0.82,
-        opacity: clamp01(splashIn), transform: `scale(${lerp(0.94, 1, splashIn)})`, transformOrigin: 'center',
+        opacity: clamp01(splashIn), transform: glide(`scale(${lerp(0.94, 1, splashIn)})`, splashIn !== 1), transformOrigin: 'center',
         background: `linear-gradient(120deg, ${POP[0]}, ${POP[2]})`, border: `8px solid ${INK}`,
         boxShadow: '14px 16px 0 #00000022', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}}>
         {/* burst */}

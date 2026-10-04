@@ -8,6 +8,7 @@ import {useT, seg, lerp, clamp01, easeOutExpo, hash01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {useDNA, tint} from '../runtime/dna';
 import {darkGround} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 import {fitText} from '@remotion/layout-utils';
 
 export const DURATION = 160; // ~5.3s
@@ -58,6 +59,7 @@ export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: T
   // the token was a 6-digit one — anything else would make the whole drop-shadow invalid and silently drop it.
   const MAG_GLOW = /^#[0-9a-fA-F]{6}$/.test(MAG) ? `${MAG}99` : MAG;
   const t = useT();
+  const glide = useGlide();
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const hy = H * 0.46, cx = W / 2;
@@ -123,10 +125,14 @@ export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: T
 
       {/* neon chrome wordmark */}
       <div style={{position: 'absolute', left: 0, right: 0, top: hy - 250, textAlign: 'center',
-        transform: `translateY(${(1 - titleUp) * 30}px)`, opacity: titleUp}}>
+        transform: glide(`translateY(${(1 - titleUp) * 30}px)`, titleUp !== 1), opacity: titleUp}}>
+        {/* the shadows sit on a wrapper: a drop-shadow keeps only the scale of the matrix above it, so the rising
+            wordmark's unlock has to be BELOW the filter to reach its glyphs (runtime/glide.ts) */}
+        <div style={{filter: `drop-shadow(0 0 24px ${MAG_GLOW})`}}>
         <div style={{font: `900 ${titleSize}px/${leading(TITLE, 0.9)} ${dispFace}`, letterSpacing: '0.02em',
-          background: chrome, WebkitBackgroundClip: 'text',
-          backgroundClip: 'text', color: 'transparent', WebkitTextStroke: `2px ${CYAN}`, filter: `drop-shadow(0 0 24px ${MAG_GLOW})`}}>{TITLE}</div>
+          background: chrome, WebkitBackgroundClip: 'text', transform: glide(undefined, titleUp !== 1),
+          backgroundClip: 'text', color: 'transparent', WebkitTextStroke: `2px ${CYAN}`}}>{TITLE}</div>
+        </div>
         <div style={{marginTop: 14, font: `700 ${tagSize}px/1 ${monoFace}`, letterSpacing: '0.5em',
           paddingLeft: '0.5em', color: CYAN, opacity: clamp01(seg(t, 0.45, 0.72)), textShadow: `0 0 18px ${CYAN}`}}>{TAGLINE}</div>
       </div>

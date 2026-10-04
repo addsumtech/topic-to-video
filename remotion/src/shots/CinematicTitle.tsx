@@ -7,12 +7,14 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic, hash01} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
 import {useDNA, dnaHas, Caret, mix} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 import {fitText} from '@remotion/layout-utils';
 
 export const DURATION = 170; // ~5.7s
 export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?: string}> = ({
   kicker: KICKER = 'A NEW KIND OF TEAMMATE', title: TITLE = 'WorkBuddy', tagline: TAG = 'your ai team · on your machine'} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // DESIGN DNA — a themed system recolours the warm cinematic hero into the FILM'S OWN hue, swaps the serif for the
   // DNA display face, drops the film-specific flare/letterbox, and adds a caret; with no DNA it stays the original.
@@ -62,8 +64,8 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: clamp01(seg(t, 0.24, 0.5)), color: kickCol, font: '600 26px/1 var(--f-mono, "JetBrains Mono", monospace)',
           letterSpacing: '0.5em', textTransform: 'uppercase', paddingLeft: '0.5em', marginBottom: 34,
-          transform: `translateY(${(1 - titleUp) * 18}px)`}}>{dnaHas(dna, 'prompt') ? '▸ ' : ''}{KICKER}</div>
-        <div style={{opacity: titleUp, transform: `translateY(${(1 - titleUp) * 46}px)`, maxWidth: W * 0.9,
+          transform: glide(`translateY(${(1 - titleUp) * 18}px)`, titleUp !== 1)}}>{dnaHas(dna, 'prompt') ? '▸ ' : ''}{KICKER}</div>
+        <div style={{opacity: titleUp, transform: glide(`translateY(${(1 - titleUp) * 46}px)`, titleUp !== 1), maxWidth: W * 0.9,
           color: titleCol, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
           // width-AND-length-aware so a long title / narrow (portrait|square) frame can't clip the wordmark
           font: `800 ${Math.min(176, W * 0.13, titleFit)}px/${leading(TITLE, 0.98)} ${titleFont}`,

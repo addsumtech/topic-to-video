@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 160; // ~5.3s
 const BG_D0 = '#060a10', A_T = '#37e0ff', G_C = '#ff5b9e', STRAND = '#7fe9c8';
@@ -15,6 +16,7 @@ export const DNAHelix: React.FC<{title?: string; tagline?: string}> = ({
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const cx = W / 2, top = 150, bottom = H - 150, M = 48;
   const amp = 190, freq = 0.020, spin = t * 2.4;
@@ -48,7 +50,7 @@ export const DNAHelix: React.FC<{title?: string; tagline?: string}> = ({
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 44%, #0b1526, ${BG} 74%)`, overflow: 'hidden'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{items.map((it) => <g key={it.key}>{it.el}</g>)}</svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none'}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 16}px)`, color: '#eafffb',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, titleIn !== 1), color: '#eafffb',
           font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 0 50px ${A_T}44, 0 12px 40px #000`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: '#9fd6d0',

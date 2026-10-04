@@ -8,6 +8,7 @@ import {useT, seg, lerp, clamp01, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {darkGround} from '../runtime/light';
 import {contentBottom, fitTextPx, inkBlockH} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 // @dark-world: a CRT TUBE. Every colour here is an 8-bit PHOSPHOR — the HUD's yellow, the 1UP pink, the
@@ -40,6 +41,7 @@ const PX = 46;
 export const PixelBuild: React.FC<{hud?: string; label?: string}> = ({
   hud = 'SCORE 9999',label = 'WORKBUDDY · COMPLETE'} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   const cols = GRID[0].length, rows = GRID.length;
@@ -94,7 +96,7 @@ export const PixelBuild: React.FC<{hud?: string; label?: string}> = ({
       </svg>
 
       {/* COMPLETE banner */}
-      <div style={{position: 'absolute', left: 0, right: 0, top: gy + gh + 30, textAlign: 'center', transform: `scale(${banner})`,
+      <div style={{position: 'absolute', left: 0, right: 0, top: gy + gh + 30, textAlign: 'center', transform: glide(`scale(${banner})`, banner !== 1),
         opacity: banner > 0 ? 1 : 0, color: '#ffe14d', font: `700 ${BANNER}px/1 var(--f-mono, "Press Start 2P", "VT323", monospace)`,
         letterSpacing: '0.06em', textShadow: '5px 5px 0 #b23b00'}}>{label}</div>
 

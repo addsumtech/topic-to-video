@@ -7,6 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {darkGround} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 150; // 5s
 // @dark-world: PHOSPHOR rain. Every column is a bright leading head with a decaying trail behind it, and the
@@ -27,6 +28,7 @@ export const CodeRain: React.FC<{title?: string; tagline?: string}> = ({
   // ground is dark (all eight presets, and null DNA) the rain is the film's accent exactly as before.
   const GREEN = BG === dna?.bg ? (dna?.accent ?? GREEN_D0) : GREEN_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const COLW = 30, ROWS = Math.ceil(H / 34) + 2;
   const cols = Math.ceil(W / COLW);
@@ -54,7 +56,7 @@ export const CodeRain: React.FC<{title?: string; tagline?: string}> = ({
       {/* darkened core so the message reads */}
       <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(38% 34% at 50% 50%, #02060388, #0000 72%)'}} />
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: titleIn, transform: `translateY(${(1 - titleIn) * 14}px)`, color: '#eafff4',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: '#eafff4',
           font: '800 130px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 0 40px ${GREEN}, 0 12px 40px #000`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: GREEN,
