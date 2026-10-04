@@ -191,7 +191,8 @@
   "ObjectCompare": "bg",
   "ObjectPath": "bg",
   "ObjectTurntable": "bg",
-  "KSpaceToPicture": "bg"
+  "KSpaceToPicture": "bg",
+  "ExtractionFlow": "bg"
  },
  "unclassified": [
   "KineticManifesto",
@@ -199,7 +200,7 @@
   "PaperSlot"
  ],
  "failed": {},
- "universe": 192,
+ "universe": 193,
  "_source": {
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "4ba43ae79892f212",
@@ -389,6 +390,7 @@
   "ObjectPath": "a1a84840a7430f2a",
   "ObjectStage": "0f6462d80c4bca61",
   "ObjectTurntable": "7461ac846b7a1baa",
-  "KSpaceToPicture": "398a4ecd9a8aa030"
+  "KSpaceToPicture": "398a4ecd9a8aa030",
+  "ExtractionFlow": "4c343f09a1237afe"
  }
 }

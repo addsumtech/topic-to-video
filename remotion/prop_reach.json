@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 192,
+  "_universe": 193,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -208,7 +208,8 @@
     "ObjectPath": "a1a84840a7430f2a",
     "ObjectStage": "0f6462d80c4bca61",
     "ObjectTurntable": "7461ac846b7a1baa",
-    "KSpaceToPicture": "398a4ecd9a8aa030"
+    "KSpaceToPicture": "398a4ecd9a8aa030",
+    "ExtractionFlow": "4c343f09a1237afe"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -402,7 +403,8 @@
     "ObjectPath": "fc562b2332d8c98f",
     "ObjectStage": "3054bdc2c957d88c",
     "ObjectTurntable": "1afd6f0831bd4ffe",
-    "KSpaceToPicture": "bb2bce19caaf3cf2"
+    "KSpaceToPicture": "bb2bce19caaf3cf2",
+    "ExtractionFlow": "b91f8947ce5f73c6"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -615,6 +617,10 @@
     },
     "ExplodedSchematic": {
       "reach": 0.69,
+      "prop_diff": 1.0
+    },
+    "ExtractionFlow": {
+      "reach": 0.483,
       "prop_diff": 1.0
     },
     "FallbackPath": {

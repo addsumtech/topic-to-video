@@ -192,7 +192,8 @@
     "ObjectPath": "a1a84840a7430f2a",
     "ObjectStage": "0f6462d80c4bca61",
     "ObjectTurntable": "7461ac846b7a1baa",
-    "KSpaceToPicture": "398a4ecd9a8aa030"
+    "KSpaceToPicture": "398a4ecd9a8aa030",
+    "ExtractionFlow": "4c343f09a1237afe"
   },
   "_fed": {
     "MuseumLabel": "4befec7f07",
@@ -221,7 +222,7 @@
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 192,
+  "_universe": 193,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -593,6 +594,13 @@
       "luma_range": 0.008,
       "seconds": 5.0,
       "footprint": 0.494
+    },
+    "ExtractionFlow": {
+      "motion_p75": 0.0005,
+      "ink_median": 0.042,
+      "luma_range": 0.004,
+      "seconds": 10.0,
+      "footprint": 0.364
     },
     "FallbackPath": {
       "motion_p75": 0.0001,

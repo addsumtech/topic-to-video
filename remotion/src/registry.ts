@@ -198,6 +198,7 @@ import {ObjectCompare} from './shots/ObjectCompare';
 import {ObjectPath} from './shots/ObjectPath';
 import {ObjectTurntable} from './shots/ObjectTurntable';
 import {KSpaceToPicture} from './shots/KSpaceToPicture';
+import {ExtractionFlow} from './shots/ExtractionFlow';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -273,6 +274,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   ObjectPath,
   ObjectTurntable,
   KSpaceToPicture,
+  ExtractionFlow,
 };
 
 // A FILM'S OWN SHOTS AND OBJECTS — its workshop (scripts/workshop.py) — join the library here, for a render scoped

@@ -11,6 +11,7 @@ import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {CameraTypeProbe, DURATION as CTP} from './runtime/__probe_camera';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {ExtractionFlow, DURATION as D_EXTRACTIONFLOW} from './shots/ExtractionFlow';
 import {KSpaceToPicture, DURATION as D_KSPACETOPICTURE} from './shots/KSpaceToPicture';
 import {ObjectTurntable, DURATION as D_OBJECTTURNTABLE} from './shots/ObjectTurntable';
 import {ObjectPath, DURATION as D_OBJECTPATH} from './shots/ObjectPath';
@@ -617,6 +618,7 @@ export const RemotionRoot: React.FC = () => (
     {F('ObjectPath', ObjectPath, D_OBJECTPATH)}
     {F('ObjectTurntable', ObjectTurntable, D_OBJECTTURNTABLE)}
     {F('KSpaceToPicture', KSpaceToPicture, D_KSPACETOPICTURE)}
+    {F('ExtractionFlow', ExtractionFlow, D_EXTRACTIONFLOW)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}
