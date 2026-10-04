@@ -28,6 +28,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01, life} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 const NODE_PALETTE0 = ['#4c8dff', '#22d3c5', '#b06cff', '#ff8fc7', '#ffd23f', '#2fcb6e', '#ff6b6b'];
@@ -74,6 +75,7 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
     if (!seen.has(key)) { seen.add(key); chords.push([a, b]); }
   });
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   // A node's rim and the hub's name are the only marks here drawn straight onto the film's ground, so they
   // are the film's ink. The rim is what separates a node from that ground; on paper that has to be dark.
@@ -184,7 +186,10 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
         const show = clamp01(seg(t, at, at + 0.14));
         const p = pos(i);
         return (
-          <div key={i} style={{position: 'absolute', left: p.x, top: p.y + 34, transform: 'translateX(-50%)', opacity: show,
+          // the constellation keeps turning for the whole clip (`drift`, by design — "a living system keeps
+          // turning"), so the label's position is never a settled `top`/`left`; it carries the unlock for the
+          // whole beat rather than a span that would have to end on motion that does not
+          <div key={i} style={{position: 'absolute', left: p.x, top: p.y + 34, transform: glide('translateX(-50%)', true), opacity: show,
             padding: '5px 14px', borderRadius: 999, background: '#0c1424cc', border: `1px solid ${n.c}66`,
             color: '#dbe5f5', font: `600 24px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{n.label}</div>
         );

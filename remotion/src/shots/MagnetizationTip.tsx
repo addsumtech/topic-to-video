@@ -8,6 +8,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 180; // 6s
 
@@ -26,6 +27,7 @@ export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; labe
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   // THE INK IS THE FILM'S, AND THIS IS A DIAGRAM, NOT A GLOW. M, the B₀ axis, the transverse plane and the
   // RF wave were literals picked for a near-black ground; all eight DNA presets are near-black, so a film
   // whose DNA came from a warm-white deck drew the whole vector frame white on white — measured median
@@ -85,7 +87,11 @@ export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; labe
         <line x1={ox} y1={oy} x2={mx} y2={my} stroke={vec} strokeWidth={4} />
         <circle cx={mx} cy={my} r={9} fill={vec} />
         <circle cx={mx} cy={my} r={20} fill="none" stroke={accent} strokeWidth={2} opacity={0.6} />
-        <text x={mx + 16} y={my - 10} fill={vec} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}>M</text>
+        {/* M nutates in and then precesses for the rest of the clip (the Larmor rate never stops), so its own
+            label carries the unlock for the whole beat rather than a span that would have to end on motion
+            that does not (runtime/glide.ts; an SVG element's own CSS transform is what the census reads) */}
+        <text x={mx + 16} y={my - 10} fill={vec} fontSize="26" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800}
+          style={{transform: glide(undefined, true)}}>M</text>
 
         {/* the resonant RF field B1 — a single-frequency wave (the actual pulse) */}
         <polyline points={wave.join(' ')} fill="none" stroke={accent2} strokeWidth={2.5} opacity={0.9} />
