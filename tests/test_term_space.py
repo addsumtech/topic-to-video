@@ -157,7 +157,9 @@ def test_the_type_stays_in_2d_even_though_it_now_turns():
     assert "<OnSurface" in flat, "the overlay type lost its plane transform"
     stage = open(os.path.join(_REM, "src", "runtime", "stage3d.tsx"), encoding="utf-8").read()
     on = stage.split("export const OnSurface", 1)[1].split("\n};", 1)[0]
-    assert "transform: `matrix(" in on and "matrix3d" not in on, (
+    # the 2D matrix may reach `transform` through the baseline unlock (runtime/glide.ts), which only appends a
+    # 2D skew to it — what must hold is that the matrix is 2D and is what the transform is built from
+    assert "`matrix(${a.m11}" in on and "transform:" in on and "matrix3d" not in on, (
         "<OnSurface> no longer applies a 2D matrix — either the words stopped turning or they went 3D")
 
 
