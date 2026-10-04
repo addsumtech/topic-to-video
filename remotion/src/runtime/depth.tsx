@@ -24,6 +24,10 @@ import {useVideoConfig} from 'remotion';
 import {useT, ReducedMotionContext, clamp01, easeInOutCubic, hash01} from './motion';
 import {CONTENT_TOP, contentBottom, maxCameraPush, captionSlackPx} from './layout';
 import {focusAt, type Focus} from './focus';
+import {BASELINE_UNLOCK, BaselineUnlockContext, baselineUnlockOverscan} from './glide';
+// the unlock's constants live in runtime/glide.ts with everything else that moves type; re-exported here because
+// the scene camera is where they were first written and where tests and probes still look for them
+export {BASELINE_UNLOCK_SKEW, baselineUnlockOverscan} from './glide';
 
 // ── depth planes ────────────────────────────────────────────────────────────────────────────────────────
 // Named, because a bare number says nothing about what the author meant. `subject` is the plane the beat is
@@ -62,7 +66,9 @@ const FG_DOF_DEAD_ZONE = 1.0;     // lift below this is an annotation resting on
 // movement — that ratio IS the parallax.
 const DRIFT_PER_UNIT = 0.018;
 
-export type CameraState = {push: number; amount: number};
+// `glide`: this beat's camera carries the baseline unlock (it moves somewhere in the beat) — see Plane, whose own
+// filters would otherwise take it away from the type on them.
+export type CameraState = {push: number; amount: number; glide?: boolean};
 export const CameraContext = React.createContext<CameraState>({push: 0, amount: 0});
 export const useCamera = () => React.useContext(CameraContext);
 
@@ -79,7 +85,7 @@ export const Plane: React.FC<{
   className?: string;
 }> = ({depth = 0, drift = 0, children, style, className}) => {
   const {width: W, height: H} = useVideoConfig();
-  const {push, amount} = useCamera();
+  const {push, amount, glide} = useCamera();
   const base = Math.min(W, H);
 
   // FOCUS. Only planes BEHIND the subject soften; a lifted plane is nearer, and nearer is not blurrier in
@@ -133,6 +139,11 @@ export const Plane: React.FC<{
   const shadow = lift > 0
     ? `drop-shadow(0 ${(lift * base * 0.006).toFixed(1)}px ${(lift * base * 0.008).toFixed(1)}px rgba(0,0,0,${(0.30 * lift).toFixed(3)}))`
     : undefined;
+  // THE UNLOCK HAS TO BE WRITTEN AGAIN INSIDE A BLURRED OR SHADOWED PLANE. The camera's skew is above this
+  // element, and a blur or drop-shadow keeps only the scale of the matrix above it (measured: the type inside
+  // stepped exactly as under no unlock, 0.267px; tests/test_camera_type.py), so on a beat whose camera moves the
+  // plane's contents carry their own. A plane with no such filter needs nothing: the camera's reaches them.
+  const reSkew = Boolean(glide) && (blur > 0.2 || fgBlur > 0.2 || shadow !== undefined);
 
   return (
     <div
@@ -152,7 +163,9 @@ export const Plane: React.FC<{
         ...style,
       }}
     >
-      {children}
+      {reSkew
+        ? <div style={{position: 'absolute', inset: 0, transform: BASELINE_UNLOCK}}>{children}</div>
+        : children}
     </div>
   );
 };
@@ -350,47 +363,13 @@ export const cameraAt = (move: CameraMove, t: number): number => {
 };
 
 // ── the baseline unlock ─────────────────────────────────────────────────────────────────────────────────
-// WHY A MOVING CAMERA CARRIES A SKEW NOBODY CAN SEE. Chrome draws text through Skia, and Skia SNAPS a glyph
-// run's baseline to a whole device pixel whenever the text's matrix keeps the x axis on the x axis
-// (`SkScalerContextRec::computeAxisAlignmentForHText`: skewY == 0 -> kX, y rounded to the pixel; x keeps
-// quarter-pixel positions). A scale plus a translate is exactly such a matrix. So under a push every line of
-// type advances in 1px steps while the rules, shapes and pictures beside it glide — the type trembles against
-// its own drawing. Measured on a delivered film's push (a kicker and a plate number, ink centroid against the
-// camera's own scale curve): y residual RMS 0.27px, a ±0.5px sawtooth with a 1px jump every few frames, while
-// the sheet's border in the same layer tracked to 0.05px. `will-change: transform` does not cure it — the
-// layer's raster scale then depends on what that tab rendered before, and the type popped 0.3px on scattered
-// frames — and `text-rendering: geometricPrecision` changes nothing on this platform.
-//
-// A skewY makes the matrix non-axis-aligned, and Skia then positions the run to a quarter pixel on BOTH axes:
-// measured on the same push, the type's vertical residual fell to 0.02-0.07px with no step above 0.3px —
-// the border's own floor. The horizontal one was already quarter-pixel and stays there.
-//
-// HOW SMALL IT CAN BE. Skia rounds each matrix entry to 1/1024 before deciding (`sk_relax`), so a skew under
-// 0.5/1024 rounds to zero and changes nothing — measured: a 0.02° rotation left the sawtooth intact, 0.03°
-// removed it. The entry Skia sees is the skew times every scale above the text, so 1/1024 keeps type down to
-// half size unlocked. It tilts a horizontal line by one pixel per 1024 — under a pixel at either edge of a
-// 1920-wide frame, constant over the beat, and far below anything a viewer can see.
-export const BASELINE_UNLOCK_SKEW = 1 / 1024;
-// what the skewed layer must reach past the frame edge, beyond the skew's own tilt: rounding and the edge's
-// anti-aliasing, so no sliver of whatever lies under the shot shows along the top or bottom of the frame
-const UNLOCK_EDGE_MARGIN_PX = 1;
-
-/**
- * The extra scale a layer skewed by BASELINE_UNLOCK_SKEW about (W/2, originY) needs to keep covering the frame.
- *
- * A skewY leaves the left and right edges where they are and tilts the top and bottom ones by the skew times
- * half the width, so at scale 1 a sliver of frame is uncovered at two corners. Solved for the smallest scale at
- * which the nearer of the top and bottom edges still clears the frame: (s-1)*reach >= s*tilt + margin.
- */
-export const baselineUnlockOverscan = (W: number, H: number, originY: number): number => {
-  const tilt = BASELINE_UNLOCK_SKEW * W / 2;
-  const reach = Math.min(originY, H - originY);
-  if (!(reach > tilt + UNLOCK_EDGE_MARGIN_PX)) {
-    throw new Error(`baselineUnlockOverscan: the camera's origin (y=${originY}) sits on the frame's edge ` +
-      `(${W}x${H}); no scale about it can keep a skewed layer covering the frame.`);
-  }
-  return (tilt + UNLOCK_EDGE_MARGIN_PX) / (reach - tilt);
-};
+// WHY A MOVING CAMERA CARRIES A SKEW NOBODY CAN SEE: under a push every line of type would advance in whole-pixel
+// steps while the rules, shapes and pictures beside it glide (runtime/glide.ts has the mechanism and the
+// measurements). The camera was where this was first found and fixed; the constant and the overscan it needs now
+// live in runtime/glide.ts beside every other path that moves type. Two findings that belong to THIS layer:
+// `will-change: transform` does not cure it — the layer's raster scale then depends on what that tab rendered
+// before, and the type popped 0.3px on scattered frames — and `text-rendering: geometricPrecision` changes nothing
+// on this platform.
 
 /**
  * Wraps ONE scene's shot: applies the camera's 2D scale and publishes the push so `Plane`s can parallax.
@@ -429,6 +408,7 @@ export const SceneCamera: React.FC<{
 }> = ({move = 'hold', amount, pan, driftExtra = 0, driftTranslate = 0, bed = false, children}) => {
   const {width: W, height: H} = useVideoConfig();
   const reduced = React.useContext(ReducedMotionContext);
+  const unlockAllowed = React.useContext(BaselineUnlockContext);
   const t = useT();
   const cap = maxCameraPush(W, H, driftExtra, driftTranslate);
   // THE DEFAULT AMOUNT IS DERIVED FROM THE ROOM, not hand-set. 0.045 was a number chosen once at 16:9 and
@@ -443,8 +423,9 @@ export const SceneCamera: React.FC<{
   // quarter-snapped on the frame the camera sets off: one pop in place of the sawtooth. A beat that holds (or
   // runs under reduced motion) gets none of it, so its frames are exactly what they were. The overscan the
   // skew needs comes out of the same cap as the move, so the two together never reach past maxCameraPush.
+  // (BaselineUnlockContext false — an identity proof — draws the camera exactly as it was before the unlock.)
   const unlockScale = baselineUnlockOverscan(W, H, originY);
-  const moves = !reduced && ((want > 0 && move !== 'hold') || clampPan(pan) !== null);
+  const moves = unlockAllowed && !reduced && ((want > 0 && move !== 'hold') || clampPan(pan) !== null);
   const unlock = moves && cap > unlockScale ? unlockScale : 0;
   const amp = Math.max(0, Math.min(want, cap - unlock));
   const push = amp > 0 ? cameraAt(move, t) : 0;
@@ -474,12 +455,11 @@ export const SceneCamera: React.FC<{
   const xf = [
     tx || ty ? `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)` : '',
     scale === 1 ? '' : `scale(${scale.toFixed(5)})`,
-    // CSS matrix(a, b, c, d, e, f) puts `b` in the y row's x column: the skewY entry Skia reads
-    unlock ? `matrix(1, ${BASELINE_UNLOCK_SKEW}, 0, 1, 0, 0)` : '',
+    unlock ? BASELINE_UNLOCK : '',
   ].filter(Boolean).join(' ');
 
   return (
-    <CameraContext.Provider value={{push, amount: amp}}>
+    <CameraContext.Provider value={{push, amount: amp, glide: unlock > 0}}>
       <div style={{
         position: 'absolute', inset: 0,
         transform: xf || undefined,
