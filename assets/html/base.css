@@ -56,17 +56,29 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 /* seekable reveals — paused so render_html/seek.js can freeze them at any progress p.
    Stagger by adding an inline positive animation-delay (e.g. style="animation-delay:.18s"). */
 .reveal{opacity:0;animation:fade var(--dur) ease forwards;animation-play-state:paused}
-.reveal-up{opacity:0;transform:translateY(48px);
+/* THE BASELINE UNLOCK (proven in the Remotion tier, commit 604dbec — see runtime/depth.tsx).
+   Chrome/Skia snaps a TEXT run's baseline to a whole device pixel whenever the run's accumulated
+   matrix is axis-aligned — exactly what a translate and/or scale always is. So a slowly-revealing
+   headline steps 1px at a time (hold, hold, jump) while any shape riding the same keyframe glides.
+   `matrix(1,.0009765625,0,1,0,0)` is a skewY of 1/1024 — the smallest entry Skia's own matrix
+   rounding (sk_relax) keeps, so it tilts nothing a viewer can see (under a pixel at either edge of
+   a 1920-wide frame) — and it is enough to make the matrix non-axis-aligned, which moves Skia onto
+   its quarter-pixel glyph path on BOTH axes. It rides every keyframe up to (not including) the
+   settled one, so a SETTLED page renders byte-identical to before this existed; reduced-motion.css
+   overrides `transform` outright and never sees it. A loop that is never captured at rest (`.float`
+   below, and any custom `[data-ambient]` text animation an author writes) keeps it for the whole
+   loop instead — state that hairline tradeoff at the call site, don't silently drop it. */
+.reveal-up{opacity:0;transform:translateY(48px) matrix(1,.0009765625,0,1,0,0);
   animation:rise var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
 @keyframes fade{to{opacity:1}}
-@keyframes rise{to{opacity:1;transform:none}}
+@keyframes rise{99.9%{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
 /* 8-pt grid: gaps/padding use multiples of 8. hierarchy contract: .title/.sub ≥ 2.5×, .title/.note ≥ 3×. */
 .mono{font-family:var(--font-mono);letter-spacing:.04em;font-variant-numeric:tabular-nums}
 /* spring overshoot for a hero stat / pop-in (paused -> seek.js freezes it) */
-.reveal-pop{opacity:0;transform:scale(.88);animation:pop var(--dur) var(--ease-over) forwards;animation-play-state:paused}
-@keyframes pop{to{opacity:1;transform:none}}
+.reveal-pop{opacity:0;transform:scale(.88) matrix(1,.0009765625,0,1,0,0);animation:pop var(--dur) var(--ease-over) forwards;animation-play-state:paused}
+@keyframes pop{99.9%{opacity:1;transform:scale(1) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
 /* shorter rise for dense sub-items */
-.reveal-up-sm{opacity:0;transform:translateY(10px);animation:rise var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
+.reveal-up-sm{opacity:0;transform:translateY(10px) matrix(1,.0009765625,0,1,0,0);animation:rise var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
 /* mask-reveal entrance (left-to-right wipe-on) — for elements with a FILLING/DIRECTIONAL semantic
    only (.rule, .segbar, .meter .fill, a .media image panel); never on text rows/cards. One
    direction deck-wide; at most 1-2 uses per video (an option, not a default). */
@@ -491,8 +503,8 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 
 /* emphasis: the focal cell/row/node SETTLES in last, from just-below full size (never scale(0) — a
    0.96 start reads as a considered landing, not a pop). Pair with the element's static .on ring. */
-.settle{opacity:0;transform:scale(.96);animation:settle var(--dur) var(--ease-over) forwards;animation-play-state:paused}
-@keyframes settle{to{opacity:1;transform:none}}
+.settle{opacity:0;transform:scale(.96) matrix(1,.0009765625,0,1,0,0);animation:settle var(--dur) var(--ease-over) forwards;animation-play-state:paused}
+@keyframes settle{99.9%{opacity:1;transform:scale(1) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
 
 /* comparison: the NON-focal side DIMS as the focal side is named (opacity-only, stays >=.4 = still
    legible; pairs with .defocus / rtable tr.win / .cell.on). */
