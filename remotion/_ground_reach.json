@@ -1237,6 +1237,23 @@
    "why": []
   },
   {
+   "shot": "KSpaceToPicture",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 0.13563334941864014,
+    "dark": 0.0015176349552348256
+   },
+   "moved": 0.39638494318181816,
+   "ok": false,
+   "why": [
+    "field light reads dark",
+    "only 40% of the frame moved"
+   ]
+  },
+  {
    "shot": "KaleidoMandala",
    "bandY": {
     "light": 0.31710419058799744,
@@ -2980,10 +2997,11 @@
   "ObjectStage": "0f6462d80c4bca61",
   "ObjectCompare": "42eb2fde844335ea",
   "ObjectPath": "a1a84840a7430f2a",
-  "ObjectTurntable": "7461ac846b7a1baa"
+  "ObjectTurntable": "7461ac846b7a1baa",
+  "KSpaceToPicture": "398a4ecd9a8aa030"
  },
  "failed": {},
- "universe": 191,
+ "universe": 192,
  "inkRefused": {
   "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
   "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",

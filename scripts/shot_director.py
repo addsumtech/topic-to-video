@@ -88,6 +88,7 @@ FAMILY = {
     "ObjectStage": "E",
     "MorphForms": "E", "KSpaceToImage": "E", "MagnetizationTip": "E",
     "InducedFID": "U", "GFactorNoise": "M", "UndersampledKspace": "D", "ScanReconstruct": "G", "RealVersus": "H", "SpinningProton": "S", "PhaseEncodeStep": "D", "MRIPipeline": "B", "FrequencyEncode": "U", "CompressedSensingEq": "L", "KSpaceReal": "G", "SpeedLimit": "D", "LarmorPrecession": "S", "Aliasing": "M", "DiffusionDenoise": "F", "SpinsAlign": "M", "GradientTilt": "U", "KSpaceAnatomy": "H", "TensionScale": "H", "PlatformSurfaces": "A", "OpenQuestions": "C",
+    "KSpaceToPicture": "S",
     "AuroraFlow": "F", "LiquidMorph": "F", "LiquidFill": "F", "ParticleForm": "F",
     "RadialBurst": "F", "LightTrails": "F", "MetaballMerge": "F", "InkBloom": "F", "LiquidMetal": "F",
     "HandDrawn": "G", "CartoonPop": "G", "HalftonePop": "G", "ClayStack": "G",
@@ -140,6 +141,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "KSpaceToPicture":         'scientific',
     "ObjectTurntable":         'motion-graphics',
     "ObjectPath":              'motion-graphics',
     "ObjectCompare":           'motion-graphics',

@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 191,
+  "_universe": 192,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -207,7 +207,8 @@
     "ObjectCompare": "42eb2fde844335ea",
     "ObjectPath": "a1a84840a7430f2a",
     "ObjectStage": "0f6462d80c4bca61",
-    "ObjectTurntable": "7461ac846b7a1baa"
+    "ObjectTurntable": "7461ac846b7a1baa",
+    "KSpaceToPicture": "398a4ecd9a8aa030"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -400,7 +401,8 @@
     "ObjectCompare": "e53ddce0b8f1d353",
     "ObjectPath": "fc562b2332d8c98f",
     "ObjectStage": "3054bdc2c957d88c",
-    "ObjectTurntable": "1afd6f0831bd4ffe"
+    "ObjectTurntable": "1afd6f0831bd4ffe",
+    "KSpaceToPicture": "bb2bce19caaf3cf2"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -742,6 +744,10 @@
     "KSpaceToImage": {
       "reach": 0.133,
       "prop_diff": 1.0
+    },
+    "KSpaceToPicture": {
+      "reach": 0.165,
+      "prop_diff": 0.89
     },
     "KaleidoMandala": {
       "reach": 0.32,

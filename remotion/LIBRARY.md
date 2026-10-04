@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (191 design languages)
+# Remotion2 — Bespoke Shot Library (192 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 191 registers across 27 families.** D×29 · A×23 · C×17 · B×14 · G×11 · F×10 · H×10 · L×10 · E×9 · I×9 · K×6 · J×5 · JA×5 · M×5 · S×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
+**Family census — 192 registers across 27 families.** D×29 · A×23 · C×17 · B×14 · G×11 · F×10 · H×10 · L×10 · E×9 · I×9 · K×6 · S×6 · J×5 · JA×5 · M×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -328,6 +328,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 80. **NeuralField** — a neural network THINKS: layered nodes + edges light up as an activation front sweeps left→right until the output locks. *Use: AI reasons / a model at work / "it thinks".*
 
 ## S · Scientific / molecular
+216. **KSpaceToPicture** — an image's k-space written row by row from its centre while, beside it, the picture computed from exactly those rows sharpens as a whole; the film hands its own image's k-space and reconstructions (`scripts/kspace_frames.py`), the library previews a computed Shepp–Logan phantom. *Use: a picture is computed from measured data, and every row of data sharpens the WHOLE picture rather than adding one strip of it — k-space filling while the image computed from it resolves.* `credit, imageLabel, imageNote, kicker, kspaceLabel, kspaceNote, order, rows, srcFrames, srcKspace, title, transformLabel` · `srcKspace` and `srcFrames` together, or neither (the phantom) — required in a film · built for the film 磁共振成像是怎么把人体内部变成图像的.
 147. **LarmorPrecession** — the magnetic moment sits tilted from B0 and precesses around it — precession, not orbits. *Use: a steady rotation set by a field / the fundamental frequency of a system.* `accent, accent2, label, gamma` · `gamma` defaults to the ¹H value 42.58 MHz/T — a sodium or carbon film states its own.
 138. **SpinningProton** — a single proton spins with its + charge, becoming a tiny magnet: field lines and the moment vector μ resolve, with bulk water supplying them all around. *Use: what a nucleus IS / spin and magnetism / the physical basis under an imaging beat.* `accent, accent2, label, sublabel` · `sublabel` defaults to '~70% water · ¹H'; '' draws nothing.
 81. **DNAHelix** — a rotating double helix: two sine-phased strands of nodes with base-pair RUNGS, depth-shaded, assembling top-down. *Use: the blueprint / biotech / "encoded".*
