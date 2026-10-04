@@ -264,6 +264,330 @@ def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False)
     return findings, swept, len(names), not_cjk
 
 
+# ── THE TYPE-GLIDE CENSUS (`--glide`) ────────────────────────────────────────────────────────────────────────
+#
+# WHAT IT FINDS. Type that MOVES while Skia snaps its baseline to whole pixels (runtime/glide.ts): under an
+# axis-aligned matrix a line that crawls by less than a pixel a frame holds still for several frames and then jumps,
+# while the rules and pictures beside it glide. A viewer reported it on a delivered film's camera push; every still
+# gate passed that film, and shake_qa measured the same numbers before and after the fix — it watches the whole
+# frame, and this is one element moving against its own drawing.
+#
+# HOW. Every frame of the film (or of a register) is rendered with no picture taken (scripts/glide_frames.cjs), and
+# on each one the DOM lists every visible line of type whose composed matrix Skia would treat as axis-aligned, with
+# its TRUE position (runtime/textSafe.tsx `auditGlide`: client rects are computed from the transform, before paint
+# rounds anything). Read in frame order, a line's track says exactly what a viewer sees: while it crawls — moving,
+# but by less than a pixel a frame — every whole pixel its true position crosses is one visible step.
+#
+# THE THRESHOLD IS THE VIEWER'S, not a statistic. Three or more steps inside one crawl is a staircase — hold, jump,
+# hold, jump — and an ERROR; one or two is the tick at the end of a slow ease, a WARN that is reported and left for
+# the register's next edit. A line moving a pixel or more every frame has no hold to step out of and is not a
+# crawl; a line fainter than GLIDE_MIN_OPACITY is not yet being read. Type declared `data-type-steps` (a glitch's
+# offset copies, a mechanical counter) is named and excused.
+GLIDE_TAG = "TYPE-GLIDE "
+GLIDE_STEPS_ERROR = 3          # whole-pixel steps inside one crawl: a staircase
+GLIDE_CRAWL_PX = 1.0           # px a frame: at or above this the line moves every frame and never holds
+GLIDE_STILL_PX = 1e-3          # px: below this a line did not move between two frames (layout noise)
+GLIDE_MIN_OPACITY = 0.25       # fainter than this the line is still arriving, not being read
+_GLIDE_RUNNER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "glide_frames.cjs")
+
+
+def glide_concurrency():
+    return int(os.environ.get("GLIDE_CONCURRENCY") or max(1, min(6, (os.cpu_count() or 4) // 2)))
+
+
+def glide_bundle(dest, public_dir=None, env=None):
+    """Bundle the remotion project once for a census, with a film's workshop when `env` carries one."""
+    import workshop as _ws
+    cmd = ["npx", "remotion", "bundle", "src/index.ts", "--out-dir=" + dest, "--log=error"]
+    if public_dir:
+        cmd.append("--public-dir=" + os.path.abspath(public_dir))
+    r = subprocess.run(cmd, cwd=_REMOTION, capture_output=True, text=True, **_ws.env_kwargs(env))
+    if r.returncode != 0 or not os.path.isfile(os.path.join(dest, "index.html")):
+        raise RuntimeError("the census bundle failed: %s" % ((r.stdout or "") + (r.stderr or ""))[-600:])
+    return dest
+
+
+def glide_run(jobs, bundle_dir, concurrency=None):
+    """Render every job's frames with the census armed. Returns {tag: {"frames": {f: record}, "done": dict | None,
+    "error": str | None}} — a job with no `done` line was not measured, whatever its frames say."""
+    import tempfile
+    import remotion_segments as _rs
+    work = tempfile.mkdtemp(prefix="glide_run_")
+    try:
+        jobs_path, out_path = os.path.join(work, "jobs.json"), os.path.join(work, "out.jsonl")
+        with open(jobs_path, "w", encoding="utf-8") as fh:
+            json.dump(jobs, fh, ensure_ascii=False, allow_nan=False)
+        cmd = ["node", _GLIDE_RUNNER, _REMOTION, bundle_dir, jobs_path, out_path, "--gl=" + _rs.default_gl(),
+               "--concurrency=%d" % (concurrency or glide_concurrency())]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        res = {j["tag"]: {"frames": {}, "done": None, "error": None} for j in jobs}
+        if os.path.exists(out_path):
+            with open(out_path, encoding="utf-8") as fh:
+                for raw in fh:
+                    rec = json.loads(raw)
+                    slot = res.setdefault(rec.get("tag"), {"frames": {}, "done": None, "error": None})
+                    if rec.get("done"):
+                        slot["done"] = rec
+                    elif "error" in rec:
+                        slot["error"] = rec["error"]
+                    elif "f" in rec:
+                        slot["frames"][int(rec["f"])] = rec
+        if r.returncode != 0:
+            why = ((r.stderr or "") + (r.stdout or "")).strip().splitlines()
+            for slot in res.values():
+                if slot["done"] is None and not slot["error"]:
+                    slot["error"] = "the census runner died: %s" % (why[-1] if why else "exit %d" % r.returncode)
+        return res
+    finally:
+        import shutil
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def judge_glide(frames):
+    """Every crawl with at least one whole-pixel step, worst first: {"k", "t", "a", "b", "steps", "max_dy", "fl"}.
+
+    `frames` is {frame: census record}. A track is one element (its DOM path) across frames; a crawl is a run of
+    consecutive frames in which the line stays readable, stays axis-aligned (it is listed at all) and moves by less
+    than GLIDE_CRAWL_PX each frame. A frame it is missing from — unlocked, hidden, unmounted — ends the run."""
+    import math
+    tracks = {}
+    for f in sorted(frames):
+        for ln in frames[f].get("lines") or []:
+            tracks.setdefault(ln["k"], []).append((f, float(ln["y"]), float(ln.get("o", 1)), ln.get("t", ""),
+                                                   ln.get("fl", "")))
+    runs = []
+    for key, pts in tracks.items():
+        cur = None
+        for (f0, y0, o0, _t0, fl0), (f1, y1, o1, t1, fl1) in zip(pts, pts[1:]):
+            dy = y1 - y0
+            if (f1 != f0 + 1 or o0 < GLIDE_MIN_OPACITY or o1 < GLIDE_MIN_OPACITY
+                    or abs(dy) >= GLIDE_CRAWL_PX):
+                if cur and cur["steps"] and cur["moved"]:
+                    runs.append(cur)
+                cur = None
+                continue
+            if cur is None:
+                cur = {"k": key, "t": t1, "a": f0, "b": f1, "steps": 0, "max_dy": 0.0, "fl": "", "moved": False}
+            cur["b"] = f1
+            if abs(dy) > GLIDE_STILL_PX:
+                cur["moved"] = True
+                cur["max_dy"] = max(cur["max_dy"], abs(dy))
+                if math.floor(y1) != math.floor(y0):
+                    cur["steps"] += 1
+            cur["fl"] = "".join(sorted(set(cur["fl"]) | set(fl0) | set(fl1)))
+        if cur and cur["steps"] and cur["moved"]:
+            runs.append(cur)
+    for r in runs:
+        r.pop("moved", None)
+    return sorted(runs, key=lambda r: (-r["steps"], r["a"]))
+
+
+def glide_level(runs):
+    """('error' | 'warn' | 'clean', the runs that set it). Declared-stepped type never sets the level."""
+    real = [r for r in runs if "s" not in r["fl"]]
+    worst = max((r["steps"] for r in real), default=0)
+    if worst >= GLIDE_STEPS_ERROR:
+        return "error", [r for r in real if r["steps"] >= GLIDE_STEPS_ERROR]
+    if worst:
+        return "warn", real
+    return "clean", []
+
+
+def _describe_run(r):
+    flags = []
+    if "f" in r["fl"]:
+        # the one case whose fix is not "add the unlock": a blur or drop-shadow keeps only the scale of the matrix
+        # above it, so an unlock above the filter never reaches these glyphs (runtime/textSafe.tsx SPATIAL_FILTER)
+        flags.append("inside a blur/drop-shadow filter — the unlock must sit INSIDE the filtered element")
+    if "s" in r["fl"]:
+        flags.append("declared data-type-steps")
+    return ("%r steps %d whole pixel%s across frames %d-%d, crawling at most %.2fpx/frame under an axis-aligned "
+            "matrix%s" % (r["t"], r["steps"], "" if r["steps"] == 1 else "s", r["a"], r["b"], r["max_dy"],
+                          (" (" + ", ".join(flags) + ")") if flags else ""))
+
+
+def _composited(frames):
+    """The most lines any one frame drew on a 3D or will-change layer — type the census cannot read (it is
+    rasterised once and moved by the compositor), so it is named as unread rather than counted as clean."""
+    return max((int(rec.get("z") or 0) for rec in frames.values()), default=0)
+
+
+def _glide_measured(slot, want_frames):
+    """None when the job measured every frame it rendered; else why not — a census that silently lost frames must
+    not read as clean."""
+    if slot.get("error"):
+        return "render FAILED: %s" % slot["error"][:200]
+    if not slot.get("done"):
+        return "the census never finished"
+    logged = slot["done"].get("logged", 0)
+    if logged < want_frames:
+        return "only %d of %d frames logged a census" % (logged, want_frames)
+    return None
+
+
+def scan_film_glide(out_dir, concurrency=None):
+    """(errors, warns, excused, notes, checked, universe, unmeasured, seconds) for one film: every frame of the Film
+    composition exactly as render_remotion renders it — its seams, its cameras and its whole-film drift included,
+    which a beat rendered on its own would never show."""
+    import shutil
+    import tempfile
+    import time
+    import remotion_segments as _rs
+    import workshop as _ws
+    t0 = time.time()
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    props, slides = rr.film_props(out_dir, board)
+    props = dict(props, typeGlide=True)
+    segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
+    env = _ws.prepare(out_dir)
+    work = tempfile.mkdtemp(prefix="glide_film_")
+    try:
+        public = _rs.minimal_public(props, out_dir, os.path.join(work, "public"))
+        bundle = glide_bundle(os.path.join(work, "bundle"), public, env)
+        res = glide_run([{"tag": "film", "id": "Film", "props": props}], bundle, concurrency)["film"]
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    why = _glide_measured(res, total)
+    labels = [s.get("index", i + 1) for i, s in enumerate(slides)]
+    shots = [s.get("shot") or "?" for s in slides]
+
+    def beat_of(frame):
+        for k, (a, b) in enumerate(segs):
+            if a <= frame <= b:
+                return k
+        return len(segs) - 1
+
+    by_beat = {}
+    for run in judge_glide(res["frames"]):
+        by_beat.setdefault(beat_of(run["a"]), []).append(run)
+    errors, warns, excused = [], [], []
+    for k in sorted(by_beat):
+        level, worst = glide_level(by_beat[k])
+        head = "scene %02d (%s)" % (labels[k], shots[k])
+        for r in by_beat[k]:
+            if "s" in r["fl"]:
+                excused.append("%s: %s" % (head, _describe_run(r)))
+        if level == "error":
+            errors.extend("%s: STAIRCASE — %s" % (head, _describe_run(r)) for r in worst)
+        elif level == "warn":
+            warns.extend("%s: %s" % (head, _describe_run(r)) for r in worst)
+    return {"errors": errors, "warns": warns, "excused": excused, "frames": total,
+            "logged": len(res["frames"]), "unmeasured": [why] if why else [], "beats": len(slides),
+            "composited": _composited(res["frames"]), "seconds": time.time() - t0}
+
+
+def scan_library_glide(names, aspect=None, dna=DEFAULT_DNA, concurrency=None):
+    """{name: {"level", "runs", "unmeasured"}} for every register in `names`, each rendered on its own across its
+    whole DURATION with its own demo props (and the evidence fixture the other sweeps use)."""
+    import shutil
+    import tempfile
+    import workshop as _ws
+    durs = durations()
+    base = {"typeGlide": True}
+    if aspect:
+        base["aspect"] = aspect
+    if dna:
+        base["dna"] = dna
+    try:
+        import register_energy as _re
+        _re.ensure_fixture()
+        evidence = _re.evidence_props()
+    except Exception:
+        evidence = {}
+    work = tempfile.mkdtemp(prefix="glide_lib_")
+    try:
+        bundle = glide_bundle(os.path.join(work, "bundle"), None, _ws.prepare(None))
+        jobs = [{"tag": n, "id": n, "props": dict(base, **(evidence.get(n) or {}))} for n in names]
+        res = glide_run(jobs, bundle, concurrency)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    out = {}
+    for n in names:
+        slot = res.get(n) or {"frames": {}, "done": None, "error": "no result"}
+        runs = judge_glide(slot["frames"])
+        level, worst = glide_level(runs)
+        out[n] = {"level": level, "runs": worst if level != "clean" else [],
+                  "excused": [r for r in runs if "s" in r["fl"]],
+                  "unmeasured": _glide_measured(slot, durs.get(n, 0)),
+                  "composited": _composited(slot["frames"]),
+                  "seconds": (slot.get("done") or {}).get("ms", 0) / 1000.0}
+    return out
+
+
+def main_glide(argv):
+    """`--glide` on a film or on the library. Exit 1 = a staircase; 2 = part of the universe went unmeasured."""
+    import time
+    argv = [a for a in argv if a != "--glide"]
+    if "--library" in argv:
+        _c.refuse_unknown(argv, valued=("aspect", "dna", "only", "limit", "json"),
+                          switches=("library",), usage=_USAGE)
+        durs = durations()
+        only = _c.argflag_list(argv, "only")
+        lim = _c.argflag(argv, "limit")
+        names = sorted(only) if only else sorted(durs)[: int(lim) if lim else None]
+        unknown = [n for n in names if n not in durs]
+        if unknown:
+            print("[text_safe] --only names %d register(s) that do not exist: %s" % (len(unknown), ", ".join(unknown)))
+            return 2
+        dna = _c.argflag(argv, "dna", DEFAULT_DNA)
+        if dna in ("", "none"):
+            dna = None
+        t0 = time.time()
+        result = scan_library_glide(names, _c.argflag(argv, "aspect"), dna)
+        errors = sorted(n for n, v in result.items() if v["level"] == "error")
+        warns = sorted(n for n, v in result.items() if v["level"] == "warn")
+        unmeasured = sorted(n for n, v in result.items() if v["unmeasured"])
+        for n in errors:
+            for r in result[n]["runs"][:3]:
+                print("[text_safe] ERROR %s: STAIRCASE — %s" % (n, _describe_run(r)))
+        for n in warns:
+            r = result[n]["runs"][0]
+            print("[text_safe] WARN %s: %s" % (n, _describe_run(r)))
+        for n in sorted(result):
+            for r in result[n]["excused"][:1]:
+                print("[text_safe] excused %s: %s" % (n, _describe_run(r)))
+        for n in unmeasured:
+            print("[text_safe] NOT MEASURED %s: %s" % (n, result[n]["unmeasured"]))
+        for n in sorted(n for n, v in result.items() if v["composited"]):
+            print("[text_safe] note %s: up to %d line(s) a frame on a 3D or will-change layer — not read by the "
+                  "census" % (n, result[n]["composited"]))
+        js = _c.argflag(argv, "json")
+        if js:
+            with open(js, "w", encoding="utf-8") as fh:
+                json.dump(result, fh, ensure_ascii=False, indent=1, sort_keys=True)
+        catalogue = len(durs)
+        print("[text_safe] glide %s  %d staircase register(s), %d with a tick (warn), %d not measured — %d of %d "
+              "registers%s · dna=%s · %.0fs"
+              % ("FAIL" if errors else "OK", len(errors), len(warns), len(unmeasured), len(names), catalogue,
+                 "" if len(names) == catalogue else " (narrowed)", dna or "none", time.time() - t0))
+        return 1 if errors else (2 if unmeasured else 0)
+    if len(argv) != 1 or argv[0].startswith("-"):
+        print(_USAGE)
+        return 2
+    import workshop as _ws
+    try:
+        rep = scan_film_glide(os.path.abspath(argv[0]))
+    except _ws.WorkshopError as e:
+        for x in e.problems:
+            print("[text_safe] PROBLEM: " + x)
+        return 2
+    for x in rep["errors"]:
+        print("[text_safe] ERROR %s" % x)
+    for x in rep["warns"]:
+        print("[text_safe] WARN %s" % x)
+    for x in rep["excused"]:
+        print("[text_safe] excused %s" % x)
+    for x in rep["unmeasured"]:
+        print("[text_safe] NOT MEASURED: %s" % x)
+    if rep["composited"]:
+        print("[text_safe] note: up to %d line(s) a frame on a 3D or will-change layer — not read by the census"
+              % rep["composited"])
+    print("[text_safe] glide %s  %d staircase(s), %d tick(s) — %d of %d frames of %d beats · %.0fs"
+          % ("FAIL" if rep["errors"] else "OK", len(rep["errors"]), len(rep["warns"]), rep["logged"], rep["frames"],
+             rep["beats"], rep["seconds"]))
+    return 1 if rep["errors"] else (2 if rep["unmeasured"] else 0)
+
+
 def dna_presets():
     """The DNA names the renderer actually offers, read from runtime/dna.tsx rather than listed here — a
     list written in this file is a list that goes stale the day a preset is added."""
@@ -280,7 +604,9 @@ def dna_presets():
 
 
 _USAGE = ("usage: text_safe_qa.py <out_dir> | --library [--only=A,B] [--aspect=16:9 | --all-aspects] "
-          "[--dna=NAME | --all-dna] [--cjk] [--limit=N]")
+          "[--dna=NAME | --all-dna] [--cjk] [--limit=N]\n"
+          "       text_safe_qa.py <out_dir> --glide | --library --glide [--only=A,B] [--aspect=..] [--dna=..] "
+          "[--json=PATH]   (the type-glide census: every frame, no picture)")
 
 
 def main(argv):
@@ -288,6 +614,8 @@ def main(argv):
         print(__doc__.strip().splitlines()[0])
         print("usage: text_safe_qa.py <out_dir> | --library")
         return 2
+    if "--glide" in argv:
+        return main_glide(argv)
     if argv[0] == "--library" and "--all-dna" in argv:
         # THE SWEEP SWEPT ONE DNA, AND THE DNA IS WHAT CHOOSES THE FACE. `scan_library`'s own docstring says
         # the Design DNA "sets the type family and therefore every metric this audit measures" — and then

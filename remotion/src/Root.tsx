@@ -1,6 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Composition} from 'remotion';
-import {TextSafeAudit} from './runtime/textSafe';
+import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
+import {BaselineUnlockContext} from './runtime/glide';
 import {CJK_MIN_LEADING} from './runtime/cjkType';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
 import {ObjectsContext} from './runtime/objectSlot';
@@ -381,7 +382,14 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
                                mode={mode}
                                fed={Array.isArray(_p.unfedText) ? _p.unfedText : Array.isArray(_p.fedText) ? _p.fedText : []}
                                scope={_p.unfedScope === 'slots' ? 'slots' : 'all'} />;
-  const shot = <ObjectsContext.Provider value={OBJECTS}><C {...rest} />{audit}</ObjectsContext.Provider>;
+  // `typeGlide` arms the per-frame census instead (runtime/textSafe.tsx TypeGlideAudit): it never cancels, and it
+  // is read across a range of frames rather than at one, so it rides beside the still-mode audit, not in it.
+  const glide = (p as {typeGlide?: unknown}).typeGlide ? <TypeGlideAudit /> : null;
+  // `baselineUnlock: false` switches the type unlock off (runtime/glide.ts) — for identity proofs that compare a
+  // register's current source with its source at an older commit, which never asked for it. Never set by a film.
+  const unlockOff = (p as {baselineUnlock?: unknown}).baselineUnlock === false;
+  const inner = <ObjectsContext.Provider value={OBJECTS}><C {...rest} />{audit}{glide}</ObjectsContext.Provider>;
+  const shot = unlockOff ? <BaselineUnlockContext.Provider value={false}>{inner}</BaselineUnlockContext.Provider> : inner;
   if (!active) return shot;
   return (
     <DesignDNAContext.Provider value={active}>

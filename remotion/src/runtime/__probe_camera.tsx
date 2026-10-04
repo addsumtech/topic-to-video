@@ -18,30 +18,58 @@
 // The line sits far from the camera's origin (the content zone's centre), so a push carries it tens of
 // pixels; a probe near the origin barely moves and proves nothing. `bare` draws the same page with no camera
 // at all, which is what a beat that holds must look like to the pixel.
+//
+// `legacy` draws the camera with the unlock switched off (BaselineUnlockContext) — exactly the camera before the
+// unlock existed — so the type-glide census can be shown the defect it exists to find. `typeGlide` mounts that
+// census. `layer` puts the page through one of the things that change how Skia rasterises type — a css filter
+// (`shadow`, `saturate`, `blur`, as runtime/depth's planes and runtime/focus's lens apply them) or a
+// `will-change` compositing layer — so whether the unlock survives each one is measured, not assumed.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {SceneCamera, type CameraMove} from './depth';
+import {BASELINE_UNLOCK, BaselineUnlockContext} from './glide';
 import {CONTENT_TOP} from './layout';
+import {TypeGlideAudit} from './textSafe';
+
+export type ProbeLayer = 'none' | 'shadow' | 'saturate' | 'blur' | 'will-change';
+const LAYER_STYLE: Record<ProbeLayer, React.CSSProperties> = {
+  none: {},
+  // the shadow is YELLOW so the measurement cannot mistake it for type (red missing) or for the rule (red without
+  // green): what is measured is the type drawn through the filter, not the shadow the filter adds
+  shadow: {filter: 'drop-shadow(0 6px 8px rgba(255,255,0,0.85))'},
+  saturate: {filter: 'saturate(0.955)'},
+  blur: {filter: 'blur(0.6px)'},
+  'will-change': {willChange: 'transform'},
+};
 
 export const DURATION = 120;
 
 export const CameraTypeProbe: React.FC<{move?: CameraMove; amount?: number; pan?: [number, number];
-  bare?: boolean; text?: string}> = ({move = 'push', amount, pan, bare = false,
-  text = 'Type rides the camera 字随镜头走'}) => {
+  bare?: boolean; text?: string; legacy?: boolean; typeGlide?: boolean; layer?: ProbeLayer; inner?: boolean}> = ({
+  move = 'push', amount, pan, bare = false, text = 'Type rides the camera 字随镜头走', legacy = false,
+  typeGlide = false, layer = 'none', inner = false}) => {
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   const x = Math.round(W * 0.08), y = Math.round(CONTENT_TOP + H * 0.06), px = Math.round(U * 0.04);
+  if (!(layer in LAYER_STYLE)) throw new Error(`CameraTypeProbe: unknown layer ${JSON.stringify(layer)}`);
   const page = (
     <AbsoluteFill style={{background: '#ffffff'}}>
-      <div style={{position: 'absolute', left: x, top: y, color: '#000000', whiteSpace: 'nowrap',
-        font: `700 ${px}px/1.2 Inter, "Noto Sans SC", sans-serif`}}>{text}</div>
-      <div style={{position: 'absolute', left: x, top: y + Math.round(px * 1.6), width: Math.round(W * 0.34),
-        height: 3, background: '#ff0000'}} />
+      <AbsoluteFill style={LAYER_STYLE[layer]}>
+        <AbsoluteFill style={{transform: inner && !legacy ? BASELINE_UNLOCK : undefined}}>
+          <div style={{position: 'absolute', left: x, top: y, color: '#000000', whiteSpace: 'nowrap',
+            font: `700 ${px}px/1.2 Inter, "Noto Sans SC", sans-serif`}}>{text}</div>
+          <div style={{position: 'absolute', left: x, top: y + Math.round(px * 1.6), width: Math.round(W * 0.34),
+            height: 3, background: '#ff0000'}} />
+        </AbsoluteFill>
+      </AbsoluteFill>
     </AbsoluteFill>
   );
   return (
     <AbsoluteFill style={{background: '#ffff00'}}>
-      {bare ? page : <SceneCamera move={move} amount={amount} pan={pan}>{page}</SceneCamera>}
+      <BaselineUnlockContext.Provider value={!legacy}>
+        {bare ? page : <SceneCamera move={move} amount={amount} pan={pan}>{page}</SceneCamera>}
+      </BaselineUnlockContext.Provider>
+      {typeGlide ? <TypeGlideAudit /> : null}
     </AbsoluteFill>
   );
 };
