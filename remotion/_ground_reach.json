@@ -250,7 +250,7 @@
     "light": 0.9559735059738159,
     "dark": 0.002428215928375721
    },
-   "moved": 0.7576420454545455,
+   "moved": 0.7563494318181818,
    "ok": true,
    "why": []
   },
@@ -527,7 +527,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9986955492424242,
+   "moved": 0.998766571969697,
    "ok": true,
    "why": []
   },
@@ -616,7 +616,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9921235795454545,
+   "moved": 0.9921448863636364,
    "ok": true,
    "why": []
   },
@@ -686,7 +686,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9989985795454546,
+   "moved": 0.9991808712121212,
    "ok": true,
    "why": []
   },
@@ -700,7 +700,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9986055871212122,
+   "moved": 0.9986339962121212,
    "ok": true,
    "why": []
   },
@@ -714,7 +714,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9983072916666667,
+   "moved": 0.998375946969697,
    "ok": true,
    "why": []
   },
@@ -1372,14 +1372,14 @@
   {
    "shot": "LiquidChrome",
    "bandY": {
-    "light": 0.06327110528945923,
+    "light": 0.06506861001253128,
     "dark": 0.0014969344483688474
    },
    "fieldY": {
     "light": 1.0,
     "dark": 0.0009324956336058676
    },
-   "moved": 0.9616382575757576,
+   "moved": 0.9616264204545455,
    "ok": false,
    "why": [
     "band ink light wants #ffffff"
@@ -1553,9 +1553,9 @@
    },
    "fieldY": {
     "light": 0.6924009919166565,
-    "dark": 0.002731743035838008
+    "dark": 0.002753657754510641
    },
-   "moved": 0.7908214962121212,
+   "moved": 0.7900852272727272,
    "ok": true,
    "why": []
   },
@@ -1969,7 +1969,7 @@
     "light": 0.7907785177230835,
     "dark": 0.004694993607699871
    },
-   "moved": 0.7355232007575757,
+   "moved": 0.7338778409090909,
    "ok": true,
    "why": []
   },
@@ -2053,7 +2053,7 @@
     "light": 1.0,
     "dark": 0.0008898804080672562
    },
-   "moved": 0.9997395833333333,
+   "moved": 0.9997727272727273,
    "ok": true,
    "why": []
   },
@@ -2283,7 +2283,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.999983428030303,
+   "moved": 0.9999786931818182,
    "ok": true,
    "why": []
   },
@@ -2447,10 +2447,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.9386858940124512,
+    "light": 0.9301108717918396,
     "dark": 0.002124688820913434
    },
-   "moved": 0.9896993371212122,
+   "moved": 0.9883120265151515,
    "ok": true,
    "why": []
   },
@@ -2520,7 +2520,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9977201704545454,
+   "moved": 0.9977580492424243,
    "ok": true,
    "why": []
   },
@@ -2548,7 +2548,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.983470643939394,
+   "moved": 0.982952178030303,
    "ok": true,
    "why": []
   },
@@ -2562,7 +2562,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9819720643939394,
+   "moved": 0.9817874053030303,
    "ok": true,
    "why": []
   },
@@ -2576,7 +2576,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9975402462121212,
+   "moved": 0.9974029356060606,
    "ok": true,
    "why": []
   },
@@ -2590,7 +2590,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9977059659090909,
+   "moved": 0.9979450757575757,
    "ok": true,
    "why": []
   },
@@ -2604,7 +2604,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9992211174242425,
+   "moved": 0.9992874053030303,
    "ok": true,
    "why": []
   },
@@ -2618,7 +2618,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9983214962121212,
+   "moved": 0.9983546401515152,
    "ok": true,
    "why": []
   },
@@ -2646,7 +2646,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9985961174242424,
+   "moved": 0.998811553030303,
    "ok": true,
    "why": []
   },
@@ -2660,7 +2660,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9920146780303031,
+   "moved": 0.9920265151515152,
    "ok": true,
    "why": []
   },
@@ -2816,7 +2816,7 @@
     "light": 0.9917446374893188,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9417471590909091,
+   "moved": 0.9417684659090909,
    "ok": true,
    "why": []
   },
@@ -2852,7 +2852,7 @@
   "BokehPull": "1ea7a797f5db364a",
   "BreaksWhenAsked": "15c581f6f189eba4",
   "BrutalistType": "312571546ea92508",
-  "CardFlip3D": "37771652f3621ca5",
+  "CardFlip3D": "731cb6eea040efc7",
   "CardStack3D": "d85d08b43210eba1",
   "CarryOver": "17096a0428f04031",
   "CartoonPop": "28b177db4b1a1a9a",
@@ -2871,18 +2871,18 @@
   "CompanionCard": "59cc1b8135f56f8c",
   "CompressedSensingEq": "802878ab61ea4364",
   "ConveyorBelt": "851fa970be9e86e6",
-  "CraneUp": "af3b9cf788d44c2c",
+  "CraneUp": "6b2581a89320284d",
   "CrashZoom": "33e734463fb17d0a",
   "CubeRotate": "0db1129b0b4fd388",
   "CursorStory": "3817b69e5992d9f4",
   "DNAHelix": "b63011104bbc9419",
   "DataMonolith": "d76b4ad5f85348ab",
-  "DataOrrery": "03eb8db54d6238c1",
+  "DataOrrery": "f6976bcb5b05eef6",
   "DiffusionDenoise": "415e2f8473771964",
-  "DollyZoom": "36584203b534f558",
-  "EdCompare": "9feaace964310dc8",
-  "EdStat": "b7bfbb05ae3e6a74",
-  "EdTimeline": "1b89ddacb79774df",
+  "DollyZoom": "5a0933504a8d8fa4",
+  "EdCompare": "9ccb76b5e7ccbc70",
+  "EdStat": "05c44481b3ebaf9c",
+  "EdTimeline": "e07a8ae454bf0ea1",
   "ElasticType": "e0e6902f35cd0615",
   "EmberFlame": "8f88e60ae5e8fe3f",
   "Escalation": "35021cefef5fb078",
@@ -2910,7 +2910,7 @@
   "HudReticle": "1c1c934e60c23100",
   "InOrder": "9d4765f6fddb1f31",
   "InducedFID": "61b40781259e0130",
-  "InfiniteCanvas": "f3547c42455be988",
+  "InfiniteCanvas": "37b11ea79307412a",
   "InflateType": "181f30308acf89b2",
   "InkBloom": "9d6703e60ff7d0aa",
   "Inscription": "4306b11984d2d30c",
@@ -2925,7 +2925,7 @@
   "LarmorPrecession": "da099df43127eb64",
   "LastLeg": "41fb09b097e79be7",
   "LightTrails": "ec85c82f31821cd5",
-  "LiquidChrome": "63fc546335b50d53",
+  "LiquidChrome": "297cf525a8ad7534",
   "LiquidFill": "6deffddaf94254cc",
   "LiquidGlass": "e17c769782b387a2",
   "LiquidMetal": "ea7b4b1f7e7ca7f0",
@@ -2937,7 +2937,7 @@
   "MagnetizationTip": "6d29709d88ec602f",
   "MapPlate": "22b8720cdc328d18",
   "MapRoutes": "858d7b2d7903caeb",
-  "MaterialHero": "4ec5fb519ad2d8b1",
+  "MaterialHero": "776e77d9e036dd8e",
   "MetaballMerge": "37a851f4df6b1a2a",
   "MoleculeBallStick": "274d8560d6cf6b00",
   "MorphForms": "c3f3cafac1233ce4",
@@ -2949,24 +2949,24 @@
   "OdometerRoll": "9a0e39dc7427d039",
   "OpenQuestions": "41158c2283cc50af",
   "OverlapSeparation": "161d313fa5976bf2",
-  "PageWrite": "4eae6fa2f6137d41",
+  "PageWrite": "10e558a58babb807",
   "PaperCutout": "a913fc5f3b09a2c0",
   "PaperSlot": "402cf1d906a5408c",
   "ParticleForm": "fca578a38371fab2",
   "PhaseEncodeStep": "c6cd903b075a2d0d",
-  "PhotoPlate": "9843d7f29d8c67ed",
+  "PhotoPlate": "22708dc2339edc71",
   "PhysicsStack": "b3168176cdcab369",
   "PixelBuild": "f009461c25e2a83c",
-  "PlanPalimpsest": "5f9a7d5ce89bfd65",
-  "PlaneStack": "e8e57b2c6b84d2be",
+  "PlanPalimpsest": "56aee74f108f4d34",
+  "PlaneStack": "b3a8c98d2caf5ddd",
   "PlatformSurfaces": "8eb8a569b67c23eb",
-  "PointerTour": "f7019bb9b3b576a1",
-  "PortRail": "0f7e316038fcdcde",
+  "PointerTour": "f62e6cad1ba88a72",
+  "PortRail": "9f5c8156ee6ffb78",
   "PositioningMatrix": "66cf945095e1c9a7",
   "ProfileGrowth": "19e92f255396681e",
   "PulledThread": "c9af9d28c14edace",
   "QuadSplit": "d9a7775b64c2e1cb",
-  "RackFocus": "3c6368163293f2f2",
+  "RackFocus": "985dfe9b91fa2a2c",
   "RadialBurst": "470093932b7ae518",
   "RainGlass": "6ccf45422768cda9",
   "RansomZine": "126d44c181f7e96e",
@@ -2982,7 +2982,7 @@
   "SharedBlindspot": "dd6cf89d24a4735d",
   "ShorteningHold": "e29ff72590042624",
   "SourceDeal": "f11b2faf26fe979b",
-  "SpatialSlides": "286c57276d9f9e21",
+  "SpatialSlides": "dbda14c8d2acff43",
   "SpectrumPulse": "8c9575753112be74",
   "SpeedLimit": "1062149416473552",
   "SpinningProton": "8173db1aa50dfbbb",
@@ -2993,22 +2993,22 @@
   "StateSheet": "9ebfa3303acc3b06",
   "StatedBy": "c973c94dd22456ac",
   "StrataColumn": "b52724ad79dca9e8",
-  "SurfaceCarousel": "a35d99705033183e",
+  "SurfaceCarousel": "24e73ba19ed86d3a",
   "SwissEditorial": "20f843becb4a87f0",
   "TallyLedger": "ab3a514bdce445af",
   "TaskFold": "9b1ad216675f15c9",
   "TechnicalPlate": "a904e795fbc94092",
-  "TemporalAccelerate": "b0234903c2e79e70",
+  "TemporalAccelerate": "00e6c332ee9f9217",
   "TensionScale": "9194c1b7c851d044",
-  "TermBars": "c94cc2e3f28fc1f4",
-  "TermCounter": "4eedccf46d714ca6",
-  "TermDiff": "47ab7a8f1529e70b",
-  "TermGitLog": "d31390d346468ca0",
-  "TermLog": "8265496ae8cca34e",
-  "TermSpace": "e7a1f13b1c77ac0e",
+  "TermBars": "a4db94d5b4b9257b",
+  "TermCounter": "19f9c8c9fe1a6836",
+  "TermDiff": "ee5cba36be33c253",
+  "TermGitLog": "ea123fccabe39f79",
+  "TermLog": "bbfab5d737973c46",
+  "TermSpace": "e19bdf24efb67747",
   "TermTable": "d4791beb5eff7b84",
-  "TermThink": "7992b30db6ba4b48",
-  "TermTree": "c1d73639416749fb",
+  "TermThink": "15c8259747554a7c",
+  "TermTree": "1e8af4ce6e859aea",
   "TerrainFly": "a54114905504606d",
   "TimelineTravel": "8ec58f1526c6eeb1",
   "UndersampledKspace": "eb71b41d7dee7b10",
@@ -3019,9 +3019,9 @@
   "VoiceSignal": "519711eed3953b17",
   "VoxelBuild": "3ae03a5d4c40ecf2",
   "WireGlobe": "682228cf46421f58",
-  "WordTunnel": "7966260a3a524ceb",
+  "WordTunnel": "97828b1ec1d3c8d7",
   "WorksThrough": "e2ad62366962a853",
-  "DeviceDemo": "daa42aed68cb47fd",
+  "DeviceDemo": "b74601368621211b",
   "DeviceHero": "e1dca1e1de165427",
   "ObjectStage": "0f6462d80c4bca61",
   "ObjectCompare": "42eb2fde844335ea",
