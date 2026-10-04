@@ -201,6 +201,30 @@ def test_dry_run_changes_nothing(tmp_path, sandbox):
     assert os.path.exists(os.path.join(ws.workshop_dir(out), "objects", "EspressoPuck.tsx"))
 
 
+ALIAS_OBJ = """import React from 'react';
+import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
+export const META: ObjectMeta = {aspect: 0.85, provenance: 'survey-archive'};
+type Props = ObjectProps & {
+  years?: number[];   // era boundaries, oldest first
+  laid?: number;      // how many layers stand by the end
+};
+export const %(name)s: React.FC<Props> = ({w, h, years = [], laid}) => <svg width={w} height={h} />;
+"""
+
+
+@pytest.mark.parametrize("src,props", [(OBJ, "`packed`"), (ALIAS_OBJ, "`laid, years`")], ids=["inline", "alias"])
+def test_an_objects_catalogue_line_names_the_props_it_declares_beside_the_slots_own(tmp_path, sandbox, src, props):
+    """An object is declared over the slot's own props — `React.FC<ObjectProps & {...}>`, or a `Props` alias of
+    that intersection — and its catalogue line is where a director learns what it takes. Read only up to the
+    `ObjectProps &`, every promoted object was catalogued with no props at all."""
+    lib, _calls = sandbox
+    out = _film(tmp_path, src=src)
+    pr.promote(out, "EspressoPuck")
+    line = next(ln for ln in open(str(lib / "LIBRARY.md"), encoding="utf-8").read().splitlines()
+                if ln.startswith("- **EspressoPuck**"))
+    assert line.endswith(props), line
+
+
 def test_a_promoted_shot_refreshes_the_catalogue_census_and_headline_count(monkeypatch):
     """register_shot's own command rewrites LIBRARY.md's family census and its "(N design languages)" headline
     after every registration. A promotion registers through the module, so it has to ask for the same refresh —

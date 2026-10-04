@@ -1447,6 +1447,25 @@ def _probe_the_last_prop_is_read(mod):
     assert "last" in mod._declared_types(_ARITY_SRC, "Inline"), "the last prop was dropped"
 
 
+_INTERSECTED_SRC = """
+type Props = ObjectProps & {
+  years?: number[];
+  laid?: number;
+};
+export const Aliased: React.FC<Props> = ({w, years = []}) => null;
+export const Inline: React.FC<ObjectProps & {packed?: number}> = ({w, packed = 0}) => null;
+"""
+
+
+def _probe_an_intersected_props_type_is_read(mod):
+    """`React.FC<ObjectProps & {packed?: number}>` declares `packed`; the slot's own props come from the named
+    base. Read only up to that name, every object declared nothing — inline and through an alias alike."""
+    assert set(mod._declared_types(_INTERSECTED_SRC, "Inline")) == {"packed"}, \
+        mod._declared_types(_INTERSECTED_SRC, "Inline")
+    assert set(mod._declared_types(_INTERSECTED_SRC, "Aliased")) == {"years", "laid"}, \
+        mod._declared_types(_INTERSECTED_SRC, "Aliased")
+
+
 def _probe_supersession_is_narrow(mod):
     """A superseded prop's default cannot draw, so it is not a finding — but ONLY when the beat actually
     supplies the prop that supersedes it.
@@ -1477,6 +1496,7 @@ PROBES["demo_copy_qa"] = {
     "a_union_fixes_nothing": _probe_a_union_with_a_loose_array_fixes_nothing,
     "nested_shapes_are_not_props": _probe_a_nested_shape_is_not_a_prop,
     "the_last_prop_is_read": _probe_the_last_prop_is_read,
+    "intersected_props_are_read": _probe_an_intersected_props_type_is_read,
     "supersession_is_narrow": _probe_supersession_is_narrow,
 }
 
@@ -1502,8 +1522,13 @@ MUTANTS["demo_copy_qa"] = {
         ("            if given in props:", "            if True:"),
     # ── the slot count ───────────────────────────────────────────────────────────────────────────────
     "a named props type is not resolved, so an aliased register declares nothing":
-        ("    body = _brace_body(src, m.end())\n    if body is None:",
-         "    body = _brace_body(src, m.end())\n    if body is None:\n        return {}\n    if body is None:"),
+        ("    body = _brace_body(src, _past_intersected(src, m.end()))\n    if body is None:",
+         "    body = _brace_body(src, _past_intersected(src, m.end()))\n    if body is None:\n        return {}\n"
+         "    if body is None:"),
+    # An object is declared `React.FC<ObjectProps & {...}>` or through an alias of that intersection; stopping
+    # at the base type's name read every object as declaring nothing, so promote.py catalogued none of them.
+    "an intersection's own props are not read":
+        ("    m = _INTERSECTED.match(src, i)\n    while m:", "    m = None\n    while m:"),
     # NOT the `startswith("[")` guard: `string[]`'s middle is not a primitive either, so the next line
     # catches it anyway and the mutant survives while looking like it disabled the rule. The rule that
     # actually carries the union is reading EVERY member of it.

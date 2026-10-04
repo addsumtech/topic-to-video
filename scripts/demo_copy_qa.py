@@ -90,6 +90,19 @@ def _brace_body(src, i):
     return None
 
 
+_INTERSECTED = re.compile(r"\s*\w+\s*&")
+
+
+def _past_intersected(src, i):
+    """The index past every `Name &` an intersection type opens with at `i` — `ObjectProps & {...}` declares its
+    own props in the `{...}` that follows."""
+    m = _INTERSECTED.match(src, i)
+    while m:
+        i = m.end()
+        m = _INTERSECTED.match(src, i)
+    return i
+
+
 def _declared_types(src, name):
     """{prop: declared type} from the component's own props generic, brace-matched.
 
@@ -103,17 +116,22 @@ def _declared_types(src, name):
     every prop then fell back to the "string" assumption, which is the loosest possible reading of the one
     thing this function exists to be strict about. One register in the library is written that way today
     (AcceptanceStamp), and it is the one whose tuple arity `tuple_arity` has to see.
+
+    An INTERSECTION counts as well: `React.FC<ObjectProps & {...}>` (or an alias of it) is how every object is
+    declared — the slot's own w/h/t/dna come from `ObjectProps`, and the object's own props are the `{...}`
+    after the `&`. Read only up to the base type's name, an object's props came back {} and promote.py
+    catalogued every promoted object with no props.
     """
     m = re.search(r"export const %s:\s*React\.FC<" % re.escape(name), src)
     if not m:
         return {}
-    body = _brace_body(src, m.end())
+    body = _brace_body(src, _past_intersected(src, m.end()))
     if body is None:                                             # `React.FC<Alias>` — resolve the alias
         alias = re.match(r"\s*(\w+)", src[m.end():])
         if not alias:
             return {}
         am = re.search(r"\btype\s+%s\s*=\s*" % re.escape(alias.group(1)), src)
-        body = _brace_body(src, am.end()) if am else None
+        body = _brace_body(src, _past_intersected(src, am.end())) if am else None
         if body is None:
             return {}
     # Comments are stripped FIRST: a doc comment is prose, and prose that happens to hold `word: text;`
