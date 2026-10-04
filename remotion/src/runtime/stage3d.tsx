@@ -31,6 +31,7 @@
 
 import React from 'react';
 import {useVideoConfig} from 'remotion';
+import {useGlide} from './glide';
 
 /** Where a thing stands on the stage. Every field optional; an empty pose is the centre of the frame. */
 export type Pose = {x?: number; y?: number; z?: number; rx?: number; ry?: number; rz?: number; s?: number};
@@ -184,18 +185,26 @@ export const planeAffine = (
  * the space `Surface` lays its children out in. Children are laid out in those local px, unscaled; the
  * matrix carries both the turn and the perspective scale. Pass `affine` when the caller has already computed
  * it (to cull or fade on its screen size) so it is not solved twice.
+ *
+ * `glide`: the stage's camera moves somewhere in this beat. A face that squarely faces the lens is a pure scale
+ * and translate — the matrix under which Skia rounds a line of type to whole pixels (runtime/glide.ts) — so a word
+ * on it steps against its own card while the camera flies. With `glide` the word carries the baseline unlock for
+ * the whole beat, raised for the size the face is drawn at; a stage whose camera never moves leaves it off.
  */
 export const OnSurface: React.FC<{
   pose: Pose; cam: Pose; persp: number; W: number; H: number;
   left: number; top: number; width: number; height: number;
   affine?: ReturnType<typeof planeAffine>;
+  glide?: boolean;
   style?: React.CSSProperties; children?: React.ReactNode;
-}> = ({pose, cam, persp, W, H, left, top, width, height, affine, style, children}) => {
+}> = ({pose, cam, persp, W, H, left, top, width, height, affine, glide = false, style, children}) => {
+  const unlock = useGlide();
   const a = affine ?? planeAffine(pose, cam, persp, W, H, left, top, width, height);
   if (!a) return null;
   return (
     <div style={{position: 'absolute', left: 0, top: 0, width, transformOrigin: '0 0',
-      transform: `matrix(${a.m11},${a.m12},${a.m21},${a.m22},${a.tx},${a.ty})`, ...style}}>
+      transform: unlock(`matrix(${a.m11},${a.m12},${a.m21},${a.m22},${a.tx},${a.ty})`, glide,
+        Math.max(1e-3, a.scale)), ...style}}>
       {children}
     </div>
   );

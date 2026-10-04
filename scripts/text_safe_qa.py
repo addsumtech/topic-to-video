@@ -319,7 +319,14 @@ def glide_run(jobs, bundle_dir, concurrency=None):
             json.dump(jobs, fh, ensure_ascii=False, allow_nan=False)
         cmd = ["node", _GLIDE_RUNNER, _REMOTION, bundle_dir, jobs_path, out_path, "--gl=" + _rs.default_gl(),
                "--concurrency=%d" % (concurrency or glide_concurrency())]
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        # Run from the remotion project, where the renderer keeps its browser (node_modules/.remotion): from
+        # anywhere else it downloads a second copy into the caller's directory. And bounded: a register that
+        # throws on every frame must come back as a failure, not hold the census forever.
+        budget = 240 + 180 * len(jobs)
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION, timeout=budget)
+        except subprocess.TimeoutExpired:
+            r = subprocess.CompletedProcess(cmd, 124, "", "the census runner did not finish in %ds" % budget)
         res = {j["tag"]: {"frames": {}, "done": None, "error": None} for j in jobs}
         if os.path.exists(out_path):
             with open(out_path, encoding="utf-8") as fh:
