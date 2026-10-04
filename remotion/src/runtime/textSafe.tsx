@@ -1310,7 +1310,8 @@ export const TYPE_GLIDE_TAG = 'TYPE-GLIDE ';
 
 /** One line of type that can snap, on one frame: key, true top of its first line box in px, effective opacity,
  *  its text (cut), and flags — `f` drawn through a blur or drop-shadow filter, `s` declared stepped. */
-export type GlideLine = {k: string; y: number; o: number; t: string; fl?: string};
+export type GlideLine = {k: string; y: number; x?: number; w?: number; h?: number; o: number; t: string;
+  fl?: string};
 
 type Mat2 = [number, number, number, number];
 type GlideChain = {M: Mat2 | null; L: Mat2 | null; ls: number; op: number; spatial: boolean; will: boolean;
@@ -1383,7 +1384,10 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     if (!snapsBaseline(b)) { u += 1; return; }
     const r = inkRect(el) ?? el.getBoundingClientRect();
     const fl = (c.spatial ? 'f' : '') + (c.steps ? 's' : '');
-    lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, o: Math.round(c.op * 100) / 100,
+    // x, w, h ride along so a reader can cut the line's own pixels out of a rendered frame and check the census
+    // against what was drawn (the pixel half of an accuracy check); the census itself reads only y
+    lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, x: Math.round(r.left * 100) / 100,
+      w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, o: Math.round(c.op * 100) / 100,
       t: text.length > 32 ? text.slice(0, 32) + '…' : text, ...(fl ? {fl} : {})});
   });
   return {lines, u, z};

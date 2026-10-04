@@ -418,6 +418,11 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
     const raw = clamp01((t - runAt) / 0.12);
     const resIn = d.motion === 'type' || d.motion === 'execute' ? 1 - Math.pow(1 - raw, 4)
       : d.motion === 'mechanical' ? Math.round(raw * 5) / 5 : 1 - Math.pow(1 - raw, 3);
+    // THE BASELINE UNLOCK, written out: the result rises on an ease-out whose tail crawls by less than a pixel a
+    // frame, and Skia steps a crawling line a whole pixel at a time (runtime/glide.ts). It is the literal
+    // BASELINE_UNLOCK rather than an import because every register imports this file, and an import here would
+    // move all of their measurement rows; tests/test_type_glide.py holds the two equal.
+    const unlock = resIn !== 1 ? ' matrix(1, 0.0009765625, 0, 1, 0, 0)' : '';
 
     // TermFrame's unframed box was a FIXED min(84vw, 1320px). With align='left', short content hugged
     // ITS left edge, so a centred box left a large void on the right — measured at 22% content width
@@ -446,7 +451,7 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
           <span style={{display: 'inline-block', width: 14, height: 26, marginLeft: 6, verticalAlign: 'text-bottom',
             background: acc, opacity: running ? (on ? 0.5 : 0.1) : 0.9}} />
         </div>
-        <div style={{opacity: resIn, transform: `translateY(${(1 - resIn) * 26}px)`, width: '100%',
+        <div style={{opacity: resIn, transform: `translateY(${(1 - resIn) * 26}px)${unlock}`, width: '100%',
           display: 'flex', flexDirection: 'column', alignItems: align === 'left' ? 'flex-start' : 'center'}}>{children}</div>
       </div>
     );
@@ -474,6 +479,9 @@ export const EdFrame: React.FC<{dna: DesignDNA | null; kicker?: string; t: numbe
     const d = dna ?? NEUTRAL_DNA;
     const disp = d.fontDisplay, acc = d.accent, dim = d.dim, ls = d.labelSpacing || '0.18em';
     const kIn = clamp01(t / 0.14), ruleIn = clamp01((t - 0.08) / 0.18), bodyIn = 1 - Math.pow(1 - clamp01((t - 0.16) / 0.24), 3);
+    // the baseline unlock while each one moves — the literal BASELINE_UNLOCK, for the reason given in TermFrame
+    const unlockK = kIn !== 1 ? ' matrix(1, 0.0009765625, 0, 1, 0, 0)' : '';
+    const unlockB = bodyIn !== 1 ? ' matrix(1, 0.0009765625, 0, 1, 0, 0)' : '';
     const inner = (
       <div style={{width: 'min(84vw, 1300px)', display: 'flex', flexDirection: 'column',
         alignItems: align === 'left' ? 'flex-start' : 'center', textAlign: align,
@@ -481,10 +489,10 @@ export const EdFrame: React.FC<{dna: DesignDNA | null; kicker?: string; t: numbe
         background: framed ? d.surface : 'transparent'}}>
         {kicker ? <div style={{color: acc, font: `700 26px/1 ${d.fontBody}`, letterSpacing: ls,
           textTransform: d.uppercaseLabels ? 'uppercase' : 'none', opacity: kIn,
-          transform: `translateY(${(1 - kIn) * -8}px)`}}>{kicker}</div> : null}
+          transform: `translateY(${(1 - kIn) * -8}px)${unlockK}`}}>{kicker}</div> : null}
         <div style={{height: 2, background: acc, width: `${ruleIn * (align === 'left' ? 120 : 90)}px`,
           margin: `${kicker ? 22 : 0}px 0 40px`, opacity: 0.9}} />
-        <div style={{opacity: bodyIn, transform: `translateY(${(1 - bodyIn) * 20}px)`, width: '100%',
+        <div style={{opacity: bodyIn, transform: `translateY(${(1 - bodyIn) * 20}px)${unlockB}`, width: '100%',
           fontFamily: disp}}>{children}</div>
       </div>
     );

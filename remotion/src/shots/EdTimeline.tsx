@@ -22,6 +22,7 @@ import {useT, seg, clamp01, REDUCED_MOTION_T} from '../runtime/motion';
 import {CONTENT_TOP, contentBottom, textWidthPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useDNA, EdFrame} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165;
 type Entry = {date?: string; title?: string; note?: string};
@@ -48,6 +49,7 @@ export const EdTimeline: React.FC<{kicker?: string; entries?: Entry[]; framed?: 
         : 'With no entry there is no chronology to draw — pass `entries: [{date, title, note?}]`.'));
   }
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const disp = dna?.fontDisplay ?? '"Playfair Display", Georgia, serif';
@@ -98,7 +100,7 @@ export const EdTimeline: React.FC<{kicker?: string; entries?: Entry[]; framed?: 
             const show = clamp01(seg(t, start, start + DUR));
             return (
               <div key={i} style={{display: 'flex', gap: px(40), alignItems: 'baseline', padding: `${px(26)}px 0`,
-                borderTop: i ? `1px solid ${line}` : 'none', opacity: show, transform: `translateY(${(1 - show) * 14}px)`}}>
+                borderTop: i ? `1px solid ${line}` : 'none', opacity: show, transform: glide(`translateY(${(1 - show) * 14}px)`, show !== 1)}}>
                 <span style={{color: acc, font: `700 ${px(40)}px/${leading(e.date, 1)} ${disp}`, textWrap: 'balance', minWidth: '3ch'}}>{e.date}</span>
                 <div>
                   {/* `text-wrap: balance` for the same reason `date` and `note` already carry it, and the

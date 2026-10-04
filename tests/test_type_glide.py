@@ -269,3 +269,17 @@ def test_the_films_moving_seams_and_drift_carry_the_unlock(census_bundle):
         level[j["tag"]] = tq.glide_level(tq.judge_glide(slot["frames"]))[0]
     assert level["seams-old"] == "error" and level["drift-old"] == "error", level
     assert level["seams"] in ("clean", "warn") and level["drift"] == "clean", level
+
+
+@needs_toolchain
+def test_the_unlock_written_into_dna_is_the_runtime_one():
+    """TermFrame and EdFrame (runtime/dna.tsx) carry the baseline unlock as a LITERAL — every register imports that
+    file, so importing runtime/glide there would move every register's measurement rows. A literal is a second copy
+    of the constant, and a second copy drifts; this holds the two equal, and counts the sites so one cannot be
+    dropped or added unseen."""
+    import re
+    dna = open(os.path.join(os.path.dirname(_HERE), "remotion", "src", "runtime", "dna.tsx"), encoding="utf-8").read()
+    written = re.findall(r"' (matrix\([^)]*\))'", dna)
+    assert len(written) == 3, "TermFrame's result and EdFrame's kicker and body each carry one: %r" % written
+    out = _tsprobe.run_ts("import {BASELINE_UNLOCK} from %s;" % _tsprobe.mod("glide"), "out.u = BASELINE_UNLOCK;")
+    assert set(written) == {out["u"]}, "dna.tsx's unlock %r is not runtime/glide's %r" % (set(written), out["u"])
