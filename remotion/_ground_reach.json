@@ -278,7 +278,7 @@
     "light": 0.9559735059738159,
     "dark": 0.002428215928375721
    },
-   "moved": 0.9958072916666667,
+   "moved": 0.9957315340909091,
    "ok": true,
    "why": []
   },
@@ -443,7 +443,7 @@
     "light": 0.9828896522521973,
     "dark": 0.0012141079641878605
    },
-   "moved": 0.9851325757575757,
+   "moved": 0.9847845643939394,
    "ok": true,
    "why": []
   },
@@ -1818,9 +1818,9 @@
    },
    "fieldY": {
     "light": 0.973445475101471,
-    "dark": 0.8116430640220642
+    "dark": 0.811108410358429
    },
-   "moved": 0.6652580492424243,
+   "moved": 0.662890625,
    "ok": false,
    "why": [
     "band ink dark wants #141414",
@@ -2854,7 +2854,7 @@
   "BrutalistType": "312571546ea92508",
   "CardFlip3D": "731cb6eea040efc7",
   "CardStack3D": "d85d08b43210eba1",
-  "CarryOver": "17096a0428f04031",
+  "CarryOver": "1309f9a0e27b4218",
   "CartoonPop": "28b177db4b1a1a9a",
   "ChartLive": "8cd146bf43370f69",
   "ChartRace": "0aa037cc9f9c7f83",
@@ -2865,7 +2865,7 @@
   "ClothWave": "7b506e4d2014b35d",
   "CodeCompose": "46cea6fef43ebe17",
   "CodeRain": "1a7f64ad3873f4ef",
-  "CollaborativeCursors": "afe1666d6615ab13",
+  "CollaborativeCursors": "97ca7b39850d3d36",
   "ComicPanels": "7bd3fb72ac55c742",
   "CommandSummon": "91a10742ef27db7b",
   "CompanionCard": "59cc1b8135f56f8c",
@@ -2951,7 +2951,7 @@
   "OverlapSeparation": "161d313fa5976bf2",
   "PageWrite": "10e558a58babb807",
   "PaperCutout": "a913fc5f3b09a2c0",
-  "PaperSlot": "402cf1d906a5408c",
+  "PaperSlot": "381cc60d447ff1dc",
   "ParticleForm": "fca578a38371fab2",
   "PhaseEncodeStep": "c6cd903b075a2d0d",
   "PhotoPlate": "22708dc2339edc71",

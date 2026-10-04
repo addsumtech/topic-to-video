@@ -19,7 +19,7 @@
     "BrutalistType": "312571546ea92508",
     "CardFlip3D": "7335b2cac4792ec5",
     "CardStack3D": "d85d08b43210eba1",
-    "CarryOver": "17096a0428f04031",
+    "CarryOver": "1309f9a0e27b4218",
     "CartoonPop": "aba82707fa7ef796",
     "ChartLive": "8cd146bf43370f69",
     "ChartRace": "0aa037cc9f9c7f83",
@@ -30,7 +30,7 @@
     "ClothWave": "79ca5d6a89beb610",
     "CodeCompose": "46cea6fef43ebe17",
     "CodeRain": "a6afc43ba7b0505b",
-    "CollaborativeCursors": "afe1666d6615ab13",
+    "CollaborativeCursors": "97ca7b39850d3d36",
     "ComicPanels": "7bd3fb72ac55c742",
     "CommandSummon": "dae3098dcc2f752b",
     "CompanionCard": "59cc1b8135f56f8c",
@@ -116,7 +116,7 @@
     "OverlapSeparation": "161d313fa5976bf2",
     "PageWrite": "10e558a58babb807",
     "PaperCutout": "47b27ed88c52d6fa",
-    "PaperSlot": "070271423508e771",
+    "PaperSlot": "4af9c8b4d3bd3844",
     "ParticleForm": "fca578a38371fab2",
     "PhaseEncodeStep": "c6cd903b075a2d0d",
     "PhotoPlate": "22708dc2339edc71",
@@ -352,8 +352,8 @@
       "footprint": 0.657
     },
     "CarryOver": {
-      "motion_p75": 0.0007,
-      "ink_median": 0.05,
+      "motion_p75": 0.0006,
+      "ink_median": 0.051,
       "luma_range": 0.012,
       "seconds": 5.5,
       "footprint": 0.461
@@ -1087,7 +1087,7 @@
       "footprint": 0.796
     },
     "PaperSlot": {
-      "motion_p75": 0.0019,
+      "motion_p75": 0.002,
       "ink_median": 0.038,
       "luma_range": 0.003,
       "seconds": 5.5,
