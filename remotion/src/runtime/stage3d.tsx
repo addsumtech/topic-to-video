@@ -31,7 +31,7 @@
 
 import React from 'react';
 import {useVideoConfig} from 'remotion';
-import {useGlide} from './glide';
+import {BaselineUnlockContext, unlockSkewFor, usePlaceGlide} from './glide';
 
 /** Where a thing stands on the stage. Every field optional; an empty pose is the centre of the frame. */
 export type Pose = {x?: number; y?: number; z?: number; rx?: number; ry?: number; rz?: number; s?: number};
@@ -198,17 +198,29 @@ export const OnSurface: React.FC<{
   glide?: boolean;
   style?: React.CSSProperties; children?: React.ReactNode;
 }> = ({pose, cam, persp, W, H, left, top, width, height, affine, glide = false, style, children}) => {
-  const unlock = useGlide();
+  const allowed = React.useContext(BaselineUnlockContext);
   const a = affine ?? planeAffine(pose, cam, persp, W, H, left, top, width, height);
   if (!a) return null;
+  // The unlock is turned the SAME WAY as the face's own tilt: the skew Skia judges is the face's m12 plus the
+  // unlock times m22, and a face tilted a hair the other way would cancel a positive unlock to exactly the zero
+  // it exists to avoid. Raised for the size the face is drawn at, floored at a tenth (smaller is not read).
+  const k = glide && allowed
+    ? unlockSkewFor(Math.max(0.1, a.scale)) * (a.m12 * a.m22 < 0 ? -1 : 1) : 0;
   return (
     <div style={{position: 'absolute', left: 0, top: 0, width, transformOrigin: '0 0',
-      transform: unlock(`matrix(${a.m11},${a.m12},${a.m21},${a.m22},${a.tx},${a.ty})`, glide,
-        Math.max(1e-3, a.scale)), ...style}}>
+      transform: `matrix(${a.m11},${a.m12},${a.m21},${a.m22},${a.tx},${a.ty})${k ? ` matrix(1, ${k}, 0, 1, 0, 0)` : ''}`,
+      ...style}}>
       {children}
     </div>
   );
 };
+
+/**
+ * Where a BILLBOARD goes — a word placed IN the space by `projectPose` at a projected point — as positioning style:
+ * `usePlaceGlide` (runtime/glide.ts), its place a translate carrying the unlock while the stage camera moves. A
+ * billboard moved by `left`/`top` steps a whole pixel at a time whatever skew it carries.
+ */
+export const useBillboardGlide = usePlaceGlide;
 
 /** The box on the frame a projected label may occupy — the same shape `runtime/fitCamera` takes, and for the
  *  same reason: "does it fit" and "does it collide with the caption band" are one question. */

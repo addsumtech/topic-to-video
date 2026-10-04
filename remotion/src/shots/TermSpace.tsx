@@ -257,7 +257,7 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
         return (
           // A CONSOLE'S TEXT STARTS AT THE TOP, under the title bar — centring it in the window is a card's
           // habit, not a terminal's. `ltop` above is that offset in the window's own units.
-          <OnSurface key={k} pose={p} cam={cam} persp={P} W={W} H={H}
+          <OnSurface key={k} pose={p} cam={cam} persp={P} W={W} H={H} glide={out !== 1}
             left={lleft} top={ltop} width={lw} height={lblock} affine={aff}
             style={{opacity: (0.3 + 0.7 * near) * fade, textShadow: '0 2px 10px rgba(0,0,0,.6)'}}>
             {/* NO `overflow: hidden` HERE. A clipped name is a string the register DECLINED to draw, and

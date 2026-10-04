@@ -26,7 +26,7 @@ import {leading} from '../runtime/cjkType';
 // @billboard: each phrase IS the object in the corridor, not writing on a face — there is no surface for it
 // to lie on, and a word flying at the lens must face the viewer or it is unreadable at the one moment it is
 // largest. Placed by `projectPose` on purpose; see `OnSurface` in runtime/stage3d for the other case.
-import {projectPose, PERSP_FRAC, type Pose} from '../runtime/stage3d';
+import {projectPose, useBillboardGlide, PERSP_FRAC, type Pose} from '../runtime/stage3d';
 
 export const DURATION = 165; // 5.5s
 
@@ -44,6 +44,8 @@ export const WordTunnel: React.FC<{phrases?: string[]; tail?: string}> = ({
 } = {}) => {
   const dna = useDNA();
   const t = useT();
+  // every phrase in the corridor carries the unlock until the camera stops (`travel` reaches 1)
+  const billboard = useBillboardGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   const P = Math.round(U * PERSP_FRAC);
@@ -111,6 +113,11 @@ export const WordTunnel: React.FC<{phrases?: string[]; tail?: string}> = ({
   // is fitted to and the size it is drawn at cannot drift apart.
   const K_HELD = P / (P - HELD_EZ);
   const cam: Pose = {z: camStart + travel * (camEnd - camStart)};
+  // where the held phrase comes to rest, and the sub-pixel it is eased off over the flight so it LANDS on a whole
+  // pixel — the place a rounded layout position gave it, so the settled frame is the one this shot always drew,
+  // with no jump on the frame the camera stops (runtime/stage3d useBillboardGlide)
+  const restY = projectPose(poses[n - 1], {z: camEnd}, P, W, H).y;
+  const landY = (Math.round(restY) - restY) * travel;
 
   // THE ZONE A PHRASE MAY OCCUPY. A word arriving at speed is exactly the thing that would sail through the
   // caption band unnoticed, so the band is not something this register merely avoids on average — a phrase
@@ -201,11 +208,11 @@ export const WordTunnel: React.FC<{phrases?: string[]; tail?: string}> = ({
         // block centred at left:960 on a 1920 frame had 960px to wrap in, not the 1651 its fit measured
         // against, and it came down two lines onto the tail. A measure the fit uses and a measure the
         // browser uses that are not the same number is the defect this library keeps paying for.
-        <div key={d.i} style={{position: 'absolute', top: d.y, opacity: d.o, color: d.held ? ACC : FG,
+        <div key={d.i} style={{position: 'absolute', opacity: d.o, color: d.held ? ACC : FG,
           ...(d.held
-            ? {left: Math.round((W - HELD_BOX) / 2), width: HELD_BOX, textAlign: 'center' as const,
-               transform: 'translateY(-50%)'}
-            : {left: d.x, whiteSpace: 'nowrap' as const, transform: 'translate(-50%, -50%)'}),
+            ? {...billboard(travel !== 1, Math.round((W - HELD_BOX) / 2), d.y + landY, 'translateY(-50%)'), width: HELD_BOX,
+               textAlign: 'center' as const}
+            : {...billboard(travel !== 1, d.x, d.y, 'translate(-50%, -50%)'), whiteSpace: 'nowrap' as const}),
           font: `800 ${d.px}px/${d.lh} var(--f-display, Inter, system-ui, sans-serif)`,
           letterSpacing: '-0.02em',
           // The glow rides the phrase's own colour and its nearness, so the corridor has a light in it

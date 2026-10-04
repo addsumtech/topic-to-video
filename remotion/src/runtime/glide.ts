@@ -127,3 +127,21 @@ export const useGlide = () => {
   const allowed = React.useContext(BaselineUnlockContext);
   return (transform: string | undefined, on: boolean, under = 1) => glide(transform, allowed && on, under);
 };
+
+/**
+ * Where a label that MOVES stands, as positioning style — for anything placed at a point that travels (a projected
+ * point, a cursor, a sheet being drawn out).
+ *
+ * The place is a TRANSLATE, never `left`/`top`. A layout position is rounded to whole pixels by the browser before
+ * Skia draws anything, so type moved by layout steps whatever skew it carries — measured on CameraTypeProbe, a
+ * crawl moved by `top` stepped 0.284px against its true position with the unlock on the element or on a still
+ * wrapper, and 0.007px moved by a translate in the unlocked transform. `moving` is the span (runtime/glide's
+ * header); `base` is the transform the label already had, applied inside the move (`translate(-50%, -50%)` to
+ * centre it on the point). A label that must come to rest on the whole pixel it used to stand on is eased onto it
+ * over the move by its caller, never rounded when the move stops (that is a one-pixel jump on the landing frame).
+ */
+export const usePlaceGlide = () => {
+  const glide = useGlide();
+  return (moving: boolean, x: number, y: number, base?: string): React.CSSProperties =>
+    ({left: 0, top: 0, transform: glide(`translate(${x}px, ${y}px)${base ? ` ${base}` : ''}`, moving)});
+};

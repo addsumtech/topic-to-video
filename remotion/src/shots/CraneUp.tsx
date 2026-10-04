@@ -26,7 +26,8 @@ import {useT, seg, clamp01, lerp, easeInOutCubic, easeOutCubic} from '../runtime
 import {CONTENT_TOP, contentBottom, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useDNA, readableOn, dimOn, plane} from '../runtime/dna';
-import {Stage3D, Surface, projectPose, PERSP_FRAC, type Pose} from '../runtime/stage3d';
+import {Stage3D, Surface, projectPose, useBillboardGlide, PERSP_FRAC, type Pose} from '../runtime/stage3d';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 195; // 6.5s
 
@@ -62,6 +63,8 @@ export const CraneUp: React.FC<{
        note = 'the arrangement was never visible at eye level'} = {}) => {
   const dna = useDNA();
   const t = useT();
+  const billboard = useBillboardGlide();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
 
   // ── the film's data, refused rather than trimmed ────────────────────────────────────────────────────
@@ -164,7 +167,8 @@ export const CraneUp: React.FC<{
         ))}
       </Stage3D>
 
-      {/* the labels, flat on the screen over their own tiles */}
+      {/* the labels, flat on the screen over their own tiles — and gliding with them: they carry the baseline
+          unlock until the crane lands (runtime/stage3d useBillboardGlide) */}
       {poses.map((pose, i) => {
         const pt = projectPose(pose, cam, P, W, H);
         // A tile behind the lens has no on-screen position, and `projectPose` says so rather than
@@ -175,7 +179,7 @@ export const CraneUp: React.FC<{
         // layer floating over the shot instead of as writing on the arrangement.
         const kw = tileW * pt.k, kp = Math.max(9, LABEL_PX * pt.k);
         return (
-          <div key={i} style={{position: 'absolute', left: pt.x - kw / 2, top: pt.y - kp,
+          <div key={i} style={{position: 'absolute', ...billboard(lift !== 1, pt.x - kw / 2, pt.y - kp),
             width: kw, textAlign: 'center', opacity: legible,
             font: `600 ${kp}px/${leading(TL[i], 1.2)} ${disp}`, color: strong}}>{TL[i]}</div>
         );
@@ -195,7 +199,7 @@ export const CraneUp: React.FC<{
       {reveal ? (
         <div style={{position: 'absolute', left: W * 0.15, width: W * 0.7, textAlign: 'center',
           top: zoneTop + U * 0.02, opacity: revealIn,
-          transform: `translateY(${(1 - easeOutCubic(revealIn)) * U * 0.02}px)`,
+          transform: glide(`translateY(${(1 - easeOutCubic(revealIn)) * U * 0.02}px)`, revealIn !== 1),
           font: `700 ${LINE_PX}px/${leading(String(reveal), 1.2)} ${disp}`,
           color: readableOn(BG, ACC, strong)}}>{reveal}</div>
       ) : null}
