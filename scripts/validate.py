@@ -1257,6 +1257,102 @@ def _ground_ref_error(ref, where, presets):
     return "%s must be an index, a named ground, a #hex or a {bg:...} spec — got %s" % (where, type(ref).__name__)
 
 
+def _light_key_y():
+    """LIGHT_KEY_Y, PARSED from remotion/src/runtime/light.tsx — the luminance above which a ground is the light
+    exposure. None when unreadable, and the caller then declines to judge."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        src = open(os.path.join(root, "remotion", "src", "runtime", "light.tsx"), encoding="utf-8").read()
+    except OSError:
+        return None
+    m = re.search(r"export const LIGHT_KEY_Y\s*=\s*([0-9.]+)", src)
+    return float(m.group(1)) if m else None
+
+
+def _ground_preset_bgs():
+    """{name: bg} for the named grounds, PARSED from light.tsx's GROUND_PRESETS like _ground_preset_names."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        src = open(os.path.join(root, "remotion", "src", "runtime", "light.tsx"), encoding="utf-8").read()
+    except OSError:
+        return {}
+    m = re.search(r"export const GROUND_PRESETS[^{]*\{(.*?)\n\};", src, re.S)
+    if not m:
+        return {}
+    return dict(re.findall(r"^\s{2}([A-Za-z][A-Za-z0-9_]*)\s*:\s*\{\s*bg:\s*'(#[0-9a-fA-F]{3,8})'", m.group(1), re.M))
+
+
+def _hex_y(c):
+    """Relative luminance of a #rgb / #rrggbb colour, or None for anything else."""
+    if not isinstance(c, str):
+        return None
+    h = c.strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(ch * 2 for ch in h)
+    if not re.fullmatch(r"[0-9a-fA-F]{6}", h):
+        return None
+    lin = [(v / 12.92) if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+           for v in (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def _ground_key(ref, dna, presets, key_y):
+    """'light' / 'dark' for one end of a ramp, as far as the board alone can say — None when it cannot.
+    Mirrors light.tsx resolveRef: an index into the DNA's declared grounds (or, when it declares none, the
+    DERIVED set — 0 the film's own ground, 1 its opposite exposure), a named preset, a #hex, an inline spec."""
+    def key(c):
+        y = _hex_y(c)
+        return None if y is None else ("light" if y > key_y else "dark")
+    own = key((dna or {}).get("bg"))
+    if isinstance(ref, bool):
+        return None
+    if isinstance(ref, int):
+        declared = (dna or {}).get("grounds")
+        if isinstance(declared, list) and declared:
+            g = declared[ref] if 0 <= ref < len(declared) else None
+            return key(g.get("bg")) if isinstance(g, dict) else None
+        if ref == 0:
+            return own
+        if ref == 1 and own:
+            return "dark" if own == "light" else "light"
+        return None
+    if isinstance(ref, str):
+        return key(ref) if ref.startswith("#") else key(presets.get(ref))
+    if isinstance(ref, dict):
+        return key(ref.get("bg"))
+    return None
+
+
+def _ramp_crossings(meta, slides, warnings):
+    """A ground RAMP between the two exposure keys blanks the frame halfway through it.
+
+    runtime/light.tsx resolves both ends and mixes EVERY token across the ramp — bg, fg, dim, the accents, the
+    surfaces — so the inks, chosen to read on opposite grounds, pass through the ground's own tone at the same
+    moment it does. Only the burned caption picks its ink per frame. Seen on a delivered city film: a paper ->
+    night ramp on a strata column, and mid-ramp the column's three old layers, its outline and the kicker were
+    all gone, one red layer floating on grey. The runtime is where it is fixed; until then this names it before
+    a render, with the move that works: cut to the other key and mark the cut `carry`, the one seam that bridges
+    a dark<->light cut."""
+    key_y = _light_key_y()
+    if key_y is None:
+        return
+    dna = meta.get("design_dna") if isinstance(meta.get("design_dna"), dict) else None
+    presets = _ground_preset_bgs()
+    for pos, s in enumerate(slides, start=1):
+        g = s.get("ground")
+        if not (isinstance(g, dict) and "from" in g and "to" in g):
+            continue
+        a, b = _ground_key(g["from"], dna, presets, key_y), _ground_key(g["to"], dna, presets, key_y)
+        if a and b and a != b:
+            warnings.append(
+                "remotion: beat %d ramps its ground from the %s exposure to the %s one. The runtime mixes every "
+                "colour token across a ramp, so the beat's own inks pass through the ground's tone halfway — "
+                "type, outlines and fills vanish for part of the ramp (only the burned caption picks its ink "
+                "per frame). Ramp within one exposure, or give the beat the other key as a plain `ground` and "
+                "mark the cut into it `transition_in: {type: \"carry\"}`, the seam that bridges a dark<->light "
+                "cut." % (pos, a, b))
+
+
 def _beat_grounds(slides, errors, warnings):
     """`slide.ground` / `slide.key` — the per-beat exposure the delivery path now forwards.
 
@@ -3027,6 +3123,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings, out_dir=out_dir)
         _beat_grounds(slides, errors, warnings)
+        _ramp_crossings(meta, slides, warnings)
         _film_language(meta, slides, errors, warnings, skips=skips)
         _image_attribution(slides, out_dir, errors, warnings)
         _caption_legibility(meta, slides, errors, warnings, out_dir)

@@ -100,3 +100,40 @@ def test_one_re_grounded_beat_is_reported_as_not_an_arc():
     v._beat_grounds(beats, errs, warns)
     assert not errs
     assert any("not a luminance ARC" in w for w in warns), warns
+
+
+# ── a ramp between the two exposure keys ────────────────────────────────────────────────────────────────
+# light.tsx mixes every token across a ramp, so inks chosen for opposite grounds pass through the ground's own
+# tone together with it: mid-ramp a strata column's layers, outline and kicker vanished on a delivered film.
+_PAPER_AND_NIGHT = {"bg": "#efe9dc", "grounds": [{"bg": "#efe9dc", "name": "paper"}, {"bg": "#101826", "name": "night"}]}
+
+
+def _ramp_warnings(dna, ground):
+    warns = []
+    v._ramp_crossings({"design_dna": dna}, _beats({"shot": "ObjectStage", "ground": ground}), warns)
+    return warns
+
+
+def test_a_ramp_from_paper_to_night_is_named_before_the_render():
+    warns = _ramp_warnings(_PAPER_AND_NIGHT, {"from": 0, "to": 1, "at": [0.1, 0.4]})
+    assert len(warns) == 1, warns
+    assert "beat 1" in warns[0] and "light exposure to the dark" in warns[0], warns[0]
+    assert "carry" in warns[0], "the warning must name the cut that works instead"
+
+
+def test_the_derived_opposite_ground_counts_as_the_other_key():
+    # a DNA that declares no grounds gets them derived: 1 is the film's OPPOSITE exposure by construction
+    assert len(_ramp_warnings({"bg": "#efe9dc"}, {"from": 0, "to": 1})) == 1
+    assert len(_ramp_warnings({"bg": "#0a0f16"}, {"from": 0, "to": 1})) == 1
+
+
+def test_a_ramp_within_one_key_and_a_plain_ground_are_left_alone():
+    assert _ramp_warnings({"bg": "#efe9dc"}, {"from": "paper", "to": "gallery"}) == []
+    assert _ramp_warnings(_PAPER_AND_NIGHT, 1) == []
+    assert _ramp_warnings(_PAPER_AND_NIGHT, {"from": 1, "to": "#202a3a"}) == []   # night to night
+
+
+def test_a_ramp_whose_end_cannot_be_resolved_is_not_guessed_at():
+    # an index past the declared grounds, or a chromatic derived ground, says nothing about its key
+    assert _ramp_warnings(_PAPER_AND_NIGHT, {"from": 0, "to": 5}) == []
+    assert _ramp_warnings({"bg": "#efe9dc"}, {"from": 0, "to": 2}) == []
