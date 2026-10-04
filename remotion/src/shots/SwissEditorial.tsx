@@ -8,6 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutExpo} from '../runtime/motion';
 import {captionBand, textWidthPx} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 import {fitText} from '@remotion/layout-utils';
 
 export const DURATION = 165; // 5.5s
@@ -27,6 +28,7 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
   // about. A corner mark nobody can decode is furniture; pass one that means something, or nothing.
   colophon: COLOPHON = ''} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // LEVEL-C DNA migration: the WHOLE palette flips together (ground + ink + accent + on-accent), so on a dark DNA
   // this reads as a dark editorial poster instead of inverting to invisible ink-on-ink (the level-A failure). Null
@@ -93,7 +95,7 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
 
       {/* massive flush-left snapping word (clip-rise reveal) */}
       <div style={{position: 'absolute', left: 120, top: H * 0.5, transform: 'translateY(-50%)', width: W - 240, height: 360, overflow: 'hidden'}}>
-        <div style={{transform: `translateY(${(1 - reveal) * 360}px)`, color: FG,
+        <div style={{transform: glide(`translateY(${(1 - reveal) * 360}px)`, reveal !== 1), color: FG,
           font: `900 ${wordSize}px/0.86 ${disp}`, letterSpacing: '-0.04em', whiteSpace: 'nowrap'}}>
           {word.slice(0, -1)}<span style={{color: ACC}}>{word.slice(-1)}</span>
         </div>

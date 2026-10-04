@@ -17,6 +17,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 export const MAX_STOPS = 6;
@@ -52,6 +53,7 @@ export const TimelineTravel: React.FC<{nodes?: {time: string; label: string}[]}>
   const ACCENT = dna?.accent ?? ACCENT0, INK = dna?.fg ?? INK0, BG = dna?.bg ?? '#f4f6fa';
   const RAIL = dna?.line ?? '#d8dee8', SURF = dna?.surface ?? '#fff', BORD = dna?.line ?? '#c7cedb', DIM = dna?.dim ?? '#9aa3b2';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const gap = 720, x0 = 520, railY = H / 2;
   const worldW = x0 * 2 + (NODES.length - 1) * gap;
@@ -81,7 +83,8 @@ export const TimelineTravel: React.FC<{nodes?: {time: string; label: string}[]}>
                 background: done ? ACCENT : SURF, border: `3px solid ${done ? ACCENT : BORD}`,
                 boxShadow: done ? `0 0 0 8px ${ACCENT}22` : 'none', transform: `scale(${done ? 1.1 : 1})`}} />
               <div style={{position: 'absolute', left: nx - 190, top: up ? railY - 200 : railY + 70, width: 380,
-                textAlign: 'center', opacity: clamp01(pop), transform: `translateY(${lerp(up ? 20 : -20, 0, clamp01(pop))}px)`}}>
+                textAlign: 'center', opacity: clamp01(pop),
+                transform: glide(`translateY(${lerp(up ? 20 : -20, 0, clamp01(pop))}px)`, clamp01(pop) !== 1)}}>
                 <div style={{font: '800 40px/1 var(--f-body, Inter,system-ui,sans-serif)', color: done ? ACCENT : DIM}}>{n.time}</div>
                 <div style={{font: '600 46px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: INK, marginTop: 12}}>{n.label}</div>
               </div>

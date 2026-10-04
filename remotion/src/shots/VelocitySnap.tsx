@@ -17,6 +17,7 @@ import {useDNA, mix, shade} from '../runtime/dna';
 import {Figure} from '../runtime/atoms';
 import {figureText} from '../runtime/figure';
 import {textWidthPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 120; // 4s — snappy
 const PUR0 = '#7C89FF', BG = '#0c0d14';
@@ -29,6 +30,7 @@ export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: str
   // "nothing passed at all" may unlock the demo figure.
   label: labelIn, label = 'Done.', metric: metricIn, metric = '0', unit} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA(); const PUR = dna?.accent ?? PUR0;
   // A PANEL IS A SURFACE, NOT A DARK WORLD — it takes the film's ground and its ink like everything else.
   // The fills and borders were dark literals, which is what this register's own card means by "a light,
@@ -68,16 +70,23 @@ export const VelocitySnap: React.FC<{label?: string; metric?: string; unit?: str
         const blur = r < 0.75 ? 22 * vel : 0;
         const tx = lerp(p.dx, 0, e), ty = lerp(p.dy, 0, e);
         const pulse = doneAll ? 1 + 0.012 * Math.max(0, Math.sin((t - 0.44) * 30)) * Math.exp(-(t - 0.44) * 6) : 1;
+        const flying = e !== 1 || pulse !== 1;
         return <div key={i} style={{position: 'absolute', left: p.x, top: p.y, width: p.w, height: p.h,
-          opacity: clamp01(r * 2), transform: `translate(${tx}px, ${ty}px) scale(${pulse})`,
-          filter: blur > 0.5 ? `blur(${blur}px)` : undefined,
-          background: p.c ? `linear-gradient(150deg, ${p.c}, ${PUR_DEEP})` : PANEL,
-          border: `1px solid ${p.c ? 'transparent' : PANEL_BORDER}`, borderRadius: 16,
-          boxShadow: '0 20px 50px rgba(0,0,0,.4)'}}>
-          {/* the word sits ON the accent fill, so its ink is the film's `onAccent`, not a literal white:
-              across the eight presets white measures 1.77–3.51:1 on their own accents and `onAccent`
-              5.35–10.70:1, and at the gradient's deep end 1.77–3.51 against 3.20–5.01. */}
-          {p.c && <div style={{position: 'absolute', left: 30, bottom: 26, font: '800 66px/1 var(--f-display, Inter,system-ui,sans-serif)', color: dna?.onAccent ?? '#fff'}}>{label}</div>}
+          opacity: clamp01(r * 2), transform: glide(`translate(${tx}px, ${ty}px) scale(${pulse})`, flying)}}>
+          {/* the motion-blur streak is its own layer: a blur() on the SAME element as the flying transform
+              keeps only the scale of the matrix above it, so the unlock above would never reach the word
+              drawn inside it (runtime/glide.ts) — the word below carries a second, local one instead. */}
+          <div style={{position: 'absolute', inset: 0,
+            filter: blur > 0.5 ? `blur(${blur}px)` : undefined,
+            background: p.c ? `linear-gradient(150deg, ${p.c}, ${PUR_DEEP})` : PANEL,
+            border: `1px solid ${p.c ? 'transparent' : PANEL_BORDER}`, borderRadius: 16,
+            boxShadow: '0 20px 50px rgba(0,0,0,.4)'}}>
+            {/* the word sits ON the accent fill, so its ink is the film's `onAccent`, not a literal white:
+                across the eight presets white measures 1.77–3.51:1 on their own accents and `onAccent`
+                5.35–10.70:1, and at the gradient's deep end 1.77–3.51 against 3.20–5.01. */}
+            {p.c && <div style={{position: 'absolute', left: 30, bottom: 26, transform: glide(undefined, flying),
+              font: '800 66px/1 var(--f-display, Inter,system-ui,sans-serif)', color: dna?.onAccent ?? '#fff'}}>{label}</div>}
+          </div>
         </div>;
       })}
       {figure ? <div style={{position: 'absolute', right: 150, top: 150, textAlign: 'right', opacity: easeOutCubic(seg(t, 0.4, 0.55))}}>
