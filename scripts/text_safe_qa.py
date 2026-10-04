@@ -582,6 +582,11 @@ def main_glide(argv):
         for x in e.problems:
             print("[text_safe] PROBLEM: " + x)
         return 2
+    except (RuntimeError, OSError, ValueError) as e:
+        # a board this tree cannot render (a shot it does not have, a missing file) measured NOTHING — said so,
+        # never read as a clean census
+        print("[text_safe] glide NOT MEASURED — the film could not be rendered for the census: %s" % e)
+        return 2
     for x in rep["errors"]:
         print("[text_safe] ERROR %s" % x)
     for x in rep["warns"]:

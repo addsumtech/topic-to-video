@@ -94,6 +94,8 @@ safe. Exceeding 0.25 often produces visible stepping at 30 fps with ffmpeg's
 Note: `render.py` already applies `meta.motion_ss` (default 2) supersampling to reduce stepping
 (scale up → zoompan → scale back down with lanczos). If jitter persists at the default delta,
 raise `meta.motion_ss` to 3 before reducing the zoom delta.
+Measured: the default move at `motion_ss` 2 shows a continuous 0.1–0.3 px RMS ripple and no staircase. Type that
+steps a pixel at a time on the remotion or HTML tier is a different defect — see `text_safe_qa.py --glide`.
 
 ---
 

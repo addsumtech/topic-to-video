@@ -107,6 +107,8 @@ content** — they assert no fact, so they stay decorative; the real data is the
 - Motion (seekable, paused): `class="float"` — a slow one-shot upward drift from +26px to rest
   (NOT a loop/bob); distinct from `class="reveal-up"` which is a 48px entrance + fade. Use `.float`
   for atmospheric elements that settle into position; use `.reveal-up` for content entrances.
+  All reveal/motion classes already carry a baseline-unlock skew while moving (so slow text glides, not steps)
+  and drop it on settle — authors never add this themselves.
 
 **Stroke weight for video:** information-carrying SVG/diagram strokes are **≥2px** — thin lines
 die under yuv420p encoding. The 1px `--hairline` card border is decorative only (cards are
@@ -347,6 +349,8 @@ its directional sweep to reveal via a plain opacity fade instead; all pass `keyf
 ambients don't trip the overflow probe). Do not stack them — one moving thing at a time. `validate.py`
 warns on >1 living backdrop or a `.bg-live`/`.bg-drift` on a non-full-bleed element (the raw
 `[data-ambient]` hook is an advanced escape hatch — not full-bleed-linted, so you own its placement).
+A custom `[data-ambient]` animation that moves TEXT with its own axis-aligned transform does not get the unlock
+automatically — append `matrix(1,.0009765625,0,1,0,0)` to that transform (no gate checks a custom HTML animation yet).
 
 **Render note:** an ambient page is captured **every frame** (the backdrop moves continuously, so the
 frame-copy hold optimization is disabled for it) — affordable because living backdrops are rare

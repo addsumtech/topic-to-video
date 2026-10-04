@@ -46,8 +46,16 @@ inside its box in any script.
 ### `pageCam2D`
 A camera over a page bigger than the frame: keys it moves between, and where a page point lands on screen.
 **Reach for it:** a tour across a document, a map, a long interface.
-**Smallest real use:** `const cam = camAt(keys, t); const s = pageToScreen(cam, W, H, px, py);`
-**Exports:** `PageCam2D`, `camAt`, `pageToScreen`, `clampToPage`, `fitScale`.
+**Smallest real use:** `const cam = camAt(keys, t); const unlock = useCamUnlock(camUnlock(keys)); const s = pageToScreen(cam, W, H, px, py, unlock);`
+**Exports:** `PageCam2D`, `camAt`, `pageToScreen`, `pageCamTransform`, `camUnlock`, `useCamUnlock`, `camMoves`, `clampToPage`, `fitScale`.
+
+### `glide`
+Type that MOVES glides with its drawing instead of stepping a whole pixel at a time: the 1/1024 skew Skia needs to
+place a moving line to the quarter pixel, added only over the span the motion runs.
+**Reach for it:** every transform or layout position that moves type — a reveal, a drift, a scroll, a camera. Below a
+blur or drop-shadow, never above it (those filters keep only the scale of the matrix above them).
+**Smallest real use:** ``const glide = useGlide(); … transform: glide(`translateY(${(1 - e) * 20}px)`, e !== 1)``
+**Exports:** `glide`, `useGlide`, `unlockFor`, `unlockSkewFor`, `BASELINE_UNLOCK`, `BASELINE_UNLOCK_SKEW`, `BaselineUnlockContext`, `baselineUnlockOverscan`, `unlockCoverScale`.
 
 ### `depth`
 Planes at depth and a motivated camera (push, pull, hold, dolly), drawn in 2D so type stays sharp.
