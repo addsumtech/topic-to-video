@@ -33,6 +33,7 @@ import {useDNA, contrastOf, readableOn} from '../runtime/dna';
 import {UiSurface, type UiContent} from '../runtime/uiSurface';
 import {CONTENT_TOP, captionBand, fitBlockPx, fitTextPx, textWidthPx, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 174; // 5.8s
 
@@ -72,6 +73,7 @@ export const SourceDeal: React.FC<{
   const NOTES = rows<string>(NOTES_IN, 'notes', 'SourceDeal');
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H, fps} = useVideoConfig();
   const span = useAnimSpan();
   const BG = dna?.bgGrad ?? dna?.bg ?? BG_D0;
@@ -277,7 +279,7 @@ export const SourceDeal: React.FC<{
           <div key={i} style={{position: 'absolute', left: dealX, top, width: dealW, opacity: o}}>
             <div style={{display: 'flex', alignItems: 'center', height: pillHF, width: pillW, boxSizing: 'border-box',
               padding: `0 ${Math.round(pillHF * 0.55)}px`, borderRadius: 999, whiteSpace: 'nowrap',
-              transform: `translateY(${(1 - b) * pillHF * 0.32}px) scale(${lerp(0.94, 1, b)})`,
+              transform: glide(`translateY(${(1 - b) * pillHF * 0.32}px) scale(${lerp(0.94, 1, b)})`, b !== 1),
               background: SURF, border: `${Math.max(1, Math.round(U * 0.0016))}px solid ${LINE}`,
               // A TERNARY WITH TWO IDENTICAL BRANCHES is a decision that was never made: this read
               // `dna?.fg && dna.surface ? '#1c2029' : '#1c2029'` and so painted near-black text whatever the

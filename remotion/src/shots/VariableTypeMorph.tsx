@@ -9,6 +9,7 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, easeInOutCubic} fro
 import {useDNA, shade} from '../runtime/dna';
 import {onLight} from '../runtime/light';
 import {fitTextPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#08080f';
@@ -31,6 +32,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
   // and what sat behind them was this halo rather than the page. A shade of the ground on a light key.
   const DROP = dna && onLight(dna) ? `0 14px 40px ${shade(dna.bg, 0.12)}` : '0 20px 60px #000a';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // THE ENORMOUS WORD IS FITTED TO THE FRAME. 210px is one enormous word on a 1920-wide frame in a narrow
   // grotesque; under the EDITORIAL DNA's serif on a 1080-wide frame 'EXPRESSIVE' was sliced at BOTH edges —
@@ -53,7 +55,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
         transform: `translateX(${fieldX}px)`,
         background: `radial-gradient(50% 60% at 30% 40%, ${ACC}, #0000 60%), radial-gradient(50% 60% at 72% 60%, ${ACC2}, #0000 60%)`}} />
 
-      <div style={{opacity: kickIn, transform: `translateY(${(1 - kickIn) * 12}px)`, color: dna?.dim ?? '#c7cee0',
+      <div style={{opacity: kickIn, transform: glide(`translateY(${(1 - kickIn) * 12}px)`, kickIn !== 1), color: dna?.dim ?? '#c7cee0',
         font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', textTransform: 'uppercase',
         paddingLeft: '0.5em', marginBottom: 40, zIndex: 2}}>{KICKER}</div>
 
@@ -68,8 +70,11 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
           const rise = (1 - entr) * 80;
           const hue = i / Math.max(1, n - 1);
           return (
+            // THE WAVE NEVER STOPS — the word is "alive" by design (see the header): once `entr` settles,
+            // `widthAxis` keeps breathing on `sin(t*3 - i*0.5)` for the rest of the shot, so every glyph's
+            // scaleX is in motion for the WHOLE beat, not just its own entrance.
             <span key={i} style={{display: 'inline-block', opacity: clamp01(entr * 1.4),
-              transform: `translateY(${rise}px) scaleX(${widthAxis}) scaleY(${lerp(0.8, 1, entr)})`,
+              transform: glide(`translateY(${rise}px) scaleX(${widthAxis}) scaleY(${lerp(0.8, 1, entr)})`, true),
               transformOrigin: 'center bottom',
               fontFamily: 'var(--f-display, Inter, system-ui, sans-serif)', fontWeight: weight,
               fontSize: wordPx, lineHeight: 0.9, letterSpacing: '-0.02em',
@@ -81,7 +86,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
         })}
       </div>
 
-      <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 10}px)`, marginTop: 44, color: dna?.dim ?? '#8b93a8',
+      <div style={{opacity: tagIn, transform: glide(`translateY(${(1 - tagIn) * 10}px)`, tagIn !== 1), marginTop: 44, color: dna?.dim ?? '#8b93a8',
         font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase', zIndex: 2}}>{TAG}</div>
     </AbsoluteFill>
   );
