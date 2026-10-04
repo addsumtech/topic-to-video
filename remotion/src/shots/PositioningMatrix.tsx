@@ -18,6 +18,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 type Item = {label?: string; x?: number; y?: number; hero?: boolean};
 
@@ -52,6 +53,7 @@ export const PositioningMatrix: React.FC<{
   const items = normaliseItems(ITEMS);
   const n = items.length;
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   // A MATRIX IS ALL INK AND IT WAS ALL LITERAL. The hero's label (#eef2ff), the title (#aeb6ca), the axis end
   // labels and every other item's label (#8b93a8) were near-white or near-grey, so on a film grounded paper
@@ -120,7 +122,8 @@ export const PositioningMatrix: React.FC<{
         const col = hero ? HERO_TONE : REST_TONE;
         const pulse = hero && t > st + 0.24 ? 1 + 0.12 * Math.max(0, Math.sin((t - st - 0.24) * 10)) * Math.exp(-(t - st - 0.24) * 3) : 1;
         return (
-          <div key={i} style={{position: 'absolute', left: X, top: Y, transform: `translate(-50%,-50%) scale(${r * pulse})`}}>
+          <div key={i} style={{position: 'absolute', left: X, top: Y,
+            transform: glide(`translate(-50%,-50%) scale(${r * pulse})`, r !== 1 || (hero && pulse !== 1))}}>
             <div style={{width: size, height: size, borderRadius: '50%', background: col,
               boxShadow: hero ? `0 0 30px ${col}` : 'none', border: hero ? `3px solid ${HERO_RING}` : 'none'}} />
             {it.label ? (
