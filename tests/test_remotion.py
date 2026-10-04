@@ -3351,8 +3351,14 @@ export const Probe: React.FC<Props> = ({items: ITEMS = D} = {}) => <div>{ITEMS.m
     SPACED_BRACKET = """
 export const Probe: React.FC<{items?: Item[]} > = ({items: ITEMS = D} = {}) => <div>{ITEMS.map((i) => i)}</div>;
 """
+    # a promoted object's own spelling: the alias is an INTERSECTION with the imported ObjectProps (EraStrata)
+    INTERSECTED_ALIAS = """
+type Props = ObjectProps & {items?: Item[]};
+export const Probe: React.FC<Props> = ({items: ITEMS = D} = {}) => <div>{ITEMS.map((i) => i.name)}</div>;
+"""
     with tempfile.TemporaryDirectory() as d:
-        for label, src in (("a named props alias", NAMED_ALIAS), ("a space before the bracket", SPACED_BRACKET)):
+        for label, src in (("a named props alias", NAMED_ALIAS), ("a space before the bracket", SPACED_BRACKET),
+                           ("an alias intersected with an imported type", INTERSECTED_ALIAS)):
             f = os.path.join(d, "Probe.tsx")
             open(f, "w", encoding="utf-8").write(src)
             assert q._signature(f) is not None, "%s is no longer parsed, so the rule silently skips it" % label

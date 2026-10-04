@@ -417,8 +417,10 @@ def _signature(path):
 
 
 def _alias_body(alias, code):
-    """The `{...}` body of `type <alias> = {...}`, brace-balanced."""
-    m = re.search(r"(?:type|interface)\s+%s\s*=?\s*\{" % re.escape(alias), code)
+    """The `{...}` body of `type <alias> = {...}`, brace-balanced — also when the alias is an intersection with
+    imported types, `type Props = ObjectProps & {...}` (a promoted object's own spelling): the inline half is
+    what the register itself declares, the same half the inline `React.FC<ObjectProps & {...}>` branch reads."""
+    m = re.search(r"(?:type|interface)\s+%s\s*=?\s*(?:[A-Za-z_][\w.]*\s*&\s*)*\{" % re.escape(alias), code)
     if not m:
         return None
     i, depth = m.end() - 1, 0
