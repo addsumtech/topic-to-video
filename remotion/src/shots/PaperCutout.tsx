@@ -8,6 +8,7 @@ import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../ru
 import {captionBand} from '../runtime/layout';
 import {useDNA, mix} from '../runtime/dna';
 import {paleEnd, onLight} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 
@@ -29,6 +30,7 @@ export const PaperCutout: React.FC<{label?: string; tagline?: string}> = ({label
   const CARD = dna?.surface ?? '#fff6e9', CARD_EDGE = dna?.fg ?? '#7d2f2c', CARD_INK = dna?.accent ?? '#b5453f';
   const TAG = dna?.fg ?? '#fff6e9', TAG_SHADOW = dna?.bg ?? '#7d2f2c';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const cam = Math.sin(t * Math.PI - Math.PI / 2) * 120; // eased L→R pan
   const push = lerp(1.0, 1.08, easeOutCubic(t));
@@ -75,10 +77,18 @@ export const PaperCutout: React.FC<{label?: string; tagline?: string}> = ({label
       {/* paper DONE banner rises in the mid-ground */}
       {(() => {
         const rise = easeOutBack(seg(t, 0.42, 0.68));
+        const rising = rise !== 1;
         return (
-          <div style={{position: 'absolute', left: '50%', top: H * 0.42, transform: `translate(-50%, ${(1 - rise) * 120}px) rotate(-2deg)`, opacity: rise > 0 ? 1 : 0, filter: shadow}}>
-            <div style={{background: CARD, border: `6px solid ${CARD_EDGE}`, borderRadius: 14, padding: '16px 54px',
-              font: '900 92px/1 var(--f-display, "Baloo 2", Inter, sans-serif)', color: CARD_INK, letterSpacing: '0.02em'}}>{label}</div>
+          // the shadow sits on an outer wrapper that never moves: a drop-shadow keeps only the scale of the
+          // matrix above it, so the rising banner's unlock has to be BELOW the filter to reach its glyphs
+          // (runtime/glide.ts) — the moving translate/rotate carries its own glide, and the card's text
+          // carries a second, local one to punch through the filter the same way NeonGrid's wordmark does.
+          <div style={{position: 'absolute', left: '50%', top: H * 0.42, filter: shadow}}>
+            <div style={{transform: glide(`translate(-50%, ${(1 - rise) * 120}px) rotate(-2deg)`, rising), opacity: rise > 0 ? 1 : 0}}>
+              <div style={{background: CARD, border: `6px solid ${CARD_EDGE}`, borderRadius: 14, padding: '16px 54px',
+                transform: glide(undefined, rising),
+                font: '900 92px/1 var(--f-display, "Baloo 2", Inter, sans-serif)', color: CARD_INK, letterSpacing: '0.02em'}}>{label}</div>
+            </div>
           </div>
         );
       })()}

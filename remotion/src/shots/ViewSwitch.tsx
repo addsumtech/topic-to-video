@@ -26,6 +26,7 @@ import {captionBand, CONTENT_TOP, fitTextPx, fitBlockPx, inkBlockH} from '../run
 import {leading} from '../runtime/cjkType';
 import {useDNA, readableOn, dimOn} from '../runtime/dna';
 import {onAccentInk} from '../runtime/onAccent';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 180; // 6s
 
@@ -116,6 +117,7 @@ export const ViewSwitch: React.FC<{
 } = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
 
   const vs = (Array.isArray(views) ? views : []).filter((v) => v && String(v.label ?? '').trim());
@@ -204,6 +206,9 @@ export const ViewSwitch: React.FC<{
   const a = rectsFor(vs[idx].shape as ViewShape, n, box, gap);
   const b = rectsFor(vs[Math.min(m - 1, idx + 1)].shape as ViewShape, n, box, gap);
   const activeF = pinned === null ? idx + frac : pinned;
+  // every row shares this: `frac` holds at 0, travels, holds at 1 — true exactly while a row's LAYOUT
+  // position (left/top, lerped between the old and new arrangement's rects) is still changing.
+  const walking = frac !== 0 && frac !== 1;
 
   // the tab strip
   const tabW = Math.floor((W - pad * 2) / m);
@@ -253,7 +258,7 @@ export const ViewSwitch: React.FC<{
         return (
           <div key={i} style={{position: 'absolute', left: x, top: y, width: w, height: h, boxSizing: 'border-box',
             background: SURF, border: `${BW}px solid ${LINE}`, borderRadius: RAD, overflow: 'hidden',
-            opacity: clamp01(rise * 1.2), transform: `translateY(${lerp(U * 0.02, 0, rise)}px)`,
+            opacity: clamp01(rise * 1.2), transform: glide(`translateY(${lerp(U * 0.02, 0, rise)}px)`, rise !== 1 || walking),
             padding: innerPad, display: 'flex',
             flexDirection: wide ? 'row' : 'column', alignItems: wide ? 'center' : 'flex-start',
             gap: Math.round(innerPad * 0.7)}}>

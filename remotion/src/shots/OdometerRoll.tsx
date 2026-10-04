@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 140; // ~4.7s
 const BG = '#0a0b12', ACC0 = '#5b8cff';
@@ -18,6 +19,7 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
   // on the way there — the same option EdStat carries, for the same reason.
   roll: ROLL = true} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA(); const ACC = dna?.accent ?? ACC0;
   useVideoConfig();
   const chars = String(VALUE).split('');
@@ -29,7 +31,7 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
       <div style={{opacity: labIn, color: '#8b93a8', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)',
         letterSpacing: '0.32em', textTransform: 'uppercase', marginBottom: 44,
-        transform: `translateY(${(1 - labIn) * 14}px)`}}>{LABEL}</div>
+        transform: glide(`translateY(${(1 - labIn) * 14}px)`, labIn !== 1)}}>{LABEL}</div>
 
       <div style={{display: 'flex', alignItems: 'flex-end', height: CELL}}>
         {chars.map((c, i) => {
@@ -63,9 +65,9 @@ export const OdometerRoll: React.FC<{value?: string; label?: string; unit?: stri
           for (let n = 0; n <= total; n++) strip.push(n % 10);
           return (
             <div key={i} style={{position: 'relative', width: 150, height: CELL, overflow: 'hidden',
-              margin: '0 3px', transform: `scale(${pulse})`, borderRadius: 18, background: '#11131f',
+              margin: '0 3px', transform: glide(`scale(${pulse})`, pulse !== 1), borderRadius: 18, background: '#11131f',
               border: `1px solid ${locked ? ACC + '66' : '#23273c'}`, boxShadow: 'inset 0 0 60px #0008'}}>
-              <div style={{position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${offset}px)`}}>
+              <div style={{position: 'absolute', top: 0, left: 0, right: 0, transform: glide(`translateY(${offset}px)`, r !== 1)}}>
                 {strip.map((n, k) => (
                   <div key={k} style={{height: CELL, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     font: `800 196px/1 var(--f-body, Inter, system-ui, sans-serif)`,

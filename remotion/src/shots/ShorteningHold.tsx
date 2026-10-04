@@ -29,6 +29,7 @@ import {useT, seg, clamp01, cadenceAt, easeOutCubic, easeOutExpo} from '../runti
 import {CONTENT_TOP, contentBottom, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useDNA, readableOn, dimOn} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 // LONGER THAN THE HOUSE 5.5s, because an accelerating series is front-heavy by construction: the first
 // hold is the baseline the rest are read against, so it is the longest one, and at four statements it is
@@ -68,6 +69,7 @@ export const ShorteningHold: React.FC<{
        note = 'each one left less room than the last'} = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H, fps, durationInFrames} = useVideoConfig();
 
   // ── the film's data, refused rather than trimmed ────────────────────────────────────────────────────
@@ -179,7 +181,7 @@ export const ShorteningHold: React.FC<{
       <div style={{position: 'absolute', left: x0, top: top + spentH + U * 0.012, width: colW,
         font: `700 ${LIVE_PX}px/${leading(SS[live], 1.14)} ${disp}`,
         color: live === n - 1 ? readableOn(BG, ACC, strong) : strong,
-        transform: `translateY(${(1 - settle) * U * 0.012}px)`, opacity: 0.25 + 0.75 * settle,
+        transform: glide(`translateY(${(1 - settle) * U * 0.012}px)`, settle !== 1), opacity: 0.25 + 0.75 * settle,
         textWrap: 'balance'}}>{SS[live]}</div>
 
       {/* The rule under the live line is THIS statement's own hold, drawn against the first one's — so a

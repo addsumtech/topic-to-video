@@ -26,6 +26,7 @@ import {leading} from '../runtime/cjkType';
 import {parseFigure, figureAt} from '../runtime/figure';
 import {useDNA, readableOn, dimOn} from '../runtime/dna';
 import {onAccentInk} from '../runtime/onAccent';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 
@@ -76,6 +77,7 @@ export const StatedBy: React.FC<{
 } = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
 
   const figs = (Array.isArray(figures) ? figures : []).filter((f) => f && parseFigure(f.value).text);
@@ -164,7 +166,7 @@ export const StatedBy: React.FC<{
 
       <div style={{position: 'absolute', left: plateX, top: plateY, width: plateW, height: plateH,
         boxSizing: 'border-box', background: SURF, border: `${BW}px solid ${LINE}`, borderRadius: RAD,
-        opacity: clamp01(plateIn * 1.2), transform: `translateY(${lerp(U * 0.024, 0, plateIn)}px)`,
+        opacity: clamp01(plateIn * 1.2), transform: glide(`translateY(${lerp(U * 0.024, 0, plateIn)}px)`, plateIn !== 1),
         boxShadow: `0 ${Math.round(U * 0.012)}px ${Math.round(U * 0.032)}px #00000018`}}>
 
         {figs.map((f, i) => {
@@ -210,7 +212,7 @@ export const StatedBy: React.FC<{
           height: Math.max(1, BW), background: LINE}} />
 
         <div style={{position: 'absolute', left: padX, top: plateH - footH + Math.round(footH * 0.16),
-          transform: `rotate(-2.4deg) scale(${lerp(1.45, 1, land)})`, transformOrigin: 'left center',
+          transform: glide(`rotate(-2.4deg) scale(${lerp(1.45, 1, land)})`, land !== 1), transformOrigin: 'left center',
           opacity: clamp01(land * 1.25),
           border: `${Math.max(2, Math.round(U * 0.0035))}px solid ${STAMP_BLOCK}`,
           borderRadius: Math.max(2, RAD), padding: `${Math.round(U * 0.012)}px ${Math.round(U * 0.022)}px`,

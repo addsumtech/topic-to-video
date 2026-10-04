@@ -19,6 +19,7 @@ import {useT, seg, clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motio
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 210; // 7s
 
@@ -61,6 +62,7 @@ export const TaskFold: React.FC<{
 } = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   const portrait = H > W * 1.1;
@@ -143,7 +145,10 @@ export const TaskFold: React.FC<{
   const total = heights.reduce((a, b) => a + b, 0) - gap;
   const settledTotal = n * (cardH + gap) - gap;
   const overflow = Math.max(0, settledTotal - viewH);
-  const scroll = overflow > 0 ? easeInOutCubic(clamp01(seg(t, 0.66, 0.92))) * overflow : 0;
+  // factored so the SPAN the scroll moves in (`scrollP !== 1`) is the same progress value `scroll` itself
+  // is built from, rather than a second re-derivation of "is the list still scrolling".
+  const scrollP = overflow > 0 ? easeInOutCubic(clamp01(seg(t, 0.66, 0.92))) : 1;
+  const scroll = scrollP * overflow;
   const alive = tasks.some((k) => k.state === 'working') ? 0.5 - 0.5 * Math.cos(t * Math.PI * 2 * 3) : 0;
 
   return (
@@ -170,14 +175,17 @@ export const TaskFold: React.FC<{
           const grad = `linear-gradient(to bottom, transparent 0px, #000 ${f}px, #000 ${Math.max(f, viewH - f)}px, transparent ${viewH}px)`;
           return {maskImage: grad, WebkitMaskImage: grad};
         })() : {})}}>
-        <div style={{position: 'absolute', left: 0, top: -scroll, width: panelW, height: total}}>
+        {/* the list scrolls by LAYOUT position (`top`), which Skia rounds the same way it rounds a translate,
+            so every row riding it — including the first, whose own top never moves — carries the unlock */}
+        <div style={{position: 'absolute', left: 0, top: -scroll, width: panelW, height: total,
+          transform: glide(undefined, scrollP !== 1)}}>
           {tasks.map((k, i) => {
             const land = landOf(i);
             const tone = toneOf(k.state);
             const word = wordOf(k.state);
             return (
               <div key={i} style={{position: 'absolute', left: 0, top: tops[i], width: panelW,
-                opacity: land, transform: `translateY(${(1 - land) * U * 0.02}px)`}}>
+                opacity: land, transform: glide(`translateY(${(1 - land) * U * 0.02}px)`, land !== 1)}}>
                 <div style={{position: 'relative', zIndex: 1, height: cardH, boxSizing: 'border-box', borderRadius: Math.round(U * 0.014),
                   background: SURF, border: `1px solid ${LINE}`, padding: `0 ${pad}px`,
                   display: 'flex', alignItems: 'center', gap: Math.round(U * 0.014)}}>

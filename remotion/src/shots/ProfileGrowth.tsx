@@ -23,6 +23,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
 import {CONTENT_TOP, captionBand, contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 import {useDNA, mix} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 160;
 
@@ -47,6 +48,7 @@ export const ProfileGrowth: React.FC<{
   note = ''} = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
@@ -152,7 +154,7 @@ export const ProfileGrowth: React.FC<{
         const x = fx + fieldW / 2 - w / 2;
         return (
           <div key={'l' + i} style={{position: 'absolute', left: x, top: baseY - h * on - Math.round(W * 0.021),
-            width: w, opacity: on, textAlign: 'center',
+            width: w, opacity: on, textAlign: 'center', transform: glide(undefined, on !== 1),
             font: `${last ? 700 : 600} ${Math.round(W * (last ? 0.017 : 0.0135))}px/1.2 ${mono}`,
             color: last ? ACC : FG, letterSpacing: '0.05em', textWrap: 'balance'}}>{st.label}</div>
         );

@@ -9,6 +9,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {titleStyle, bottomTextY, fitTextPx, monoFit, textWidthPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 175; // ~5.8s
 
@@ -51,6 +52,7 @@ export const TensionScale: React.FC<{
   const NOTE_INK = dna?.dim ?? '#c9d6ea';
   const TITLE_INK = dna?.fg ?? '#dfe8f5';
   const t = useT();
+  const glide = useGlide();
   const portrait = W < H;
   const cx = W * 0.5, fy = portrait ? H * 0.46 : H * 0.52, L = portrait ? W * 0.30 : W * 0.30;
   const capBw = portrait ? Math.min(W * 0.4, 432) : 540;   // keep the end-pans on-frame in a narrow portrait frame
@@ -74,7 +76,10 @@ export const TensionScale: React.FC<{
     const bw = Math.max(portrait ? 260 : 300, Math.min(capBw,
       Math.max(textWidthPx(label, lfs, MONO), textWidthPx(sub, sfs)) + 44));
     return (
-    <g key={key} opacity={appear}>
+    // the arm's x/y are SVG numeric attributes, not a CSS transform, but Skia judges the screen CTM the same
+    // way either way: a beam that never settles (see the header) needs the unlock for as long as it teeters,
+    // so it rides the whole `<g>` — harmless on the line/rect, and it reaches the two <text> runs beneath it.
+    <g key={key} opacity={appear} transform={glide(undefined, true)}>
       <line x1={x} y1={y} x2={x} y2={y + 28} stroke={`${col}aa`} strokeWidth={2} />
       <rect x={x - bw / 2} y={y + 28} width={bw} height={78} rx={8} fill={CARD} stroke={col} strokeWidth={1.6} />
       <text x={x} y={y + 60} textAnchor="middle" fill={col} fontSize={lfs} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" fontWeight={700}>{label}</text>

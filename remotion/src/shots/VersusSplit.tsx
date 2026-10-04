@@ -19,6 +19,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA, dnaPalette, mix, shade, tint, separated, separatedPair, readableOn, readableOnAll, dimOn, TONE_MIN_STEP} from '../runtime/dna';
 import {onLight} from '../runtime/light';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 
@@ -60,6 +61,7 @@ const checkSide = (side: unknown, which: 'left' | 'right'): Side => {
 const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone: string; win: boolean;
   t: number; base: number; ground: string; themed: boolean}> = ({
   side, enter, align, tone, win, t, base, ground, themed}) => {
+  const glide = useGlide();
   // The EFFECTIVE ground, not the half. A winning panel paints `${tone}2e` over its own half — 18% of the
   // accent — and the text sits on that composite, which is lighter than the half it was picked against.
   // Measured: picking ink from the half alone left the right column at 2.63:1 after the halves were
@@ -92,7 +94,7 @@ const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone:
       alignItems: align === 'left' ? 'flex-start' : 'flex-end'}}>
       {(side.points ?? []).map((p, i) => {
         const on = clamp01(seg(t, base + i * 0.08, base + 0.2 + i * 0.08));
-        return <div key={i} style={{opacity: on, transform: `translateY(${(1 - on) * 10}px)`,
+        return <div key={i} style={{opacity: on, transform: glide(`translateY(${(1 - on) * 10}px)`, on !== 1),
           display: 'flex', flexDirection: align === 'left' ? 'row' : 'row-reverse', alignItems: 'center', gap: 14,
           color: soft, font: '600 32px/1 var(--f-body, Inter, system-ui, sans-serif)'}}>
           <span style={{color: tone, fontWeight: 800}}>{win ? '✓' : '•'}</span>{p}</div>;
@@ -119,6 +121,7 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number |
     throw new Error(`VersusSplit: \`winner\` is 0 (left), 1 (right) or omitted for no verdict; got ${JSON.stringify(WINNER)}.`);
   }
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();
   // The film's own two poles, for the marks that are NEITHER panel: the seam between the halves and
@@ -187,7 +190,7 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number |
       <Panel side={RIGHT} enter={rEnter} align="right" tone={toneR} win={WINNER === 1} t={t} base={0.56} ground={halfR} themed={Boolean(dna)} />
 
       {/* VS badge */}
-      <div style={{position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%,-50%) scale(${vs}) rotate(${lerp(-14, 0, vs)}deg)`,
+      <div style={{position: 'absolute', left: '50%', top: '50%', transform: glide(`translate(-50%,-50%) scale(${vs}) rotate(${lerp(-14, 0, vs)}deg)`, vs !== 1),
         width: 150, height: 150, borderRadius: '50%',
         background: dna ? `radial-gradient(circle at 40% 35%, ${dna.surface}, ${shade(dna.bg, 0.2)})`
                         : 'radial-gradient(circle at 40% 35%, #2a3048, #12141f)',

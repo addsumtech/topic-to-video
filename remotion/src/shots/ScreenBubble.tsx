@@ -19,6 +19,7 @@ import {useT, seg, lerp, easeCursor, easeOutBack, easeOutCubic, clamp01} from '.
 import {useDNA} from '../runtime/dna';
 import {leading} from '../runtime/cjkType';
 import {textWidthPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 const BRAND = '#6C5CE7';
@@ -60,6 +61,7 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]; active?:
   // per-element originals (a null DNA must be byte-identical to the pre-DNA shot)
   const TITLE_DIM = dna?.dim ?? '#8b90a3', ROW_BG = dna?.surface ?? '#fbfcfe', SUB_DIM = dna?.dim ?? '#98a0b0';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const SX = 150, SY = 130, SW = W - 300, SH = H - 300;
   // cursor path: rest → the action button (click) → the created block.
@@ -107,7 +109,7 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]; active?:
               ) : null}
             </div>
             {/* the "created" deliverable row */}
-            <div style={{marginTop: 40, opacity: clamp01(created), transform: `translateY(${lerp(24, 0, clamp01(created))}px)`,
+            <div style={{marginTop: 40, opacity: clamp01(created), transform: glide(`translateY(${lerp(24, 0, clamp01(created))}px)`, clamp01(created) !== 1),
               padding: '30px 34px', borderRadius: 14, border: `1px solid ${LINE}`, background: ROW_BG, display: 'flex', alignItems: 'center', gap: 24}}>
               <div style={{width: 54, height: 54, borderRadius: 12, background: `${ACC}22`}} />
               <div><div style={{font: `700 36px/${leading(deliverable, 1)} var(--f-body, Inter)`, color: FG}}>{deliverable}</div>

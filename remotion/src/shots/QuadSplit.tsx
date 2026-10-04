@@ -39,6 +39,7 @@ import {drawOn} from '../runtime/draw';
 import {useDNA, dnaPalette, mix} from '../runtime/dna';
 import {Icon, type IconName} from '../runtime/icons';
 import {CONTENT_TOP, TITLE_Y, contentBottom} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 150; // 5s
 
@@ -307,6 +308,7 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
   // quad now holds; the standalone demo (its own panels) keeps its expansion so the register still shows it.
   const HERO = HERO_GIVEN !== undefined ? HERO_GIVEN : (PANELS === DEFAULT_PANELS ? 0 : null);
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0;
   const TONES = dnaPalette(dna, 4) ?? TONES_D0;
@@ -426,6 +428,9 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
         // in which case solid-vs-hollow has to carry the distinction and the mark drops to the dim ink.
         const warn = raw === ACC2 ? DIM : ACC2;
         const g = clamp01(seg(t, 0.16 + i * 0.09, 0.6)); // glyph fill progress
+        // the panel's own entrance scale, OR — for the hero panel only — the expand/collapse that carries it
+        // to fill the frame: both move the index number and the label this panel draws.
+        const moveSpan = enter !== 1 || (i === heroIdx && !holdQuad && expand !== 1);
 
         // INTERNAL LAYOUT, computed (not space-between): header · glyph · label, all inside the padding box.
         // space-between is what pushed the bottom row's label onto the burned caption; explicit heights and
@@ -447,7 +452,7 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
 
         return (
           <div key={i} style={{position: 'absolute', left: x, top: y, width: w, height: h, boxSizing: 'border-box',
-            opacity: (0.15 + 0.85 * enter) * (1 - others), transform: `scale(${lerp(0.9, 1, enter)})`,
+            opacity: (0.15 + 0.85 * enter) * (1 - others), transform: glide(`scale(${lerp(0.9, 1, enter)})`, moveSpan),
             transformOrigin: `${cols > 1 && !spanned ? (col ? 'left' : 'right') : 'center'} ${rows > 1 ? (row ? 'top' : 'bottom') : 'center'}`,
             background: `linear-gradient(150deg, ${mix(BG, SURF, 0.85)}, ${BG})`,
             border: `${bwid}px solid ${EDGE}`, borderRadius: rad, overflow: 'hidden',
