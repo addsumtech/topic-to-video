@@ -56,7 +56,7 @@
     "light": 1.0,
     "dark": 0.0006070539820939302
    },
-   "moved": 0.9955492424242425,
+   "moved": 0.994921875,
    "ok": true,
    "why": []
   },
@@ -100,21 +100,21 @@
    },
    "fieldY": {
     "light": 0.921582043170929,
-    "dark": 0.005051969550549984
+    "dark": 0.005065725184977055
    },
-   "moved": 0.997767518939394,
+   "moved": 0.997606534090909,
    "ok": true,
    "why": []
   },
   {
    "shot": "AuroraFlow",
    "bandY": {
-    "light": 0.050386905670166016,
-    "dark": 0.043696947395801544
+    "light": 0.051313601434230804,
+    "dark": 0.04423943907022476
    },
    "fieldY": {
-    "light": 0.13245809078216553,
-    "dark": 0.12413115054368973
+    "light": 0.13321447372436523,
+    "dark": 0.12486565113067627
    },
    "moved": 0.0,
    "ok": false,
@@ -134,7 +134,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9989867424242425,
+   "moved": 0.9989417613636363,
    "ok": true,
    "why": []
   },
@@ -162,7 +162,7 @@
     "light": 0.921582043170929,
     "dark": 0.0026858176570385695
    },
-   "moved": 0.9715909090909091,
+   "moved": 0.9712192234848485,
    "ok": true,
    "why": []
   },
@@ -222,7 +222,7 @@
     "light": 0.9386858940124512,
     "dark": 0.002428215928375721
    },
-   "moved": 0.9908925189393939,
+   "moved": 0.9908996212121212,
    "ok": true,
    "why": []
   },
@@ -236,7 +236,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9774408143939394,
+   "moved": 0.977862215909091,
    "ok": true,
    "why": []
   },
@@ -264,7 +264,7 @@
     "light": 0.9386858940124512,
     "dark": 0.003346535377204418
    },
-   "moved": 0.9935416666666667,
+   "moved": 0.9935464015151515,
    "ok": true,
    "why": []
   },
@@ -278,7 +278,7 @@
     "light": 0.9559735059738159,
     "dark": 0.002428215928375721
    },
-   "moved": 0.9960274621212121,
+   "moved": 0.9958072916666667,
    "ok": true,
    "why": []
   },
@@ -342,13 +342,13 @@
    "shot": "CinematicTitle",
    "bandY": {
     "light": 0.8551360368728638,
-    "dark": 0.0011727068340405822
+    "dark": 0.0012153220595791936
    },
    "fieldY": {
-    "light": 0.8858354091644287,
+    "light": 0.8855713605880737,
     "dark": 0.006135653704404831
    },
-   "moved": 0.9964488636363636,
+   "moved": 0.9961079545454545,
    "ok": true,
    "why": []
   },
@@ -424,7 +424,7 @@
     "light": 0.001497298595495522,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.010535037878787878,
+   "moved": 0.010558712121212122,
    "ok": false,
    "why": [
     "band ink light wants #ffffff",
@@ -440,10 +440,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.989220380783081,
+    "light": 0.9828896522521973,
     "dark": 0.0012141079641878605
    },
-   "moved": 0.9844436553030304,
+   "moved": 0.9851325757575757,
    "ok": true,
    "why": []
   },
@@ -454,10 +454,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.8338016271591187,
-    "dark": 0.00934355054050684
+    "light": 0.8321137428283691,
+    "dark": 0.009467708878219128
    },
-   "moved": 0.9042163825757575,
+   "moved": 0.9023484848484848,
    "ok": true,
    "why": []
   },
@@ -485,7 +485,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.9984375,
+   "moved": 0.9994815340909091,
    "ok": true,
    "why": []
   },
@@ -527,7 +527,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9995123106060606,
+   "moved": 0.9986955492424242,
    "ok": true,
    "why": []
   },
@@ -535,15 +535,16 @@
    "shot": "CrashZoom",
    "bandY": {
     "light": 0.8291335701942444,
-    "dark": 0.002043140586465597
+    "dark": 0.0020193166565150023
    },
    "fieldY": {
-    "light": 0.5131098031997681,
-    "dark": 0.007829067297279835
+    "light": 0.28807181119918823,
+    "dark": 0.007919183932244778
    },
-   "moved": 0.500842803030303,
+   "moved": 0.49800662878787877,
    "ok": false,
    "why": [
+    "field light reads mid",
     "only 50% of the frame moved"
    ]
   },
@@ -578,14 +579,14 @@
   {
    "shot": "DNAHelix",
    "bandY": {
-    "light": 0.4175942838191986,
+    "light": 0.41647547483444214,
     "dark": 0.0019786106422543526
    },
    "fieldY": {
-    "light": 0.21122458577156067,
+    "light": 0.21021263301372528,
     "dark": 0.004724034573882818
    },
-   "moved": 0.7616287878787878,
+   "moved": 0.7599384469696969,
    "ok": false,
    "why": [
     "field light reads mid"
@@ -629,7 +630,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9888423295454546,
+   "moved": 0.9887784090909091,
    "ok": true,
    "why": []
   },
@@ -669,9 +670,9 @@
    },
    "fieldY": {
     "light": 0.9911022186279297,
-    "dark": 0.0009105809731408954
+    "dark": 0.0009117950685322285
    },
-   "moved": 0.997672821969697,
+   "moved": 0.9974976325757576,
    "ok": true,
    "why": []
   },
@@ -734,14 +735,14 @@
   {
    "shot": "EmberFlame",
    "bandY": {
-    "light": 0.2066333293914795,
-    "dark": 0.004631593823432922
+    "light": 0.2039863020181656,
+    "dark": 0.004693551454693079
    },
    "fieldY": {
-    "light": 0.7390385270118713,
+    "light": 0.7374076843261719,
     "dark": 0.0025137122720479965
    },
-   "moved": 0.8286174242424242,
+   "moved": 0.8278669507575758,
    "ok": false,
    "why": [
     "ink: 'BUILT WITH FIRE' at 2.35:1, under ACCENT_CONTRAST_MIN"
@@ -785,7 +786,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9988636363636364,
+   "moved": 0.9989701704545455,
    "ok": true,
    "why": []
   },
@@ -793,13 +794,13 @@
    "shot": "FlowField",
    "bandY": {
     "light": 0.8468732833862305,
-    "dark": 0.0016089756973087788
+    "dark": 0.00163411651737988
    },
    "fieldY": {
     "light": 0.921582043170929,
-    "dark": 0.0037449090741574764
+    "dark": 0.003912078216671944
    },
-   "moved": 0.9789157196969697,
+   "moved": 0.987561553030303,
    "ok": true,
    "why": []
   },
@@ -811,9 +812,9 @@
    },
    "fieldY": {
     "light": 0.8313496708869934,
-    "dark": 0.0032803602516651154
+    "dark": 0.0032912727911025286
    },
-   "moved": 0.9505303030303031,
+   "moved": 0.9494767992424242,
    "ok": false,
    "why": [
     "ink: receded card labels 1.07:1 on their own card, by design (the sub-headline and the #060910 vignette were repaired 2026-09-21) \u2014 render read"
@@ -823,13 +824,13 @@
    "shot": "FractalTree",
    "bandY": {
     "light": 0.8069523572921753,
-    "dark": 0.007825057953596115
+    "dark": 0.007858505472540855
    },
    "fieldY": {
     "light": 0.9559735059738159,
     "dark": 0.0036765066906809807
    },
-   "moved": 0.9788683712121212,
+   "moved": 0.9779450757575757,
    "ok": true,
    "why": []
   },
@@ -843,7 +844,7 @@
     "light": 0.9473065733909607,
     "dark": 0.003346535377204418
    },
-   "moved": 0.5681344696969697,
+   "moved": 0.5681226325757576,
    "ok": false,
    "why": [
     "only 57% of the frame moved"
@@ -887,7 +888,7 @@
     "light": 0.921582043170929,
     "dark": 0.004539121873676777
    },
-   "moved": 0.9870383522727273,
+   "moved": 0.9863257575757576,
    "ok": true,
    "why": []
   },
@@ -915,7 +916,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9969034090909091,
+   "moved": 0.9962026515151515,
    "ok": true,
    "why": []
   },
@@ -929,7 +930,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.9845478219696969,
+   "moved": 0.9843986742424242,
    "ok": true,
    "why": []
   },
@@ -1055,14 +1056,14 @@
   {
    "shot": "HoloFoil",
    "bandY": {
-    "light": 0.7818867564201355,
+    "light": 0.7816931009292603,
     "dark": 0.004164542071521282
    },
    "fieldY": {
-    "light": 0.8727333545684814,
-    "dark": 0.007903629913926125
+    "light": 0.8722658157348633,
+    "dark": 0.00789923407137394
    },
-   "moved": 0.9929805871212121,
+   "moved": 0.9911647727272728,
    "ok": false,
    "why": [
     "ink: subtitle is #fff \u2014 1.01:1 on paper"
@@ -1078,7 +1079,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.99796875,
+   "moved": 0.9982694128787879,
    "ok": true,
    "why": []
   },
@@ -1120,7 +1121,7 @@
     "light": 1.0,
     "dark": 0.000585139321628958
    },
-   "moved": 0.9743773674242424,
+   "moved": 0.975485321969697,
    "ok": true,
    "why": []
   },
@@ -1148,7 +1149,7 @@
     "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9916003787878788,
+   "moved": 0.991389678030303,
    "ok": true,
    "why": []
   },
@@ -1239,14 +1240,14 @@
   {
    "shot": "KaleidoMandala",
    "bandY": {
-    "light": 0.31710419058799744,
+    "light": 0.3138989508152008,
     "dark": 0.0018232041038572788
    },
    "fieldY": {
-    "light": 0.20098917186260223,
+    "light": 0.20021747052669525,
     "dark": 0.0035585425794124603
    },
-   "moved": 0.7358806818181818,
+   "moved": 0.7339441287878787,
    "ok": false,
    "why": [
     "field light reads mid"
@@ -1391,7 +1392,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.8922703598484848,
+   "moved": 0.8916619318181818,
    "ok": true,
    "why": []
   },
@@ -1413,13 +1414,13 @@
    "shot": "LowPolyForm",
    "bandY": {
     "light": 0.5232353806495667,
-    "dark": 0.2048506736755371
+    "dark": 0.20493215322494507
    },
    "fieldY": {
-    "light": 0.5911940336227417,
+    "light": 0.5918364524841309,
     "dark": 0.21881678700447083
    },
-   "moved": 0.9996188446969697,
+   "moved": 0.9994673295454546,
    "ok": false,
    "why": [
     "band ink dark wants #141414",
@@ -1448,9 +1449,9 @@
    },
    "fieldY": {
     "light": 0.28545069694519043,
-    "dark": 0.17227619886398315
+    "dark": 0.17276693880558014
    },
-   "moved": 0.4244933712121212,
+   "moved": 0.42408617424242423,
    "ok": false,
    "why": [
     "field light reads mid",
@@ -1467,7 +1468,7 @@
     "light": 1.0,
     "dark": 0.0012141079641878605
    },
-   "moved": 0.8007481060606061,
+   "moved": 0.7985961174242424,
    "ok": true,
    "why": []
   },
@@ -1530,14 +1531,14 @@
   {
    "shot": "MetaballMerge",
    "bandY": {
-    "light": 0.3968590795993805,
+    "light": 0.393180787563324,
     "dark": 0.0016106234397739172
    },
    "fieldY": {
-    "light": 0.2072649449110031,
+    "light": 0.2069014459848404,
     "dark": 0.003992707934230566
    },
-   "moved": 0.7335795454545454,
+   "moved": 0.7316003787878788,
    "ok": false,
    "why": [
     "field light reads mid"
@@ -1551,23 +1552,23 @@
    },
    "fieldY": {
     "light": 0.921582043170929,
-    "dark": 0.005017945077270269
+    "dark": 0.005051969550549984
    },
-   "moved": 0.9809375,
+   "moved": 0.9803693181818182,
    "ok": true,
    "why": []
   },
   {
    "shot": "MorphForms",
    "bandY": {
-    "light": 0.854992687702179,
+    "light": 0.8474903702735901,
     "dark": 0.00191572867333889
    },
    "fieldY": {
     "light": 0.921582043170929,
-    "dark": 0.005063450429588556
+    "dark": 0.005110535770654678
    },
-   "moved": 0.9886458333333333,
+   "moved": 0.9893726325757576,
    "ok": true,
    "why": []
   },
@@ -1581,7 +1582,7 @@
     "light": 1.0,
     "dark": 0.002124688820913434
    },
-   "moved": 0.674905303030303,
+   "moved": 0.6722514204545454,
    "ok": true,
    "why": []
   },
@@ -1606,10 +1607,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.010382609441876411,
+    "light": 0.01042307261377573,
     "dark": 0.0015176349552348256
    },
-   "moved": 0.02078125,
+   "moved": 0.020018939393939394,
    "ok": false,
    "why": [
     "band ink light wants #ffffff",
@@ -1624,8 +1625,8 @@
     "dark": 0.001237236661836505
    },
    "fieldY": {
-    "light": 0.006885855924338102,
-    "dark": 0.005109614692628384
+    "light": 0.006947208195924759,
+    "dark": 0.005110535770654678
    },
    "moved": 0.0,
    "ok": false,
@@ -1743,7 +1744,7 @@
     "light": 0.921582043170929,
     "dark": 0.002731743035838008
    },
-   "moved": 0.9911671401515152,
+   "moved": 0.9912689393939393,
    "ok": true,
    "why": []
   },
@@ -1757,11 +1758,11 @@
     "light": 1.0,
     "dark": 1.0
    },
-   "moved": 0.34617424242424244,
+   "moved": 0.3397514204545454,
    "ok": false,
    "why": [
     "field dark reads light",
-    "only 35% of the frame moved"
+    "only 34% of the frame moved"
    ]
   },
   {
@@ -1881,7 +1882,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9981344696969697,
+   "moved": 0.9969270833333334,
    "ok": true,
    "why": []
   },
@@ -1895,21 +1896,21 @@
     "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.997064393939394,
+   "moved": 0.9964204545454546,
    "ok": true,
    "why": []
   },
   {
    "shot": "PlatformSurfaces",
    "bandY": {
-    "light": 0.8879231810569763,
+    "light": 0.8796223998069763,
     "dark": 0.0
    },
    "fieldY": {
     "light": 0.6568931937217712,
     "dark": 0.004501659423112869
    },
-   "moved": 0.7594839015151515,
+   "moved": 0.7575189393939394,
    "ok": true,
    "why": []
   },
@@ -1921,9 +1922,9 @@
    },
    "fieldY": {
     "light": 0.9046613574028015,
-    "dark": 0.003346535377204418
+    "dark": 0.0033703595399856567
    },
-   "moved": 0.9982196969696969,
+   "moved": 0.9983191287878788,
    "ok": true,
    "why": []
   },
@@ -2007,7 +2008,7 @@
     "light": 1.0,
     "dark": 0.0008898804080672562
    },
-   "moved": 0.9997987689393939,
+   "moved": 0.9997395833333333,
    "ok": true,
    "why": []
   },
@@ -2078,10 +2079,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.4485730230808258,
+    "light": 0.4479406177997589,
     "dark": 0.09177843481302261
    },
-   "moved": 0.7428645833333334,
+   "moved": 0.7391998106060607,
    "ok": false,
    "why": [
     "field light reads mid"
@@ -2111,7 +2112,7 @@
     "light": 0.9911022186279297,
     "dark": 0.0012141079641878605
    },
-   "moved": 0.982327178030303,
+   "moved": 0.9813778409090909,
    "ok": true,
    "why": []
   },
@@ -2167,7 +2168,7 @@
     "light": 1.0,
     "dark": 0.0012141079641878605
    },
-   "moved": 0.9833688446969697,
+   "moved": 0.9825994318181818,
    "ok": true,
    "why": []
   },
@@ -2237,7 +2238,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9999810606060606,
+   "moved": 0.999983428030303,
    "ok": true,
    "why": []
   },
@@ -2245,7 +2246,7 @@
    "shot": "SpectrumPulse",
    "bandY": {
     "light": 0.0029166624881327152,
-    "dark": 0.0014329300029203296
+    "dark": 0.0014736360171809793
    },
    "fieldY": {
     "light": 0.0042481254786252975,
@@ -2340,8 +2341,8 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.0036573591642081738,
-    "dark": 0.0025054309517145157
+    "light": 0.003700999543070793,
+    "dark": 0.0025294823572039604
    },
    "moved": 0.0,
    "ok": false,
@@ -2362,7 +2363,7 @@
     "light": 1.0,
     "dark": 0.0018211619462817907
    },
-   "moved": 0.8660014204545454,
+   "moved": 0.8645714962121213,
    "ok": true,
    "why": []
   },
@@ -2474,7 +2475,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9977935606060606,
+   "moved": 0.9977201704545454,
    "ok": true,
    "why": []
   },
@@ -2572,7 +2573,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9985345643939394,
+   "moved": 0.9983214962121212,
    "ok": true,
    "why": []
   },
@@ -2628,7 +2629,7 @@
     "light": 0.8562124967575073,
     "dark": 0.006641207728534937
    },
-   "moved": 0.9954640151515152,
+   "moved": 0.9951278409090909,
    "ok": true,
    "why": []
   },
@@ -2767,10 +2768,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 1.0,
+    "light": 0.9917446374893188,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9426941287878788,
+   "moved": 0.9417471590909091,
    "ok": true,
    "why": []
   },
@@ -2793,66 +2794,66 @@
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "f85145ec3ec3ae79",
   "AnalogTape": "f1a6d66505f779da",
-  "AnswerStream": "8d7581b9b10d5383",
+  "AnswerStream": "333c96d4965aff9c",
   "AntiDesignChaos": "d7eec2b4a7da1c1d",
   "AsciiField": "075fa4bfeffc000b",
-  "AtomOrbital": "3af68381fabf6100",
-  "AuroraFlow": "ca503f707733d234",
-  "AverageHides": "f872468bef430195",
+  "AtomOrbital": "ef6836b9a6c4e6f5",
+  "AuroraFlow": "9e1b211032565fd3",
+  "AverageHides": "f5ace595e836139b",
   "BeforeAfterSlider": "d2ede4a45333e49c",
-  "BentoReveal": "f5c8b63e44314037",
+  "BentoReveal": "85ffeb7e580ac571",
   "BlockAssembly": "2ac7ce39012e0a47",
   "BlueprintGrid": "a3d1bee8130eff2d",
   "BokehPull": "1ea7a797f5db364a",
-  "BreaksWhenAsked": "72fcadb06173ae72",
-  "BrutalistType": "158ee86d465774c0",
+  "BreaksWhenAsked": "15c581f6f189eba4",
+  "BrutalistType": "312571546ea92508",
   "CardFlip3D": "37771652f3621ca5",
-  "CardStack3D": "bfc73a568c59df78",
-  "CarryOver": "0c46a59e26d51e2b",
+  "CardStack3D": "d85d08b43210eba1",
+  "CarryOver": "17096a0428f04031",
   "CartoonPop": "28b177db4b1a1a9a",
   "ChartLive": "8cd146bf43370f69",
   "ChartRace": "0aa037cc9f9c7f83",
   "ChatThread": "8e8edaf9ba43cc67",
-  "CinematicTitle": "eab8cf5076581c43",
+  "CinematicTitle": "619e79e2643e5253",
   "CircuitTrace": "6af5ba4ec5117559",
   "ClayStack": "8d259af5eb7223d7",
   "ClothWave": "7b506e4d2014b35d",
   "CodeCompose": "46cea6fef43ebe17",
-  "CodeRain": "092a5d6bc635212c",
-  "CollaborativeCursors": "5f1c8789531d2cd7",
-  "ComicPanels": "0887b100ec23e229",
+  "CodeRain": "1a7f64ad3873f4ef",
+  "CollaborativeCursors": "afe1666d6615ab13",
+  "ComicPanels": "7bd3fb72ac55c742",
   "CommandSummon": "91a10742ef27db7b",
-  "CompanionCard": "311d406232b49506",
+  "CompanionCard": "59cc1b8135f56f8c",
   "CompressedSensingEq": "802878ab61ea4364",
   "ConveyorBelt": "851fa970be9e86e6",
-  "CraneUp": "5d3b0fac1e7315ed",
-  "CrashZoom": "824835e69094bc14",
+  "CraneUp": "af3b9cf788d44c2c",
+  "CrashZoom": "33e734463fb17d0a",
   "CubeRotate": "0db1129b0b4fd388",
   "CursorStory": "3817b69e5992d9f4",
-  "DNAHelix": "3d67a6aa641b7413",
+  "DNAHelix": "b63011104bbc9419",
   "DataMonolith": "d76b4ad5f85348ab",
   "DataOrrery": "03eb8db54d6238c1",
   "DiffusionDenoise": "415e2f8473771964",
-  "DollyZoom": "16dd6693fc22065d",
+  "DollyZoom": "36584203b534f558",
   "EdCompare": "9feaace964310dc8",
   "EdStat": "b7bfbb05ae3e6a74",
   "EdTimeline": "1b89ddacb79774df",
   "ElasticType": "e0e6902f35cd0615",
-  "EmberFlame": "e197d329a728aa10",
+  "EmberFlame": "8f88e60ae5e8fe3f",
   "Escalation": "35021cefef5fb078",
   "ExplodedSchematic": "b069556b83c75794",
-  "FallbackPath": "e4d8b4e3b7d24b00",
-  "FlowField": "840905342c9f3a3f",
-  "FocalIsolation": "6d9b8f21bb56a987",
-  "FractalTree": "6debb01cbf1acdd1",
-  "FractureIn": "6dc65febbc7e8879",
+  "FallbackPath": "6892bfe3965cc4a9",
+  "FlowField": "ba93e45b1fc22121",
+  "FocalIsolation": "a250a7cb0fb9fb71",
+  "FractalTree": "cef906b156dc0935",
+  "FractureIn": "03a1870c16fe9e69",
   "FrequencyEncode": "2bc3ddcbce8314a0",
   "GFactorNoise": "c7ce3324e70d832e",
-  "GameOfLife": "c5aec4b654ad3bd8",
+  "GameOfLife": "8e3b3b98a9df9b03",
   "GaugeCluster": "322cebd072360798",
-  "GazetteerEntry": "cc7b6a43471fe32e",
-  "GearTrain": "aec220ccbb4ce68a",
-  "GlitchDatamosh": "d9988378eba80aa4",
+  "GazetteerEntry": "53080a50357d611a",
+  "GearTrain": "06a87df7dabb380d",
+  "GlitchDatamosh": "2b8fc5aae0603080",
   "GlowPick": "bb9b38efccde56e7",
   "GradientTilt": "93dc579f25a937fc",
   "GrantedTree": "3a82173b80240cf2",
@@ -2860,20 +2861,20 @@
   "HandDrawn": "4eff756fe34c0fdb",
   "HardBarrier": "488065a89b14cb24",
   "HeldInstant": "1af1d22f88b05f53",
-  "HoloFoil": "5cf006da7358a049",
-  "HudReticle": "b08fb6c0f76f5f38",
+  "HoloFoil": "8ffe0a09ead405d8",
+  "HudReticle": "1c1c934e60c23100",
   "InOrder": "9d4765f6fddb1f31",
   "InducedFID": "61b40781259e0130",
-  "InfiniteCanvas": "fc75014cc4a01c3b",
+  "InfiniteCanvas": "f3547c42455be988",
   "InflateType": "181f30308acf89b2",
-  "InkBloom": "6e9f9b063fa6dde7",
+  "InkBloom": "9d6703e60ff7d0aa",
   "Inscription": "4306b11984d2d30c",
   "IsoWorld": "6798a58fd3a3cff0",
   "IsometricAssembly": "9950b3845906bbd7",
   "KSpaceAnatomy": "073e54016c9a0328",
   "KSpaceReal": "9132e3feb4b0a793",
   "KSpaceToImage": "a585948463cf995b",
-  "KaleidoMandala": "1159a78be471ce49",
+  "KaleidoMandala": "69cb157d5f0796d7",
   "KineticManifesto": "26aa4a7d08dfe5b6",
   "KnowledgeGraph": "8938304b0b6201f8",
   "LarmorPrecession": "da099df43127eb64",
@@ -2882,69 +2883,69 @@
   "LiquidChrome": "63fc546335b50d53",
   "LiquidFill": "6deffddaf94254cc",
   "LiquidGlass": "e17c769782b387a2",
-  "LiquidMetal": "965be1ce6142341c",
+  "LiquidMetal": "ea7b4b1f7e7ca7f0",
   "LiquidMorph": "09d0fafade9df90f",
-  "LowPolyForm": "e357b415f817268d",
+  "LowPolyForm": "8befcb7805fdd4c2",
   "MRIPipeline": "3088da14c78f5fc8",
-  "MadeOf": "52b2fd83a6d0d6d1",
-  "MagazineSpread": "77cbe6426d3af758",
+  "MadeOf": "a5654ba7334e4769",
+  "MagazineSpread": "6b80d21b309225c9",
   "MagnetizationTip": "6d29709d88ec602f",
   "MapPlate": "22b8720cdc328d18",
   "MapRoutes": "858d7b2d7903caeb",
   "MaterialHero": "4ec5fb519ad2d8b1",
-  "MetaballMerge": "90d6f174f9deff7d",
-  "MoleculeBallStick": "c5788470020b513f",
-  "MorphForms": "fb6075b7814b6aa3",
-  "MuseumLabel": "6f371528aca9e392",
+  "MetaballMerge": "37a851f4df6b1a2a",
+  "MoleculeBallStick": "274d8560d6cf6b00",
+  "MorphForms": "c3f3cafac1233ce4",
+  "MuseumLabel": "06f4c4dfda7b7138",
   "NearTheLine": "cbc3f83e4981c332",
-  "NeonGrid": "1b8f32b4e8ac58fb",
-  "NeonTickerWall": "d5d2e18d9edbd355",
+  "NeonGrid": "2a05dc110081ba97",
+  "NeonTickerWall": "fba4a0d5ba2ed6d8",
   "NeuralField": "7f38d3bcfc1a0a83",
   "OdometerRoll": "9a0e39dc7427d039",
   "OpenQuestions": "41158c2283cc50af",
-  "OverlapSeparation": "0e76493707370fe3",
-  "PageWrite": "f7dc3281b61caa5b",
+  "OverlapSeparation": "161d313fa5976bf2",
+  "PageWrite": "4eae6fa2f6137d41",
   "PaperCutout": "a913fc5f3b09a2c0",
   "PaperSlot": "402cf1d906a5408c",
   "ParticleForm": "fca578a38371fab2",
   "PhaseEncodeStep": "c6cd903b075a2d0d",
-  "PhotoPlate": "88438adbd95ca10e",
+  "PhotoPlate": "9843d7f29d8c67ed",
   "PhysicsStack": "b3168176cdcab369",
-  "PixelBuild": "d9223ab1bae08276",
-  "PlanPalimpsest": "927d3bcc791a79a0",
-  "PlaneStack": "d573f8ccfac42b3c",
-  "PlatformSurfaces": "146f53d349c1c850",
-  "PointerTour": "bd62bee8c3fc4d31",
+  "PixelBuild": "f009461c25e2a83c",
+  "PlanPalimpsest": "5f9a7d5ce89bfd65",
+  "PlaneStack": "e8e57b2c6b84d2be",
+  "PlatformSurfaces": "8eb8a569b67c23eb",
+  "PointerTour": "f7019bb9b3b576a1",
   "PortRail": "0f7e316038fcdcde",
   "PositioningMatrix": "66cf945095e1c9a7",
   "ProfileGrowth": "19e92f255396681e",
   "PulledThread": "c9af9d28c14edace",
   "QuadSplit": "d9a7775b64c2e1cb",
-  "RackFocus": "c1213942c376d58c",
+  "RackFocus": "3c6368163293f2f2",
   "RadialBurst": "470093932b7ae518",
   "RainGlass": "6ccf45422768cda9",
   "RansomZine": "126d44c181f7e96e",
   "RealVersus": "2a5d161e38d06d7e",
-  "RestsOn": "0aef860cd45633ed",
+  "RestsOn": "0af3644b9c543ef7",
   "RidgeField": "e8562f1ef8d2cc35",
-  "RisoPrint": "3bafef47dfe3dfb4",
+  "RisoPrint": "eb5110234b567374",
   "SameStuffChanged": "a3d68fd218d23828",
   "ScanReconstruct": "43310376143ca633",
   "ScreenBubble": "d9e279abd19ee3c1",
-  "SeamBetween": "78eeab56a0e47410",
+  "SeamBetween": "8f9f04df9339bf5c",
   "SectionRoute": "c79ea8395d3e2694",
   "SharedBlindspot": "dd6cf89d24a4735d",
   "ShorteningHold": "e29ff72590042624",
   "SourceDeal": "f11b2faf26fe979b",
-  "SpatialSlides": "67f11c7e1a889fdb",
-  "SpectrumPulse": "6e01a72fdc0f04dc",
+  "SpatialSlides": "286c57276d9f9e21",
+  "SpectrumPulse": "8c9575753112be74",
   "SpeedLimit": "1062149416473552",
   "SpinningProton": "8173db1aa50dfbbb",
   "SpinsAlign": "9ec2ea2b8b6896e0",
   "SplitFlap": "032eaea17701525a",
   "SpotlightStage": "12987d3215fc8f71",
-  "StarfieldWarp": "a7d66d5fda962f36",
-  "StateSheet": "23f91237166a7c2e",
+  "StarfieldWarp": "748d4d9825da7eb0",
+  "StateSheet": "9ebfa3303acc3b06",
   "StatedBy": "c973c94dd22456ac",
   "StrataColumn": "b52724ad79dca9e8",
   "SurfaceCarousel": "a35d99705033183e",
@@ -2952,18 +2953,18 @@
   "TallyLedger": "ab3a514bdce445af",
   "TaskFold": "9b1ad216675f15c9",
   "TechnicalPlate": "a904e795fbc94092",
-  "TemporalAccelerate": "c79003797953d36c",
+  "TemporalAccelerate": "b0234903c2e79e70",
   "TensionScale": "9194c1b7c851d044",
   "TermBars": "c94cc2e3f28fc1f4",
   "TermCounter": "4eedccf46d714ca6",
   "TermDiff": "47ab7a8f1529e70b",
   "TermGitLog": "d31390d346468ca0",
   "TermLog": "8265496ae8cca34e",
-  "TermSpace": "eb29a76f5331199f",
+  "TermSpace": "e7a1f13b1c77ac0e",
   "TermTable": "d4791beb5eff7b84",
   "TermThink": "7992b30db6ba4b48",
   "TermTree": "c1d73639416749fb",
-  "TerrainFly": "17380b1ea6d26973",
+  "TerrainFly": "a54114905504606d",
   "TimelineTravel": "8ec58f1526c6eeb1",
   "UndersampledKspace": "eb71b41d7dee7b10",
   "VariableTypeMorph": "c0a0c574b72fb8ea",
@@ -2973,9 +2974,9 @@
   "VoiceSignal": "519711eed3953b17",
   "VoxelBuild": "3ae03a5d4c40ecf2",
   "WireGlobe": "682228cf46421f58",
-  "WordTunnel": "d6d3e69c7243da19",
+  "WordTunnel": "7966260a3a524ceb",
   "WorksThrough": "e2ad62366962a853",
-  "DeviceDemo": "6a0c23196b5249af",
+  "DeviceDemo": "daa42aed68cb47fd",
   "DeviceHero": "e1dca1e1de165427",
   "ObjectStage": "0f6462d80c4bca61",
   "ObjectCompare": "42eb2fde844335ea",
