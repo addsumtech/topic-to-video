@@ -153,7 +153,8 @@ def test_a_shot_is_registered_carded_measured_in_order_and_the_film_follows_it(t
     # bare spot check overwriting the whole library's table once lost it outright), so a register promoted
     # from a workshop needs its own merge into that file — `record_spot` — after both emits report their
     # classification and before anything downstream hashes the row.
-    luma_positions = [i for i, c in enumerate(calls["run"]) if c[0].split("/")[-1] == "measure_ground_luma.py"]
+    luma_positions = [i for i, c in enumerate(calls["run"])
+                      if c[0].split("/")[-1] == "measure_ground_luma.py" and "--emit" in c]
     spot_positions = [i for i, c in enumerate(calls["run"]) if c[0] == "-c" and "record_spot" in c[-1]]
     assert len(luma_positions) == 2, calls["run"]
     assert len(spot_positions) == 1, calls["run"]
@@ -167,6 +168,32 @@ def test_a_shot_is_registered_carded_measured_in_order_and_the_film_follows_it(t
     assert "999. **ExtractionCurve** — water forced through a packed bed *Use: how flow changes through a shot.*" in \
         open(str(lib / "LIBRARY.md"), encoding="utf-8").read()
     assert not os.path.exists(os.path.join(ws.workshop_dir(out), "shots", "ExtractionCurve.tsx"))
+
+
+def test_a_failed_measurement_names_the_steps_left_from_where_it_failed(tmp_path, sandbox, monkeypatch):
+    """The second ground-reach run is the same command as the first, so finding the failed step by its text named
+    the FIRST one and listed steps that had already run. And the usual fix for a register the sweeps cannot feed
+    is an edit to the register — after which every earlier row describes a source that no longer exists — so the
+    refusal also names the whole order."""
+    lib, calls = sandbox
+    src = SHOT
+    for a, b in DOCS.items():
+        src = src.replace(a, b)
+    out = _film(tmp_path, name="ExtractionCurve", kind="shot", src=src)
+    plan = pr.measurements("ExtractionCurve")
+    second = [i for i, c in enumerate(plan) if "measure_ground_reach.py" in c[1] and "--emit" in c][1]
+
+    def run(cmd, log=print):
+        calls["run"].append(cmd[1:])
+        if len(calls["run"]) == second + 1:
+            raise pr.PromoteError(["`%s` exited 1" % " ".join(cmd[1:])])
+    monkeypatch.setattr(pr, "_run", run)
+    with pytest.raises(pr.PromoteError) as e:
+        pr.promote(out, "ExtractionCurve", family="I", use_when="x", motion="y")
+    msg = next(p for p in e.value.problems if "NOT fully measured" in p)
+    left = msg.split("run, in order: ", 1)[1].split(" — ", 1)[0]
+    assert left.split("; ") == [" ".join(c[1:]) for c in plan[second:]], msg
+    assert "edit" in msg and " ".join(plan[0][1:]) in msg.split(" — ", 1)[1], msg
 
 
 def test_a_shot_with_an_undocumented_prop_is_refused(tmp_path, sandbox):
@@ -255,9 +282,26 @@ def test_measurements_runs_the_spot_merge_once_after_both_luma_emits(tmp_path):
     emits have printed their classification, never only after a later measurement that merely hashes it."""
     cmds = pr.measurements("SomeRegister")
     tags = [c[1].split("/")[-1] if c[1] != "-c" else "-c" for c in cmds]
-    assert tags.count("measure_ground_luma.py") == 2
+    luma_idx = [i for i, (t, c) in enumerate(zip(tags, cmds)) if t == "measure_ground_luma.py" and "--emit" in c]
+    assert len(luma_idx) == 2
     assert tags.count("-c") == 1
     spot = cmds[tags.index("-c")]
     assert "record_spot(['SomeRegister'])" in spot[2]
-    luma_idx = [i for i, t in enumerate(tags) if t == "measure_ground_luma.py"]
     assert max(luma_idx) < tags.index("-c") < tags.index("register_energy.py")
+
+
+def test_ground_reach_is_measured_again_once_the_luma_emits_have_written_the_rows_it_hashes():
+    """A register that reaches runtime/shotLuma.ts (through runtime/light, as ExtractionFlow's pale and deep ends
+    do) hashes its OWN rows there, and the two luma emits rewrite those rows from the placeholder to the measured
+    ground. Ground reach must still come first — the luma rows hash the follows-membership it writes — so it is
+    measured twice: before the emits for the membership, after them for a row that describes the table as it now
+    is. Measured once, first, the row read stale the moment the promotion ended. Both tables are checked last."""
+    cmds = pr.measurements("SomeRegister")
+    tags = [c[1].split("/")[-1] if c[1] != "-c" else "-c" for c in cmds]
+    reach = [i for i, (t, c) in enumerate(zip(tags, cmds)) if t == "measure_ground_reach.py" and "--emit" in c]
+    luma = [i for i, (t, c) in enumerate(zip(tags, cmds)) if t == "measure_ground_luma.py" and "--emit" in c]
+    assert len(reach) == 2, cmds
+    assert reach[0] < min(luma) and max(luma) < tags.index("-c") < reach[1] < tags.index("register_energy.py")
+    assert all("--only" in cmds[i] and "SomeRegister" in cmds[i] for i in reach)
+    final = [(t, c[-1]) for t, c in zip(tags, cmds)][-2:]
+    assert sorted(final) == [("measure_ground_luma.py", "--stale"), ("measure_ground_reach.py", "--stale")], final

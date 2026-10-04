@@ -9,9 +9,9 @@ WHY. A film builds what it needs in its own workshop (scripts/workshop.py) and t
 unpolluted. When a built thing turns out to be good — the USER says so at delivery — it moves into the library here
 and pays what a library register pays: registration at every sync point (register_shot.py), measurement in the order
 the device layer taught — ground reach, then both ground-luma emits and the spot-check merge that confirms them in
-the committed table, then energy and prop reach, then CJK type at every aspect (each emit rewrites the register's
-own row, which the later measurements hash) — and a card written from its build-list entry and its props' own
-comments. An object goes to remotion/src/objects/, into the library's object index and its catalogue section. The
+the committed table, then ground reach again, then energy and prop reach, then CJK type at every aspect (each emit
+rewrites the register's own row, which the later measurements hash) — and a card written from its build-list entry
+and its props' own comments. An object goes to remotion/src/objects/, into the library's object index and its catalogue section. The
 film then uses the library's copy: its workshop copy is removed and its build-list entry marked `promoted`.
 
 REFUSED, never guessed: a film that is not delivered (no out.mp4, or NOT_DELIVERED.md still there — the critic has
@@ -132,17 +132,25 @@ def measurements(name):
     right after both emits print their classification and before anything hashes the row. `--only ... --emit`
     only classifies and prints; it never touches the committed table (a bare spot check overwriting the whole
     library's table once cost it a wholesale loss), so without this merge a promoted register would stay
-    reported as a declaration nobody ever measured, forever."""
+    reported as a declaration nobody ever measured, forever.
+
+    GROUND REACH IS MEASURED TWICE. The luma rows hash the follows-membership ground reach writes, so it runs
+    first; but a register that reaches runtime/shotLuma.ts (through runtime/light, say) hashes its OWN rows there,
+    which the two luma emits then rewrite from the placeholder to the measured ground — so it runs again once
+    they have. Both tables' staleness checks close the run."""
     py = sys.executable
-    return [[py, "scripts/measure_ground_reach.py", "--only", name, "--emit"],
+    reach = [py, "scripts/measure_ground_reach.py", "--only", name, "--emit"]
+    return [list(reach),
             [py, "scripts/measure_ground_luma.py", "--only", name, "--luma", "--emit"],
             [py, "scripts/measure_ground_luma.py", "--only", name, "--emit"],
             [py, "-c", "import sys; sys.path.insert(0, 'scripts'); import measure_ground_luma as g; "
                        "g.record_spot(['%s'])" % name],
+            list(reach),
             [py, "scripts/register_energy.py", "--only", name],
             [py, "scripts/prop_reach.py", "--only", name],
             [py, "scripts/cjk_type_qa.py", "--only", name, "--all-aspects"],
-            [py, "scripts/measure_ground_reach.py", "--stale"]]
+            [py, "scripts/measure_ground_reach.py", "--stale"],
+            [py, "scripts/measure_ground_luma.py", "--stale"]]
 
 
 def _register(name, family, use_when, provenance):
@@ -244,13 +252,17 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
     if kind == "shot":
         _register(name, family, use_when, provenance)
         _catalogue_shot(name, entry, use_when, types, film)
-        for cmd in plan["measure"]:
+        for i, cmd in enumerate(plan["measure"]):
             try:
                 _run(cmd, log=log)
             except PromoteError as e:
-                left = [" ".join(c[1:]) for c in plan["measure"][plan["measure"].index(cmd):]]
-                raise PromoteError(e.problems + ["%s is registered but NOT fully measured; run, in order: %s"
-                                                 % (name, "; ".join(left))])
+                # by position: the same command can appear twice (ground reach), and the first copy has run
+                left = [" ".join(c[1:]) for c in plan["measure"][i:]]
+                every = [" ".join(c[1:]) for c in plan["measure"]]
+                raise PromoteError(e.problems + [
+                    "%s is registered but NOT fully measured; run, in order: %s — or, if the fix is an edit to "
+                    "the register, every row measured so far describes the old source: run them all, in order: %s"
+                    % (name, "; ".join(left), "; ".join(every))])
         _write(os.path.join(CARDS, name + ".md"),
                _card(name, entry, use_when, motion, types, docs, provenance, family, film)
                .replace("**Provenance:**", _measured_line(name) + "\n\n**Provenance:**"))
