@@ -24,6 +24,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {useDNA, dnaPalette, separated, surfaceOn, readableOn, dimOn, TONE_MIN_STEP} from '../runtime/dna';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 180; // 6s
 
@@ -57,6 +58,7 @@ export const InOrder: React.FC<{
   const disp = dna?.fontDisplay ?? 'Inter, system-ui, sans-serif';
 
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const base = Math.min(W, H);
   const zoneTop = CONTENT_TOP;
@@ -99,6 +101,10 @@ export const InOrder: React.FC<{
   const doneFill = dna ? separated(BG, readableOn(BG, '#ffffff', '#05070c'), TONE_MIN_STEP * 1.15) : DONE_D0;
   const hair = Math.max(2, Math.round(base * 0.004));
   const enter = easeOutCubic(clamp01(seg(t, 0.04, 0.30)));
+  // a band's left/top/width/height move while it first tiles in (`enter`) AND, with no `at` pinned, for as
+  // long as the focus keeps walking the sequence (0.10-0.92 of the clip) — both of which Skia rounds the same
+  // way it rounds a translate, so the band carries the unlock for whichever of the two can still be running
+  const bandMoving = enter !== 1 || (at === undefined && t < 0.92);
 
   let acc = 0;
   const bands = steps.map((s, i) => {
@@ -133,18 +139,25 @@ export const InOrder: React.FC<{
             boxShadow: `inset 0 0 0 ${hair}px ${BG}` + (fill === BG ? `, inset 0 0 0 ${hair * 2}px ${DIM}44` : ''),
             display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
             padding: Math.round(base * 0.022), boxSizing: 'border-box', overflow: 'hidden'}}>
-            <div style={{color: live ? ink : sub, font: `800 ${numPx}px/1 ${mono}`,
-              fontVariantNumeric: 'lining-nums tabular-nums', opacity: 0.9}}>
-              {done && doneLabel ? doneLabel : String(i + 1).padStart(2, '0')}
+            {/* the unlock rides the TEXT, never the band's own rectangle: a skew on the band tilts its own
+                bottom edge, and at the live band's far side (widest, by FOCUS_SHARE) that tilt measured a
+                sliver of its fill bleeding past zoneBottom into the caption band (spread 0.110, a uniform
+                band must read < 0.02 — tests/test_inorder.py). The band's background/boxShadow/clip stay
+                exactly axis-aligned; only the glyphs inside carry the skew (runtime/glide.ts). */}
+            <div style={{transform: glide(undefined, bandMoving)}}>
+              <div style={{color: live ? ink : sub, font: `800 ${numPx}px/1 ${mono}`,
+                fontVariantNumeric: 'lining-nums tabular-nums', opacity: 0.9}}>
+                {done && doneLabel ? doneLabel : String(i + 1).padStart(2, '0')}
+              </div>
+              {!tight ? (
+                <div style={{color: ink, font: `700 ${labelPx}px/1.15 ${body}`,
+                  marginTop: Math.round(base * 0.006)}}>{s.label}</div>
+              ) : null}
+              {s.note && live && !tight ? (
+                <div style={{color: sub, font: `400 ${Math.round(labelPx * 0.66)}px/1.35 ${body}`,
+                  marginTop: Math.round(base * 0.005)}}>{s.note}</div>
+              ) : null}
             </div>
-            {!tight ? (
-              <div style={{color: ink, font: `700 ${labelPx}px/1.15 ${body}`,
-                marginTop: Math.round(base * 0.006)}}>{s.label}</div>
-            ) : null}
-            {s.note && live && !tight ? (
-              <div style={{color: sub, font: `400 ${Math.round(labelPx * 0.66)}px/1.35 ${body}`,
-                marginTop: Math.round(base * 0.005)}}>{s.note}</div>
-            ) : null}
           </div>
         );
       })}

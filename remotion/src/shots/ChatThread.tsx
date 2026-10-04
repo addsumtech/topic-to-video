@@ -23,6 +23,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {contentBottom, textWidthPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C DNA migration: the whole chat UI flips together — ground, bubble surfaces, ink, and on-accent text — so
@@ -50,13 +51,14 @@ const DEFAULT_MSGS: Msg[] = [
 // are byte-identical.
 const Bubble: React.FC<{m: Msg; t: number; f: number}> = ({m, t, f}) => {
   const dna = useDNA();
+  const glide = useGlide();
   const A1 = dna?.accent ?? YOU, SURF = dna?.surface ?? WB, INKc = dna?.fg ?? INK, ON = dna?.onAccent ?? '#fff', A2c = dna?.accent2 ?? A2;
   const r = easeOutBack(seg(t, m.at, m.at + RISE));
   const you = m.side === 'you';
   const av = Math.round(74 * f);
   return (
     <div style={{display: 'flex', justifyContent: you ? 'flex-end' : 'flex-start', marginBottom: Math.round(34 * f),
-      opacity: clamp01(r), transform: `translateY(${lerp(30, 0, clamp01(r))}px)`}}>
+      opacity: clamp01(r), transform: glide(`translateY(${lerp(30, 0, clamp01(r))}px)`, r !== 1)}}>
       {!you && <div style={{width: av, height: av, borderRadius: av / 2, marginRight: Math.round(22 * f), background: `linear-gradient(150deg,${A1},${A2c})`, flexShrink: 0}} />}
       {/* overflowWrap: a run with no break opportunity (a URL, a row of ✅) used to run straight out of the
           bubble's right edge and across the frame; it now breaks inside the bubble. Text that has break points
