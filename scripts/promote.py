@@ -148,6 +148,13 @@ def measurements(name):
 def _register(name, family, use_when, provenance):
     import register_shot as rs
     rs.register(name, family, use_when=use_when, provenance=provenance)
+    # register_shot's own command rewrites the catalogue's family census and its "(N design languages)"
+    # headline after every registration; both are counted from the files on disk, so a promotion that
+    # registers through the module and skips the refresh leaves the catalogue one register short.
+    if not rs.refresh_family_census():
+        raise PromoteError(["register_shot could not refresh LIBRARY.md's family census and headline count "
+                            "after registering %s — the catalogue would report one register fewer than it holds"
+                            % name])
     missing = rs.check(name)
     if missing:
         raise PromoteError(["register_shot left %s unregistered in %s" % (name, ", ".join(missing))])

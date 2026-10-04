@@ -201,6 +201,30 @@ def test_dry_run_changes_nothing(tmp_path, sandbox):
     assert os.path.exists(os.path.join(ws.workshop_dir(out), "objects", "EspressoPuck.tsx"))
 
 
+def test_a_promoted_shot_refreshes_the_catalogue_census_and_headline_count(monkeypatch):
+    """register_shot's own command rewrites LIBRARY.md's family census and its "(N design languages)" headline
+    after every registration. A promotion registers through the module, so it has to ask for the same refresh —
+    without it the catalogue's one trusted number is one short after every promoted shot, and the census omits
+    the shelf the shot was filed on."""
+    import register_shot as rs
+    calls = []
+    monkeypatch.setattr(rs, "register", lambda *a, **k: calls.append("register") or {})
+    monkeypatch.setattr(rs, "refresh_family_census", lambda: calls.append("census") or True)
+    monkeypatch.setattr(rs, "check", lambda name: calls.append("check") or [])
+    pr._register("SomeRegister", "H", "one setting decides the time", "industrial")
+    assert calls == ["register", "census", "check"], calls
+
+
+def test_a_census_that_cannot_be_refreshed_is_a_refusal_not_a_stale_catalogue(monkeypatch):
+    import register_shot as rs
+    monkeypatch.setattr(rs, "register", lambda *a, **k: {})
+    monkeypatch.setattr(rs, "refresh_family_census", lambda: False)
+    monkeypatch.setattr(rs, "check", lambda name: [])
+    with pytest.raises(pr.PromoteError) as e:
+        pr._register("SomeRegister", "H", "x", "industrial")
+    assert any("census" in p for p in e.value.problems), e.value.problems
+
+
 def test_measurements_runs_the_spot_merge_once_after_both_luma_emits(tmp_path):
     """measurements() is probed directly (no render, no sandbox) so the order claim cannot be satisfied by
     accident — a shot's promotion must leave the committed ground-luma table confirmable the moment both
