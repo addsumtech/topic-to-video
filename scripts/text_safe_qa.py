@@ -357,18 +357,26 @@ def judge_glide(frames):
     begins wherever the line last moved a pixel or more, which is often long before it starts to step.
 
     `frames` is {frame: census record}. A track is one element (its DOM path) across frames; a crawl is a run of
-    consecutive frames in which the line stays readable, stays axis-aligned (it is listed at all) and moves by less
-    than GLIDE_CRAWL_PX each frame. A frame it is missing from — unlocked, hidden, unmounted — ends the run."""
+    consecutive frames in which the line stays readable and moves by less than GLIDE_CRAWL_PX each frame. A frame it
+    is missing from — hidden, unmounted — ends the run.
+
+    WHAT IS A STEP depends on what moves the line. Under an axis-aligned matrix Skia rounds the baseline, so every
+    whole pixel its true position crosses is one. Under an unlock (`u`) Skia places it to the quarter pixel — but a
+    LAYOUT position is rounded to whole pixels by the browser before Skia sees it, so an unlocked line still steps
+    each time its layout offset `ly` moves (measured on CameraTypeProbe: 0.284px moved by `top`, unlocked, against
+    0.007px moved by a translate). Steps of that kind mark the run `L`: the fix is a transform, not a skew."""
     import math
     tracks = {}
     for f in sorted(frames):
         for ln in frames[f].get("lines") or []:
+            if "c" in (ln.get("fl") or ""):
+                continue                                  # a composited layer: listed for pixel checks, not judged
             tracks.setdefault(ln["k"], []).append((f, float(ln["y"]), float(ln.get("o", 1)), ln.get("t", ""),
-                                                   ln.get("fl", "")))
+                                                   ln.get("fl", ""), bool(ln.get("u")), ln.get("ly")))
     runs = []
     for key, pts in tracks.items():
         cur = None
-        for (f0, y0, o0, _t0, fl0), (f1, y1, o1, t1, fl1) in zip(pts, pts[1:]):
+        for (f0, y0, o0, _t0, fl0, u0, ly0), (f1, y1, o1, t1, fl1, u1, ly1) in zip(pts, pts[1:]):
             dy = y1 - y0
             if (f1 != f0 + 1 or o0 < GLIDE_MIN_OPACITY or o1 < GLIDE_MIN_OPACITY
                     or abs(dy) >= GLIDE_CRAWL_PX):
@@ -381,10 +389,22 @@ def judge_glide(frames):
             if abs(dy) > GLIDE_STILL_PX:
                 cur["moved"] = True
                 cur["max_dy"] = max(cur["max_dy"], abs(dy))
-                if math.floor(y1) != math.floor(y0):
+                laid = ly0 is not None and ly1 is not None and ly0 != ly1
+                if u0 and u1:
+                    step, why = laid, "L"                 # unlocked, but the layout offset moved a whole pixel
+                elif not u0 and not u1:
+                    step, why = math.floor(y1) != math.floor(y0), "L" if laid else ""
+                else:
+                    # a SPAN EDGE: the unlock switching on or off between these two frames. What changes is how the
+                    # line is rounded, not a crawl step — at most the sub-pixel settle every span edge has — and a
+                    # crawl that goes on after it is counted frame by frame on the other side.
+                    step, why = False, ""
+                if step:
                     cur["steps"] += 1
                     cur["a"] = f1 if cur["a"] is None else cur["a"]
                     cur["b"] = f1
+                    if why and "L" not in cur["fl"]:
+                        cur["fl"] += "L"
             cur["fl"] = "".join(sorted(set(cur["fl"]) | set(fl0) | set(fl1)))
         if cur and cur["steps"] and cur["moved"]:
             runs.append(cur)
@@ -406,15 +426,18 @@ def glide_level(runs):
 
 def _describe_run(r):
     flags = []
+    if "L" in r["fl"]:
+        # a layout offset is rounded to whole pixels before Skia draws anything, so no skew can reach it
+        flags.append("moved by LAYOUT (top/left/margin) — move the position into a transform and glide() that")
     if "f" in r["fl"]:
         # the one case whose fix is not "add the unlock": a blur or drop-shadow keeps only the scale of the matrix
         # above it, so an unlock above the filter never reaches these glyphs (runtime/textSafe.tsx SPATIAL_FILTER)
         flags.append("inside a blur/drop-shadow filter — the unlock must sit INSIDE the filtered element")
     if "s" in r["fl"]:
         flags.append("declared data-type-steps")
-    return ("%r steps %d whole pixel%s across frames %d-%d, crawling at most %.2fpx/frame under an axis-aligned "
-            "matrix%s" % (r["t"], r["steps"], "" if r["steps"] == 1 else "s", r["a"], r["b"], r["max_dy"],
-                          (" (" + ", ".join(flags) + ")") if flags else ""))
+    return ("%r steps %d whole pixel%s across frames %d-%d, crawling at most %.2fpx/frame%s"
+            % (r["t"], r["steps"], "" if r["steps"] == 1 else "s", r["a"], r["b"], r["max_dy"],
+               (" (" + ", ".join(flags) + ")") if flags else ""))
 
 
 def _composited(frames):

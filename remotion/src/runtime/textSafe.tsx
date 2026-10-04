@@ -1299,23 +1299,36 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
 // the line box truly sits — client rects are computed from the transform, before paint rounds anything. A pixel
 // measure has to guess where the type is and what it should have done; this reads both.
 //
-// WHAT IS LISTED. Only type that CAN snap: a line under a matrix whose skewY entry rounds to zero. Type under the
-// unlock, under a rotation, or tilted by a surface is counted (`u`) and not listed; type under a 3D chain, whose
-// raster path this cannot read, is counted separately (`z`). An element or ancestor carrying `data-type-steps`
+// WHAT IS LISTED. Every visible line, with what decides whether it can step. Under a matrix whose skewY entry
+// rounds to zero (`u` absent) Skia rounds the baseline; under the unlock, a rotation or a tilted surface (`u: 1`)
+// it does not — but a LAYOUT position is rounded to whole pixels by the browser BEFORE Skia sees it, and no skew
+// reaches that. Measured on CameraTypeProbe: type moved by `top` stepped exactly as before (0.284px against its
+// true position) with the unlock on the moving element and with it on a still wrapper; the same crawl moved by
+// a translate in the unlocked transform measured 0.007px. So each line also carries `ly`, its layout offset (the
+// offsetTop chain, which no transform moves): an unlocked line steps whenever `ly` does. Type under a 3D chain or
+// a will-change layer, whose raster path this cannot read, is counted (`z`) and not listed. An element or ancestor carrying `data-type-steps`
 // is listed with flag `s`: type that is MEANT to step (a glitch's offset copies, a mechanical counter) — the
 // reader excuses it and names it.
 
 /** Prefix on each frame's census line in the browser log. */
 export const TYPE_GLIDE_TAG = 'TYPE-GLIDE ';
 
-/** One line of type that can snap, on one frame: key, true top of its first line box in px, effective opacity,
- *  its text (cut), and flags — `f` drawn through a blur or drop-shadow filter, `s` declared stepped. */
+/** One line of type on one frame: key, true top of its first line box in px, its box, effective opacity, its text
+ *  (cut), `ly` — its LAYOUT offset in whole px (the offsetTop chain, which no transform moves) — `u` when its matrix
+ *  is unlocked, and flags: `f` drawn through a blur or drop-shadow filter, `s` declared stepped. */
 export type GlideLine = {k: string; y: number; x?: number; w?: number; h?: number; o: number; t: string;
-  fl?: string};
+  ly?: number; u?: 1; fl?: string};
 
 type Mat2 = [number, number, number, number];
 type GlideChain = {M: Mat2 | null; L: Mat2 | null; ls: number; op: number; spatial: boolean; will: boolean;
-  steps: boolean; key: string};
+  steps: boolean; key: string; d3: boolean};
+
+// A 3D RENDERING CONTEXT IS COMPOSITED EVEN ON A FRAME WHERE ITS MATRIX IS FLAT. CardFlip3D's cards rise as
+// `translateY(…) rotateY(0deg)` inside `preserve-3d`: the computed transform reads as a 2D matrix, the census read
+// the card's words as axis-aligned type crawling, and the pixels said otherwise — rasterised once and moved by the
+// compositor, they glided (0.012px against their true position). So a 3D transform FUNCTION in the element's own
+// style, or `transform-style: preserve-3d` on it or above it, is read as a composited layer like a matrix3d.
+const D3_FUNCTION = /\b(rotate[XY3]|translate[Z3]|scale[Z3]|perspective|matrix3d)\s*\(/;
 
 /** Skia's own test: the skewY entry, rounded to 1/1024 (`sk_relax`), is zero. */
 export const snapsBaseline = (b: number): boolean => Math.round(Math.abs(b) * 1024) === 0;
@@ -1344,7 +1357,7 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     if (hit) return hit;
     const parent = el.parentElement;
     const up: GlideChain = parent ? chain(parent)
-      : {M: [1, 0, 0, 1], L: [1, 0, 0, 1], ls: 1, op: 1, spatial: false, will: false, steps: false, key: ''};
+      : {M: [1, 0, 0, 1], L: [1, 0, 0, 1], ls: 1, op: 1, spatial: false, will: false, steps: false, key: '', d3: false};
     const cs = win.getComputedStyle(el);
     const own = selfMatrix(cs);
     const M = up.M === null || own === null ? null : mul2(up.M, own);
@@ -1362,33 +1375,59 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
       will: up.will || /transform/.test(cs.willChange || ''),
       steps: up.steps || el.hasAttribute('data-type-steps'),
       key: `${up.key}/${el.tagName.toLowerCase()}${childIndex.get(el) ?? 0}`,
+      d3: up.d3 || cs.transformStyle === 'preserve-3d'
+        || D3_FUNCTION.test((el as HTMLElement).style?.transform || ''),
     };
     memo.set(el, info);
     return info;
   };
   const lines: GlideLine[] = [];
   let u = 0, z = 0;
+  // the layout offset in whole px: offsetTop up the offsetParent chain, memoised. SVG has no offsetTop, and its
+  // own coordinates are not rounded by layout, so an SVG element takes the layout offset of its HTML host.
+  const lyMemo = new Map<Element, number>();
+  const layoutY = (el: Element | null): number => {
+    if (!el) return 0;
+    const hit = lyMemo.get(el);
+    if (hit !== undefined) return hit;
+    const he = el as HTMLElement;
+    const v = typeof he.offsetTop === 'number'
+      ? he.offsetTop + layoutY(he.offsetParent)
+      : layoutY(el.parentElement);
+    lyMemo.set(el, v);
+    return v;
+  };
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text || isEcho(el)) return;
     if (!visibleRect(el, frame)) return;             // hidden, fully transparent, or clipped away entirely
     const c = chain(el);
     // A 3D chain or a will-change layer is rasterised once and moved by the compositor — not this path. Measured:
-    // under will-change the unlock trades the y staircase for an x jitter of 0.6px. Counted, never listed.
-    if (c.M === null || c.will) { z += 1; return; }
+    // under will-change the unlock trades the y staircase for an x jitter of 0.6px. Counted (`z`) and listed with
+    // flag `c` — never judged by the baseline rule, but its true box is there for a pixel check to read.
+    if (c.M === null || c.will || c.d3) {
+      z += 1;
+      const r = inkRect(el) ?? el.getBoundingClientRect();
+      lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, x: Math.round(r.left * 100) / 100,
+        w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, o: Math.round(c.op * 100) / 100,
+        t: text.length > 32 ? text.slice(0, 32) + '…' : text, fl: 'c'});
+      return;
+    }
     // SVG type outside any filter: the screen CTM is exact — it carries the viewBox's scale, which no css transform
     // states. Inside a blur/drop-shadow layer the skew that reaches the glyphs is the one composed below it.
     const ctm = c.spatial ? null : (el as unknown as {getScreenCTM?: () => DOMMatrix | null}).getScreenCTM?.();
     const b = ctm ? ctm.b : c.spatial ? (c.L === null ? null : c.L[1] * c.ls) : c.M[1];
     if (b === null) { z += 1; return; }
-    if (!snapsBaseline(b)) { u += 1; return; }
+    const unlocked = !snapsBaseline(b);
+    if (unlocked) u += 1;
     const r = inkRect(el) ?? el.getBoundingClientRect();
     const fl = (c.spatial ? 'f' : '') + (c.steps ? 's' : '');
     // x, w, h ride along so a reader can cut the line's own pixels out of a rendered frame and check the census
-    // against what was drawn (the pixel half of an accuracy check); the census itself reads only y
+    // against what was drawn (the pixel half of an accuracy check)
     lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, x: Math.round(r.left * 100) / 100,
       w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, o: Math.round(c.op * 100) / 100,
-      t: text.length > 32 ? text.slice(0, 32) + '…' : text, ...(fl ? {fl} : {})});
+      t: text.length > 32 ? text.slice(0, 32) + '…' : text, ly: layoutY(el), ...(unlocked ? {u: 1 as const} : {}),
+      ...(fl ? {fl} : {})});
   });
   return {lines, u, z};
 };

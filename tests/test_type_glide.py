@@ -78,6 +78,24 @@ def test_a_frame_the_line_is_missing_from_ends_the_crawl():
     assert tq.judge_glide(_track(ys)) == []
 
 
+def test_an_unlocked_line_that_moves_by_layout_still_steps():
+    """Measured on CameraTypeProbe: type moved by `top` steps a whole pixel at a time (0.284px against its true
+    position) however it is unlocked, because the browser rounds a layout offset before Skia draws anything; moved
+    by a translate in the unlocked transform it measured 0.007px. So an unlocked line steps when its layout offset
+    `ly` moves, and does not when only its transform moves."""
+    def unlocked(ys, lys):
+        out = _track(ys)
+        for f, (rec, ly) in enumerate(zip(out.values(), lys)):
+            for ln in rec["lines"]:
+                ln["u"], ln["ly"] = 1, ly
+        return out
+    ys = [100 + 0.3 * i for i in range(12)]
+    by_layout = tq.judge_glide(unlocked(ys, [int(round(y)) for y in ys]))
+    assert tq.glide_level(by_layout)[0] == "error" and "L" in by_layout[0]["fl"], by_layout
+    by_transform = tq.judge_glide(unlocked(ys, [100] * len(ys)))
+    assert by_transform == [], by_transform
+
+
 def test_type_declared_stepped_is_named_and_excused():
     ys = [100 + 0.3 * i for i in range(12)]
     runs = tq.judge_glide(_track(ys, fl="s"))
@@ -144,7 +162,10 @@ def _census(bundle, variants):
         assert tq._glide_measured(slot, 120) is None, (k, slot.get("error"), slot.get("done"))
         runs = tq.judge_glide(slot["frames"])
         out[k] = {"level": tq.glide_level(runs)[0], "runs": runs,
-                  "listed": sum(len(r.get("lines") or []) for r in slot["frames"].values()),
+                  # lines Skia would round: listed without `u` (unlocked lines are listed too, for their layout) and
+                  # not on a composited layer (`c`: listed for pixel checks, never judged)
+                  "listed": sum(1 for r in slot["frames"].values() for ln in (r.get("lines") or [])
+                                if not ln.get("u") and "c" not in (ln.get("fl") or "")),
                   "z": tq._composited(slot["frames"])}
     return out
 
@@ -164,6 +185,21 @@ def test_the_census_finds_the_old_camera_and_clears_the_unlocked_one(census_bund
             name, got[name]["runs"][:2])
     for name in ("hold", "bare"):
         assert got[name]["listed"] > 0 and got[name]["level"] == "clean", (name, got[name]["runs"][:2])
+
+
+@needs_toolchain
+def test_the_census_finds_type_moved_by_layout_whatever_unlocks_it(census_bundle):
+    """The probe's three drives, measured in pixels before this was written (type centroid against its true
+    position): a translate in an unlocked transform glides (0.007px); `top` with the unlock on the moving element,
+    or on a still wrapper around it, steps exactly as with no unlock at all (0.284px). The census must say so."""
+    got = _census(census_bundle, {
+        "transform": {"drive": "transform", "move": "hold"}, "transform-old": {"drive": "transform", "move": "hold", "legacy": True},
+        "layout": {"drive": "layout", "move": "hold"}, "inner": {"drive": "inner", "move": "hold"},
+    })
+    assert got["transform"]["level"] == "clean", got["transform"]["runs"][:2]
+    assert got["transform-old"]["level"] == "error", got["transform-old"]
+    for name in ("layout", "inner"):
+        assert got[name]["level"] == "error" and all("L" in r["fl"] for r in got[name]["runs"]), (name, got[name])
 
 
 @needs_toolchain
@@ -283,3 +319,17 @@ def test_the_unlock_written_into_dna_is_the_runtime_one():
     assert len(written) == 3, "TermFrame's result and EdFrame's kicker and body each carry one: %r" % written
     out = _tsprobe.run_ts("import {BASELINE_UNLOCK} from %s;" % _tsprobe.mod("glide"), "out.u = BASELINE_UNLOCK;")
     assert set(written) == {out["u"]}, "dna.tsx's unlock %r is not runtime/glide's %r" % (set(written), out["u"])
+
+
+@needs_toolchain
+def test_type_in_a_3d_rendering_context_is_read_as_composited_not_judged(census_bundle):
+    """CardFlip3D's cards rise as `translateY(…) rotateY(0deg)` inside `preserve-3d`: the computed transform reads as
+    a flat matrix, and the census used to judge the cards' words as axis-aligned type crawling — an ERROR the
+    pixels contradicted (0.012px against their true position: the layer is rasterised once and moved by the
+    compositor). Type under a 3D transform function or `preserve-3d` is listed as composited and never judged."""
+    res = tq.glide_run([{"tag": "x", "id": "CardFlip3D", "props": {"dna": "product", "typeGlide": True},
+                         "from": 22, "to": 45}], census_bundle)["x"]
+    assert res["done"] and not res["error"], res
+    cards = [ln for rec in res["frames"].values() for ln in rec["lines"] if ln["t"] in ("Hours", "02")]
+    assert cards and all("c" in (ln.get("fl") or "") for ln in cards), cards[:3]
+    assert tq.glide_level(tq.judge_glide(res["frames"]))[0] == "clean"

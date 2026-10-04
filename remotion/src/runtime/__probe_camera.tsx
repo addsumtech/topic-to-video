@@ -27,6 +27,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {SceneCamera, type CameraMove} from './depth';
+import {useCurrentFrame} from 'remotion';
 import {BASELINE_UNLOCK, BaselineUnlockContext} from './glide';
 import {CONTENT_TOP} from './layout';
 import {TypeGlideAudit} from './textSafe';
@@ -45,13 +46,35 @@ const LAYER_STYLE: Record<ProbeLayer, React.CSSProperties> = {
 export const DURATION = 120;
 
 export const CameraTypeProbe: React.FC<{move?: CameraMove; amount?: number; pan?: [number, number];
-  bare?: boolean; text?: string; legacy?: boolean; typeGlide?: boolean; layer?: ProbeLayer; inner?: boolean}> = ({
+  bare?: boolean; text?: string; legacy?: boolean; typeGlide?: boolean; layer?: ProbeLayer; inner?: boolean;
+  drive?: 'camera' | 'transform' | 'layout' | 'inner'}> = ({
   move = 'push', amount, pan, bare = false, text = 'Type rides the camera 字随镜头走', legacy = false,
-  typeGlide = false, layer = 'none', inner = false}) => {
+  typeGlide = false, layer = 'none', inner = false, drive = 'camera'}) => {
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   const x = Math.round(W * 0.08), y = Math.round(CONTENT_TOP + H * 0.06), px = Math.round(U * 0.04);
   if (!(layer in LAYER_STYLE)) throw new Error(`CameraTypeProbe: unknown layer ${JSON.stringify(layer)}`);
+  // `drive` other than the camera: the type and its rule move by themselves, 30px down across the probe at a
+  // crawl — by a translate in their own element's transform (`transform`), or by their LAYOUT position, `top`
+  // changing every frame, with the unlock written as the element's own transform (`layout`). The two are the two
+  // ways a register moves a label, and only one of them is cured by a skew on the moving element.
+  const frame = useCurrentFrame();
+  const crawl = Math.min(1, Math.max(0, (frame - 10) / 100)) * 30;
+  const own = drive === 'camera' || legacy ? undefined : BASELINE_UNLOCK;
+  if (drive !== 'camera') {
+    const ty = drive === 'transform' ? crawl : 0, dy = drive !== 'transform' ? crawl : 0;
+    // `inner`: the unlock sits on a STILL wrapper and the type moves by layout inside it
+    const tf = drive === 'transform' ? `translateY(${ty}px)${own ? ' ' + own : ''}` : drive === 'layout' ? own : undefined;
+    return (
+      <AbsoluteFill style={{background: '#ffffff', transform: drive === 'inner' ? own : undefined}}>
+        <div style={{position: 'absolute', left: x, top: y + dy, color: '#000000', whiteSpace: 'nowrap',
+          font: `700 ${px}px/1.2 Inter, "Noto Sans SC", sans-serif`, transform: tf}}>{text}</div>
+        <div style={{position: 'absolute', left: x, top: y + dy + Math.round(px * 1.6), width: Math.round(W * 0.34),
+          height: 3, background: '#ff0000', transform: drive === 'transform' ? `translateY(${ty}px)` : undefined}} />
+        {typeGlide ? <TypeGlideAudit /> : null}
+      </AbsoluteFill>
+    );
+  }
   const page = (
     <AbsoluteFill style={{background: '#ffffff'}}>
       <AbsoluteFill style={LAYER_STYLE[layer]}>
