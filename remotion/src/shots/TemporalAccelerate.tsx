@@ -70,6 +70,9 @@ export const TemporalAccelerate: React.FC<{items?: string[]; seconds?: number | 
       {/* the task list, scrolling up fast with velocity blur */}
       <div style={{position: 'absolute', left: listX, top: listTop, width: 980, height: 760, overflow: 'hidden'}}>
         <div style={{transform: `translateY(${-travel}px)`, filter: blur > 0.5 ? `blur(${blur}px)` : undefined}}>
+          {/* the rows carry the baseline unlock while the list scrolls — INSIDE the velocity blur, which keeps only
+              the scale of the matrix above it, so an unlock beside it never reaches the glyphs (runtime/glide.ts) */}
+          <div style={{transform: glide(undefined, sf !== 1)}}>
           {STEPS.map((s, i) => {
             // ticked once scrolled past — and ALL of them once the timer snaps, which is what the counter says
             const passed = done || i * rowH < travel + 40;
@@ -81,6 +84,7 @@ export const TemporalAccelerate: React.FC<{items?: string[]; seconds?: number | 
               </div>
             );
           })}
+          </div>
         </div>
       </div>
       {/* the racing timer + counter (right) */}

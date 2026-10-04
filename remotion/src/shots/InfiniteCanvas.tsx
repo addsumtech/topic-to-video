@@ -6,6 +6,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, lerp, easeInOutCubic, easeOutBack, seg, clamp01, hash01} from '../runtime/motion';
 import {pageCamTransform, useCamUnlock} from '../runtime/pageCam2D';
+import {useGlide} from '../runtime/glide';
 import {rows} from '../runtime/rows';
 import {useDNA} from '../runtime/dna';
 
@@ -33,6 +34,7 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
   const NOTEB = dna?.surfaceBorder ?? null;
   const noteShadow = `${NOTEB ? `inset 0 0 0 1px ${NOTEB}, ` : ''}0 14px 30px rgba(80,70,40,.18)`;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // a central hub + branches (a project mapped out); positions deterministic on the big world
   const hub: Node = {x: WORLD_W / 2 - 210, y: WORLD_H / 2 - 120, w: 420, h: 240, text: hubText, c: FG};
@@ -71,7 +73,11 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
         {nodes.map((n, i) => {
           const ap = easeOutBack(clamp01((zt - i * 0.03) / 0.3));
           return <div key={i} style={{position: 'absolute', left: n.x, top: n.y, width: n.w, height: n.h, background: n.c,
-            borderRadius: 14, transform: `scale(${clamp01(ap)}) rotate(${(hash01(i + 3) - 0.5) * 6}deg)`, transformOrigin: 'center',
+            // the note pops in by scale under the canvas camera: while it grows, Skia sees the camera's skew TIMES both
+            // scales, so a note turned by almost nothing rounds back to axis-aligned — it carries its own unlock,
+            // raised for the size it is at (runtime/glide.ts)
+            borderRadius: 14, transform: glide(`scale(${clamp01(ap)}) rotate(${(hash01(i + 3) - 0.5) * 6}deg)`,
+              ap !== 1, Math.max(0.01, clamp01(ap) * 0.5)), transformOrigin: 'center',
             boxShadow: noteShadow, display: 'flex', alignItems: 'center', justifyContent: 'center',
             font: '700 40px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: '#3a3320', textAlign: 'center', padding: 20}}>{n.text}</div>;
         })}
