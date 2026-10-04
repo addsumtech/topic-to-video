@@ -628,6 +628,13 @@ def cjk_props(name, offset=0):
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.
             continue
+        if re.fullmatch(r"Record<[^<>]*>(\|undefined|\|null)?", t):
+            # AN OPEN MAP IS NOT COPY THIS FIXTURE CAN SHAPE. `Record<string, unknown>` declares no field — PourSync's
+            # `shared` is props it hands on to the objects it holds — so the name-keyed table's entry for the same
+            # name (another register's `shared{label,a,b,note}`) went in untrimmed: nothing draws those strings,
+            # they counted as copy that never reached the screen, and a sparse aspect read as a frame the fixture
+            # never reached. Left unset, the register draws its own default.
+            continue
         if re.fullmatch(r"ObjectRef(\|undefined|\|null)?", t):
             # AN OBJECT SLOT IS NOT COPY. It names a thing a film drew (runtime/objectSlot); left unset the register
             # shows its own picture, which is what a library sweep measures. Filed untestable, it would read as a

@@ -1313,3 +1313,22 @@ def test_a_top_level_switch_is_fed_its_value_not_a_sentence():
     assert c._literal_alias_member("DeviceKind", "") == "phone"
     assert c._literal_alias_member("Step", "") is None          # an object alias is not a switch
 
+
+
+def test_an_open_map_prop_is_not_fed_another_registers_copy(tmp_path, monkeypatch):
+    """`shared?: Record<string, unknown>` declares no field: it is props a register hands on to the objects it holds.
+    The fixture's name-keyed table has a `shared` entry ({label, a, b, note}) that belongs to another register; fed
+    into an open map, nothing draws those strings, they count as copy that never reached the screen, and a sparse
+    aspect is reported as a frame the fixture never reached. An open map is left to the register's own default."""
+    (tmp_path / "Mirror.tsx").write_text("""import React from 'react';
+export const DURATION = 150;
+export const Mirror: React.FC<{
+  shared?: Record<string, unknown>;   // merged into both objects' props
+  title?: string;                     // the claim
+}> = ({shared = {}, title = ''}) => null;
+""", encoding="utf-8")
+    monkeypatch.setattr(c, "_SHOTS", str(tmp_path))
+    assert "shared" in c._ARRAY_SHAPES, "the premise: the shared table has an entry under this prop's name"
+    props, untestable = c.cjk_props("Mirror")
+    assert "shared" not in props and "shared" not in untestable, (props, untestable)
+    assert "title" in props, props
