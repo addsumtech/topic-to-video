@@ -153,8 +153,10 @@ export const ProfileGrowth: React.FC<{
         const w = st.w * fieldW, h = st.h * fieldH;
         const x = fx + fieldW / 2 - w / 2;
         return (
-          <div key={'l' + i} style={{position: 'absolute', left: x, top: baseY - h * on - Math.round(W * 0.021),
-            width: w, opacity: on, textAlign: 'center', transform: glide(undefined, on !== 1),
+          // the label rides its shape's top by a TRANSLATE carrying the unlock: by its layout top it was rounded
+          // to whole pixels before anything was drawn, and stepped whatever unlocked it
+          <div key={'l' + i} style={{position: 'absolute', left: x, top: 0, width: w, opacity: on, textAlign: 'center',
+            transform: glide(`translateY(${baseY - h * on - Math.round(W * 0.021)}px)`, on !== 1),
             font: `${last ? 700 : 600} ${Math.round(W * (last ? 0.017 : 0.0135))}px/1.2 ${mono}`,
             color: last ? ACC : FG, letterSpacing: '0.05em', textWrap: 'balance'}}>{st.label}</div>
         );

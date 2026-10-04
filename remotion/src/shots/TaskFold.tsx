@@ -149,6 +149,11 @@ export const TaskFold: React.FC<{
   // is built from, rather than a second re-derivation of "is the list still scrolling".
   const scrollP = overflow > 0 ? easeInOutCubic(clamp01(seg(t, 0.66, 0.92))) : 1;
   const scroll = scrollP * overflow;
+  // THE LIST AND ITS ROWS MOVE BY TRANSLATE. By their layout top they were rounded to whole pixels before
+  // anything was drawn, and stepped whatever unlocked them. The scroll lands on the whole pixel its old layout
+  // offset rounded to; the rows reflow (subtasks out, then folded back) between whole-pixel rests.
+  const scrollTo = scroll + (Math.round(overflow) - overflow) * scrollP;
+  const reflowing = (show > 0 && show < 1) || (collapse > 0 && collapse < 1);
   const alive = tasks.some((k) => k.state === 'working') ? 0.5 - 0.5 * Math.cos(t * Math.PI * 2 * 3) : 0;
 
   return (
@@ -175,17 +180,17 @@ export const TaskFold: React.FC<{
           const grad = `linear-gradient(to bottom, transparent 0px, #000 ${f}px, #000 ${Math.max(f, viewH - f)}px, transparent ${viewH}px)`;
           return {maskImage: grad, WebkitMaskImage: grad};
         })() : {})}}>
-        {/* the list scrolls by LAYOUT position (`top`), which Skia rounds the same way it rounds a translate,
-            so every row riding it — including the first, whose own top never moves — carries the unlock */}
-        <div style={{position: 'absolute', left: 0, top: -scroll, width: panelW, height: total,
-          transform: glide(undefined, scrollP !== 1)}}>
+        {/* the list scrolls by a translate, so every row riding it — including the first, whose own place never
+            moves — carries the unlock while it scrolls */}
+        <div style={{position: 'absolute', left: 0, top: 0, width: panelW, height: total,
+          transform: glide(`translateY(${-scrollTo}px)`, scrollP !== 1)}}>
           {tasks.map((k, i) => {
             const land = landOf(i);
             const tone = toneOf(k.state);
             const word = wordOf(k.state);
             return (
-              <div key={i} style={{position: 'absolute', left: 0, top: tops[i], width: panelW,
-                opacity: land, transform: glide(`translateY(${(1 - land) * U * 0.02}px)`, land !== 1)}}>
+              <div key={i} style={{position: 'absolute', left: 0, top: 0, width: panelW, opacity: land,
+                transform: glide(`translateY(${tops[i] + (1 - land) * U * 0.02}px)`, land !== 1 || reflowing)}}>
                 <div style={{position: 'relative', zIndex: 1, height: cardH, boxSizing: 'border-box', borderRadius: Math.round(U * 0.014),
                   background: SURF, border: `1px solid ${LINE}`, padding: `0 ${pad}px`,
                   display: 'flex', alignItems: 'center', gap: Math.round(U * 0.014)}}>
@@ -207,8 +212,8 @@ export const TaskFold: React.FC<{
                 {/* the background work as rows of its own — then sliding UP UNDER the card and gone: the
                     slot it held is given back. Rows keep their size (squashing them overprinted the text). */}
                 {k.subs.map((sub, j) => (
-                  <div key={j} style={{position: 'absolute', left: Math.round(pad * 2.2), right: pad, zIndex: -1,
-                    top: cardH + (j * subH) * (1 - collapse) - (cardH * 0.6 + j * subH * 0) * collapse,
+                  <div key={j} style={{position: 'absolute', left: Math.round(pad * 2.2), right: pad, zIndex: -1, top: 0,
+                    transform: `translateY(${cardH + (j * subH) * (1 - collapse) - (cardH * 0.6 + j * subH * 0) * collapse}px)`,
                     height: subH, opacity: show * (1 - collapse),
                     display: 'flex', alignItems: 'center', gap: Math.round(U * 0.01),
                     color: DIM, font: `500 ${subPx}px/${leading(sub, 1.2)} ${MONO}`}}>

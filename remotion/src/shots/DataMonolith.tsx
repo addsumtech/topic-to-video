@@ -185,11 +185,12 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
               transform: 'scaleY(-1)', transformOrigin: 'top', opacity: 0.3 * grow, filter: 'blur(2px)'}} />
             {/* the value, written above its tower — only when the film supplied one */}
             {tw.text != null ? (
-              // the value travels by its LAYOUT top (the tower growing under it, and — for a named hero — the
-              // pulse that never stops once it starts), which Skia rounds the same way it rounds a translate
+              // the value rides its tower (growing under it, and — for a named hero — the pulse that never stops
+              // once it starts) by a TRANSLATE carrying the unlock: by its layout top it was rounded to whole
+              // pixels before anything was drawn, and stepped whatever unlocked it
               <div style={{position: 'absolute', left: x - gap / 2, width: bandW + gap, textAlign: 'center',
-                top: floorY - th * pulse - VALUE_ROOM, opacity: clamp01(seg(t, 0.4 + i * 0.06, 0.56 + i * 0.06)),
-                transform: glide(undefined, grow !== 1 || (isHero && t > 0.6)),
+                top: 0, opacity: clamp01(seg(t, 0.4 + i * 0.06, 0.56 + i * 0.06)),
+                transform: glide(`translateY(${floorY - th * pulse - VALUE_ROOM}px)`, grow !== 1 || (isHero && t > 0.6)),
                 color: VALUE_INK, whiteSpace: 'nowrap',
                 font: `700 ${Math.max(12, Math.min(VALUE_PX, fitTextPx(tw.text, bandW + gap * 0.8, VALUE_PX, {usable: 1})))}px/1 ` +
                   'var(--f-mono, "JetBrains Mono", monospace)'}}>{tw.text}</div>

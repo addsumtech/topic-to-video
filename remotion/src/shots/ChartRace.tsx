@@ -126,18 +126,23 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
         color: '#aeb6ca', font: `700 ${titlePx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TITLE}</div> : null}
       {live.map((r) => {
         const sr = lerp(softRank(r), finalRank(r), snap);
-        const y = top + sr * rowH;
+        // the row and its value TRAVEL BY TRANSLATE: by their layout top/left they were rounded to whole pixels
+        // before anything was drawn, and stepped whatever unlocked them. Each eases onto the whole pixel its old
+        // layout position rounded to, so the race ends exactly where it always did.
+        const yRest = top + finalRank(r) * rowH;
+        const y = top + sr * rowH + (Math.round(yRest) - yRest) * snap;
         const bw = (r.cur / maxVal) * barMax;
+        const vRest = (r.value / maxVal) * barMax + 20;
+        const vx = bw + 20 + (Math.round(vRest) - vRest) * r.g;
         // the leader is the bar whose CURRENT value is strictly the largest — a tie has no leader
         const lead = live.every((o) => o.i === r.i || r.cur > o.cur);
         const tone = TONES[r.i % TONES.length];
         const shown = figureAt(parseFigure(r.settled), r.g);
         return (
-          // the row travels by its LAYOUT top (the soft rank sliding to its final slot) and the value counts up
-          // by its own LEFT, both of which Skia rounds the same way it rounds a translate: the label and the
-          // counting value carry the unlock while the race can still move them (runtime/glide.ts)
-          <div key={r.i} style={{position: 'absolute', left: x0, top: y, width: barMax + valueW + 40, height: rowH - 22,
-            transform: glide(undefined, t < RACE_B)}}>
+          // the row slides by a translate (the soft rank sliding to its final slot) and the value counts up by its
+          // own: the label and the counting value carry the unlock while the race can still move them (runtime/glide.ts)
+          <div key={r.i} style={{position: 'absolute', left: x0, top: 0, width: barMax + valueW + 40, height: rowH - 22,
+            transform: glide(`translateY(${y}px)`, t < RACE_B)}}>
             {/* label */}
             <div style={{position: 'absolute', right: '100%', top: 0, height: rowH - 22, paddingRight: 26,
               display: 'flex', alignItems: 'center', color: lead ? '#fff' : '#c7cee0',
@@ -147,7 +152,8 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
               background: `linear-gradient(90deg, ${tone}, ${tone}cc)`,
               boxShadow: lead ? `0 0 30px ${tone}88` : 'none'}} />
             {/* value — counts up with its bar and settles on the film's own string */}
-            <div style={{position: 'absolute', left: bw + 20, top: 0, height: rowH - 22, display: 'flex', alignItems: 'center',
+            <div style={{position: 'absolute', left: 0, top: 0, transform: `translateX(${vx}px)`,
+              height: rowH - 22, display: 'flex', alignItems: 'center',
               color: lead ? tone : '#8b93a8', font: `800 ${valuePx}px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>
               {shown}</div>
           </div>

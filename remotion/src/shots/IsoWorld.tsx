@@ -143,10 +143,13 @@ export const IsoWorld: React.FC<{items?: string[]; title?: string}> = ({
         const h = 150 * c.hFrac * rise;
         const on = clamp01(seg(t, 0.5 + wave * 0.2, 0.7 + wave * 0.2));
         return (
-          // the chip travels by its LAYOUT top as the building under it rises, which Skia rounds the same way
-          // it rounds a translate
-          <div key={k} style={{position: 'absolute', left: c.sx, top: c.sy - TH / 2 - h - 54,
-            transform: glide('translate(-50%, 0)', rise !== 1), opacity: on, zIndex: 4,
+          // the chip rides the building rising under it by a TRANSLATE carrying the unlock: by its layout top it
+          // was rounded to whole pixels before anything was drawn, and stepped whatever unlocked it. Once the
+          // building stands, the chip stands at its layout place again, its edges snapped as they always were.
+          <div key={k} style={{position: 'absolute', zIndex: 4, opacity: on,
+            ...(rise !== 1
+              ? {left: 0, top: 0, transform: glide(`translate(${c.sx}px, ${c.sy - TH / 2 - h - 54}px) translate(-50%, 0)`, true)}
+              : {left: c.sx, top: c.sy - TH / 2 - h - 54, transform: 'translate(-50%, 0)'}),
             padding: '8px 18px', borderRadius: 10, background: CHIP,
             border: `1px solid ${c.tone}`, color: CHIP_INK,
             font: `700 ${chipPx}px/${leading(c.label ?? '', 1)} var(--f-body, Inter, system-ui, sans-serif)`,

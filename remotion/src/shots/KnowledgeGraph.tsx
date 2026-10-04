@@ -187,9 +187,10 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
         const p = pos(i);
         return (
           // the constellation keeps turning for the whole clip (`drift`, by design — "a living system keeps
-          // turning"), so the label's position is never a settled `top`/`left`; it carries the unlock for the
-          // whole beat rather than a span that would have to end on motion that does not
-          <div key={i} style={{position: 'absolute', left: p.x, top: p.y + 34, transform: glide('translateX(-50%)', true), opacity: show,
+          // turning"), so the label is placed by a TRANSLATE carrying the unlock for the whole beat. Placed by
+          // `left`/`top` it was rounded to whole pixels before anything was drawn and stepped whatever unlocked it.
+          <div key={i} style={{position: 'absolute', left: 0, top: 0, opacity: show,
+            transform: glide(`translate(${p.x}px, ${p.y + 34}px) translateX(-50%)`, true),
             padding: '5px 14px', borderRadius: 999, background: '#0c1424cc', border: `1px solid ${n.c}66`,
             color: '#dbe5f5', font: `600 24px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{n.label}</div>
         );

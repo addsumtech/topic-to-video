@@ -83,8 +83,10 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
       {/* THE PALETTE — it travels by its own `top` (sliding in, then the Return bounce) and scales, both of
           which Skia rounds the same way it rounds a translate; the unlock carries every line inside it (the
           command's caret, the row text, the ↵ run badge) for as long as either motion can still be running */}
-      <div style={{position: 'absolute', left: PX, top: 210 + palY, width: PW, opacity: clamp01(inP),
-        transform: glide(`scale(${palScale})`, inP !== 1 || (fired && t < 0.62)), transformOrigin: '50% 0', background: 'rgba(20,25,35,0.92)',
+      {/* the palette rises by a TRANSLATE: by its layout top it was rounded to whole pixels before anything was
+          drawn, and stepped whatever unlocked it (it rests on whole pixels, 0 and -40, as before) */}
+      <div style={{position: 'absolute', left: PX, top: 210, width: PW, opacity: clamp01(inP),
+        transform: glide(`translateY(${palY}px) scale(${palScale})`, inP !== 1 || (fired && t < 0.62)), transformOrigin: '50% 0', background: 'rgba(20,25,35,0.92)',
         border: '1px solid #2a3346', borderRadius: 20, boxShadow: '0 50px 120px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)'}}>
         {/* input row */}
         <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: `34px ${CMD_PADX}px`, borderBottom: '1px solid #232c3d'}}>
