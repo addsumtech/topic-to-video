@@ -36,6 +36,7 @@ import {UiSurface, type UiPage, type UiContent} from '../runtime/uiSurface';
 import {captionBand, CONTENT_TOP, fitTextPx} from '../runtime/layout';
 import {focusAt, focusFilter} from '../runtime/focus';
 import {leading} from '../runtime/cjkType';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 120; // 4.0s
 
@@ -153,6 +154,22 @@ export const SurfaceCarousel: React.FC<{
   // this register would stop being audited at all, and the one frame that matters — the screen on centre
   // stage, the one the viewer is asked to read — is precisely the one that must never bleed.
   const offsets = list.map((_, i) => ((trackX - i * SP) % RING + RING * 1.5) % RING - RING / 2);
+  // the corridor moves until its last beat lands; its words carry the unlock that long
+  const trackEnd = Math.max(...BEATS.map((b) => b.at + Math.max(b.run, b.tail)));
+  const moving = t < trackEnd;
+  const glide = useGlide();
+  // WHERE EACH SURFACE COMES TO REST, on whole pixels. As `left`/`top` the browser rounded its place to the pixel;
+  // as a translate it would rest at the sub-pixel, and every settled frame would move by up to half a pixel. So the
+  // last beat eases each surface's place onto the rounded one, and the corridor lands exactly where it always did —
+  // never rounded on the landing frame, which would be a half-pixel jump.
+  const last = BEATS[BEATS.length - 1];
+  const landing = easeInOutCubic(seg(t, last.at, trackEnd));
+  const restOf = (i: number) => {
+    const wEnd = ((SP * BEATS.length - i * SP) % RING + RING * 1.5) % RING - RING / 2;
+    const sEnd = Math.min(1, Math.abs(wEnd) / SP) * (vert ? panelW : panelH) * 0.30;
+    const pEnd = Math.min(1, Math.abs(wEnd) / SP) * (vert ? panelW : panelH) * 0.045;   // its pill's sink
+    return vert ? [cx + sEnd, cy + wEnd, pEnd] : [cx + wEnd, cy + sEnd, pEnd];
+  };
   const subject = offsets.reduce((best, w, i) => (Math.abs(w) < Math.abs(offsets[best]) ? i : best), 0);
 
   return (
@@ -185,17 +202,24 @@ export const SurfaceCarousel: React.FC<{
             // data-bleed: a NEIGHBOUR in the queue, shown partly on purpose — see `subject` above. The panel
             // on centre stage carries no marker and is audited like any other shot's content.
             {...(i === subject ? {} : {'data-bleed': true})}
-            style={{position: 'absolute',
-            left: vert ? cx + sink : cx + w, top: vert ? cy + w : cy + sink,
-            transform: `translate(-50%, -50%) scale(${scale})`, opacity: fade,
+            // The corridor travels by TRANSLATE — as `left`/`top` every surface and every word on it moved in
+            // whole pixels (layout is rounded before anything draws) — and the words carry the baseline unlock
+            // INSIDE the lens's blur, until the track lands (runtime/glide.ts).
+            style={{position: 'absolute', left: 0, top: 0,
+            transform: `translate(${(vert ? cx + sink : cx + w) + (Math.round(restOf(i)[0]) - restOf(i)[0]) * landing}px, `
+              + `${(vert ? cy + w : cy + sink) + (Math.round(restOf(i)[1]) - restOf(i)[1]) * landing}px) `
+              + `translate(-50%, -50%) scale(${scale})`,
+            opacity: fade,
             filter: focusFilter(f),
             zIndex: 1 - d > 0.5 ? 2 : 1}}>
+            <div style={{transform: glide(undefined, moving)}}>
             {/* the pill sinks FASTER than its panel, so a neighbour's label settles onto its own window
                 instead of floating in the gap between two of them */}
             {s.label ? (
-              <div style={{position: 'absolute', left: '50%',
-                top: -(pillH + gap) + d * (vert ? panelW : panelH) * 0.045,
-                transform: 'translateX(-50%)', height: pillH, display: 'flex', alignItems: 'center',
+              <div style={{position: 'absolute', left: '50%', top: -(pillH + gap),
+                transform: `translate(-50%, ${d * (vert ? panelW : panelH) * 0.045
+                  + (Math.round(restOf(i)[2]) - restOf(i)[2]) * landing}px)`, height: pillH,
+                display: 'flex', alignItems: 'center',
                 padding: `0 ${Math.round(pillH * 0.62)}px`, borderRadius: 999, whiteSpace: 'nowrap',
                 color: dna?.onAccent ?? '#fff',
                 // gloss is three layers, not one: a vertical ramp, an inner light top and dark bottom, and a
@@ -211,6 +235,7 @@ export const SurfaceCarousel: React.FC<{
               </div>
             ) : null}
             <UiSurface page={page} W={panelW} H={panelH} dna={dna} content={content} seed={i + 1} />
+            </div>
           </div>
         );
       })}

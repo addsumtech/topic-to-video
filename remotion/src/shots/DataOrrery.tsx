@@ -8,6 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {focusAt, focusFilter} from '../runtime/focus';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 170; // ~5.7s
 // THE LIGHT LAYER, WHICH WAS ONE LITERAL FOUR TIMES OVER. The hub's name, each node's core, the core's own
@@ -48,6 +49,7 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
       'the ones the beat is about, or cast a register that holds more — an extra item is never dropped silently.');
   }
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   // FOUR ORBITS IN FOUR HUES, and the hues were the register's, not the film's. `dnaPalette` grows them from
   // the film's own two accents (null DNA -> null -> the originals), so a themed film's orbits belong to it,
@@ -124,13 +126,17 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
       {RINGS.map((r, i) => {
         const n = nodeAt(r); const on = clamp01(seg(t, 0.3 + i * 0.08, 0.46 + i * 0.08));
         const f = focusAt(n.depth, U);
-        return <div key={i} style={{position: 'absolute', left: n.x, top: n.y + U * 0.024,
-          transform: `translateX(-50%) scale(${f.scale})`, opacity: on * f.opacity, filter: focusFilter(f),
+        // The node orbits for the whole beat, so its label is placed by a TRANSLATE (a label moved by left/top steps
+        // a whole pixel at a time whatever unlocks it) and carries the baseline unlock on its WORDS, inside the
+        // lens's blur — a blur keeps only the scale of the matrix above it (runtime/glide.ts).
+        return <div key={i} style={{position: 'absolute', left: 0, top: 0,
+          transform: `translate(${n.x}px, ${n.y + U * 0.024}px) translateX(-50%) scale(${f.scale})`,
+          opacity: on * f.opacity, filter: focusFilter(f),
           zIndex: n.front ? 2 : 1,
           padding: `${Math.round(U * 0.004)}px ${Math.round(U * 0.013)}px`, borderRadius: 999,
           background: '#0b122acc', border: `1px solid ${r.c}66`, color: '#dbe5f5',
           font: `600 ${Math.round(U * 0.022)}px/1 var(--f-body, Inter, system-ui, sans-serif)`,
-          whiteSpace: 'nowrap'}}>{r.label}</div>;
+          whiteSpace: 'nowrap'}}><span style={{display: 'inline-block', transform: glide(undefined, true)}}>{r.label}</span></div>;
       })}
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 150, textAlign: 'center',
         opacity: clamp01(seg(t, 0.18, 0.34)), color: INK, font: `800 40px/1 var(--f-body, Inter, system-ui, sans-serif)`,

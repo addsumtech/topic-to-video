@@ -23,6 +23,7 @@ import {CONTENT_TOP, contentBottom, fitBlockPx, wrapLines} from '../runtime/layo
 import {leading} from '../runtime/cjkType';
 import {focusAt, focusFilter, type Focus} from '../runtime/focus';
 import {panAt} from '../runtime/depth';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 170; // ~5.7s
 
@@ -34,6 +35,7 @@ export const RackFocus: React.FC<{
 } = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
 
@@ -125,16 +127,21 @@ export const RackFocus: React.FC<{
     text: string, note: string, px: number, lh: number, box: number, top: number,
     f: Focus, sharp: boolean, drift: number,
   ) => (
-    <div style={{position: 'absolute', left: Math.round((W - box) / 2 + drift), top, width: box,
+    <div style={{position: 'absolute', left: Math.round((W - box) / 2), top, width: box,
       textAlign: 'center', opacity: f.opacity,
       // transform-origin at the block's own centre so a receding reading shrinks in place rather than
       // drifting toward a corner — drift reads as the thing moving, not as the lens leaving it.
-      transform: `scale(${f.scale})`, transformOrigin: '50% 50%',
+      // The drift is a TRANSLATE: as `left` it moved in whole pixels (layout is rounded before anything draws).
+      transform: `translateX(${drift}px) scale(${f.scale})`, transformOrigin: '50% 50%',
       // `focusFilter` returns NOTHING for the sharp reading on purpose: any filter promotes the element to
       // its own compositing layer and the in-focus type would be resampled through a pipeline it does not
       // need. The whole point is that the sharp one is genuinely sharp.
       filter: focusFilter(f),
     }}>
+      {/* the baseline unlock on the WORDS, inside the lens's blur: a blur keeps only the scale of the matrix above
+          it, so an unlock beside the filter never reaches the glyphs (runtime/glide.ts). The readings drift and
+          rack for the whole beat. */}
+      <div style={{transform: glide(undefined, true)}}>
       <div style={{color: sharp ? FG : DIM,
         font: `800 ${px}px/${lh} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em'}}>
         {text}
@@ -143,6 +150,7 @@ export const RackFocus: React.FC<{
         <div style={{marginTop: Math.round(U * 0.02), color: DIM,
           font: `500 ${notePx}px/1.35 var(--f-body, system-ui, sans-serif)`}}>{note}</div>
       ) : null}
+      </div>
     </div>
   );
 
