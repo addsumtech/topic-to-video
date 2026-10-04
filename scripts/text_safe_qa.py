@@ -346,6 +346,9 @@ def glide_run(jobs, bundle_dir, concurrency=None):
 def judge_glide(frames):
     """Every crawl with at least one whole-pixel step, worst first: {"k", "t", "a", "b", "steps", "max_dy", "fl"}.
 
+    `a`..`b` are the frames of the crawl's first and last STEP — where a viewer sees it — not of the run: a run
+    begins wherever the line last moved a pixel or more, which is often long before it starts to step.
+
     `frames` is {frame: census record}. A track is one element (its DOM path) across frames; a crawl is a run of
     consecutive frames in which the line stays readable, stays axis-aligned (it is listed at all) and moves by less
     than GLIDE_CRAWL_PX each frame. A frame it is missing from — unlocked, hidden, unmounted — ends the run."""
@@ -367,13 +370,14 @@ def judge_glide(frames):
                 cur = None
                 continue
             if cur is None:
-                cur = {"k": key, "t": t1, "a": f0, "b": f1, "steps": 0, "max_dy": 0.0, "fl": "", "moved": False}
-            cur["b"] = f1
+                cur = {"k": key, "t": t1, "a": None, "b": None, "steps": 0, "max_dy": 0.0, "fl": "", "moved": False}
             if abs(dy) > GLIDE_STILL_PX:
                 cur["moved"] = True
                 cur["max_dy"] = max(cur["max_dy"], abs(dy))
                 if math.floor(y1) != math.floor(y0):
                     cur["steps"] += 1
+                    cur["a"] = f1 if cur["a"] is None else cur["a"]
+                    cur["b"] = f1
             cur["fl"] = "".join(sorted(set(cur["fl"]) | set(fl0) | set(fl1)))
         if cur and cur["steps"] and cur["moved"]:
             runs.append(cur)
