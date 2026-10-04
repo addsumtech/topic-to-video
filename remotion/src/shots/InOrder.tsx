@@ -129,22 +129,27 @@ export const InOrder: React.FC<{
         const numPx = Math.max(14, Math.min(Math.round(base * 0.05), Math.round(room * 0.34)));
         const labelPx = Math.max(13, Math.min(Math.round(base * 0.036), Math.round(sz * 0.16), Math.round(cross * 0.10)));
         const tight = sz < base * 0.12;
+        const bx = portrait ? 0 : px, by = portrait ? zoneTop + px : zoneTop;
+        const bw = portrait ? W : sz, bh = portrait ? sz : zoneH;
+        const inset = Math.round(base * 0.022);
         return (
-          <div key={i} style={{position: 'absolute',
-            ...(portrait
-              ? {left: 0, top: zoneTop + px, width: W, height: sz}
-              : {left: px, top: zoneTop, width: sz, height: zoneH}),
+          <React.Fragment key={i}>
+          <div style={{position: 'absolute', left: bx, top: by, width: bw, height: bh,
             background: fill,
             // a PENDING step is an outline, not a fill: it has not happened yet, and the frame should say so
             boxShadow: `inset 0 0 0 ${hair}px ${BG}` + (fill === BG ? `, inset 0 0 0 ${hair * 2}px ${DIM}44` : ''),
-            display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-            padding: Math.round(base * 0.022), boxSizing: 'border-box', overflow: 'hidden'}}>
-            {/* the unlock rides the TEXT, never the band's own rectangle: a skew on the band tilts its own
-                bottom edge, and at the live band's far side (widest, by FOCUS_SHARE) that tilt measured a
-                sliver of its fill bleeding past zoneBottom into the caption band (spread 0.110, a uniform
-                band must read < 0.02 — tests/test_inorder.py). The band's background/boxShadow/clip stay
-                exactly axis-aligned; only the glyphs inside carry the skew (runtime/glide.ts). */}
-            <div style={{transform: glide(undefined, bandMoving)}}>
+            boxSizing: 'border-box'}} />
+          {/* THE TYPE IS NOT LAID OUT IN THE BAND. The band's rectangle stays in layout — snapped, axis-aligned,
+              so its fill cannot bleed past zoneBottom into the caption band (a skew on it measured spread 0.110
+              there; a uniform band must read < 0.02 — tests/test_inorder.py). Its type stands in a clip of the
+              same rectangle placed by TRANSLATE, set at the band's foot by a translate of its own: laid out
+              inside the band it rode the band's left/top/height, which the browser rounds to whole pixels
+              before anything is drawn, and it stepped whatever unlocked it (9:16, where the bands move down
+              the frame: 7 steps). Only the glyphs carry the skew (runtime/glide.ts). */}
+          <div style={{position: 'absolute', left: 0, top: 0, width: bw, height: bh, overflow: 'hidden',
+            transform: `translate(${bx}px, ${by}px)`}}>
+            <div style={{position: 'absolute', left: 0, top: 0, width: bw - 2 * inset,
+              transform: glide(`translate(${inset}px, ${bh - inset}px) translateY(-100%)`, bandMoving)}}>
               <div style={{color: live ? ink : sub, font: `800 ${numPx}px/1 ${mono}`,
                 fontVariantNumeric: 'lining-nums tabular-nums', opacity: 0.9}}>
                 {done && doneLabel ? doneLabel : String(i + 1).padStart(2, '0')}
@@ -159,6 +164,7 @@ export const InOrder: React.FC<{
               ) : null}
             </div>
           </div>
+          </React.Fragment>
         );
       })}
 

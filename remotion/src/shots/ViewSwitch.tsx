@@ -242,12 +242,25 @@ export const ViewSwitch: React.FC<{
       {/* the rows — ONE element each, travelling between arrangements */}
       {rs.map((r, i) => {
         const ra = a[i], rb = b[i];
+        // THE ROW TRAVELS BY TRANSLATE. By its layout left/top it was rounded to whole pixels before anything was
+        // drawn, and stepped whatever unlocked it.
         const x = lerp(ra.x, rb.x, frac), y = lerp(ra.y, rb.y, frac);
         const w = lerp(ra.w, rb.w, frac), h = lerp(ra.h, rb.h, frac);
         const label = String(r.label ?? '');
         const rnote = String(r.note ?? '');
         const rise = easeOutCubic(clamp01(seg(t, 0.06 + i * 0.045, 0.24 + i * 0.045)));
-        const innerPad = Math.round(Math.max(U * 0.012, Math.min(w * 0.07, h * 0.16, U * 0.028)));
+        const moving = rise !== 1 || walking;
+        // THE ROW'S INSIDE IS PLACED BY TRANSLATE TOO: centred by flex on a height that is being lerped, its
+        // ordinal and label were laid out at a fractional offset — rounded, and crawling in whole-pixel stairs as
+        // the row resized. In a row the content's line runs through the row's middle and each piece is centred
+        // on it by its own -50% (the label's height changes as it is refitted, so flex centring the ordinal
+        // against it stepped the ordinal too); in a column it stands at the inset. The inset is unrounded while
+        // the row walks, pinned to the rounded inset at both arrangements.
+        const insetAt = (ww: number, hh: number) => Math.max(U * 0.012, Math.min(ww * 0.07, hh * 0.16, U * 0.028));
+        const innerPad = walking
+          ? insetAt(w, h) + (1 - frac) * (Math.round(insetAt(ra.w, ra.h)) - insetAt(ra.w, ra.h))
+            + frac * (Math.round(insetAt(rb.w, rb.h)) - insetAt(rb.w, rb.h))
+          : Math.round(insetAt(w, h));
         const markPx = Math.max(11, Math.round(Math.min(U * 0.019, h * 0.20)));
         const wide = w > h * 1.6;                       // a row reads across; a column reads down
         const labelBox = w - innerPad * 2 - (wide ? Math.round(U * 0.05) : 0);
@@ -256,23 +269,28 @@ export const ViewSwitch: React.FC<{
           Math.round(U * 0.032), {usable: 0.96, leading: 1.25, min: 13});
         const nPx = Math.max(11, Math.round(lPx * 0.62));
         return (
-          <div key={i} style={{position: 'absolute', left: x, top: y, width: w, height: h, boxSizing: 'border-box',
+          // at rest the row stands at its layout place again, so its edges are snapped as they always were
+          <div key={i} style={{position: 'absolute', left: moving ? 0 : x, top: moving ? 0 : y, width: w, height: h,
+            boxSizing: 'border-box',
             background: SURF, border: `${BW}px solid ${LINE}`, borderRadius: RAD, overflow: 'hidden',
-            opacity: clamp01(rise * 1.2), transform: glide(`translateY(${lerp(U * 0.02, 0, rise)}px)`, rise !== 1 || walking),
-            padding: innerPad, display: 'flex',
-            flexDirection: wide ? 'row' : 'column', alignItems: wide ? 'center' : 'flex-start',
-            gap: Math.round(innerPad * 0.7)}}>
+            opacity: clamp01(rise * 1.2),
+            transform: moving ? glide(`translate(${x}px, ${y + lerp(U * 0.02, 0, rise)}px)`, true) : 'translateY(0px)'}}>
+            <div style={{position: 'absolute', left: 0, top: 0, width: w - 2 * innerPad - 2 * BW, display: 'flex',
+              flexDirection: wide ? 'row' : 'column', alignItems: 'flex-start',
+              gap: Math.round(innerPad * 0.7),
+              transform: `translate(${innerPad}px, ${wide ? h / 2 - BW : innerPad}px)`}}>
             {/* the ordinal is the row's IDENTITY — it is the same mark in every arrangement, which is the
                 only reason a viewer can tell that the rows did not change when the shape did */}
-            <div style={{flex: 'none', color: DIM, letterSpacing: '0.08em',
+            <div style={{flex: 'none', color: DIM, letterSpacing: '0.08em', transform: wide ? 'translateY(-50%)' : undefined,
               font: `600 ${markPx}px/1.2 ${mono}`}}>{String(i + 1).padStart(2, '0')}</div>
-            <div style={{flex: 1, minWidth: 0}}>
+            <div style={{flex: 1, minWidth: 0, transform: wide ? 'translateY(-50%)' : undefined}}>
               <div style={{color: INK, textWrap: 'balance',
                 font: `700 ${lPx}px/${leading(label, 1.22)} ${disp}`}}>{label}</div>
               {rnote && h > markPx + lPx * 2.2 ? (
                 <div style={{color: DIM, marginTop: Math.round(U * 0.006), textWrap: 'balance',
                   font: `500 ${nPx}px/${leading(rnote, 1.35)} ${bodyFace}`}}>{rnote}</div>
               ) : null}
+            </div>
             </div>
           </div>
         );

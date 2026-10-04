@@ -435,11 +435,28 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
         // INTERNAL LAYOUT, computed (not space-between): header · glyph · label, all inside the padding box.
         // space-between is what pushed the bottom row's label onto the burned caption; explicit heights and
         // border-box sizing are what keep the panel the size it says it is.
-        const pad = Math.round(Math.max(16, Math.min(w * 0.06, h * 0.1, 64)));
+        // THE HERO'S EXPAND MOVES BY TRANSLATE. Laid out by left/top and a flex column, every line on it was
+        // rounded to whole pixels before anything was drawn, and the slow ends of the expand crawled in
+        // whole-pixel stairs whatever unlocked them. While it expands (0 < grow < 1) the panel is placed by a
+        // translate and its three rows by translates inside it, from the same measures left UNROUNDED — each
+        // pinned to its rounded value at both ends of the expand, so it leaves and lands on the layout it had.
+        const expanding = grow > 0 && grow < 1;
+        const padAt = (gw: number, gh: number) => Math.max(16, Math.min(gw * 0.06, gh * 0.1, 64));
+        const hsAt = (gh: number) => Math.max(15, Math.min(gh * 0.05, 26));
+        const pinned = (raw: number, raw0: number, raw1: number, at0: number, at1: number) =>
+          raw + (1 - grow) * (at0 - raw0) + grow * (at1 - raw1);
+        const pad0 = Math.round(padAt(w0, h0)), pad1 = Math.round(padAt(eW, eH));
+        const hs0 = Math.round(hsAt(h0)), hs1 = Math.round(hsAt(eH));
+        const pad = expanding ? pinned(padAt(w, h), padAt(w0, h0), padAt(eW, eH), pad0, pad1)
+          : Math.round(padAt(w, h));
         const inner = Math.max(60, h - 2 * pad - 2 * bwid);
-        const hs = Math.round(Math.max(15, Math.min(h * 0.05, 26)));
-        const headH = Math.round(hs * 1.3);
-        const gapY = Math.round(pad * 0.5);
+        const hs = expanding ? pinned(hsAt(h), hsAt(h0), hsAt(eH), hs0, hs1) : Math.round(hsAt(h));
+        const headH = expanding
+          ? pinned(hs * 1.3, hs0 * 1.3, hs1 * 1.3, Math.round(hs0 * 1.3), Math.round(hs1 * 1.3))
+          : Math.round(hs * 1.3);
+        const gapY = expanding
+          ? pinned(pad * 0.5, pad0 * 0.5, pad1 * 0.5, Math.round(pad0 * 0.5), Math.round(pad1 * 0.5))
+          : Math.round(pad * 0.5);
         const fit = labelFits[i];
         const want = lerp(fit.tile, fit.hero, grow);
         const wantH = want * 1.24 * fit.lines;
@@ -449,26 +466,37 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
         // a panel with no picture keeps the slot as air above the label, so labels sit on one baseline row
         const glyphH = Math.max(fit.bare ? 0 : 34, inner - headH - labelH - 2 * gapY);
         const glyphW = Math.max(40, w - 2 * pad - 2 * bwid);
+        // expanding: each row stands at a translate inside the padding box, at the offset the flex column gave it
+        const contentW = w - 2 * pad - 2 * bwid;
+        const rowAt = (top: number): React.CSSProperties => expanding
+          ? {position: 'absolute', left: 0, top: 0, width: contentW, transform: `translate(${pad}px, ${pad + top}px)`}
+          : {};
 
         return (
-          <div key={i} style={{position: 'absolute', left: x, top: y, width: w, height: h, boxSizing: 'border-box',
-            opacity: (0.15 + 0.85 * enter) * (1 - others), transform: glide(`scale(${lerp(0.9, 1, enter)})`, moveSpan),
+          <div key={i} style={{position: 'absolute', left: expanding ? 0 : x, top: expanding ? 0 : y, width: w, height: h,
+            boxSizing: 'border-box', opacity: (0.15 + 0.85 * enter) * (1 - others),
+            transform: glide(`${expanding ? `translate(${x}px, ${y}px) ` : ''}scale(${lerp(0.9, 1, enter)})`, moveSpan),
             transformOrigin: `${cols > 1 && !spanned ? (col ? 'left' : 'right') : 'center'} ${rows > 1 ? (row ? 'top' : 'bottom') : 'center'}`,
             background: `linear-gradient(150deg, ${mix(BG, SURF, 0.85)}, ${BG})`,
             border: `${bwid}px solid ${EDGE}`, borderRadius: rad, overflow: 'hidden',
-            display: 'flex', flexDirection: 'column', padding: pad,
+            display: expanding ? 'block' : 'flex', flexDirection: 'column', padding: pad,
             boxShadow: i === heroIdx && grow > 0.1 ? `inset 0 0 200px ${tone}22` : '0 24px 60px #0006'}}>
 
-            <div style={{height: headH, flex: 'none', display: 'flex', alignItems: 'center', gap: Math.round(hs * 0.7)}}>
+            {/* expanding, the header's swatch and number are centred by translate (headH is unrounded then, and
+                flex centring the number in it was laid out at a fractional offset and stepped) */}
+            <div style={{height: headH, flex: 'none', display: 'flex', alignItems: expanding ? 'flex-start' : 'center',
+              gap: Math.round(hs * 0.7), ...rowAt(0)}}>
               <div style={{width: Math.round(hs * 0.64), height: Math.round(hs * 0.64), borderRadius: 5,
-                background: tone, boxShadow: `0 0 20px ${tone}`}} />
-              <div style={{color: DIM, font: `600 ${hs}px/1 ${monoFace}`, letterSpacing: '0.14em'}}>
+                background: tone, boxShadow: `0 0 20px ${tone}`,
+                transform: expanding ? `translateY(${(headH - Math.round(hs * 0.64)) / 2}px)` : undefined}} />
+              <div style={{color: DIM, font: `600 ${hs}px/1 ${monoFace}`, letterSpacing: '0.14em',
+                transform: expanding ? `translateY(${(headH - hs) / 2}px)` : undefined}}>
                 {String(i + 1).padStart(2, '0')}
               </div>
             </div>
 
-            <div style={{height: glyphH, marginTop: gapY, flex: 'none', display: 'flex',
-              alignItems: 'center', justifyContent: 'flex-start'}}>
+            <div style={{height: glyphH, marginTop: expanding ? 0 : gapY, flex: 'none', display: 'flex',
+              alignItems: 'center', justifyContent: 'flex-start', ...rowAt(headH + gapY)}}>
               <div style={{width: '100%', height: '100%', maxWidth: Math.min(glyphW, W * 0.82),
                 maxHeight: Math.min(glyphH, H * 0.46)}}>
                 {/* AN ICON WHEN THE PANEL NAMES A THING, the abstract glyph otherwise. The glyph set is
@@ -486,8 +514,9 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
               </div>
             </div>
 
-            <div style={{marginTop: gapY, flex: 'none', color: INK,
-              font: `800 ${labelSize}px/1.24 ${dispFace}`, letterSpacing: '-0.02em'}}>{p?.label}</div>
+            <div style={{marginTop: expanding ? 0 : gapY, flex: 'none', color: INK,
+              font: `800 ${labelSize}px/1.24 ${dispFace}`, letterSpacing: '-0.02em',
+              ...rowAt(headH + gapY + glyphH + gapY)}}>{p?.label}</div>
           </div>
         );
       })}
