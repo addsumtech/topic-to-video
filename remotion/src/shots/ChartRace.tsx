@@ -21,6 +21,7 @@ import {useT, seg, lerp, clamp01, easeOutCubic, easeInOutCubic} from '../runtime
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {contentBottom, fitTextPx, textWidthPx} from '../runtime/layout';
 import {parseFigure, figureAt, figureText} from '../runtime/figure';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG = '#0a0c14';
@@ -81,6 +82,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
   data: DATA = DEFAULT_DATA,
   title: TITLE = 'Who pulls ahead', unit: UNIT = ''} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA(); const TONES = dnaPalette(dna, 6) ?? TONES0;
   const {width: W, height: H} = useVideoConfig();
   const rows = normalise(DATA, UNIT ?? '');
@@ -131,7 +133,11 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
         const tone = TONES[r.i % TONES.length];
         const shown = figureAt(parseFigure(r.settled), r.g);
         return (
-          <div key={r.i} style={{position: 'absolute', left: x0, top: y, width: barMax + valueW + 40, height: rowH - 22}}>
+          // the row travels by its LAYOUT top (the soft rank sliding to its final slot) and the value counts up
+          // by its own LEFT, both of which Skia rounds the same way it rounds a translate: the label and the
+          // counting value carry the unlock while the race can still move them (runtime/glide.ts)
+          <div key={r.i} style={{position: 'absolute', left: x0, top: y, width: barMax + valueW + 40, height: rowH - 22,
+            transform: glide(undefined, t < RACE_B)}}>
             {/* label */}
             <div style={{position: 'absolute', right: '100%', top: 0, height: rowH - 22, paddingRight: 26,
               display: 'flex', alignItems: 'center', color: lead ? '#fff' : '#c7cee0',

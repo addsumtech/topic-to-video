@@ -19,6 +19,7 @@ import {useDNA, mix} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
 import {leading} from '../runtime/cjkType';
 import {contentBottom, fitTextPx, inkBlockH, wrapLines} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BOARD = '#08130f', COPPER = '#2fd6a0', LIVE = '#7dffcf';
@@ -30,6 +31,7 @@ export const MAX_CIRCUIT_NODES = 6;
 export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: string[]}> = ({
   title: TITLE = 'Wired together', chip: CHIP = 'CORE', nodes: NODES = ['IN', 'MEM', 'I/O', 'NET', 'PWR']} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   // MOST OF THIS REGISTER ALREADY READS ON PAPER: measured on a light film (`ink_contrast_qa.py`) the median
   // mark is 11.79:1, because the pads and the chip carry their own dark board under mint type. What fails is
@@ -115,7 +117,9 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
       {/* satellite pads */}
       {pads.map((p, i) => {
         const on = easeOutBack(clamp01(seg(t, 0.12 + i * 0.06, 0.34 + i * 0.06)));
-        return <div key={i} style={{position: 'absolute', left: p.px, top: p.py, transform: `translate(-50%,-50%) scale(${on})`,
+        // the pad's own scale-in moves its label's ink (centred at a fixed point, the glyphs still grow out
+        // from it) under an axis-aligned matrix, so it carries the unlock while it is still arriving
+        return <div key={i} style={{position: 'absolute', left: p.px, top: p.py, transform: glide(`translate(-50%,-50%) scale(${on})`, on !== 1),
           opacity: clamp01(on), width: 116, height: 74, borderRadius: 10, background: '#0c241a',
           // the pad's EDGE touches the ground, so on paper it is the exposed copper (it still reads against
           // the pad's own dark fill); the label inside it does not, and keeps the board's signal green
@@ -124,7 +128,7 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
           boxShadow: lit ? 'none' : `0 0 24px ${COPPER}44`}}>{p.label}</div>;
       })}
       {/* central chip */}
-      <div style={{position: 'absolute', left: cx, top: cy, transform: `translate(-50%,-50%) scale(${chipIn})`,
+      <div style={{position: 'absolute', left: cx, top: cy, transform: glide(`translate(-50%,-50%) scale(${chipIn})`, chipIn !== 1),
         width: 260, height: 200, borderRadius: 14, background: 'linear-gradient(160deg, #103326, #0a1f17)',
         // same rule as the pads: the chip's edge is the one part of it that sits against the page
         border: `3px solid ${lit ? SIGNAL : LIVE}`, display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -17,6 +17,7 @@ import {pointAt} from '../runtime/alongPath';
 import {leading, fitIfCJK} from '../runtime/cjkType';
 import {useDNA, readableOn, tint, shade} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 export const MAX_SPOKES = 10;
@@ -42,6 +43,7 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
   const n = SPOKES.length;
   const step = n > 1 ? Math.min(PIN_STEP, (LAND_BY - PIN_START - PIN_DUR) / (n - 1)) : PIN_STEP;
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA();
   // A HUB-AND-SPOKE MAP IS ITS ROUTES, and the routes were one teal literal. On a film grounded paper the
   // labels still read — each carries its own dark chip, which is legibility by accident — while the arcs
@@ -113,7 +115,9 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
         const roomR = W - (px + LBL_OFF) - LBL_MARGIN, roomL = (px - LBL_OFF) - LBL_MARGIN;
         const flip = roomR < roomL;
         const lblPx = fitTextPx(SPOKES[i], Math.max(80, (flip ? roomL : roomR) - LBL_PADX * 2), 26, {usable: 1});
-        return <div key={i} style={{position: 'absolute', left: px, top: py, transform: `translate(-50%,-50%) scale(${clamp01(pop)})`}}>
+        // the pin's own pop-in scales its label's ink under an axis-aligned matrix, so it carries the unlock
+        // while it is still arriving
+        return <div key={i} style={{position: 'absolute', left: px, top: py, transform: glide(`translate(-50%,-50%) scale(${clamp01(pop)})`, clamp01(pop) !== 1)}}>
           <div style={{position: 'absolute', left: -18, top: -18, width: 36, height: 36, borderRadius: 18, background: TEAL, boxShadow: `0 0 20px ${TEAL}`}} />
           <div style={{position: 'absolute', left: -18 * pulse, top: -18 * pulse, width: 36 * pulse, height: 36 * pulse, borderRadius: '50%', border: `2px solid ${TEAL}`, opacity: 2 - pulse}} />
           <div style={{position: 'absolute', ...(flip ? {right: LBL_OFF} : {left: LBL_OFF}), top: -20, padding: `8px ${LBL_PADX}px`, borderRadius: 8, background: CHIP, border: `1px solid ${TEAL}55`, font: `700 ${lblPx}px/1 var(--f-body, Inter)`, color: CHIP_INK, whiteSpace: 'nowrap'}}>{SPOKES[i]}</div>

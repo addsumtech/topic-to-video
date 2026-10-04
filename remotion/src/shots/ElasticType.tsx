@@ -16,6 +16,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, REDUCED_MOTION_T} from '../runtime/motion';
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {fitTextPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 145; // ~4.8s
 const BG_D0 = '#141a2e';
@@ -42,6 +43,7 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
   const dna = useDNA();
   const TONES = dnaPalette(dna, 5) ?? TONES0;   // derive the palette from the film's DNA (null DNA = the original)
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // THE WORD IS FITTED TO THE FRAME — see InflateType for the same defect in the same shape. 230px holds
   // 'BOUNCE' at 1920; an eight-glyph Chinese phrase was cut 412px each side at 1:1. The jelly squash pushes
@@ -73,15 +75,18 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
           const sx = 1 + jelly * 0.8 - settleWob;
           const tone = TONES[i % TONES.length];
           return (
+            // the drop lands, but the gummy wobble (settleWob) never stops — this is the register's "keep a
+            // soft gummy wobble" by design — so the unlock stays on for the whole beat rather than a span that
+            // would have to end on motion that does not
             <div key={i} style={{opacity: clamp01(drop * 1.5),
-              transform: `translateY(${(1 - drop) * -220}px) scale(${sx}, ${sy})`, transformOrigin: 'center bottom',
+              transform: glide(`translateY(${(1 - drop) * -220}px) scale(${sx}, ${sy})`, true), transformOrigin: 'center bottom',
               margin: '0 4px', fontFamily: 'var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', fontWeight: 900,
               fontSize: wordPx, lineHeight: 1, color: tone,
               textShadow: `0 10px 0 rgba(0,0,0,.16), 0 26px 40px rgba(0,0,0,.4)`}}>{ch}</div>
           );
         })}
       </div>
-      <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 12}px)`, marginTop: 48, color: dna?.dim ?? '#c7d0ee',
+      <div style={{opacity: tagIn, transform: glide(`translateY(${(1 - tagIn) * 12}px)`, tagIn !== 1), marginTop: 48, color: dna?.dim ?? '#c7d0ee',
         font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

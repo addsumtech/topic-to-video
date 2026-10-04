@@ -21,6 +21,7 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, REDUCED_MOTION_T} f
 import {useDNA, dnaPalette, mix} from '../runtime/dna';
 import {onLight} from '../runtime/light';
 import {fitTextPx} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 150; // 5s
 const BG_D0 = '#0e1030', TAG_D0 = '#c7d0ff';
@@ -55,6 +56,7 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
   const gloss = (tone: string) => (LIGHT ? mix(tone, '#ffffff', 0.3) : '#ffffff');
   const TAG_INK = dna ? mix(dna.fg, dna.dim, 0.4) : TAG_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // THE WORD IS FITTED TO THE FRAME. 240px holds 'PUFFY' on a 1920 frame and four Han glyphs on a 1080 one
   // — and the CJK fixture happens to hand this register exactly four, so the sweep proved it survives four
@@ -90,13 +92,19 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
             <div key={i} style={{position: 'relative', opacity: clamp01(inf * 1.6),
               transform: `translateY(${(1 - inf) * 40}px) scale(${sx}, ${sy})`, transformOrigin: 'center bottom',
               margin: '0 6px'}}>
-              <span style={{display: 'block',
-                fontFamily: 'var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', fontWeight: 900, fontSize: wordPx, lineHeight: 1,
-                letterSpacing: '-0.01em', color: tone,
-                background: `linear-gradient(180deg, ${gloss(tone)}, ${tone} 42%, ${tone})`,
-                WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                filter: `drop-shadow(6px 10px 0 rgba(0,0,0,.18)) drop-shadow(0 26px 34px rgba(0,0,0,.45))`,
-                textShadow: extrude(tone)} as React.CSSProperties}>{ch}</span>
+              {/* the shadows sit on a wrapper: a drop-shadow keeps only the scale of the matrix above it, so the
+                  inflating-then-breathing letter's unlock has to be BELOW the filter to reach its glyph
+                  (runtime/glide.ts) — the breathing never stops, so the span carries the unlock for the whole
+                  beat rather than a span that would have to end on motion that does not */}
+              <div style={{filter: `drop-shadow(6px 10px 0 rgba(0,0,0,.18)) drop-shadow(0 26px 34px rgba(0,0,0,.45))`}}>
+                <span style={{display: 'block',
+                  fontFamily: 'var(--f-display, "Baloo 2", Inter, system-ui, sans-serif)', fontWeight: 900, fontSize: wordPx, lineHeight: 1,
+                  letterSpacing: '-0.01em', color: tone,
+                  background: `linear-gradient(180deg, ${gloss(tone)}, ${tone} 42%, ${tone})`,
+                  WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                  transform: glide(undefined, true),
+                  textShadow: extrude(tone)} as React.CSSProperties}>{ch}</span>
+              </div>
               {/* specular highlight */}
               <div style={{position: 'absolute', left: '24%', top: '14%', width: Math.round(46 * wordPx / 240),
                 height: Math.round(30 * wordPx / 240), borderRadius: '50%',
@@ -105,7 +113,7 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
           );
         })}
       </div>
-      <div style={{opacity: tagIn, transform: `translateY(${(1 - tagIn) * 12}px)`, marginTop: 54, color: TAG_INK,
+      <div style={{opacity: tagIn, transform: glide(`translateY(${(1 - tagIn) * 12}px)`, tagIn !== 1), marginTop: 54, color: TAG_INK,
         font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

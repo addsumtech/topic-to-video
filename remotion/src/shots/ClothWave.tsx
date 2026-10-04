@@ -8,6 +8,7 @@ import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, contrastOf, mix, readableOnAll} from '../runtime/dna';
 import {ACCENT_CONTRAST_MIN, onLight} from '../runtime/light';
 import {bottomInset} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#0c0f1a';
@@ -35,6 +36,7 @@ export const ClothWave: React.FC<{title?: string; tagline?: string; accent?: str
   const lit = dna ? onLight(dna) : false;
   const SHEEN_HI = lit ? 1.0 : SHEEN_HI_D0;
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const left = 160, right = W - 160, top = H / 2 - 300, cloth = 600, stripH = cloth / STRIPS;
   const settle = easeOutCubic(seg(t, 0.04, 0.5));                 // wave amplitude eases in
@@ -86,7 +88,9 @@ export const ClothWave: React.FC<{title?: string; tagline?: string; accent?: str
           {letters.map((ch, i) => {
             const lx = left + cloth * 0.5 + (i - letters.length / 2) * 96;
             const dy = wave(lx, STRIPS * 0.4);
-            return <span key={i} style={{display: 'inline-block', transform: `translateY(${dy}px)`,
+            // the ripple never stops (it is the register's whole point), so each letter carries the unlock for
+            // the whole beat rather than a span that would have to end on motion that does not
+            return <span key={i} style={{display: 'inline-block', transform: glide(`translateY(${dy}px)`, true),
               color: titleInk, font: '900 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
               // the drop stays literal: the wordmark is always ON the silk, so this shadow always falls on
               // fabric and never on the page, whichever way the film's ground goes

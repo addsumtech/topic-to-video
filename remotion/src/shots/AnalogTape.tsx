@@ -63,7 +63,13 @@ export const AnalogTape: React.FC<{title?: string; tagline?: string; date?: stri
   const titlePx = Math.min(168, fitTextPx(TITLE, W * 0.92 - SPLIT_MAX * 2, 168, {usable: 1, track: 0.02}));
 
   const Title: React.FC<{dx: number; color: string; blend?: string}> = ({dx, color, blend}) => (
-    <div style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
+    // THE WOBBLE IS THE DECK, NOT A DEFECT. `jit` oscillates (two out-of-phase sines), so the wordmark's floor
+    // crosses a pixel and crosses BACK within a few frames rather than settling — the census's DOM track over
+    // the flagged span (37-74) reads 408/409/410 with no net direction. Rendered, that reads as tape tracking
+    // error, which is this register's whole identity (a CRT tube, RGB split, a rolling band). Gliding it would
+    // SMOOTH the one thing the shot is for, so the jitter is declared instead (runtime/textSafe.tsx `s` flag).
+    <div data-type-steps="VHS tape wobble — the jitter is this register's deliberate analog-tracking look"
+      style={{position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', transform: `translate(${dx + jit}px, ${jit * 0.4}px)`, mixBlendMode: (blend as any) || 'normal'}}>
       <div style={{color, font: `800 ${titlePx}px/${leading(TITLE, 0.95)} var(--f-display, "Antonio", "Oswald", Impact, sans-serif)`, letterSpacing: '0.02em',
         textTransform: 'uppercase', opacity: inT}}>{TITLE}</div>

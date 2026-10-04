@@ -18,6 +18,7 @@ import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01, useAnimSpan, ENTRY_
 import {useDNA} from '../runtime/dna';
 import {contentBottom, fitTextPx} from '../runtime/layout';
 import {caretOn, framesBetween} from '../runtime/gesture';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 
@@ -34,6 +35,7 @@ const DEFAULT_ROWS = ['Plan the deck outline', 'Pull the Q3 numbers', 'Design 24
 export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   command = 'Build the Q3 board deck from ~/finance', items: ROWS = DEFAULT_ROWS} = {}) => {
   const t = useT();
+  const glide = useGlide();
   const dna = useDNA(); const ACCENT = dna?.accent ?? ACCENT0;
   const {width: W, height: H} = useVideoConfig();
   // palette top 210 + input row (34px padding x2 + 46px type) + list padding 36, then 78px a row (34px box
@@ -78,9 +80,11 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
       {/* soft accent glow behind the palette */}
       <div style={{position: 'absolute', left: W / 2 - 420, top: 150, width: 840, height: 520,
         background: `radial-gradient(closest-side, ${ACCENT}22, transparent)`, filter: 'blur(30px)'}} />
-      {/* THE PALETTE */}
+      {/* THE PALETTE — it travels by its own `top` (sliding in, then the Return bounce) and scales, both of
+          which Skia rounds the same way it rounds a translate; the unlock carries every line inside it (the
+          command's caret, the row text, the ↵ run badge) for as long as either motion can still be running */}
       <div style={{position: 'absolute', left: PX, top: 210 + palY, width: PW, opacity: clamp01(inP),
-        transform: `scale(${palScale})`, transformOrigin: '50% 0', background: 'rgba(20,25,35,0.92)',
+        transform: glide(`scale(${palScale})`, inP !== 1 || (fired && t < 0.62)), transformOrigin: '50% 0', background: 'rgba(20,25,35,0.92)',
         border: '1px solid #2a3346', borderRadius: 20, boxShadow: '0 50px 120px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)'}}>
         {/* input row */}
         <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: `34px ${CMD_PADX}px`, borderBottom: '1px solid #232c3d'}}>
@@ -96,7 +100,7 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
             const tick = fired && t > 0.66 + i * stepT;
             return (
               <div key={i} style={{display: 'flex', alignItems: 'center', gap: 20, padding: `20px ${ROW_PADX}px`, borderRadius: 12,
-                opacity: clamp01(rev), transform: `translateX(${lerp(-20, 0, clamp01(rev))}px)`,
+                opacity: clamp01(rev), transform: glide(`translateX(${lerp(-20, 0, clamp01(rev))}px)`, rev !== 1),
                 background: (!fired && i === 0) ? `${ACCENT}1e` : 'transparent'}}>
                 <div style={{width: 34, height: 34, borderRadius: 9, border: `2px solid ${tick ? '#59d98b' : '#3a475e'}`,
                   background: tick ? '#59d98b' : 'transparent', color: '#0b0f17', font: '700 22px/30px var(--f-body, Inter)', textAlign: 'center'}}>{tick ? '✓' : ''}</div>

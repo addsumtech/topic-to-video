@@ -25,6 +25,7 @@ import {useDNA} from '../runtime/dna';
 import {contentBottom, inkBlockH, wrapLines, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {parseFigure, figureText} from '../runtime/figure';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 160; // ~5.3s
 const BG_D0 = '#06070e', ACC_D0 = '#4db8ff', ACC2_D0 = '#a06bff';
@@ -112,6 +113,7 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
   const CAP = dna?.fg ?? '#ffffff';
   const GRID = dna?.line ?? '#2b3a6e';
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   // THE FLOOR YIELDS TO THE LABELS UNDER IT. `H * 0.72` is a flat fraction and the labels hang 22px below
   // it, so the reserve is one line of type — in Chinese each band's label wraps in a column only
@@ -183,8 +185,11 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
               transform: 'scaleY(-1)', transformOrigin: 'top', opacity: 0.3 * grow, filter: 'blur(2px)'}} />
             {/* the value, written above its tower — only when the film supplied one */}
             {tw.text != null ? (
+              // the value travels by its LAYOUT top (the tower growing under it, and — for a named hero — the
+              // pulse that never stops once it starts), which Skia rounds the same way it rounds a translate
               <div style={{position: 'absolute', left: x - gap / 2, width: bandW + gap, textAlign: 'center',
                 top: floorY - th * pulse - VALUE_ROOM, opacity: clamp01(seg(t, 0.4 + i * 0.06, 0.56 + i * 0.06)),
+                transform: glide(undefined, grow !== 1 || (isHero && t > 0.6)),
                 color: VALUE_INK, whiteSpace: 'nowrap',
                 font: `700 ${Math.max(12, Math.min(VALUE_PX, fitTextPx(tw.text, bandW + gap * 0.8, VALUE_PX, {usable: 1})))}px/1 ` +
                   'var(--f-mono, "JetBrains Mono", monospace)'}}>{tw.text}</div>

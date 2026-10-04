@@ -17,6 +17,7 @@ import {rows} from '../runtime/rows';
 import {useDNA} from '../runtime/dna';
 import {leading} from '../runtime/cjkType';
 import {contentBottom, wrapLines} from '../runtime/layout';
+import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C: the Notion-style light document flips with the DNA (page→bg, ink→fg, blocks/borders→line, accent) → a
@@ -24,8 +25,9 @@ export const DURATION = 165; // 5.5s
 const INK = '#37352f', DIM = '#e6e3dd', ACCENT = '#2E7BFF';
 
 const Block: React.FC<{i: number; t: number; children: React.ReactNode}> = ({i, t, children}) => {
+  const glide = useGlide();
   const r = easeOutBack(seg(t, 0.14 + i * 0.13, 0.14 + i * 0.13 + 0.24));
-  return <div style={{opacity: clamp01(r), transform: `translateY(${lerp(46, 0, clamp01(r))}px)`, marginBottom: 30}}>{children}</div>;
+  return <div style={{opacity: clamp01(r), transform: glide(`translateY(${lerp(46, 0, clamp01(r))}px)`, r !== 1), marginBottom: 30}}>{children}</div>;
 };
 
 const DOC_H = 760;   // the composed stack's height at scale 1, measured from its top at 150, IN LATIN
