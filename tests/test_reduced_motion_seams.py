@@ -37,7 +37,12 @@ def _still(tmp_path, name, transition_in, reduced, frame=102):
     scenes = json.loads(json.dumps(_PROBE))
     if transition_in:
         scenes[2]["transitionIn"] = transition_in
-    props = {"scenes": scenes, "dna": "product", "captions": False, "camera": 0}
+    # cameraBed OFF, as render_remotion passes it unless a board asks for the bed (`meta.camera_bed: true`). Left
+    # unset, the Film component's own default switched the bed ON, so this probe filmed a slow pan on every beat
+    # that no default film has — and a panning beat carries the type unlock's 0.4% overscan (runtime/glide.ts),
+    # which lands the push's tile boundary on a fractional pixel and splits its edge across two columns: the
+    # control's strength fell from 75 to 59 and the probe stopped telling a moving seam from a still one.
+    props = {"scenes": scenes, "dna": "product", "captions": False, "camera": 0, "cameraBed": False}
     if reduced:
         props["reducedMotion"] = True
     pf = str(tmp_path / (name + ".json"))
