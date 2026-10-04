@@ -1400,7 +1400,12 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text || isEcho(el)) return;
-    if (!visibleRect(el, frame)) return;             // hidden, fully transparent, or clipped away entirely
+    const vr = visibleRect(el, frame);
+    if (!vr) return;                                 // hidden, fully transparent, or clipped away entirely
+    // OFF THE FRAME is not on screen either. visibleRect lets the frame's own clip through (it is every shot's root —
+    // see there), so a label still below the bottom edge was listed and judged: CollaborativeCursors' cursors set
+    // off from outside the canvas, and their name tags' crawl down there read as an ERROR nobody could see.
+    if (vr.right <= frame.left || vr.left >= frame.right || vr.bottom <= frame.top || vr.top >= frame.bottom) return;
     const c = chain(el);
     // A 3D chain or a will-change layer is rasterised once and moved by the compositor — not this path. Measured:
     // under will-change the unlock trades the y staircase for an x jitter of 0.6px. Counted (`z`) and listed with

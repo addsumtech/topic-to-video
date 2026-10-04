@@ -47,12 +47,13 @@ export const DURATION = 120;
 
 export const CameraTypeProbe: React.FC<{move?: CameraMove; amount?: number; pan?: [number, number];
   bare?: boolean; text?: string; legacy?: boolean; typeGlide?: boolean; layer?: ProbeLayer; inner?: boolean;
-  drive?: 'camera' | 'transform' | 'layout' | 'inner'}> = ({
+  drive?: 'camera' | 'transform' | 'layout' | 'inner'; below?: boolean}> = ({
   move = 'push', amount, pan, bare = false, text = 'Type rides the camera 字随镜头走', legacy = false,
-  typeGlide = false, layer = 'none', inner = false, drive = 'camera'}) => {
+  typeGlide = false, layer = 'none', inner = false, drive = 'camera', below = false}) => {
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
-  const x = Math.round(W * 0.08), y = Math.round(CONTENT_TOP + H * 0.06), px = Math.round(U * 0.04);
+  // `below`: the same crawl, wholly under the frame's bottom edge — where no reader can see it step
+  const x = Math.round(W * 0.08), y = below ? H + 40 : Math.round(CONTENT_TOP + H * 0.06), px = Math.round(U * 0.04);
   if (!(layer in LAYER_STYLE)) throw new Error(`CameraTypeProbe: unknown layer ${JSON.stringify(layer)}`);
   // `drive` other than the camera: the type and its rule move by themselves, 30px down across the probe at a
   // crawl — by a translate in their own element's transform (`transform`), or by their LAYOUT position, `top`

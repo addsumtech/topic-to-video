@@ -166,6 +166,7 @@ def _census(bundle, variants):
                   # not on a composited layer (`c`: listed for pixel checks, never judged)
                   "listed": sum(1 for r in slot["frames"].values() for ln in (r.get("lines") or [])
                                 if not ln.get("u") and "c" not in (ln.get("fl") or "")),
+                  "all": sum(len(r.get("lines") or []) for r in slot["frames"].values()),
                   "z": tq._composited(slot["frames"])}
     return out
 
@@ -200,6 +201,18 @@ def test_the_census_finds_type_moved_by_layout_whatever_unlocks_it(census_bundle
     assert got["transform-old"]["level"] == "error", got["transform-old"]
     for name in ("layout", "inner"):
         assert got[name]["level"] == "error" and all("L" in r["fl"] for r in got[name]["runs"]), (name, got[name])
+
+
+@needs_toolchain
+def test_type_off_the_frame_is_not_judged(census_bundle):
+    """The frame's own clip is every shot's root, and visibleRect lets it through so a crop is not mistaken for an
+    author's — which left type wholly below the bottom edge listed and judged. CollaborativeCursors' name tags,
+    flying in from off the canvas, crawled down there and were reported as an ERROR no one could see. The same
+    layout crawl the census must flag on the frame is not read at all once it is under the frame."""
+    got = _census(census_bundle, {"below": {"drive": "layout", "move": "hold", "below": True},
+                                  "on": {"drive": "layout", "move": "hold"}})
+    assert got["on"]["level"] == "error" and got["on"]["all"] > 0, got["on"]
+    assert got["below"]["level"] == "clean" and got["below"]["all"] == 0, got["below"]
 
 
 @needs_toolchain
