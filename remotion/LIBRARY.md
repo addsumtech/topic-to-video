@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (193 design languages)
+# Remotion2 — Bespoke Shot Library (194 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 193 registers across 27 families.** D×29 · A×23 · C×17 · B×14 · G×11 · H×11 · F×10 · L×10 · E×9 · I×9 · K×6 · S×6 · J×5 · JA×5 · M×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
+**Family census — 194 registers across 27 families.** D×29 · A×24 · C×17 · B×14 · G×11 · H×11 · F×10 · L×10 · E×9 · I×9 · K×6 · S×6 · J×5 · JA×5 · M×5 · U×5 · N×4 · P×3 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -106,6 +106,7 @@ The floor of the library, lowest first — 35 of 170 registers:
 `_untrusted` could not be compared — their two prop sets came out too alike: EdCompare, OverlapSeparation, PageWrite, VersusSplit. `PageWrite` is the honest one of the four: its picture is a captured page, so no change of WORDS moves it. `_failed` is empty: every register in the library was rendered twice and read.
 
 ## A · Product-UI / SaaS-film — motion of a working interface
+218. **PourSync** — a physical thing and the phone that mirrors it, live, on one clock: the thing the film drew doing what it measures, a phone showing the screen the film drew for it, and a link carrying each reading from one to the other; both objects get the same clock and the same `shared` props, so the frame cannot show them disagreeing. *Use: what happens HERE shows up THERE as it happens — one live value drawn on a physical thing and on its phone app at once.* `kicker, linkFrom, linkLabel, linkWhen, look, screen, shared, thing, title` · `thing` and `screen` required in a film, together; the value both draw goes in `shared`; `linkWhen` is the film's window · built for the film 发布一款概念产品：一台智能咖啡秤和它的 App.
 211. **DeviceHero** — the product on its device with its own screenshot, recording, or a screen the film drew shown whole; it rises into place and, in the realistic look, turns a few degrees and settles. *Use: "this is the product" — an introduction or a reveal.* `device, look, screen, placement, kicker` · the screen is prepared by `scripts/device_script.py`.
 210. **DeviceDemo** — a phone, tablet, laptop or monitor showing the product's OWN screenshots or recording — or a screen the film drew — performing one operation on them — type, tap, scroll, drag — each on the narration's words, the camera pushing in wherever the text would be too small. *Use: how an interface is used — on a real screen, or one the film draws for an interface that does not exist yet.* `device, look, steps, camera, placement, kicker` · steps are prepared by `scripts/device_script.py`; too many for the beat is refused in seconds.
 193. **TaskFold** — beside the companion only the MAIN tasks hold a place; each task's background work shows as rows of its own, then folds up into its parent and leaves the count the film gave; a list longer than the panel scrolls. *Use: a subtraction of slots — only the top level is shown and the rest folds in; "when there are many, it scrolls".* `tasks[{label,state,subtasks}], stateLabels, foldLabel, note, src, visible`

@@ -7,6 +7,7 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  PourSync: 'light',
   ExtractionFlow: 'light',
   KSpaceToPicture: 'dark',
   ObjectTurntable: 'light',
@@ -127,6 +128,7 @@ const literalGround = (tok: GroundSpec | undefined): string | null =>
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
+  PourSync: 'bg',
   ExtractionFlow: 'bg',
   KSpaceToPicture: 'bg',
   ObjectTurntable: 'bg',
@@ -390,19 +392,20 @@ export const GROUND_FOLLOWS_MEASURED: ReadonlySet<string> = new Set([
   'OpenQuestions', 'OverlapSeparation', 'PaperCutout', 'ParticleForm',
   'PhaseEncodeStep', 'PhysicsStack', 'PlanPalimpsest', 'PlaneStack',
   'PlatformSurfaces', 'PointerTour', 'PortRail', 'PositioningMatrix',
-  'ProfileGrowth', 'PulledThread', 'QuadSplit', 'RackFocus',
-  'RadialBurst', 'RansomZine', 'RealVersus', 'RidgeField',
-  'RisoPrint', 'SameStuffChanged', 'ScanReconstruct', 'ScreenBubble',
-  'SeamBetween', 'SectionRoute', 'SharedBlindspot', 'ShorteningHold',
-  'SourceDeal', 'SpatialSlides', 'SpeedLimit', 'SpinningProton',
-  'SpinsAlign', 'SplitFlap', 'StateSheet', 'StatedBy',
-  'StrataColumn', 'SurfaceCarousel', 'SwissEditorial', 'TallyLedger',
-  'TaskFold', 'TechnicalPlate', 'TemporalAccelerate', 'TensionScale',
-  'TermBars', 'TermCounter', 'TermDiff', 'TermGitLog',
-  'TermLog', 'TermSpace', 'TermTable', 'TermThink',
-  'TermTree', 'TerrainFly', 'TimelineTravel', 'UndersampledKspace',
-  'VariableTypeMorph', 'VelocitySnap', 'VersusSplit', 'ViewSwitch',
-  'VoiceSignal', 'WireGlobe', 'WordTunnel', 'WorksThrough',
+  'PourSync', 'ProfileGrowth', 'PulledThread', 'QuadSplit',
+  'RackFocus', 'RadialBurst', 'RansomZine', 'RealVersus',
+  'RidgeField', 'RisoPrint', 'SameStuffChanged', 'ScanReconstruct',
+  'ScreenBubble', 'SeamBetween', 'SectionRoute', 'SharedBlindspot',
+  'ShorteningHold', 'SourceDeal', 'SpatialSlides', 'SpeedLimit',
+  'SpinningProton', 'SpinsAlign', 'SplitFlap', 'StateSheet',
+  'StatedBy', 'StrataColumn', 'SurfaceCarousel', 'SwissEditorial',
+  'TallyLedger', 'TaskFold', 'TechnicalPlate', 'TemporalAccelerate',
+  'TensionScale', 'TermBars', 'TermCounter', 'TermDiff',
+  'TermGitLog', 'TermLog', 'TermSpace', 'TermTable',
+  'TermThink', 'TermTree', 'TerrainFly', 'TimelineTravel',
+  'UndersampledKspace', 'VariableTypeMorph', 'VelocitySnap', 'VersusSplit',
+  'ViewSwitch', 'VoiceSignal', 'WireGlobe', 'WordTunnel',
+  'WorksThrough',
 ]);
 
 /** Does a declared ground reach this register? An unknown id answers false, so an unmeasured register is
