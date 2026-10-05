@@ -10,7 +10,12 @@ fired / a broken page) and CONTENT OVERFLOWING the video canvas (1920×1080, or 
 Overflow is measured from the DOM (max amount any `.stage`/`.split` descendant's box exceeds the
 canvas), so a legitimate full-bleed background (`.bg-photo`/`.bg-soft`, which lives OUTSIDE `.stage`)
 never false-positives. Needs Chrome DevTools Protocol; without it, falls back to screenshots + a
-pixel blank-check only (no overflow measurement).
+pixel blank-check only (no overflow measurement, and no type-glide census — see below).
+
+Also runs the TYPE-GLIDE CENSUS (post-tts, when CDP is available): a page's OWN custom animation
+([data-ambient], a per-page `<style>` @keyframes) crawling text under an axis-aligned matrix, which
+Chrome snaps to the whole device pixel — a staircase (3+ whole-pixel steps) is an ERROR, 1-2 is a
+WARN. Reuses text_safe_qa.judge_glide/glide_level, the same judgment the Remotion tier's census uses.
 
 Usage:  python scripts/keyframe_qa.py <out_dir> [--p N] [--json]
 Exit 0 when clean; non-zero if any page is BLANK or OVERFLOWS (those block). The centered-
@@ -256,6 +261,157 @@ def _reveal_count(chrome):
         return {"tot": 0, "vis": 0}
 
 
+# ── THE TYPE-GLIDE CENSUS, ported to the HTML tier ──────────────────────────────────────────────
+#
+# The shared base.css reveals (.reveal-up etc.) already carry the baseline unlock (base.css, the
+# `matrix(1,.0009765625,0,1,0,0)` skewY trick) — proven clean in remotion/src/runtime/textSafe.tsx's
+# own census. What's UNCHECKED is a page's OWN custom animation: a `[data-ambient]` text drift, or a
+# per-page `<style>` @keyframes an author writes without knowing the unlock exists. Those can move
+# TEXT under an axis-aligned matrix, which Skia/Chrome's text rasterizer snaps to the whole device
+# pixel — a slow crawl holds for several frames then jumps, a staircase, while everything drawn
+# beside it glides continuously.
+#
+# WHY A SEPARATE PLAIN-JS COPY, NOT THE TSX. textSafe.tsx's `auditGlide` is a React/Remotion-side
+# module (TS, compiled by Remotion's own bundler); this tier drives Chrome directly over CDP with no
+# build step, so sharing that file verbatim isn't cheap. What IS shared is the JUDGE: `judge_glide`/
+# `glide_level` (text_safe_qa.py) are reused UNCHANGED — same {frame: {"lines":[...]}} shape in,
+# same 3-steps-is-a-staircase rule out. Only the MEASUREMENT (walk the DOM, decide whether a line's
+# composed matrix is axis-aligned) is a small plain-JS copy here, reduced to the core rule this tier
+# needs: it drops textSafe.tsx's 3D-compositor / spatial-filter nuances (will-change layers, blur/
+# drop-shadow re-snapping, preserve-3d) — edge cases this tier's hand-authored CSS doesn't produce —
+# and keeps Skia's own test verbatim: a composed matrix's skewY entry rounds to zero at 1/1024
+# (`snapsBaseline` in textSafe.tsx; `tests/test_keyframe_qa.py` pins the same `*1024` literal in
+# both files so the two can't silently drift apart).
+#
+# HOW. `?p=` seeking is seek.js's OWN URL-driven mechanism; the census instead re-implements seek.js's
+# freeze-at-progress formula directly (it is four lines) so it can call it in a plain JS loop, once per
+# REAL VIDEO FRAME (`round(duration*fps)`, the same count render.py's `_render_scene` renders), inside
+# ONE Runtime.evaluate — no per-frame navigation. Measured on jev-html: ~0.2-0.4s of in-page time for a
+# ~20s/600-frame scene, so the cost stays a rounding error next to the existing per-p screenshot sweep.
+GLIDE_FRAME_CAP = 3000   # ~100s at 30fps — a safety ceiling, not a tuned budget (every real scene here
+                         # is far under it; this just keeps a pathological duration from hanging the page)
+
+_GLIDE_JS_TMPL = r"""(function(nFrames){
+  function sec(v){v=parseFloat(v);return isNaN(v)?0:v;}
+  var els = Array.prototype.slice.call(document.querySelectorAll('*')).filter(function(el){
+    var n = getComputedStyle(el).animationName; return n && n !== 'none';
+  });
+  // mirrors seek.js's own freeze-at-progress formula exactly (ambient = driven by p across the WHOLE
+  // scene; everything else = a reveal, anchored to its own authored delay) — re-implemented here so it
+  // can be called once per frame in-process instead of once per page navigation.
+  var spans = els.map(function(el){
+    var cs = getComputedStyle(el);
+    var ambient = el.matches('.bg-live, .bg-drift, [data-ambient]');
+    return {el: el, d: sec(cs.animationDelay), dur: sec(cs.animationDuration), ambient: ambient};
+  });
+  function freeze(p){
+    spans.forEach(function(s){
+      s.el.style.animationDelay = (s.ambient ? -(p * s.dur) : (s.d - p)) + 's';
+      s.el.style.animationPlayState = 'paused';
+    });
+  }
+  function hasOwnText(el){
+    var s = '';
+    el.childNodes.forEach(function(n){ if (n.nodeType === 3) s += n.nodeValue || ''; });
+    return s.trim();
+  }
+  // THIS element's own 2x2 linear transform, or null for a matrix3d it can't safely decompose
+  // (mirrors textSafe.tsx `selfMatrix` minus the standalone `rotate` longhand, unused on this tier).
+  function selfMatrix(cs){
+    var tr = cs.transform;
+    if (!tr || tr === 'none') return [1, 0, 0, 1];
+    if (tr.indexOf('(') < 0) return null;
+    var n = tr.slice(tr.indexOf('(') + 1, tr.lastIndexOf(')')).split(',')
+             .map(function(x){ return parseFloat(x) || 0; });
+    return n.length === 6 ? n : null;                 // matrix3d (16 terms): unmeasured, not guessed
+  }
+  function mul2(a, b){
+    return [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1], a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3]];
+  }
+  function domPath(el){                                // a stable per-page key: tag + sibling index, to body
+    var path = [], e = el;
+    while (e && e.nodeType === 1){
+      var idx = 0, sib = e;
+      while ((sib = sib.previousElementSibling)) idx++;
+      path.unshift(e.tagName.toLowerCase() + idx);
+      e = e.parentElement;
+    }
+    return path.join('/');
+  }
+  var out = {};
+  for (var f = 0; f < nFrames; f++){
+    var p = (nFrames <= 1) ? 0 : f / (nFrames - 1);
+    freeze(p);
+    var nodes = document.querySelectorAll('.stage *,.split *'), lines = [];
+    for (var i = 0; i < nodes.length; i++){
+      var el = nodes[i];
+      var text = hasOwnText(el);
+      if (!text) continue;
+      var M = [1, 0, 0, 1], op = 1, hidden = false, steps = false, selfCs = null;
+      var chain = [], e2 = el;
+      while (e2 && e2.nodeType === 1){ chain.push(e2); e2 = e2.parentElement; }
+      for (var j = chain.length - 1; j >= 0; j--){
+        var node = chain[j], cs = getComputedStyle(node);
+        if (node === el) selfCs = cs;
+        if (cs.display === 'none' || cs.visibility === 'hidden'){ hidden = true; break; }
+        if (node.hasAttribute('data-type-steps')) steps = true;
+        var own = selfMatrix(cs);
+        if (own === null) M = null; else if (M !== null) M = mul2(M, own);
+        op *= (parseFloat(cs.opacity) || 0);
+      }
+      if (hidden) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) continue;
+      var ly = 0, oe = el;
+      while (oe){ ly += oe.offsetTop || 0; oe = oe.offsetParent; }
+      var rec = {k: domPath(el), y: Math.round(r.top * 1e4) / 1e4, o: Math.round(op * 100) / 100,
+                 t: text.length > 32 ? text.slice(0, 32) + '…' : text,
+                 ly: Math.round(ly), px: Math.round((parseFloat(selfCs.fontSize) || 0) * 100) / 100};
+      var fl = steps ? 's' : '';
+      // Skia's own test (textSafe.tsx `snapsBaseline`): the composed skewY entry rounds to zero at
+      // 1/1024 -> the baseline snaps to the device pixel. `M === null` (a matrix3d ancestor) is
+      // unmeasured, not judged -- listed with 'c' like textSafe.tsx's composited-layer path.
+      if (M === null) fl += 'c';
+      else if (Math.round(Math.abs(M[1]) * 1024) !== 0) rec.u = 1;
+      if (fl) rec.fl = fl;
+      lines.push(rec);
+    }
+    out[f] = {lines: lines};
+  }
+  return JSON.stringify(out);
+})(%d)"""
+
+
+def _glide_census(chrome, n_frames):
+    """{frame_index: {"lines":[...]}} over `n_frames` real video frames of the page CURRENTLY loaded in
+    `chrome` — one Runtime.evaluate, no per-frame navigation (see _GLIDE_JS_TMPL)."""
+    n_frames = max(1, min(int(n_frames), GLIDE_FRAME_CAP))
+    r = chrome._cmd("Runtime.evaluate",
+                    {"expression": _GLIDE_JS_TMPL % n_frames, "returnByValue": True}, chrome.sid)
+    raw = json.loads(r["result"]["result"]["value"])
+    return {int(f): rec for f, rec in raw.items()}
+
+
+def _glide_issue(chrome, duration, fps):
+    """(issue_or_None, advisory_or_None) for the page currently loaded in `chrome`: a crawl under its
+    own custom animation that steps 3+ whole pixels is an ERROR (matches the Remotion tier's rule via
+    the SAME judge_glide/glide_level); 1-2 steps is a WARN. Reused, not re-derived: the judgment is
+    text_safe_qa's; this only supplies the per-frame census."""
+    import text_safe_qa as _tsq
+    n_frames = max(1, round(float(duration) * float(fps or 30)))
+    frames = _glide_census(chrome, n_frames)
+    runs = _tsq.judge_glide(frames)
+    level, worst = _tsq.glide_level(runs)
+    if level == "clean" or not worst:
+        return None, None
+    worst_run = max(worst, key=lambda r: r["steps"])
+    msg = (f"{len(worst)} text run(s) crawl under the page's OWN animation while an axis-aligned "
+          f"matrix snaps the baseline — worst: {_tsq._describe_run(worst_run)} (give it the baseline "
+          f"unlock — base.css's matrix(1,.0009765625,0,1,0,0) trick — or mark it data-type-steps=\"…\" "
+          f"if the stepping is intentional)")
+    return (msg, None) if level == "error" else (None, msg)
+
+
 BAND_TOL = 0.035          # normalized frame-height slack for "the same line"
 BAND_SHARE = 0.6          # share of pages on one line before it reads as a shared envelope
 
@@ -342,6 +498,8 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
     uncued_scenes = []                    # timed, but the page carries no data-cue anchors
     centroids = []                        # (scene, cx, cy) normalized content centroids, for silhouette repetition
     bands = []                            # (scene, ctop, cbot) normalized content BAND, for band uniformity
+    glide_seconds, glide_checked = 0.0, 0 # cost accounting — reported in the summary line (glide-skipped
+                                           # scenes are the SAME set as blind_scenes below — no duration yet)
     try:
         for s in html:
             idx = s.get("index")
@@ -489,6 +647,26 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                 probed = False
                 if _is_blank(final):
                     issues.append("BLANK at p=1 (reveal never fired / broken page)")
+            # TYPE-GLIDE CENSUS: a page's OWN custom animation ([data-ambient], a per-page <style>
+            # @keyframes) crawling text under an axis-aligned matrix — unchecked by the geometry probe
+            # above (that measures ONE resting frame; this reads consecutive frames). Needs a real
+            # duration (post-tts) for a real frame count, same gate as the sweep itself.
+            if chrome:
+                dur = s.get("duration")
+                if isinstance(dur, (int, float)) and dur > 0:
+                    try:
+                        _t0 = time.time()
+                        g_issue, g_warn = _glide_issue(chrome, dur, meta.get("fps", 30))
+                        glide_seconds += time.time() - _t0
+                        glide_checked += 1
+                        if g_issue:
+                            issues.append(g_issue)
+                        if g_warn:
+                            advisories.append(g_warn)
+                    except Exception as e:
+                        advisories.append(f"type-glide census failed ({type(e).__name__}) — crawl under "
+                                          f"the page's own animation was NOT checked for this page")
+                # else: no duration yet — covered by the blind_scenes deck note below (same gate)
             # THE OPENING. frames[0] is now the real t=0 frame — what the viewer actually sees while
             # the narration's first words play, and (with a dip) what the transition lands on. A page
             # whose first reveal is anchored to a phrase spoken partway through opens on nothing; the
@@ -582,9 +760,11 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             print(f"  {mark} scene {r['scene']:02d} [{r['status']}]{extra}")
         for dn in deck_notes:
             print(f"  ! deck  {dn}")
-        mode = "DOM+shots" if chrome else "shots-only (no CDP → overflow/centered unchecked)"
+        mode = "DOM+shots" if chrome else "shots-only (no CDP → overflow/centered/type-glide unchecked)"
+        glide_note = (f"; glide census {glide_seconds:.2f}s/{glide_checked} page(s)"
+                      if glide_checked else "")
         print(f"[keyframe_qa] {status}  {len(report)} html page(s), "
-              f"{errors} issue(s), {warns + len(deck_notes)} advisory(ies) [{mode}]; sheets -> {kf}/  "
+              f"{errors} issue(s), {warns + len(deck_notes)} advisory(ies) [{mode}]{glide_note}; sheets -> {kf}/  "
               f"(open all.png to eyeball tofu/theme/reveals)")
     if errors:
         return 1

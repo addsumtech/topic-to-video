@@ -43,6 +43,21 @@ def test_probe_js_measures_mystery_furniture_and_nearmiss():
     assert "ds[di]>=5&&ds[di]<=22" in kq._OVERFLOW_JS
 
 
+# ---- type-glide census: the plain-JS copy must stay pinned to textSafe.tsx's own rule ------------
+_TEXTSAFE_TSX = os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime", "textSafe.tsx")
+
+def test_glide_js_axis_aligned_test_is_pinned_to_textsafe_tsx():
+    # Skia's own test — a composed matrix's skewY entry rounds to zero at 1/1024 — is duplicated here
+    # (no build step on this tier to share textSafe.tsx's `snapsBaseline` directly). If either side's
+    # literal threshold or formula shape drifts, this must fail loudly rather than silently diverge.
+    tsx = open(_TEXTSAFE_TSX, encoding="utf-8").read()
+    assert "Math.round(Math.abs(b) * 1024) === 0" in tsx, \
+        "textSafe.tsx's snapsBaseline formula changed shape — update keyframe_qa._GLIDE_JS_TMPL to match"
+    js = kq._GLIDE_JS_TMPL
+    assert "Math.round(Math.abs(M[1]) * 1024)" in js, \
+        "keyframe_qa's glide census no longer uses the same *1024 rounding rule as textSafe.tsx"
+
+
 def test_probe_js_measures_intra_box_clip_excluding_fills():
     # the probe must emit a `clip` signal, key it off scroll-vs-client height, and EXCLUDE fill/bar
     # components (a .meter legitimately clips its .fill) so only real text-clipping cards flag
