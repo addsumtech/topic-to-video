@@ -645,6 +645,11 @@ baseline. What it already handles (so you don't re-author it):
   leaves the dead zone); (b) **distribute along the height** — tall row gaps (~34px), padded
   timeline rows (~22px), and on a SPARSE beat drop a LARGE motif/visual into the lower zone
   (~y1000–1400) instead of a small corner stamp, so the column carries two visual centers.
+  A page that's still too THIN after hand-tuning (a one- or two-line beat with nothing to add) can
+  opt into **`class="stage fill"`** instead: it steps the type scale up one more notch past the
+  phone-first baseline and spreads the stack through the whole zone (`justify-content:space-between`)
+  rather than letting it pool under the top anchor with a dead void beneath. It's opt-in — add the
+  class to that one page; it changes nothing elsewhere.
 - **Restack, don't shrink:** `.split`/`.blocks`/multi-column `.grid` → ONE column; the horizontal
   `.timeline` → a **vertical rail** (`flex-direction:column`, rail on the left, node rows beside it);
   `.hs-spokes` gets `width:calc(50% - gap/2)` so it wraps a CLEAN 2×2 (auto widths wrap 1-1-2 at

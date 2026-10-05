@@ -2,6 +2,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from PIL import Image, ImageDraw
 import keyframe_qa as kq
+from _caption_band import caption_band_px
 
 def test_is_blank_uniform_true():
     assert kq._is_blank(Image.new("RGB", (200, 120), "#f5f3ee")) is True
@@ -51,43 +52,60 @@ def test_probe_js_measures_intra_box_clip_excluding_fills():
 
 # ---- _geometry_issues: the pure box-geometry classifier (overflow / intra-box clip / caption zone) ----
 _CLEAN = {"worst": 0, "clip": 0, "cbot": 800, "ctop": 100, "cleft": 100, "cright": 1800}
+_W16, _H16 = 1920, 1080
+_W916, _H916 = 1080, 1920
+# the REAL reserved band (runtime/layout.ts, via _caption_band.py) — 200px/18.5% at 16:9, not the old
+# flat 14%/0.86*H guess that under-reserved by 48px and let a card grid sit inside the true band.
+_CAP_TOP_16 = _H16 - caption_band_px(_W16, _H16)     # 880
+_CAP_TOP_916 = _H916 - caption_band_px(_W916, _H916)  # 1663
 
 def test_geometry_clean_page_has_no_issues():
-    assert kq._geometry_issues(_CLEAN, {}, 1080) == []
+    assert kq._geometry_issues(_CLEAN, {}, _W16, _H16) == []
 
 def test_geometry_flags_canvas_overflow():
-    out = kq._geometry_issues({**_CLEAN, "worst": 40}, {}, 1080)
+    out = kq._geometry_issues({**_CLEAN, "worst": 40}, {}, _W16, _H16)
     assert len(out) == 1 and "overflows the safe canvas" in out[0]
 
 def test_geometry_flags_intra_box_clip():
     # the case the canvas check MISSES: box fits (worst 0) but its own text is sliced
-    out = kq._geometry_issues({**_CLEAN, "clip": 104}, {}, 1080)
+    out = kq._geometry_issues({**_CLEAN, "clip": 104}, {}, _W16, _H16)
     assert len(out) == 1 and "CLIPPED inside a card/box" in out[0]
 
 def test_geometry_clip_ignores_sub_threshold_jitter():
-    assert kq._geometry_issues({**_CLEAN, "clip": 6}, {}, 1080) == []
+    assert kq._geometry_issues({**_CLEAN, "clip": 6}, {}, _W16, _H16) == []
 
 def test_geometry_flags_caption_zone_occlusion():
-    # content bottom at 1000 > 0.86*1080 (=928) => overlaps the burned overlay subtitle
-    out = kq._geometry_issues({**_CLEAN, "cbot": 1000}, {}, 1080)
+    # content bottom at 1000 > 880 (the real 16:9 band top) => overlaps the burned overlay subtitle
+    out = kq._geometry_issues({**_CLEAN, "cbot": 1000}, {}, _W16, _H16)
+    assert len(out) == 1 and "caption zone" in out[0]
+
+def test_geometry_catches_the_real_band_the_old_0_86_guess_missed():
+    # THE MISS: jev-html scene 3's card grid rested at cbot~935 of 1080 (centered .stage, no
+    # anchor-top) — under the old hardcoded 928px (0.86*1080) line, so it passed with 0 issues, but
+    # ABOVE 880px, the real caption-band top the renderer (runtime/layout.ts) actually reserves. A
+    # page resting in exactly that 48px gap must now FAIL.
+    out = kq._geometry_issues({**_CLEAN, "cbot": 900}, {}, _W16, _H16)
+    assert 880 < 900 < 928, "fixture must sit inside the old-vs-real gap"
     assert len(out) == 1 and "caption zone" in out[0]
 
 def test_geometry_caption_zone_exempt_in_band_mode():
     # band mode moves captions BELOW the content, so low content is fine
-    assert kq._geometry_issues({**_CLEAN, "cbot": 1000}, {"caption_mode": "band"}, 1080) == []
+    assert kq._geometry_issues({**_CLEAN, "cbot": 1000}, {"caption_mode": "band"}, _W16, _H16) == []
 
 def test_geometry_caption_zone_exempt_when_captions_off():
-    assert kq._geometry_issues({**_CLEAN, "cbot": 1000}, {"captions": False}, 1080) == []
+    assert kq._geometry_issues({**_CLEAN, "cbot": 1000}, {"captions": False}, _W16, _H16) == []
 
-def test_geometry_caption_zone_scales_with_canvas_height():
-    # a 9:16 canvas (H=1920) zone boundary is 0.86*1920=1651 — content at 1600 clears it
-    assert kq._geometry_issues({**_CLEAN, "cbot": 1600}, {}, 1920) == []
-    assert len(kq._geometry_issues({**_CLEAN, "cbot": 1700}, {}, 1920)) == 1
+def test_geometry_caption_zone_scales_with_canvas_and_narrows_for_9_16():
+    # a 9:16 canvas wraps the caption to one more line (CAPTION_NARROW_W), so its band top (1663) is
+    # NOT just 0.86 of the taller canvas — it's read from the same aspect-aware definition as the
+    # renderer, via _caption_band.caption_band_px.
+    assert kq._geometry_issues({**_CLEAN, "cbot": _CAP_TOP_916 - 20}, {}, _W916, _H916) == []
+    assert len(kq._geometry_issues({**_CLEAN, "cbot": _CAP_TOP_916 + 20}, {}, _W916, _H916)) == 1
 
 def test_geometry_no_caption_flag_without_a_content_box():
     # a full-bleed hero (no .stage content box) has nothing to occlude even if cbot is spurious
     empty = {"worst": 0, "clip": 0, "cbot": 1000, "ctop": 1e9, "cleft": 1e9, "cright": 0}
-    assert kq._geometry_issues(empty, {}, 1080) == []
+    assert kq._geometry_issues(empty, {}, _W16, _H16) == []
 
 
 # ---- shipped frame (the render's REAL last frame) ------------------------------------------------

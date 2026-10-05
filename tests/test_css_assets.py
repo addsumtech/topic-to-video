@@ -52,6 +52,24 @@ def test_offcenter_band_primitive_present():
     assert "frame-left" in v and "82%" in v
 
 
+def test_vertical_fill_is_an_opt_in_lever_for_thin_pages():
+    # a thin 9:16 page can opt into `class="stage fill"` to step the type scale up and spread the
+    # stack through the zone, instead of a page-by-page hand-rolled font-size override. It must be
+    # scoped under `.stage.fill` (opt-in) — never bare `.stage`/`.title`/etc, which would change
+    # every existing page's fill behaviour without anyone asking for it.
+    v = _read("vertical.css").replace(" ", "")
+    assert ".stage.fill{" in v
+    for cls in (".stage.fill.title{", ".stage.fill.sub{", ".stage.fill.label{"):
+        assert cls in v, f"{cls} missing from vertical.css"
+    # it must actually step SIZES UP past the phone-first baseline a few lines above, not just restyle
+    base_title = re.search(r"(?<!\.fill)\.title\{font-size:(\d+)px", v)
+    fill_title = re.search(r"\.stage\.fill\.title\{font-size:(\d+)px", v)
+    assert base_title and fill_title
+    assert int(fill_title.group(1)) > int(base_title.group(1))
+    # spreads the stack through the zone rather than pooling it under the top anchor
+    assert "justify-content:space-between" in re.search(r"\.stage\.fill\{[^}]*\}", v).group(0)
+
+
 def test_grain_primitive_present_and_gated():
     m = _read("motifs.css")
     # a fixed-seed feTurbulence overlay, auto-applied via body::after, GATED by --grain-amount (0 = off)

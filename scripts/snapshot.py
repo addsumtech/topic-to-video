@@ -104,7 +104,7 @@ def shoot(page, out_png, p=1.0, vertical=False, captions=True, meta=None):
             chrome.shot(url, out_png)
             _ensure_png(out_png)
             info = keyframe_qa._dom_probe(chrome)   # page still at the frozen state — measure it
-            issues = _geometry_issues(info, meta, H)
+            issues = _geometry_issues(info, meta, W, H)
             blank = keyframe_qa._blank_issue(info)  # a never-fired/empty page must not pass as "clean"
             if blank:
                 issues = [blank] + issues

@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PIL import Image
 import scenes  # reuse the Chrome bin resolver + per-shot screenshot fallback
 import cues as _cues
+from _caption_band import caption_band_px   # the ONE definition of the burned-caption band
 
 DEFAULT_PS = [0.0, 0.25, 0.5, 0.75, 1.0]
 OVERFLOW_TOL = 6   # px a content box may exceed the canvas before it's flagged
@@ -212,7 +213,7 @@ def _blank_issue(info):
     return None
 
 
-def _geometry_issues(info, meta, H):
+def _geometry_issues(info, meta, W, H):
     """Pure classifier for the box-geometry gate — the three ways content can be *placed* wrong even
     when the reveal fired: (1) it overflows the safe canvas, (2) a fixed-height / overflow:hidden box
     CLIPS its own text (invisible to the canvas check — the box fits, its content doesn't), (3) it
@@ -227,16 +228,21 @@ def _geometry_issues(info, meta, H):
         out.append(f"text CLIPPED inside a card/box by {info['clip']}px — a fixed height / "
                    "overflow:hidden is cutting its own content; give the box auto height, "
                    "shorten the text, or split the beat")
-    # caption-zone occlusion: an overlay caption burns into the bottom ~14% of the frame, so page
-    # content reaching there sits UNDER the subtitle. band mode moves captions below the content, so
-    # it's exempt; a page with no visible content box (a full-bleed hero) has nothing to occlude.
+    # caption-zone occlusion: an overlay caption burns into the bottom `caption_band_px(W,H)` of the
+    # frame — the SAME band the renderer actually reserves (runtime/layout.ts, via _caption_band.py),
+    # not a flat 14%/0.86*H guess. That guess under-counted the real band (200px/18.5% at 16:9 vs the
+    # old 151px/14%) so a page could sit BELOW the real band's top edge and still read as clean — the
+    # exact miss a 9-line card grid hit (resting content at y935 of 1080, inside the true 880px band
+    # top, under the old 928px line). band mode moves captions below the content, so it's exempt; a
+    # page with no visible content box (a full-bleed hero) has nothing to occlude.
     _has_box = (info.get("cright", 0) > info.get("cleft", 1e9)
                 and info.get("cbot", -1e9) > info.get("ctop", 1e9))
+    cap_top = H - caption_band_px(W, H)
     if (meta.get("captions", True) and meta.get("caption_mode", "overlay") != "band"
-            and _has_box and info.get("cbot", -1) > 0.86 * H):
+            and _has_box and info.get("cbot", -1) > cap_top):
         out.append(f"content reaches the bottom caption zone (lowest content y={info['cbot']} "
-                   f"> {int(0.86 * H)}px) — it will overlap the burned subtitle; push content "
-                   "up (reduce sizes/gaps, or reserve the bottom ~14%)")
+                   f"> {cap_top}px) — it will overlap the burned subtitle; push content "
+                   f"up (reduce sizes/gaps, or reserve the bottom {round(100*(H-cap_top)/H)}%)")
     return out
 
 
@@ -401,7 +407,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     _blank = _blank_issue(info)
                     if _blank:
                         issues.append(_blank)
-                    issues.extend(_geometry_issues(info, meta, H))   # overflow + intra-box clip + caption occlusion
+                    issues.extend(_geometry_issues(info, meta, W, H))   # overflow + intra-box clip + caption occlusion
                     if info.get("encl", 0) > 0:
                         advisories.append(f"{info['encl']} text block(s) SPILL past an enclosure "
                                           f"(e.g. \u300c{info.get('enclEx','')}\u300d) — a ring asserts "
@@ -446,7 +452,8 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                         if fill < 0.60 and not info.get("bleed"):
                             (issues if fill < 0.50 else advisories).append(
                                 f"fills only {rep_fill}% of the 9:16 zone — scale type up / distribute "
-                                "down / add a lower-zone visual (html-pages '9:16 vertical pages')")
+                                "down / add a lower-zone visual, or opt into `class=\"stage fill\"` "
+                                "(vertical.css) for a one-line lever (html-pages '9:16 vertical pages')")
                     # STAGGER (paced pages only — a cued page renders BLIND here [no ?cues=], so its
                     # reveals all fire at delay 0 and would false-flag): on a page with NO data-cue-index,
                     # a proper stagger makes the visible-reveal count RISE across the p-states.

@@ -30,6 +30,19 @@ html, body { width: 1080px; height: 1920px; }
 .stage.bleed { padding: 0 0 300px; }        /* the burn zone is never freed */
 .stage.bleed-x { padding-left: 0; padding-right: 0; }
 
+/* FILL — opt-in lever for a page that's too THIN for the tall column (keyframe_qa advises below 60%
+   fill of the y160-1600 zone and BLOCKS below 50%). Steps the type scale up one notch past the
+   phone-first baseline below, and spreads the stack through the whole zone (space-between) instead
+   of letting it pool under the top anchor with a dead void beneath. Opt-in — add `class="stage fill"`
+   to a specific thin page; it changes nothing on a page that doesn't ask for it. */
+.stage.fill { justify-content: space-between; gap: 56px; }
+.stage.fill .kicker { font-size: 40px; }
+.stage.fill .title { font-size: 112px; }
+.stage.fill .sub { font-size: 50px; }
+.stage.fill .label { font-size: 56px; }
+.stage.fill .note { font-size: 38px; }
+.stage.fill .stat { font-size: 210px; }
+
 /* full-bleed backdrops fill the tall canvas (motifs.css now sizes them 100%, so this is a belt-and-braces) */
 .bg-photo, .bg-soft { width: 100%; height: 100%; }
 /* cover hero: a vertical scrim (dark at top) for a top-anchored title over a photo */

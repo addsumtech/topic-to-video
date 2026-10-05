@@ -23,8 +23,8 @@ def test_shoot_signature_covers_contest_needs():
 def test_no_captions_disables_caption_zone_check():
     # shoot(captions=False) sets meta.captions False, which _geometry_issues honours — verify the seam
     info = {"worst": 0, "clip": 0, "cbot": 1050, "ctop": 100, "cleft": 100, "cright": 1800}
-    assert snapshot._geometry_issues(info, {"captions": False}, 1080) == []
-    assert len(snapshot._geometry_issues(info, {}, 1080)) == 1
+    assert snapshot._geometry_issues(info, {"captions": False}, 1920, 1080) == []
+    assert len(snapshot._geometry_issues(info, {}, 1920, 1080)) == 1
 
 
 def test_missing_page_raises_before_chrome():
