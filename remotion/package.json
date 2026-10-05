@@ -1,5 +1,5 @@
 {
-  "name": "slides-to-video-remotion",
+  "name": "topic-to-video-remotion",
   "version": "0.1.0",
   "private": true,
   "description": "Redo of the cinematic tier: bespoke per-shot components (a library of diverse, Remotion-native design languages distilled from real product films). Dependencies are declared and pinned so a fresh clone can `npm install` and render; previously this file was empty and the project relied on an ad-hoc node_modules, which broke the moment Root.tsx started importing @remotion/fonts unconditionally.",

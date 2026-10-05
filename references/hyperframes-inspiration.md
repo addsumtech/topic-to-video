@@ -12,7 +12,7 @@ frame-by-frame** in headless Chrome and encoded with FFmpeg → deterministic MP
 engine sit 19 agent skills (a `/hyperframes` router → creation workflows → on-demand domain
 skills), a catalog of reusable blocks, and `frame.md` design presets.
 
-**Why it's relevant here:** `slides-to-video` is a smaller, opinionated cousin of the same
+**Why it's relevant here:** `topic-to-video` is a smaller, opinionated cousin of the same
 architecture (headless-Chrome HTML tier + ffmpeg + sub-agents + `references/` progressive
 disclosure). Most of HyperFrames' best ideas transfer. This file records the analysis so the
 backlog isn't lost — it is a reference, not part of the runtime pipeline.
@@ -81,7 +81,7 @@ backlog isn't lost — it is a reference, not part of the runtime pipeline.
     `say`-engine / non-English path).
 
 ## Deliberately NOT adopting
-- **Multi-skill router split** — `slides-to-video` already has `references/` progressive
+- **Multi-skill router split** — `topic-to-video` already has `references/` progressive
   disclosure + an `agents/` panel; staying one skill is correct.
 - **AWS Lambda rendering, registry/catalog blocks, multi-provider paid TTS chains** — out of
   scope for a free/local tool.

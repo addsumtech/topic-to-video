@@ -1,24 +1,23 @@
 ---
-name: slides-to-video
+name: topic-to-video
 description: >-
-  Turn a slide deck into a narrated instruction/explainer VIDEO — each slide shown
-  full-frame with voiceover, gentle Ken Burns motion, timed callout highlights, and
-  optional burned-in captions. Works in ANY language, and can voice a deck in a
-  DIFFERENT language than its slides (e.g. a Chinese voice-over for an English deck).
-  Use whenever the user wants to make a video / voiceover / narrated walkthrough /
-  explainer FROM slides or a deck — e.g. "turn these slides into a video", "narrate my
-  pptx", "make an explainer video from this deck", "add a voiceover to my slides",
-  "video walkthrough of this presentation", "把幻灯片做成视频", "make a Chinese
-  voice-over from my English slides", "把英文幻灯片配成中文解说视频".
-  Accepts .pptx, .pdf, an image folder, or a hand-off from slide-maker. Free by default
-  (neural edge-tts, needs network; macOS say offline fallback) + ffmpeg; optional cloud TTS. Generates an editable storyboard,
-  lets the user edit the script, renders one sample slide for sign-off, then the full
-  video. Trigger even without the word "skill".
+  Turn ANY topic — or a slide deck — into a narrated explainer short video,
+  automatically: researches the topic, writes and voices the script, designs and builds
+  the visuals (cinematic Remotion tier or HTML pages; a deck's slides full-frame with
+  gentle motion and timed callouts) and burns in captions. Any language; can voice a
+  deck in a different language than its slides. Use whenever the user wants a short
+  video about a subject or from slides — e.g. "make a video explaining how MRI works",
+  "make a launch video for this product", "做一个讲解视频介绍X", "turn these slides into
+  a video", "narrate my pptx", "add a voiceover to my slides", "把幻灯片做成视频",
+  "把英文幻灯片配成中文解说视频". Accepts a topic, .pptx, .pdf, an image folder, or a
+  hand-off from slide-maker. Free by default (edge-tts + ffmpeg); optional cloud TTS.
+  Editable storyboard, a sample for sign-off, then the full video. Trigger even
+  without the word "skill".
 ---
 
-# Slides to Video
+# Topic to Video
 
-You turn slides into a narrated video. Source of truth is `storyboard.json` — you edit
+You turn a topic — or a slide deck — into a narrated short video. Source of truth is `storyboard.json` — you edit
 text/timing; the scripts render the media.
 
 ## Tools (all free; verify with `scripts/_common.have_tool`)

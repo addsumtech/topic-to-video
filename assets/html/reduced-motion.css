@@ -1,4 +1,4 @@
-/* slides-to-video — REDUCED-MOTION override (accessibility). Injected AFTER base.css / theme.css /
+/* topic-to-video — REDUCED-MOTION override (accessibility). Injected AFTER base.css / theme.css /
    motifs.css by render_html when meta.reduced_motion is on. Goal: keep the deck legible and still
    deterministically SEEKABLE (seek.js freezes at progress p), but remove vestibular-trigger motion
    — no translate/scale/zoom. Entrances become an opacity-only cross-fade.

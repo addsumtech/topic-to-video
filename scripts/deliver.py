@@ -27,7 +27,7 @@ def _writable(folder):
     a write that `os.access` reports as allowed."""
     if not os.path.isdir(folder):
         return False
-    probe = os.path.join(folder, ".slides-to-video-probe-%d" % os.getpid())
+    probe = os.path.join(folder, ".topic-to-video-probe-%d" % os.getpid())
     try:
         with open(probe, "w", encoding="utf-8") as fh:
             fh.write("ok")

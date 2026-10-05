@@ -1,5 +1,5 @@
 {
-  "skill": "slides-to-video",
+  "skill": "topic-to-video",
   "should_trigger": [
     "turn these slides into a narrated video",
     "make an explainer video from my pptx",

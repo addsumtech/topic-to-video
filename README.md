@@ -1,4 +1,4 @@
-# slides-to-video
+# topic-to-video
 
 Turn a slide deck into a narrated **instruction/explainer video** — each slide shown
 full-frame with a voiceover, gentle Ken Burns motion, timed callout highlights, and

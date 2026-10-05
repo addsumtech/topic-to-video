@@ -16,7 +16,7 @@ import urllib.error, urllib.request, urllib.parse
 
 _API = "https://commons.wikimedia.org/w/api.php"
 # a descriptive UA is required by the Wikimedia API etiquette
-_UA = "slides-to-video-skill/1.0 (github.com/dong845/slides_to_video; documentary image tier)"
+_UA = "topic-to-video-skill/1.0 (github.com/dong845/topic-to-video; documentary image tier)"
 # licenses we accept: public-domain or FREE/attributable Creative-Commons. Reject non-free / fair-use
 # AND the non-free CC variants: NonCommercial (-nc) and NoDerivatives (-nd) — a deck reuses + often
 # DUOTONE-treats (derives) the image commercially-ish, so BY-NC / BY-ND are not safe. _BAD is checked

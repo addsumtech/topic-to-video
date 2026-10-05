@@ -1,4 +1,4 @@
-"""Environment preflight for the slides-to-video pipeline. Reports which tools/libraries are
+"""Environment preflight for the topic-to-video pipeline. Reports which tools/libraries are
 present and, for each missing one, what stage it gates and how to install it — so a missing
 dependency surfaces in ~1s up front instead of mid-pipeline.
 
@@ -85,7 +85,7 @@ def check():
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Environment preflight for slides-to-video")
+    ap = argparse.ArgumentParser(description="Environment preflight for topic-to-video")
     ap.add_argument("--json", action="store_true", help="emit the result dict as JSON")
     a = ap.parse_args()
     r = check()
