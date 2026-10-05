@@ -3063,6 +3063,89 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
                 errors.append("workshop: " + p)
 
 
+def _check_html_build(meta, slides, errors, warnings, out_dir, skips=None):
+    """WHAT AN HTML FILM BUILT (docs/superpowers/specs/2026-10-05-html-workshop-design.md). Every component in
+    workshop/html/ has a `kind: "component"` build-list entry; every such entry names a component that exists
+    (in the workshop, or the library once promoted), says what it means and how it is judged, sits in `slot:
+    "page"`, and is used by exactly the beats it lists; every custom tag a page uses is defined, and linked
+    right (scripts/workshop.py page_component_problems); and the components pass scripts/workshop.py's own
+    contract and runtime checks. Nothing runs — not even a page read past the tag scan — for a board with no
+    workshop/html/, no component entry and no custom tag in any page."""
+    import workshop as _ws
+    if not out_dir:
+        return
+    bl = meta.get("build_list") if isinstance(meta.get("build_list"), list) else []
+    comp_entries = [e for e in bl if isinstance(e, dict) and e.get("kind") == "component"]
+    pages = {}                                        # beat number -> (page rel, custom tags it uses)
+    for pos, s in enumerate(slides, 1):
+        rel = (s.get("props") or {}).get("html") if isinstance(s.get("props"), dict) else None
+        if s.get("type") == "html" and isinstance(rel, str) and rel:
+            try:
+                html = open(os.path.join(out_dir, rel), encoding="utf-8", errors="replace").read()
+            except OSError:
+                continue                               # reported by the page-exists check already
+            pages[s.get("index", pos)] = (rel, _ws.page_custom_tags(html))
+    if not (_ws.has_components(out_dir) or comp_entries or any(t for _r, t in pages.values())):
+        return
+    built = _ws.component_names(out_dir)
+    library = _ws.library_component_names()
+    entries = {}
+    for e in comp_entries:
+        eid = e.get("id")
+        if not isinstance(eid, str) or not eid.strip():
+            errors.append("meta.build_list: a component entry needs an `id` — the component's PascalCase name")
+            continue
+        where = "meta.build_list `%s`" % eid
+        if eid in entries:
+            errors.append("%s is listed twice — remove the duplicate" % where)
+        entries[eid] = e
+        why = _ws._component_name_problem(eid)
+        if why:
+            errors.append("%s: %s" % (where, why))
+        for f, hint in (("means", "say what the viewer must see — it must hold with the caption covered"),
+                        ("accept", "say how it is judged — with the caption hidden, what does a viewer still see?")):
+            if not str(e.get(f) or "").strip():
+                errors.append("%s: `%s` is empty — %s" % (where, f, hint))
+        if e.get("slot") != "page":
+            errors.append('%s: a component\'s `slot` is "page" (got %r)' % (where, e.get("slot")))
+        promoted = e.get("promoted")
+        if promoted is not None and not isinstance(promoted, bool):
+            errors.append("%s: `promoted` must be a boolean (got %r)" % (where, promoted))
+        if promoted is True:
+            if eid not in library:
+                errors.append("%s is marked promoted but assets/html/components/ has no %s.js" % (where, eid))
+        elif eid not in built:
+            errors.append("%s has no workshop/html/%s.js — build it: python3 scripts/workshop.py <out_dir> "
+                          "new-component %s --means \"...\"" % (where, eid, eid))
+        tag = _ws.component_tag(eid)
+        used = sorted(b for b, (_r, tags) in pages.items() if tag in tags)
+        beats = e.get("beats")
+        if not (isinstance(beats, list) and beats and
+                all(isinstance(x, int) and not isinstance(x, bool) for x in beats)):
+            errors.append("%s: `beats` must list the beat numbers whose pages draw it (got %r)" % (where, beats))
+        elif used and set(beats) != set(used):
+            errors.append("%s says beats %s; the pages that draw <%s> are beats %s — make them agree"
+                          % (where, sorted(beats), tag, used))
+        if not used:
+            errors.append("%s is drawn by no page — put <%s> on the page of a beat it lists, or remove the entry"
+                          % (where, tag))
+    for n in sorted(built):
+        if n not in entries:
+            errors.append("workshop/html/%s.js is not on meta.build_list — every built thing says what it is for: "
+                          "add {\"id\": %r, \"kind\": \"component\", \"beats\": [...], \"means\": ..., "
+                          "\"accept\": ..., \"slot\": \"page\"}" % (n, n))
+    try:
+        probs = _ws.html_problems(out_dir)
+    except Exception as e:                                 # noqa: BLE001 — never let a diagnostic crash the gate
+        errors.append("workshop: the component check itself raised %s: %s" % (type(e).__name__, e))
+        probs = []
+    for p in probs:
+        if skips is not None and p.endswith(_ws.NOTHING_CHECKED):
+            skips.append("workshop: " + p)
+        else:
+            errors.append("workshop: " + p)
+
+
 def evaluate(data, out_dir, pre_tts=False, vertical=False):
     """Pure check: returns {ok, errors, warnings, scenes, ...}. No render, no network — with one exception: a
     film with a workshop gets that workshop's own generated index.ts and .tsconfig.json REFRESHED on disk
@@ -3739,6 +3822,10 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # endcard lockups must already be AUTHORED into the first/last pages — lint both before a full
     # render bakes a missing or broken mark into every frame.
     _brand_lints(meta, slides, out_dir, errors, warnings)
+
+    # WHAT AN HTML FILM BUILT — its components (workshop/html/), their build-list entries, and every custom
+    # tag a page uses. A board with no workshop/html/, no component entry and no custom tag returns at once.
+    _check_html_build(meta, slides, errors, warnings, out_dir, skips=skips)
 
     # Form-fit + creativity presence — mechanical hooks for design-critic D1/D2c, read from the
     # persisted design_plan.json (semantic judgment stays with the critic; these just flag the highest-
