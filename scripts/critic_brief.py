@@ -108,6 +108,9 @@ def build(out_dir):
                                 # type that MOVES and steps a whole pixel at a time against its own drawing — no
                                 # still can show it, so the census reads every frame (runtime/glide.ts)
                                 ("TYPE steps while it moves (every frame, census)", "text_safe_qa.py", ("--glide",)),
+                                # text that appears seconds after the voice names it (or long before): the same
+                                # census, read against audio/NN.words.json (scripts/sync_qa.py)
+                                ("TEXT lands with the voice (every frame, census)", "text_safe_qa.py", ("--sync",)),
                                 ("frame-safe (ADVISORY — border ink; known inverted, see above)",
                                  "frame_safe_qa.py", ()),
                                 ("proof sheet", "shot_proof.py", ()),

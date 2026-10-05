@@ -529,6 +529,154 @@ def scan_film_glide(out_dir, concurrency=None):
             "composited": _composited(res["frames"]), "seconds": time.time() - t0}
 
 
+# ── THE SYNC AUDIT (`--sync`) ────────────────────────────────────────────────────────────────────────────────
+#
+# Does each piece of on-screen text appear when the narration says it? The same census as `--glide` — every frame
+# of the Film, no picture — read for a different question: per beat, when each line of type first becomes
+# readable, against when the voice first says it (scripts/sync_qa.py holds the matching and the thresholds, which
+# the html tier's keyframe_qa shares). ERROR past sync_qa.LAG_ERROR late, WARN past LAG_WARN; more than
+# EARLY_WARN early is a spoiler WARN. The film is measured AS IT RENDERS — with the time warp render_remotion
+# derives (Film.tsx `BeatClock`) — so a re-render's numbers are the after, and `raw=True` gives the before.
+def film_census(out_dir, props, concurrency=None):
+    """(census slot, segs, total, slides-in-order) for the Film with `props` — one bundle, one census run."""
+    import shutil
+    import tempfile
+    import remotion_segments as _rs
+    import workshop as _ws
+    props = dict(props, typeGlide=True)
+    segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
+    env = _ws.prepare(out_dir)
+    work = tempfile.mkdtemp(prefix="sync_film_")
+    try:
+        public = _rs.minimal_public(props, out_dir, os.path.join(work, "public"))
+        bundle = glide_bundle(os.path.join(work, "bundle"), public, env)
+        res = glide_run([{"tag": "film", "id": "Film", "props": props}], bundle, concurrency)["film"]
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return res, segs, total
+
+
+def beat_samples(frames, segs, fps):
+    """{beat k: [(t on the beat's own clock, [lines of beat k]), ...]} from Film census frames. A line belongs
+    to the beat whose register it is in (`b`, Film.tsx data-beat); the caption and the chrome carry none."""
+    starts = [a for a, _b in segs]
+    out = {k: [] for k in range(len(segs))}
+    for f in sorted(frames):
+        by = {}
+        for ln in frames[f].get("lines") or []:
+            b = ln.get("b")
+            if b is None:
+                continue
+            by.setdefault(int(b), []).append(ln)
+        for k, lines in by.items():
+            if 0 <= k < len(starts):
+                out[k].append(((f - starts[k]) / float(fps), lines))
+    return out
+
+
+def scan_film_sync(out_dir, raw=False, concurrency=None, props=None, census_out=None, census_in=None, slides=None):
+    """{"beats": {label: [records]}, "summary", "unmeasured", "seconds", "frames", "logged"} for one film.
+    `raw` strips any time warp from the beats, measuring the registers on their own clocks. `census_out` keeps
+    the census it rendered (gzip json); `census_in` judges a kept one instead of rendering — the judgment can
+    then be re-run, and tested, without a browser."""
+    import time
+    import sync_qa as _sq
+    t0 = time.time()
+    if props is None or slides is None:
+        board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+        if props is None:
+            props, slides = rr.film_props(out_dir, board)
+        else:
+            slides = board.get("slides", [])
+    if raw:
+        props = dict(props, scenes=[{k: v for k, v in sc.items() if k != "warp"} for sc in props["scenes"]])
+    fps = 30
+    if census_in:
+        import gzip
+        import remotion_segments as _rs
+        with gzip.open(census_in, "rt", encoding="utf-8") as fh:
+            kept = json.load(fh)
+        res = {"frames": {int(f): v for f, v in kept["frames"].items()}, "done": kept.get("done"),
+               "error": kept.get("error")}
+        segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
+    else:
+        res, segs, total = film_census(out_dir, props, concurrency)
+    if census_out:
+        import gzip
+        with gzip.open(census_out, "wt", encoding="utf-8") as fh:
+            json.dump({"frames": res["frames"], "done": res.get("done"), "error": res.get("error")}, fh,
+                      ensure_ascii=False)
+    why = _glide_measured(res, total)
+    samples = beat_samples(res["frames"], segs, fps)
+    beats, sources, by_k, warped = {}, {}, [], {}
+    for k, s in enumerate(slides):
+        label = "scene %02d (%s)" % (s.get("index", k + 1), s.get("shot") or "?")
+        spoken, src = _sq.spoken_units(_sq.narration_of(s), _sq.words_for(out_dir, s), s.get("duration"))
+        sources[label] = src
+        beats[label] = _sq.measure_beat(samples.get(k, []), spoken) if spoken else []
+        by_k.append(beats[label])
+        warped[label] = bool((props["scenes"][k] or {}).get("warp"))
+    return {"beats": beats, "by_k": by_k, "summary": _sq.summarize(beats), "sources": sources,
+            "unmeasured": [why] if why else [], "seconds": time.time() - t0, "frames": total,
+            "logged": len(res["frames"]), "warped": warped}
+
+
+def main_sync(argv):
+    """`<out_dir> --sync [--raw] [--json=PATH]`. Exit 1 = an element ERROR-late; 2 = not measured."""
+    import sync_qa as _sq
+    argv = [a for a in argv if a != "--sync"]
+    _c.refuse_unknown(argv, valued=("json", "census", "from-census"), switches=("raw",), usage=_USAGE)
+    raw = "--raw" in argv
+    pos = [a for a in argv if not a.startswith("--")]
+    if len(pos) != 1:
+        print(_USAGE)
+        return 2
+    import workshop as _ws
+    try:
+        rep = scan_film_sync(os.path.abspath(pos[0]), raw=raw, census_out=_c.argflag(argv, "census"),
+                             census_in=_c.argflag(argv, "from-census"))
+    except _ws.WorkshopError as e:
+        for x in e.problems:
+            print("[text_safe] PROBLEM: " + x)
+        return 2
+    except (RuntimeError, OSError, ValueError) as e:
+        print("[text_safe] sync NOT MEASURED — the film could not be rendered for the census: %s" % e)
+        return 2
+    errors = warns = 0
+    for label, recs in rep["beats"].items():
+        for r in recs:
+            lv = _sq.level(r)
+            if lv == "error":
+                errors += 1
+                print("[text_safe] ERROR %s: LATE — %s" % (label, _sq.describe(r)))
+            elif lv == "warn":
+                warns += 1
+                print("[text_safe] WARN %s: late — %s" % (label, _sq.describe(r)))
+            elif lv == "early":
+                warns += 1
+                print("[text_safe] WARN %s: EARLY (gives the line away) — %s" % (label, _sq.describe(r)))
+        if rep["sources"].get(label) == "text":
+            print("[text_safe] note %s: no word times — spoken times estimated from the narration text" % label)
+    for x in rep["unmeasured"]:
+        print("[text_safe] NOT MEASURED: %s" % x)
+    js = _c.argflag(argv, "json")
+    if js:
+        with open(js, "w", encoding="utf-8") as fh:
+            json.dump(rep, fh, ensure_ascii=False, indent=1)
+    sm = rep["summary"]
+    if errors:
+        print("[text_safe] FIX: re-render — render_remotion derives each beat's time warp from this census "
+              "(scripts/sync_qa.py derive_warp) so a register's entrance lands on its word; when the warp cannot "
+              "reach (slope limit) time the register by a `{\"cue\": ...}` prop, give the beat explicit "
+              "`sync.anchors`, or move the text to the sentence that names it")
+    print("[text_safe] sync %s  %d late ERROR(s) (>%.1fs), %d WARN(s) — %d text element(s) matched to the voice "
+          "· worst lag %+.2fs · mean |lag| %.2fs · %d of %d frames%s · %.0fs"
+          % ("FAIL" if errors else "OK", errors, _sq.LAG_ERROR, warns, sm["elements"], sm["worst_lag"],
+             sm["mean_abs_lag"], rep["logged"], rep["frames"], " · RAW (no warp)" if raw else "",
+             rep["seconds"]))
+    return 1 if errors else (2 if rep["unmeasured"] else 0)
+
+
 def scan_library_glide(names, aspect=None, dna=DEFAULT_DNA, concurrency=None):
     """{name: {"level", "runs", "unmeasured"}} for every register in `names`, each rendered on its own across its
     whole DURATION with its own demo props (and the evidence fixture the other sweeps use)."""
@@ -664,7 +812,9 @@ def dna_presets():
 _USAGE = ("usage: text_safe_qa.py <out_dir> | --library [--only=A,B] [--aspect=16:9 | --all-aspects] "
           "[--dna=NAME | --all-dna] [--cjk] [--limit=N]\n"
           "       text_safe_qa.py <out_dir> --glide | --library --glide [--only=A,B] [--aspect=..] [--dna=..] "
-          "[--json=PATH]   (the type-glide census: every frame, no picture)")
+          "[--json=PATH]   (the type-glide census: every frame, no picture)\n"
+          "       text_safe_qa.py <out_dir> --sync [--raw] [--json=PATH] [--census=PATH | --from-census=PATH]   (does each text element appear when "
+          "the narration says it? same census)")
 
 
 def main(argv):
@@ -672,6 +822,8 @@ def main(argv):
         print(__doc__.strip().splitlines()[0])
         print("usage: text_safe_qa.py <out_dir> | --library")
         return 2
+    if "--sync" in argv:
+        return main_sync(argv)
     if "--glide" in argv:
         return main_glide(argv)
     if argv[0] == "--library" and "--all-dna" in argv:

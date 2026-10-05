@@ -660,6 +660,11 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
         props["dna"] = design_dna.strip()
     elif meta.get("shot_template"):
         props["template"] = str(meta["shot_template"])
+    # EACH BEAT'S CLOCK, ON ITS VOICE (scripts/sync_qa.py, Film.tsx `BeatClock`): the warp derived for the beat
+    # AS IT IS NOW, or the board's own `sync.anchors`; nothing for a beat that has neither, so every reader of
+    # these props — the render, the segment plan, the gates — sees the film that will actually play.
+    import sync_qa as _sq
+    _sq.attach_warps(out_dir, data, props, slides)
     return props, slides
 
 
@@ -670,6 +675,12 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
     if not os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules")):
         raise RuntimeError("remotion deps not installed — run `cd %s && npm install` once." % _REMOTION2_DIR)
     props, slides = film_props(out_dir, data, sample=sample, reduced_motion=reduced_motion, vertical=vertical)
+    # A beat whose warp is missing or stale is measured now — one census of the film on its registers' own
+    # clocks — so a re-render after any edit lands each entrance on its word without a separate step.
+    # REMOTION_SYNC=0 renders on the registers' own clocks (the warps already on disk are still used).
+    if os.environ.get("REMOTION_SYNC", "1") != "0":
+        import sync_qa as _sq
+        _sq.derive_warps(out_dir, data, props, slides, log=print)
     scenes, meta, fps = props["scenes"], data.get("meta") or {}, 30
     props_path = os.path.join(out_dir, ".remotion-props.json")
     with open(props_path, "w", encoding="utf-8") as f:

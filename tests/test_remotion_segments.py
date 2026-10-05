@@ -146,7 +146,8 @@ _KNOWN_READS = Counter({
     "scenes[i]": 1,                # caption window of the active beat (k-1 or k)
     "scenes[active]": 1,
     "(scenes||[]).some": 1,        # refuses drift+pan: throws, draws nothing
-    "scenes.forEach": 1,           # refuses bgLum/ground disagreement: throws, draws nothing
+    "scenes.forEach": 2,           # refuses bgLum/ground disagreement, and a non-monotone `warp`: throws, draws
+                                   # nothing (each beat's warp is in its own key; a bad one fails every render)
     "scenes[0]": 1,                # the root fill -> the film-wide key's `root`
     "scenes[scenes.length-1]": 1,  # the outro veil -> the last segment's own scene
     "scenes.flatMap": 1,           # one Sequence per beat
@@ -457,6 +458,7 @@ def _route(monkeypatch, tmp_path, meta=None, env=None, whole=False, mismatch=Fal
     monkeypatch.setattr(rr, "build_scenes", lambda slides, out_dir, valid, fps=30, **kw: [{"shot": "TermTable", "durF": 60}])
     monkeypatch.setattr(rr, "_remotion_shot_ids", lambda: {"TermTable"})
     monkeypatch.setattr(rr.shutil, "which", lambda _x: "/usr/bin/npx")
+    monkeypatch.setenv("REMOTION_SYNC", "0")    # routing only: the sync census (scripts/sync_qa.py) is not under test
     for k, v in (env or {}).items():
         monkeypatch.setenv(k, v)
     data = {"meta": dict({"renderer": "remotion"}, **(meta or {})), "slides": [{"index": 1}]}

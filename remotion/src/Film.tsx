@@ -7,7 +7,7 @@
 // render_remotion.py drives this via --props; the WorkBuddy film is just the default. Deterministic.
 
 import React from 'react';
-import {AbsoluteFill, Audio, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing} from 'remotion';
+import {AbsoluteFill, Audio, Freeze, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing} from 'remotion';
 import {TransitionSeries, linearTiming} from '@remotion/transitions';
 import type {TransitionPresentation} from '@remotion/transitions';
 import {fade} from '@remotion/transitions/fade';
@@ -61,7 +61,44 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // A MOTIVATED camera move for THIS beat: `push` (look closer at what is here), `pull` (here is the whole
   // of it), `hold` (most beats). Optional; absent = hold. This is not the film-wide ambient drift below —
   // that one had no relationship to anything being said, which is precisely why it read as a wobble.
-  camera?: {move?: CameraMove; amount?: number; pan?: [number, number]}};
+  camera?: {move?: CameraMove; amount?: number; pan?: [number, number]};
+  // THE BEAT'S CLOCK, WARPED ONTO ITS VOICE. Knots [[film frame, register frame], ...] on the beat's own clock,
+  // strictly increasing in both: the register is handed `warpFrame(frame, warp)` instead of `frame`, so an
+  // entrance it times as a fixed fraction of the beat lands on the word that names it — with no register file
+  // touched. Derived by scripts/sync_qa.py from the type census of the un-warped film (render_remotion does it
+  // before a render); absent = the register's own clock, and the beat renders exactly as it did before.
+  warp?: [number, number][]};
+
+/** The register frame a beat with knots `warp` sees at its film frame `f`: piecewise linear between knots, the
+ *  identity outside them (the seams' held edges are never warped). Mirrors scripts/sync_qa.py `warp_frame`. */
+export const warpFrame = (f: number, warp?: [number, number][] | null): number => {
+  if (!warp || warp.length < 2 || f <= warp[0][0] || f >= warp[warp.length - 1][0]) return f;
+  for (let k = 1; k < warp.length; k++) {
+    const [f0, g0] = warp[k - 1];
+    const [f1, g1] = warp[k];
+    if (f <= f1) return g0 + ((g1 - g0) * (f - f0)) / (f1 - f0);
+  }
+  return f;
+};
+
+/** Refuses a warp that is not a monotone map — a register run backwards or frozen is never what was meant. */
+const checkWarp = (warp: [number, number][], i: number, shot: string) => {
+  for (let k = 1; k < warp.length; k++) {
+    if (!(warp[k][0] > warp[k - 1][0]) || !(warp[k][1] > warp[k - 1][1])) {
+      throw new Error(`scene ${i} (${shot}) has a warp whose knots do not increase in both clocks at knot ${k} ` +
+        `(${JSON.stringify(warp[k - 1])} -> ${JSON.stringify(warp[k])}) — re-derive it (scripts/sync_qa.py)`);
+    }
+  }
+};
+
+// Only the REGISTER is warped: the beat's camera, its chrome, its ground and its voice stay on the film's clock,
+// which is why this wraps the register alone. With no warp it adds nothing to the tree's DOM, so an unwarped
+// beat is pixel-identical to a film rendered before warps existed.
+const BeatClock: React.FC<{warp?: [number, number][]; children: React.ReactNode}> = ({warp, children}) => {
+  const frame = useCurrentFrame();
+  if (!warp || warp.length < 2) return <>{children}</>;
+  return <Freeze frame={warpFrame(frame, warp)}>{children}</Freeze>;
+};
 
 const TR = SEAM_FRAMES; // cross-dissolve length (frames) — rides the ~0.42s narration breath so speech barely
 // overlaps. Shared with runtime/motion's useT, which holds each shot STILL for exactly these frames at both
@@ -958,6 +995,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   // stories and the one on screen is not the one the caption believes: exactly the staleness that put dark
   // ink on a dark themed ground. Refuse it here, once per frame over the whole EDL, rather than let a hint
   // quietly outvote the pixels. Checked in both directions (in/out) so a ramp cannot start honest and end wrong.
+  scenes.forEach((sc, i) => { if (sc.warp) checkWarp(sc.warp, i, sc.shot); });
   scenes.forEach((sc, i) => {
     if (!sc.bgLum || (sc.ground === undefined && !sc.key)) return;
     for (const edge of ['in', 'out'] as const) {
@@ -1042,7 +1080,11 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                     bed={!sc.camera && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
                                driftExtra={driftExtraFor(ambient, width, height, unlockAllowed)}
                                driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
-                    <AbsoluteFill>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</AbsoluteFill>
+                    {/* `data-beat` marks THIS beat's register for the sync audit (scripts/sync_qa.py reads it from the
+                        type census): the caption, the chrome and the other beat of a seam carry none of it. */}
+                    <AbsoluteFill data-beat={String(i)}>
+                      <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                    </AbsoluteFill>
                   </SceneCamera>
                   <BeatChrome chrome={sc.chrome} W={width} H={height} />
                 </BeatGround>

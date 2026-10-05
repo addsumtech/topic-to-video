@@ -1319,11 +1319,21 @@ export const TYPE_GLIDE_TAG = 'TYPE-GLIDE ';
  *  is unlocked, `px` its font size (a jump in it is the type re-set at a new size, not moved), and flags: `f` drawn
  *  through a blur or drop-shadow filter, `s` declared stepped, `c` on a composited layer (listed, not judged). */
 export type GlideLine = {k: string; y: number; x?: number; w?: number; h?: number; o: number; t: string;
-  ly?: number; u?: 1; fl?: string; px?: number};
+  ly?: number; u?: 1; fl?: string; px?: number; b?: string; v?: number};
+
+// THE SYNC AUDIT READS THE SAME CENSUS (scripts/sync_qa.py): when does each line of type become readable, and
+// when does the narration say it? Two fields serve it. `b` is the beat the line belongs to — the nearest
+// `data-beat` ancestor, which Film.tsx puts on each beat's register and on nothing else, so the caption track,
+// the chrome and a seam's other beat are never mistaken for this beat's type. `v` is the fraction of the
+// line's box that is actually visible after every clipping ancestor, present only when under 1: a word rising
+// through a mask is not readable while its first pixel row peeks out. `t` is cut at GLIDE_TEXT_MAX, long
+// enough for a sentence-length note to be matched against the narration.
+const GLIDE_TEXT_MAX = 96;
+const cutText = (text: string) => (text.length > GLIDE_TEXT_MAX ? text.slice(0, GLIDE_TEXT_MAX) + '…' : text);
 
 type Mat2 = [number, number, number, number];
 type GlideChain = {M: Mat2 | null; L: Mat2 | null; ls: number; op: number; spatial: boolean; will: boolean;
-  steps: boolean; key: string; d3: boolean};
+  steps: boolean; key: string; d3: boolean; beat: string | null};
 
 // A 3D RENDERING CONTEXT IS COMPOSITED EVEN ON A FRAME WHERE ITS MATRIX IS FLAT. CardFlip3D's cards rise as
 // `translateY(…) rotateY(0deg)` inside `preserve-3d`: the computed transform reads as a 2D matrix, the census read
@@ -1346,6 +1356,21 @@ const SPATIAL_FILTER = /blur\(|drop-shadow\(|url\(/;
 const mul2 = (a: Mat2, b: Mat2): Mat2 =>
   [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3]];
 
+// `b` and `v` for the sync audit (see GlideLine): the beat, and the visible share of the box when under 1. The
+// visible box is clipped to the FRAME as well as to its ancestors — a label half off the canvas is half seen.
+const syncFields = (c: GlideChain, vr: DOMRect, r: DOMRect, frame: DOMRect): {b?: string; v?: number} => {
+  const out: {b?: string; v?: number} = {};
+  if (c.beat !== null) out.b = c.beat;
+  const area = r.width * r.height;
+  if (area > 0) {
+    const w = Math.max(0, Math.min(vr.right, frame.right) - Math.max(vr.left, frame.left));
+    const h = Math.max(0, Math.min(vr.bottom, frame.bottom) - Math.max(vr.top, frame.top));
+    const v = Math.max(0, Math.min(1, (w * h) / area));
+    if (v < 0.995) out.v = Math.round(v * 100) / 100;
+  }
+  return out;
+};
+
 export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; u: number; z: number} => {
   const win = root.ownerDocument?.defaultView;
   if (!win) return {lines: [], u: 0, z: 0};
@@ -1359,7 +1384,8 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     if (hit) return hit;
     const parent = el.parentElement;
     const up: GlideChain = parent ? chain(parent)
-      : {M: [1, 0, 0, 1], L: [1, 0, 0, 1], ls: 1, op: 1, spatial: false, will: false, steps: false, key: '', d3: false};
+      : {M: [1, 0, 0, 1], L: [1, 0, 0, 1], ls: 1, op: 1, spatial: false, will: false, steps: false, key: '', d3: false,
+        beat: null};
     const cs = win.getComputedStyle(el);
     const own = selfMatrix(cs);
     const M = up.M === null || own === null ? null : mul2(up.M, own);
@@ -1379,6 +1405,7 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
       key: `${up.key}/${el.tagName.toLowerCase()}${childIndex.get(el) ?? 0}`,
       d3: up.d3 || cs.transformStyle === 'preserve-3d'
         || D3_FUNCTION.test((el as HTMLElement).style?.transform || ''),
+      beat: el.getAttribute('data-beat') ?? up.beat,
     };
     memo.set(el, info);
     return info;
@@ -1417,7 +1444,7 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
       const r = inkRect(el) ?? el.getBoundingClientRect();
       lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, x: Math.round(r.left * 100) / 100,
         w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, o: Math.round(c.op * 100) / 100,
-        t: text.length > 32 ? text.slice(0, 32) + '…' : text, fl: 'c'});
+        t: cutText(text), fl: 'c', ...syncFields(c, vr, r, frame)});
       return;
     }
     // SVG type outside any filter: the screen CTM is exact — it carries the viewBox's scale, which no css transform
@@ -1433,7 +1460,7 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     // against what was drawn (the pixel half of an accuracy check)
     lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, x: Math.round(r.left * 100) / 100,
       w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, o: Math.round(c.op * 100) / 100,
-      t: text.length > 32 ? text.slice(0, 32) + '…' : text, ly: layoutY(el), ...(unlocked ? {u: 1 as const} : {}),
+      t: cutText(text), ly: layoutY(el), ...(unlocked ? {u: 1 as const} : {}), ...syncFields(c, vr, r, frame),
       px: Math.round(parseFloat(el.ownerDocument?.defaultView?.getComputedStyle(el).fontSize || '0') * 100) / 100,
       ...(fl ? {fl} : {})});
   });
