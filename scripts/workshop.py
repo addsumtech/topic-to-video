@@ -990,6 +990,24 @@ def component_lint(name, js, css, label):
         if re.search(r"url\(\s*['\"]?\s*(?:https?:)?//", text):
             probs.append("%s.css loads a remote url() — the network; pages render offline" % label)
         for pre, _body, _parent in _css_blocks(text):
+            if not pre.startswith("@"):
+                # the container-type:size SELF-PADDING trap: a query-container's OWN padding (not gap —
+                # proven fine) sized in cq units, under base.css's global `*{box-sizing:border-box}`, makes
+                # Chrome mis-resolve cq units for every DESCENDANT to near-zero (reproduced: a basket sized
+                # 42cqmin/52cqh collapsed to ~2x1px once its espresso-puck parent carried
+                # `padding-top:18cqh` — moving that spacing to the child's own margin fixed it outright).
+                # `check`'s own harness never catches this: it places the component as a lone flex-centered
+                # child, a context the bug does not reproduce in, so a component can read CLEAN here and
+                # still render BLANK on the real page the moment it sits inside a grid/row wrapper.
+                for sel in _split_selectors(pre):
+                    if sel == tag and re.search(r"container-type\s*:\s*[^;]*\bsize\b", _body) and \
+                            re.search(r"\bpadding(?:-(?:top|right|bottom|left))?\s*:\s*[^;]*\dcq(?:w|h|i|b|min|max)\b",
+                                      _body):
+                        probs.append(
+                            "%s.css: <%s> sets container-type:size AND its own padding in a cq unit — Chrome "
+                            "collapses every descendant's cq-sized box to ~0 under base.css's border-box "
+                            "reset; move that spacing onto a CHILD's margin instead (gap is fine, only the "
+                            "container's own padding breaks)" % (label, tag))
             if pre.startswith("@"):
                 km = re.match(r"@(?:-webkit-)?keyframes\s+([\w-]+)", pre)
                 pm = re.match(r"@property\s+(--[\w-]+)", pre)

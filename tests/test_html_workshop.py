@@ -138,6 +138,14 @@ def test_each_js_rule_fails_its_broken_component(tmp_path, old, new, expect):
     ("label-gauge .label-gauge__unit{", ".label-gauge__unit{", "not scoped"),
     ("label-gauge .label-gauge__unit{", "label-gauge .label-gauge__unit, .title{", "'.title'"),
     ("@keyframes label-gauge-fade{", "@import url(other.css);\n@keyframes label-gauge-fade{", "@import"),
+    # the container-type:size SELF-PADDING trap (reproduced against a real headless Chrome): a query
+    # container's OWN padding in a cq unit, under base.css's `*{box-sizing:border-box}`, collapses every
+    # descendant's cq-sized box to ~0 — a basket sized 42cqmin/52cqh rendered ~2x1px once its parent
+    # carried `padding-top:18cqh`, invisible on the real page though `check`'s own harness (a lone
+    # flex-centered child, not nested in a grid) never reproduces it. `gap` in cq units is unaffected.
+    ("container-type:size;position:relative;color:var(--fg)}",
+     "container-type:size;position:relative;color:var(--fg);padding-top:10cqh}",
+     "own padding in a cq unit"),
 ])
 def test_each_css_rule_fails_its_broken_component(tmp_path, old, new, expect):
     js, css = _component(tmp_path, css=_sub(CSS, old, new))

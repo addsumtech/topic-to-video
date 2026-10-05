@@ -720,6 +720,23 @@ reusable across the film's pages, and promotable to the library (`assets/html/co
 - **Reduced motion: multiply every movement by `var(--motion, 1)`.** `reduced-motion.css` sets `--motion:0`, so
   every part rests at its end state and only opacity changes; `check` fails any part whose box moves between
   p=0 and p=1 with reduced-motion.css linked.
+- **Never put the `container-type:size` element's OWN padding (or any box-model property) in a cq unit.**
+  Reproduced against a real headless Chrome: a component sized `42cqmin`/`52cqh` inside a basket that was
+  itself `container-type:size` with `padding-top:18cqh` rendered at ~2×1px — every descendant's cq-sized box
+  collapsed — once base.css's global `*{box-sizing:border-box}` was in play. `gap` in a cq unit is unaffected
+  (proven safe) — only the container's OWN `padding`/`padding-*` breaks. `check`'s own harness never catches
+  this (it places the component as a lone flex-centered child, a context the bug does not reproduce in), so a
+  component can read CLEAN and still render BLANK the moment a real page nests it in a grid/row wrapper.
+  `workshop.py check` now lints this statically (reads the component's own tag rule for the combination), but
+  the fix is still on you: give the RESERVE to a child's `margin`, never the container's `padding`.
+- **A cue fired past ~80% of the scene risks a render that never settles.** `render_html`'s cued capture takes
+  fresh shots in a short burst after each cue (sized from the OUTER reveal wrapper's own class, blind to a
+  component's INTERNAL keyframe timings) and then HOLDS the last one for the rest of the scene. A component
+  cued at ~87% of a scene was observed held at a half-faded, barely-visible frame for the remaining ~2s —
+  `workshop.py check`/`still` can't catch it (they don't run the cued multi-shot capture), and it only showed
+  up in the delivered `out.mp4`, not `_keyframes/`. Anchor a component's own reveal to a phrase with real
+  margin before the scene ends (ideally ≤ ~70-75%) so the burst window has time to fully resolve; check the
+  actual rendered beat with `settled_frame.py`, not just `keyframe_qa`'s page-level sheet.
 
 Worked example (the fixture `tests/fixtures/html_component/LabelGauge.{js,css}` — a labelled dial — is the full one):
 ```js
