@@ -350,7 +350,9 @@ ambients don't trip the overflow probe). Do not stack them — one moving thing 
 warns on >1 living backdrop or a `.bg-live`/`.bg-drift` on a non-full-bleed element (the raw
 `[data-ambient]` hook is an advanced escape hatch — not full-bleed-linted, so you own its placement).
 A custom `[data-ambient]` animation that moves TEXT with its own axis-aligned transform does not get the unlock
-automatically — append `matrix(1,.0009765625,0,1,0,0)` to that transform (no gate checks a custom HTML animation yet).
+automatically — append `matrix(1,.0009765625,0,1,0,0)` to that transform. `keyframe_qa`'s type-glide census
+checks every custom animation on a page (ambient or reveal, a component's parts included) once the page has a
+duration (post-tts).
 
 **Render note:** an ambient page is captured **every frame** (the backdrop moves continuously, so the
 frame-copy hold optimization is disabled for it) — affordable because living backdrops are rare
@@ -676,6 +678,82 @@ baseline. What it already handles (so you don't re-author it):
 - **Captions are auto-sized off the narrow dimension** (`min(W,H)*0.040` ≈ 43px in both aspects) —
   the renderer handles it; still re-run `validate.py` after switching aspect (wraps/widows differ)
   and `keyframe_qa.py` (it measures the 1080×1920 DOM and renders aspect-correct contact sheets).
+
+## Building a component (a custom element the film builds for itself)
+When a beat's picture is a thing base.css has no form for — a coffee puck in section, a scale's load cell — build
+it ONCE as a component in the film's workshop instead of hand-drawing it into one page. It is checked as a unit,
+reusable across the film's pages, and promotable to the library (`assets/html/components/`, catalogued in
+`references/html-components.md`) when the user picks it at delivery.
+
+1. **Build-list entry first** (`meta.build_list`): `{"id": "EspressoPuck", "kind": "component", "beats": [3, 4],
+   "slot": "page", "means": "water forced through a packed bed — the bed resists", "accept": "with the caption
+   covered, a viewer sees the bed hold the water back"}`. `means` must hold with the caption covered.
+2. `python3 scripts/workshop.py <out_dir> new-component EspressoPuck --means "…"` writes
+   `workshop/html/EspressoPuck.js` + `.css` with the skeleton below. The tag is the kebab form of the name
+   (`espresso-puck`) and needs a hyphen, so a name is two words or more.
+3. Draw it, `workshop.py <out_dir> still EspressoPuck [--attrs a.json] [--p 0.9] [--aspect 16:9|9:16]` and LOOK at
+   `workshop/_stills/EspressoPuck.png`, then `workshop.py <out_dir> check` until it is clean.
+
+**The contract** (`check` enforces every line; `validate.py` runs it too):
+- **One JS file, one CSS file.** The JS calls `customElements.define('<tag>', class extends HTMLElement {…})`
+  exactly once and declares `static demo = {…}`: NEUTRAL demo attributes (`label: 'Demo label'`), never film copy.
+- **Light DOM only** — no `attachShadow`: seek.js, the glide census and keyframe_qa walk the light DOM.
+- **Deterministic** — no `Date`, `performance.now`, `setTimeout`, `setInterval`, `requestAnimationFrame`,
+  `Math.random`, `fetch`, `XMLHttpRequest`, `import()`, `el.animate`, and no `import`/`export` (a classic script).
+  Seed any pseudo-randomness from an attribute.
+- **Build once, in `connectedCallback`** (guard it: `if (this._built) return;`). Every animation is CSS keyframes,
+  so seek.js freezes it like any reveal — which only works for parts that exist when seek.js runs: **link the
+  component's script BEFORE seek.js** (plain `<script src>`, never `defer`/`async`/`type=module`) and its CSS with
+  the other stylesheets.
+- **Scoped CSS** — every selector starts with the tag; every `@keyframes` is named `<tag>-…` (keyframe names are
+  global: an unprefixed `rise` would replace base.css's own on every page); prefix part classes
+  (`espresso-puck__bed`) so base.css classes never restyle them.
+- **Words come only from attributes.** Every visible word — `::before`/`::after` content included — must be a word
+  of one of its attribute values, and a number counts only when it IS an attribute value (a tick label computed
+  as `max / 2` fails; pass it as an attribute). `check` renders the demo and fails any word the code wrote.
+- **Sized by its box.** `display:block|flex|grid` (never inline), no width/height of its own, and size every part
+  from the box with container units (`container-type:size` on the element, then `cqw`/`cqh`/`cqmin`). `check`
+  renders it in a 16:9 content column (1620×760) and a 9:16 one (920×1470); any part outside the element's box,
+  or any part's content larger than the part (beyond a glyph's own overhang), fails.
+- **Moving text carries the baseline unlock** — `matrix(1,.0009765625,0,1,0,0)` after the moving transform, the
+  same trick base.css's reveals use (`keyframe_qa`'s glide census flags it otherwise).
+- **Reduced motion: multiply every movement by `var(--motion, 1)`.** `reduced-motion.css` sets `--motion:0`, so
+  every part rests at its end state and only opacity changes; `check` fails any part whose box moves between
+  p=0 and p=1 with reduced-motion.css linked.
+
+Worked example (the fixture `tests/fixtures/html_component/LabelGauge.{js,css}` — a labelled dial — is the full one):
+```js
+customElements.define('label-gauge', class extends HTMLElement {
+  static demo = {label: 'Demo reading', value: '6', min: '0', max: '10', unit: 'units'};
+  connectedCallback() {
+    if (this._built) return; this._built = true;
+    const attr = (k) => this.getAttribute(k) || '';
+    const min = parseFloat(attr('min')) || 0, max = parseFloat(attr('max')) || 1, val = parseFloat(attr('value')) || min;
+    this.style.setProperty('--label-gauge-to', (-90 + 180 * Math.min(1, Math.max(0, (val - min) / (max - min)))) + 'deg');
+    // …build the dial, needle, ends (min/max text), reading (value + unit) and label from attr(...) only
+  }
+});
+```
+```css
+label-gauge{display:flex;flex-direction:column;align-items:center;justify-content:center;container-type:size}
+label-gauge .label-gauge__needle{transform:rotate(var(--label-gauge-to));
+  animation:label-gauge-sweep .9s cubic-bezier(.2,.7,.2,1) both;animation-play-state:paused}
+label-gauge .label-gauge__reading{opacity:0;transform:translateY(calc(6cqmin * var(--motion, 1))) matrix(1,.0009765625,0,1,0,0);
+  animation:label-gauge-rise .8s cubic-bezier(.2,.7,.2,1) .2s forwards;animation-play-state:paused}
+@keyframes label-gauge-sweep{from{transform:rotate(calc(var(--label-gauge-to) * (1 - var(--motion, 1)) - 90deg * var(--motion, 1)))}
+  to{transform:rotate(var(--label-gauge-to))}}
+@keyframes label-gauge-rise{99.9%{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+```
+On the page (inside `.stage`, its box set by the page):
+```html
+<link rel="stylesheet" href="file:///ABS/OUT_DIR/workshop/html/LabelGauge.css">   <!-- with the other stylesheets -->
+…<label-gauge label="萃取压力" value="9" min="0" max="12" unit="bar" style="width:820px;height:440px"></label-gauge>…
+<script src="file:///ABS/OUT_DIR/workshop/html/LabelGauge.js"></script>   <!-- BEFORE seek.js -->
+<script src="file:///ABS/PATH/TO/skill/assets/html/seek.js"></script>
+```
+A custom tag that neither the workshop nor `assets/html/components/` defines is a `validate.py` ERROR, as is a
+component not on the build list, an entry no page draws, or an entry whose `beats` differ from the pages that
+draw it. A library component is used the same way, linked from `assets/html/components/`.
 
 ## Anti-slop checklist (do NOT)
 emoji in titles · full-screen purple/pink/blue gradient-mesh backgrounds · circle+left-border accent

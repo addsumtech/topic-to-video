@@ -1372,6 +1372,15 @@ agent on the beats it points at.
     `references/html-pages.md`. The full authoring procedure (including the archetype and cue-anchor
     rules) is the "After the look is chosen (HTML tiers)" passage in step 1's interview notes — follow
     it HERE in the sequence, then run `keyframe_qa` on the authored pages before the critic panel.
+    **BUILD what base.css lacks — the same build-list step as the Remotion tier.** For each beat, write the
+    ideal picture first; when no base.css form carries it (a coffee puck in section, a scale's load cell), build
+    a COMPONENT — a custom element in the film's own workshop — instead of hand-drawing it into one page: add
+    its `meta.build_list` entry (`kind: "component"`, `id` = its PascalCase name, `beats`, `means` that holds
+    with the caption covered, `accept`, `slot: "page"`), then `python3 scripts/workshop.py <out_dir>
+    new-component <Name> --means "…"`, draw it per `references/html-pages.md` "Building a component", look at
+    it (`workshop.py <out_dir> still <Name>`), and `workshop.py <out_dir> check` must be clean before the page
+    uses it. `validate.py` holds the build list and the pages to each other. At delivery, promotion is the
+    user's choice, as on the Remotion tier (`python3 scripts/promote.py <out_dir> <Name>`).
 5. **Parallel critic panel — narration + content + design (REQUIRED, not optional).** On the
    **原样配音** tier there is no authored design to judge: dispatch the narration and content critics only
    (the script is still written, and still has to be right). Otherwise dispatch
