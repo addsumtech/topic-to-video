@@ -101,6 +101,22 @@ def test_caption_trailing_clause_mark_warns(tmp_path):
     assert any("dangling" in w for w in r["warnings"])
 
 
+def test_cjk_long_line_warns_once_per_scene_not_per_chunk(tmp_path):
+    # a 20s beat naturally splits into several timed caption chunks; if THREE of them are each
+    # individually over CJK_CHARS_PER_LINE that is one finding ("this beat's captions run long"),
+    # not three repeats of the same message — dedupe like its shown_floor/shown_cps/shown_ceil
+    # siblings in the same loop.
+    long_a = "普通AI写结构化回答也要一个字一个字生成才能完成整段输出"       # 27 chars, no breakable mark
+    long_b = "训练方法叫做奖励判断准不是讨人喜欢这正是它和别的方法的区别"       # 28 chars, no breakable mark
+    s = _slide_scene(tmp_path, 0, duration=6.0)
+    s["captions"] = [{"start": 0, "end": 3, "text": long_a},
+                     {"start": 3, "end": 6, "text": long_b}]
+    data = _board(str(tmp_path), [s], meta={"language": "zh"})
+    r = validate.evaluate(data, str(tmp_path))
+    hits = [w for w in r["warnings"] if "CJK caption line is" in w]
+    assert len(hits) == 1, hits
+
+
 def test_clean_cjk_caption_no_wall_warning(tmp_path):
     # a normal CJK line that splits fine must NOT trip the density/dangling checks
     s = _slide_scene(tmp_path, 0, narration="先听懂,再动手。")
@@ -270,11 +286,28 @@ def test_living_backdrop_lint_quote_agnostic_and_token_exact(tmp_path):
 
 
 def test_duplicate_cue_index_warns(tmp_path):
+    # two DIFFERENT anchor phrases sharing an index is the real bug: _dedup_cue_pts keeps only the
+    # first, so "b"'s own timing is silently dropped.
     s = _html_scene(tmp_path, 0, "pages/s0.html",
                     '<div class="row" data-cue-index="0" data-cue="a">A</div>'
                     '<div class="row" data-cue-index="0" data-cue="b">B</div><body></body>')
     r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
-    assert any("duplicate data-cue-index" in w for w in r["warnings"])
+    assert any("data-cue-index" in w and "DIFFERENT" in w for w in r["warnings"])
+
+
+def test_shared_cue_index_same_anchor_is_a_sanctioned_co_reveal_no_warn(tmp_path):
+    # two points anchored to the SAME phrase (e.g. a pair of bars that should land together, both
+    # keyed to "其余概率都是0") are the pattern _dedup_cue_pts exists to support — scenes.py keeps the
+    # one anchor and the whole group co-reveals on it. Flagging this is a false positive against the
+    # tier's own documented, intentional pattern (the jev-html scene 4 "other"/"technical" 0.00 bars).
+    s = _html_scene(tmp_path, 0, "pages/s0.html",
+                    '<div class="bar" data-cue-index="3" data-cue="其余概率都是0">other · 0.00</div>'
+                    '<div class="bar" data-cue-index="3" data-cue="其余概率都是0">technical · 0.00</div>'
+                    '<body></body>')
+    r = validate.evaluate(_board(str(tmp_path), [s]), str(tmp_path))
+    # neither the old wording ("reveals at the wrong time") nor the new one (DIFFERENT) may fire
+    assert not any("cue-index" in w and ("wrong time" in w or "DIFFERENT" in w)
+                  for w in r["warnings"]), r["warnings"]
 
 
 def test_html_cued_without_wordsjson_warns(tmp_path):

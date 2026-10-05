@@ -3323,7 +3323,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                     warnings.append(f"{tag}: caption ends on a lone word \"{widow}\" — rephrase so the last line isn't a widow")
             # minimum on-screen time (needs the timed segments, so only after tts)
             if not pre_tts and s.get("duration"):
-                shown_floor = shown_cps = shown_ceil = False
+                shown_floor = shown_cps = shown_ceil = shown_cjk_line = False
                 for seg in rd._captions_for(s):
                     ct2 = (seg.get("text") or "").strip()
                     if not ct2:
@@ -3347,13 +3347,17 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                         warnings.append(f"{tag}: a caption holds {dwell:.1f}s (> {MAX_CAPTION_SECONDS:.0f}s) — split it; "
                                         f"a line held that long reads as stuck")
                         shown_ceil = True
-                    if cps == CPS_CJK:
+                    if not shown_cjk_line and cps == CPS_CJK:
+                        # ONE line per SCENE, like its three siblings above — not one per caption chunk.
+                        # An unbroken 20s beat can split into 3+ chunks that are each independently too
+                        # long; reporting each is the same finding repeated, not three distinct ones.
                         for ln in _caption_lines(ct2, meta, W, H):
                             if len(ln.strip()) > CJK_CHARS_PER_LINE:
                                 warnings.append(f"{tag}: CJK caption line is {len(ln.strip())} chars "
                                                 f"(> {CJK_CHARS_PER_LINE}) — \"{ln.strip()[:20]}…\"")
+                                shown_cjk_line = True
                                 break
-                    if shown_floor and shown_cps and shown_ceil:
+                    if shown_floor and shown_cps and shown_ceil and shown_cjk_line:
                         break
 
         # --- narration AI-tells (humanizer-informed): reads as machine-generated even if grammatical ---
@@ -4351,10 +4355,25 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         anchored = re.findall(r'data-cue-index="\d+"[^>]*data-cue="|data-cue="[^"]*"[^>]*data-cue-index="\d+"', html)
         if len(anchored) < len(cued):
             warnings.append(f"{tag}: {len(cued) - len(anchored)} cued point(s) missing a data-cue anchor — they fall back to the paced stagger")
-        dupes = sorted({i for i in cued if cued.count(i) > 1}, key=int)
+        # A shared index is only a BUG when the two points anchor to DIFFERENT spoken phrases:
+        # _dedup_cue_pts (scenes.py) keeps the first non-empty data-cue per index and the whole group
+        # co-reveals on it — the SANCTIONED pattern for a connector or a sibling pair that should land
+        # together (e.g. two 0.00-probability bars both anchored to the same clause). Flagging every
+        # shared index false-positived on exactly that pattern; only a genuine second, DIFFERENT
+        # anchor is silently dropped (its own timing lost) and worth a warning.
+        pair_pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
+        pair_pts += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+        anchors_by_idx = {}
+        for i, a in pair_pts:
+            a = (a or "").strip()
+            if a:
+                anchors_by_idx.setdefault(i, set()).add(a)
+        dupes = sorted([i for i, a in anchors_by_idx.items() if len(a) > 1], key=int)
         if dupes:
-            warnings.append(f"{tag}: duplicate data-cue-index {dupes} — two points share a reveal slot, so one "
-                            f"reveals at the wrong time; number each point's data-cue-index uniquely in spoken order")
+            warnings.append(f"{tag}: data-cue-index {dupes} each anchor to more than one DIFFERENT data-cue phrase "
+                            f"— only the first is kept, so the other point silently reveals on the wrong phrase's "
+                            f"timing; give it its own index (a shared index anchored to the SAME phrase, for a "
+                            f"deliberate co-reveal, is fine)")
         # CUE-CONTIGUITY: indices should be 0..N-1 (a gap index resolves to sparse t=0, flashing in with
         # the header). Count all indices incl. connectors — a connector at the top index is legitimate.
         idxs = sorted({int(i) for i in cued_all})
