@@ -77,7 +77,7 @@ def beat_window(out_dir, beat):
 
 def main():
     ap = argparse.ArgumentParser(description="Pull the settled frame out of a clip.")
-    ap.add_argument("clip", help="an mp4, or an out_dir when --beat is given")
+    ap.add_argument("clip", help="an mp4, or with --beat a film's out_dir or its out.mp4")
     ap.add_argument("out", help="the PNG to write (a directory when --beat is given)")
     ap.add_argument("--at", type=float, default=SETTLED, help="fraction of the clip (default %.2f)" % SETTLED)
     ap.add_argument("--beat", type=int, help="grab this beat of a rendered film instead of a whole clip")
@@ -90,10 +90,15 @@ def main():
         print("[settled_frame] %s frame %d/%d (%.0f%%) -> %s" % (a.clip, i, n, a.at * 100, a.out))
         return
 
-    mp4 = os.path.join(a.clip, "out.mp4")
+    if a.clip.endswith(".mp4"):                  # a film's out.mp4 names its out_dir too
+        mp4, out_dir = a.clip, os.path.dirname(os.path.abspath(a.clip))
+    else:
+        mp4, out_dir = os.path.join(a.clip, "out.mp4"), a.clip
     if not os.path.exists(mp4):
-        raise SystemExit("[settled_frame] no out.mp4 in %s — render the film first" % a.clip)
-    s, e = beat_window(a.clip, a.beat)
+        raise SystemExit("[settled_frame] no out.mp4 in %s — render the film first" % out_dir)
+    if not os.path.exists(os.path.join(out_dir, "storyboard.json")):
+        raise SystemExit("[settled_frame] --beat needs the film's storyboard.json beside %s" % mp4)
+    s, e = beat_window(out_dir, a.beat)
     png = a.out if a.out.endswith(".png") else os.path.join(a.out, "beat%02d.png" % a.beat)
     os.makedirs(os.path.dirname(os.path.abspath(png)) or ".", exist_ok=True)
     at = s + (e - s) * a.at

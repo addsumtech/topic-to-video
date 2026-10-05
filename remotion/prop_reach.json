@@ -171,7 +171,7 @@
     "SpotlightStage": "467f48fcff1e220c",
     "StarfieldWarp": "ec3729197832e88c",
     "StateSheet": "9ebfa3303acc3b06",
-    "StatedBy": "68a907ea535c8fa7",
+    "StatedBy": "eb19bfde521dba10",
     "StrataColumn": "b52724ad79dca9e8",
     "SurfaceCarousel": "24e73ba19ed86d3a",
     "SwissEditorial": "f949d791672cce76",
@@ -1066,7 +1066,7 @@
       "prop_diff": 0.6
     },
     "StatedBy": {
-      "reach": 0.519,
+      "reach": 0.494,
       "prop_diff": 1.0
     },
     "StrataColumn": {

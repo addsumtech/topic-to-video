@@ -21,7 +21,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeOutBack, lerp} from '../runtime/motion';
-import {captionBand, CONTENT_TOP, fitTextPx, inkBlockH} from '../runtime/layout';
+import {captionBand, CONTENT_TOP, fitTextPx, inkBlockH, textWidthPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {parseFigure, figureAt} from '../runtime/figure';
 import {useDNA, readableOn, dimOn} from '../runtime/dna';
@@ -176,7 +176,14 @@ export const StatedBy: React.FC<{
           const shown = figureAt(fig, p);
           const unit = String(f.unit ?? '');
           const label = String(f.label ?? '');
-          const px = fitTextPx(shown, cellW - Math.round(U * 0.05), figBase, {usable: 0.96, adv: 0.62});
+          // the figure and its unit share one nowrap row, so the figure fits what the unit leaves: fitted
+          // to the whole cell, a long unit ("美元/百万 token") ran into the next column. A unit that fits
+          // beside the figure changes nothing; one that doesn't shrinks first to half the row, then the figure.
+          const rowW = cellW - Math.round(U * 0.05);
+          const uPx = unit ? fitTextPx(unit, rowW * 0.5, unitPx, {usable: 0.98}) : 0;
+          const unitW = unit ? textWidthPx(unit, uPx) + Math.round(U * 0.012) : 0;
+          const px = Math.min(fitTextPx(shown, rowW, figBase, {usable: 0.96, adv: 0.62}),
+            fitTextPx(shown, Math.max(rowW * 0.4, rowW - unitW), figBase, {usable: 0.96, adv: 0.62}));
           const x = stacked ? padX : padX + i * cellW;
           const y = stacked ? padY + i * rowH : padY;
           return (
@@ -195,7 +202,7 @@ export const StatedBy: React.FC<{
                   font: `700 ${px}px/${leading(shown, 1.0)} ${disp}`, letterSpacing: '-0.015em'}}>{shown}</div>
                 {unit ? (
                   <div style={{color: DIM, whiteSpace: 'nowrap',
-                    font: `500 ${unitPx}px/${leading(unit, 1.2)} ${body}`}}>{unit}</div>
+                    font: `500 ${uPx}px/${leading(unit, 1.2)} ${body}`}}>{unit}</div>
                 ) : null}
               </div>
               {label ? (

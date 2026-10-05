@@ -96,3 +96,14 @@ def test_estimate_weighted_by_script_speaking_time():
     t_uniform = (len(narr) - 8) / len(narr) * 10.0
     t = cues.estimate_cues_from_text(["baseline"], narr, 10.0)[0]
     assert t > t_uniform + 0.5          # weighted estimate pushes the latin-tail anchor later
+
+
+def test_anchor_pos_latin_anchor_touching_chinese():
+    # \b counts a Han character as a word character, so a Latin anchor written straight against Chinese
+    # ("的System One") had no word boundary and never matched; it must, while still refusing a match
+    # inside a longer Latin word
+    n = "这就是TypeSafe AI的System One模型"
+    assert cues._anchor_pos(n, "System One") == n.index("System")
+    assert cues._anchor_pos(n, "TypeSafe") == n.index("TypeSafe")
+    assert cues._anchor_pos("不是start", "art") == -1
+    assert cues._anchor_pos("the brain", "AI") == -1

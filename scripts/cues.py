@@ -21,7 +21,10 @@ def _anchor_pos(narration, anchor, start=0):
     if _CJK.search(a):
         m = re.compile(re.escape(a), re.IGNORECASE).search(narration, start)
     else:
-        m = re.compile(r"\b" + re.escape(a) + r"\b", re.IGNORECASE).search(narration, start)
+        # a Latin word ends where Latin letters/digits end — NOT at \b, which counts a Han character as a
+        # word character too, so "的System" had no boundary and "System One" never matched in Chinese copy
+        m = re.compile(r"(?<![A-Za-z0-9])" + re.escape(a) + r"(?![A-Za-z0-9])",
+                       re.IGNORECASE).search(narration, start)
     return m.start() if m else -1
 
 def _norm(s):
