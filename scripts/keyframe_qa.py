@@ -291,7 +291,7 @@ def _reveal_count(chrome):
 GLIDE_FRAME_CAP = 3000   # ~100s at 30fps — a safety ceiling, not a tuned budget (every real scene here
                          # is far under it; this just keeps a pathological duration from hanging the page)
 
-_GLIDE_JS_TMPL = r"""(function(nFrames){
+_GLIDE_JS_TMPL = r"""(function(nFrames, plist){
   function sec(v){v=parseFloat(v);return isNaN(v)?0:v;}
   var els = Array.prototype.slice.call(document.querySelectorAll('*')).filter(function(el){
     var n = getComputedStyle(el).animationName; return n && n !== 'none';
@@ -346,8 +346,12 @@ _GLIDE_JS_TMPL = r"""(function(nFrames){
     return path.join('/');
   }
   var out = {};
-  for (var f = 0; f < nFrames; f++){
-    var p = (nFrames <= 1) ? 0 : f / (nFrames - 1);
+  // `plist`, when given, is the exact progress values to read (the sync audit passes the render's own capture
+  // plan, so the census is the frames that SHIP); otherwise nFrames evenly spaced, as the glide census reads.
+  var nRead = plist ? plist.length : nFrames;
+  var VW = window.innerWidth, VH = window.innerHeight;
+  for (var f = 0; f < nRead; f++){
+    var p = plist ? plist[f] : ((nFrames <= 1) ? 0 : f / (nFrames - 1));
     freeze(p);
     var nodes = document.querySelectorAll('.stage *,.split *'), lines = [];
     for (var i = 0; i < nodes.length; i++){
@@ -357,6 +361,10 @@ _GLIDE_JS_TMPL = r"""(function(nFrames){
       var M = [1, 0, 0, 1], op = 1, hidden = false, steps = false, selfCs = null;
       var chain = [], e2 = el;
       while (e2 && e2.nodeType === 1){ chain.push(e2); e2 = e2.parentElement; }
+      var r = el.getBoundingClientRect();
+      // the VISIBLE box for the sync audit: inside the frame and every clipping ancestor (a word rising
+      // through a mask is not readable while its first row of pixels peeks out)
+      var cl = Math.max(0, r.left), ct = Math.max(0, r.top), cr = Math.min(VW, r.right), cb = Math.min(VH, r.bottom);
       for (var j = chain.length - 1; j >= 0; j--){
         var node = chain[j], cs = getComputedStyle(node);
         if (node === el) selfCs = cs;
@@ -365,15 +373,20 @@ _GLIDE_JS_TMPL = r"""(function(nFrames){
         var own = selfMatrix(cs);
         if (own === null) M = null; else if (M !== null) M = mul2(M, own);
         op *= (parseFloat(cs.opacity) || 0);
+        if (node !== el && (cs.overflowX !== 'visible' || cs.overflowY !== 'visible')){
+          var c = node.getBoundingClientRect();
+          cl = Math.max(cl, c.left); ct = Math.max(ct, c.top); cr = Math.min(cr, c.right); cb = Math.min(cb, c.bottom);
+        }
       }
       if (hidden) continue;
-      var r = el.getBoundingClientRect();
       if (r.width < 1 || r.height < 1) continue;
       var ly = 0, oe = el;
       while (oe){ ly += oe.offsetTop || 0; oe = oe.offsetParent; }
       var rec = {k: domPath(el), y: Math.round(r.top * 1e4) / 1e4, o: Math.round(op * 100) / 100,
-                 t: text.length > 32 ? text.slice(0, 32) + '…' : text,
+                 t: text.length > 96 ? text.slice(0, 96) + '…' : text,
                  ly: Math.round(ly), px: Math.round((parseFloat(selfCs.fontSize) || 0) * 100) / 100};
+      var vis = Math.max(0, cr - cl) * Math.max(0, cb - ct) / (r.width * r.height);
+      if (vis < 0.995) rec.v = Math.round(vis * 100) / 100;
       var fl = steps ? 's' : '';
       // Skia's own test (textSafe.tsx `snapsBaseline`): the composed skewY entry rounds to zero at
       // 1/1024 -> the baseline snaps to the device pixel. `M === null` (a matrix3d ancestor) is
@@ -386,7 +399,7 @@ _GLIDE_JS_TMPL = r"""(function(nFrames){
     out[f] = {lines: lines};
   }
   return JSON.stringify(out);
-})(%d)"""
+})(%d, %s)"""
 
 
 def _glide_census(chrome, n_frames):
@@ -394,7 +407,7 @@ def _glide_census(chrome, n_frames):
     `chrome` — one Runtime.evaluate, no per-frame navigation (see _GLIDE_JS_TMPL)."""
     n_frames = max(1, min(int(n_frames), GLIDE_FRAME_CAP))
     r = chrome._cmd("Runtime.evaluate",
-                    {"expression": _GLIDE_JS_TMPL % n_frames, "returnByValue": True}, chrome.sid)
+                    {"expression": _GLIDE_JS_TMPL % (n_frames, "null"), "returnByValue": True}, chrome.sid)
     raw = json.loads(r["result"]["result"]["value"])
     return {int(f): rec for f, rec in raw.items()}
 
@@ -431,6 +444,60 @@ def _glide_issue(chrome, duration, fps, url=None):
           f"unlock — base.css's matrix(1,.0009765625,0,1,0,0) trick — or mark it data-type-steps=\"…\" "
           f"if the stepping is intentional)")
     return (msg, None) if level == "error" else (None, msg)
+
+
+# ── THE SYNC AUDIT, on the frames that ship ─────────────────────────────────────────────────────────
+#
+# Does each piece of on-screen text become readable when the narration says it? (scripts/sync_qa.py holds the
+# matching and the thresholds; the remotion tier asks the same question in text_safe_qa --sync.) The census
+# above is read at exactly the progress values render_html CAPTURES (scenes.html_capture_plan), and a frame the
+# render fills by copying an earlier capture gets that capture's census — so a reveal that happens between
+# captures is seen when the film shows it, not when the page would have.
+def _sync_records(chrome, out_dir, s, meta, url):
+    """[record] for one page (sync_qa.measure_beat), or None when there is no timeline yet (pre-tts)."""
+    import sync_qa as _sq
+    dur = s.get("duration")
+    if not isinstance(dur, (int, float)) or dur <= 0:
+        return None
+    fps = meta.get("fps", 30)
+    frames = max(1, round(float(dur) * fps))
+    pmeta = dict(meta, _out=out_dir, _narration=_sq.narration_of(s), _slide=s)
+    plan = scenes.html_capture_plan(s.get("props") or {}, pmeta, frames, s.get("index"))
+    base = url + (f"?p=0&cues={plan['cue_param']}&dur={frames / float(fps):.3f}" if plan["cue_param"] is not None
+                  else "?p=0")
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        chrome.shot(base, os.path.join(tmp, "p0.jpg"))
+    plist = [p for _i, p in plan["shots"]]
+    r = chrome._cmd("Runtime.evaluate", {"expression": _GLIDE_JS_TMPL % (len(plist), json.dumps(plist)),
+                                         "returnByValue": True}, chrome.sid)
+    raw = json.loads(r["result"]["result"]["value"])
+    at = {i: raw[str(n)]["lines"] for n, (i, _p) in enumerate(plan["shots"])}
+    src = dict(plan["copies"])
+    samples = []
+    for i in range(frames):
+        j = i
+        while j in src:
+            j = src[j]
+        samples.append((i / float(fps), at.get(j, [])))
+    spoken, _src = _sq.spoken_units(_sq.narration_of(s), _sq.words_for(out_dir, s), dur)
+    return _sq.measure_beat(samples, spoken) if spoken else []
+
+
+def _sync_verdict(records):
+    """(issues, advisories) from a page's sync records — a LATE past sync_qa.LAG_ERROR blocks."""
+    import sync_qa as _sq
+    issues, adv = [], []
+    for rec in records or []:
+        lv = _sq.level(rec)
+        if lv == "error":
+            issues.append("LATE text: " + _sq.describe(rec) + " — anchor its reveal to the words that name it "
+                          "(data-cue=\"…\" + data-cue-index on that element)")
+        elif lv == "warn":
+            adv.append("late text: " + _sq.describe(rec))
+        elif lv == "early":
+            adv.append("EARLY text (gives the line away): " + _sq.describe(rec))
+    return issues, adv
 
 
 BAND_TOL = 0.035          # normalized frame-height slack for "the same line"
@@ -475,33 +542,24 @@ def _shipped_url(out_dir, s, url, p=1.0):
     dur = s.get("duration")
     if not isinstance(dur, (int, float)) or dur <= 0:
         return None
+    # THE RENDER'S OWN CUES (scenes.html_capture_plan), not a mirror of them: this used to re-derive the
+    # cue list with only the dur-0.5 clamp, so the day render_html learned to LEAD a late cue past its
+    # out-transition the sweep would have shown a frame the film no longer has.
     try:
-        html = open(os.path.join(out_dir, (s.get("props") or {}).get("html") or ""), encoding="utf-8").read()
+        meta = (json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8")).get("meta") or {})
+    except (OSError, ValueError):
+        meta = {}                                     # the meta defaults (30 fps, a 0.2 s dip) — what render uses
+    try:
+        fps = meta.get("fps", 30)
+        frames = max(1, round(float(dur) * fps))
+        plan = scenes.html_capture_plan(s.get("props") or {},
+                                        dict(meta, _out=out_dir, _narration=s.get("narration") or "", _slide=s),
+                                        frames, s.get("index"))
     except Exception:
         return None
-    pts = re.findall(r'''data-cue-index=["'](\d+)["'][^>]*?data-cue=["']([^"']*)["']''', html)
-    pts += [(i, a) for (a, i) in re.findall(r'''data-cue=["']([^"']*)["'][^>]*?data-cue-index=["'](\d+)["']''', html)]
-    ordered = scenes._dedup_cue_pts(pts)
-    if not ordered:
+    if plan["cue_param"] is None:
         return None
-    times = None
-    words_path = os.path.join(out_dir, "audio", f"{s.get('index'):02d}.words.json")
-    if os.path.exists(words_path):
-        try:
-            times = _cues.resolve_cues(json.load(open(words_path)), [a for _, a in ordered])
-        except Exception:
-            times = None
-    if times is None:
-        narration = s.get("narration") or ""
-        if not narration.strip():
-            return None
-        times = _cues.estimate_cues_from_text([a for _, a in ordered], narration, dur)
-    margin = max(0.0, dur - 0.5)                       # same clamp render_html applies
-    sparse = [None] * (ordered[-1][0] + 1)
-    for (orig_i, _), t in zip(ordered, times):
-        sparse[orig_i] = min(t, margin)
-    cue_param = ",".join("" if t is None else f"{t:.3f}" for t in sparse)
-    return url + f"?p={p}&cues={cue_param}&dur={dur:.3f}"
+    return url + f"?p={p}&cues={plan['cue_param']}&dur={frames / float(fps):.3f}"
 
 
 def run(out_dir, ps=DEFAULT_PS, as_json=False):
@@ -519,6 +577,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
     uncued_scenes = []                    # timed, but the page carries no data-cue anchors
     centroids = []                        # (scene, cx, cy) normalized content centroids, for silhouette repetition
     bands = []                            # (scene, ctop, cbot) normalized content BAND, for band uniformity
+    sync_by_scene, sync_seconds = {}, 0.0 # the sync audit: {scene label: [records]} (scripts/sync_qa.py)
     glide_seconds, glide_checked = 0.0, 0 # cost accounting — reported in the summary line (glide-skipped
                                            # scenes are the SAME set as blind_scenes below — no duration yet)
     try:
@@ -548,6 +607,16 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     uncued_scenes.append(idx)
                 else:
                     blind_scenes.append(idx)
+            # A PAGE OF POINTS WITH NO CUES is an ERROR here as in validate (validate.uncued_reveal_points):
+            # its reveals keep the page's own paced clock, whatever the narration is saying
+            import validate as _val
+            try:
+                _src_html = open(os.path.join(out_dir, page), encoding="utf-8", errors="replace").read()
+            except OSError:
+                _src_html = ""
+            _n_uncued = _val.uncued_reveal_points(_src_html)
+            uncued_issue = (_val.uncued_points_message("page", _n_uncued)
+                            if _n_uncued >= _val.REVEAL_POINT_MIN else None)
             frames, ok, rvis, rtot = [], True, [], 0
             for p in ps:
                 fp = os.path.join(kf, f"scene_{idx:02d}_p{int(p*100):03d}.png")
@@ -568,6 +637,8 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             _sheet(frames, os.path.join(kf, f"scene_{idx:02d}.png"))
             final = frames[-1]; shipped = frames[-1] if cued else None
             issues, advisories = [], []       # issues block the gate; advisories are non-blocking
+            if uncued_issue:
+                issues.append(uncued_issue)
             probed = True                     # False = nothing was measured; never report that as "ok"
             if chrome:
                 try:
@@ -690,6 +761,19 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                         advisories.append(f"type-glide census failed ({type(e).__name__}) — crawl under "
                                           f"the page's own animation was NOT checked for this page")
                 # else: no duration yet — covered by the blind_scenes deck note below (same gate)
+                if isinstance(dur, (int, float)) and dur > 0:
+                    try:
+                        _t0 = time.time()
+                        recs = _sync_records(chrome, out_dir, s, meta, url)
+                        sync_seconds += time.time() - _t0
+                        if recs is not None:
+                            sync_by_scene["scene %02d" % idx] = recs
+                            s_issues, s_adv = _sync_verdict(recs)
+                            issues.extend(s_issues)
+                            advisories.extend(s_adv)
+                    except Exception as e:
+                        advisories.append(f"sync audit failed ({type(e).__name__}: {e}) — when this page's text "
+                                          f"appears against the narration was NOT checked")
             # THE OPENING. frames[0] is now the real t=0 frame — what the viewer actually sees while
             # the narration's first words play, and (with a dip) what the transition lands on. A page
             # whose first reveal is anchored to a phrase spoken partway through opens on nothing; the
@@ -772,9 +856,12 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
     # already exits 3 here. Reporting 0 when the geometry gate measured NOTHING is a fail-open the caller can't see.
     unverified = [r for r in report if not r.get("probed")]
     status = "OK" if (errors == 0 and not unverified) else ("UNVERIFIED" if (errors == 0 and unverified) else "ISSUES")
+    import sync_qa as _sq
+    sync_sum = _sq.summarize(sync_by_scene)
     if as_json:
         print(json.dumps({"errors": errors, "warns": warns, "report": report,
-                          "deck_advisories": deck_notes, "cdp": bool(chrome)}, indent=2))
+                          "deck_advisories": deck_notes, "cdp": bool(chrome),
+                          "sync": {"beats": sync_by_scene, "summary": sync_sum}}, indent=2, ensure_ascii=False))
     else:
         for r in report:
             mark = {"FAIL": "✗", "WARN": "!"}.get(r["status"], "✓")
@@ -786,6 +873,11 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
         mode = "DOM+shots" if chrome else "shots-only (no CDP → overflow/centered/type-glide unchecked)"
         glide_note = (f"; glide census {glide_seconds:.2f}s/{glide_checked} page(s)"
                       if glide_checked else "")
+        if sync_by_scene:
+            print(f"  [sync] {sync_sum['elements']} text element(s) matched to the voice on "
+                  f"{len(sync_by_scene)} page(s): {sync_sum['late_error']} late ERROR(s) (>{_sq.LAG_ERROR}s), "
+                  f"{sync_sum['late_warn']} late WARN(s), {sync_sum['early']} early · worst lag "
+                  f"{sync_sum['worst_lag']:+.2f}s · {sync_seconds:.1f}s")
         print(f"[keyframe_qa] {status}  {len(report)} html page(s), "
               f"{errors} issue(s), {warns + len(deck_notes)} advisory(ies) [{mode}]{glide_note}; sheets -> {kf}/  "
               f"(open all.png to eyeball tofu/theme/reveals)")

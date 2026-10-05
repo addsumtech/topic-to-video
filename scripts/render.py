@@ -574,6 +574,20 @@ def _write_srt(data, path):
     with open(path, "w") as f:
         f.write("\n".join(lines))
 
+def _tail_led(slide, meta):
+    """The cue indices scenes.clamp_cues_to_end leads on this page (a cache salt; [] for anything else)."""
+    if slide.get("type") != "html" or not (slide.get("props") or {}).get("html") or not slide.get("duration"):
+        return []
+    try:
+        import scenes as _scenes
+        fps = meta.get("fps", 30)
+        m = dict(meta, _narration=slide.get("narration") or "", _slide=slide)
+        return _scenes.html_capture_plan(slide.get("props") or {}, m, max(1, int(round(slide["duration"] * fps))),
+                                         slide.get("index"))["tail_led"]
+    except Exception:
+        return []
+
+
 def _has_long_cued_anim(slide, meta):
     """True when this scene is a CUED html page carrying an animation longer than the old flat 0.8s
     capture burst — i.e. exactly the pages whose rendered pixels changed when the burst became
@@ -617,7 +631,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
             return [os.path.getmtime(p), os.path.getsize(p)]
         except OSError:
             return None
-    payload = json.dumps({
+    fp = {
         "s": {k: slide.get(k) for k in
               ("image", "audio", "duration", "motion", "narration", "captions", "callouts",
                "type", "props", "fit", "transition", "transition_seconds", "transition_style", "intensity")},
@@ -663,7 +677,13 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
         # without changing anything else about it, so the verdict itself must key the cache.
         # "v2" = sizing impl (min(W,H) + 35%-W banner clamp): busts only bug-bearing clips
         "bughere": ("v2" if _bug_wanted(meta, slide) else False) if meta.get("brand") else None,
-    }, sort_keys=True, default=str)
+    }
+    # a cue LED so its reveal finishes before the out-transition (scenes.clamp_cues_to_end). Added ONLY when
+    # it applies: a key present on every clip (even as null) would change every fingerprint and re-render
+    # every cached clip of every deck for a fix that moves a few pages.
+    if _tail_led(slide, meta):
+        fp["tail"] = "led1"
+    payload = json.dumps(fp, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
 def _theme_var_hex(out_dir, var, default):
@@ -1149,6 +1169,7 @@ def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
     # expose this scene's narration so render_html can estimate reveal cues from text position when
     # there are no per-word timings (non-edge voices). Scenes render sequentially, so this is safe.
     meta["_narration"] = slide.get("narration") or ""
+    meta["_slide"] = slide          # its out-transition decides how late a cued reveal may start (scenes.py)
     pattern = renderer(slide.get("props") or {}, meta, W, H, frames, workdir, slide["index"])
     segs = ((_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide))
             if burn_captions else [])

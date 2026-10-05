@@ -819,6 +819,143 @@ def _dedup_cue_pts(pts):
     return sorted(by_idx.items())
 
 
+# the visible end of a scene and what each cue needs to finish by it: shared with validate (one rule)
+out_edge_seconds = _common.out_edge_seconds
+cued_anim_need = _common.cued_anim_need
+clamp_cues_to_end = _common.clamp_cues_to_end
+
+
+def html_capture_plan(props, meta, frames, index, html=None, ambient=None):
+    """WHAT render_html CAPTURES, AND WHEN — the one definition both the render and the sync audit
+    (keyframe_qa) read, so the audit measures the frames that ship rather than a re-derivation of them.
+
+    Returns {"mode": "cued" | "paced" | "ambient", "cue_param": str | None, "cue_times": [s], "shots": [(frame,
+    p)], "copies": [(frame, source frame)], "note": str | None}. A frame in `copies` repeats an earlier capture:
+    whatever the page does between captures never reaches the film."""
+    import json, re
+    import cues as _cues
+    fps = meta.get("fps", 30)
+    dur = frames / float(fps)
+    if html is None:
+        src = os.path.abspath(os.path.join(meta["_out"], props["html"]))
+        html = open(src, encoding="utf-8", errors="replace").read()
+    if ambient is None:
+        _cls = [a or b for a, b in re.findall(r'''class\s*=\s*(?:"([^"]*)"|'([^']*)')''', html)]
+        ambient = (not meta.get("reduced_motion")) and (
+            any({"bg-live", "bg-drift"} & set(c.split()) for c in _cls)
+            or bool(re.search(r'\bdata-ambient(?![\w-])', html)))
+    _has_ambient = ambient
+    words_path = os.path.join(meta["_out"], "audio", f"{index:02d}.words.json")
+    # collect cued points: (cue-index, anchor) where anchor = data-cue="..." (required on cued points)
+    # quote-agnostic: single-quoted attrs (data-cue-index='0') must sync too, else the whole page
+    # silently falls back to the blind paced stagger (reveals unhooked from the voice).
+    pts = re.findall(r'''data-cue-index=["'](\d+)["'][^>]*?data-cue=["']([^"']*)["']''', html)
+    pts += [(i, a) for (a, i) in re.findall(r'''data-cue=["']([^"']*)["'][^>]*?data-cue-index=["'](\d+)["']''', html)]
+    cue_param = None        # comma list for seek.js, indexed by data-cue-index (sparse-safe)
+    cue_times = []          # the resolved reveal moments (for the capture bursts)
+    cue_err = None
+    cue_src = None          # "words" (edge per-word timings) | "text" (narration char-position estimate)
+    ordered = _dedup_cue_pts(pts)
+    ctimes = None
+    if ordered and os.path.exists(words_path):        # BEST: exact per-word timings (edge-tts)
+        try:
+            words = json.load(open(words_path))
+            ctimes = _cues.resolve_cues(words, [a for _, a in ordered]); cue_src = "words"
+        except Exception as e:
+            ctimes, cue_err = None, str(e)
+    if ordered and ctimes is None:                    # NO word timings (MiniMax/say/openai): estimate
+        narration = (meta.get("_narration") or "")    # from each anchor's position in the narration text
+        if narration.strip():
+            ctimes = _cues.estimate_cues_from_text([a for _, a in ordered], narration, dur); cue_src = "text"
+    tail_led = []
+    if ordered and ctimes is not None:
+        margin = max(0.0, dur - 0.5)                  # a cue must fire before the final frame, else hidden
+        cue_times = [min(t, margin) for t in ctimes]
+        # ...and late enough cues are LED so their reveal finishes before the out-transition (clamp_cues_to_end)
+        cue_times, tail_led = clamp_cues_to_end(ordered, cue_times, cued_anim_need(html), dur,
+                                                out_edge_seconds(meta.get("_slide"), meta, dur))
+        sparse = [None] * (ordered[-1][0] + 1)        # index by the element's actual data-cue-index
+        for (orig_i, _), t in zip(ordered, cue_times):
+            sparse[orig_i] = t
+        # UNANCHORED slots stay BLANK ("") — seek.js parseFloat("")=NaN keeps that element's default paced
+        # stagger, instead of 0.0 which would flash it in at t=0 (an early pop before its spoken moment).
+        cue_param = ",".join("" if t is None else f"{t:.3f}" for t in sparse)
+    note = None
+    if cue_param is None and 'data-cue-index' in html:
+        why = (f"malformed words.json: {cue_err}" if cue_err else
+               ("no word-timings and no narration to estimate from" if not os.path.exists(words_path)
+                else "points missing a data-cue= anchor attribute"))
+        note = f"audio-sync skipped ({why}) — using paced stagger"
+    elif cue_src == "text":
+        note = "no word-timings — reveals estimated from narration text position"
+    if cue_param is not None:
+        # capture a fresh frame during (a) the initial header-entrance window and (b) near each
+        # cue's reveal window (~0.6s); hold (copy) elsewhere. The HEAD_WINDOW is essential: the
+        # header chrome (kicker/rule/title/sub) animates in on plain time-based .reveal delays, NOT
+        # on cues — without capturing [0, HEAD_WINDOW] the only early frame is p=0 (everything
+        # hidden), which then gets copied until the first cue, leaving the whole page blank until
+        # the first spoken anchor. ~1.2s covers the header stagger (delay ≤ .3s + .7s reveal).
+        ctimes = cue_times
+        burst = 0.8              # >= the reveal --dur (.7s) so a mid-scene cue reaches 100% inside its
+        HEAD_WINDOW = 1.2        # capture window before the hold-copy (was 0.6 → a visible freeze-then-snap)
+        # PER-CUE burst. A flat 0.8s silently truncated every animation longer than the .7s reveal:
+        # a cued `.draw` (1.4s) stopped being captured at 57% of its timeline and then HELD that frame
+        # for the rest of the scene, so the connector never reached its endpoint — no matter how long
+        # the scene ran. (Measured: a 1.4s draw cued at 1.2s of a 7s scene froze at 86% of its length
+        # and stayed there for 5s.) `.count-up` (1.2s) and a cued `img.kenburns` failed the same way.
+        # Widen the window ONLY for the cue indices that actually carry a long animation, so a page of
+        # ordinary .7s reveals captures exactly as many frames as before.
+        # (a data-cue-offset LAGS the element past its anchor, so the window must reach that far too or the
+        # offset reveal itself gets frozen mid-flight — cued_anim_need counts it)
+        _need = cued_anim_need(html)
+        # +0.1s so the final settled frame is captured, capped so a stray 3s .float can't force a
+        # full-frame capture of the whole scene.
+        # keyed by each cue's OWN data-cue-index: `ctimes` is in `ordered` order, which is the index order only
+        # when every index from 0 carries an anchor — a page whose index 0 is an anchorless connector widened
+        # the wrong cue's window and left the long animation it was widened for frozen mid-flight
+        _windows = [min(max(burst, _need.get(orig_i, 0.0) + 0.1), 3.1) for (orig_i, _a) in ordered]
+        def is_reveal(t):
+            # _has_ambient forces every frame (the backdrop moves continuously); else burst around cues
+            return _has_ambient or t <= HEAD_WINDOW or any(c <= t <= c + _windows[i]
+                                                           for i, c in enumerate(ctimes))
+        shots, copies, last_i = [], [], None
+        for i in range(frames):
+            t = i / float(fps)
+            if is_reveal(t) or last_i is None:
+                p = min(1.0, t / dur)
+                shots.append((i, p))
+                last_i = i
+            else:
+                copies.append((i, last_i))
+        return {"mode": "cued", "cue_param": cue_param, "cue_times": list(ctimes), "shots": shots,
+                "copies": copies, "note": note, "tail_led": tail_led}
+    # paced fallback (no audio cues): animate over anim_seconds, then hold. When anim_seconds is
+    # NOT set, default it to SPREAD the reveals across most of the scene (~0.7×duration) instead of
+    # cramming them into the first ~0.8s — otherwise the content appears long before the voice
+    # reaches it. Audio-synced `data-cue` reveals (above) are still the precise, preferred path;
+    # this only makes the cue-less fallback track the speaking pace by default.
+    av = props.get("anim_seconds")
+    anim = float(av) if av is not None else max(1.2, 0.7 * dur)
+    reveal_frames = max(1, min(frames, int(round(anim * fps))))
+    shots, copies, settle_i = [], [], None
+    for i in range(frames):
+        if _has_ambient:
+            # backdrop spans the whole scene: true progress, every frame (no hold-copy -> no snap).
+            # reveals then also spread across the scene in blind mode — fine for the sparse hero/hold
+            # beats a living backdrop belongs on (the cued path keeps reveals precise + settled).
+            p = 1.0 if frames <= 1 else i / (frames - 1)   # single-frame → settled, like the paced path
+            shots.append((i, p))
+            continue
+        p = 1.0 if i >= reveal_frames - 1 else i / max(1, reveal_frames - 1)
+        if p >= 1.0 and settle_i is not None:
+            copies.append((i, settle_i)); continue
+        shots.append((i, p))
+        if p >= 1.0:
+            settle_i = i
+    return {"mode": "ambient" if _has_ambient else "paced", "cue_param": None, "cue_times": [], "shots": shots,
+            "copies": copies, "note": note, "tail_led": []}
+
+
 def render_html(props, meta, W, H, frames, workdir, index):
     """Render a designed HTML page (paused CSS reveals) into a frame sequence via headless Chrome.
     If a per-scene word-timing file (audio/NN.words.json) exists AND the page has [data-cue-index]
@@ -859,114 +996,12 @@ def render_html(props, meta, W, H, frames, workdir, index):
     # Chrome silently renders its error page instead of the scene (same hardening as snapshot/keyframe_qa)
     from urllib.parse import quote as _urlquote
     src_q = _urlquote(src)
-    words_path = os.path.join(meta["_out"], "audio", f"{index:02d}.words.json")
-    # collect cued points: (cue-index, anchor) where anchor = data-cue="..." (required on cued points)
-    # quote-agnostic: single-quoted attrs (data-cue-index='0') must sync too, else the whole page
-    # silently falls back to the blind paced stagger (reveals unhooked from the voice).
-    pts = re.findall(r'''data-cue-index=["'](\d+)["'][^>]*?data-cue=["']([^"']*)["']''', html)
-    pts += [(i, a) for (a, i) in re.findall(r'''data-cue=["']([^"']*)["'][^>]*?data-cue-index=["'](\d+)["']''', html)]
-    cue_param = None        # comma list for seek.js, indexed by data-cue-index (sparse-safe)
-    cue_times = []          # the resolved reveal moments (for the capture bursts)
-    cue_err = None
-    cue_src = None          # "words" (edge per-word timings) | "text" (narration char-position estimate)
-    ordered = _dedup_cue_pts(pts)
-    ctimes = None
-    if ordered and os.path.exists(words_path):        # BEST: exact per-word timings (edge-tts)
-        try:
-            words = json.load(open(words_path))
-            ctimes = _cues.resolve_cues(words, [a for _, a in ordered]); cue_src = "words"
-        except Exception as e:
-            ctimes, cue_err = None, str(e)
-    if ordered and ctimes is None:                    # NO word timings (MiniMax/say/openai): estimate
-        narration = (meta.get("_narration") or "")    # from each anchor's position in the narration text
-        if narration.strip():
-            ctimes = _cues.estimate_cues_from_text([a for _, a in ordered], narration, dur); cue_src = "text"
-    if ordered and ctimes is not None:
-        margin = max(0.0, dur - 0.5)                  # a cue must fire before the final frame, else hidden
-        cue_times = [min(t, margin) for t in ctimes]
-        sparse = [None] * (ordered[-1][0] + 1)        # index by the element's actual data-cue-index
-        for (orig_i, _), t in zip(ordered, cue_times):
-            sparse[orig_i] = t
-        # UNANCHORED slots stay BLANK ("") — seek.js parseFloat("")=NaN keeps that element's default paced
-        # stagger, instead of 0.0 which would flash it in at t=0 (an early pop before its spoken moment).
-        cue_param = ",".join("" if t is None else f"{t:.3f}" for t in sparse)
+    plan = html_capture_plan(props, meta, frames, index, html=html, ambient=_has_ambient)
     os.makedirs(workdir, exist_ok=True)
-    if cue_param is None and 'data-cue-index' in html:
-        why = (f"malformed words.json: {cue_err}" if cue_err else
-               ("no word-timings and no narration to estimate from" if not os.path.exists(words_path)
-                else "points missing a data-cue= anchor attribute"))
-        print(f"[render_html] scene {index}: audio-sync skipped ({why}) — using paced stagger")
-    elif cue_src == "text":
-        print(f"[render_html] scene {index}: no word-timings — reveals estimated from narration text position")
-    if cue_param is not None:
-        # capture a fresh frame during (a) the initial header-entrance window and (b) near each
-        # cue's reveal window (~0.6s); hold (copy) elsewhere. The HEAD_WINDOW is essential: the
-        # header chrome (kicker/rule/title/sub) animates in on plain time-based .reveal delays, NOT
-        # on cues — without capturing [0, HEAD_WINDOW] the only early frame is p=0 (everything
-        # hidden), which then gets copied until the first cue, leaving the whole page blank until
-        # the first spoken anchor. ~1.2s covers the header stagger (delay ≤ .3s + .7s reveal).
-        ctimes = cue_times
-        burst = 0.8              # >= the reveal --dur (.7s) so a mid-scene cue reaches 100% inside its
-        HEAD_WINDOW = 1.2        # capture window before the hold-copy (was 0.6 → a visible freeze-then-snap)
-        # PER-CUE burst. A flat 0.8s silently truncated every animation longer than the .7s reveal:
-        # a cued `.draw` (1.4s) stopped being captured at 57% of its timeline and then HELD that frame
-        # for the rest of the scene, so the connector never reached its endpoint — no matter how long
-        # the scene ran. (Measured: a 1.4s draw cued at 1.2s of a 7s scene froze at 86% of its length
-        # and stayed there for 5s.) `.count-up` (1.2s) and a cued `img.kenburns` failed the same way.
-        # Widen the window ONLY for the cue indices that actually carry a long animation, so a page of
-        # ordinary .7s reveals captures exactly as many frames as before.
-        _table = _common.css_anim_durations()
-        _need = {}
-        for _tag in re.findall(r"<[^>]+>", html):
-            _mi = re.search(r'data-cue-index\s*=\s*["\'](\d+)["\']', _tag)
-            if not _mi:
-                continue
-            _sec = _common.element_anim_seconds(_tag, _table)
-            if _sec:
-                _ci = int(_mi.group(1))
-                # a data-cue-offset LAGS the element past its anchor, so the window must reach that
-                # far too or the offset reveal itself gets frozen mid-flight
-                _mo = re.search(r'data-cue-offset\s*=\s*["\']([-\d.]+)["\']', _tag)
-                _lag = max(0.0, float(_mo.group(1))) if _mo else 0.0
-                _need[_ci] = max(_need.get(_ci, 0.0), _sec + _lag)
-        # +0.1s so the final settled frame is captured, capped so a stray 3s .float can't force a
-        # full-frame capture of the whole scene.
-        _windows = [min(max(burst, _need.get(i, 0.0) + 0.1), 3.1) for i in range(len(ctimes))]
-        def is_reveal(t):
-            # _has_ambient forces every frame (the backdrop moves continuously); else burst around cues
-            return _has_ambient or t <= HEAD_WINDOW or any(c <= t <= c + _windows[i]
-                                                           for i, c in enumerate(ctimes))
-        shots, copies, last_i = [], [], None
-        for i in range(frames):
-            t = i / float(fps)
-            if is_reveal(t) or last_i is None:
-                p = min(1.0, t / dur)
-                shots.append((i, f"file://{src_q}?p={p:.4f}&cues={cue_param}&dur={dur:.3f}"))
-                last_i = i
-            else:
-                copies.append((i, last_i))
-        return _capture_frames(shots, copies, workdir, index, W, H, meta, f"scene {index:02d} (cued)")
-    # paced fallback (no audio cues): animate over anim_seconds, then hold. When anim_seconds is
-    # NOT set, default it to SPREAD the reveals across most of the scene (~0.7×duration) instead of
-    # cramming them into the first ~0.8s — otherwise the content appears long before the voice
-    # reaches it. Audio-synced `data-cue` reveals (above) are still the precise, preferred path;
-    # this only makes the cue-less fallback track the speaking pace by default.
-    av = props.get("anim_seconds")
-    anim = float(av) if av is not None else max(1.2, 0.7 * dur)
-    reveal_frames = max(1, min(frames, int(round(anim * fps))))
-    shots, copies, settle_i = [], [], None
-    for i in range(frames):
-        if _has_ambient:
-            # backdrop spans the whole scene: true progress, every frame (no hold-copy -> no snap).
-            # reveals then also spread across the scene in blind mode — fine for the sparse hero/hold
-            # beats a living backdrop belongs on (the cued path keeps reveals precise + settled).
-            p = 1.0 if frames <= 1 else i / (frames - 1)   # single-frame → settled, like the paced path
-            shots.append((i, f"file://{src_q}?p={p:.4f}"))
-            continue
-        p = 1.0 if i >= reveal_frames - 1 else i / max(1, reveal_frames - 1)
-        if p >= 1.0 and settle_i is not None:
-            copies.append((i, settle_i)); continue
-        shots.append((i, f"file://{src_q}?p={p:.4f}"))
-        if p >= 1.0:
-            settle_i = i
-    return _capture_frames(shots, copies, workdir, index, W, H, meta, f"scene {index:02d}")
+    if plan["note"]:
+        print(f"[render_html] scene {index}: {plan['note']}")
+    if plan["cue_param"] is not None:
+        shots = [(i, f"file://{src_q}?p={p:.4f}&cues={plan['cue_param']}&dur={dur:.3f}") for i, p in plan["shots"]]
+        return _capture_frames(shots, plan["copies"], workdir, index, W, H, meta, f"scene {index:02d} (cued)")
+    shots = [(i, f"file://{src_q}?p={p:.4f}") for i, p in plan["shots"]]
+    return _capture_frames(shots, plan["copies"], workdir, index, W, H, meta, f"scene {index:02d}")

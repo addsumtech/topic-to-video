@@ -259,3 +259,68 @@ def render_error(stdout, stderr="", limit=220):
     if lines:
         return ("no message, only a stack: " + lines[-1])[:limit]
     return "no output at all"
+
+
+# ── a cued reveal must FINISH before the scene's visible end (scenes.html_capture_plan, validate) ──────
+def out_edge_seconds(slide, meta, dur):
+    """Seconds at the END of a scene's clip that its out-transition takes away — render.py `_edge_filter`'s
+    rule (slide `transition` / `transition_seconds` over the meta defaults; 'dip' and 'out' close on the
+    theme ground, 'in' and 'none' do not, and a clip too short for its seam gets none). Whatever is still
+    arriving in that window is seen arriving into a fade, never at full strength."""
+    import storyboard as _sb
+    t, d = _sb.normalize_transition(slide or {})
+    if t not in ("dip", "in", "out", "none"):
+        t = (meta or {}).get("transition", "dip")
+    if t not in ("dip", "out"):
+        return 0.0
+    d = float(d if d is not None else (meta or {}).get("transition_seconds", 0.2))
+    need = 2.2 * d if t == "dip" else 1.1 * d
+    if d <= 0 or dur <= need:
+        return 0.0
+    return d
+
+
+def cued_anim_need(html):
+    """{data-cue-index: seconds its cued element animates for, plus any positive data-cue-offset lag} — what
+    a cue's reveal needs after its moment to finish (the per-cue burst width and the end clamp read it)."""
+    import re
+    table = css_anim_durations()
+    need = {}
+    for tag in re.findall(r"<[^>]+>", html):
+        mi = re.search(r'data-cue-index\s*=\s*["\'](\d+)["\']', tag)
+        if not mi:
+            continue
+        sec = element_anim_seconds(tag, table)
+        if sec:
+            ci = int(mi.group(1))
+            mo = re.search(r'data-cue-offset\s*=\s*["\']([-\d.]+)["\']', tag)
+            lag = max(0.0, float(mo.group(1))) if mo else 0.0
+            need[ci] = max(need.get(ci, 0.0), sec + lag)
+    return need
+
+
+CUE_LEAD_MAX = 1.0   # s: the most a cue is ever led to let its reveal finish (sync_qa calls < 1 s early in sync)
+
+
+def clamp_cues_to_end(ordered, times, need, dur, out_edge, max_lead=CUE_LEAD_MAX):
+    """(times, led) — each cue moved early enough that its reveal FINISHES before the scene's visible end
+    (dur - out_edge), when the scene is long enough for that; `led` lists the cue indices moved.
+
+    WHY. A reveal anchored to one of the narration's LAST words used to start at its word (clamped only to
+    dur - 0.5s) and was still fading in when the out-transition began: measured through this plan, a plain
+    .reveal cued at 86% of a 4 s scene stood at 0.77 opacity when the dip started and 0.65 at 88% — the
+    viewer saw it arrive into a fade and never saw it whole. Leading the word by the few tenths of a second
+    the animation needs is the smaller error: sync_qa treats under a second early as in sync, and a reveal
+    that never completes is not a reveal. A cue that would have to move more than `max_lead` is left on its
+    word — a 1.4 s .draw on the last word wants a shorter duration or an earlier phrase, which validate's
+    truncation gate says, not to be pulled a second and a half ahead of what it shows."""
+    end = dur - out_edge
+    out, led = [], []
+    for (ci, _a), t in zip(ordered, times):
+        n = need.get(ci)
+        if t is not None and n and end - n >= 0 and end - n + 1e-9 < t <= end - n + max_lead:
+            out.append(round(end - n, 3))
+            led.append(ci)
+        else:
+            out.append(t)
+    return out, led

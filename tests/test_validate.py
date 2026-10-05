@@ -1325,9 +1325,10 @@ def test_brand_authored_lockups_and_valid_brand_clean(tmp_path):
 # mid-air). keyframe_qa cannot see this — with no ?cues= it renders in blind-envelope mode where
 # p=1.0 means "every animation finished" by construction — so validate is the only detector.
 
-def _trunc(html, narration, duration, words_path="/nonexistent.json"):
+def _trunc(html, narration, duration, words_path="/nonexistent.json", out_edge=0.2):
+    # out_edge: the seconds the scene's out-transition takes (0.2 = the default dip, render.py `_edge_filter`)
     e, w = [], []
-    validate._reveal_truncation(html, narration, duration, words_path, "scene 1", e, w)
+    validate._reveal_truncation(html, narration, duration, words_path, "scene 1", e, w, out_edge=out_edge)
     return e, w
 
 def _draw_page(anchor, extra=""):
@@ -1357,14 +1358,24 @@ def test_truncation_silent_when_cue_is_early():
     e, w = _trunc(_draw_page("payoff"), early, duration=6.0)
     assert e == [] and w == []
 
-def test_truncation_warns_not_errors_on_a_marginal_shortfall(tmp_path):
-    # ~95% complete: cosmetic, so it must WARN rather than block the render
+def test_truncation_a_marginal_shortfall_is_led_by_the_render_and_not_reported(tmp_path):
+    # ~95% complete on its word: the render now LEADS the cue by the 0.27s the .draw needs to finish before the
+    # out-transition (_common.clamp_cues_to_end), so the page is fine and validate must not block or warn on it.
+    # It used to WARN about a cut the render no longer makes.
     import json
     wp = tmp_path / "01.words.json"
     json.dump([{"w": "first", "t": 0.2}, {"w": "payoff", "t": 4.07}], open(wp, "w"))
     e, w = _trunc(_draw_page("payoff"), _LATE, duration=5.4, words_path=str(wp))
-    assert e == [], e
-    assert any("complete when the render cuts" in x for x in w), w
+    assert e == [] and w == [], (e, w)
+
+def test_truncation_counts_the_out_transition_as_the_end():
+    # the same page, scene and anchor: with no out-transition the 0.9s lead finishes the draw at the last frame;
+    # with the default 0.2s dip it would need 1.1s — past the lead the render allows — so it cannot finish
+    # before the frame fades, which the gate must now say (it used to measure to the last frame only)
+    e0, w0 = _trunc(_draw_page("payoff"), _LATE, duration=6.0, out_edge=0.0)
+    e1, _w1 = _trunc(_draw_page("payoff"), _LATE, duration=6.0, out_edge=0.2)
+    assert e0 == [] and w0 == [], (e0, w0)
+    assert any("out-transition starts at 5.80s" in x for x in e1), e1
 
 def test_truncation_ignores_ambient_backdrops():
     # .bg-live/.bg-drift are progress-driven in seek.js (they span the scene), never truncated

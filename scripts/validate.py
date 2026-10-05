@@ -3349,7 +3349,9 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                                    (s.get("props") or {}).get("anim_seconds"), s.get("duration"),
                                    s.get("narration"), families,
                                    captions_on=bool((data.get("meta") or {}).get("captions", True)),
-                                   ai_look=ai_look, soft_textures=soft, comps=comps, vertical=vertical)
+                                   ai_look=ai_look, soft_textures=soft, comps=comps, vertical=vertical,
+                                   out_edge=(_common.out_edge_seconds(s, data.get("meta"), float(s["duration"]))
+                                             if sb._is_num(s.get("duration")) else 0.0))
         elif t in ("keypoints", "timeline", "chart", "compare", "title"):
             # Readability floor for the PROGRAMMATIC tier — keyframe_qa only overflow-checks html pages,
             # so nothing else guards these. The renderers now wrap/shrink-to-fit, but past a sane item
@@ -4163,7 +4165,46 @@ def _css_anim_durations():
 # they can never be truncated by a late cue — mirror that exclusion here.
 _AMBIENT_CLASSES = {"bg-live", "bg-drift"}
 
-def _reveal_truncation(html, narration, duration, words_path, tag, errors, warnings):
+# ── A PAGE OF POINTS WITH NO CUES REVEALS ON ITS OWN CLOCK ─────────────────────────────────────────
+# Without data-cue anchors render_html plays a page's reveals as a paced stagger over ~0.7 of the scene, so
+# when each point appears is a fraction of the scene and never the moment the voice names it. Measured by
+# sync_qa on jev-html, the two uncued pages' points landed up to 11 s off their words. That used to be a
+# deck-level note in keyframe_qa; it is an ERROR now, for any page with REVEAL_POINT_MIN or more of them.
+# A page with one point has nothing to order, and a hero (a full-bleed .bg-photo) is a held picture.
+_REVEAL_POINT = _REVEAL | {"settle", "draw", "draw-down", "grow-w", "grow-h", "count-up"}
+REVEAL_POINT_MIN = 2
+_BACKDROPS = {"bg-motif", "bg-grid", "bg-soft", "bg-photo", "bg-stars", "bg-glow", "bg-paper"}
+
+
+def uncued_reveal_points(html):
+    """How many revealable points a page with NO data-cue anchors carries (0 for a cued page or a hero):
+    elements with a reveal animation, less header chrome (.kicker/.rule/.title/.sub), connectors (they ride
+    a block's cue) and anything inside a full-bleed backdrop."""
+    if "data-cue-index" in html or _composition_sig(html).get("hero"):
+        return 0
+    nodes = _parse_dom(html)
+
+    def under_backdrop(i):
+        hops = 0
+        while i is not None and 0 <= i < len(nodes) and hops < 128:
+            if nodes[i].classes & _BACKDROPS:
+                return True
+            i = nodes[i].parent
+            hops += 1
+        return False
+    return sum(1 for nd in nodes
+               if nd.classes & _REVEAL_POINT and not (nd.classes & (_CHROME | _CONN | _BACKDROPS))
+               and not under_backdrop(nd.parent))
+
+
+def uncued_points_message(tag, n):
+    return (f"{tag}: {n} reveal points and NO data-cue anchors — they appear on the page's own paced clock, "
+            f"not when the narration says them. Give each point data-cue-index=\"0\"..\"{n - 1}\" in spoken "
+            f"order and data-cue=\"<the words that name it>\" (render_html then reveals it on that word); "
+            f"header chrome (.kicker/.title/.sub/.rule) may stay uncued")
+
+
+def _reveal_truncation(html, narration, duration, words_path, tag, errors, warnings, out_edge=0.0):
     """A cue-triggered animation that cannot FINISH before the scene cuts.
 
     seek.js freezes each cued element at `cue_time`, then runs its animation for the element's own
@@ -4171,7 +4212,13 @@ def _reveal_truncation(html, narration, duration, words_path, tag, errors, warni
     animation mid-flight and hard-cuts — a connector that stops in mid-air, a bar that never reaches
     its value. keyframe_qa cannot see this: with no ?cues= it renders in blind-envelope mode where
     p=1.0 means "every animation has finished" by construction, so only this gate catches it."""
-    anchors = _ordered_anchors(html)
+    pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
+    pts += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+    seen = {}
+    for i, a in pts:
+        seen.setdefault(int(i), a)
+    keys = sorted(seen)
+    anchors = [seen[k] for k in keys]
     if not anchors or not (sb._is_num(duration) and float(duration) > 0):
         return
     dur = float(duration)
@@ -4183,13 +4230,22 @@ def _reveal_truncation(html, narration, duration, words_path, tag, errors, warni
             times = None
     if times is None:
         times = _cues.estimate_cues_from_text(anchors, narration, dur)
+    # THE CUES THE RENDER ACTUALLY USES (scenes.html_capture_plan): clamped to fire by dur - 0.5s, and led by up
+    # to a second so a reveal finishes before the out-transition (_common.clamp_cues_to_end). Judging the raw
+    # word time instead blocked pages the render now finishes, and passed ones it does not; and the scene's
+    # VISIBLE end is its out-transition's start, not its last frame.
+    times = [min(float(t), max(0.0, dur - 0.5)) for t in times]
+    times, _led = _common.clamp_cues_to_end([(k, None) for k in keys], times, _common.cued_anim_need(html),
+                                            dur, out_edge)
+    times = dict(zip(keys, times))
+    end = dur - (out_edge or 0.0)
     table = _css_anim_durations()
     for el in re.findall(r"<[^>]+>", html):
         mi = re.search(r'data-cue-index="(\d+)"', el)
         if not mi:
             continue
         ci = int(mi.group(1))
-        if ci >= len(times) or times[ci] is None:
+        if times.get(ci) is None:
             continue
         mc = re.search(r'class="([^"]*)"', el)
         classes = set(re.findall(r"[\w-]+", mc.group(1))) if mc else set()
@@ -4205,14 +4261,16 @@ def _reveal_truncation(html, narration, duration, words_path, tag, errors, warni
             adur = max(hits)
         moff = re.search(r'data-cue-offset\s*=\s*["\']([-\d.]+)["\']', el)   # lead(-)/lag(+) vs the word
         cue = max(0.0, min(dur, float(times[ci]) + (float(moff.group(1)) if moff else 0.0)))
-        done = (dur - cue) / adur if adur > 0 else 1.0
-        if done >= 1.0:
+        done = (end - cue) / adur if adur > 0 else 1.0
+        if done >= 1.0 - 1e-6:              # (5.8 - 5.5) / 0.3 is 0.99999… in floating point, not a shortfall
             continue
-        what = f'the "{(anchors[ci] or "")[:18]}" reveal'
-        fix = (f"set an inline animation-duration of ~{max(0.2, (dur - cue) - 0.15):.2f}s on it, or "
+        what = f'the "{(seen.get(ci) or "")[:18]}" reveal'
+        fix = (f"set an inline animation-duration of ~{max(0.2, (end - cue) - 0.15):.2f}s on it, or "
                f"re-anchor it to an earlier phrase")
-        msg = (f"{tag}: {what} starts at {cue:.2f}s and needs {adur:.2f}s, but the scene ends at "
-               f"{dur:.2f}s — it is only ~{done*100:.0f}% complete when the render cuts; {fix}")
+        ends = (f"the scene ends at {dur:.2f}s" if not out_edge else
+                f"the scene's out-transition starts at {end:.2f}s")
+        msg = (f"{tag}: {what} starts at {cue:.2f}s and needs {adur:.2f}s, but {ends} — it is only "
+               f"~{max(0.0, done)*100:.0f}% complete when the render cuts; {fix}")
         (errors if done < TRUNCATION_ERROR_FRAC else warnings).append(msg)
 
 def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, warnings):
@@ -4268,7 +4326,8 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
 
 def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
                        anim_seconds=None, duration=None, narration=None, families=None,
-                       captions_on=True, ai_look=False, soft_textures=None, comps=None, vertical=False):
+                       captions_on=True, ai_look=False, soft_textures=None, comps=None, vertical=False,
+                       out_edge=0.0):
     """Verify an html scene's page links resolve locally (base/theme/motifs css, seek.js,
     images), that its audio-synced cues will fire, and that its reveals won't lead/lag the audio."""
     path = os.path.join(out_dir, page_rel)
@@ -4548,8 +4607,11 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         # per-point content↔voice alignment (leads/lags), for cued OR paced reveals
         _reveal_alignment(html, narration, duration, anim_seconds, words, tag, warnings)
         # a cued animation that cannot finish before the cut (keyframe_qa is structurally blind to it)
-        _reveal_truncation(html, narration, duration, words, tag, errors, warnings)
+        _reveal_truncation(html, narration, duration, words, tag, errors, warnings, out_edge=out_edge)
     else:
+        _n = uncued_reveal_points(html)
+        if _n >= REVEAL_POINT_MIN:
+            errors.append(uncued_points_message(tag, _n))
         # No audio-synced cues: a multi-point page reveals via the paced stagger. If anim_seconds is
         # set SMALL relative to the scene, all the points appear long before the voice reaches them.
         # Flag it so the author adds data-cue (preferred) or lets anim_seconds spread (~0.7×duration).
