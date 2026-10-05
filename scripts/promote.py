@@ -3,6 +3,7 @@
 
     python3 scripts/promote.py <out_dir> <Name> --family <X> --use-when "<one line>" --motion "<one line>"   # a shot
     python3 scripts/promote.py <out_dir> <Name>                                                               # an object
+    python3 scripts/promote.py <out_dir> <Name>                                                               # an HTML component
     python3 scripts/promote.py <out_dir> <Name> ... --dry-run                                                 # say what it would do
 
 WHY. A film builds what it needs in its own workshop (scripts/workshop.py) and the library stays measured and
@@ -20,6 +21,12 @@ a name the library already has; a shot without --family/--use-when/--motion; an 
 workshop helper, an asset); a shot prop with no trailing comment (the card's table is written from them).
 If a measurement fails, the register is left registered but not fully measured, and the message names the steps that
 remain — `git status` lists every library file promote touched.
+
+AN HTML COMPONENT (workshop/html/<Name>.js + .css) goes to assets/html/components/, gets an entry in
+references/html-components.md (what it means, its attributes, a still), and the film's pages are pointed at the library
+copy. The library copy is checked again (scripts/workshop.py's contract and runtime checks) before anything else
+changes; refused, like the rest, on an undelivered film, a change after the render, a failing check (the component's
+own or a page's use of it), a missing build-list entry, or a name the library already has.
 """
 import argparse
 import json
@@ -39,6 +46,14 @@ OBJECTS = os.path.join(REMOTION, "src", "objects")
 CARDS = os.path.join(REMOTION, "cards")
 LIBRARY = os.path.join(REMOTION, "LIBRARY.md")
 OBJECTS_ANCHOR = "<!-- OBJECTS (scripts/promote.py appends below) -->"
+HTML_COMPONENTS_DOC = os.path.join(SKILL, "references", "html-components.md")
+HTML_COMPONENTS_HEAD = """# HTML components (the page tier's library)
+
+Custom elements a film built in its own workshop (`scripts/workshop.py new-component`) and the user chose to keep
+(`scripts/promote.py`). A page uses one by linking `assets/html/components/<Name>.css` and, BEFORE `seek.js`,
+`assets/html/components/<Name>.js`, then writing the tag with its attributes. The contract every one of them meets is
+in `references/html-pages.md` ("Building a component"). Every word a component draws comes from its attributes.
+"""
 
 
 class PromoteError(RuntimeError):
@@ -226,7 +241,120 @@ def _catalogue_object(name, entry, props, film):
     _write(LIBRARY, s.rstrip("\n") + "\n" + line + "\n")
 
 
+def _component_preconditions(out_dir, name):
+    """(js, css, build-list entry, board) for promoting the film's component `name` — or PromoteError naming EVERY
+    reason it may not be."""
+    probs = []
+    mp4 = os.path.join(out_dir, "out.mp4")
+    if not os.path.isfile(mp4):
+        probs.append("the film has no out.mp4 — promote from a delivered film")
+    if os.path.exists(os.path.join(out_dir, "NOT_DELIVERED.md")):
+        probs.append("NOT_DELIVERED.md is still there — the critic has not passed this film "
+                     "(critic_ledger.py --final removes it when the review passes)")
+    js, css = ws.component_paths(out_dir, name)
+    if os.path.isfile(mp4):
+        for f in (js, css):
+            if os.path.isfile(f) and os.path.getmtime(f) > os.path.getmtime(mp4):
+                probs.append("%s changed after the film was rendered — re-render and re-review the film before "
+                             "promoting" % os.path.relpath(f, out_dir))
+    if name in ws.library_component_names():
+        probs.append("the library already has the component %s (assets/html/components/)" % name)
+    probs += ws.html_problems(out_dir, names=[name])
+    board = json.loads(_read(os.path.join(out_dir, "storyboard.json")))
+    entry = next((e for e in (board.get("meta") or {}).get("build_list") or []
+                  if isinstance(e, dict) and e.get("id") == name), None)
+    if entry is None or entry.get("kind") != "component":
+        probs.append("%s is not on this film's meta.build_list as a component — only a built thing with a stated "
+                     "purpose is promoted" % name)
+    if probs:
+        raise PromoteError(probs)
+    return js, css, entry, board
+
+
+def _component_doc_entry(name, entry, demo, film):
+    tag = ws.component_tag(name)
+    attrs = ", ".join("`%s`" % k for k in (demo or {})) or "(none)"
+    example = " ".join('%s="%s"' % (k, str(v).replace('"', "&quot;")) for k, v in (demo or {}).items())
+    return ("\n## %s — `<%s>`\n\n**Means:** %s\n\n**Attributes:** %s. Demo: `<%s %s>`\n\n"
+            "**Judged against:** %s *(built for the film %s)*\n\n"
+            "**Files:** `assets/html/components/%s.js`, `assets/html/components/%s.css`\n\n"
+            "![%s](../assets/html/components/%s.png)\n"
+            % (name, tag, entry.get("means", ""), attrs, tag, example, entry.get("accept", ""), film,
+               name, name, name, name))
+
+
+def _repoint_pages(out_dir, name, js, css, lib_js, lib_css, log=print):
+    """Rewrite every film page's link to the workshop copy of `name` (src= or href=, absolute or relative) to the
+    library copy. Returns the pages changed."""
+    targets = {os.path.realpath(js): lib_js, os.path.realpath(css): lib_css}
+    changed = []
+    for rel in ws.film_pages(out_dir):
+        path = os.path.join(out_dir, rel)
+        try:
+            html = _read(path)
+        except OSError:
+            continue
+
+        def sub(m):
+            local = ws._resolve(m.group(3), path)
+            if local in targets:
+                return "%s%s%s%s" % (m.group(1), m.group(2), ws._url(targets[local]), m.group(2))
+            return m.group(0)
+        new = re.sub(r"""(\b(?:src|href)\s*=\s*)(["'])([^"']+)\2""", sub, html)
+        if new != html:
+            _write(path, new)
+            changed.append(rel)
+    return changed
+
+
+def promote_component(out_dir, name, dry_run=False, log=print):
+    js, css, entry, board = _component_preconditions(out_dir, name)
+    film = (board.get("meta") or {}).get("title") or os.path.basename(os.path.abspath(out_dir))
+    lib_js = os.path.join(ws.LIB_COMPONENTS, name + ".js")
+    lib_css = os.path.join(ws.LIB_COMPONENTS, name + ".css")
+    plan = {"kind": "component", "to": lib_js, "measure": []}
+    if dry_run:
+        log("[promote] would copy %s (component) into %s, check the library copy, add it to %s and point the "
+            "film's pages at it" % (name, ws.LIB_COMPONENTS, HTML_COMPONENTS_DOC))
+        return plan
+    import shutil
+    os.makedirs(ws.LIB_COMPONENTS, exist_ok=True)
+    shutil.copyfile(js, lib_js)
+    shutil.copyfile(css, lib_css)
+    label = "assets/html/components/%s" % name
+    try:
+        probs = ws.component_lint(name, lib_js, lib_css, label)
+        rt = ws.component_runtime(name, lib_js, lib_css, label, os.path.join(ws.workshop_dir(out_dir), "_stills"))
+        probs += rt["problems"]
+        if not probs:
+            ws.component_still(name, lib_js, lib_css, os.path.join(ws.LIB_COMPONENTS, name + ".png"),
+                               attrs=None, p=1.0, aspect="16:9")
+    except ws.WorkshopError as e:
+        probs = e.problems
+    if probs:
+        for f in (lib_js, lib_css, os.path.join(ws.LIB_COMPONENTS, name + ".png")):
+            if os.path.exists(f):
+                os.remove(f)
+        raise PromoteError(["the library copy failed its check (nothing was changed): %s" % p for p in probs])
+    doc = _read(HTML_COMPONENTS_DOC) if os.path.isfile(HTML_COMPONENTS_DOC) else HTML_COMPONENTS_HEAD
+    _write(HTML_COMPONENTS_DOC, doc.rstrip("\n") + "\n" + _component_doc_entry(name, entry, rt.get("demo"), film))
+    pages = _repoint_pages(out_dir, name, js, css, lib_js, lib_css, log=log)
+    import storyboard as sb
+    os.remove(js)
+    os.remove(css)
+    for e in board["meta"]["build_list"]:
+        if isinstance(e, dict) and e.get("id") == name:
+            e["promoted"] = True
+    sb.save(board, os.path.join(out_dir, "storyboard.json"))
+    log("[promote] %s is in the library (%s); %d page(s) now link it. NEXT: python3 -m pytest tests -q -p "
+        "no:cacheprovider" % (name, lib_js, len(pages)))
+    plan["pages"] = pages
+    return plan
+
+
 def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=False, log=print):
+    if name in ws.component_names(out_dir) and name not in ws.shot_names(out_dir) | ws.object_names(out_dir):
+        return promote_component(out_dir, name, dry_run=dry_run, log=log)
     kind, src_path, entry, board = preconditions(out_dir, name)
     film = (board.get("meta") or {}).get("title") or os.path.basename(os.path.abspath(out_dir))
     src = _read(src_path)
