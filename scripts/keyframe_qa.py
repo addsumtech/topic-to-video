@@ -304,9 +304,16 @@ _GLIDE_JS_TMPL = r"""(function(nFrames){
     var ambient = el.matches('.bg-live, .bg-drift, [data-ambient]');
     return {el: el, d: sec(cs.animationDelay), dur: sec(cs.animationDuration), ambient: ambient};
   });
+  // the page is loaded at p=0 (see _glide_issue), so every delay read above is the reveal's own start —
+  // authored, or its cue time in cue mode — and the reveal clock runs to `total` exactly as in seek.js:
+  // the scene's duration in cue mode, else the reveals' own envelope max(delay + duration).
+  var q = new URLSearchParams(location.search), qdur = parseFloat(q.get('dur'));
+  var total = (q.get('cues') && qdur > 0) ? qdur : spans.reduce(function(m, s){
+    return s.ambient ? m : Math.max(m, s.d + s.dur);
+  }, 0.001);
   function freeze(p){
     spans.forEach(function(s){
-      s.el.style.animationDelay = (s.ambient ? -(p * s.dur) : (s.d - p)) + 's';
+      s.el.style.animationDelay = (s.ambient ? -(p * s.dur) : (s.d - p * total)) + 's';
       s.el.style.animationPlayState = 'paused';
     });
   }
@@ -392,13 +399,27 @@ def _glide_census(chrome, n_frames):
     return {int(f): rec for f, rec in raw.items()}
 
 
-def _glide_issue(chrome, duration, fps):
+def _glide_issue(chrome, duration, fps, url=None):
     """(issue_or_None, advisory_or_None) for the page currently loaded in `chrome`: a crawl under its
     own custom animation that steps 3+ whole pixels is an ERROR (matches the Remotion tier's rule via
     the SAME judge_glide/glide_level); 1-2 steps is a WARN. Reused, not re-derived: the judgment is
     text_safe_qa's; this only supplies the per-frame census."""
+    import tempfile
     import text_safe_qa as _tsq
+    from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
     n_frames = max(1, round(float(duration) * float(fps or 30)))
+    # RE-SEAT THE PAGE AT p=0 FIRST. Whatever loaded it last (the resting p=1.0 shot) let seek.js rebase every
+    # reveal's animation-delay to `delay - total`, so read from there every reveal had already finished and the
+    # census measured ambient animation only — a component's (or a page's own) moving text was never seen.
+    # `url`, when given, is the page on the timeline that SHIPS (cue mode for a cued page — run() passes it);
+    # otherwise the page currently loaded, on whichever timeline its own query names.
+    href = url or chrome._cmd("Runtime.evaluate", {"expression": "location.href", "returnByValue": True},
+                              chrome.sid)["result"]["result"]["value"]
+    u = urlsplit(href)
+    q = [(k, v) for k, v in parse_qsl(u.query, keep_blank_values=True) if k != "p"] + [("p", "0")]
+    with tempfile.TemporaryDirectory() as tmp:
+        chrome.shot(urlunsplit((u.scheme, u.netloc, u.path, urlencode(q, safe=",:"), u.fragment)),
+                    os.path.join(tmp, "p0.jpg"))
     frames = _glide_census(chrome, n_frames)
     runs = _tsq.judge_glide(frames)
     level, worst = _tsq.glide_level(runs)
@@ -656,7 +677,9 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                 if isinstance(dur, (int, float)) and dur > 0:
                     try:
                         _t0 = time.time()
-                        g_issue, g_warn = _glide_issue(chrome, dur, meta.get("fps", 30))
+                        g_issue, g_warn = _glide_issue(chrome, dur, meta.get("fps", 30),
+                                                       url=(_shipped_url(out_dir, s, url, p=0) if cued
+                                                            else url + "?p=0"))
                         glide_seconds += time.time() - _t0
                         glide_checked += 1
                         if g_issue:
