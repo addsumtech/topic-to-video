@@ -1,6 +1,10 @@
 # topic-to-video: any topic, made into a short video
 
 <p align="center">
+  <a href="README_CN.md"><strong>简体中文</strong></a>
+</p>
+
+<p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
   <img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-supported-5b5bd6">
   <img alt="Codex" src="https://img.shields.io/badge/Codex-supported-111827">
@@ -25,6 +29,7 @@ Honest limits: it runs locally and makes a **file** (MP4 plus SRT, copied to you
 <p align="center">
   <a href="#example-films"><strong>Example films</strong></a> ·
   <a href="#what-makes-it-different"><strong>What's different</strong></a> ·
+  <a href="#two-tiers-which-one-to-pick"><strong>Two tiers</strong></a> ·
   <a href="#how-it-works"><strong>How it works</strong></a> ·
   <a href="#quick-start"><strong>Quick start</strong></a> ·
   <a href="#troubleshooting"><strong>Troubleshooting</strong></a>
@@ -83,7 +88,20 @@ Most "AI video" tools fall into one of two camps. Some are generative models: im
 4. **Voice.** It narrates each beat and times captions and on-screen reveals to the spoken words.
 5. **Render and check.** It renders the film and runs the frame, caption, audio and motion checks, then copies the MP4 and SRT to your Desktop.
 
-There are two visual tiers. The **cinematic tier** (Remotion) gives fully animated shots with camera moves and 3D-style staging. The **page tier** (HTML) gives designed, animated pages. It is lighter to run, and a good fit for decks.
+## Two tiers: which one to pick
+
+Every film is made by one of two renderers. They're built for different jobs. The skill suggests one from what the video is for, and you choose.
+
+| | **Cinematic tier** (Remotion) | **Page tier** (HTML) |
+| --- | --- | --- |
+| What a shot is | A hand-built animated shot from a library of 194 designs (cutaways, compare panels, routes, phone demos, data stages), plus objects the film builds for itself | A designed page per beat (flows, timelines, comparisons, tables, charts, code, equations), laid out for that content |
+| Motion | Camera pushes and pans, depth and 3D-style staging, cuts planned across the whole film | Each point appears on the word that names it, timed to the voice |
+| One look for the film | A design direction (type, colour, motif) carried through every shot | A theme and page styles; editorial and print looks suit it well |
+| Editing | Re-renders the shot you changed and the cut into the next one | Re-renders just the page you changed; a quick preview mode too |
+| Needs | Node.js (`npm install` once) and a bit more memory | Chrome only |
+| **Best for** | **Product launches, promos, stories, how-a-mechanism-works films**, anything where motion carries the explanation | **Teaching, how-tos, research briefings, narrating a deck**, anything with dense tables, figures or step-by-step text |
+
+Pitches and overviews can go either way: evidence-heavy ones suit pages, story-led ones suit the cinematic tier. If you just want your own slides narrated as they are, there's a third option that shows each slide full-frame with gentle motion and needs only ffmpeg.
 
 ## Quick start
 
