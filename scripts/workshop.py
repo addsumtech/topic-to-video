@@ -6,6 +6,8 @@
     python3 scripts/workshop.py <out_dir> new-shot <Name> --means "<the argument no register carries>"
     python3 scripts/workshop.py <out_dir> check                      # type-check, imports, content contract, words
     python3 scripts/workshop.py <out_dir> still <Name> [--props p.json] [--host ObjectStage] [--frame N]
+    python3 scripts/workshop.py <out_dir> new-component <Name> --means "<what the viewer must see>"   # HTML tier
+    python3 scripts/workshop.py <out_dir> still <Component> [--attrs a.json] [--p 0.9] [--aspect 16:9|9:16]
 
 WHY THIS EXISTS. A film that needed a thing the library does not have had two choices: settle for the nearest
 register, or write a new register INTO THE SHARED LIBRARY mid-film and pay its full registration and
@@ -22,6 +24,7 @@ LAYOUT (all optional):
     <out_dir>/workshop/index.ts             GENERATED here — never hand-edited
     <out_dir>/workshop/.tsconfig.json       GENERATED here, for the type-check
     <out_dir>/workshop/_stills/             `still` writes the settled frames it renders here
+    <out_dir>/workshop/html/<Name>.js|.css  an HTML-tier COMPONENT (a custom element) — see "HTML-TIER COMPONENTS"
 
 ONE WAY IN. Every film-scoped remotion call takes its environment from `prepare(out_dir)`: SLIDES_WORKSHOP set to
 this film's workshop (absolute) when it has one; when it has none, the variable REMOVED if this process inherited
@@ -468,9 +471,9 @@ def _problems(out_dir):
         return []
     out = []
     for entry in sorted(os.listdir(ws)):
-        if entry in KINDS or entry == "assets" or entry in GENERATED or entry.startswith("."):
+        if entry in KINDS or entry in ("assets", HTML_KIND) or entry in GENERATED or entry.startswith("."):
             continue
-        out.append(("workshop/%s: a workshop holds objects/, shots/ and assets/ only" % entry, False))
+        out.append(("workshop/%s: a workshop holds objects/, shots/, assets/ and html/ only" % entry, False))
     for n in sorted(shot_names(out_dir) & object_names(out_dir)):
         out.append(("workshop: %s is both a shot and an object — one name, one thing" % n, True))
     worlds = _worlds()
@@ -773,7 +776,718 @@ def check(out_dir):
     probs += baked_words(out_dir, files)["problems"]
     if not index_blockers(out_dir) and has_items(out_dir):
         probs += typecheck(out_dir)
+    if has_components(out_dir):
+        probs += html_problems(out_dir)
     return probs
+
+
+
+# ── HTML-TIER COMPONENTS ───────────────────────────────────────────────────────────────────────────────────
+#
+# The page tier's workshop (docs/superpowers/specs/2026-10-05-html-workshop-design.md). A COMPONENT is a custom
+# HTML element — `<espresso-puck packed="1">` — written as one plain JS file plus one CSS file:
+#     <out_dir>/workshop/html/<Name>.js    customElements.define('<tag>', class extends HTMLElement {...}) ONCE
+#     <out_dir>/workshop/html/<Name>.css   every selector scoped to <tag>, every @keyframes named <tag>-…
+# A promoted one lives at assets/html/components/<Name>.js|.css. Pages link both files, the script BEFORE
+# seek.js, so the parser-created elements are upgraded (and build their parts) before seek.js freezes every
+# animation it finds. Nothing below runs for a film without workshop/html/ and without a custom tag in a page.
+HTML_KIND = "html"
+ASSETS_HTML = os.path.join(SKILL, "assets", "html")
+LIB_COMPONENTS = os.path.join(ASSETS_HTML, "components")
+# names the HTML spec reserves (all hyphenated, all SVG/MathML elements) — never a custom element
+_RESERVED_TAGS = {"annotation-xml", "color-profile", "font-face", "font-face-src", "font-face-uri",
+                  "font-face-format", "font-face-name", "missing-glyph"}
+# A 16:9 page's content column (base.css .stage: 1920×1080, padding 120px 150px) and a 9:16 one (vertical.css
+# .stage: 1080×1920, padding 150px 80px 300px), each stopped at the burned caption band's top — the box a
+# component must fit without overflowing. {aspect: (canvas W, canvas H, column W, column H)}.
+def _columns():
+    from _caption_band import caption_band_px
+    return {"16:9": (1920, 1080, 1920 - 2 * 150, 1080 - 120 - max(120, caption_band_px(1920, 1080))),
+            "9:16": (1080, 1920, 1080 - 2 * 80, 1920 - 150 - max(300, caption_band_px(1080, 1920)))}
+
+
+# Every JS construct a component may not use, and why — matched on comment-stripped source.
+_JS_FORBIDDEN = (
+    (r"\battachShadow\b", "attachShadow — a component is light DOM only: seek.js, the glide census and "
+                          "keyframe_qa's geometry walk the light DOM and cannot see into a shadow root"),
+    (r"\bDate\b", "Date — the wall clock; a component is a pure function of its attributes"),
+    (r"\bperformance\s*\.\s*now\b", "performance.now — the wall clock"),
+    (r"\bsetTimeout\b", "setTimeout — a timer; every animation is CSS keyframes, which seek.js freezes"),
+    (r"\bsetInterval\b", "setInterval — a timer; every animation is CSS keyframes, which seek.js freezes"),
+    (r"\brequestAnimationFrame\b", "requestAnimationFrame — scripted animation; seek.js cannot freeze it"),
+    (r"\bMath\s*\.\s*random\b", "Math.random — every capture must draw the same frame; seed any "
+                                "pseudo-randomness from an attribute"),
+    (r"\bfetch\s*\(", "fetch — the network; a component draws from its attributes only"),
+    (r"\bXMLHttpRequest\b", "XMLHttpRequest — the network; a component draws from its attributes only"),
+    (r"\bimport\s*\(", "import() — a dynamic import loads late and over the network"),
+    (r"^\s*(?:import|export)\b", "a module statement — the file is a classic script, linked before seek.js"),
+    (r"\.\s*animate\s*\(", "el.animate (the Web Animations API) — every animation is CSS keyframes, so "
+                           "seek.js can freeze it"),
+)
+
+
+def component_tag(name):
+    """The custom element's tag: the kebab form of the PascalCase name (`EspressoPuck` → `espresso-puck`)."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "-", name or "").lower()
+
+
+def _component_name_problem(name):
+    """None, or why `name` cannot name a component (the tag it gives must be a valid custom element name)."""
+    if not NAME.match(name or ""):
+        return "a name is PascalCase, 3-32 letters and digits"
+    tag = component_tag(name)
+    if "-" not in tag:
+        return ("its tag %r has no hyphen — a custom element's name needs one, so a component's name is two "
+                "words or more (EspressoPuck → espresso-puck)" % tag)
+    if tag in _RESERVED_TAGS:
+        return "its tag %r is a name the HTML spec reserves" % tag
+    return None
+
+
+def _js_names(folder):
+    if not os.path.isdir(folder):
+        return []
+    return sorted(f[:-3] for f in os.listdir(folder) if f.endswith(".js") and not f.startswith("."))
+
+
+def component_names(out_dir):
+    """The components this film's workshop holds (workshop/html/<Name>.js)."""
+    return set(_js_names(os.path.join(workshop_dir(out_dir), HTML_KIND))) if out_dir else set()
+
+
+def library_component_names():
+    return set(_js_names(LIB_COMPONENTS))
+
+
+def has_components(out_dir):
+    return bool(out_dir) and os.path.isdir(os.path.join(workshop_dir(out_dir), HTML_KIND))
+
+
+def component_paths(out_dir, name):
+    """(js, css) of the film's own component `name`."""
+    d = os.path.join(workshop_dir(out_dir), HTML_KIND)
+    return os.path.join(d, name + ".js"), os.path.join(d, name + ".css")
+
+
+def known_components(out_dir):
+    """{tag: (Name, js, css, label)} for every component a page of this film may use — its own first, then the
+    library's. `label` is how a finding names the file."""
+    out = {}
+    for n in sorted(library_component_names()):
+        out[component_tag(n)] = (n, os.path.join(LIB_COMPONENTS, n + ".js"), os.path.join(LIB_COMPONENTS, n + ".css"),
+                                 "assets/html/components/%s" % n)
+    for n in sorted(component_names(out_dir)):
+        js, css = component_paths(out_dir, n)
+        out[component_tag(n)] = (n, js, css, "workshop/html/%s" % n)
+    return out
+
+
+def _strip_js_comments(src):
+    """JS source with its comments removed and its string/template literals kept — so `'a // b'` never hides
+    the rest of its line, and a `/* … */` never hides code."""
+    out, i, n = [], 0, len(src)
+    while i < n:
+        c = src[i]
+        if c in "'\"`":
+            j = i + 1
+            while j < n and src[j] != c:
+                j += 2 if src[j] == "\\" else 1
+            out.append(src[i:j + 1])
+            i = j + 1
+        elif src.startswith("//", i):
+            j = src.find("\n", i)
+            i = n if j < 0 else j
+        elif src.startswith("/*", i):
+            j = src.find("*/", i + 2)
+            out.append(" ")
+            i = n if j < 0 else j + 2
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
+def _css_blocks(css):
+    """[(prelude, body, parent at-rule or None)] for every rule in `css` (comments removed): a @media/@supports/
+    @container/@layer is descended into; a @keyframes is returned whole."""
+    css = re.sub(r"/\*.*?\*/", " ", css or "", flags=re.S)
+    out = []
+
+    def walk(s, parent):
+        i, n = 0, len(s)
+        while i < n:
+            j = s.find("{", i)
+            if j < 0:
+                break
+            pre = s[i:j].split(";")[-1].strip()
+            depth, k = 1, j + 1
+            while k < n and depth:
+                depth += {"{": 1, "}": -1}.get(s[k], 0)
+                k += 1
+            body = s[j + 1:k - 1]
+            if re.match(r"@(?:media|supports|container|layer)\b", pre):
+                walk(body, pre)
+            else:
+                out.append((pre, body, parent))
+            i = k
+    walk(css, None)
+    return out
+
+
+def _split_selectors(pre):
+    parts, depth, cur = [], 0, ""
+    for ch in pre:
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth -= 1
+        if ch == "," and depth == 0:
+            parts.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    parts.append(cur)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def component_lint(name, js, css, label):
+    """The component contract that reading the two files can judge, as sentences ([] when clean)."""
+    probs = []
+    why = _component_name_problem(name)
+    if why:
+        return ["%s.js: %s" % (label, why)]
+    tag = component_tag(name)
+    if not os.path.isfile(css):
+        probs.append("%s.css is missing — a component is one JS file plus one CSS file (its parts' look and "
+                     "every animation, as CSS keyframes)" % label)
+    raw = _read(js)
+    src = _strip_js_comments(raw)
+    defs = re.findall(r"customElements\s*\.\s*define\s*\(", src)
+    lit = re.findall(r"customElements\s*\.\s*define\s*\(\s*(['\"`])([^'\"`]*)\1", src)
+    if len(defs) != 1:
+        probs.append("%s.js calls customElements.define %d times — exactly once, for <%s>" % (label, len(defs), tag))
+    if lit and lit[0][1] != tag:
+        probs.append("%s.js defines <%s> — the tag is the kebab form of its name: <%s>" % (label, lit[0][1], tag))
+    elif defs and not lit:
+        probs.append("%s.js: customElements.define's first argument must be the literal '%s'" % (label, tag))
+    if not re.search(r"\bextends\s+HTMLElement\b", src):
+        probs.append("%s.js: the class extends HTMLElement (an autonomous custom element)" % label)
+    if not re.search(r"\bstatic\s+demo\s*=\s*\{", src):
+        probs.append("%s.js: declare `static demo = {attr: value, ...}` — neutral demo attributes (never film "
+                     "copy) that `check` renders it with" % label)
+    for pat, why in _JS_FORBIDDEN:
+        m = re.search(pat, src, re.M)
+        if m:
+            line = src.count("\n", 0, m.start()) + 1
+            probs.append("%s.js:%d uses %s" % (label, line, why))
+    if SCAFFOLD_MARK in raw:
+        probs.append("%s.js: still the scaffold — draw the real component, then delete the `%s` line"
+                     % (label, SCAFFOLD_MARK))
+    if os.path.isfile(css):
+        text = _read(css)
+        if re.search(r"@import\b", text):
+            probs.append("%s.css uses @import — a component is its two files, nothing else" % label)
+        if re.search(r"url\(\s*['\"]?\s*(?:https?:)?//", text):
+            probs.append("%s.css loads a remote url() — the network; pages render offline" % label)
+        for pre, _body, _parent in _css_blocks(text):
+            if pre.startswith("@"):
+                km = re.match(r"@(?:-webkit-)?keyframes\s+([\w-]+)", pre)
+                pm = re.match(r"@property\s+(--[\w-]+)", pre)
+                if km:
+                    if not km.group(1).startswith(tag + "-"):
+                        probs.append("%s.css: @keyframes %s — name it %s-… (keyframe names are global: an unprefixed "
+                                     "one can replace base.css's own `rise`/`fade` on every page)"
+                                     % (label, km.group(1), tag))
+                elif pm:
+                    if not pm.group(1).startswith("--%s-" % tag):
+                        probs.append("%s.css: @property %s — name it --%s-… (registered properties are global)"
+                                     % (label, pm.group(1), tag))
+                elif not re.match(r"@font-face\b", pre):
+                    probs.append("%s.css: %s — a component's CSS holds rules, @keyframes, @media/@supports and "
+                                 "@property only" % (label, pre.split()[0]))
+                continue
+            for sel in _split_selectors(pre):
+                if not re.match(r"%s(?![\w-])" % re.escape(tag), sel):
+                    probs.append("%s.css: selector %r is not scoped to <%s> — every rule starts with `%s` so the "
+                                 "component never restyles the page around it" % (label, sel[:60], tag, tag))
+    return probs
+
+
+# ── runtime: the component rendered on its own, in a harness page ─────────────────────────────────────────
+
+_HARNESS = """<!doctype html><html lang="%(lang)s"><head><meta charset="utf-8">
+%(links)s
+<script>window.__cmpErrs=[];window.addEventListener('error',function(e){window.__cmpErrs.push(String(e.message||e));});</script>
+</head><body>
+<div class="stage" id="__host"></div>
+<script src="%(js)s"></script>
+<script>(function(){try{
+  var C=customElements.get(%(tag_js)s);
+  if(!C){window.__cmpErrs.push('the script defines no <'+%(tag_js)s+'>');return;}
+  var attrs=%(attrs)s||C.demo;
+  if(!attrs||typeof attrs!=='object'||!Object.keys(attrs).length){window.__cmpErrs.push('static demo is missing or empty');return;}
+  window.__cmpDemo=C.demo||null;
+  var el=document.createElement(%(tag_js)s);el.id='__cmp';
+  Object.keys(attrs).forEach(function(k){el.setAttribute(k,String(attrs[k]));});
+  el.style.width='%(bw)dpx';el.style.height='%(bh)dpx';el.style.flex='none';el.style.alignSelf='center';
+  document.getElementById('__host').appendChild(el);
+}catch(e){window.__cmpErrs.push(String(e&&e.message||e));}})();</script>
+<script src="%(seek)s"></script>
+</body></html>"""
+
+# Everything the checks read off the harness at its CURRENT frozen state, in one evaluation.
+_PROBE_JS = r"""(function(){
+  var el=document.getElementById('__cmp');
+  var out={errs:(window.__cmpErrs||[]).slice(),demo:window.__cmpDemo||null,built:!!el};
+  if(!el) return JSON.stringify(out);
+  var cs0=getComputedStyle(el), r0=el.getBoundingClientRect();
+  out.display=cs0.display; out.box=[r0.width,r0.height];
+  out.attrs=[]; for(var i=0;i<el.attributes.length;i++){var a=el.attributes[i];
+    if(!/^(class|style|id|data-cue|data-cue-index|data-cue-offset)$/.test(a.name)) out.attrs.push(a.value);}
+  function vis(e){for(var x=e;x&&x!==document.body;x=x.parentElement){var c=getComputedStyle(x);
+    if(c.display==='none'||c.visibility==='hidden'||parseFloat(c.opacity)<0.05)return false;}return true;}
+  function desc(e){var c=(typeof e.className==='string'?e.className:(e.getAttribute('class')||''));
+    return e.tagName.toLowerCase()+(c?'.'+c.trim().split(/\s+/).join('.'):'');}
+  out.text=[];
+  var w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,null),nd;
+  out.boxes=[];out.over=[];out.unfrozen=[];
+  while((nd=w.nextNode())){var s=(nd.nodeValue||'').trim();if(!s)continue;
+    if(vis(nd.parentElement))out.text.push(s);
+    var rg=document.createRange();rg.selectNodeContents(nd);var tr=rg.getBoundingClientRect();
+    if(tr.width>0&&tr.height>0){var to=Math.max(r0.left-tr.left,r0.top-tr.top,tr.right-r0.right,tr.bottom-r0.bottom);
+      if(to>1)out.over.push(['the text "'+s.slice(0,24)+'"',Math.round(to),'outside the component\'s box']);}}
+  var all=[el].concat([].slice.call(el.querySelectorAll('*')));
+  all.forEach(function(e){
+    ['::before','::after'].forEach(function(ps){var c=getComputedStyle(e,ps).content;
+      if(c&&c!=='none'&&c!=='normal'&&vis(e)){var m=c.match(/^"(.*)"$/);out.text.push(m?m[1]:c);}});
+    var r=e.getBoundingClientRect();
+    out.boxes.push([desc(e),r.left,r.top,r.width,r.height]);
+    if(e!==el&&(r.width>0||r.height>0)){
+      var o=Math.max(r0.left-r.left,r0.top-r.top,r.right-r0.right,r.bottom-r0.bottom);
+      if(o>1)out.over.push([desc(e),Math.round(o),'outside the component\'s box']);}
+    var cs=getComputedStyle(e);
+    // a glyph standing proud of a tight line box (line-height:1) is scroll overflow too, and invisible; a
+    // wrapped extra line is a whole line height. Below .35em of the largest type inside it, it is the former.
+    var big=parseFloat(cs.fontSize)||16;e.querySelectorAll('*').forEach(function(d){
+      big=Math.max(big,parseFloat(getComputedStyle(d).fontSize)||0);});
+    var tol=Math.max(1,0.35*big);
+    if(e.clientWidth>0&&e.scrollWidth-e.clientWidth>tol)out.over.push([desc(e),e.scrollWidth-e.clientWidth,'wider than its own box']);
+    if(e.clientHeight>0&&e.scrollHeight-e.clientHeight>tol)out.over.push([desc(e),e.scrollHeight-e.clientHeight,'taller than its own box']);
+    if(cs.animationName&&cs.animationName!=='none'&&cs.animationPlayState!=='paused')out.unfrozen.push(desc(e));
+  });
+  // the display it has OUTSIDE a flex/grid parent (which blockifies an inline element): a fresh copy in a block
+  try{var ph=document.createElement('div');ph.style.cssText='position:absolute;left:-99999px;top:0;display:block;width:400px;height:300px';
+    document.body.appendChild(ph);var cp=document.createElement(el.tagName.toLowerCase());ph.appendChild(cp);
+    out.display=getComputedStyle(cp).display;ph.remove();}catch(e){}
+  return JSON.stringify(out);
+})()"""
+
+
+def _url(path):
+    from urllib.parse import quote
+    return "file://" + quote(os.path.abspath(path))
+
+
+def _harness(path, name, js, css, aspect, reduced=False, attrs=None, theme=None, lang="en"):
+    """Write the harness page for `name` at `path`: the page tier's own stylesheets (base, the film's theme,
+    motifs, vertical at 9:16, reduced-motion when asked) plus the component's, the element built from `attrs`
+    (else its static demo) in the aspect's content column, then seek.js — the order a real page uses."""
+    W, H, bw, bh = _columns()[aspect]
+    css_files = [os.path.join(ASSETS_HTML, "base.css")] + ([theme] if theme and os.path.isfile(theme) else []) + \
+        [os.path.join(ASSETS_HTML, "motifs.css")] + ([os.path.join(ASSETS_HTML, "vertical.css")] if aspect == "9:16" else []) + \
+        ([css] if os.path.isfile(css) else []) + ([os.path.join(ASSETS_HTML, "reduced-motion.css")] if reduced else [])
+    links = "\n".join('<link rel="stylesheet" href="%s">' % _url(c) for c in css_files)
+    tag = component_tag(name)
+    html = _HARNESS % {"lang": lang, "links": links, "js": _url(js), "tag_js": json.dumps(tag),
+                       "attrs": json.dumps(attrs) if attrs else "null", "bw": bw, "bh": bh,
+                       "seek": _url(os.path.join(ASSETS_HTML, "seek.js"))}
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    return path
+
+
+def _probe(chrome, url, scratch):
+    chrome.shot(url, scratch)                                # navigate + wait for load and fonts
+    r = chrome._cmd("Runtime.evaluate", {"expression": _PROBE_JS, "returnByValue": True}, chrome.sid)
+    return json.loads(r["result"]["result"]["value"])
+
+
+_CJK_RUN = re.compile(r"[぀-ヿ㐀-䶿一-鿿가-힯豈-﫿]+")
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def _tokens(text):
+    """(words casefolded, numbers, CJK runs) in `text`."""
+    cjk = _CJK_RUN.findall(text)
+    rest = _CJK_RUN.sub(" ", text)
+    nums = _NUMBER.findall(rest)
+    words = [w.casefold() for w in re.findall(r"[^\W\d_]+", _NUMBER.sub(" ", rest))]
+    return words, nums, cjk
+
+
+def unsourced_words(texts, attrs):
+    """Every visible word, number or CJK run in `texts` that none of the attribute values `attrs` supplies: a
+    word must be a word of some value, a number one of the values' numbers, a CJK run part of some value."""
+    a_words, a_nums = set(), set()
+    for v in attrs:
+        w, n, _c = _tokens(v)
+        a_words |= set(w)
+        a_nums |= set(n)
+    bad = []
+    for t in texts:
+        w, n, c = _tokens(t)
+        bad += [x for x in w if x not in a_words]
+        bad += [x for x in n if x not in a_nums]
+        bad += [x for x in c if not any(x in v for v in attrs)]
+    return list(dict.fromkeys(bad))
+
+
+def _chrome(W, H):
+    import _cdp
+    import scenes
+    binary = scenes._chrome_bin({})
+    if not binary:
+        raise WorkshopError(["no Chrome for the component checks — %s" % NOTHING_CHECKED])
+    try:
+        return _cdp.Chrome(binary, W, H)
+    except Exception as e:                                    # noqa: BLE001 — reported as a skip, never raised raw
+        raise WorkshopError(["Chrome could not start for the component checks (%s) — %s" % (e, NOTHING_CHECKED)])
+
+
+def component_runtime(name, js, css, label, scratch_dir, theme=None, lang="en", chromes=None):
+    """{"problems": [...], "demo": {...} or None} — the component rendered on its own with its demo attributes:
+    words only from attributes, no overflow in a 16:9 or a 9:16 content column, every animation frozen by
+    seek.js, and under reduced-motion.css no part's box moving. `chromes` ({aspect: Chrome}) lets a caller
+    checking several components share two browsers."""
+    os.makedirs(scratch_dir, exist_ok=True)
+    own = chromes is None
+    chromes = {} if own else chromes
+    probs, demo = [], None
+    shot = os.path.join(scratch_dir, "_probe.jpg")
+    try:
+        def at(aspect, ps, reduced=False):
+            if aspect not in chromes:
+                W, H, _bw, _bh = _columns()[aspect]
+                chromes[aspect] = _chrome(W, H)
+            page = _harness(os.path.join(scratch_dir, "%s.%s%s.harness.html" % (name, aspect.replace(":", "x"),
+                                                                                  ".rm" if reduced else "")),
+                            name, js, css, aspect, reduced=reduced, theme=theme, lang=lang)
+            return [_probe(chromes[aspect], _url(page) + "?p=%s" % p, shot) for p in ps]
+
+        mid, end = at("16:9", (0.5, 1.0))
+        demo = end.get("demo")
+        errs = list(dict.fromkeys(end.get("errs") or []))
+        if errs or not end.get("built"):
+            return {"problems": ["%s.js: rendering it threw — %s" % (label, "; ".join(errs[:3]) or "nothing was built")],
+                    "demo": demo}
+        if end.get("display") in ("inline", "contents", "none"):
+            probs.append("%s.css: <%s> is display:%s — give it display:block (or flex/grid) so it fills the box "
+                         "its page gives it" % (label, component_tag(name), end["display"]))
+        W, H, bw, bh = _columns()["16:9"]
+        bx = end.get("box") or [0, 0]
+        if abs(bx[0] - bw) > 1 or abs(bx[1] - bh) > 1:
+            probs.append("%s: given a %d×%d box it is %d×%d — the element fills the box its page gives it (never "
+                         "sets its own width/height)" % (label, bw, bh, round(bx[0]), round(bx[1])))
+        if end.get("unfrozen"):
+            probs.append("%s.js: %s animate(s) but seek.js did not freeze them — build every part when the element "
+                         "is connected (connectedCallback), never later" % (label, ", ".join(end["unfrozen"][:3])))
+        bad = unsourced_words((mid.get("text") or []) + (end.get("text") or []), end.get("attrs") or [])
+        if bad:
+            probs.append("%s: draws %s, which none of its attributes supplies — every word on screen comes from an "
+                         "attribute (a number only when it IS an attribute value); the code writes these itself"
+                         % (label, ", ".join(repr(b) for b in bad[:6])))
+        for aspect, info in (("16:9", end), ("9:16", at("9:16", (1.0,))[0])):
+            over = info.get("over") or []
+            if over:
+                w = max(over, key=lambda o: o[1])
+                probs.append("%s overflows at %s (a %d×%d column): %s is %dpx %s%s" % (
+                    label, aspect, _columns()[aspect][2], _columns()[aspect][3], w[0], w[1], w[2],
+                    " (+%d more)" % (len(over) - 1) if len(over) > 1 else ""))
+        rm = at("16:9", (0.0, 0.5, 1.0), reduced=True)
+        moved = None
+        base = rm[0].get("boxes") or []
+        for later in rm[1:]:
+            boxes = later.get("boxes") or []
+            if len(boxes) != len(base):
+                moved = ("its parts change in number", 0)
+                break
+            for a, b in zip(base, boxes):
+                # the baseline unlock (a skewY of 1/1024 while text moves, `none` at rest) tilts a box by
+                # width/1024 — a box that only gains that much height has not moved
+                skew = max(a[3], b[3]) / 1024.0
+                d = max(abs(a[1] - b[1]), abs(a[3] - b[3]),
+                        max(abs(a[2] - b[2]), abs(a[4] - b[4])) - skew)
+                if d > 0.5:
+                    moved = (a[0], d)
+                    break
+            if moved:
+                break
+        if moved:
+            probs.append("%s moves under reduced motion: %s shifts %.1fpx between p=0 and p=1 with reduced-motion.css "
+                         "linked — multiply every movement by var(--motion, 1) (reduced-motion.css sets --motion:0) "
+                         "so only opacity changes" % (label, moved[0], moved[1]))
+    finally:
+        if own:
+            for c in chromes.values():
+                c.close()
+    return {"problems": probs, "demo": demo}
+
+
+# ── pages: which components they use, and whether they link them right ───────────────────────────────────
+
+_CUSTOM_TAG = re.compile(r"<([a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]*)+)(?=[\s/>])")
+
+
+def _markup(html):
+    """A page's markup with its comments and its <script>/<style> CONTENTS removed (their tags kept)."""
+    html = re.sub(r"<!--.*?-->", "", html or "", flags=re.S)
+    return re.sub(r"(<(script|style)\b[^>]*>).*?(</\2\s*>)", r"\1\3", html, flags=re.S | re.I)
+
+
+def page_custom_tags(html):
+    """Every custom element tag a page's markup uses, lower-cased, in first-use order."""
+    return list(dict.fromkeys(t.lower() for t in _CUSTOM_TAG.findall(_markup(html))
+                              if t.lower() not in _RESERVED_TAGS))
+
+
+def _resolve(ref, page_path):
+    """The local file a page's src/href names, or None for a remote/data URL."""
+    from urllib.parse import unquote, urlsplit
+    ref = (ref or "").strip()
+    if ref.startswith("file://"):
+        return os.path.realpath(unquote(urlsplit(ref).path))
+    if re.match(r"^[a-zA-Z][\w+.-]*:", ref) or ref.startswith("//"):
+        return None
+    return os.path.realpath(os.path.join(os.path.dirname(page_path), unquote(ref.split("?")[0].split("#")[0])))
+
+
+def film_pages(out_dir):
+    """Every page of the film, relative to out_dir: the board's html scenes, then any other pages/*.html."""
+    rels = []
+    for s in _board(out_dir).get("slides") or []:
+        p = (s.get("props") or {}).get("html") if isinstance(s, dict) and isinstance(s.get("props"), dict) else None
+        if isinstance(p, str) and p and p not in rels:
+            rels.append(p)
+    pd = os.path.join(out_dir, "pages")
+    if os.path.isdir(pd):
+        rels += [r for r in ("pages/" + f for f in sorted(os.listdir(pd)) if f.endswith(".html")) if r not in rels]
+    return rels
+
+
+def page_component_problems(out_dir, page_rel, known=None, only=None):
+    """What is wrong with how one page uses components: a custom tag nothing defines, or a component whose
+    script is missing, deferred or linked after seek.js, or whose stylesheet is missing. `only` (a set of tags)
+    limits the findings to those components."""
+    known = known_components(out_dir) if known is None else known
+    path = os.path.join(out_dir, page_rel)
+    try:
+        html = _read(path)
+    except OSError:
+        return []
+    tags = [t for t in page_custom_tags(html) if only is None or t in only]
+    if not tags:
+        return []
+    scripts = [(m.start(), m.group(1)) for m in re.finditer(r"<script\b([^>]*)>", html, re.I)]
+    srcs = [(pos, attrs, _resolve((re.search(r"""\bsrc\s*=\s*["']([^"']+)["']""", attrs) or [None, ""])[1], path))
+            for pos, attrs in scripts]
+    seek = next((pos for pos, _a, p in srcs if p and os.path.basename(p) == "seek.js"), None)
+    hrefs = {_resolve(h, path) for h in re.findall(r"""<link\b[^>]*\bhref\s*=\s*["']([^"']+)["']""", html, re.I)}
+    probs = []
+    for tag in tags:
+        if tag not in known:
+            probs.append("%s uses <%s>, which neither this film's workshop/html/ nor assets/html/components/ "
+                         "defines — build it (python3 scripts/workshop.py <out_dir> new-component <Name> --means "
+                         "\"...\") or fix the tag" % (page_rel, tag))
+            continue
+        name, js, css, label = known[tag]
+        mine = [(pos, attrs) for pos, attrs, p in srcs if p and p == os.path.realpath(js)]
+        if not mine:
+            probs.append("%s uses <%s> but does not link its script %s.js — link it before seek.js"
+                         % (page_rel, tag, label))
+        else:
+            pos, attrs = mine[0]
+            if re.search(r"\b(?:defer|async)\b|type\s*=\s*[\"']?module", attrs, re.I):
+                probs.append("%s links %s.js deferred/async/as a module — it must run before seek.js, so link it "
+                             "as a plain <script src=…>" % (page_rel, label))
+            if seek is None:
+                probs.append("%s uses <%s> but links no seek.js — the capture cannot freeze it" % (page_rel, tag))
+            elif pos > seek:
+                probs.append("%s links %s.js AFTER seek.js — seek.js freezes only the animations that exist when it "
+                             "runs; link the component's script before it" % (page_rel, label))
+        if os.path.realpath(css) not in hrefs:
+            probs.append("%s uses <%s> but does not link its stylesheet %s.css" % (page_rel, tag, label))
+    return probs
+
+
+def html_layout_problems(out_dir):
+    """[(sentence, blocking)] for workshop/html/: only <Name>.js + <Name>.css pairs, valid names, no clash."""
+    d = os.path.join(workshop_dir(out_dir), HTML_KIND)
+    if not os.path.isdir(d):
+        return []
+    out = []
+    names = component_names(out_dir)
+    lib = library_component_names()
+    remotion = shot_names(out_dir) | object_names(out_dir)
+    for f in sorted(os.listdir(d)):
+        if f.startswith("."):
+            continue
+        base, ext = os.path.splitext(f)
+        if os.path.isdir(os.path.join(d, f)) or ext not in (".js", ".css"):
+            out.append(("workshop/html/%s: only <Name>.js and <Name>.css belong here" % f, False))
+        elif ext == ".css" and base not in names:
+            out.append(("workshop/html/%s has no %s.js beside it" % (f, base), False))
+    for n in sorted(names):
+        why = _component_name_problem(n)
+        if why:
+            out.append(("workshop/html/%s.js: %s" % (n, why), True))
+        if n in lib:
+            out.append(("workshop/html/%s.js: %s is already a library component (assets/html/components/) — "
+                        "rename it" % (n, n), True))
+        if n in remotion:
+            out.append(("workshop/html/%s.js: %s is also a shot or object in this workshop — one name, one thing"
+                        % (n, n), True))
+    return out
+
+
+def html_problems(out_dir, names=None, runtime=True):
+    """Every component problem in this film, as sentences: workshop/html/'s layout, each component's lint and
+    runtime checks, and every page's use of components. `names` limits it to those components (and the pages'
+    use of their tags). [] for a film with no workshop/html/ and no custom tag in any page."""
+    probs = [p for p, _b in html_layout_problems(out_dir)
+             if names is None or any("/%s." % n in p for n in names)]
+    comps = sorted(component_names(out_dir) if names is None else set(names) & component_names(out_dir))
+    if comps:
+        theme = os.path.join(out_dir, "theme.css")
+        lang = str((_board(out_dir).get("meta") or {}).get("language") or "en")
+        scratch = os.path.join(workshop_dir(out_dir), "_stills")
+        chromes = {}
+        try:
+            for n in comps:
+                js, css = component_paths(out_dir, n)
+                label = "workshop/html/%s" % n
+                probs += component_lint(n, js, css, label)
+                if runtime and not _component_name_problem(n):
+                    try:
+                        probs += component_runtime(n, js, css, label, scratch, theme=theme, lang=lang,
+                                                   chromes=chromes)["problems"]
+                    except WorkshopError as e:
+                        probs += e.problems
+                        runtime = False                       # no browser: say so once, not once per component
+        finally:
+            for c in chromes.values():
+                c.close()
+    known = known_components(out_dir)
+    only = None if names is None else {component_tag(n) for n in names}
+    for rel in film_pages(out_dir):
+        probs += page_component_problems(out_dir, rel, known, only)
+    return probs
+
+
+COMPONENT_JS_SCAFFOLD = """// COMPONENT · %(name)s <%(tag)s> — %(means)s
+// A film-local HTML component (scripts/workshop.py; references/html-pages.md "Building a component"). It ENCODES
+// its beat: hide the caption and it still carries the idea. Light DOM only; built ONCE from its attributes when it
+// is connected; every animation is CSS keyframes in %(name)s.css; no Date, timers, Math.random or network; every
+// word and number it draws is one of its attribute values. Pages link this script BEFORE seek.js.
+// @scaffold — replace this body with the real drawing, then delete this line.
+customElements.define('%(tag)s', class extends HTMLElement {
+  // neutral demo attributes `workshop.py check` renders it with — never film copy
+  static demo = {label: 'Demo label', value: '3'};
+
+  connectedCallback() {
+    if (this._built) return;            // build ONCE: a re-attach must not duplicate the parts
+    this._built = true;
+    const part = (cls, text) => {
+      const e = document.createElement('div');
+      e.className = '%(tag)s__' + cls;
+      if (text != null) e.textContent = text;
+      this.appendChild(e);
+      return e;
+    };
+    part('value', this.getAttribute('value') || '');
+    part('label', this.getAttribute('label') || '');
+  }
+});
+"""
+
+COMPONENT_CSS_SCAFFOLD = """/* %(name)s — sized by its box (container units: cqw/cqh/cqmin), animated by CSS keyframes only. Every rule starts
+   with %(tag)s and every @keyframes is named %(tag)s-…. Multiply every movement by var(--motion, 1):
+   reduced-motion.css sets --motion:0, so under it every part rests at its end state and only opacity changes.
+   Moving text carries the baseline unlock matrix(1,.0009765625,0,1,0,0) while it moves. */
+%(tag)s{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2cqmin;
+  container-type:size;position:relative;color:var(--fg)}
+%(tag)s .%(tag)s__value{font:700 18cqmin/1 var(--font-display,system-ui,sans-serif);
+  font-variant-numeric:lining-nums tabular-nums;color:var(--accent);opacity:0;
+  transform:translateY(calc(4cqmin * var(--motion, 1))) matrix(1,.0009765625,0,1,0,0);
+  animation:%(tag)s-rise .8s cubic-bezier(.2,.7,.2,1) .2s forwards;animation-play-state:paused}
+%(tag)s .%(tag)s__label{font:600 6cqmin/1.2 var(--font-body,system-ui,sans-serif);color:var(--muted);opacity:0;
+  animation:%(tag)s-fade .6s ease-out .5s forwards;animation-play-state:paused}
+@keyframes %(tag)s-rise{99.9%%{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes %(tag)s-fade{to{opacity:1}}
+"""
+
+
+def scaffold_component(out_dir, name, means):
+    """Write workshop/html/<Name>.js + .css with the contract's skeleton and return the JS path."""
+    probs = []
+    why = _component_name_problem(name)
+    if why:
+        probs.append("%r: %s" % (name, why))
+    elif name in library_component_names():
+        probs.append("%s is already a library component (assets/html/components/)" % name)
+    elif name in component_names(out_dir) | shot_names(out_dir) | object_names(out_dir):
+        probs.append("%s is already in this film's workshop" % name)
+    if not str(means or "").strip():
+        probs.append("--means: say what the viewer must see — it heads the file and the build-list entry")
+    if probs:
+        raise WorkshopError(probs)
+    js, css = component_paths(out_dir, name)
+    os.makedirs(os.path.dirname(js), exist_ok=True)
+    fill = {"name": name, "tag": component_tag(name), "means": " ".join(str(means).split())}
+    with open(js, "w", encoding="utf-8") as fh:
+        fh.write(COMPONENT_JS_SCAFFOLD % fill)
+    with open(css, "w", encoding="utf-8") as fh:
+        fh.write(COMPONENT_CSS_SCAFFOLD % fill)
+    return js
+
+
+def component_still(name, js, css, out_png, attrs=None, p=0.9, aspect="16:9", theme=None, lang="en"):
+    """Render `name` in its aspect's content column, frozen at progress `p`, to the PNG `out_png`."""
+    if aspect not in _columns():
+        raise WorkshopError(["--aspect is 16:9 or 9:16 (got %r)" % (aspect,)])
+    W, H, _bw, _bh = _columns()[aspect]
+    outd = os.path.dirname(os.path.abspath(out_png))
+    os.makedirs(outd, exist_ok=True)
+    page = _harness(os.path.join(outd, "%s.still.harness.html" % name), name, js, css, aspect, attrs=attrs,
+                    theme=theme, lang=lang)
+    chrome = _chrome(W, H)
+    try:
+        info = _probe(chrome, _url(page) + "?p=%s" % float(p), os.path.join(outd, "_probe.jpg"))
+        if info.get("errs") or not info.get("built"):
+            raise WorkshopError(["the still of %s failed: %s" % (name, "; ".join(info.get("errs") or [])
+                                                                 or "nothing was built")])
+        import base64
+        data = chrome._cmd("Page.captureScreenshot", {"format": "png"}, chrome.sid)["result"]["data"]
+        with open(out_png, "wb") as fh:
+            fh.write(base64.b64decode(data))
+    finally:
+        chrome.close()
+    return out_png
+
+
+def still_component(out_dir, name, attrs=None, p=0.9, aspect=None):
+    """`still` for a component: workshop/_stills/<Name>.png (<Name>.9x16.png at 9:16)."""
+    board = _board(out_dir)
+    aspect = aspect or (board.get("meta") or {}).get("aspect") or "16:9"
+    if name in component_names(out_dir):
+        js, css = component_paths(out_dir, name)
+    elif name in library_component_names():
+        js, css = os.path.join(LIB_COMPONENTS, name + ".js"), os.path.join(LIB_COMPONENTS, name + ".css")
+    else:
+        raise WorkshopError(["%s is not a component in this film's workshop or the library" % name])
+    png = os.path.join(workshop_dir(out_dir), "_stills", name + (".9x16" if aspect == "9:16" else "") + ".png")
+    return component_still(name, js, css, png, attrs=attrs, p=p, aspect=aspect,
+                           theme=os.path.join(out_dir, "theme.css"),
+                           lang=str((board.get("meta") or {}).get("language") or "en"))
 
 
 OBJECT_SCAFFOLD = """// OBJECT · %(name)s — %(means)s
@@ -992,9 +1706,22 @@ def _list(out_dir):
     for kind, n in rows:
         print("  %-6s %-24s beats %-12s %s" % (kind, n, ", ".join(map(str, used.get(n) or [])) or "-",
                                                "on the build list" if n in listed else "NOT on the build list"))
+    for n in sorted(component_names(out_dir)):
+        rows.append(("component", n))
+        tag = component_tag(n)
+        pages = [r for r in film_pages(out_dir) if tag in page_custom_tags(_read_or_empty(os.path.join(out_dir, r)))]
+        print("  %-9s %-24s pages %-24s %s" % ("component", n, ", ".join(pages) or "-",
+                                                "on the build list" if n in listed else "NOT on the build list"))
     if not rows:
         print("  (empty) — python3 scripts/workshop.py %s new-object <Name> --means \"...\"" % out_dir)
     return 0
+
+
+def _read_or_empty(path):
+    try:
+        return _read(path)
+    except OSError:
+        return ""
 
 
 def main(argv=None):
@@ -1003,7 +1730,7 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
     sub.add_parser("check")
-    for k in ("new-object", "new-shot"):
+    for k in ("new-object", "new-shot", "new-component"):
         p = sub.add_parser(k)
         p.add_argument("name")
         p.add_argument("--means", required=True)
@@ -1015,6 +1742,8 @@ def main(argv=None):
     p.add_argument("--frame", type=int)
     p.add_argument("--aspect")
     p.add_argument("--slot", help="which of the host's top-level object slots to use, when it has more than one")
+    p.add_argument("--attrs", help="a component's attributes, as a JSON object file (default: its static demo)")
+    p.add_argument("--p", type=float, default=0.9, help="a component's progress to freeze at, 0..1 (default 0.9)")
     a = ap.parse_args(argv)
     try:
         if a.cmd == "list":
@@ -1027,6 +1756,32 @@ def main(argv=None):
             if not probs:
                 print("NEXT: python3 scripts/validate.py %s" % a.out_dir)
             return 1 if probs else 0
+        if a.cmd == "new-component":
+            path = scaffold_component(a.out_dir, a.name, a.means)
+            print("[workshop] wrote %s and its .css" % path)
+            print("NEXT: add its meta.build_list entry (kind \"component\", slot \"page\"), draw it "
+                  "(references/html-pages.md \"Building a component\"), then python3 scripts/workshop.py %s still %s"
+                  % (a.out_dir, a.name))
+            return 0
+        if a.cmd == "still" and (a.name in component_names(a.out_dir) or
+                                 (a.name in library_component_names() and a.name not in object_names(a.out_dir)
+                                  and a.name not in library_object_names())):
+            attrs = None
+            if a.attrs:
+                try:
+                    attrs = json.loads(_read(a.attrs))
+                except OSError as e:
+                    raise WorkshopError(["--attrs %s: %s" % (a.attrs, e.strerror or str(e))]) from None
+                except ValueError as e:
+                    raise WorkshopError(["--attrs %s: not valid JSON (%s)" % (a.attrs, e)]) from None
+                if not isinstance(attrs, dict) or not attrs:
+                    raise WorkshopError(["--attrs %s: a JSON object of attribute: value" % a.attrs])
+            if not 0.0 <= a.p <= 1.0:
+                raise WorkshopError(["--p is a progress between 0 and 1 (got %s)" % a.p])
+            png = still_component(a.out_dir, a.name, attrs=attrs, p=a.p, aspect=a.aspect)
+            print("[workshop] %s" % png)
+            print("NEXT: open it and LOOK — does it carry its build-list entry's `means` with the caption hidden?")
+            return 0
         if a.cmd in ("new-object", "new-shot"):
             path = scaffold(a.out_dir, a.cmd[4:], a.name, a.means)
             print("[workshop] wrote %s" % path)

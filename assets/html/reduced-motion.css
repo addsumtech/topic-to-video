@@ -6,6 +6,10 @@
    Reveals stay animation-named `fade` (base.css @keyframes fade{to{opacity:1}}) so seek.js still
    finds a non-'none' animation to freeze — do NOT use `animation:none` here or reveals would stay
    at opacity:0 and vanish. */
+
+/* COMPONENTS (scripts/workshop.py, references/html-pages.md "Building a component") multiply every movement by
+   var(--motion, 1); 0 here rests every part at its end state, so only opacity changes. Nothing else reads it. */
+:root { --motion: 0; }
 .reveal, .reveal-up, .reveal-up-sm, .reveal-pop {
   animation-name: fade !important;   /* opacity-only keyframe (no transform in it) */
   transform: none !important;        /* kill the slide-in / pop transform */

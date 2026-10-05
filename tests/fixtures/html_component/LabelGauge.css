@@ -1,0 +1,29 @@
+/* LabelGauge — sized by its box (container units), animated by CSS keyframes only. Every movement is
+   multiplied by var(--motion, 1): reduced-motion.css sets --motion:0, so under it every part rests at its
+   end state and only opacity changes. Moving text carries the baseline unlock (matrix(1,.0009765625,...)). */
+label-gauge{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2cqmin;
+  container-type:size;position:relative;color:var(--fg)}
+label-gauge .label-gauge__dial{position:relative;width:min(80cqw,100cqh);aspect-ratio:2/1;
+  border:max(3px,1.6cqmin) solid var(--muted);border-bottom:0;border-radius:100cqmin 100cqmin 0 0}
+label-gauge .label-gauge__needle{position:absolute;left:calc(50% - .6cqmin);bottom:2cqmin;width:1.2cqmin;height:78%;
+  background:var(--accent);border-radius:1cqmin;transform-origin:50% calc(100% - .6cqmin);
+  transform:rotate(var(--label-gauge-to));
+  animation:label-gauge-sweep .9s cubic-bezier(.2,.7,.2,1) 0s both;animation-play-state:paused}
+label-gauge .label-gauge__hub{position:absolute;left:calc(50% - 2cqmin);bottom:.6cqmin;width:4cqmin;
+  height:4cqmin;border-radius:50%;background:var(--fg)}
+label-gauge .label-gauge__ends{display:flex;justify-content:space-between;width:min(80cqw,100cqh)}
+label-gauge .label-gauge__end{font:500 4.5cqmin/1 var(--font-body,system-ui,sans-serif);
+  font-variant-numeric:lining-nums tabular-nums;color:var(--muted)}
+label-gauge .label-gauge__reading{display:flex;align-items:baseline;gap:1.5cqmin;opacity:0;
+  transform:translateY(calc(6cqmin * var(--motion, 1))) matrix(1,.0009765625,0,1,0,0);
+  animation:label-gauge-rise .8s cubic-bezier(.2,.7,.2,1) .2s forwards;animation-play-state:paused}
+label-gauge .label-gauge__value{font:700 14cqmin/1 var(--font-display,system-ui,sans-serif);
+  font-variant-numeric:lining-nums tabular-nums;color:var(--accent)}
+label-gauge .label-gauge__unit{font:500 5cqmin/1 var(--font-body,system-ui,sans-serif);color:var(--muted)}
+label-gauge .label-gauge__label{font:600 5.5cqmin/1.2 var(--font-body,system-ui,sans-serif);opacity:0;
+  animation:label-gauge-fade .6s ease-out .4s forwards;animation-play-state:paused}
+@keyframes label-gauge-sweep{
+  from{transform:rotate(calc(var(--label-gauge-to) * (1 - var(--motion, 1)) - 90deg * var(--motion, 1)))}
+  to{transform:rotate(var(--label-gauge-to))}}
+@keyframes label-gauge-rise{99.9%{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes label-gauge-fade{to{opacity:1}}

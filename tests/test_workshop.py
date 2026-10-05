@@ -93,7 +93,7 @@ def test_a_bad_layout_is_refused_before_an_index_is_written(tmp_path):
 @pytest.mark.parametrize("files,expect", [
     ({"shots/bad_name.tsx": SHOT % {"name": "bad_name"}}, "PascalCase"),
     ({"shots/WsX.tsx": SHOT % {"name": "WsX"}, "objects/WsX.tsx": OBJECT % {"name": "WsX"}}, "both a shot and an object"),
-    ({"stuff/a.txt": "x"}, "objects/, shots/ and assets/ only"),
+    ({"stuff/a.txt": "x"}, "objects/, shots/, assets/ and html/ only"),
     ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("export const DURATION = 30;\n", "")}, "DURATION"),
     ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("export const GROUND = 'bg';\n", "")}, "GROUND"),
     ({"shots/WsX.tsx": (SHOT % {"name": "WsX"}).replace("'bg'", "'paper'")}, "not a DNA ground token"),
