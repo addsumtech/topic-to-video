@@ -333,6 +333,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
     chrome = _open_cdp(meta, W, H)
     report, last_frames, errors, warns = [], [], 0, 0
     blind_scenes = []                     # swept in BLIND mode: no cue timeline available (pre-tts)
+    uncued_scenes = []                    # timed, but the page carries no data-cue anchors
     centroids = []                        # (scene, cx, cy) normalized content centroids, for silhouette repetition
     bands = []                            # (scene, ctop, cbot) normalized content BAND, for band uniformity
     try:
@@ -354,7 +355,14 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             # information (the old separate shipped shot is now just the last frame of the sweep).
             cued = _shipped_url(out_dir, s, url, p=1.0) is not None
             if not cued:
-                blind_scenes.append(idx)
+                # two different reasons, two different fixes: no duration yet (pre-tts) means the sweep
+                # is a fiction until tts.py runs; a timed page with no data-cue anchors is swept exactly
+                # as it renders (its reveals run on their own clock), so there is nothing to wait for
+                dur = s.get("duration")
+                if isinstance(dur, (int, float)) and dur > 0:
+                    uncued_scenes.append(idx)
+                else:
+                    blind_scenes.append(idx)
             frames, ok, rvis, rtot = [], True, [], 0
             for p in ps:
                 fp = os.path.join(kf, f"scene_{idx:02d}_p{int(p*100):03d}.png")
@@ -427,15 +435,18 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                                           "shared guide or make the offset clearly deliberate "
                                           "(html-pages.md Alignment & order discipline)")
                     # 9:16 fill (html-pages.md "fill the column"): content should span >=~70% of
-                    # the zone above the caption band (y160-1600). Advisory only; a full-bleed
-                    # .bg-photo hero provides visual fill outside .stage, so heroes never warn.
+                    # the zone above the caption band (y160-1600). Below 60% is advisory; below HALF
+                    # the page ships with an empty lower half under a top-anchored stack, which the
+                    # viewer reads as a broken page (a smoke film shipped 45% on an advisory), so it
+                    # blocks. A full-bleed .bg-photo hero provides visual fill outside .stage, so
+                    # heroes never warn.
                     if meta.get("aspect") == "9:16" and info.get("cbot", -1) > info.get("ctop", 0):
                         fill = (info["cbot"] - info["ctop"]) / (1600 - 160)
                         rep_fill = round(100 * min(1.0, fill))
                         if fill < 0.60 and not info.get("bleed"):
-                            advisories.append(f"fills only {rep_fill}% of the 9:16 zone — scale type "
-                                              "up / distribute down / add a lower-zone visual "
-                                              "(html-pages '9:16 vertical pages')")
+                            (issues if fill < 0.50 else advisories).append(
+                                f"fills only {rep_fill}% of the 9:16 zone — scale type up / distribute "
+                                "down / add a lower-zone visual (html-pages '9:16 vertical pages')")
                     # STAGGER (paced pages only — a cued page renders BLIND here [no ?cues=], so its
                     # reveals all fire at delay 0 and would false-flag): on a page with NO data-cue-index,
                     # a proper stagger makes the visible-reveal count RISE across the p-states.
@@ -539,6 +550,11 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                           f"In blind mode p is a fraction of the animation envelope, not of the scene, "
                           f"so every page appears fully drawn early — do NOT read these strips as "
                           f"motion personality evidence; re-run this after tts.py for the real timeline")
+    if uncued_scenes:
+        deck_notes.append(f"{len(uncued_scenes)} scene(s) ({', '.join(str(i) for i in uncued_scenes)}) carry no "
+                          f"data-cue anchors, so their reveals run on the page's own animation clock, not on "
+                          f"the narration — the sweep shows them exactly as they render. Add data-cue "
+                          f"anchors if a reveal should land on a spoken word")
     note = _band_uniformity_note(bands)
     if note:
         deck_notes.append(note)

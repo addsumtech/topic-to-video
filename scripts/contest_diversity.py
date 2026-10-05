@@ -23,6 +23,13 @@ PALETTE_T = 60.0      # mean-colour euclidean distance under which palettes read
 SILHOUETTE_T = 0.20   # fraction of 16x9 cells differing under which layouts read "the same shape"
 
 
+
+def _pixels(im):
+    """Every pixel of `im` as a list. Pillow 12 deprecates getdata() (gone in 14); get_flattened_data()
+    is its replacement, with getdata() kept only for an older Pillow."""
+    flat = getattr(im, "get_flattened_data", None)
+    return list(flat() if flat else im.getdata())
+
 def _structure(im):
     """The frame's COMPOSITION, independent of its colours: how many things there are, how much of the
     frame they cover, how rectilinear they are, and where they sit.
@@ -99,7 +106,7 @@ def _features(path):
     from PIL import Image
     im = Image.open(path).convert("RGB")
     im.thumbnail((320, 320))
-    px = list(im.getdata())
+    px = _pixels(im)
     n = len(px)
     mean = tuple(sum(c[i] for c in px) / n for i in range(3))
     lum = 0.2126 * mean[0] + 0.7152 * mean[1] + 0.0722 * mean[2]
@@ -114,7 +121,7 @@ def _features(path):
             best, best_s = rgb, s
     # ink-occupancy silhouette: 16x9 grid of "does this cell differ from the frame's ground"
     g = im.convert("L").resize((16, 9))
-    gp = list(g.getdata())
+    gp = _pixels(g)
     ground = sorted(gp)[len(gp) // 2]                    # median ≈ background level
     sil = [1 if abs(v - ground) > 24 else 0 for v in gp]
     return {"mode": mode, "mean": mean, "accent": tuple(best), "sil": sil, "struct": _structure(im)}

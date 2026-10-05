@@ -22,6 +22,13 @@ BLANK_STD = 8.0   # grayscale stddev below this ⇒ the frame is a near-uniform 
 FRAME_NAME = "scene_%02d.png"   # render_remotion.py writes one per beat, numbered by POSITION (1-based)
 
 
+
+def _pixels(im):
+    """Every pixel of `im` as a list. Pillow 12 deprecates getdata() (gone in 14); get_flattened_data()
+    is its replacement, with getdata() kept only for an older Pillow."""
+    flat = getattr(im, "get_flattened_data", None)
+    return list(flat() if flat else im.getdata())
+
 def _frame_std(path):
     """(grayscale pixel stddev, None) for a keyframe, or (None, reason) when it cannot be read.
 
@@ -37,7 +44,7 @@ def _frame_std(path):
         im = Image.open(path).convert("L")
         # downsample for speed; stddev is scale-stable enough for a blank check
         im = im.resize((160, 90))
-        px = list(im.getdata())
+        px = _pixels(im)
         n = len(px)
         m = sum(px) / n
         return (sum((p - m) ** 2 for p in px) / n) ** 0.5, None

@@ -21,6 +21,13 @@ _CJK_PUNCT = "\u3000-\u303f\uff00-\uffef"
 _CJK = _HAN + _KANA + _HANGUL + _CJK_PUNCT
 _CJK_RE = re.compile(f"[{_CJK}]")
 
+
+def _pixels(im):
+    """Every pixel of `im` as a list. Pillow 12 deprecates getdata() (gone in 14); get_flattened_data()
+    is its replacement, with getdata() kept only for an older Pillow."""
+    flat = getattr(im, "get_flattened_data", None)
+    return list(flat() if flat else im.getdata())
+
 def _speak_wlen(s):
     """SPEAKING-TIME weight of a string: a CJK char ~3x a Latin char (~5 chars/s vs ~15 chars/s).
     Used to TIME caption chunks in mixed-script text — raw len() starves the CJK side (a 20-char zh
@@ -725,7 +732,7 @@ def _sample_strip_color(frame_path):
     try:
         im = Image.open(frame_path).convert("RGB")
         row = im.crop((0, max(0, im.height - 6), im.width, im.height))
-        px = sorted(row.getdata(), key=_rel_lum)
+        px = sorted(_pixels(row), key=_rel_lum)
         return px[len(px) // 2]
     except Exception:
         return None
@@ -738,7 +745,7 @@ def _sample_region_color(frame_path, top_frac=0.80):
     try:
         im = Image.open(frame_path).convert("RGB")
         y = max(0, min(im.height - 1, int(im.height * top_frac)))
-        px = sorted(im.crop((0, y, im.width, im.height)).getdata(), key=_rel_lum)
+        px = sorted(_pixels(im.crop((0, y, im.width, im.height))), key=_rel_lum)
         return px[len(px) // 2]
     except Exception:
         return None

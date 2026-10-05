@@ -639,7 +639,7 @@ baseline. What it already handles (so you don't re-author it):
 - **FILL the column — the cardinal 9:16 rule.** Landscape content ported 1:1 fills ~40% of the
   tall canvas and reads as a mistake. Target: content spans **≥70% of the zone between the top
   line and the caption band** (~y160–1600). Measure it, don't eyeball it — `keyframe_qa.py` reports each page's fill% on a 9:16 deck and
-  advises below 60% (heroes with a full-bleed `.bg-photo` exempt); tune until every page clears.
+  advises below 60% and BLOCKS below 50% (heroes with a full-bleed `.bg-photo` exempt); tune until every page clears.
   Two levers: (a) **phone-first type scale** — title ~92px, labels ~44px, sub ~42px, notes ~32px,
   blocks ~250px min-height, segbar ~120px, icon tiles ~88px (the 64–70px "desktop" scale is what
   leaves the dead zone); (b) **distribute along the height** — tall row gaps (~34px), padded
