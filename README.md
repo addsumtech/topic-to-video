@@ -1,4 +1,4 @@
-# topic-to-video: turn a topic or a slide deck into a narrated short video
+# topic-to-video: any topic, made into a short video
 
 <p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
