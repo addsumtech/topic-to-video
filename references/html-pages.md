@@ -842,6 +842,18 @@ enters the caption zone; the frame is simply wrong about what it encircles. Size
 the measured box of its contents plus ~45px of padding, not by eye. `keyframe_qa` advises when text
 overlaps a `.ring` without being inside it (mark any deliberate exception `data-encloses`).
 
+### Every point is cued — and a late word is led
+A page with **two or more reveal points and no `data-cue` anchors is an ERROR** (validate + `keyframe_qa`):
+uncued, its points arrive on a paced clock (~0.7 of the scene) that has nothing to do with the voice. Give
+each point `data-cue-index` in spoken order and `data-cue="<the words that name it>"`; header chrome
+(`.kicker/.title/.sub/.rule`) may stay uncued, and a one-point page or a `.bg-photo` hero is exempt.
+`keyframe_qa` then measures, on the frames render_html actually captures, when each text element becomes
+readable against when the narration says it (scripts/sync_qa.py) — LATE past 1.5 s blocks.
+A cue on one of the narration's LAST words is **led** by render_html — by at most 1 s — so its reveal
+finishes before the scene's out-transition (a plain `.reveal` cued at 88% of a 4 s scene used to stand at
+0.65 opacity when the dip began). A longer animation that would need more is left on its word and
+validate's truncation gate asks for a shorter `animation-duration` or an earlier phrase.
+
 ### `data-cue-offset` — phrase a reveal against its word
 A `data-cue` says *which* word fires an element; `data-cue-offset` says *how it sits against* that
 word, in seconds — negative to LEAD, positive to LAG. Without it the only temporal control an author
