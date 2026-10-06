@@ -118,9 +118,9 @@
 
 ```bash
 # Claude Code
-git clone --depth 1 https://github.com/dong845/topic-to-video.git ~/.claude/skills/topic-to-video
+git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.claude/skills/topic-to-video
 # Codex
-git clone --depth 1 https://github.com/dong845/topic-to-video.git ~/.agents/skills/topic-to-video
+git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.agents/skills/topic-to-video
 
 python3 -m pip install pillow pymupdf python-pptx edge-tts
 ```
@@ -131,7 +131,7 @@ python3 -m pip install pillow pymupdf python-pptx edge-tts
 cd ~/.claude/skills/topic-to-video/remotion && npm install
 ```
 
-也可以用 [`npx skills`](https://github.com/vercel-labs/skills) 只装技能本身：`npx skills add dong845/topic-to-video`。上面那些工具仍然需要另外装好。
+也可以用 [`npx skills`](https://github.com/vercel-labs/skills) 只装技能本身：`npx skills add addsumtech/topic-to-video`。上面那些工具仍然需要另外装好。
 
 ### 第二步：告诉它你要什么视频
 

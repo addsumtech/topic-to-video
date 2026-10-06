@@ -118,9 +118,9 @@ Then install the skill and its Python packages:
 
 ```bash
 # Claude Code
-git clone --depth 1 https://github.com/dong845/topic-to-video.git ~/.claude/skills/topic-to-video
+git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.claude/skills/topic-to-video
 # Codex
-git clone --depth 1 https://github.com/dong845/topic-to-video.git ~/.agents/skills/topic-to-video
+git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.agents/skills/topic-to-video
 
 python3 -m pip install pillow pymupdf python-pptx edge-tts
 ```
@@ -131,7 +131,7 @@ For the cinematic tier, run this once:
 cd ~/.claude/skills/topic-to-video/remotion && npm install
 ```
 
-Or install the skill alone with [`npx skills`](https://github.com/vercel-labs/skills): `npx skills add dong845/topic-to-video`. You still need the tools above.
+Or install the skill alone with [`npx skills`](https://github.com/vercel-labs/skills): `npx skills add addsumtech/topic-to-video`. You still need the tools above.
 
 ### Step 2: Ask for a video
 
