@@ -93,7 +93,9 @@ def test_the_whole_film_render_runs_with_the_workshop(monkeypatch, tmp_path):
 
 def test_without_a_workshop_the_whole_film_render_passes_no_extra_environment(monkeypatch, tmp_path):
     _out, calls = _whole(monkeypatch, tmp_path, False)
-    assert calls == [{}]
+    # the render itself is the call that does not capture output (the sync census's pre-pass does)
+    assert [c for c in calls if not c.get("capture_output")] == [{}]
+    assert not any("SLIDES_WORKSHOP" in (c.get("env") or {}) for c in calls)
 
 
 def test_the_segment_bundle_carries_the_environment_it_is_given(tmp_path):

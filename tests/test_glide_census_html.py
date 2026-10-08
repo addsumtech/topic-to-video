@@ -97,10 +97,14 @@ def test_same_drift_with_the_unlock_appended_is_clean():
 
 
 @needs_chrome
-def test_jev_html_pages_stay_clean():
-    """The real jev-html film (no custom ambient/@keyframes authoring) must not false-positive."""
+def test_jev_html_pages_stay_clean(capsys):
+    """The real jev-html film (no custom ambient/@keyframes authoring) must not false-positive in the GLIDE
+    census. It is judged on the census's own finding, not on keyframe_qa's exit code: the sync gate added
+    later correctly fails this film (its reveals are not cued to the voice), and that is not this test's claim."""
     film = os.path.join(ROOT, ".superpowers", "films", "jev-html")
     if not os.path.isdir(film):
         pytest.skip("jev-html fixture film not present in this checkout")
-    rc = kq.run(film, ps=kq.DEFAULT_PS, as_json=False)
-    assert rc == 0, "jev-html should stay clean through the glide census (rc=%d)" % rc
+    kq.run(film, ps=kq.DEFAULT_PS, as_json=False)
+    out = capsys.readouterr().out
+    assert "glide census" in out, "the glide census never ran on jev-html"
+    assert "crawl under the page's OWN animation" not in out, "jev-html false-positives in the glide census"
