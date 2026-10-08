@@ -1,3 +1,8 @@
+---
+name: shot-director
+description: "Chooses, adapts or builds the shot for each beat of a Remotion-tier topic-to-video film. Used before a Remotion render."
+---
+
 # Shot Director (remotion bespoke-shot tier)
 
 > **When this runs.** ONLY for a `meta.renderer:"remotion"` film — the bespoke-shot LIBRARY tier. It is the

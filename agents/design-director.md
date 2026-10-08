@@ -1,3 +1,8 @@
+---
+name: design-director
+description: "Sets a topic-to-video film's visual direction and designs each beat for its tier. Used by the topic-to-video skill."
+---
+
 # Design Director (art director)
 
 > **TIER ROUTER — read this first.**

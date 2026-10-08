@@ -1,3 +1,8 @@
+---
+name: shot-critic
+description: "Reviews a rendered Remotion-tier topic-to-video film shot by shot. Used after a Remotion render."
+---
+
 # Shot Critic (remotion bespoke-shot tier)
 
 > **When this runs.** After a `meta.renderer:"remotion"` render, as the design-review gate — the remotion
