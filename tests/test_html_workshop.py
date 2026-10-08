@@ -1,6 +1,6 @@
 """The HTML tier's workshop: components a film builds for itself (scripts/workshop.py, validate.py, promote.py).
 
-ONE example component, tests/fixtures/html_component/LabelGauge.{js,css}, is the CORRECT case for every check here.
+ONE example component, assets/html/examples/LabelGauge.{js,css}, is the CORRECT case for every check here.
 Each broken case is that same component with one thing broken (a string replacement), so a check that fails the
 broken one and passes the fixture is judging exactly the thing it names. The runtime checks drive a real headless
 Chrome through the same harness `workshop.py check` uses; they skip when this machine has no Chrome.
@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(_ROOT, "scripts"))
 import workshop as ws  # noqa: E402
 import scenes  # noqa: E402
 
-FIX = os.path.join(_ROOT, "tests", "fixtures", "html_component")
+FIX = os.path.join(_ROOT, "assets", "html", "examples")
 JS = open(os.path.join(FIX, "LabelGauge.js"), encoding="utf-8").read()
 CSS = open(os.path.join(FIX, "LabelGauge.css"), encoding="utf-8").read()
 ASSETS = os.path.join(_ROOT, "assets", "html")

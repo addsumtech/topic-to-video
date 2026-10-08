@@ -738,7 +738,7 @@ reusable across the film's pages, and promotable to the library (`assets/html/co
   margin before the scene ends (ideally ≤ ~70-75%) so the burst window has time to fully resolve; check the
   actual rendered beat with `settled_frame.py`, not just `keyframe_qa`'s page-level sheet.
 
-Worked example (the fixture `tests/fixtures/html_component/LabelGauge.{js,css}` — a labelled dial — is the full one):
+Worked example (the example `assets/html/examples/LabelGauge.{js,css}` — a labelled dial — is the full one):
 ```js
 customElements.define('label-gauge', class extends HTMLElement {
   static demo = {label: 'Demo reading', value: '6', min: '0', max: '10', unit: 'units'};
