@@ -133,6 +133,15 @@ cd ~/.claude/skills/topic-to-video/remotion && npm install
 
 也可以用 [`npx skills`](https://github.com/vercel-labs/skills) 只装技能本身：`npx skills add addsumtech/topic-to-video`。上面那些工具仍然需要另外装好。
 
+**在 Claude Code 里也可以作为插件安装**，由 Claude Code 的插件系统统一管理：
+
+```text
+/plugin marketplace add addsumtech/topic-to-video
+/plugin install topic-to-video@topic-to-video
+```
+
+安装前先删掉 `~/.claude/skills/` 里已有的副本，否则会看到两个同名技能。要用电影分支，在安装好的技能文件夹里的 `remotion/` 下运行一次 `npm install`（在技能文件夹里运行 `python3 scripts/doctor.py` 会告诉你是否缺少）。以后更新：`/plugin marketplace update topic-to-video`。
+
 ### 第二步：告诉它你要什么视频
 
 开一个对话，直接描述：

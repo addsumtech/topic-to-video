@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "topic-to-video",
+  "owner": {
+    "name": "Addsum",
+    "url": "https://github.com/addsumtech"
+  },
+  "metadata": {
+    "description": "topic-to-video skill: narrated short videos from a topic or a slide deck, for Claude Code",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "topic-to-video",
+      "source": "./",
+      "description": "Make a short narrated video, with captions, from a topic or a slide deck. It researches the subject, writes and voices the script, designs and renders each scene (Remotion or HTML), checks the result and copies the MP4 to your Desktop. Works in English and Chinese; free by default with edge-tts and ffmpeg.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Addsum",
+        "url": "https://github.com/addsumtech"
+      },
+      "homepage": "https://github.com/addsumtech/topic-to-video",
+      "repository": "https://github.com/addsumtech/topic-to-video",
+      "license": "MIT",
+      "keywords": [
+        "agent-skill",
+        "explainer-video",
+        "narration",
+        "voiceover",
+        "subtitles",
+        "remotion",
+        "edge-tts",
+        "ffmpeg",
+        "pptx",
+        "multilingual",
+        "cjk"
+      ],
+      "category": "productivity"
+    }
+  ]
+}

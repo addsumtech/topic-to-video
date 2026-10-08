@@ -133,6 +133,15 @@ cd ~/.claude/skills/topic-to-video/remotion && npm install
 
 Or install the skill alone with [`npx skills`](https://github.com/vercel-labs/skills): `npx skills add addsumtech/topic-to-video`. You still need the tools above.
 
+**On Claude Code you can also install it as a plugin**, managed by Claude Code's plugin system:
+
+```text
+/plugin marketplace add addsumtech/topic-to-video
+/plugin install topic-to-video@topic-to-video
+```
+
+Remove any copy in `~/.claude/skills/` first, or you'll see the skill twice. For the cinematic tier, run `npm install` once inside the installed skill's `remotion/` folder (`python3 scripts/doctor.py`, run from the skill folder, tells you if it's missing). To update later: `/plugin marketplace update topic-to-video`.
+
 ### Step 2: Ask for a video
 
 Start a chat and describe the video:
