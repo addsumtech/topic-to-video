@@ -28,6 +28,15 @@ def test_plugin_and_marketplace_agree_with_the_skill():
     assert plugin["repository"] == entry["repository"] == "https://github.com/addsumtech/topic-to-video"
 
 
+def test_skill_md_version_matches_the_plugin():
+    # SkillHub's publisher reads slug/displayName/version from SKILL.md's frontmatter; a version there that
+    # drifts from the plugin's would publish one number to SkillHub and another to the Claude Code marketplace
+    with open(os.path.join(_ROOT, "SKILL.md"), encoding="utf-8") as f:
+        head = dict(l.split(":", 1) for l in f.read().split("---")[1].splitlines() if l and not l.startswith(" ") and ":" in l)
+    assert head["slug"].strip() == "topic-to-video"
+    assert head["version"].strip() == _json("plugin.json")["version"]
+
+
 def test_version_is_semver():
     parts = _json("plugin.json")["version"].split(".")
     assert len(parts) == 3 and all(p.isdigit() for p in parts)

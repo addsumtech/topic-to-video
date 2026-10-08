@@ -10,6 +10,7 @@
   <img alt="Codex" src="https://img.shields.io/badge/Codex-supported-111827">
   <img alt="Output: MP4 + SRT" src="https://img.shields.io/badge/output-MP4_%2B_SRT-0f766e">
   <img alt="Free by default" src="https://img.shields.io/badge/voice-free_by_default-2f6feb">
+  <a href="https://clawhub.ai/dong845/skills/topic-to-video"><img alt="ClawHub" src="https://img.shields.io/badge/ClawHub-get_it-e8590c"></a>
 </p>
 
 > **给它一个题目，比如"意式咖啡机是怎么萃取出一杯浓缩的"、"深圳是怎么从边境小镇长成超大城市的"，就能拿到一条一到两分钟、带配音和字幕的讲解短视频。画面上的每个事实，都能告诉你出处。**
@@ -106,6 +107,8 @@
 ## 快速开始
 
 ### 第一步：安装
+
+> **想从技能市场安装？** topic-to-video 也已上架 [ClawHub](https://clawhub.ai/dong845/skills/topic-to-video)，可以直接装进 [OpenClaw](https://openclaw.ai)。按那个页面的说明安装后，再回来装下面这些工具；不管用哪种方式安装都需要它们。
 
 需要 **Python 3.9+**、**ffmpeg** 和 **Google Chrome**（无界面运行，用来绘制画面）。用电影分支需要再装 **Node.js**；要输入 .pptx 文件需要 **LibreOffice**。
 

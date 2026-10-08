@@ -10,6 +10,7 @@
   <img alt="Codex" src="https://img.shields.io/badge/Codex-supported-111827">
   <img alt="Output: MP4 + SRT" src="https://img.shields.io/badge/output-MP4_%2B_SRT-0f766e">
   <img alt="Free by default" src="https://img.shields.io/badge/voice-free_by_default-2f6feb">
+  <a href="https://clawhub.ai/dong845/skills/topic-to-video"><img alt="ClawHub" src="https://img.shields.io/badge/ClawHub-get_it-e8590c"></a>
 </p>
 
 > **Give it a subject — "how does an espresso machine make a shot", "why a city grew past its own border" — and get back a one-to-two-minute narrated video with captions, where every fact on screen comes from a source it can show you.**
@@ -106,6 +107,8 @@ Pitches and overviews can go either way: evidence-heavy ones suit pages, story-l
 ## Quick start
 
 ### Step 1: Install
+
+> **Prefer a marketplace?** topic-to-video is also on [ClawHub](https://clawhub.ai/dong845/skills/topic-to-video), which installs straight into [OpenClaw](https://openclaw.ai). Follow the install steps on that page, then come back for the tools below; they apply however you install.
 
 You need **Python 3.9+**, **ffmpeg**, and **Google Chrome** (used headless to draw frames). Add **Node.js** for the cinematic tier, and **LibreOffice** if you'll feed it .pptx files.
 

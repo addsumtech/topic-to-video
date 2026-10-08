@@ -1,5 +1,8 @@
 ---
 name: topic-to-video
+slug: topic-to-video
+displayName: Topic to Video
+version: 1.0.0
 description: >-
   Turn ANY topic — or a slide deck — into a narrated explainer short video,
   automatically: researches the topic, writes and voices the script, designs and builds
