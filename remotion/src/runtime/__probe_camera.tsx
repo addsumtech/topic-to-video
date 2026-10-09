@@ -97,3 +97,32 @@ export const CameraTypeProbe: React.FC<{move?: CameraMove; amount?: number; pan?
     </AbsoluteFill>
   );
 };
+
+// EdgeBudgetProbe: a frame-filling plate's furniture — a kicker in the title band and two labels near the side
+// edges — inside the real SceneCamera's default push. tests/test_camera_edge_budget.py renders the settled push
+// and reads where the black type landed: the caption-only budget carried the kicker to ~15px from the top and the
+// labels to ~37px from the sides; the edge budget keeps all three inside the action-safe border. `clear` draws the
+// same three words near the centre, where the push must keep its full amount. A red dot marks a fixed point far
+// from the origin so the test can read the scale the camera actually applied.
+export const EdgeBudgetProbe: React.FC<{clear?: boolean; move?: CameraMove; pan?: [number, number]}> = ({
+  clear = false, move = 'push', pan}) => {
+  const {width: W, height: H} = useVideoConfig();
+  const px = Math.round(Math.min(W, H) * 0.03);
+  const font = `700 ${px}px/1.2 Inter, "Noto Sans SC", sans-serif`;
+  const kTop = clear ? Math.round(H * 0.4) : 56, side = clear ? Math.round(W * 0.3) : 100;
+  const midY = Math.round(H * 0.45);
+  return (
+    <AbsoluteFill style={{background: '#ffff00'}}>
+      <SceneCamera move={move} pan={pan}>
+        <AbsoluteFill style={{background: '#ffffff'}}>
+          <div style={{position: 'absolute', top: kTop, left: 0, right: 0, textAlign: 'center', color: '#000',
+            font}}>KICKER</div>
+          <div style={{position: 'absolute', top: midY, left: side, color: '#000', font}}>LEFT</div>
+          <div style={{position: 'absolute', top: midY, right: side, color: '#000', font}}>RIGHT</div>
+          <div style={{position: 'absolute', top: Math.round(H * 0.25) - 6, left: Math.round(W * 0.2) - 6,
+            width: 12, height: 12, borderRadius: 6, background: '#ff0000'}} />
+        </AbsoluteFill>
+      </SceneCamera>
+    </AbsoluteFill>
+  );
+};

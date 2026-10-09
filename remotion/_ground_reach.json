@@ -669,10 +669,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.9911022186279297,
-    "dark": 0.0009117950685322285
+    "light": 0.9917446374893188,
+    "dark": 0.0009105809731408954
    },
-   "moved": 0.9974976325757576,
+   "moved": 0.9974763257575757,
    "ok": true,
    "why": []
   },
@@ -1913,7 +1913,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9969270833333334,
+   "moved": 0.9969223484848485,
    "ok": true,
    "why": []
   },
@@ -2053,7 +2053,7 @@
     "light": 1.0,
     "dark": 0.0008898804080672562
    },
-   "moved": 0.9997727272727273,
+   "moved": 0.9997703598484848,
    "ok": true,
    "why": []
   },
@@ -2879,7 +2879,7 @@
   "DataMonolith": "b68f9be79ad9f024",
   "DataOrrery": "f6976bcb5b05eef6",
   "DiffusionDenoise": "415e2f8473771964",
-  "DollyZoom": "5a0933504a8d8fa4",
+  "DollyZoom": "3dfe8f413947b0bb",
   "EdCompare": "9ccb76b5e7ccbc70",
   "EdStat": "05c44481b3ebaf9c",
   "EdTimeline": "e07a8ae454bf0ea1",
@@ -2954,10 +2954,10 @@
   "PaperSlot": "381cc60d447ff1dc",
   "ParticleForm": "fca578a38371fab2",
   "PhaseEncodeStep": "c6cd903b075a2d0d",
-  "PhotoPlate": "79deca9d9d5a9460",
+  "PhotoPlate": "0455e6f362f881e7",
   "PhysicsStack": "b3168176cdcab369",
   "PixelBuild": "d75119d90ab5f8f2",
-  "PlanPalimpsest": "56aee74f108f4d34",
+  "PlanPalimpsest": "ff86752b3d4d8a80",
   "PlaneStack": "b3a8c98d2caf5ddd",
   "PlatformSurfaces": "8eb8a569b67c23eb",
   "PointerTour": "f62e6cad1ba88a72",
@@ -2966,7 +2966,7 @@
   "ProfileGrowth": "f88d69463cee8ab3",
   "PulledThread": "c9af9d28c14edace",
   "QuadSplit": "78921afa8df2de7e",
-  "RackFocus": "985dfe9b91fa2a2c",
+  "RackFocus": "99734cd66a4536cc",
   "RadialBurst": "470093932b7ae518",
   "RainGlass": "0e06bd56b5ed11cb",
   "RansomZine": "126d44c181f7e96e",

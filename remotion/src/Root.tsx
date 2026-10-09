@@ -9,7 +9,7 @@ import {OBJECTS, WORKSHOP_SHOTS} from './registry';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
-import {CameraTypeProbe, DURATION as CTP} from './runtime/__probe_camera';
+import {CameraTypeProbe, EdgeBudgetProbe, DURATION as CTP} from './runtime/__probe_camera';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
 import {PourSync, DURATION as D_POURSYNC} from './shots/PourSync';
@@ -426,6 +426,8 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="StageProbe" component={StageProbe} durationInFrames={SPD} fps={30}
       width={1920} height={1080} calculateMetadata={({props}) => ({...dims((props as any).aspect)})} />
     <Composition id="CameraTypeProbe" component={CameraTypeProbe} durationInFrames={CTP} fps={30}
+      width={1920} height={1080} calculateMetadata={({props}) => ({...dims((props as any).aspect)})} />
+    <Composition id="EdgeBudgetProbe" component={EdgeBudgetProbe} durationInFrames={CTP} fps={30}
       width={1920} height={1080} calculateMetadata={({props}) => ({...dims((props as any).aspect)})} />
     {F('TypeCollisionProbe', TypeCollisionProbe, 165)}
     {F('TiltedTypeCollisionProbe', TiltedTypeCollisionProbe, 165)}

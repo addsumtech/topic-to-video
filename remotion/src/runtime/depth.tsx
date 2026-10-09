@@ -20,7 +20,7 @@
 // belongs in neither this file nor the film.
 
 import React from 'react';
-import {useVideoConfig} from 'remotion';
+import {continueRender, delayRender, useVideoConfig} from 'remotion';
 import {useT, ReducedMotionContext, clamp01, easeInOutCubic, hash01} from './motion';
 import {CONTENT_TOP, contentBottom, maxCameraPush, captionSlackPx} from './layout';
 import {focusAt, type Focus} from './focus';
@@ -371,6 +371,126 @@ export const cameraAt = (move: CameraMove, t: number): number => {
 // before, and the type popped 0.3px on scattered frames — and `text-rendering: geometricPrecision` changes nothing
 // on this platform.
 
+// ── the edge budget ──────────────────────────────────────────────────────────────────────────────────────
+// THE CAPTION BAND WAS THE ONLY EDGE THE PUSH COUNTED. `maxCameraPush` derives the zoom from the room above
+// the burned subtitle and from nothing else, so on a plate that fills the frame a default push carried the
+// kicker in the title band to ~12px from the top and edge labels to ~10px from the sides. Nothing was CUT,
+// so text_safe passed; the type simply sat on the frame line, outside the action-safe border every
+// broadcast house keeps (EBU R95, 3.5% per side — the same border scripts/frame_safe_qa.py inspects).
+//
+// The cap therefore also reads the TYPE the camera carries: every visible line of type that sits inside the
+// safe area at rest may be pushed toward the top or a side only as far as that border. Measured on the
+// layout each frame (a pure function of the frame, so it stays seekable). A beat whose type keeps clear of
+// the edges loses nothing — its full push is still the caption-derived one. Type already inside the border
+// at rest is not pushed further out at all. Type wholly or partly off the frame is exempt (it is entering,
+// or deliberately cut — text_safe's question, not the camera's). A line's pull on the cap is weighted by its
+// opacity, so a label fading in tightens the budget as it appears instead of snapping the camera on one frame.
+export const ACTION_SAFE_FRAC = 0.035;
+
+export type EdgeBox = {l: number; t: number; r: number; b: number; w: number};
+
+/**
+ * The largest move EXTRA (scale − 1, before the unlock's overscan) that keeps every box inside the
+ * action-safe border on the top, left and right, for a camera that scales about (ox, oy) by (1 + e + u) and
+ * translates by (kx·e, ky·e) — the pan's travel, which is proportional to the overscan the move buys.
+ * Returns `want` when nothing binds. Pure: tests drive it directly.
+ */
+export const edgeSafeExtra = (
+  boxes: EdgeBox[], W: number, H: number, ox: number, oy: number, want: number,
+  u = 0, kx = 0, ky = 0,
+): number => {
+  if (!(want > 0)) return Math.max(0, want || 0);
+  const mx = W * ACTION_SAFE_FRAC, my = H * ACTION_SAFE_FRAC;
+  let cap = want;
+  // final position of a coordinate q at extra e: o + k·e + (1 + e + u)(q − o)
+  // low edge (left/top) must stay ≥ m; high edge (right) ≤ W − m. Each is linear in e, so solve it.
+  const lowCap = (q: number, o: number, k: number, m: number) => {
+    const D = o - q;                                  // distance from the origin toward the low edge
+    if (D <= 0) return Infinity;                      // on the far side of the origin: a push moves it inward
+    const slope = D - k;                              // how fast the box approaches the edge per unit of e
+    if (slope <= 0) return Infinity;
+    return (o - m - (1 + u) * D) / slope;
+  };
+  const highCap = (q: number, o: number, k: number, m: number, size: number) => {
+    const D = q - o;
+    if (D <= 0) return Infinity;
+    const slope = D + k;
+    if (slope <= 0) return Infinity;
+    return (size - m - o - (1 + u) * D) / slope;
+  };
+  for (const b of boxes) {
+    const w = Math.max(0, Math.min(1, b.w));
+    if (w <= 0) continue;
+    // exempt: not wholly on the frame (entering, leaving, or cut on purpose)
+    if (b.l < 0 || b.t < 0 || b.r > W || b.b > H) continue;
+    const e = Math.min(lowCap(b.t, oy, Math.min(0, ky), my), lowCap(b.l, ox, kx, mx), highCap(b.r, ox, kx, mx, W));
+    if (!Number.isFinite(e)) continue;
+    cap = Math.min(cap, Math.max(0, e) / w);          // a half-faded line pulls on the cap half as hard
+  }
+  return Math.max(0, Math.min(want, cap));
+};
+
+const MIN_EDGE_OPACITY = 0.05;
+
+/** Every visible line of type under `root`, in `root`'s own untransformed px, with its effective opacity. */
+const cameraTypeBoxes = (root: HTMLElement, W: number): EdgeBox[] => {
+  const doc = root.ownerDocument, win = doc?.defaultView;
+  if (!doc || !win || !doc.createTreeWalker || !doc.createRange) return [];
+  const frame = root.getBoundingClientRect();
+  if (!(frame.width > 0)) return [];
+  const k = W / frame.width;                          // the Studio preview draws the frame scaled
+  const state = new Map<Element, {w: number; clip: [number, number, number, number] | null} | null>();
+  const info = (el: Element): {w: number; clip: [number, number, number, number] | null} | null => {
+    if (state.has(el)) return state.get(el)!;
+    let res: {w: number; clip: [number, number, number, number] | null} | null;
+    if (el === root) {
+      res = {w: 1, clip: null};
+    } else {
+      const up = el.parentElement ? info(el.parentElement) : {w: 1, clip: null};
+      const cs = win.getComputedStyle(el);
+      if (!up || cs.display === 'none' || cs.visibility === 'hidden') {
+        res = null;
+      } else {
+        const w = up.w * parseFloat(cs.opacity || '1');
+        let clip = up.clip;
+        if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') {
+          const c = el.getBoundingClientRect();
+          const covers = c.left <= frame.left + 1 && c.top <= frame.top + 1 &&
+                         c.right >= frame.right - 1 && c.bottom >= frame.bottom - 1;
+          if (!covers) {
+            const cc: [number, number, number, number] = [c.left, c.top, c.right, c.bottom];
+            clip = clip ? [Math.max(clip[0], cc[0]), Math.max(clip[1], cc[1]),
+                           Math.min(clip[2], cc[2]), Math.min(clip[3], cc[3])] : cc;
+          }
+        }
+        res = w < MIN_EDGE_OPACITY ? null : {w, clip};
+      }
+    }
+    state.set(el, res);
+    return res;
+  };
+  const out: EdgeBox[] = [];
+  const walker = doc.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (!(n.textContent ?? '').trim() || !n.parentElement) continue;
+    const st = info(n.parentElement);
+    if (!st) continue;
+    const range = doc.createRange();
+    range.selectNodeContents(n);
+    const rs = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
+    range.detach?.();
+    if (!rs.length) continue;
+    let l = Math.min(...rs.map((r) => r.left)), t = Math.min(...rs.map((r) => r.top));
+    let r = Math.max(...rs.map((x) => x.right)), b = Math.max(...rs.map((x) => x.bottom));
+    if (st.clip) {
+      l = Math.max(l, st.clip[0]); t = Math.max(t, st.clip[1]); r = Math.min(r, st.clip[2]); b = Math.min(b, st.clip[3]);
+      if (r <= l || b <= t) continue;               // clipped away entirely
+    }
+    out.push({l: (l - frame.left) * k, t: (t - frame.top) * k, r: (r - frame.left) * k, b: (b - frame.top) * k, w: st.w});
+  }
+  return out;
+};
+
 /**
  * Wraps ONE scene's shot: applies the camera's 2D scale and publishes the push so `Plane`s can parallax.
  *
@@ -435,32 +555,82 @@ export const SceneCamera: React.FC<{
   const px = reduced ? 0 : clampPan(pan);
   const panning = px !== null;
   const base = panning && amp * push < amp * 0.5 ? amp : 0;
-  const moveScale = 1 + Math.max(amp * push, base);
-  // fraction of the frame available beyond EACH edge — the MOVE's overscan: the unlock's is reserved for
-  // the skew's own tilt, and a pan that spent it would uncover the corners the skew already reaches into
-  const over = (moveScale - 1) / 2;
-  const scale = moveScale + unlock;
+  const wantExtra = Math.max(amp * push, base);
   // Near-LINEAR travel. An ease-in-out spends most of its frames at the flat ends, which is where the
   // measured motion went missing; a gentle constant drift is what a Ken Burns move actually is.
   const trav = panning ? panAt(t) : 0;
-  const tx = panning ? px[0] * over * W * trav : 0;
   // THE VERTICAL COMPONENT IS BOUNDED BY THE CAPTION BAND, not only by the overscan. The overscan budget
   // guarantees no frame EDGE is revealed and says nothing about the one band reserved for something else:
   // measured on a delivered film, a beat panned downward put the register's own title on top of the burned
   // subtitle and made both unreadable. The caption rides a HUD track that does not move with the camera, so
   // only the scene can close that gap — and it must not.
   const downRoom = captionSlackPx(W, H, driftExtra, driftTranslate);
-  const tyRaw = panning ? px[1] * over * H * trav : 0;
-  const ty = Math.min(tyRaw, downRoom);              // upward travel is unconstrained; downward is not
-  const xf = [
-    tx || ty ? `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)` : '',
-    scale === 1 ? '' : `scale(${scale.toFixed(5)})`,
-    unlock ? BASELINE_UNLOCK : '',
-  ].filter(Boolean).join(' ');
-
+  // The whole transform as a function of the move's extra scale, so the edge budget (below) can re-derive the
+  // pan's travel from a smaller move: travel spends the overscan the move buys, and a capped move buys less.
+  const compose = (extra: number): string => {
+    const moveScale = 1 + extra;
+    // fraction of the frame available beyond EACH edge — the MOVE's overscan: the unlock's is reserved for
+    // the skew's own tilt, and a pan that spent it would uncover the corners the skew already reaches into
+    const over = (moveScale - 1) / 2;
+    const scale = moveScale + unlock;
+    const tx = panning ? px[0] * over * W * trav : 0;
+    const tyRaw = panning ? px[1] * over * H * trav : 0;
+    const ty = Math.min(tyRaw, downRoom);              // upward travel is unconstrained; downward is not
+    return [
+      tx || ty ? `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px)` : '',
+      scale === 1 ? '' : `scale(${scale.toFixed(5)})`,
+      unlock ? BASELINE_UNLOCK : '',
+    ].filter(Boolean).join(' ');
+  };
+  const xf = compose(wantExtra);
+  // THE EDGE BUDGET (see edgeSafeExtra): measured on this frame's own layout, untransformed, and applied
+  // before the frame is painted. Only a camera that is actually moving pays the walk.
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!(wantExtra > 0)) {
+      el.style.transform = xf || '';
+      return;
+    }
+    const apply = (): boolean => {
+      el.style.transform = 'none';
+      if (!(el.getBoundingClientRect().width > 0)) {
+        el.style.transform = xf || '';
+        return false;
+      }
+      const boxes = cameraTypeBoxes(el, W);
+      const kx = panning ? (px[0] * W * trav) / 2 : 0;
+      const ky = panning ? (px[1] * H * trav) / 2 : 0;
+      el.style.transform = compose(edgeSafeExtra(boxes, W, H, W / 2, originY, wantExtra, unlock, kx, ky)) || '';
+      return true;
+    };
+    if (apply()) return;
+    // NOT LAID OUT YET: the renderer mounts a composition before its container has a size (measured: the first
+    // frame a still or a render tab draws reports a 0px-wide frame here). Hold that frame until layout exists,
+    // or the first frame of every tab would ship uncapped — the measurement silently skipped.
+    const handle = delayRender('camera edge budget', {timeoutInMilliseconds: 20000});
+    let done = false, tries = 0, raf = 0;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        continueRender(handle);
+      }
+    };
+    const tick = () => {
+      if (done) return;
+      if (apply() || ++tries > 120) finish();
+      else raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      finish();
+    };
+  });
   return (
     <CameraContext.Provider value={{push, amount: amp, glide: unlock > 0}}>
-      <div style={{
+      <div ref={ref} style={{
         position: 'absolute', inset: 0,
         transform: xf || undefined,
         transformOrigin: `50% ${originY.toFixed(1)}px`,
