@@ -218,6 +218,25 @@ def _blank_issue(info):
     return None
 
 
+_VERTICAL_CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "html", "vertical.css")
+
+
+def _fill_zone(W, H):
+    """(top, bottom) px of the 9:16 content zone: vertical.css's `.stage` top padding down to where the
+    renderer's caption band begins (caption_band_px) — the same two sources the page and the burn use,
+    not a literal that drifts from them (the class of bug 0c00fa7 fixed for the caption check)."""
+    css = open(_VERTICAL_CSS, encoding="utf-8").read()
+    m = re.search(r"\.stage\s*\{[^}]*?padding:\s*(\d+)px", css)
+    if not m:
+        raise RuntimeError("`.stage` padding not found in %s — the 9:16 fill zone is read from it" % _VERTICAL_CSS)
+    return int(m.group(1)), H - caption_band_px(W, H)
+
+
+def _fill_fraction(info, W, H):
+    top, bot = _fill_zone(W, H)
+    return (info["cbot"] - info["ctop"]) / float(bot - top)
+
+
 def _geometry_issues(info, meta, W, H):
     """Pure classifier for the box-geometry gate — the three ways content can be *placed* wrong even
     when the reveal fired: (1) it overflows the safe canvas, (2) a fixed-height / overflow:hidden box
@@ -692,13 +711,13 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                                           "shared guide or make the offset clearly deliberate "
                                           "(html-pages.md Alignment & order discipline)")
                     # 9:16 fill (html-pages.md "fill the column"): content should span >=~70% of
-                    # the zone above the caption band (y160-1600). Below 60% is advisory; below HALF
+                    # the zone between the stage top padding and the caption band (_fill_zone). Below 60% is advisory; below HALF
                     # the page ships with an empty lower half under a top-anchored stack, which the
                     # viewer reads as a broken page (a smoke film shipped 45% on an advisory), so it
                     # blocks. A full-bleed .bg-photo hero provides visual fill outside .stage, so
                     # heroes never warn.
                     if meta.get("aspect") == "9:16" and info.get("cbot", -1) > info.get("ctop", 0):
-                        fill = (info["cbot"] - info["ctop"]) / (1600 - 160)
+                        fill = _fill_fraction(info, W, H)
                         rep_fill = round(100 * min(1.0, fill))
                         if fill < 0.60 and not info.get("bleed"):
                             (issues if fill < 0.50 else advisories).append(

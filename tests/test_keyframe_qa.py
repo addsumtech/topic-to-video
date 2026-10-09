@@ -264,3 +264,16 @@ def test_enclosure_check_measures_text_ink_not_the_container_box():
 
 def test_enclosure_check_skips_the_ring_s_own_subtree():
     assert "rg.contains(t)" in kq._OVERFLOW_JS
+
+
+# ---- 9:16 fill zone is derived, not the literal 160..1600 ------------------------------------------
+def test_fill_zone_is_stage_padding_to_caption_band():
+    top, bot = kq._fill_zone(1080, 1920)
+    assert top == 150 and bot == 1920 - caption_band_px(1080, 1920)
+
+def test_fill_verdict_uses_the_real_zone_not_160_1600():
+    # content spanning 740px: old literal zone (1440) -> 51% (advisory); real zone (150..1663 = 1513) -> 48.9%, blocks
+    info = {"ctop": 150, "cbot": 890}
+    old = (info["cbot"] - info["ctop"]) / (1600 - 160)
+    new = kq._fill_fraction(info, 1080, 1920)
+    assert old >= 0.50 and new < 0.50
