@@ -591,7 +591,19 @@ const chromaSpec = (_dna: DesignDNA, accent: string): GroundSpec => {
 };
 
 /** Interpolate two resolved grounds. Every token is mixed, so a ramp moves the whole world's exposure and
- *  not just the backdrop — a register reading `dim` or `line` ramps with it. */
+ *  not just the backdrop — a register reading `dim` or `line` ramps with it.
+ *
+ *  BUT A MIXED INK CROSSES THE GROUND. Each end's inks were chosen to read on THAT end's ground, so a
+ *  light↔dark ramp drives them through the ground's own tone at the moment the ground passes it: measured
+ *  over the eight DNA presets ramping to paper/gallery/clay/olive/#05060a, the mixed tokens fell to 1.0:1
+ *  against the mixed ground mid-ramp (fg 1.01:1 on cinematic→paper at p 0.5) — on a delivered city film a
+ *  strata column lost its old layers, its outline and its kicker, one red layer floating on grey. So each
+ *  token is CHOSEN PER FRAME, the way the burned caption's ink already is: the mixed value while it still
+ *  clears its own floor against this frame's ground, and otherwise the value the ground itself would derive
+ *  — the better of the two ends' inks (exposed if neither reads), `dim` solved from it, the accents exposed,
+ *  and the rules and fills re-placed from that ink. A ramp whose mixed tokens already read keeps them
+ *  exactly; the floors are the ones every resting ground is held to. Outlines and fills have no absolute
+ *  floor (a surface is MEANT to sit near its ground), so theirs is the weaker end's own contrast. */
 export const mixGround = (a: ResolvedGround, b: ResolvedGround, p: number): ResolvedGround => {
   if (p <= 0) return a;
   if (p >= 1) return b;
@@ -603,12 +615,45 @@ export const mixGround = (a: ResolvedGround, b: ResolvedGround, p: number): Reso
     // strings cannot be interpolated, so carrying either endpoint's treatment would POP the moment the ramp
     // started. One decision per beat, taken here rather than at the crossing.
     bgGrad: undefined,
-    fg: mix(a.fg, b.fg, p), dim: mix(a.dim, b.dim, p), surface: mix(a.surface, b.surface, p),
-    surfaceBorder: mix(a.surfaceBorder, b.surfaceBorder, p), line: mix(a.line, b.line, p),
-    accent: mix(a.accent, b.accent, p), accent2: mix(a.accent2, b.accent2, p),
-    onAccent: mix(a.onAccent, b.onAccent, p),
+    ...rampTokens(a, b, p, bg, y),
     key: keyFromY(y), y,
   };
+};
+
+const cOf = (c: string, groundY: number): number => {
+  const v = lumValue(c);
+  return v === null ? Infinity : contrast(v, groundY);   // an unparseable token is passed through, not judged
+};
+
+/** The ramp's tokens at `p` on the mixed ground `bg` (luminance `y`) — see mixGround. */
+const rampTokens = (a: ResolvedGround, b: ResolvedGround, p: number, bg: string, y: number) => {
+  const keep = (mixed: string, floor: number, derive: () => string): string =>
+    cOf(mixed, y) >= floor ? mixed : derive();
+  const fg = keep(mix(a.fg, b.fg, p), INK_CONTRAST_MIN, () => inkOn(y, a.fg, b.fg));
+  const dim = keep(mix(a.dim, b.dim, p), DIM_CONTRAST_MIN, () => dimOn(bg, fg, y));
+  const accent = keep(mix(a.accent, b.accent, p), ACCENT_CONTRAST_MIN, () => expose(mix(a.accent, b.accent, p), y));
+  const accent2 = keep(mix(a.accent2, b.accent2, p), ACCENT_CONTRAST_MIN,
+    () => expose(mix(a.accent2, b.accent2, p), y));
+  // rules and fills: as visible as at the weaker end, re-placed from this frame's ink when the mix is not
+  const placed = (k: 'surface' | 'surfaceBorder' | 'line'): string => {
+    const mixed = mix(a[k], b[k], p);
+    const floor = Math.min(cOf(a[k], a.y), cOf(b[k], b.y));
+    if (cOf(mixed, y) >= floor) return mixed;
+    // the library's own placement first, walked toward the ink until it is as visible as the weaker end
+    let best = mixed;
+    for (let i = 0; i <= 24; i++) {
+      const out = mix(bg, fg, TOKEN_MIX[k] + (1 - TOKEN_MIX[k]) * (i / 24));
+      if (cOf(out, y) > cOf(best, y)) best = out;
+      if (cOf(out, y) >= floor) return out;
+    }
+    return best;
+  };
+  const accY = lumValue(accent);
+  const onAccentMixed = mix(a.onAccent, b.onAccent, p);
+  const onAccent = accY === null || cOf(onAccentMixed, accY) >= INK_CONTRAST_MIN ? onAccentMixed
+    : inkOn(accY, a.fg, b.fg);
+  return {fg, dim, surface: placed('surface'), surfaceBorder: placed('surfaceBorder'), line: placed('line'),
+    accent, accent2, onAccent};
 };
 
 /** The ramp's default window, in the beat's own 0→1 time. It PARKS the ground for the frames a
