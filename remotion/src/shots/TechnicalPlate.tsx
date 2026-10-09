@@ -21,6 +21,14 @@
 // `strokes` and `parts` together, or `art` (a drawing the film built) and `parts` together, or neither (neither
 // is the standalone demo); every part needs `x` and `y`; a stroke missing a coordinate it needs throws; and
 // the callout timing is spread over however many parts there are, up to six.
+//
+// A CALLOUT READS WHEN THE VOICE NAMES ITS PART (runtime/cue.ts). The callouts are dealt in the last fifth of the
+// beat, and a narration that walks the parts from its first sentence left them seconds late — the first one 3.2 s
+// after the voice said it on a delivered film, with the beat's clock already warped as far as the warp may go. A
+// cued callout starts early enough to read on its word, never later than its own slot. The drawing keeps its own
+// pace: the callout may arrive while its part is still being drawn (measured on that film, the pan was drawn
+// within a second of its callout), which is the voice and the pen naming the same thing together; compressing
+// the drawing instead would have moved the art's own events (the pour) off the sentence that describes them.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
@@ -28,6 +36,7 @@ import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
 import {CONTENT_TOP, captionBand, contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
+import {useCues, REACH_CUBIC, REACH_EXPO} from '../runtime/cue';
 
 export const DURATION = 160;
 
@@ -110,6 +119,7 @@ export const TechnicalPlate: React.FC<{
   note = ''} = {}) => {
   const dna = useDNA();
   const t = useT();
+  const cue = useCues();
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
@@ -206,7 +216,8 @@ export const TechnicalPlate: React.FC<{
 
   const sheet = easeOutCubic(clamp01(seg(t, 0.02, 0.18)));
   const draw = clamp01(seg(t, 0.14, 0.62));
-  const land = easeOutExpo(clamp01(seg(t, 0.66, 0.88)));
+  const land = easeOutExpo(clamp01(seg(t, ...cue.win('object', 0.66, 0.88, REACH_EXPO))));
+  const noteLand = easeOutExpo(clamp01(seg(t, ...cue.win('note', 0.66, 0.88, REACH_EXPO))));
   const lw = Math.max(2, Math.round(W * 0.0026));
 
   const nS = Math.max(1, STROKES.length);
@@ -270,7 +281,7 @@ export const TechnicalPlate: React.FC<{
         // Spread over however many parts there are. A fixed 0.10 step put part 5's fade-in at t = 1.0, so every
         // part past the fourth was drawn at opacity 0 — present in props, absent from the film.
         const step = Math.min(0.10, 0.22 / Math.max(1, PARTS.length));
-        const on = easeOutCubic(clamp01(seg(t, 0.60 + i * step, 0.76 + i * step)));
+        const on = easeOutCubic(clamp01(seg(t, ...cue.win('parts.' + i, 0.60 + i * step, 0.76 + i * step, REACH_CUBIC))));
         if (on <= 0) return null;
         const right = (p.side ?? 'right') === 'right';
         const px = ux(p.x as number), py = uy(p.y as number);
@@ -299,7 +310,7 @@ export const TechnicalPlate: React.FC<{
         font: `700 ${Math.round(W * 0.028)}px/1.2 ${disp}`, color: FG}}>{object}</div>
       {note ? (
         <div style={{position: 'absolute', left: fx0, top: plateNoteTop,
-          width: fieldW, textAlign: 'center', opacity: land * 0.9,
+          width: fieldW, textAlign: 'center', opacity: noteLand * 0.9,
           font: `400 ${Math.round(W * 0.0135)}px/1.4 var(--f-body, system-ui, sans-serif)`,
           color: DIM}}>{note}</div>
       ) : null}

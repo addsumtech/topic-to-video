@@ -1542,12 +1542,15 @@ SHOT_SCAFFOLD = """// SHOT · %(name)s — %(means)s
 // contentBottom); colours come from the Design DNA with fallbacks; it is a pure function of the frame. Read
 // references/remotion-shot-authoring.md (the frame-craft floor) and references/building-blocks.md. It may hold
 // objects (a prop typed ObjectRef drawn with <ObjectSlot object=… box=…/>) and may wrap a library register
-// (import {X} from '@shots/X').
+// (import {X} from '@shots/X'). Each word that enters on its own takes its window through `cue.win('<prop path>',
+// a, b, reach)` (runtime/cue.ts): the render then starts it early enough to read when the voice says it — the one
+// thing the beat's time warp cannot do when the narration names things in a different order from the frame.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '@runtime/motion';
 import {CONTENT_TOP, contentBottom} from '@runtime/layout';
 import {useDNA} from '@runtime/dna';
+import {useCues, REACH_CUBIC} from '@runtime/cue';
 
 export const DURATION = 150;
 // the DNA token this shot paints its ground from ('bg', 'bgGrad', 'surface', 'accent', 'accent2') or a '#hex' —
@@ -1560,8 +1563,9 @@ export const PROVENANCE = '';
 export const %(name)s: React.FC<{title?: string}> = ({title = ''}) => {
   const dna = useDNA();
   const t = useT();
+  const cue = useCues();
   const {width: W, height: H} = useVideoConfig();
-  const on = easeOutCubic(clamp01(seg(t, 0.05, 0.3)));
+  const on = easeOutCubic(clamp01(seg(t, ...cue.win('title', 0.05, 0.3, REACH_CUBIC))));
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? '#0a0f16', color: dna?.fg ?? '#e8eef6'}}>
       <div style={{position: 'absolute', left: 0, right: 0, top: (CONTENT_TOP + contentBottom(W, H)) / 2,

@@ -13,6 +13,14 @@
 // where it is not (portrait, square) the object carries numbered dots and a numbered key sits under its name.
 // The object and its words are centred together in the content zone.
 //
+// WORDS ARRIVE WHEN THE VOICE SAYS THEM (runtime/cue.ts). A label, the title or the note the narration names
+// before its slot starts early enough to read on its word — never later than its slot. The callouts were dealt in
+// one late run, so a narration that names its first part in its first sentence left that label 3.7 s late on a
+// delivered film, past anything the beat's warp could reach. A label cued that early arrives while the object is
+// still building — the voice and the picture introducing the thing together; the object's own clock is left alone,
+// since compressing it would move the object's events off the sentences that describe them. The settled frame is
+// unchanged: every word is in by then.
+//
 // Standalone it shows its own preview form (objects/DemoForm, no words). A film must name its object —
 // REQUIRED_IN_FILM, which validate.py reads.
 import React from 'react';
@@ -26,6 +34,7 @@ import {rows} from '../runtime/rows';
 import {hex6} from '../runtime/hexColor';
 import {ObjectSlot, useObjectEntry, fitAspect, type ObjectRef} from '../runtime/objectSlot';
 import {DEMO_ID} from '../objects/DemoForm';
+import {useCues, REACH_CUBIC} from '../runtime/cue';
 
 export const DURATION = 165;
 export const MAX_STAGE_LABELS = 6;
@@ -66,6 +75,7 @@ export const ObjectStage: React.FC<{
   const entry = useObjectEntry(OBJECT);
   const dna = useDNA();
   const t = useT();
+  const cue = useCues();
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0, ACC = dna?.accent ?? ACC_D0;
   const ON_ACC = onAccentInk(ACC, dna?.accent2, dna?.onAccent, FG);
@@ -159,9 +169,10 @@ export const ObjectStage: React.FC<{
   const objT = clamp01(seg(t, OBJ_A, OBJ_B));
   const floorIn = easeOutCubic(clamp01(seg(t, 0.03, 0.2)));
   const step = nL > 1 ? Math.min(0.05, (LAND_BY - LBL_A - 0.12) / (nL - 1)) : 0;
-  const onAt = (i: number) => easeOutCubic(clamp01(seg(t, LBL_A + i * step, LBL_A + i * step + 0.12)));
-  const titleIn = easeOutCubic(clamp01(seg(t, 0.62, 0.78)));
-  const noteIn = easeOutCubic(clamp01(seg(t, 0.66, 0.82)));
+  const onAt = (i: number) => easeOutCubic(clamp01(seg(t,
+    ...cue.win('labels.' + i, LBL_A + i * step, LBL_A + i * step + 0.12, REACH_CUBIC))));
+  const titleIn = easeOutCubic(clamp01(seg(t, ...cue.win('title', 0.62, 0.78, REACH_CUBIC))));
+  const noteIn = easeOutCubic(clamp01(seg(t, ...cue.win('note', 0.66, 0.82, REACH_CUBIC))));
 
   // SIDE CALLOUT COLUMNS: each column is ordered top-to-bottom from its labels' own points and pushed apart
   // so no label overprints its neighbour, the SAME bound the words already keep — inside the content zone,

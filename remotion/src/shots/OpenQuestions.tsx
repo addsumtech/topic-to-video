@@ -9,12 +9,18 @@
 // 0.12 + 0.2i -> 0.30 + 0.2i as the scan passes it, so the fourth is lit by 0.90, just as the footer lands; a
 // fifth would start lighting at 0.92 and never finish. Past four it THROWS naming the limit; no questions, or
 // an empty one, throws too — a scan light passing over nothing is not a question left open.
+//
+// EACH QUESTION, AND THE FOOTER, READS WHEN THE VOICE ASKS IT (runtime/cue.ts). The scan's order is the list's
+// order, and a narration that says the footer's line between the first question and the second left the footer
+// five seconds late — no warp of the beat's one clock can move the last thing shown ahead of the one before it.
+// A cued item starts early enough to read on its word; never later than the scan would have lit it.
 
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
 import {captionBand, contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
+import {useCues, REACH_CUBIC} from '../runtime/cue';
 
 export const DURATION = 170; // ~5.7s
 
@@ -27,6 +33,7 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();
+  const cue = useCues();
   // The film's own inks, each with the ORIGINAL literal it replaced as its null-DNA fallback — the kicker and
   // the unlit question were two different greys, and collapsing them to one changed the un-themed look (the
   // null-DNA colour test caught exactly that: `#8f9bb0` had become unreachable).
@@ -71,6 +78,7 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
   const topY = Math.min(H * 0.34, yLastMax - stepY * Math.max(0, n - 1));
   const scanProg = clamp01(seg(t, 0.1, 0.14 + n * 0.2));           // the light descends past each question
   const scanY = lerp(topY - stepY * 0.5, topY + stepY * (n - 0.5), scanProg);
+  const [footA, footB] = cue.win('footer', 0.78, 0.92, REACH_CUBIC);
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 30%, #0d1119, #05060a 70%)')}}>
@@ -87,7 +95,9 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
       {/* the questions — each lights as the scan passes, then stays lit */}
       {qs.map((q, i) => {
         const yc = topY + stepY * i;
-        const lit = clamp01(seg(t, 0.12 + i * 0.2, 0.3 + i * 0.2));
+        // lit reads (opacity = 1.3 x lit >= 0.5) at 0.385 of its window
+        const [qa, qb] = cue.win('questions.' + i, 0.12 + i * 0.2, 0.3 + i * 0.2, 0.385);
+        const lit = clamp01(seg(t, qa, qb));
         const glow = clamp01(1 - Math.abs(scanY - yc) / 90) * (scanProg < 1 ? 1 : 0);
         const b = Math.max(lit * 0.86, glow);
         return (
@@ -112,10 +122,10 @@ export const OpenQuestions: React.FC<{kicker?: string; questions?: string[]; acc
         );
       })}
 
-      {/* footer: unresolved + a blinking caret (once all questions are up) — clamped ABOVE the caption band */}
+      {/* footer: unresolved + a blinking caret (once all questions are up, or when the voice says it) — clamped ABOVE the caption band */}
       <div style={{position: 'absolute', left: 0, right: 0,
         top: Math.min(topY + stepY * (n - 1) + H * 0.12, FOOT_TOP), textAlign: 'center',
-        opacity: easeOutCubic(seg(t, 0.78, 0.92)), color: accent, font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>
+        opacity: easeOutCubic(seg(t, footA, footB)), color: accent, font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>
         {footer}<span style={{opacity: Math.sin(t * Math.PI * 2 * 6) > 0 ? 1 : 0}}> _</span>
       </div>
     </AbsoluteFill>

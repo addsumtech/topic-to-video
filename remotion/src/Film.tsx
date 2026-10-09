@@ -20,6 +20,7 @@ import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES,
         easeOutCubic} from './runtime/motion';
 import {NarrationContext} from './runtime/voice';
+import {CueContext, warpFrame} from './runtime/cue';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumValue, lumFromY,
         type Lum, type GroundColors} from './runtime/shotLuma';
 import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DARK, CAPTION_INK_LIGHT,
@@ -67,18 +68,23 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // entrance it times as a fixed fraction of the beat lands on the word that names it — with no register file
   // touched. Derived by scripts/sync_qa.py from the type census of the un-warped film (render_remotion does it
   // before a render); absent = the register's own clock, and the beat renders exactly as it did before.
-  warp?: [number, number][]};
+  warp?: [number, number][];
+  // PER-ELEMENT CUES: {prop path: film second by which that item should read} — what the warp cannot do, since it
+  // cannot reorder (runtime/cue.ts). Set by scripts/sync_qa.py `attach_cues` only for a register that imports
+  // runtime/cue; read through CueContext, so a register that ignores it renders exactly as before.
+  cues?: Record<string, number>};
 
-/** The register frame a beat with knots `warp` sees at its film frame `f`: piecewise linear between knots, the
- *  identity outside them (the seams' held edges are never warped). Mirrors scripts/sync_qa.py `warp_frame`. */
-export const warpFrame = (f: number, warp?: [number, number][] | null): number => {
-  if (!warp || warp.length < 2 || f <= warp[0][0] || f >= warp[warp.length - 1][0]) return f;
-  for (let k = 1; k < warp.length; k++) {
-    const [f0, g0] = warp[k - 1];
-    const [f1, g1] = warp[k];
-    if (f <= f1) return g0 + ((g1 - g0) * (f - f0)) / (f1 - f0);
+// warpFrame lives in runtime/cue (a register's per-element cues convert through the same map); re-exported here.
+export {warpFrame};
+
+/** Refuses a cue that is not a second inside the beat — a NaN would silently pin nothing. */
+const checkCues = (cues: Record<string, number>, i: number, shot: string) => {
+  for (const [k, v] of Object.entries(cues)) {
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+      throw new Error(`scene ${i} (${shot}) has cue ${JSON.stringify(k)} = ${JSON.stringify(v)} — a cue is the film ` +
+        'second (inside the beat) at which that item should read; re-derive it (scripts/sync_qa.py attach_cues)');
+    }
   }
-  return f;
 };
 
 /** Refuses a warp that is not a monotone map — a register run backwards or frozen is never what was meant. */
@@ -995,7 +1001,10 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   // stories and the one on screen is not the one the caption believes: exactly the staleness that put dark
   // ink on a dark themed ground. Refuse it here, once per frame over the whole EDL, rather than let a hint
   // quietly outvote the pixels. Checked in both directions (in/out) so a ramp cannot start honest and end wrong.
-  scenes.forEach((sc, i) => { if (sc.warp) checkWarp(sc.warp, i, sc.shot); });
+  scenes.forEach((sc, i) => {
+    if (sc.warp) checkWarp(sc.warp, i, sc.shot);
+    if (sc.cues) checkCues(sc.cues, i, sc.shot);
+  });
   scenes.forEach((sc, i) => {
     if (!sc.bgLum || (sc.ground === undefined && !sc.key)) return;
     for (const edge of ['in', 'out'] as const) {
@@ -1083,7 +1092,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                     {/* `data-beat` marks THIS beat's register for the sync audit (scripts/sync_qa.py reads it from the
                         type census): the caption, the chrome and the other beat of a seam carry none of it. */}
                     <AbsoluteFill data-beat={String(i)}>
-                      <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                      <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
+                        <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                      </CueContext.Provider>
                     </AbsoluteFill>
                   </SceneCamera>
                   <BeatChrome chrome={sc.chrome} W={width} H={height} />

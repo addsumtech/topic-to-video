@@ -34,6 +34,7 @@ import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
+import {useCues, REACH_CUBIC, REACH_EXPO} from '../runtime/cue';
 import {captionBand, CONTENT_TOP, placeLabel, latinAdvance, cjkAdvance} from '../runtime/layout';
 import {Plane, DEPTH} from '../runtime/depth';
 import {useDNA} from '../runtime/dna';
@@ -77,6 +78,7 @@ export const PhotoPlate: React.FC<{
   requireEvidence('PhotoPlate', 'src', src, 'the real photograph this plate frames and points at');
   const dna = useDNA();
   const t = useT();
+  const cue = useCues();
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
   const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
@@ -206,7 +208,11 @@ export const PhotoPlate: React.FC<{
   const px1 = px0 + PW;
 
   const plate = easeOutCubic(clamp01(seg(t, 0.02, 0.26)));
-  const land = easeOutExpo(clamp01(seg(t, 0.68, 0.90)));
+  // THE CAPTION AND EACH MARK READ WHEN THE VOICE NAMES THEM (runtime/cue.ts): a narration that opens on what
+  // the photograph IS left its caption — shown last — 4.2 s late on a delivered film, which no warp of the beat's
+  // one clock can fix without dragging the marks along. A cued item starts early enough to read on its word,
+  // never later than its own slot; the photograph is already up by then.
+  const land = easeOutExpo(clamp01(seg(t, ...cue.win('caption', 0.68, 0.90, REACH_EXPO))));
   const dot = Math.max(8, Math.round(base * 0.013));
   const chipPad = Math.round(base * 0.010);
   const chipFont = Math.round(base * 0.030);
@@ -360,7 +366,7 @@ export const PhotoPlate: React.FC<{
       <Plane depth={DEPTH.lifted}>
         {laidOut.map(({m, i, mx, my, cy, chipW, chipH, left, align, text}) => {
           const st = 0.30 + i * (0.42 / Math.max(1, shown.length));
-          const on = easeOutCubic(clamp01(seg(t, st, st + 0.20)));
+          const on = easeOutCubic(clamp01(seg(t, ...cue.win('marks.' + i, st, st + 0.20, REACH_CUBIC))));
           if (on <= 0) return null;
           const leftSide = align !== 'left';
           const nearX = leftSide ? left + chipW : left;

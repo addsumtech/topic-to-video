@@ -294,6 +294,24 @@ def _readable(line):
     return (float(line.get("o", 1)) >= APPEAR_OPACITY and float(line.get("v", 1)) >= APPEAR_VISIBLE)
 
 
+def match_spoken(text, spoken):
+    """(run, spoken second, what was said) for the narration's mention of `text`, or None when the voice never
+    says it. The ONE definition of "the voice says this text": the sync audit judges a DOM element with it and
+    `item_cues` pins a prop's item with it, so the two cannot disagree about which word an item belongs to."""
+    tu = units(text)
+    hit = best_match(tu, spoken)
+    if hit is None:
+        return None
+    s0, L, t0 = hit
+    # A LONG LINE THAT SHARES ONE TERM WITH THE VOICE IS NOT THE VOICE SAYING IT. A credit — 「原图：… CC
+    # BY-SA 4.0 · Wikimedia Commons；k 空间…由该图傅里叶变换计算」 — names a term the narration says
+    # minutes of sentence later; its "lag" would be noise. The match must carry MIN_COVERAGE of the
+    # element's own text, unless it is a long run on its own (MIN_RUN_SCORE).
+    if _score(tu[t0:t0 + L]) < MIN_RUN_SCORE and _score(tu[t0:t0 + L]) < MIN_COVERAGE * _score(tu):
+        return None
+    return ([(u[0], u[1]) for u in tu[t0:t0 + L]], float(spoken[s0][4]), "".join(_said(spoken[s0:s0 + L])))
+
+
 def measure_beat(samples, spoken):
     """Every on-screen text element of one beat with its appear and spoken times.
 
@@ -332,26 +350,17 @@ def measure_beat(samples, spoken):
         elements.setdefault(c, []).append((k, txt))
     out = []
     for text, states in elements.items():
-        tu = units(text)
-        hit = best_match(tu, spoken)
-        if hit is None:
+        m = match_spoken(text, spoken)
+        if m is None:
             continue
-        s0, L, t0 = hit
-        # A LONG LINE THAT SHARES ONE TERM WITH THE VOICE IS NOT THE VOICE SAYING IT. A credit — 「原图：… CC
-        # BY-SA 4.0 · Wikimedia Commons；k 空间…由该图傅里叶变换计算」 — names a term the narration says
-        # minutes of sentence later; its "lag" would be noise. The match must carry MIN_COVERAGE of the
-        # element's own text, unless it is a long run on its own (MIN_RUN_SCORE).
-        if _score(tu[t0:t0 + L]) < MIN_RUN_SCORE and _score(tu[t0:t0 + L]) < MIN_COVERAGE * _score(tu):
-            continue
-        run = [(u[0], u[1]) for u in tu[t0:t0 + L]]
+        run, spoken_t, said = m
         # readable AND already holding the words: a typing line has not appeared while it is on its first letters
         times = [(first[st], st[0]) for st in states
                  if _contains([(u[0], u[1]) for u in units(st[1])], run)]
         if not times:
             continue
         appear, key = min(times)
-        spoken_t = float(spoken[s0][4])
-        out.append({"text": text, "said": "".join(_said(spoken[s0:s0 + L])), "spoken": round(spoken_t, 3),
+        out.append({"text": text, "said": said, "spoken": round(spoken_t, 3),
                     "appear": round(appear, 3), "lag": round(appear - spoken_t, 3), "key": key})
     return sorted(out, key=lambda r: (r["appear"], r["text"]))
 
@@ -469,13 +478,32 @@ def warp_cost(records, knots, fps):
     import math
     c = 0.0
     for r in records:
-        a = unwarp_frame(r["appear"] * fps, knots) / fps if knots else r["appear"]
+        a = moved_appear(r, knots, fps)
         lag = a - r["spoken"]
         c += max(0.0, lag - DEADBAND_S) + max(0.0, lag - LAG_ERROR)          # late; twice over past ERROR
         c += EARLY_SOFT_COST * max(0.0, -lag - EARLY_SOFT_S) + EARLY_HARD_COST * max(0.0, -lag - EARLY_WARN)
     for (f0, g0), (f1, g1) in zip(knots or [], (knots or [])[1:]):
         c += STRAIN_COST * abs(math.log((g1 - g0) / (f1 - f0))) * (f1 - f0) / fps
     return c
+
+
+PIN_SLACK = 1.0          # s: an item reading within this of its cue (or after it) is ON its cue, not on the clock
+
+
+def pinned(r):
+    """Does this record read where its per-element cue put it (runtime/cue.ts)? Such an item is converted through
+    the warp at render time, so it stays on its word whatever the warp does: it is no anchor and it never moves."""
+    return r.get("cap") is not None and r["appear"] >= float(r["cap"]) - PIN_SLACK
+
+
+def moved_appear(r, knots, fps):
+    """Where a measured element reads once `knots` warp its register's clock (seconds). An element on its cue
+    stays; one still on the register's own clock moves with the warp — but never later than its cue, which is
+    the most a cued item can ever be (`start` only ever pulls earlier)."""
+    if pinned(r):
+        return r["appear"]
+    a = unwarp_frame(r["appear"] * fps, knots) / fps if knots else r["appear"]
+    return min(a, float(r["cap"])) if r.get("cap") is not None else a
 
 
 def derive_warp(records, dur_frames, fps, seam, slope=(SLOPE_MIN, SLOPE_MAX)):
@@ -503,7 +531,7 @@ def derive_warp(records, dur_frames, fps, seam, slope=(SLOPE_MIN, SLOPE_MAX)):
     groups = {}
     for r in records:
         rf = r["appear"] * fps
-        if rf <= open_f + 1 or rf >= last - 1:
+        if rf <= open_f + 1 or rf >= last - 1 or pinned(r):
             continue
         key = int(round(rf))
         tgt = (r["spoken"] - LEAD_S) * fps
@@ -528,7 +556,7 @@ def derive_warp(records, dur_frames, fps, seam, slope=(SLOPE_MIN, SLOPE_MAX)):
     if not best or all(abs(f - g) < 0.5 for f, g in best):
         return [], notes
     for r in records:
-        a = unwarp_frame(r["appear"] * fps, best) / fps
+        a = moved_appear(r, best, fps)
         if abs(a - r["appear"]) >= 0.2:
             notes.append("%r %.2fs -> %.2fs (said at %.2fs)" % (r["text"][:24], r["appear"], a, r["spoken"]))
     notes.append("cost %.2f -> %.2f" % (base, best_cost))
@@ -579,24 +607,146 @@ def check_knots(knots, dur_frames, slope=(SLOPE_MIN, SLOPE_MAX)):
 _SYNC_EXEMPT_IMPORTS = ("runtime/voice", "runtime/screen")
 
 
-def register_exempt(shot, out_dir=None):
-    """Why this register's clock must not be warped, or None. A register that reads the narration's own
-    audio (runtime/voice) is synced by construction; one that plays a screen recording (runtime/screen) is
-    timed by the recording. Read from the register's imports, so a new one is covered the day it is written."""
-    import register_energy as _re
-    roots = [os.path.join(os.path.dirname(HERE), "remotion", "src", "shots", shot + ".tsx")]
+_SRC = os.path.join(os.path.dirname(HERE), "remotion", "src")
+# any import specifier: `from '...'`, `import('...')`, a bare `import '...'` — relative, or a workshop alias
+_ANY_IMPORT = re.compile(r"""(?:\bfrom\s+|\bimport\s*\(\s*|^\s*import\s+)['"]([^'"]+)['"]""", re.M)
+_ALIASES = {"@runtime/": os.path.join(_SRC, "runtime"), "@shots/": os.path.join(_SRC, "shots")}
+
+
+def _walk_deps(path, seen):
+    path = os.path.realpath(path)
+    if path in seen or not os.path.isfile(path):
+        return
+    seen.add(path)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+    except OSError:
+        return
+    for spec in _ANY_IMPORT.findall(src):
+        if spec.startswith("."):
+            base = os.path.join(os.path.dirname(path), spec)
+        else:
+            pre = next((p for p in _ALIASES if spec.startswith(p)), None)
+            if pre is None:
+                continue                                   # a package ('react', 'remotion')
+            base = os.path.join(_ALIASES[pre], spec[len(pre):])
+        for ext in (".tsx", ".ts", "/index.tsx", "/index.ts", ""):
+            if os.path.isfile(base + ext):
+                _walk_deps(base + ext, seen)
+                break
+
+
+def _register_deps(shot, out_dir=None):
+    """Every module the register's file reaches (the film's workshop copy first, then the library's), as
+    '/'-paths; [] when there is no such register. A WORKSHOP register imports the runtime through its aliases
+    (`@runtime/voice`, `@shots/X`), which a relative-only walk never followed — so a film's own register drawing
+    from the voice was warped off it, and one adopting runtime/cue was never given its cues."""
+    roots = [os.path.join(_SRC, "shots", shot + ".tsx")]
     if out_dir:
         import workshop as _ws
         roots.insert(0, os.path.join(_ws.workshop_dir(out_dir), "shots", shot + ".tsx"))
     for root in roots:
         if os.path.exists(root):
-            for dep in _re._deps(root):
-                d = dep.replace(os.sep, "/")
-                for mod in _SYNC_EXEMPT_IMPORTS:
-                    if d.endswith(mod + ".tsx") or d.endswith(mod + ".ts"):
-                        return "it draws from %s (already on the voice / a recording)" % mod
-            return None
+            seen = set()
+            _walk_deps(root, seen)
+            return sorted(d.replace(os.sep, "/") for d in seen)
+    return []
+
+
+def _reaches(deps, mod):
+    return any(d.endswith(mod + ".tsx") or d.endswith(mod + ".ts") for d in deps)
+
+
+def register_exempt(shot, out_dir=None):
+    """Why this register's clock must not be warped, or None. A register that reads the narration's own
+    audio (runtime/voice) is synced by construction; one that plays a screen recording (runtime/screen) is
+    timed by the recording. Read from the register's imports, so a new one is covered the day it is written."""
+    deps = _register_deps(shot, out_dir)
+    for mod in _SYNC_EXEMPT_IMPORTS:
+        if _reaches(deps, mod):
+            return "it draws from %s (already on the voice / a recording)" % mod
     return None
+
+
+# ── per-element cues (runtime/cue.ts) ───────────────────────────────────────────────────────────────────────
+# The warp is ONE monotone clock per beat, so it cannot reorder: an item the voice names first and the register
+# shows last stays late. A register that imports runtime/cue reads, per item, the film second at which the voice
+# names it and starts that item's entrance early enough to read on its word (never later than its own timing).
+# These are those seconds — computed from the beat's props and its voice, no census needed.
+CUE_MODULE = "runtime/cue"
+CUE_TEXT_FIELDS = ("text", "label", "title", "name", "caption")
+
+
+def register_takes_cues(shot, out_dir=None):
+    """Does this register read per-element cues? (It imports runtime/cue — read from its imports, like the
+    exemption, so a register adopts the hook by importing it and nothing else has to be told.)"""
+    return _reaches(_register_deps(shot, out_dir), CUE_MODULE)
+
+
+def item_texts(props):
+    """[(path, text)] — every text item of a beat's props a register may cue: a string prop (`caption`), a
+    list of strings (`questions.1`), or a list of objects carrying their words in one of CUE_TEXT_FIELDS
+    (`labels.0` -> labels[0].text). runtime/cue.ts keys an item by the same path."""
+    out = []
+    for k, v in (props or {}).items():
+        if isinstance(v, str):
+            out.append((k, v))
+        elif isinstance(v, list):
+            for i, x in enumerate(v):
+                if isinstance(x, str):
+                    out.append(("%s.%d" % (k, i), x))
+                elif isinstance(x, dict):
+                    f = next((f for f in CUE_TEXT_FIELDS if isinstance(x.get(f), str)), None)
+                    if f:
+                        out.append(("%s.%d" % (k, i), x[f]))
+    return [(k, t) for k, t in out if t.strip()]
+
+
+def item_cues(props, spoken):
+    """{path: film second by which the item should READ} for every item the voice names — LEAD_S before its
+    first word, the same target the warp aims an entrance at. An item the voice never says gets no cue."""
+    out = {}
+    for key, text in item_texts(props):
+        m = match_spoken(text, spoken)
+        if m is not None:
+            out[key] = round(max(0.0, m[1] - LEAD_S), 3)
+    return out
+
+
+def attach_cues(out_dir, data, props, slides):
+    """Give each scene whose register reads cues its `cues` (in place). Not on a beat whose board says
+    `sync: "off"` or gives its own `sync.anchors` — the author has taken the clock — and not on a register that
+    does not import runtime/cue, whose props then stay exactly what they were. Returns [cues or None] per scene."""
+    meta = (data or {}).get("meta") or {}
+    got = []
+    for sc, sl in zip(props["scenes"], slides):
+        sc.pop("cues", None)
+        setting = _sync_setting(meta, sl)
+        cues = None
+        if setting is None and register_takes_cues(sc["shot"], out_dir):
+            spoken, _src = spoken_units(narration_of(sl), words_for(out_dir, sl), sl.get("duration"))
+            cues = item_cues(sc.get("props") or {}, spoken) or None
+        if cues:
+            sc["cues"] = cues
+        got.append(cues)
+    return got
+
+
+def cap_records(records, scene):
+    """The beat's measured records, each carrying `cap` — its item's cue — when the scene cues the item that
+    drew it. A census line is matched to an item by its text: equal, or one holding the other (a wrapped
+    item is measured line by line)."""
+    cues = (scene or {}).get("cues") or {}
+    if not cues:
+        return records
+    items = [(re.sub(r"\s+", "", t), cues[k]) for k, t in item_texts(scene.get("props") or {}) if k in cues]
+    out = []
+    for r in records:
+        rt = re.sub(r"\s+", "", r["text"])
+        caps = [c for it, c in items if len(min(it, rt, key=len)) >= 2 and (it in rt or rt in it)]
+        out.append(dict(r, cap=min(caps)) if caps else r)
+    return out
 
 
 def has_cue_props(props):
@@ -744,7 +894,7 @@ def derive_warps(out_dir, data, props, slides, log=print):
     for k, ((st, _w, _why), sc, sl) in enumerate(zip(plan, raw["scenes"], slides)):
         if st != "needed":
             continue
-        recs = rep["by_k"][k]
+        recs = cap_records(rep["by_k"][k], sc)
         warp, notes = derive_warp(recs, sc["durF"], FPS, seam)
         side["beats"][str(sl.get("index", k + 1))] = {
             "key": warp_key(sc, _film_rest(props), words_for(out_dir, sl), code), "warp": warp, "notes": notes,

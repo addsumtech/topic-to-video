@@ -664,6 +664,9 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     # AS IT IS NOW, or the board's own `sync.anchors`; nothing for a beat that has neither, so every reader of
     # these props — the render, the segment plan, the gates — sees the film that will actually play.
     import sync_qa as _sq
+    # ...and each ITEM on its word where the warp cannot reach (it cannot reorder): per-element cues for a register
+    # that reads them (runtime/cue.ts). Attached first, because a beat's warp is derived for the beat AS CUED.
+    _sq.attach_cues(out_dir, data, props, slides)
     _sq.attach_warps(out_dir, data, props, slides)
     return props, slides
 

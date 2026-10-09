@@ -27,6 +27,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
+import {useCues, REACH_CUBIC} from '../runtime/cue';
 import {CONTENT_TOP, TITLE_Y, contentBottom, bottomInset, fitTextPx, fitsBox} from '../runtime/layout';
 import {useDNA} from '../runtime/dna';
 import {rows as asRows} from '../runtime/rows';
@@ -268,6 +269,7 @@ export const KSpaceToPicture: React.FC<{
   const frameSrc = (j: number): string => (phantom ? phantom.frameUri(j) : staticFile(FRAMES[j]));
   const dna = useDNA();
   const t = useT();
+  const cue = useCues();
   const {width: W, height: H} = useVideoConfig();
   const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0, ACC = dna?.accent ?? ACC_D0, ACC2 = dna?.accent2 ?? ACC2_D0;
   const LINE = dna?.line ?? LINE_D0;
@@ -318,8 +320,14 @@ export const KSpaceToPicture: React.FC<{
 
   const lblPx = (text: string) => (text ? fitTextPx(text, S, labelPx, {usable: 1}) : 0);
   const nPx = (text: string) => (text ? fitTextPx(text, S, notePx, {usable: 1}) : 0);
-  const labelsIn = easeOutCubic(clamp01(seg(t, 0.06, 0.2)));
-  const notesIn = easeOutCubic(clamp01(seg(t, 0.2, 0.34)));
+  // EACH LABEL AND NOTE READS WHEN THE VOICE SAYS IT (runtime/cue.ts): a narration that opens on 「每测一次，写进
+  // 一行」 left the k-space note 1.9 s late on a delivered film — the voice's first words, inside the opening the
+  // warp never touches. A cued one starts early enough to read on its word, never later than its own slot.
+  const labelsIn = easeOutCubic(clamp01(seg(t, 0.06, 0.2)));      // the kicker and the title: chrome, never cued
+  const inAt = (key: string, a: number, b: number) => easeOutCubic(clamp01(seg(t, ...cue.win(key, a, b, REACH_CUBIC))));
+  const kLabelIn = inAt('kspaceLabel', 0.06, 0.2), iLabelIn = inAt('imageLabel', 0.06, 0.2);
+  const trIn = inAt('transformLabel', 0.06, 0.2);
+  const kNoteIn = inAt('kspaceNote', 0.2, 0.34), iNoteIn = inAt('imageNote', 0.2, 0.34);
   const trPx = transformLabel ? fitTextPx(transformLabel, portrait ? W * 0.8 : gapMid * 0.92, Math.round(U * 0.03), {usable: 1}) : 0;
   const trOk = !!transformLabel && fitsBox(transformLabel, trPx, portrait ? W * 0.8 : gapMid * 0.92, trPx * 2);
 
@@ -394,24 +402,24 @@ export const KSpaceToPicture: React.FC<{
       {trOk ? (
         <div style={{position: 'absolute', left: portrait ? 0 : ax0, width: portrait ? W : ax1 - ax0,
           top: portrait ? (ay0 + ay1) / 2 - trPx * 0.6 : ay0 - trPx * 1.9, textAlign: 'center',
-          font: `600 ${trPx}px/1.2 ${bodyF}`, color: ACC2, opacity: labelsIn}}>{transformLabel}</div>
+          font: `600 ${trPx}px/1.2 ${bodyF}`, color: ACC2, opacity: trIn}}>{transformLabel}</div>
       ) : null}
 
       {kspaceLabel ? (
         <div style={{position: 'absolute', left: kPanel.x, width: S, top: kPanel.y - labelRoom, textAlign: 'center',
-          font: `700 ${lblPx(kspaceLabel)}px/1.2 ${disp}`, color: FG, opacity: labelsIn}}>{kspaceLabel}</div>
+          font: `700 ${lblPx(kspaceLabel)}px/1.2 ${disp}`, color: FG, opacity: kLabelIn}}>{kspaceLabel}</div>
       ) : null}
       {imageLabel ? (
         <div style={{position: 'absolute', left: iPanel.x, width: S, top: iPanel.y - labelRoom, textAlign: 'center',
-          font: `700 ${lblPx(imageLabel)}px/1.2 ${disp}`, color: FG, opacity: labelsIn}}>{imageLabel}</div>
+          font: `700 ${lblPx(imageLabel)}px/1.2 ${disp}`, color: FG, opacity: iLabelIn}}>{imageLabel}</div>
       ) : null}
       {kspaceNote ? (
         <div style={{position: 'absolute', left: kPanel.x, width: S, top: kPanel.y + S + notePx * 0.5,
-          textAlign: 'center', font: `400 ${nPx(kspaceNote)}px/1.2 ${bodyF}`, color: DIM, opacity: notesIn}}>{kspaceNote}</div>
+          textAlign: 'center', font: `400 ${nPx(kspaceNote)}px/1.2 ${bodyF}`, color: DIM, opacity: kNoteIn}}>{kspaceNote}</div>
       ) : null}
       {imageNote ? (
         <div style={{position: 'absolute', left: iPanel.x, width: S, top: iPanel.y + S + notePx * 0.5,
-          textAlign: 'center', font: `400 ${nPx(imageNote)}px/1.2 ${bodyF}`, color: DIM, opacity: notesIn}}>{imageNote}</div>
+          textAlign: 'center', font: `400 ${nPx(imageNote)}px/1.2 ${bodyF}`, color: DIM, opacity: iNoteIn}}>{imageNote}</div>
       ) : null}
       {credit ? (
         <div style={{position: 'absolute', left: W * 0.04, right: W * 0.04, bottom: bottomInset(W, H, 8),
