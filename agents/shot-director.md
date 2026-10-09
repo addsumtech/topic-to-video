@@ -518,6 +518,14 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    luminance guard: on a dark↔light seam it marks the `carry` instead, the one cut whose bridge line survives
    that guard, rather than a kinetic mark Film.tsx would silently downgrade to a fade.
 
+## Order the items the way the voice says them
+
+A register shows its list (labels, parts, questions, marks) in prop order. Write each list in the order the
+narration names its items, and put a caption or note the voice says first where the register can show it.
+Registers that import `runtime/cue` (OpenQuestions, TechnicalPlate, ObjectStage, PhotoPlate, KSpaceToPicture, and
+every workshop shot scaffolded since) bring each named item in on its word themselves; for any other register,
+an item said before the ones shown ahead of it stays late, and `text_safe_qa --sync` reports it as an ERROR.
+
 ## Device beats — when the narration performs something in the product
 
 Cast `DeviceDemo` when the beat says how the product is USED ("search last week's feedback, open the summary,

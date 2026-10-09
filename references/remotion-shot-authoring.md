@@ -73,6 +73,12 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    shot renders a static, fully-revealed frame (the accessibility cut); a shot that reads the frame directly keeps
    animating and won't honor it. **Brand:** a `meta.brand.logo` renders as a persistent corner bug (Film-level),
    so shots must not also draw a logo.
+   **Words enter on the voice: time each item through `cue.win` (`runtime/cue.ts`).** An item that fades in on its
+   own (a label, a callout, a step, a caption, a note) takes its window as `seg(t, ...cue.win('<prop path>', a, b,
+   REACH_CUBIC))` — `labels.0`, `parts.2`, `caption` — with `const cue = useCues()` beside `useT()`. Without cues
+   (a still, a sweep) it returns `[a, b]` itself; in a film the render cues every item the narration names, and the
+   window moves EARLIER (never later) so the item reads on its word. The beat's time warp cannot do this: it is one
+   monotone clock, so it cannot bring an item the voice names first ahead of one the frame shows first.
 10. **Determinism.** Pure function of `useT()`/frame. No `Date.now()`/`Math.random()`/argless `new Date()` — use
    `hash01(i)` for stable pseudo-randomness. Signed data must render signed; CJK copy must fit; aspect must adapt.
 11. **Author in FRACTIONS so the shot reflows to ANY aspect.** The Film Composition is aspect-driven: `meta.aspect`

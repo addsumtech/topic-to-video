@@ -667,8 +667,10 @@ def main_sync(argv):
     if errors:
         print("[text_safe] FIX: re-render — render_remotion derives each beat's time warp from this census "
               "(scripts/sync_qa.py derive_warp) so a register's entrance lands on its word; when the warp cannot "
-              "reach (slope limit) time the register by a `{\"cue\": ...}` prop, give the beat explicit "
-              "`sync.anchors`, or move the text to the sentence that names it")
+              "reach (slope limit) or the narration names items in another order than the frame shows them (a warp "
+              "cannot reorder), time each item through `cue.win` (runtime/cue.ts — the render then cues it on its "
+              "word), time the register by a `{\"cue\": ...}` prop, give the beat explicit `sync.anchors`, or move "
+              "the text to the sentence that names it")
     print("[text_safe] sync %s  %d late ERROR(s) (>%.1fs), %d WARN(s) — %d text element(s) matched to the voice "
           "· worst lag %+.2fs · mean |lag| %.2fs · %d of %d frames%s · %.0fs"
           % ("FAIL" if errors else "OK", errors, _sq.LAG_ERROR, warns, sm["elements"], sm["worst_lag"],
