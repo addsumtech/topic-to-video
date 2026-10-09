@@ -14,6 +14,13 @@ a beat so a cross-dissolve never runs over something moving.
 **Smallest real use:** `const on = easeOutCubic(clamp01(seg(t, 0.1, 0.4)));`
 **Exports:** `useT`, `seg`, `clamp01`, `lerp`, `easeOutCubic`, `easeInOutCubic`, `easeOutExpo`, `easeOutBack`, `springAt`, `useSpringAt`, `useAnimSpan`, `cadence`, `stepped`, `speedRamp`, `hash01`, `life`, `SEAM_FRAMES`, `ENTRY_T`, `REDUCED_MOTION_T`.
 
+### `cue`
+Per-element cues: an item's entrance window, moved earlier so it reads when the narration names it — what the beat's
+time warp cannot do, since one monotone clock cannot reorder. The render supplies the cues; without them it is a no-op.
+**Reach for it:** any word that enters on its own — a label, callout, step, question, caption or note.
+**Smallest real use:** `const cue = useCues(); const on = easeOutCubic(clamp01(seg(t, ...cue.win('labels.' + i, a, b, REACH_CUBIC))));`
+**Exports:** `useCues`, `CueContext`, `warpFrame`, `REACH_CUBIC`, `REACH_EXPO`, `REACH_LINEAR`, `MIN_ENTRANCE_S`.
+
 ### `draw`
 Draws a stroke on from its start without knowing its length (`pathLength = 1`), and slides a dashed stroke whose
 dashes carry meaning.
