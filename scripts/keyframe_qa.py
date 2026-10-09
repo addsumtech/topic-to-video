@@ -421,17 +421,39 @@ _GLIDE_JS_TMPL = r"""(function(nFrames, plist){
 })(%d, %s)"""
 
 
-def _glide_census(chrome, n_frames):
+def _glide_census(chrome, n_frames, plan=None):
     """{frame_index: {"lines":[...]}} over `n_frames` real video frames of the page CURRENTLY loaded in
     `chrome` — one Runtime.evaluate, no per-frame navigation (see _GLIDE_JS_TMPL)."""
     n_frames = max(1, min(int(n_frames), GLIDE_FRAME_CAP))
+    if plan is not None:
+        # THE FRAMES THAT SHIP: read at exactly the progress values render_html captures
+        # (scenes.html_capture_plan) and expand held frames to the capture they repeat. Evenly spaced p over
+        # the whole scene is not the film: a paced page finishes its reveals in anim_seconds (default 0.7 x the
+        # scene, or a short props.anim_seconds) and then holds, so it crawls FASTER than the even spacing
+        # shows, and a cued page animates only in bursts around its cues.
+        shots = plan["shots"]
+        plist = [p for _i, p in shots]
+        r = chrome._cmd("Runtime.evaluate",
+                        {"expression": _GLIDE_JS_TMPL % (len(plist), json.dumps(plist)), "returnByValue": True},
+                        chrome.sid)
+        raw = json.loads(r["result"]["result"]["value"])
+        at = {i: raw[str(n)] for n, (i, _p) in enumerate(shots)}
+        src = dict(plan["copies"])
+        out = {}
+        for i in range(n_frames):
+            j = i
+            while j in src:
+                j = src[j]
+            if j in at:
+                out[i] = at[j]
+        return out
     r = chrome._cmd("Runtime.evaluate",
                     {"expression": _GLIDE_JS_TMPL % (n_frames, "null"), "returnByValue": True}, chrome.sid)
     raw = json.loads(r["result"]["result"]["value"])
     return {int(f): rec for f, rec in raw.items()}
 
 
-def _glide_issue(chrome, duration, fps, url=None):
+def _glide_issue(chrome, duration, fps, url=None, plan=None):
     """(issue_or_None, advisory_or_None) for the page currently loaded in `chrome`: a crawl under its
     own custom animation that steps 3+ whole pixels is an ERROR (matches the Remotion tier's rule via
     the SAME judge_glide/glide_level); 1-2 steps is a WARN. Reused, not re-derived: the judgment is
@@ -452,7 +474,7 @@ def _glide_issue(chrome, duration, fps, url=None):
     with tempfile.TemporaryDirectory() as tmp:
         chrome.shot(urlunsplit((u.scheme, u.netloc, u.path, urlencode(q, safe=",:"), u.fragment)),
                     os.path.join(tmp, "p0.jpg"))
-    frames = _glide_census(chrome, n_frames)
+    frames = _glide_census(chrome, n_frames, plan)
     runs = _tsq.judge_glide(frames)
     level, worst = _tsq.glide_level(runs)
     if level == "clean" or not worst:
@@ -547,6 +569,21 @@ def _band_uniformity_note(bands):
                     f"that stops high with void below; a beat that sits low on the baseline), driven by what "
                     f"the beat says — not a uniform nudge")
     return None
+
+
+def _capture_plan(out_dir, s, meta):
+    """scenes.html_capture_plan for one page (what render_html captures and when), or None pre-tts / when the
+    plan cannot be built — the glide census then falls back to evenly spaced progress."""
+    import sync_qa as _sq
+    dur = s.get("duration")
+    if not isinstance(dur, (int, float)) or dur <= 0:
+        return None
+    try:
+        frames = max(1, round(float(dur) * meta.get("fps", 30)))
+        pmeta = dict(meta, _out=out_dir, _narration=_sq.narration_of(s), _slide=s)
+        return scenes.html_capture_plan(s.get("props") or {}, pmeta, frames, s.get("index"))
+    except Exception:
+        return None
 
 
 def _shipped_url(out_dir, s, url, p=1.0):
@@ -770,7 +807,8 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                         _t0 = time.time()
                         g_issue, g_warn = _glide_issue(chrome, dur, meta.get("fps", 30),
                                                        url=(_shipped_url(out_dir, s, url, p=0) if cued
-                                                            else url + "?p=0"))
+                                                            else url + "?p=0"),
+                                                       plan=_capture_plan(out_dir, s, meta))
                         glide_seconds += time.time() - _t0
                         glide_checked += 1
                         if g_issue:

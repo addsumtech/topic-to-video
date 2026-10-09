@@ -96,6 +96,35 @@ def test_same_drift_with_the_unlock_appended_is_clean():
     assert issue is None and warn is None, (issue, warn)
 
 
+# An UNCUED paced page: its reveals finish in props.anim_seconds and then HOLD, so the film crawls the
+# same 0.4px (crossing one pixel boundary) in 2s, not across the whole 20s scene the evenly spaced census
+# assumed. On the old timeline that is 0.0007px/frame, under GLIDE_STILL_PX (reads as not moving: missed).
+_SLOW = _PAGE_TMPL.replace("data-ambient", "").replace("animation:drift 1s", "animation:drift 20s").replace(
+    "translateY(0){unlock}", "translateY(.8px){unlock}").replace("translateY(40px){unlock}", "translateY(1.2px){unlock}")
+
+
+@needs_chrome
+def test_uncued_page_is_censused_on_the_capture_plan_not_even_spacing():
+    import tempfile
+    from urllib.parse import quote
+    dur = 20.0
+    html = _SLOW.format(base=BASE_CSS, seek=SEEK_JS, w=W, h=H, unlock="")
+    with tempfile.TemporaryDirectory() as d:
+        page = os.path.join(d, "probe.html")
+        open(page, "w", encoding="utf-8").write(html)
+        plan = scenes.html_capture_plan({"anim_seconds": 2}, {"fps": FPS, "_out": d}, int(dur * FPS), 1, html=html)
+        assert plan["mode"] == "paced" and plan["copies"], "fixture must be a paced page that holds"
+        chrome = kq._open_cdp({}, W, H)
+        try:
+            chrome.shot("file://" + quote(os.path.abspath(page)), os.path.join(d, "shot.png"))
+            old = kq._glide_issue(chrome, dur, FPS)
+            new = kq._glide_issue(chrome, dur, FPS, plan=plan)
+        finally:
+            chrome.close()
+    assert old == (None, None), old                      # evenly spaced: 0.0007px/frame reads as still
+    assert any(new), "the real capture timeline crawls the line across a pixel boundary and must be caught"
+
+
 @needs_chrome
 def test_jev_html_pages_stay_clean(capsys):
     """The real jev-html film (no custom ambient/@keyframes authoring) must not false-positive in the GLIDE
