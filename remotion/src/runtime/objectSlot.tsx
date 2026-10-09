@@ -14,20 +14,25 @@
 // THIS FILE IS IN THE SOURCE HASH OF EVERY REGISTER THAT HOLDS AN OBJECT (scripts/register_energy._deps), so an
 // edit here stales their measured rows. Change it only together with a re-measure of those registers.
 import React from 'react';
-import {useT} from './motion';
+import {useVideoConfig} from 'remotion';
+import {useT, useAnimSpan, clamp01, ENTRY_T, ReducedMotionContext} from './motion';
 import {useDNA, type DesignDNA} from './dna';
 
 export type ObjectRef = {id: string; props?: Record<string, unknown>};
 
 /** What every object is given. `t` runs 0 → 1 over the part of the beat its host gives it, then holds at 1;
- *  `yaw` (radians) is set only by a stage that turns its object (ObjectTurntable). */
-export type ObjectProps = {w: number; h: number; t: number; dna: DesignDNA | null; yaw?: number};
+ *  `yaw` (radians) is set only by a stage that turns its object (ObjectTurntable); `idle` is the IDLE CLOCK —
+ *  seconds the object has been held since its host's reveal ended (see `idleSeconds`), 0 until then and 0
+ *  whenever idle motion is off. An object with a natural cycle (water flowing, a precession turning) keeps that
+ *  cycle going from it; an object with none ignores it. */
+export type ObjectProps = {w: number; h: number; t: number; dna: DesignDNA | null; yaw?: number; idle?: number};
 
 /** `aspect` — the width / height the object is drawn at; the slot fits that shape inside its box.
  *  `turns` — the object draws its own 3D turn from `yaw`; otherwise a turning stage turns its card.
  *  `demo` — a stage's own standalone preview, never a film's object (validate.py refuses it in a film).
- *  `provenance` — the idiom world the object's look comes from (shot_director.IDIOM_WORLDS). */
-export type ObjectMeta = {aspect?: number; turns?: boolean; demo?: boolean; provenance?: string};
+ *  `provenance` — the idiom world the object's look comes from (shot_director.IDIOM_WORLDS).
+ *  `idle: false` — a static diagram whose motion would misrepresent it: the slot always hands it `idle` 0. */
+export type ObjectMeta = {aspect?: number; turns?: boolean; demo?: boolean; provenance?: string; idle?: boolean};
 export type ObjectEntry = {C: React.FC<any>; meta?: ObjectMeta};
 export type Rect = {x: number; y: number; w: number; h: number};
 
@@ -35,7 +40,36 @@ export const ObjectsContext = React.createContext<Record<string, ObjectEntry>>({
 
 /** What the slot gives every object. A film that sets one of them in `object.props` is refused rather than
  *  silently overruled — an ignored prop is a prop its author believes was drawn. */
-export const SLOT_KEYS = ['w', 'h', 't', 'dna', 'yaw'] as const;
+export const SLOT_KEYS = ['w', 'h', 't', 'dna', 'yaw', 'idle'] as const;
+
+// THE IDLE CLOCK. A stage register runs its object's `t` over a reveal window (ObjectStage: 0.06–0.6 of the beat)
+// and then HOLDS it, so the words can name a settled thing — and from there to the cut the frame was frozen: on
+// all four acceptance films the held tails measured ~0.0001 frame-diff, a still picture with a voice over it.
+// `t` cannot simply keep running (an object maps 0 → 1 onto its reveal; past 1 means nothing), so the slot hands
+// a SECOND clock: seconds since the host's hold began. Its rate eases up from rest over IDLE_RAMP_S and back down
+// to rest before the beat's end, so a cycle starts and stops gliding — never a jolt where the hold begins, and
+// still on the outgoing dissolve (useT holds t at 1 there, and idle is derived from t, so the seam stays still).
+// It moves nothing but what the object draws from it: the box, the stage's words and its callouts do not move.
+// Off (0) under reduced motion, on a beat whose storyboard sets `"object_idle": false` (ObjectIdleContext), for
+// an object whose META says `idle: false`, and on a host that names no `idleFrom`.
+export const IDLE_RAMP_S = 1;
+export const ObjectIdleContext = React.createContext<boolean>(true);
+
+/** Idle seconds at beat time `t` for a hold beginning at beat time `from`, on a beat whose `useT` spans
+ *  `spanFrames` frames at `fps`. Continuous, 0 through `from`, with a zero rate at both ends of the hold and a
+ *  rate of one second per second in between (two smoothstep ramps, integrated in closed form). */
+export const idleSeconds = (t: number, from: number, spanFrames: number, fps: number): number => {
+  if (!(Number.isFinite(t) && Number.isFinite(from) && from >= 0 && from < 1 && spanFrames > 0 && fps > 0)) return 0;
+  const perT = spanFrames / ((1 - ENTRY_T) * fps);           // seconds per unit of beat t (useT's own mapping)
+  const H = (1 - from) * perT;                               // the hold, in seconds
+  const tau = clamp01((t - from) / (1 - from)) * H;
+  const r = Math.min(IDLE_RAMP_S, H / 2);
+  if (!(r > 0)) return 0;
+  const ramp = (x: number) => { const u = clamp01(x / r); return r * (u * u * u - (u * u * u * u) / 2); };
+  if (tau <= r) return ramp(tau);
+  if (tau <= H - r) return r / 2 + (tau - r);
+  return r / 2 + (H - 2 * r) + (r / 2 - ramp(H - tau));
+};
 
 /** The largest rect of `aspect` (width / height) centred in `box`. No aspect, or a nonsense one: the box. */
 export const fitAspect = (box: Rect, aspect?: number): Rect => {
@@ -91,12 +125,20 @@ export const resolveObject = (objects: Record<string, ObjectEntry>, ref: unknown
 /** A host that needs the object's META before it lays out (its aspect, whether it turns) asks here. */
 export const useObjectEntry = (ref: unknown): ObjectEntry => resolveObject(React.useContext(ObjectsContext), ref);
 
-export const ObjectSlot: React.FC<{object: ObjectRef; box: Rect; t?: number; yaw?: number;
-  style?: React.CSSProperties}> = ({object, box, t, yaw, style}) => {
+/** `idleFrom` — the beat time (0–1, on useT's clock) at which the host has finished moving this object: its
+ *  reveal is over AND nothing else of the host's turns or carries it. From there the object's idle clock runs. */
+export const ObjectSlot: React.FC<{object: ObjectRef; box: Rect; t?: number; yaw?: number; idleFrom?: number;
+  style?: React.CSSProperties}> = ({object, box, t, yaw, idleFrom, style}) => {
   const objects = React.useContext(ObjectsContext);
   const beatT = useT();
+  const span = useAnimSpan();
+  const {fps} = useVideoConfig();
+  const reduced = React.useContext(ReducedMotionContext);
+  const idleOn = React.useContext(ObjectIdleContext);
   const dna = useDNA();
   const {C, meta} = resolveObject(objects, object);
+  const idle = (idleFrom === undefined || reduced || !idleOn || meta?.idle === false) ? 0
+    : idleSeconds(beatT, idleFrom, span, fps);
   // A NaN/Infinity coordinate draws a NaN rect (the object never appears — CSS silently treats it as auto);
   // a zero (or negative) w/h draws a 0×0 object — a blank slot either way, the exact failure this file's
   // header is written against. Checked here, not in fitAspect: fitAspect is a plain layout function other
@@ -110,7 +152,7 @@ export const ObjectSlot: React.FC<{object: ObjectRef; box: Rect; t?: number; yaw
   return (
     <div data-object-slot={object.id}
       style={{position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h, ...style}}>
-      <C {...(object.props ?? {})} w={r.w} h={r.h} t={t ?? beatT} dna={dna} yaw={yaw} />
+      <C {...(object.props ?? {})} w={r.w} h={r.h} t={t ?? beatT} dna={dna} yaw={yaw} idle={idle} />
     </div>
   );
 };

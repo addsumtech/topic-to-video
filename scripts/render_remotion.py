@@ -583,6 +583,14 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         cam = _camera(s)          # a MOTIVATED per-beat move (push/pull); absent = hold
         if cam:
             scene["camera"] = cam
+        # A HELD OBJECT'S IDLE CLOCK is on unless the beat says `"object_idle": false` (runtime/objectSlot). A value
+        # that is not a boolean is refused: `"false"` is truthy, and would leave on what its author turned off.
+        if "object_idle" in s:
+            if not isinstance(s["object_idle"], bool):
+                raise RuntimeError("scene #%s (%s): object_idle must be true or false, got %r"
+                                   % (idx, shot, s["object_idle"]))
+            if s["object_idle"] is False:
+                scene["objectIdle"] = False
         chrome = s.get("chrome")   # DNA terminal chrome (command-path + status) framing this beat; remotion-only
         if isinstance(chrome, dict):
             scene["chrome"] = chrome

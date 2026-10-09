@@ -644,7 +644,7 @@
     "light": 0.9046613574028015,
     "dark": 0.003346535377204418
    },
-   "moved": 0.9420951704545455,
+   "moved": 0.9399621212121212,
    "ok": true,
    "why": []
   },
@@ -1093,7 +1093,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9982694128787879,
+   "moved": 0.9982552083333334,
    "ok": true,
    "why": []
   },
@@ -1691,7 +1691,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9992850378787879,
+   "moved": 0.9991642992424242,
    "ok": true,
    "why": []
   },
@@ -1705,7 +1705,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9993963068181818,
+   "moved": 0.9993939393939394,
    "ok": true,
    "why": []
   },
@@ -1733,7 +1733,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9997514204545455,
+   "moved": 0.9997301136363637,
    "ok": true,
    "why": []
   },
@@ -2907,7 +2907,7 @@
   "HardBarrier": "488065a89b14cb24",
   "HeldInstant": "1af1d22f88b05f53",
   "HoloFoil": "8ffe0a09ead405d8",
-  "HudReticle": "1c1c934e60c23100",
+  "HudReticle": "d22d94ab25c2fef6",
   "InOrder": "3204ba7d0b56464a",
   "InducedFID": "61b40781259e0130",
   "InfiniteCanvas": "37b11ea79307412a",
@@ -2997,7 +2997,7 @@
   "SwissEditorial": "f949d791672cce76",
   "TallyLedger": "ab3a514bdce445af",
   "TaskFold": "2bad1cc3c26422ee",
-  "TechnicalPlate": "718e98f977258007",
+  "TechnicalPlate": "1a7fd94c071a1f28",
   "TemporalAccelerate": "00e6c332ee9f9217",
   "TensionScale": "dd58b6850ce8de63",
   "TermBars": "a4db94d5b4b9257b",
@@ -3021,15 +3021,15 @@
   "WireGlobe": "682228cf46421f58",
   "WordTunnel": "97828b1ec1d3c8d7",
   "WorksThrough": "e2ad62366962a853",
-  "DeviceDemo": "b74601368621211b",
-  "DeviceHero": "e1dca1e1de165427",
-  "ObjectStage": "6d049a0e54f400d3",
-  "ObjectCompare": "42eb2fde844335ea",
-  "ObjectPath": "a1a84840a7430f2a",
-  "ObjectTurntable": "7461ac846b7a1baa",
+  "DeviceDemo": "34469191f856a51b",
+  "DeviceHero": "ac95fe619c4446a0",
+  "ObjectStage": "0070cef0bee560a2",
+  "ObjectCompare": "e364bc7973b51306",
+  "ObjectPath": "651e254ddce83e91",
+  "ObjectTurntable": "b4d2fbc05181e626",
   "KSpaceToPicture": "88d3dc0421382833",
-  "ExtractionFlow": "a64c8bf6edc5b25f",
-  "PourSync": "94d11fc46cdacddc"
+  "ExtractionFlow": "29bbb9488fa18ae3",
+  "PourSync": "8cbadbd7f3989195"
  },
  "failed": {},
  "universe": 194,

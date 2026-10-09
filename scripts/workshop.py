@@ -58,7 +58,7 @@ GROUND_TOKENS = ("bg", "bgGrad", "accent", "accent2", "surface")
 SCAFFOLD_MARK = "@scaffold"
 # What every object is given for free (runtime/objectSlot.tsx SLOT_KEYS) — a beat's own `props` for an object
 # may never set one of these, since the slot overrules it silently rather than drawing what the film asked for.
-SLOT_KEYS = ("w", "h", "t", "dna", "yaw")
+SLOT_KEYS = ("w", "h", "t", "dna", "yaw", "idle")
 # A problem sentence ending in this phrase is something this RUN could not measure (the toolchain is missing),
 # never a finding about the film's code — a caller sorts on it to report a skip rather than an error.
 NOTHING_CHECKED = "nothing was checked"

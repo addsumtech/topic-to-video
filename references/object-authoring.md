@@ -25,9 +25,19 @@ that has a slot for one — `ObjectStage`, `ObjectCompare`, `ObjectPath`, `Objec
    host's card (ObjectPath hands it the object's progress along the route; TechnicalPlate its drawing phase).
    **Moving type glides:** a transform or position that moves words goes through `glide()` from `@runtime/glide`
    over the span it moves in, or Skia steps the type a pixel at a time — `text_safe_qa.py <out_dir> --glide` refuses it.
+6. **A natural cycle keeps running on `idle`.** Once a stage's reveal is over it HOLDS `t` at 1 until the cut, and
+   a frame frozen for a third of its beat is a slideshow. So the slot also hands `idle`: seconds held since the
+   host's reveal ended, easing up from rest and back down before the cut (0 under reduced motion, on a beat whose
+   storyboard sets `"object_idle": false`, and for an object whose `META` says `idle: false`). An object whose thing
+   genuinely cycles — water flowing, a precession turning, a wheel spinning — keeps that cycle going from it
+   (`phi = phiSettled + 2π·rate·idle`), with the settled `t = 1` picture as its starting state, and keeps words
+   off whatever moves. An object with no cycle ignores it; never invent one. A stage's callout stays where the
+   SETTLED part was, so a callout that names a part the cycle carries away (the tip of a precessing arrow) ends
+   up pointing at empty space: label what holds still, or set `"object_idle": false` on that beat.
 
 `META` carries `aspect`, `provenance` (the idiom world its look comes from — the film's `idiom_world` is judged on
-it) and, for an object that draws its own 3D from `yaw`, `turns: true` (objects/DemoForm is the reference).
+it), for an object that draws its own 3D from `yaw`, `turns: true` (objects/DemoForm is the reference), and for a
+static diagram the idle clock must never move, `idle: false`.
 
 ## Three good objects
 

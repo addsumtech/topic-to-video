@@ -31,6 +31,13 @@ const DEMO_OBJECT: ObjectRef = {id: DEMO_ID};
 const DEMO_STATIONS = ['', '', ''];        // the preview's three unnamed stops — no words to leak
 const TRAVEL_A = 0.22, TRAVEL_B = 0.84, DWELL = 0.4;
 
+/** The beat t at which the object stands at its LAST station — where its idle clock starts (runtime/objectSlot). */
+export const pathArrival = (n: number): number => {
+  if (n < 2) return TRAVEL_A;
+  const total = n * DWELL + (n - 1) * (1 - DWELL);
+  return TRAVEL_A + (TRAVEL_B - TRAVEL_A) * (total - DWELL) / total;
+};
+
 /** Progress along the route (0 → 1) at the beat's t: a dwell at each station, an eased move between them. */
 export const pathProgress = (t: number, n: number): number => {
   if (n < 2) return 1;
@@ -147,7 +154,7 @@ export const ObjectPath: React.FC<{
             stroke={reached ? ACC : LINE} strokeWidth={sw} /> : null;
         })}
       </svg>
-      <ObjectSlot object={OBJECT} box={box} t={p} />
+      <ObjectSlot object={OBJECT} box={box} t={p} idleFrom={pathArrival(n)} />
       {STATIONS.map((s, k) => {
         if (!s) return null;
         const at = labelAt(stops[k]);

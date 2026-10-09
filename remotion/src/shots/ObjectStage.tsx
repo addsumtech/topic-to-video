@@ -41,7 +41,7 @@ export const MAX_STAGE_LABELS = 6;
 export const REQUIRED_IN_FILM = ['object'] as const;
 const BG_D0 = '#eef0f3', FG_D0 = '#1b1f27', DIM_D0 = '#5d6573', ACC_D0 = '#2f5bd8';
 const DEMO_OBJECT: ObjectRef = {id: DEMO_ID};
-const OBJ_A = 0.06, OBJ_B = 0.6;          // the object's own t runs 0 → 1 here, then holds
+const OBJ_A = 0.06, OBJ_B = 0.6;          // the object's own t runs 0 → 1 here, then holds (its idle clock runs on)
 const LBL_A = 0.6, LAND_BY = 0.84;        // callouts, every one in before the settled frame
 
 type Label = {text: string; x: number; y: number; side?: 'left' | 'right'};
@@ -247,7 +247,7 @@ export const ObjectStage: React.FC<{
       <div style={{position: 'absolute', left: box.x + box.w * 0.08, top: floorY - U * 0.012, width: box.w * 0.84,
         height: U * 0.03, borderRadius: '50%', background: shadowInk, opacity: 0.1 * floorIn,
         filter: `blur(${Math.round(U * 0.01)}px)`}} />
-      <ObjectSlot object={OBJECT} box={box} t={objT} />
+      <ObjectSlot object={OBJECT} box={box} t={objT} idleFrom={OBJ_B} />
       {placed.map(({l, i, p, right}) => {
         const on = onAt(i);
         if (on <= 0) return null;

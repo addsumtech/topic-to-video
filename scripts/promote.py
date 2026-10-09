@@ -396,7 +396,7 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
                .replace("**Provenance:**", _measured_line(name) + "\n\n**Provenance:**"))
     else:
         _index_object(name)
-        _catalogue_object(name, entry, sorted(k for k in types if k not in ("w", "h", "t", "dna", "yaw")), film)
+        _catalogue_object(name, entry, sorted(k for k in types if k not in ("w", "h", "t", "dna", "yaw", "idle")), film)
     # the film now uses the library's copy
     import storyboard as sb
     os.remove(src_path)

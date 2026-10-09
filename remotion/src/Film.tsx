@@ -17,6 +17,7 @@ import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
         CAPTION_LEAD, CAPTION_LEAD_CJK, cjkAdvance, latinAdvance,
         CONTENT_TOP, contentBottom} from './runtime/layout';
+import {ObjectIdleContext} from './runtime/objectSlot';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES,
         easeOutCubic} from './runtime/motion';
 import {NarrationContext} from './runtime/voice';
@@ -72,7 +73,10 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // PER-ELEMENT CUES: {prop path: film second by which that item should read} — what the warp cannot do, since it
   // cannot reorder (runtime/cue.ts). Set by scripts/sync_qa.py `attach_cues` only for a register that imports
   // runtime/cue; read through CueContext, so a register that ignores it renders exactly as before.
-  cues?: Record<string, number>};
+  cues?: Record<string, number>;
+  // THE HELD OBJECT'S IDLE CLOCK (runtime/objectSlot): on unless the storyboard sets `"object_idle": false` on
+  // this beat — for a beat where a held object's own cycle would say something the narration does not.
+  objectIdle?: boolean};
 
 // warpFrame lives in runtime/cue (a register's per-element cues convert through the same map); re-exported here.
 export {warpFrame};
@@ -1093,7 +1097,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                         type census): the caption, the chrome and the other beat of a seam carry none of it. */}
                     <AbsoluteFill data-beat={String(i)}>
                       <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
-                        <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                        <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
+                          <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                        </ObjectIdleContext.Provider>
                       </CueContext.Provider>
                     </AbsoluteFill>
                   </SceneCamera>

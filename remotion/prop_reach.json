@@ -88,7 +88,7 @@
     "HardBarrier": "488065a89b14cb24",
     "HeldInstant": "1af1d22f88b05f53",
     "HoloFoil": "7e1daab6f494d2f6",
-    "HudReticle": "2998978ce0b1519a",
+    "HudReticle": "abc401d4d55c9b2c",
     "InOrder": "3204ba7d0b56464a",
     "InducedFID": "61b40781259e0130",
     "InfiniteCanvas": "37b11ea79307412a",
@@ -177,7 +177,7 @@
     "SwissEditorial": "f949d791672cce76",
     "TallyLedger": "ab3a514bdce445af",
     "TaskFold": "2bad1cc3c26422ee",
-    "TechnicalPlate": "718e98f977258007",
+    "TechnicalPlate": "1a7fd94c071a1f28",
     "TemporalAccelerate": "00e6c332ee9f9217",
     "TensionScale": "dd58b6850ce8de63",
     "TermBars": "a4db94d5b4b9257b",
@@ -202,15 +202,15 @@
     "WordTunnel": "d5498450e7ba5c60",
     "WorksThrough": "e2ad62366962a853",
     "SameStuffChanged": "a3d68fd218d23828",
-    "DeviceDemo": "b8c2a45e21ea9a62",
-    "DeviceHero": "01d9d9de243ca22b",
-    "ObjectCompare": "42eb2fde844335ea",
-    "ObjectPath": "a1a84840a7430f2a",
-    "ObjectStage": "6d049a0e54f400d3",
-    "ObjectTurntable": "7461ac846b7a1baa",
+    "DeviceDemo": "04e20e87d1a3c678",
+    "DeviceHero": "99f4661b4397d2b7",
+    "ObjectCompare": "e364bc7973b51306",
+    "ObjectPath": "651e254ddce83e91",
+    "ObjectStage": "0070cef0bee560a2",
+    "ObjectTurntable": "b4d2fbc05181e626",
     "KSpaceToPicture": "88d3dc0421382833",
-    "ExtractionFlow": "4c343f09a1237afe",
-    "PourSync": "d66a5ed22297597c"
+    "ExtractionFlow": "262b21edd1024d6c",
+    "PourSync": "3464700117864268"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -622,7 +622,7 @@
       "prop_diff": 1.0
     },
     "ExtractionFlow": {
-      "reach": 0.483,
+      "reach": 0.484,
       "prop_diff": 1.0
     },
     "FallbackPath": {
@@ -706,7 +706,7 @@
       "prop_diff": 1.0
     },
     "HudReticle": {
-      "reach": 0.592,
+      "reach": 0.594,
       "prop_diff": 1.0
     },
     "InOrder": {
@@ -878,7 +878,7 @@
       "prop_diff": 1.0
     },
     "ObjectTurntable": {
-      "reach": 0.281,
+      "reach": 0.282,
       "prop_diff": 1.0
     },
     "OdometerRoll": {

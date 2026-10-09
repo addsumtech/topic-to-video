@@ -23,6 +23,7 @@ export const MAX_CARD_TURN = 60;         // degrees each way for an object that 
 const BG_D0 = '#eef0f3', FG_D0 = '#1b1f27', DIM_D0 = '#5d6573', ACC_D0 = '#2f5bd8', LINE_D0 = '#c9ced6';
 const DEMO_OBJECT: ObjectRef = {id: DEMO_ID};
 const TICKS = 24;
+const TURN_B = 0.92;        // the platter stops turning here; a held object's idle clock runs from it (runtime/objectSlot)
 
 /** Where rim mark `k` sits on the platter's ellipse, in degrees of its screen angle (0 = the right end, 90 = the
  *  near edge, since screen y runs DOWN), with the platter turned `yawDeg`. A rising yaw turns the object
@@ -79,7 +80,7 @@ export const ObjectTurntable: React.FC<{
   const pcx = W / 2, pcy = box.y + box.h;                       // the object stands on the platter's centre line
   const wordsTop = pcy + ph * 0.5 + gap;
 
-  const yawDeg = -sweep / 2 + sweep * easeInOutCubic(clamp01(seg(t, 0.08, 0.92)));
+  const yawDeg = -sweep / 2 + sweep * easeInOutCubic(clamp01(seg(t, 0.08, TURN_B)));
   const objT = clamp01(seg(t, 0.04, 0.4));
   const platIn = easeOutCubic(clamp01(seg(t, 0.02, 0.16)));
   const titleIn = easeOutCubic(clamp01(seg(t, 0.42, 0.6)));
@@ -119,7 +120,8 @@ export const ObjectTurntable: React.FC<{
             strokeWidth={k === 0 ? sw * 2.5 : sw} opacity={front ? 0.95 : 0.35} />;
         })}
       </svg>
-      <ObjectSlot object={OBJECT} box={box} t={objT} yaw={turns ? (yawDeg * Math.PI) / 180 : undefined} style={card} />
+      <ObjectSlot object={OBJECT} box={box} t={objT} yaw={turns ? (yawDeg * Math.PI) / 180 : undefined} style={card}
+        idleFrom={TURN_B} />
       {title ? (
         <div style={{position: 'absolute', left: (W - capW) / 2, top: wordsTop, width: capW, textAlign: 'center',
           opacity: titleIn, font: `700 ${titlePx}px/${tLead} ${disp}`, color: FG, textWrap: 'balance'}}>{title}</div>

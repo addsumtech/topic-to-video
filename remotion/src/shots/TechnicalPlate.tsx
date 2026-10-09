@@ -42,6 +42,7 @@ export const DURATION = 160;
 
 const BG_D0 = '#efe7d8', FG_D0 = '#241d14', DIM_D0 = '#6e6152';
 const ACC_D0 = '#9c3b1e', LINE_D0 = '#cdbfa7';
+const DRAW_B = 0.62;        // the art's own t lands here; an art object's idle clock runs from it (runtime/objectSlot)
 
 // `ghost` marks a part that is NOT THERE — demolished, never built, proposed. A plate that can only draw
 // what exists cannot make the commonest argument a plate is used for: what is missing from this object.
@@ -215,7 +216,7 @@ export const TechnicalPlate: React.FC<{
   const uy = (v: number) => artY + v * artUnit;
 
   const sheet = easeOutCubic(clamp01(seg(t, 0.02, 0.18)));
-  const draw = clamp01(seg(t, 0.14, 0.62));
+  const draw = clamp01(seg(t, 0.14, DRAW_B));
   const land = easeOutExpo(clamp01(seg(t, ...cue.win('object', 0.66, 0.88, REACH_EXPO))));
   const noteLand = easeOutExpo(clamp01(seg(t, ...cue.win('note', 0.66, 0.88, REACH_EXPO))));
   const lw = Math.max(2, Math.round(W * 0.0026));
@@ -239,7 +240,8 @@ export const TechnicalPlate: React.FC<{
         border: `${hair}px solid ${LINE}`, boxSizing: 'border-box'}} />
 
       {/* the object, drawn stroke by stroke */}
-      {art ? <ObjectSlot object={art} box={{x: artX, y: artY, w: artUnit, h: artUnit}} t={draw} /> : STROKES.map((st, i) => {
+      {art ? <ObjectSlot object={art} box={{x: artX, y: artY, w: artUnit, h: artUnit}} t={draw}
+        idleFrom={DRAW_B} /> : STROKES.map((st, i) => {
         const on = easeOutCubic(clamp01(draw * nS - i));
         if (on <= 0) return null;
         if (st.kind === 'circle') {

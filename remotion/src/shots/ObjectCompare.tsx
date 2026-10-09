@@ -164,8 +164,8 @@ export const ObjectCompare: React.FC<{
           font: `600 ${Math.round(U * 0.018)}px/1.2 ${mono}`, color: ACC, letterSpacing: dna?.labelSpacing ?? '0.14em',
           textTransform: (dna?.uppercaseLabels ?? true) ? 'uppercase' : 'none'}}>{kicker}</div>
       ) : null}
-      <ObjectSlot object={FIRST} box={bL} t={tL} />
-      <ObjectSlot object={SECOND} box={bR} t={tR} />
+      <ObjectSlot object={FIRST} box={bL} t={tL} idleFrom={0.44} />
+      <ObjectSlot object={SECOND} box={bR} t={tR} idleFrom={0.54} />
       {label(firstLabel, lblL, inL)}
       {label(secondLabel, lblR, inR)}
       {pL && pR && tie ? (
