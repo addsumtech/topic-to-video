@@ -41,6 +41,9 @@ def spot(tmp_path, monkeypatch):
     path.write_text(json.dumps(data, indent=1), encoding="utf-8")
     monkeypatch.setattr(gl, "_REMOTION", str(tmp_path))
     monkeypatch.setattr(gl, "_fixture_props", lambda: {})
+    # the light probe a `bg` row is asked under: these stand-ins FOLLOW the film's ground, so `bg` stays `bg`
+    monkeypatch.setattr(gl, "measure_light", lambda shot, td, fixtures=None: (0.9, "#f2f2f2", None))
+    monkeypatch.setattr(gl, "light_key_y", lambda: 0.35)
     return path, data
 
 
@@ -118,3 +121,26 @@ def test_record_spot_refuses_a_failed_measurement_and_writes_nothing(spot, monke
 
     assert "BadOne" in str(exc.value) and "could not render" in str(exc.value), str(exc.value)
     assert path.read_text(encoding="utf-8") == raw_before, "a refused spot check must not write a partial table"
+
+
+def test_record_spot_records_the_night_a_dark_world_register_keeps(spot, monkeypatch):
+    """A register that is `bg` under the dark probe but stays dark under the LIGHT one is recorded as the colour
+    it keeps — the row a light film's caption ink and seam guard then read — not as the film's paper."""
+    path, _before = spot
+    lums = gl.token_lums()
+    monkeypatch.setattr(gl, "measure", _stub({KNOWN: (lums["bg"], None)}))
+    monkeypatch.setattr(gl, "measure_light", lambda shot, td, fixtures=None: (0.005, "#0a101c", None))
+    assert gl.record_spot([KNOWN]) == {KNOWN: "#0a101c"}
+    assert json.loads(path.read_text(encoding="utf-8"))["table"][KNOWN] == "#0a101c"
+
+
+def test_a_failed_light_probe_refuses_the_spot_check(spot, monkeypatch):
+    path, _before = spot
+    raw_before = path.read_text(encoding="utf-8")
+    lums = gl.token_lums()
+    monkeypatch.setattr(gl, "measure", _stub({KNOWN: (lums["bg"], None)}))
+    monkeypatch.setattr(gl, "measure_light", lambda shot, td, fixtures=None: (None, None, "could not render"))
+    with pytest.raises(SystemExit) as exc:
+        gl.record_spot([KNOWN])
+    assert "light probe" in str(exc.value)
+    assert path.read_text(encoding="utf-8") == raw_before

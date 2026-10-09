@@ -235,12 +235,13 @@ def _library_caption_ground(png, shot, slide, dna_ref):
     """A LIBRARY register's caption, judged against the ground it really paints under it.
 
     The film inks every caption from the ground it RESOLVES for the beat — `DNA_GROUND_TOKEN` under the film's
-    DNA (`seam_plan.dna_ground_y`, the mirror of Film.tsx's `dnaGroundY`) — never from the pixels. That table is
-    measured under one probe DNA, and a register can paint a ground the probe never showed it painting: a
-    `@dark-world` register (BokehPull, StarfieldWarp, …) follows the film's ground only while it is dark and
-    keeps its own night on a light film, yet resolves to the film's paper. Its caption is then inked dark on a
-    dark frame — unreadable, with every other gate green. So the resolved ground is checked against the
-    caption band actually rendered, and only a caption that would no longer READ is an error.
+    DNA (`seam_plan.dna_ground_y`, the mirror of Film.tsx's `dnaGroundY`) — never from the pixels. A row that names
+    the wrong ground therefore inks a caption nobody can read with every other gate green: the `@dark-world`
+    registers (BokehPull, StarfieldWarp, …) were recorded `bg` from a dark probe alone, and on a light film
+    resolved to the paper while painting night. Their rows now carry the night a LIGHT probe measured
+    (measure_ground_luma.py `classify_world`), and this check stays for whatever row is wrong next: the resolved
+    ground is checked against the caption band actually rendered, and only a caption that would no longer READ
+    is an error.
 
     Returns None, ("error", why) or ("n/a", why)."""
     import seam_plan
@@ -260,10 +261,10 @@ def _library_caption_ground(png, shot, slide, dna_ref):
     ink, c = bad
     return ("error", "the burned caption will be inked %s for the ground this register resolves to under the "
                      "film's DNA (Y=%.2f), but it paints Y=%.2f under the caption — %.1f:1, under the %.1f:1 a "
-                     "caption needs to read. A register that keeps its own ground (a `@dark-world` night on a "
-                     "light film) is not on the ground its row in DNA_GROUND_TOKEN names; cast a register that "
+                     "caption needs to read. Its row in DNA_GROUND_TOKEN does not name the ground it paints under this "
+                     "film's DNA — re-measure it (`measure_ground_luma.py --only %s --emit`), cast a register that "
                      "follows this film's ground here, or ground the beat yourself (`ground`)"
-                     % ("dark" if ink < 0.5 else "light", expected, measured, c, CAPTION_READABLE_MIN))
+                     % ("dark" if ink < 0.5 else "light", expected, measured, c, CAPTION_READABLE_MIN, shot))
 
 
 def _src_path(shot):

@@ -542,7 +542,8 @@ TTS if the user gives an API key.
 - `scripts/measure_ground_luma.py --check` — the **GROUND-TOKEN gate** (library maintenance, ~15 min: 160
   renders). Which DNA token each register paints its ground from is what the caption ink and the seam guard
   both read, and it is MEASURED, not declared: every register is rendered under a probe DNA whose tokens sit
-  far apart in luminance and the frame's border is matched against them. Run it after changing any
+  far apart in luminance and the frame's border is matched against them. A `bg` ground is rendered again under
+  a LIGHT probe: one that stays dark there (a `@dark-world` night) is recorded as the colour it keeps. Run it after changing any
   register's GROUND — the whole table is a claim about pixels, and a claim nobody re-measures is a
   declaration. It also judges the entries it cannot put a token on (a gradient flood, a split screen, a
   register that paints its own stock) by asking whether the DECLARED ground is anywhere near the pixels,
@@ -703,8 +704,9 @@ agent on the beats it points at.
   (`--props='{"dna":"…"}'`) and adds: action-safe overflow, ink in the caption band, **colour
   outside the film's palette** (the arc BETWEEN its two accents — a blend of the two is in-system by
   construction), a **dead frame** (content spanning <45% of the width), and a **caption that will not read**
-  (the film inks a library beat's caption for the ground `DNA_GROUND_TOKEN` resolves to, and a register that
-  keeps its own ground — a `@dark-world` night on a light film — is not on it). Run it after the
+  (the film inks a library beat's caption for the ground `DNA_GROUND_TOKEN` resolves to, so a row naming the wrong
+  ground inks a caption that will not read; a `@dark-world` register's row is the night it keeps on a light film,
+  measured under a light probe). Run it after the
   shot-director step and fix everything before rendering; the critic's pass is then spent on the half
   a script cannot judge — meaning, content-fit, faithfulness, register fit. Passing is a FLOOR, not a
   verdict.

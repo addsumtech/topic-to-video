@@ -1,8 +1,9 @@
 """A library register's burned caption is checked against the ground the register really paints under it.
 
 The film inks every caption from the ground it RESOLVES for a beat (DNA_GROUND_TOKEN under the film's DNA), never
-from the pixels. A `@dark-world` register keeps its own night on a light film while its row still names the film's
-`bg`, so the caption came out dark ink on a dark frame — unreadable — and every gate passed it."""
+from the pixels. A `@dark-world` register keeps its own night on a light film, and while its row still named the film's
+`bg` the caption came out dark ink on a dark frame — unreadable — and every gate passed it. The row is now measured
+under a light probe too (tests/test_dark_world_ground.py); this check stays for any row that names the wrong ground."""
 import json
 import os
 import sys
@@ -54,7 +55,24 @@ def _board(out, shot, props):
 
 
 @needs_toolchain
-def test_a_dark_world_register_on_a_light_film_is_an_unreadable_caption(tmp_path, capsys):
+def test_a_dark_world_register_on_a_light_film_now_reads(tmp_path, capsys):
+    """Its row is the night it keeps (measure_ground_luma's light probe), so the film inks the caption light on
+    it and the proof sheet has nothing to refuse."""
+    out = str(tmp_path / "film")
+    _board(out, "BokehPull", {"title": "看得见", "tagline": "概念"})
+    sp.main([out])
+    printed = capsys.readouterr().out
+    assert "caption ground" not in printed, printed[-2000:]
+
+
+@needs_toolchain
+def test_a_row_that_names_the_wrong_ground_is_still_refused(tmp_path, capsys, monkeypatch):
+    """The refusal is not relaxed — only the row was wrong. Put BokehPull's old `bg` row back and the same render
+    is refused for the caption it would ink: dark, on a night."""
+    import seam_plan
+    table = dict(seam_plan._ground_tokens())
+    table["BokehPull"] = ["bg"]
+    monkeypatch.setattr(seam_plan, "_GROUND_TOKEN", table)
     out = str(tmp_path / "film")
     _board(out, "BokehPull", {"title": "看得见", "tagline": "概念"})
     sp.main([out])

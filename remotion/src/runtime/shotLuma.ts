@@ -185,17 +185,17 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   GazetteerEntry: 'bg',
   SectionRoute: 'bg',
   Aliasing: 'bg',
-  AnalogTape: 'bg',
+  AnalogTape: '#29170a',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   AnswerStream: 'bg',
   AntiDesignChaos: 'bg',
-  AsciiField: 'bg',
+  AsciiField: '#140b03',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   AtomOrbital: 'bg',
-  AuroraFlow: 'bg',
+  AuroraFlow: '#181f31',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   BeforeAfterSlider: 'bg',
   BentoReveal: 'bg',
   BlockAssembly: 'bg',
   BlueprintGrid: 'bg',
-  BokehPull: 'bg',
+  BokehPull: '#0a101c',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   BrutalistType: 'bg',
   CardFlip3D: 'bg',
   CardStack3D: 'bg',
@@ -208,7 +208,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   ClayStack: 'bg',
   ClothWave: 'bg',
   CodeCompose: 'bg',
-  CodeRain: 'bg',
+  CodeRain: '#020603',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   CollaborativeCursors: 'bg',
   ComicPanels: 'bg',
   CommandSummon: 'bg',
@@ -236,7 +236,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   GameOfLife: 'bg',
   GaugeCluster: 'bg',
   GearTrain: 'bg',
-  GlitchDatamosh: 'bg',
+  GlitchDatamosh: '#07070b',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   GradientTilt: 'bg',
   HalftonePop: ['accent2', 'bg'],
   HandDrawn: 'bg',
@@ -255,7 +255,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   KineticManifesto: ['accent', 'accent2'],
   KnowledgeGraph: 'bg',
   LarmorPrecession: 'bg',
-  LightTrails: 'bg',
+  LightTrails: '#070a16',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   LiquidChrome: 'bg',
   LiquidFill: 'bg',
   LiquidGlass: 'bg',
@@ -272,8 +272,8 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   MetaballMerge: 'bg',
   MoleculeBallStick: 'bg',
   MorphForms: 'bg',
-  NeonGrid: 'bg',
-  NeonTickerWall: 'bg',
+  NeonGrid: '#270a3b',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
+  NeonTickerWall: '#111118',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   NeuralField: 'bg',
   OdometerRoll: 'bg',
   OpenQuestions: 'bg',
@@ -281,25 +281,25 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   ParticleForm: 'bg',
   PhaseEncodeStep: 'bg',
   PhysicsStack: 'bg',
-  PixelBuild: 'bg',
+  PixelBuild: '#171b34',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   PlatformSurfaces: 'bg',
   PositioningMatrix: 'bg',
   QuadSplit: 'bg',
   RadialBurst: 'bg',
-  RainGlass: 'bg',
+  RainGlass: '#334051',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   RansomZine: 'bg',
   RealVersus: 'bg',
   RidgeField: 'bg',
   RisoPrint: 'bg',
   ScanReconstruct: 'bg',
   ScreenBubble: 'bg',
-  SpectrumPulse: 'bg',
+  SpectrumPulse: '#0f0718',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   SpeedLimit: 'bg',
   SpinningProton: 'bg',
   SpinsAlign: 'bg',
   SplitFlap: 'bg',
-  SpotlightStage: 'bg',
-  StarfieldWarp: 'bg',
+  SpotlightStage: '#09090b',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
+  StarfieldWarp: '#03040c',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   SwissEditorial: 'bg',
   TemporalAccelerate: 'bg',
   TensionScale: 'bg',

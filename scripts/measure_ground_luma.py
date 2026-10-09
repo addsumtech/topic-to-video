@@ -59,20 +59,27 @@ def token_lums():
     return {k: _srgb_lum(tuple(int(v[i:i + 2], 16) for i in (1, 3, 5))) for k, v in PROBE_TOKENS.items()}
 
 
-def border_luminance(png, band=14):
-    """Median luminance of the outer ring — the ground, unobstructed by centred content."""
+def border_ground(png, band=14):
+    """(luminance, '#rrggbb') of the outer ring's median pixel — the ground, unobstructed by centred content.
+    The colour is the pixel the median luminance came from, so the two always describe the same sample."""
     im = Image.open(png).convert("RGB")
     w, h = im.size
     px = im.load()
     vals = []
     for x in range(0, w, 3):
         for y in list(range(0, band)) + list(range(h - band, h)):
-            vals.append(_srgb_lum(px[x, y]))
+            vals.append((_srgb_lum(px[x, y]), px[x, y]))
     for y in range(band, h - band, 3):
         for x in list(range(0, band)) + list(range(w - band, w)):
-            vals.append(_srgb_lum(px[x, y]))
-    vals.sort()
-    return vals[len(vals) // 2]
+            vals.append((_srgb_lum(px[x, y]), px[x, y]))
+    vals.sort(key=lambda v: v[0])
+    lum, rgb = vals[len(vals) // 2]
+    return lum, "#%02x%02x%02x" % tuple(rgb[:3])
+
+
+def border_luminance(png, band=14):
+    """Median luminance of the outer ring — the ground, unobstructed by centred content."""
+    return border_ground(png, band)[0]
 
 
 def classify(lum, lums, tol=0.06):
@@ -105,6 +112,45 @@ def classify(lum, lums, tol=0.06):
         return None, be                      # genuinely ambiguous — do not guess
     tok = best[0][0] if len(best[0]) == 1 else list(best[0])
     return tok, abs(best[1] - lum)
+
+
+# ── THE SECOND PROBE: does a `bg` ground still follow the film when the film is LIGHT? ──────────────────────
+# The probe above is DARK, and a dark probe cannot tell "paints the film's ground" from "paints the film's
+# ground while it is dark". The @dark-world registers (runtime/light.tsx `darkGround`: AuroraFlow, BokehPull,
+# StarfieldWarp, …) are exactly the second: they take the film's ground while it is dark and keep their own
+# night when it is not. Under the dark probe both look like `bg`, so all fourteen were recorded `bg` — and on a
+# light film the caption ink and the seam guard then read the film's PAPER for a frame that is night. Film.tsx
+# inked the caption dark on a dark frame (BokehPull, a launch film's closing title), and shot_proof had to
+# refuse every one of them on light films.
+#
+# So a ground the dark probe calls `bg` is rendered once more under a LIGHT probe. If it follows, it is `bg`.
+# If it stays dark there — below the runtime's own exposure boundary, `LIGHT_KEY_Y`, the number `darkGround`
+# branches on — its row becomes the colour it actually paints: a literal, the form the table already has for
+# a ground no token names (PaperSlot). Every reader resolves a literal with no DNA at all, so a light film
+# inks light on it and the seam guard sees night. Only `bg` rows are probed twice: no other token is what
+# `darkGround` substitutes, and every other row stays exactly what one probe measured.
+LIGHT_PROBE_DNA = dict(PROBE_DNA, id="lumprobe-light", bg="#f2f2f2", fg="#141414", dim="#5a5a5a")
+
+
+def light_key_y():
+    """runtime/light.tsx's LIGHT_KEY_Y — the boundary `darkGround` keeps its own night across — read, never
+    re-typed, so this probe and the register it judges branch on one number."""
+    src = open(os.path.join(_REMOTION, "src", "runtime", "light.tsx"), encoding="utf-8").read()
+    m = re.search(r"export const LIGHT_KEY_Y\s*=\s*([0-9.]+)\s*;", src)
+    if not m:
+        raise SystemExit("[measure_ground_luma] runtime/light.tsx no longer exports LIGHT_KEY_Y — the light probe "
+                         "judges a kept night against darkGround's own boundary and cannot invent one")
+    return float(m.group(1))
+
+
+def classify_world(tok, light, key_y):
+    """The row a register gets once the LIGHT probe has been asked. `light` is (lum, '#rrggbb') under
+    LIGHT_PROBE_DNA, or None when it was not asked. Only a `bg` row can change, and only to the colour it kept:
+    a ground still below `key_y` on a light film is not the film's ground."""
+    if tok != "bg" or light is None:
+        return tok
+    lum, colour = light
+    return colour if lum < key_y else tok
 
 
 # ── READING THE TABLE BACK, so the gate can judge what it could not classify ─────────────────────────────
@@ -212,13 +258,39 @@ def _durations():
 
 
 def measure(shot, td, fixtures=None):
+    lum, _colour, err = _measure_under(shot, td, fixtures, PROBE_DNA)
+    return lum, err
+
+
+def measure_light(shot, td, fixtures=None):
+    """(lum, '#rrggbb', err) of the ground under LIGHT_PROBE_DNA — see `classify_world`."""
+    return _measure_under(shot, td, fixtures, LIGHT_PROBE_DNA)
+
+
+def measure_and_classify(shot, td, fixtures, lums, key_y):
+    """(row, dark-probe lum, light (lum, colour) or None, err) — the ONE classification both the sweep and
+    `record_spot` write, so a spot check can never record a row the sweep would not."""
+    lum, err = measure(shot, td, fixtures)
+    if err is not None:
+        return None, None, None, err
+    tok, _d = classify(lum, lums)
+    light = None
+    if tok == "bg":
+        llum, colour, lerr = measure_light(shot, td, fixtures)
+        if lerr is not None:
+            return None, lum, None, "the light probe did not measure — %s" % lerr
+        light = (llum, colour)
+    return classify_world(tok, light, key_y), lum, light, None
+
+
+def _measure_under(shot, td, fixtures, dna):
     props = os.path.join(td, "p.json")
-    png = os.path.join(td, shot + ".png")
+    png = os.path.join(td, shot + ("" if dna is PROBE_DNA else ".light") + ".png")
     scene = {"shot": shot, "durF": 150}
     ev = (fixtures or {}).get(shot)
     if ev:
         scene["props"] = ev
-    json.dump({"scenes": [scene], "dna": PROBE_DNA,
+    json.dump({"scenes": [scene], "dna": dna,
                "captions": False, "camera": 0}, open(props, "w"))
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "Film", png,
                         "--frame=110", "--gl=angle", "--timeout=90000", "--props=" + props],
@@ -226,11 +298,12 @@ def measure(shot, td, fixtures=None):
     # ...AND THE PNG, NOT JUST THE EXIT CODE: `border_luminance` on a file that was never written raises out
     # of the sweep, which is a crash where a named skip belongs.
     if r.returncode != 0 or not os.path.exists(png):
-        return None, "; ".join([_c.render_error(r.stdout, r.stderr)] + _FIXTURE_ERR)
+        return None, None, "; ".join([_c.render_error(r.stdout, r.stderr)] + _FIXTURE_ERR)
     try:
-        return border_luminance(png), None
+        lum, colour = border_ground(png)
+        return lum, colour, None
     except Exception as exc:                         # noqa: BLE001 — one shot, not the sweep
-        return None, "the frame rendered and reading its border raised: %r" % (exc,)
+        return None, None, "the frame rendered and reading its border raised: %r" % (exc,)
 
 
 # ── SHOT_LUMA: the shot's OWN ground class, with no DNA at all ───────────────────────────────────────────
@@ -337,6 +410,13 @@ def provisional_shots():
     return sorted(set(out))
 
 
+KEPT_NIGHT_NOTE = "// @dark-world: this night on a light film (light probe), the film's own dark ground otherwise"
+
+
+def _is_literal(tok):
+    return isinstance(tok, str) and tok.startswith("#")
+
+
 def _emit(table=None, partial=False):
     """Write the measured table into DNA_GROUND_TOKEN in shotLuma.ts.
 
@@ -385,7 +465,9 @@ def _emit(table=None, partial=False):
         # mis-spelled into a token. The measurement can never produce a literal (it only names probe
         # tokens), so writing over one would silently replace a ground the register paints unconditionally
         # with whichever token the probe happened to sit nearest.
-        if re.match(r"^'#[0-9a-fA-F]{3,6}'$", m.group(2).strip()):
+        # ...UNLESS THE MEASUREMENT ITSELF NAMED A COLOUR. The light probe (`classify_world`) records the night a
+        # @dark-world register keeps, and a re-measured night replaces the one it measured before.
+        if re.match(r"^'#[0-9a-fA-F]{3,6}'$", m.group(2).strip()) and not _is_literal(table.get(shot)):
             lines.append(line); kept += 1; skipped.setdefault("a literal colour", []).append(shot); continue
         if shot not in table:
             lines.append(line); kept += 1
@@ -397,6 +479,8 @@ def _emit(table=None, partial=False):
         # flag that outlives the thing it warns about trains everyone to ignore it. Dropped on write.
         if "PROVISIONAL" in comment:
             comment = ""
+        if _is_literal(tok) and not comment:
+            comment = "   " + KEPT_NIGHT_NOTE
         lines.append("  %s: %s,%s" % (shot, want, comment)); wrote += 1
     known = {re.match(r"^  (\w+):", l).group(1) for l in block.split("\n") if re.match(r"^  (\w+):", l)}
     added = sorted(set(table) - known)
@@ -555,18 +639,19 @@ def record_spot(names):
     unclassified = set(data.get("unclassified") or [])
     never_counted = set(names) - (table.keys() | unclassified | (data.get("failed") or {}).keys())
     lums = token_lums()
+    key_y = light_key_y()
     fixtures = _fixture_props()
-    lum_of = {}
+    lum_of, tok_of = {}, {}
     with tempfile.TemporaryDirectory() as td:
         for name in names:
-            lum, err = measure(name, td, fixtures)
+            tok, lum, _light, err = measure_and_classify(name, td, fixtures, lums, key_y)
             if err is not None:
                 raise SystemExit("[ground_luma] record_spot: %s did not measure — %s; "
                                  "_ground_luma.json is left untouched" % (name, err))
-            lum_of[name] = lum
+            lum_of[name], tok_of[name] = lum, tok
     results = {}
     for name in names:
-        tok, _err = classify(lum_of[name], lums)
+        tok = tok_of[name]
         results[name] = tok
         if tok is None:
             table.pop(name, None)
@@ -616,17 +701,24 @@ def main(argv):
     shots = only or sorted(dna_audit.registered_shots())
     fixtures = _fixture_props()
     lums = token_lums()
+    key_y = light_key_y()
     print("probe token luminances: " + ", ".join("%s=%.3f" % (k, v) for k, v in sorted(lums.items(), key=lambda kv: kv[1])))
-    out, unclassified, failed, meas = {}, [], {}, {}
+    out, unclassified, failed, meas, meas_light = {}, [], {}, {}, {}
     with tempfile.TemporaryDirectory() as td:
         for i, s in enumerate(shots, 1):
-            lum, err = measure(s, td, fixtures)
+            tok, lum, light, err = measure_and_classify(s, td, fixtures, lums, key_y)
             if err is not None:
                 failed[s] = err
                 print("  [%3d/%d] %-24s NOT MEASURED — %s" % (i, len(shots), s, err))
                 continue
             meas[s] = lum
-            tok, d = classify(lum, lums)
+            if light is not None:
+                meas_light[s] = light[0]
+            if _is_literal(tok):
+                print("  [%3d/%d] %-24s lum=%.3f  -> %s  (bg under the dark probe; kept Y=%.3f under the light one)"
+                      % (i, len(shots), s, lum, tok, light[0]))
+                out[s] = tok
+                continue
             if tok is None:
                 unclassified.append((s, lum)); print("  [%3d/%d] %-24s lum=%.3f  UNCLASSIFIED" % (i, len(shots), s, lum))
             else:
@@ -655,9 +747,11 @@ def main(argv):
             # register that is behaving exactly as declared, the moment a probe token drifted near it.
             if isinstance(decl, str):
                 pred = _rel_lum(decl)
-                d = _gap(lum, pred)
+                # a kept night is judged where it matters too — on the LIGHT film, where it is not the film's
+                # ground — and the worse of the two probes is the verdict
+                d, at = max((_gap(y, pred), y) for y in [lum] + ([meas_light[shot]] if shot in meas_light else []))
                 if d >= harsh:
-                    off.append((shot, lum, pred, d))
+                    off.append((shot, at, pred, d))
                 else:
                     ok_lit += 1
                 continue

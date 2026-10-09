@@ -3,18 +3,18 @@
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
-    "AnalogTape": "b8377fd8ef4b95ca",
+    "AnalogTape": "d18292ce4248875f",
     "AnswerStream": "333c96d4965aff9c",
     "AntiDesignChaos": "d7eec2b4a7da1c1d",
-    "AsciiField": "f550de2a23084b37",
+    "AsciiField": "cf337e758792d4e5",
     "AtomOrbital": "c8491edbf598bd6f",
-    "AuroraFlow": "34b4365e6c86e192",
+    "AuroraFlow": "180cb0458d4c71df",
     "AverageHides": "f5ace595e836139b",
     "BeforeAfterSlider": "d2ede4a45333e49c",
     "BentoReveal": "85ffeb7e580ac571",
     "BlockAssembly": "a6141207240b90c3",
     "BlueprintGrid": "a3d1bee8130eff2d",
-    "BokehPull": "521e79f387b49af5",
+    "BokehPull": "a273634cd022a89b",
     "BreaksWhenAsked": "15c581f6f189eba4",
     "BrutalistType": "312571546ea92508",
     "CardFlip3D": "7335b2cac4792ec5",
@@ -29,7 +29,7 @@
     "ClayStack": "8d259af5eb7223d7",
     "ClothWave": "037be8997469071e",
     "CodeCompose": "46cea6fef43ebe17",
-    "CodeRain": "a6afc43ba7b0505b",
+    "CodeRain": "1ee1ebf7bf47a456",
     "CollaborativeCursors": "97ca7b39850d3d36",
     "ComicPanels": "7bd3fb72ac55c742",
     "CommandSummon": "cafeff417c8d5739",
@@ -63,7 +63,7 @@
     "GaugeCluster": "322cebd072360798",
     "GazetteerEntry": "53080a50357d611a",
     "GearTrain": "06a87df7dabb380d",
-    "GlitchDatamosh": "4163f1af2e668f97",
+    "GlitchDatamosh": "c6492c245862561d",
     "GlowPick": "bb9b38efccde56e7",
     "GradientTilt": "93dc579f25a937fc",
     "GrantedTree": "3a82173b80240cf2",
@@ -89,7 +89,7 @@
     "KnowledgeGraph": "e65d9fd6ed7c1ebe",
     "LarmorPrecession": "87ae45a881eca16c",
     "LastLeg": "41fb09b097e79be7",
-    "LightTrails": "f676f38ad7c7842c",
+    "LightTrails": "518557ccbc8412ce",
     "LiquidChrome": "297cf525a8ad7534",
     "LiquidFill": "6deffddaf94254cc",
     "LiquidGlass": "e17c769782b387a2",
@@ -108,8 +108,8 @@
     "MorphForms": "627b508b0b49a3a1",
     "MuseumLabel": "06f4c4dfda7b7138",
     "NearTheLine": "5f83a016d733840a",
-    "NeonGrid": "2d2e219fc135e030",
-    "NeonTickerWall": "4b3d5c3529a7b958",
+    "NeonGrid": "a925b7980c89d4b7",
+    "NeonTickerWall": "026cb919a7297e05",
     "NeuralField": "7f38d3bcfc1a0a83",
     "OdometerRoll": "2a77fcf4df302c4d",
     "OpenQuestions": "18cf5a8c29acba94",
@@ -121,7 +121,7 @@
     "PhaseEncodeStep": "c6cd903b075a2d0d",
     "PhotoPlate": "79deca9d9d5a9460",
     "PhysicsStack": "b3168176cdcab369",
-    "PixelBuild": "c818d09c31cd51e4",
+    "PixelBuild": "819c73daf5de5eb3",
     "PlanPalimpsest": "56aee74f108f4d34",
     "PlaneStack": "a3e9fb8ac8cc42e6",
     "PlatformSurfaces": "75d49a965e51834a",
@@ -133,7 +133,7 @@
     "QuadSplit": "78921afa8df2de7e",
     "RackFocus": "985dfe9b91fa2a2c",
     "RadialBurst": "910c8b7ab2421098",
-    "RainGlass": "edfc6e9d801661da",
+    "RainGlass": "744f31bfdac415ac",
     "RansomZine": "126d44c181f7e96e",
     "RealVersus": "02838e07d7a19417",
     "RestsOn": "0af3644b9c543ef7",
@@ -148,13 +148,13 @@
     "ShorteningHold": "30bb2b3a3002f713",
     "SourceDeal": "f6c9b7deb5b86d99",
     "SpatialSlides": "dbda14c8d2acff43",
-    "SpectrumPulse": "af4d9f44eb4fcb8d",
+    "SpectrumPulse": "6d9d6d42f04ae004",
     "SpeedLimit": "1062149416473552",
     "SpinningProton": "8173db1aa50dfbbb",
     "SpinsAlign": "109bccdd737c713b",
     "SplitFlap": "032eaea17701525a",
-    "SpotlightStage": "467f48fcff1e220c",
-    "StarfieldWarp": "ec3729197832e88c",
+    "SpotlightStage": "ff07b2beb320b9b4",
+    "StarfieldWarp": "6a222efafc84c645",
     "StateSheet": "9ebfa3303acc3b06",
     "StatedBy": "eb19bfde521dba10",
     "StrataColumn": "b52724ad79dca9e8",
@@ -265,7 +265,7 @@
       "ink_median": 0.082,
       "luma_range": 0.03,
       "seconds": 5.0,
-      "footprint": 0.051
+      "footprint": 0.052
     },
     "AtomOrbital": {
       "motion_p75": 0.0013,
@@ -321,7 +321,7 @@
       "ink_median": 0.016,
       "luma_range": 0.008,
       "seconds": 5.3,
-      "footprint": 0.11
+      "footprint": 0.111
     },
     "BreaksWhenAsked": {
       "motion_p75": 0.0096,
@@ -422,7 +422,7 @@
       "footprint": 0.258
     },
     "CodeRain": {
-      "motion_p75": 0.0056,
+      "motion_p75": 0.0055,
       "ink_median": 0.107,
       "luma_range": 0.015,
       "seconds": 5.0,
@@ -681,8 +681,8 @@
       "footprint": 0.288
     },
     "GlitchDatamosh": {
-      "motion_p75": 0.0035,
-      "ink_median": 0.039,
+      "motion_p75": 0.0034,
+      "ink_median": 0.04,
       "luma_range": 0.012,
       "seconds": 4.7,
       "footprint": 0.152
@@ -1004,7 +1004,7 @@
     },
     "NeonGrid": {
       "motion_p75": 0.0002,
-      "ink_median": 0.154,
+      "ink_median": 0.153,
       "luma_range": 0.023,
       "seconds": 5.3,
       "footprint": 0.412
@@ -1318,7 +1318,7 @@
       "footprint": 0.229
     },
     "SpectrumPulse": {
-      "motion_p75": 0.0092,
+      "motion_p75": 0.0093,
       "ink_median": 0.06,
       "luma_range": 0.023,
       "seconds": 5.2,
