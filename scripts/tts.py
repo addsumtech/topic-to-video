@@ -18,16 +18,37 @@ def _read_key_file(path):
     except OSError:
         return None
 
+SAY_EXT = "wav"
+
+
+def aiff_to_wav(src, dest):
+    """A `say` AIFF as 16-bit PCM WAV at its own sample rate — a lossless rewrap, so every measured duration
+    holds to the sample. WHY: Remotion's bundled ffprobe cannot read the AIFF `say` (and ffmpeg's AIFF muxer
+    after mastering) writes — "Invalid data found when processing input" — so a `say:` voice failed the
+    cinematic tier at render time, after the whole board was built."""
+    _common.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-c:a", "pcm_s16le", "-map_metadata", "-1", dest])
+
+
 def _say(text, out_path, voice, rate=175):
-    # say writes AIFF directly; ffprobe reads its real duration later.
-    _common.run(["say", "-v", voice, "-r", str(rate), "-o", out_path, text])
+    # say writes AIFF; a .wav destination gets it rewrapped losslessly (aiff_to_wav). ffprobe reads its real
+    # duration later.
+    if not out_path.endswith(".wav"):
+        _common.run(["say", "-v", voice, "-r", str(rate), "-o", out_path, text])
+        return
+    tmp = out_path[:-4] + ".say.aiff"
+    try:
+        _common.run(["say", "-v", voice, "-r", str(rate), "-o", tmp, text])
+        aiff_to_wav(tmp, out_path)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
 
 
 def _silence(out_path, seconds=1.2):
     """A REAL short silent clip for a deliberately-silent beat (a section divider, or tts run before the
     script is written). Holds the slide on screen for `seconds` instead of `say ' '` (which yields a
     header-only ~0s AIFF that crashes duration probing and flashes for one frame)."""
-    sr = 22050 if out_path.endswith(".aiff") else 24000
+    sr = 22050 if out_path.endswith((".aiff", "." + SAY_EXT)) else 24000
     _common.run(["ffmpeg", "-y", "-f", "lavfi", "-i", f"anullsrc=r={sr}:cl=mono",
                  "-t", f"{seconds:.2f}", out_path])
 
@@ -854,7 +875,7 @@ def synthesize(out_dir, only=None):
         if only is not None and s["index"] != only:
             continue
         text = (s.get("narration") or "").strip()
-        ext = "aiff" if prov == "say" else "mp3"
+        ext = SAY_EXT if prov == "say" else "mp3"
         rel = os.path.join("audio", f"{s['index']:02d}.{ext}")
         dest = os.path.join(out_dir, rel)
         if not text:
@@ -876,7 +897,7 @@ def synthesize(out_dir, only=None):
             # or a non-English project (e.g. zh) would get garbled English audio.
             fb, _ = _resolve_say_voice("Samantha", data["meta"].get("language", "auto"))
             print(f"[tts] {prov} failed ({e}); falling back to say:{fb}")
-            rel = os.path.join("audio", f"{s['index']:02d}.aiff")
+            rel = os.path.join("audio", f"{s['index']:02d}.{SAY_EXT}")
             dest = os.path.join(out_dir, rel)
             _say(text, dest, fb)
             fell_back.append(s["index"])
@@ -890,7 +911,7 @@ def synthesize(out_dir, only=None):
         # Only edge-tts emits per-word timings. For any other provider (say/openai/minimax) drop a
         # leftover words.json from a PRIOR edge run — otherwise render_html would cue reveals off
         # stale timings that don't match this audio. (The fallback branch above also handles it.)
-        if rel.endswith(".aiff") or prov != "edge":
+        if rel.endswith(("." + SAY_EXT, ".aiff")) or prov != "edge":
             wj = os.path.join(audio_dir, f"{s['index']:02d}.words.json")
             if os.path.exists(wj):
                 os.remove(wj)

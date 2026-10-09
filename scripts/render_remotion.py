@@ -314,6 +314,22 @@ def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps):
     return out
 
 
+def _readable_audio(out_dir, rel):
+    """`rel`, or a WAV beside it when it is an AIFF. Remotion's bundled ffprobe refuses the AIFF macOS `say`
+    writes ("Invalid data found when processing input"), so a board voiced before tts.py wrote WAV — or an
+    AIFF dropped in by hand — would fail mid-render. The rewrap is lossless PCM at the same rate, so the
+    board's measured duration still holds; it is redone whenever the AIFF is newer."""
+    if not str(rel).lower().endswith((".aiff", ".aif")):
+        return rel
+    src = os.path.join(out_dir, rel)
+    wav_rel = os.path.splitext(str(rel))[0] + ".wav"
+    dest = os.path.join(out_dir, wav_rel)
+    if os.path.isfile(src) and (not os.path.isfile(dest) or os.path.getmtime(dest) < os.path.getmtime(src)):
+        import tts as _tts
+        _tts.aiff_to_wav(src, dest)
+    return wav_rel
+
+
 def film_shot_props(slide, out_dir, fps=30):
     """A beat's `shot_props` as the RENDERER passes them — cue props resolved to `t`. Every gate that renders a
     film's beat on its own (text_safe_qa, cjk_type_qa, shot_proof) goes through this, so a board that writes
@@ -533,6 +549,7 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         dur, audio = s.get("duration"), s.get("audio")
         if not dur or not audio:
             raise RuntimeError("scene #%s has no audio/duration — run tts.py before rendering." % idx)
+        audio = _readable_audio(out_dir, audio)
         props = s.get("shot_props") or {}
         if not isinstance(props, dict):
             raise RuntimeError("scene #%s `shot_props` must be an object." % idx)

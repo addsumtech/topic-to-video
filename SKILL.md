@@ -30,7 +30,7 @@ TTS if the user gives an API key.
 
 ## Pipeline scripts
 - `scripts/ingest.py <input> <out_dir>` — pptx/pdf/image-folder → `frames/` + skeleton `storyboard.json` (pulls speaker notes from pptx).
-- `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.aiff` (no words.json). **`tts.py` REWRITES `storyboard.json`** (to store each clip's measured duration) — so run it (and any duration-editing pass of your own, e.g. tail-padding) **BEFORE you hand-set per-scene fields like `transition`**, or a later re-synth/duration pass that loads-then-saves the board will silently clobber those edits. Order: finalize audio & durations → THEN set transitions/motion → validate → render (render only READS the board, so it's safe after).
+- `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.wav` (rewrapped from say's AIFF, which the Remotion tier cannot read; no words.json). **`tts.py` REWRITES `storyboard.json`** (to store each clip's measured duration) — so run it (and any duration-editing pass of your own, e.g. tail-padding) **BEFORE you hand-set per-scene fields like `transition`**, or a later re-synth/duration pass that loads-then-saves the board will silently clobber those edits. Order: finalize audio & durations → THEN set transitions/motion → validate → render (render only READS the board, so it's safe after).
   **Every speech clip is MASTERED in place before its duration is measured:** loudness-normalised
   (EBU R128, I=-14) + trailing dead-air trimmed (tail-only — leading/internal timing untouched, so
   `words.json` word times stay valid), so levels are consistent across providers and the pacing gates
@@ -1455,7 +1455,7 @@ agent on the beats it points at.
    installed: `python -c "import edge_tts"`. If it's missing, **offer to install it once**
    (`pip install edge-tts`) for natural neural voices; if the user declines, set
    `meta.voice` to a `say:` fallback and continue. Then run `tts.py` (use `--only N` while
-   iterating on one slide). edge-tts emits `.mp3`; `say` emits `.aiff` — both fine.
+   iterating on one slide). edge-tts emits `.mp3`; `say` emits `.wav` — both fine.
 8. **Sample sign-off** — `render.py <out_dir> --sample N`. Then:
    a. **AV critic:** dispatch `agents/critic-av.md` on the sample frames. It verifies
       burned-in caption legibility, font/glyph correctness, R7-rendered visual quality,

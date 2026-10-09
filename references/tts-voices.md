@@ -16,8 +16,8 @@ Format: `"provider:name"`. Provider is `edge` (preferred, free neural), `say` (o
 
 ## Local: macOS `say`
 
-No network, no API key. Audio is written as `.aiff`; duration measured via
-`ffprobe`.
+No network, no API key. `say` writes AIFF, which tts.py rewraps losslessly as `.wav` (Remotion's bundled
+ffprobe refuses `say`'s AIFF); duration measured via `ffprobe`.
 
 **Recommended English voices:**
 
@@ -158,7 +158,7 @@ and logs:
 [tts] openai failed (<reason>); falling back to say:Tingting for zh
 ```
 
-The fallback slide gets an `.aiff` file instead of `.mp3`. Rendering continues
+The fallback slide gets a `.wav` file instead of `.mp3`. Rendering continues
 normally — `ffprobe` measures the actual duration from whichever file was
 produced.
 
@@ -224,7 +224,7 @@ speaking rate, so it's close but not word-exact. Use **edge-tts** when you need 
 
 If the MiniMax call fails (missing key, network, bad `voice_id`/`tts_model`, quota), `tts.py` falls
 back to the language-matched `say` voice and logs `[tts] minimax failed (<reason>); falling back to
-say:<voice>`. That slide gets an `.aiff`; rendering continues.
+say:<voice>`. That slide gets a `.wav`; rendering continues.
 
 ---
 

@@ -26,7 +26,7 @@ def test_synthesize_only_zero_targets_slide_0(tmp_path, monkeypatch):
     monkeypatch.setattr(tts, "_say", fake_say)
     monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
     tts.synthesize(str(out), only=0)
-    assert len(done) == 1 and done[0].endswith("00.aiff"), f"only slide 0 should synth, got {done}"
+    assert len(done) == 1 and done[0].endswith("00.wav"), f"only slide 0 should synth, got {done}"
 
 def _proj(tmp_path):
     out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
@@ -314,7 +314,7 @@ def test_minimax_failure_falls_back_to_say(tmp_path, monkeypatch):
     monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
     res = tts.synthesize(out)
     assert said, "minimax failure should fall back to say"
-    assert all(s["audio"].endswith(".aiff") for s in res["slides"])
+    assert all(s["audio"].endswith(".wav") for s in res["slides"])
 
 def test_minimax_removes_stale_words_json(tmp_path, monkeypatch):
     # switching from edge to minimax must drop leftover per-word timings (they'd mis-cue reveals)
@@ -345,7 +345,7 @@ def test_empty_narration_uses_silence_not_say(tmp_path, monkeypatch):
     monkeypatch.setattr(tts, "_silence", lambda dest, seconds=1.2: (silenced.append(dest), open(dest, "wb").write(b"\x00")))
     monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.2)
     res = tts.synthesize(str(out))
-    assert len(silenced) == 1 and silenced[0].endswith("02.aiff")     # silent clip for the blank slide
+    assert len(silenced) == 1 and silenced[0].endswith("02.wav")     # silent clip for the blank slide
     assert " " not in said                                            # never synthesized a bare space
     assert res["slides"][1]["duration"] >= 1.0                        # floored so it holds
 
@@ -738,3 +738,47 @@ def test_every_seam_in_a_film_gets_the_same_pause(tmp_path, monkeypatch):
     assert len(tails) >= 2, made
     assert max(tails) - min(tails) < 0.06, ("the seam changed length between beats", tails)
     assert min(tails) > 0.55 + 0.3 - 0.12, ("the film-wide full stop was not used", tails)
+
+
+_REMOTION_FFPROBE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion",
+                                 "node_modules", "@remotion", "compositor-darwin-arm64", "ffprobe")
+
+
+def _remotion_reads(path):
+    """What Remotion's OWN bundled ffprobe says about `path` — the reader that refused `say`'s AIFF at render
+    time while the system ffprobe read it fine."""
+    import subprocess
+    r = subprocess.run([_REMOTION_FFPROBE, "-v", "error", "-select_streams", "a:0", "-show_entries",
+                        "stream=codec_name,duration", "-of", "csv=p=0", os.path.abspath(path)], capture_output=True, text=True,
+                       cwd=os.path.dirname(_REMOTION_FFPROBE))     # its dylibs sit beside it, as Remotion runs it
+    return r.returncode == 0 and bool(r.stdout.strip()), (r.stdout + r.stderr).strip()
+
+
+@pytest.mark.skipif(not (_common.have_tool("say") and _common.have_tool("ffmpeg") and os.path.isfile(_REMOTION_FFPROBE)),
+                    reason="needs macOS say, ffmpeg and remotion's bundled ffprobe")
+def test_a_say_voice_writes_audio_the_remotion_tier_can_read(tmp_path):
+    """A `say:` voice used to ship `.aiff`, which Remotion's bundled ffprobe refuses ("Invalid data found when
+    processing input") — the cinematic tier failed at render time. Synthesis now rewraps it as PCM WAV, and a
+    board voiced before that still renders: render_remotion rewraps a legacy AIFF losslessly first."""
+    import render_remotion
+    out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
+    data = sb.new_storyboard()
+    data["meta"]["voice"] = "say:Samantha"; data["meta"]["language"] = "en"
+    data["slides"] = [sb.new_slide(1, "frames/01.png", "Offline voices render in the cinematic tier.")]
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    res = tts.synthesize(str(out))
+    s = res["slides"][0]
+    assert s["audio"].endswith(".wav"), s["audio"]
+    ok, why = _remotion_reads(os.path.join(out, s["audio"]))
+    assert ok, why
+    assert abs(_common.audio_duration(os.path.join(out, s["audio"])) - s["duration"]) < 1e-3
+
+    legacy = os.path.join(out, "audio", "legacy.aiff")
+    tts._common.run(["say", "-v", "Samantha", "-o", legacy, "A board voiced before the change."])
+    assert not _remotion_reads(legacy)[0], "the reader no longer refuses AIFF: this test has lost its subject"
+    rel = render_remotion._readable_audio(str(out), "audio/legacy.aiff")
+    assert rel == "audio/legacy.wav"
+    ok, why = _remotion_reads(os.path.join(out, rel))
+    assert ok, why
+    # lossless rewrap: the board's measured duration still holds to the sample
+    assert abs(_common.audio_duration(os.path.join(out, rel)) - _common.audio_duration(legacy)) < 1e-4
