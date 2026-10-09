@@ -628,6 +628,57 @@ def code_files(out_dir):
     return sorted(out)
 
 
+def beat_files(out_dir, shot, props):
+    """The workshop files ONE beat is built from — its shot when the workshop owns it, every object its props
+    reference (object_refs), and everything those files reach by relative import, transitively. The per-beat
+    segment cache key hashes exactly these, so editing one built object re-renders only the beats that use it
+    (it used to hash the WHOLE workshop into every key: one edit, every beat re-rendered).
+
+    Conservative where a reference is not a prop or an import: a workshop item whose NAME appears as a word in a
+    file already reached (an object that mounts another by id) is pulled in too — an over-wide key costs a
+    re-render, an under-wide one ships a stale beat."""
+    if not out_dir:
+        return []
+    ws = workshop_dir(out_dir)
+    if not os.path.isdir(ws):
+        return []
+    roots = [os.path.join(ws, d) for d in KINDS + ("assets",)]
+    items = {}
+    for kind in KINDS:
+        for n in _tsx_names(os.path.join(ws, kind)):
+            items.setdefault(n, os.path.join(ws, kind, n + ".tsx"))
+    todo = []
+    if isinstance(shot, str) and shot_source_path(out_dir, shot) == os.path.join(ws, "shots", shot + ".tsx"):
+        todo.append(os.path.join(ws, "shots", shot + ".tsx"))
+    for _path, ref in object_refs(shot_source(out_dir, shot) if isinstance(shot, str) else None,
+                                  props or {}, shot if isinstance(shot, str) else None):
+        rid = ref.get("id") if isinstance(ref, dict) else None
+        f = os.path.join(ws, "objects", "%s.tsx" % rid) if _safe(rid) else None
+        if f and os.path.isfile(f):
+            todo.append(f)
+    seen = set()
+    while todo:
+        f = os.path.abspath(todo.pop())
+        if f in seen or not os.path.isfile(f):
+            continue
+        seen.add(f)
+        if not f.endswith((".ts", ".tsx", ".js", ".jsx")):
+            continue
+        text = _strip_comments(_read(f))
+        for spec in _IMPORT.findall(text):
+            if not spec.startswith("."):
+                continue
+            base = os.path.normpath(os.path.join(os.path.dirname(f), spec))
+            hit = next((base + e for e in ("", ".ts", ".tsx", ".js", ".json", "/index.ts", "/index.tsx")
+                        if os.path.isfile(base + e)), None)
+            if hit and any((hit + os.sep).startswith(r + os.sep) or hit.startswith(r + os.sep) for r in roots):
+                todo.append(hit)
+        for n, p in items.items():
+            if p not in seen and re.search(r"\b%s\b" % re.escape(n), text):
+                todo.append(p)
+    return sorted(seen)
+
+
 def source_files(out_dir):
     """The workshop's code: every .ts and .tsx under objects/ and shots/, at any depth — a helper module may sit
     in its own subfolder. The SAME traversal code_files() uses, so a helper is hashed for the render cache AND

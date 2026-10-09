@@ -229,13 +229,48 @@ def code_hash(out_dir=None):
     return h.hexdigest()
 
 
+def beat_code_hash(out_dir, scenes):
+    """The workshop code the given scenes are built from (workshop.beat_files), keyed like code_hash keys the
+    workshop: by path inside it, sorted by that, so moving the film never re-renders it. "" for none."""
+    import workshop as _ws
+    ws_root = _ws.workshop_dir(out_dir) + os.sep
+    files = set()
+    for sc in scenes:
+        if isinstance(sc, dict):
+            files.update(_ws.beat_files(out_dir, sc.get("shot"), sc.get("props")))
+    if not files:
+        return ""
+    h = hashlib.sha256()
+    for rel, p in sorted(("workshop/" + os.path.relpath(p, ws_root).replace(os.sep, "/"), p) for p in files):
+        h.update(rel.encode("utf-8"))
+        h.update(b"\0")
+        h.update(file_sha(p).encode("ascii"))
+        h.update(b"\n")
+    return h.hexdigest()
+
+
 def plan(props, public_dir, flags, tr=None, code=None):
     """([{k, a, b, key}], total). Pure given its inputs — the render and the `--plan` report ask the same
-    function."""
+    function.
+
+    THE WORKSHOP IS KEYED PER BEAT. With `code` left to this function, the film-wide part hashes the LIBRARY
+    only, and each segment adds the workshop files its own scenes (the beat and the one dissolving out of it)
+    are built from — so editing one built object re-renders the beats that use it and no other. Which items
+    EXIST still reaches every key through the film-wide hash of their names (the generated index is a
+    function of them). A caller that passes `code` keeps the old single film-wide hash."""
     tr = seam_frames() if tr is None else tr
     scenes = props.get("scenes") or []
     ranges, total = timeline(scenes, tr)
-    code = code_hash(public_dir) if code is None else code
+    per_beat = code is None and bool(public_dir) and os.path.isdir(os.path.join(os.path.abspath(public_dir),
+                                                                                "workshop"))
+    if code is None:
+        code = code_hash(None)
+        if per_beat:
+            import workshop as _ws
+            ws_root = _ws.workshop_dir(public_dir) + os.sep
+            names = sorted("workshop/" + os.path.relpath(p, ws_root).replace(os.sep, "/")
+                           for p in _ws.code_files(public_dir))
+            code = _sha(_canon({"lib": code, "workshop_names": names}))
     film = {k: v for k, v in props.items() if k != "scenes"}
     # THE ROOT FILL IS SCENE 0's OPENING GROUND (Film.tsx `rootBg`), under every frame of the film. It is
     # covered by the Atmosphere's opaque fill, so this is belt and braces — and cheap, because only what
@@ -252,6 +287,8 @@ def plan(props, public_dir, flags, tr=None, code=None):
         prev = scenes[k - 1] if k else None
         body = {"g": g, "k": k, "a": a, "b": b, "last": k == len(scenes) - 1, "prev": prev, "cur": scenes[k],
                 "files": referenced_files([prev, scenes[k]], public_dir)}
+        if per_beat:
+            body["ws"] = beat_code_hash(public_dir, [prev, scenes[k]])
         segs.append({"k": k, "a": a, "b": b, "key": _sha(_canon(body))})
     return segs, total
 

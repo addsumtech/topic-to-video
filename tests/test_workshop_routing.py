@@ -146,6 +146,50 @@ def test_the_segment_cache_key_sees_the_workshop_and_not_where_the_film_lives(tm
     assert rs.code_hash(out) != h1                  # editing a built thing does
 
 
+def test_editing_one_built_object_re_renders_only_the_beats_that_use_it(tmp_path):
+    """The segment key used to hash the WHOLE workshop, so one edited object re-rendered every beat. Now each
+    segment hashes the workshop files its own scenes are built from (the beat, and the one dissolving out of it
+    in the segment's opening frames): its shot, the objects its props reference, and their relative imports."""
+    out = _film(tmp_path)                              # shots/WsShotA, objects/WsDisc
+    objs = os.path.join(ws.workshop_dir(out), "objects")
+    with open(os.path.join(objs, "WsCube.tsx"), "w", encoding="utf-8") as fh:
+        fh.write(OBJECT.replace("({w, h, color = '#ff0000'})", "({w, h, color = '#ff0000'})")
+                 .replace("%(name)s", "WsCube").replace("import React from 'react';",
+                                                         "import React from 'react';\nimport {EDGE} from './cubeEdge';"))
+    with open(os.path.join(objs, "cubeEdge.ts"), "w", encoding="utf-8") as fh:
+        fh.write("export const EDGE = 2;\n")
+    ref = lambda i: {"fill": "#000000", "object": {"id": i, "props": {}}}  # noqa: E731
+    props = {"scenes": [{"shot": "WsShotA", "props": ref("WsDisc"), "durF": 60},
+                        {"shot": "Aliasing", "props": {}, "durF": 60},
+                        {"shot": "WsShotA", "props": ref("WsCube"), "durF": 60},
+                        {"shot": "Aliasing", "props": {}, "durF": 60}]}
+
+    def keys():
+        return [s["key"] for s in rs.plan(props, out, {"gl": "angle"})[0]]
+
+    def changed(before):
+        return [k for k, (x, y) in enumerate(zip(before, keys())) if x != y]
+
+    def edit(path):
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write("\n// edited\n")
+
+    k0 = keys()
+    assert keys() == k0
+    edit(os.path.join(objs, "WsDisc.tsx"))
+    assert changed(k0) == [0, 1], "WsDisc is beat 0's; beat 1's segment opens on the dissolve out of it"
+    k1 = keys()
+    edit(os.path.join(objs, "cubeEdge.ts"))            # reached only through WsCube's relative import
+    assert changed(k1) == [2, 3]
+    k2 = keys()
+    edit(os.path.join(ws.workshop_dir(out), "shots", "WsShotA.tsx"))
+    assert changed(k2) == [0, 1, 2, 3]
+    k3 = keys()
+    with open(os.path.join(objs, "WsNew.tsx"), "w", encoding="utf-8") as fh:
+        fh.write(OBJECT % {"name": "WsNew"})           # a new item changes the generated index every beat bundles
+    assert changed(k3) == [0, 1, 2, 3]
+
+
 def test_text_safe_measures_workshop_beats_in_their_bundle(monkeypatch, tmp_path):
     import text_safe_qa as g
     out = _film(tmp_path)
