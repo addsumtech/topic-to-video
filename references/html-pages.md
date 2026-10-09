@@ -65,6 +65,13 @@ floors to ADAPT, not fixed slots; the plain archetype snippets above are for sim
   element, put the transparency in the COLOR instead:
   `color:color-mix(in srgb,var(--on-accent) 92%,transparent)`.
 
+## Cue a finished page in one command
+Don't hand-write every anchor. After `tts.py`, `python3 scripts/cue_pages.py <out_dir>` proposes a `data-cue` +
+`data-cue-index` for each `reveal*`/`settle`/`count-up` text element, matched to the narration by the same matcher
+the sync gate judges with and numbered in spoken order; `--write` applies it (first `.bak` kept). It never
+overwrites your anchors — one that lands >1 s after its own text is spoken is reported, and `--retarget` re-points it —
+and an element the voice never says is listed, not cued. Re-run keyframe_qa afterwards.
+
 ## Faithfulness (required)
 Every number, name, date, and claim on the page must come from the material (or a verified
 source) — type the real data into the HTML. Never invent figures or labels. Data lives on the

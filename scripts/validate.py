@@ -4201,7 +4201,8 @@ def uncued_points_message(tag, n):
     return (f"{tag}: {n} reveal points and NO data-cue anchors — they appear on the page's own paced clock, "
             f"not when the narration says them. Give each point data-cue-index=\"0\"..\"{n - 1}\" in spoken "
             f"order and data-cue=\"<the words that name it>\" (render_html then reveals it on that word); "
-            f"header chrome (.kicker/.title/.sub/.rule) may stay uncued")
+            f"header chrome (.kicker/.title/.sub/.rule) may stay uncued. "
+            f"Or run `python3 scripts/cue_pages.py <out_dir> --write` to propose them from the narration")
 
 
 def _reveal_truncation(html, narration, duration, words_path, tag, errors, warnings, out_edge=0.0):

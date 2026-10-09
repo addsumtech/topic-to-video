@@ -492,7 +492,8 @@ def _sync_verdict(records):
         lv = _sq.level(rec)
         if lv == "error":
             issues.append("LATE text: " + _sq.describe(rec) + " — anchor its reveal to the words that name it "
-                          "(data-cue=\"…\" + data-cue-index on that element)")
+                          "(data-cue=\"…\" + data-cue-index on that element) — or run "
+                          "`python3 scripts/cue_pages.py <out_dir> --write --retarget` to propose them")
         elif lv == "warn":
             adv.append("late text: " + _sq.describe(rec))
         elif lv == "early":
@@ -846,7 +847,8 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
         deck_notes.append(f"{len(uncued_scenes)} scene(s) ({', '.join(str(i) for i in uncued_scenes)}) carry no "
                           f"data-cue anchors, so their reveals run on the page's own animation clock, not on "
                           f"the narration — the sweep shows them exactly as they render. Add data-cue "
-                          f"anchors if a reveal should land on a spoken word")
+                          f"anchors if a reveal should land on a spoken word (`python3 scripts/cue_pages.py <out_dir>` "
+                          f"proposes them)")
     note = _band_uniformity_note(bands)
     if note:
         deck_notes.append(note)
