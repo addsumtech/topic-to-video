@@ -119,6 +119,9 @@ def test_a_ramp_from_paper_to_night_is_named_before_the_render():
     assert len(warns) == 1, warns
     assert "beat 1" in warns[0] and "light exposure to the dark" in warns[0], warns[0]
     assert "carry" in warns[0], "the warning must name the cut that works instead"
+    # light.tsx keeps inks readable across a ramp (c3f287a): the warning may not claim the frame goes blank
+    assert "vanish" not in warns[0] and "blank" not in warns[0], warns[0]
+    assert "SWITCH" in warns[0], "what a ramp still costs: a stepped ink change"
 
 
 def test_the_derived_opposite_ground_counts_as_the_other_key():

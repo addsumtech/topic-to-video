@@ -1324,15 +1324,14 @@ def _ground_key(ref, dna, presets, key_y):
 
 
 def _ramp_crossings(meta, slides, warnings):
-    """A ground RAMP between the two exposure keys blanks the frame halfway through it.
+    """A ground RAMP between the two exposure keys makes the beat's inks STEP mid-ramp.
 
-    runtime/light.tsx resolves both ends and mixes EVERY token across the ramp — bg, fg, dim, the accents, the
-    surfaces — so the inks, chosen to read on opposite grounds, pass through the ground's own tone at the same
-    moment it does. Only the burned caption picks its ink per frame. Seen on a delivered city film: a paper ->
-    night ramp on a strata column, and mid-ramp the column's three old layers, its outline and the kicker were
-    all gone, one red layer floating on grey. The runtime is where it is fixed; until then this names it before
-    a render, with the move that works: cut to the other key and mark the cut `carry`, the one seam that bridges
-    a dark<->light cut."""
+    runtime/light.tsx (c3f287a) picks every token per frame for contrast, so a ramp no longer blanks the
+    frame. What it still costs: a token keeps its plain mix only while that mix reads against the moving
+    ground, and otherwise SWITCHES to the ink the ground derives, so type, outlines and fills change colour in a
+    step part-way through the ramp instead of fading, and surfaces are re-placed. This names it before a render,
+    with the move that gives a clean change of exposure: cut to the other key and mark the cut `carry`.
+    """
     key_y = _light_key_y()
     if key_y is None:
         return
@@ -1345,12 +1344,12 @@ def _ramp_crossings(meta, slides, warnings):
         a, b = _ground_key(g["from"], dna, presets, key_y), _ground_key(g["to"], dna, presets, key_y)
         if a and b and a != b:
             warnings.append(
-                "remotion: beat %d ramps its ground from the %s exposure to the %s one. The runtime mixes every "
-                "colour token across a ramp, so the beat's own inks pass through the ground's tone halfway — "
-                "type, outlines and fills vanish for part of the ramp (only the burned caption picks its ink "
-                "per frame). Ramp within one exposure, or give the beat the other key as a plain `ground` and "
-                "mark the cut into it `transition_in: {type: \"carry\"}`, the seam that bridges a dark<->light "
-                "cut." % (pos, a, b))
+                "remotion: beat %d ramps its ground from the %s exposure to the %s one. The runtime keeps every "
+                "ink readable across the ramp by picking it per frame, but that means type, outlines and fills "
+                "SWITCH to the other ink in a step part-way through instead of fading, and surfaces are "
+                "re-placed. Fine for a deliberate flip; for a clean change of exposure ramp within one key, or "
+                "give the beat the other key as a plain `ground` and mark the cut into it "
+                "`transition_in: {type: \"carry\"}`, the seam that bridges a dark<->light cut." % (pos, a, b))
 
 
 def _beat_grounds(slides, errors, warnings):
