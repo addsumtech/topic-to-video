@@ -407,7 +407,7 @@ finding it prints that you do not understand.
   1.27-frame AAC-priming compensation is THEIRS, and hardcoding it here would have introduced the error it
   was meant to remove. Needs the Node toolchain (one-time `cd remotion && npm install`); the html/local tier
   (`render.py`) is untouched by this path.
-  **CAMERA BED (DEFAULT ON for themed films):** a beat with NO authored `camera` drifts gently instead of
+  **CAMERA BED (OFF by default — `meta.camera_bed: true` turns it on):** a beat with NO authored `camera` drifts gently instead of
   sitting dead — a slow, monotone lateral pan (`depth.tsx bedPan`; the Ken Burns floor the html tier has
   always had), edge-safe and caption-bounded by construction, at 45% of the camera cap so the seam_plan
   punctuation (push/pull with causes) stays legible above it. Measured: the reference 6-beat film went
@@ -418,7 +418,7 @@ finding it prints that you do not understand.
   An authored camera (even `hold`) wins outright; un-themed films are pixel-untouched (null-DNA rule);
   reduced motion zeroes it; it refuses to coexist with `meta.camera_drift`; **It is OFF by default** — shipped as the default it drifted 21 of a film's 25 beats and read as
   the type sliding sideways for the whole runtime (the motion number rose; the film looked worse). `meta.camera_bed: true` is the
-  film-wide opt-out.
+  film-wide opt-IN (render_remotion passes `cameraBed` only when the board sets it to `true`).
   **FINISH (film optics, DEFAULT ON for themed films):** every themed film carries a photographic finish —
   deterministic grain, corner falloff, a key-light direction — from `design_dna.finish` (preset-tuned in
   `remotion/src/runtime/dna.tsx`; an authored partial DNA inherits the mild NEUTRAL default through coerceDna).
