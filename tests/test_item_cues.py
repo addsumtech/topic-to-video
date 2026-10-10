@@ -154,8 +154,10 @@ def test_the_film_and_the_hook_share_one_warp_map():
     assert "import {CueContext, warpFrame} from './runtime/cue';" in film
     assert "export const warpFrame" not in film                     # one definition, not two that can drift
     assert "if (!warp || warp.length < 2 || f <= warp[0][0] || f >= warp[warp.length - 1][0]) return f;" in cue
+    # other context providers (the idle clock's) may sit between the two; what matters is that the provider
+    # and the clock read the SAME `sc.warp`, with no second BeatClock in between
     m = re.search(r"<CueContext\.Provider value=\{sc\.cues \? \{at: sc\.cues, warp: sc\.warp \?\? null\} : null\}>"
-                  r"\s*<BeatClock warp=\{sc\.warp\}>", film)
+                  r"(?:(?!BeatClock|</CueContext\.Provider>).)*?<BeatClock warp=\{sc\.warp\}>", film, re.S)
     assert m, "the cues must reach the register with the SAME warp BeatClock applies"
 
 
