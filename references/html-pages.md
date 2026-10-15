@@ -67,7 +67,9 @@ Don't hand-write every anchor. After `tts.py`, `python3 scripts/cue_pages.py <ou
 `data-cue-index` for each `reveal*`/`settle`/`count-up` text element, matched to the narration by the same matcher
 the sync gate judges with and numbered in spoken order; `--write` applies it (first `.bak` kept). It never
 overwrites your anchors — one that lands >1 s after its own text is spoken is reported, and `--retarget` re-points it —
-and an element the voice never says is listed, not cued. Re-run keyframe_qa afterwards.
+and an element the voice never says is listed, not cued. An element whose lines the voice says more than 4.5 s apart
+(a label said early, its claim said late) gets neither: one reveal cannot land both without a late ERROR or an early
+spoiler, so it is reported as "split it" — give each line its own element and cue. Re-run keyframe_qa afterwards.
 
 ## Faithfulness (required)
 Every number, name, date, and claim on the page must come from the material (or a verified

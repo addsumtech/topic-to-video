@@ -135,11 +135,40 @@ def _target(el, spoken):
     return best
 
 
+def _spoken_span(el, spoken):
+    """[(t, text)] for EVERY line the element carries that the voice names, earliest first."""
+    out, stack = [], [el]
+    while stack:
+        e = stack.pop()
+        stack.extend(e["kids"])
+        own = re.sub(r"\s+", " ", "".join(e["own"])).strip()
+        hit = _sq.match_spoken(own, spoken) if own else None
+        if hit is not None:
+            out.append((float(hit[1]), own))
+    return sorted(out)
+
+
+# ONE ELEMENT, ONE REVEAL — so its lines must be spoken close enough together for one time to serve them all. The
+# audit flags a line shown more than LAG_ERROR after its words and one shown more than EARLY_WARN before them, so one
+# reveal can land every line only while they are spoken at most LAG_ERROR + EARLY_WARN apart. Past that, anchoring
+# at the earliest line (what this tool did) trades a late ERROR for an early spoiler — measured on the skill's own
+# jev-html: a card holding the label "JEV" (said at 0.1 s) and the claim "不是大语言模型" (said at 5.3 s) was offered
+# a retarget onto "Jev" that would have shown the claim five seconds before the voice made it. The fix is a SPLIT.
+def _too_spread(span):
+    return len(span) >= 2 and span[-1][0] - span[0][0] > _sq.LAG_ERROR + _sq.EARLY_WARN
+
+
+def _split_reason(span):
+    a, b = span[0], span[-1]
+    return ("its lines are spoken %.1fs apart (%r at %.1fs, %r at %.1fs) — one reveal cannot land both; split it into "
+            "elements, each cued on its own words" % (b[0] - a[0], a[1][:24], a[0], b[1][:24], b[0]))
+
+
 def plan_page(src, spoken, words, retarget=False, narration=""):
     """(inserts, unmatched, renumber, els, disputed) for one page.
     inserts: [{el, phrase, t, index, old}]; unmatched: [(text, reason)]; renumber: {old_index: new_index};
-    disputed: [(text, anchor, lag, suggested)] — hand-written anchors that land late on their own text
-    (changed only with retarget=True)."""
+    disputed: [(text, anchor, lag, suggested, split)] — hand-written anchors that land late on their own text
+    (changed only with retarget=True); `split` is why NO anchor can serve the element (then `suggested` is None)."""
     els = scan(src)
     cand, unmatched, disputed = [], [], []
     groups = {}
@@ -165,6 +194,10 @@ def plan_page(src, spoken, words, retarget=False, narration=""):
             if _text(el):
                 unmatched.append((_text(el), "the voice never says it"))
             continue
+        span = _spoken_span(el, spoken)
+        if _too_spread(span):
+            unmatched.append((_text(el), _split_reason(span)))
+            continue
         cand.append({"el": el, "t": tg[0], "texts": _phrases(tg, narration), "k": 0,
                      "text": _text(el), "old": None})
     # a hand-written anchor that lands well after the voice names its own text
@@ -176,8 +209,12 @@ def plan_page(src, spoken, words, retarget=False, narration=""):
         tg = _target(el, spoken) if el else None
         if tg is None or old_t[i] - tg[0] <= LATE_DISPUTE:
             continue
+        span = _spoken_span(el, spoken)
+        if _too_spread(span):                          # no anchor can serve it: report the split, never retarget
+            disputed.append((_text(el), g["phrase"], old_t[i] - tg[0], None, _split_reason(span)))
+            continue
         sug = next(iter(_phrases(tg, narration)), None)
-        disputed.append((_text(el), g["phrase"], old_t[i] - tg[0], sug))
+        disputed.append((_text(el), g["phrase"], old_t[i] - tg[0], sug, None))
         if retarget and sug:
             cand.append({"el": el, "t": tg[0], "texts": _phrases(tg, narration), "k": 0,
                          "text": _text(el), "old": i})
@@ -270,9 +307,10 @@ def main(argv=None):
                                                          ", existing indices renumbered %s" % moved if moved and ins else ""))
         for i in sorted(ins, key=lambda i: i["index"]):
             print('  + data-cue-index=%d  data-cue="%s"  @%.2fs  <%s> %s' % (i["index"], i["phrase"], i["t"], i["el"]["tag"], _text(i["el"])[:40]))
-        for txt, anchor, lag, sug in disp:
-            print("  ! your anchor %r lands %.1fs after %r is spoken%s" % (anchor, lag, txt[:30], (" — suggest %r; --retarget applies it" % sug)
-                  if sug and not a.retarget else ""))
+        for txt, anchor, lag, sug, split in disp:
+            print("  ! your anchor %r lands %.1fs after %r is spoken%s" % (
+                anchor, lag, txt[:30], (" — %s" % split) if split else
+                (" — suggest %r; --retarget applies it" % sug) if sug and not a.retarget else ""))
         for txt, why in un:
             print("  ? left alone: %r — %s" % (txt[:40], why))
         total += len(ins)

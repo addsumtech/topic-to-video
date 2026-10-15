@@ -71,3 +71,25 @@ def test_running_it_twice_changes_nothing():
     once = cp.apply(page, ins, ren, els)
     ins2, _u2, _r2, _e2, _d2 = _plan(once)
     assert ins2 == []
+
+
+def test_an_element_whose_lines_are_spoken_far_apart_is_split_not_anchored():
+    # the skill's own jev-html: a card held the label "JEV" (said at 0.1 s) and its claim (said at 5.3 s); anchoring at
+    # the earliest line showed the claim five seconds early. Past LAG_ERROR + EARLY_WARN apart no single reveal can land
+    # both, so the tool says SPLIT — for a new element and for a hand-written anchor, with or without --retarget
+    narr = "Alpha opens the film. Then a pause. Then more words follow here. Charlie closes it."
+    words = [{"w": w, "t": float(i)} for i, w in enumerate(narr.replace(".", "").split())]
+    spoken, _ = sq.spoken_units(narr, words, 16.0)
+    card = '<div class="reveal-up"%s><span>Alpha opens the film</span><span>Charlie closes it</span></div>'
+    ins, un, _ren, _els, _d = cp.plan_page(_page(card % ""), spoken, words, narration=narr)
+    assert ins == [] and any("split it" in why and "Alpha" in why for _t, why in un), un
+    page = _page(card % ' data-cue="Charlie" data-cue-index="0"')
+    for retarget in (False, True):
+        ins, _un, _ren, els, disputed = cp.plan_page(page, spoken, words, retarget=retarget, narration=narr)
+        assert ins == [] and len(disputed) == 1, (retarget, disputed)
+        assert disputed[0][3] is None and "split it" in disputed[0][4], disputed
+        assert cp.apply(page, ins, _ren, els).count('data-cue="Charlie"') == 1, "the author's anchor is untouched"
+    # lines spoken close together still get one anchor, as before
+    near = _page('<div class="reveal-up"><span>Alpha opens the film</span><span>Then a pause</span></div>')
+    ins, _un, _ren, _els, _d = cp.plan_page(near, spoken, words, narration=narr)
+    assert len(ins) == 1, ins
