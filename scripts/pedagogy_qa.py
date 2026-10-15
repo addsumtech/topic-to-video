@@ -25,6 +25,18 @@ def _norm(c):
     return s
 
 
+def _near(dep, where):
+    """A hint when an earlier `introduces` CONTAINS the missing name (or the reverse) — the usual cause is a plan that
+    wrote `introduces` as a sentence ("Jev exists and is going viral for NOT talking") and `builds_on` as a label
+    ("Jev exists"). It stays an ERROR: containment is not identity ("AI" sits inside "普通AI"), and the fix — name
+    the concept identically in both places — takes a second once the two spellings are side by side."""
+    for norm, (orig, tag) in where.items():
+        if dep in norm or norm in dep:
+            return (f" (an earlier beat, {tag}, introduces '{orig}', which contains it — if that is the same concept, "
+                    f"name it identically in both places: `introduces` is a concept's name, not a sentence)")
+    return ""
+
+
 def evaluate(data):
     """Pure check over a content plan dict: {meta:{assumed_known:[]}, beats:[{introduces, builds_on, stage}]}."""
     errors, warnings = [], []
@@ -33,6 +45,7 @@ def evaluate(data):
     # assumed_known lives top-level in the content plan (meta.assumed_known also accepted)
     assumed = data.get("assumed_known") or meta.get("assumed_known") or []
     introduced = {_norm(c) for c in assumed if _norm(c)}
+    where = {}                                    # normalised concept -> (as written, the beat that introduced it)
     seen_ground = False
     first_build = False
     for i, b in enumerate(beats):
@@ -51,7 +64,7 @@ def evaluate(data):
         for dep in (builds if isinstance(builds, list) else [builds]):
             if _norm(dep) and _norm(dep) not in introduced:
                 errors.append(f"{tag}: builds_on '{dep}' is used before it is introduced — introduce it in an "
-                              f"earlier ground/build beat, or resequence")
+                              f"earlier ground/build beat, or resequence" + _near(_norm(dep), where))
         # scaffold shape — ground before the first build
         if stage == "ground":
             seen_ground = True
@@ -62,6 +75,7 @@ def evaluate(data):
                                 f"in something the audience already knows before the first new idea")
         for x in intro_items:                             # only NOW is this beat's concept known to later beats
             introduced.add(_norm(x))
+            where.setdefault(_norm(x), (x, tag))
     # build -> why adjacency: a new idea's consequence must land before the next new idea.
     # A beat can also land its OWN consequence — one page that reveals the idea and then its
     # implication is a legitimate (often better) structure than splitting them across two pages.

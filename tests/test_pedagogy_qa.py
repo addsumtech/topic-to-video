@@ -94,3 +94,19 @@ def test_a_build_beat_with_a_single_point_still_needs_a_follow_up():
     ]}
     r = pq.evaluate(plan)
     assert any("not followed within one beat" in w for w in r["warnings"])
+
+
+def test_a_sentence_introduced_and_a_label_built_on_is_still_an_error_but_names_the_match():
+    # the skill's own jev-html plan: `introduces` written as a sentence, `builds_on` as a label — exact naming is the
+    # contract (containment is not identity), so it stays an ERROR, and the message puts the two spellings together
+    plan = {"beats": [
+        {"stage": "ground", "introduces": "Jev exists and is going viral for NOT talking", "builds_on": []},
+        {"stage": "build", "introduces": "typed answers", "builds_on": ["Jev exists"], "lands_within": True},
+        {"stage": "land", "introduces": None, "builds_on": ["parallel scoring"]},
+    ]}
+    r = pq.evaluate(plan)
+    assert r["ok"] is False
+    near = [e for e in r["errors"] if "'Jev exists'" in e]
+    assert near and "beat 1, introduces 'Jev exists and is going viral for NOT talking'" in near[0], r["errors"]
+    far = [e for e in r["errors"] if "'parallel scoring'" in e]
+    assert far and "contains it" not in far[0], "no near match, no hint"
