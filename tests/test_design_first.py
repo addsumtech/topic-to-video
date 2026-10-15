@@ -184,3 +184,21 @@ def test_an_all_exempt_film_still_needs_its_built_beat_and_routes_need_an_ideal(
     slides[1]["shot_fit"].pop("ideal")
     errs, _ = _share(tmp_path, meta, slides)
     assert any("record no `shot_fit.ideal`" in e for e in errs), errs
+
+
+def test_the_skeleton_proposes_material_after_the_ideal_and_never_clobbers_a_route():
+    import shot_director as sd
+    board = {"meta": {}, "slides": [
+        {"index": 1, "shot_fit": {"ideal": IDEAL, "form": "tide gauge"}},
+        {"index": 2, "shot": "WsShotA", "shot_props": {"x": 1},
+         "shot_fit": {"verdict": "build", "ref": "WsShotA", "ideal": IDEAL}},
+        {"index": 3}]}
+    sd.assign_shots(board, {"beats": [{"id": 1, "visual_intent": "statement"},
+                                      {"id": 2, "visual_intent": "statement"},
+                                      {"id": 3, "visual_intent": "statement"}]})
+    fit = board["slides"][0]["shot_fit"]
+    assert fit["ideal"] == IDEAL and fit["form"] == "tide gauge", "the ideal written first was overwritten"
+    assert fit["verdict"] == "unjudged" and fit["material"] == board["slides"][0]["shot"]
+    assert "MATERIAL" in fit["why"] and "not an assignment" in fit["why"]
+    assert board["slides"][1]["shot"] == "WsShotA" and board["slides"][1]["shot_fit"]["verdict"] == "build"
+    assert board["slides"][1]["shot_props"] == {"x": 1}

@@ -140,10 +140,13 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     missing/unknown `shot`, and on a partly-filled beat that leaves a copy prop at its demo default
     (`scripts/demo_copy_qa.py <out_dir>` lists them). The evidence registers PhotoPlate/ScanReconstruct/RealVersus/MuseumLabel
     refuse to render without a real image. A label beside a point is clamped into its box with `placeLabel()` (`runtime/layout`).
-  - **Authoring.** Each scene gets `shot` (a register id) + `shot_props` + `shot_adaptation` `{kept, redesigned, topic_idea,
-    theme_cues}`. The adaptation note is REQUIRED: keep the register's style, redesign its modules for THIS topic, never a
-    raw text-swap. Vary the FAMILY: no two adjacent beats should read as one look. The deterministic fallback is
-    `python scripts/shot_director.py <out_dir>`. On a concrete topic, `PhotoPlate` gives a real photograph the whole frame.
+  - **Authoring.** Each scene gets `shot_fit` `{ideal, form, verdict: fit|adapt|build, why, ref?, shares?}` — the ideal
+    picture FIRST (no register named), then the route; `shares` on every as-is beat — plus `shot` (a register id or a
+    workshop shot) + `shot_props` + `shot_adaptation` `{changes: [{aspect: layout|encoding|structure, what, why}], kept,
+    redesigned, topic_idea, theme_cues}`. An ADAPTED beat's `changes` must also show in its props (a structure-affecting
+    prop set away from the register's default); a re-worded register is as-is. Vary the FAMILY: no two adjacent beats
+    should read as one look. `python scripts/shot_director.py <out_dir>` proposes registers as MATERIAL after the
+    ideals are written — never the assignment. On a concrete topic, `PhotoPlate` gives a real photograph the whole frame.
     Icons are the default on a labelled list (`icon` per entry; shot_proof WARNS when there are none). A shot is
     standalone-renderable with `cd remotion && npx remotion still src/index.ts <Id> out.png --frame=N --gl=angle`, and
     `--props` must be ASCII only. Authoring detail: `references/remotion-shot-authoring.md`.
@@ -593,8 +596,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      `agents/design-director.md` on the content plan + comprehension brief + `meta`. It returns a
      SEPARATE **design plan** keyed by beat id: top-level `motif` (the CONCEPT motif — one topic-derived
      visual idea), `theme` (mode/accent/accent2/bg), `design_anti_slop`; and per beat the concrete
-     `visual.type` + `props` + `form` (the form ledger, via its Concept→Visual dictionary — deliverable
-     forms only, no un-renderable Sankey/heatmap/pyramid), `motion_intent`, `transition` (mapped from the
+     `visual.type` + `props` + `form` (the form ledger, via its Concept→Visual dictionary — a cycle, pyramid,
+     tree, morph or Sankey has no stock class: BUILD it, as an inline SVG or a workshop component), `motion_intent`, `transition` (mapped from the
      beat's `relation`; see `references/motion-grammar.md` "Transition rhythm"), `icons`, `media`
      (`image_prompt` + `motion`: kenburns/bg-live/bg-drift), and a `cue` anchor array for any multi-point
      `html` beat AND any programmatic multi-element beat (`chart`/`timeline`/`compare`/`keypoints` —
@@ -604,7 +607,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      evenness penalty, minimum deck-level variation) lives in `references/design-intelligence-addendum.md`,
      which both the design-director and the design-critic apply. It also carries a top-level
      **`signature_concept`** (ONE named, apt-but-unexpected content→visual encoding — the deck's creative
-     idea, realized in a named beat with deliverable primitives) and **`style_thesis`** (the deck's
+     idea, realized in a named beat as a BUILT workshop component) and **`style_thesis`** (the deck's
      distinctive aesthetic POV that fits THIS subject); and a top-level **`design_register`** — the ONE
      whole-video expressive IDENTITY the video is designed in (`name` + `motion_personality` +
      `type_attitude` + `how_distinct` + `carried_by`), which BINDS visual_style/style_thesis/motif/
@@ -618,6 +621,14 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      `signature_concept`/`style_thesis`/`design_register` (and an invalid `meta.audacity`), and the
      **design-critic** (D1 fit, D2c creativity floor, **D2e whole-video register + motion personality**)
      judges them.
+     **🔴 THE HTML DESIGN-FIRST FLOOR — meet it in THIS plan, before a single page is written** (agents/
+     design-director.md "Design first"; `validate.py` measures it from the page source and ERRORs at 9a, after
+     the sample sign-off, which is the expensive place to learn it): per beat an ideal picture (`ideal`, no
+     archetype named) and a route; **at least HALF of the non-exempt pages BUILT or BESPOKE**, **at least ONE
+     BUILT** — the signature beat, a workshop component — and every AS-IS page writes `ideal` + `shares`.
+     BESPOKE means the page's own real layout (grid placement, a multi-track grid, positioning, a transform) or
+     an SVG that draws the beat — not `display:flex` around stock cards, not a reference template's SVG copied.
+     Exempt: the open/close title card, a real-photo plate with its provenance, `type:"slide"` beats.
      **CINEMATIC films (`meta.renderer:"remotion"` — the bespoke-shot tier): the design step is
      `agents/shot-director.md`, not the design-director**, and there is no `design_plan.json`. When the film
      came from a pptx whose theme is not Office's default, first run `python3 scripts/dna_from_deck.py <out_dir>`
@@ -640,15 +651,18 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      `AskUserQuestion`; record `meta.shot_template` + `meta.shot_template_contest {candidates, winner,
      user_pick, width, audacity, judge_ranked}`. `validate.py` ERRORS a bold/experimental film with NO contest
      and checks width-vs-audacity.
-     **② The per-beat assignment — DESIGN FIRST; the library is material, not a menu** (the one flow, defined
-     in shot-director Step 0.55). **Read `references/remotion-shot-authoring.md` FIRST** (the frame-craft floor,
-     the meaning mandate, the real-imagery tier, the anti-pattern catalogue — where films fail silently). Run
-     `python scripts/shot_director.py <out_dir> --template <seed-key>` for a deterministic family-varied skeleton
-     biased to the direction; then per beat the shot-director writes the ideal picture (`shot_fit.ideal`, no
-     register named), then a route — BUILD (an object in a template's slot, or a film-local shot), ADAPT
-     (layout/encoding/structure changed, recorded in `shot_adaptation.changes`), or AS-IS only when the register
-     already IS the ideal (`shot_fit.shares` names the encoding it shares) — then assembles from runtime blocks
-     and checks. Each beat gets `shot` + faithful `shot_props` + `shot_adaptation` (never a raw text-swap),
+     **② Per beat — DESIGN FIRST; the library is material, not a menu** (the one flow, defined in shot-director
+     Step 0.55). **Read `references/remotion-shot-authoring.md` FIRST** (the frame-craft floor, the meaning
+     mandate, the real-imagery tier, the anti-pattern catalogue — where films fail silently). In this order:
+     (a) the form vocabulary (Step 0.5), then **each beat's ideal picture** — `shot_fit.ideal`, one line, no
+     register named — written BEFORE any register is in view; (b) only then `python scripts/shot_director.py
+     <out_dir> --template <seed-key>`, a deterministic family-varied skeleton that PROPOSES a register per beat
+     as MATERIAL (`shot_fit.material`, verdict `unjudged`) — something to adapt or borrow from, never the beat's
+     assignment; it keeps the ideals and leaves routed beats alone; (c) a route per beat against its ideal —
+     BUILD (an object in a template's slot, or a film-local shot), ADAPT (layout/encoding/structure changed,
+     recorded in `shot_adaptation.changes` AND visible in the props: a structure-affecting prop set away from the
+     register's default), or AS-IS only when the register already IS the ideal (`shot_fit.shares` names the
+     encoding it shares) — then assembles from runtime blocks and checks. Each beat gets `shot` + faithful `shot_props` + `shot_adaptation` (never a raw text-swap),
      ENCODES its beat (hide the caption — does the visual still carry THIS idea?), coheres with the direction
      (palette/motion/motif, not a random stack), keeps family variety, and reaches past the obvious register as audacity allows (note its `rejected_default`). `validate.py`
      ERRORs when fewer than HALF of the non-exempt beats are adapted or built, or none is built (the film's
@@ -769,17 +783,21 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 4d. **Author the pages (HTML tiers).** **Skip on the 原样配音 tier** (see 3.6). This is where the deck's `pages/scene_NN.html` are actually
     written — one page per beat from the design plan (form + props + cue anchors + media), on
     `base.css` + `theme.css` (+ `motifs.css`; `vertical.css` last on 9:16), per
-    `references/html-pages.md`, faithful (real content only), each starting from a verified form in
-    `references/html-templates.md` (don't reinvent the composition). A full-bleed backdrop may gently
+    `references/html-pages.md`, faithful (real content only), each DESIGNED FIRST: the beat's ideal picture
+    (`shot_fit.ideal`, from the design plan), then its route — BUILT (a workshop component), BESPOKE (the page's
+    own composition: real layout of its own classes, or an SVG that draws the beat), or a stock form /
+    `references/html-templates.md` template AS-IS only when it already IS the ideal (`shot_fit.shares`). A
+    template is material to start from and change, not the composition to keep. A full-bleed backdrop may gently
     **breathe** (seek-frozen `.bg-live`/`.bg-drift` on a sparse hero/hold beat; deterministic, off under
     reduced motion). Set `meta.chrome_path` if Chrome isn't at the default macOS location.
     Immediately after authoring, run `python scripts/keyframe_qa.py <out_dir>` (~1 min, no audio) to
     catch a blank page / canvas overflow while it's a one-edit fix, then hand `_keyframes/all.png` to
     `agents/design-critic.md` for its **D11 rendered pass** (focal dominance, repeated layout,
     crowding, figure-ground) — fix what it flags while pages are cheap to edit, before the script critic.
-    **BUILD what base.css lacks — the same build-list step as the Remotion tier.** For each beat, write the
-    ideal picture first; when no base.css form carries it (a coffee puck in section, a scale's load cell), build
-    a COMPONENT — a custom element in the film's own workshop — instead of hand-drawing it into one page: add
+    **BUILD — the same build-list step as the Remotion tier.** For each beat, write the ideal picture first;
+    when it is a THING or a form no stock class draws as the idea needs (a coffee puck in section, a scale's
+    load cell, a cycle, a tree) — and always for the signature beat — build a COMPONENT, a custom element in the
+    film's own workshop, instead of settling for the nearest stock form or hand-drawing it into one page: add
     its `meta.build_list` entry (`kind: "component"`, `id` = its PascalCase name, `beats`, `means` that holds
     with the caption covered, `accept`, `slot: "page"`), then `python3 scripts/workshop.py <out_dir>
     new-component <Name> --means "…"`, draw it per `references/html-pages.md` "Building a component", look at

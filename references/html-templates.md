@@ -450,8 +450,10 @@ These pages are read at a glance on a moving frame — over-budget text shrinks 
 squint test. If your real content won't fit the budget, that's a signal to **split the beat**, not to
 shrink the type. `keyframe_qa.py` catches overflow deterministically; the budgets keep you clear of it.
 
-## Not in the library (and why)
-Sankey, heatmap, org/decision tree, pyramid, morph, literal flywheel/funnel — **not deliverable**; use the
-honest substitute from `agents/design-director.md`'s dictionary (funnel → descending `.flow`/bars, risk →
-`.quadrant`, flywheel → this `flow`-with-return). A plain card grid needs no template — it's the fallback,
+## Not in the library (and what to do instead)
+Sankey, heatmap, org/decision tree, pyramid, cycle, morph, literal flywheel/funnel — **no stock class: BUILD it**
+(an inline SVG drawing on the page, or a workshop component — `scripts/workshop.py new-component`, `references/
+html-pages.md` "Building a component") when that form IS the beat's ideal picture. The stock substitutes in
+`references/design-intelligence-addendum.md` §4 (funnel → descending `.flow`/bars, risk → `.quadrant`, flywheel →
+this `flow`-with-return) are for when the substitute already carries the idea, not a reason to skip the build. A plain card grid needs no template — it's the fallback,
 allowed only for parallel, unordered, equal-weight items (see the block dependency audit, addendum §3).

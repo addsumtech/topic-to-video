@@ -76,11 +76,15 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
    `meta.shot_template = <pick>` + `meta.shot_template_contest = {candidates:[all keys], winner:<pick>,
    user_pick:true, width:<N>, audacity:"<a>", judge_ranked:true}`. `validate.py` ERRORS a bold/experimental film
    with NO contest, checks the width matches audacity, and that the winner is the chosen direction.
-6. **Apply it.** The chosen direction BIASES per-beat register selection toward its families (never two adjacent
-   same-family): `python scripts/shot_director.py <out> --template <seed-key>` for a seed, or apply the lean by
-   hand as you author `shot`s below.
+6. **Apply it — after the ideals, as material.** The chosen direction BIASES which registers are proposed as
+   material toward its families (never two adjacent same-family). Do NOT run the skeleton yet: first derive the
+   form vocabulary (Step 0.5) and write every beat's ideal picture (Step 0.55, step 1). Then
+   `python scripts/shot_director.py <out> --template <seed-key>` (for a seed; for a conceived direction apply the
+   lean by hand) proposes a register per beat as MATERIAL — `shot_fit.material`, verdict `unjudged` — to adapt,
+   borrow from or replace. It is never the beat's assignment, it keeps the ideals you wrote, and it leaves any
+   beat you already routed alone.
 
-## Step 0.5 — DERIVE THE FORM VOCABULARY (do this BEFORE you open the catalogue)
+## Step 0.5 — DERIVE THE FORM VOCABULARY (do this BEFORE you open the catalogue or run the skeleton)
 
 **The single most important step, and the one this tier used to skip.** Step 0 conceives the film's
 ATMOSPHERE from the topic — palette, type, motion. But a design language has a second layer, and it is the
@@ -153,9 +157,11 @@ museum label) came to exist, one film too late.
 The library cannot cover the scenes a topic throws at it. Every beat therefore starts from an OPEN design, and a
 register used unchanged is the exception that has to earn it. Per beat, in this order:
 
-1. **Ideal picture — `shot_fit.ideal`, one line, no register named.** What must the viewer SEE for this beat to
-   land: an object (a coffee puck under pressure), a mechanism (water forced through it), a relation (loose
-   against packed). Design it with the checklist below.
+1. **Ideal picture — `shot_fit.ideal`, one line, no register named — for EVERY beat, before the skeleton runs.**
+   What must the viewer SEE for this beat to land: an object (a coffee puck under pressure), a mechanism (water
+   forced through it), a relation (loose against packed). Design it with the checklist below. Only after every
+   beat has one does `scripts/shot_director.py` propose library registers as MATERIAL (Step 0, item 6); a
+   proposal is something to adapt or borrow from, not the answer.
 2. **Route — `shot_fit.verdict` + a one-clause `why`.**
    * **build** — the picture is drawn for this film: an OBJECT held in a library template's slot (`ObjectStage`
      one thing named · `ObjectCompare` two, one difference · `ObjectPath` through stations, changing ·

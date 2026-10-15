@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""shot_director — assign a remotion bespoke SHOT (register) + shot_props to every storyboard scene.
+"""shot_director — propose a library register per beat as MATERIAL: a family-varied skeleton to adapt or borrow from.
 
-The PRIMARY path is the `agents/shot-director.md` LLM agent (it writes good topic copy into shot_props and
-reasons about the "use when" per beat). This module is the DETERMINISTIC fallback / test scaffold: given the
-content_plan beats' `visual_intent`/`stage`/`climax`, it picks a register per beat while VARYING THE FAMILY
-(never two adjacent beats from the same family) so a film never reads as one look. It fills shot_props={} (the
-register's neutral defaults) — a real topic film should run the agent to get faithful topic copy + sourced
-numbers. See remotion/LIBRARY.md for the catalogue.
+It is NOT the beat's assignment. Design first (agents/shot-director.md Step 0.55): each beat's ideal picture
+(`shot_fit.ideal`, no register named) is written BEFORE this runs, and the route — adapt, build, or as-is when the
+register already IS the ideal — is the director's decision after it. This module is the DETERMINISTIC scaffold:
+given the content_plan beats' `visual_intent`/`stage`/`climax`, it proposes a register per beat while VARYING THE
+FAMILY (never two adjacent beats from the same family), records the proposal as `shot_fit.material` with
+`verdict: "unjudged"`, keeps any `ideal`/`form` already written, and never touches a beat whose route was already
+decided. It fills shot_props={} (the register's neutral defaults). validate.py's design-first floor refuses a
+film left on its proposals. See remotion/LIBRARY.md for the catalogue.
 """
 import argparse, json, os, sys
 
@@ -436,9 +438,10 @@ def _template_families(template):
 
 
 def assign_shots(data, content_plan=None, template=None):
-    """Fill each scene's `shot` + `shot_props` (={}). VARIES family across beats; when `template` (a
-    shot_templates key) is given, biases the register selection toward that template's families and records
-    it as meta.shot_template."""
+    """Propose a register per scene as MATERIAL (`shot` + `shot_props` (={}) + `shot_fit.material`). VARIES family
+    across beats; when `template` (a shot_templates key) is given, biases the selection toward that template's
+    families and records it as meta.shot_template. A scene whose route is already decided (a `shot_fit.verdict`
+    other than "unjudged") is left exactly as it is; an `ideal`/`form` written before this runs is kept."""
     prefer = _template_families(template)
     # content_plan beat ids are 1-BASED and storyboard scene indices are 0-BASED, so looking a scene up by
     # its own index missed beat 1 entirely and handed every other scene the PREVIOUS beat's plan — its
@@ -480,6 +483,13 @@ def assign_shots(data, content_plan=None, template=None):
         print("[shot_director] energy skeleton not applied: %s" % _why)
     last_family, used, last_luma, prev_flip = None, set(), None, False
     for pos, s in enumerate(data.get("slides", [])):
+        prior = s.get("shot_fit") if isinstance(s.get("shot_fit"), dict) else {}
+        if prior.get("verdict") not in (None, "", "unjudged") and s.get("shot"):
+            # A ROUTED BEAT IS THE DIRECTOR'S. Re-running the skeleton must not turn a built or adapted beat back
+            # into a library proposal.
+            used.add(s["shot"])
+            last_family, last_luma = FAMILY.get(s["shot"]), shot_luma(s["shot"])
+            continue
         beat, matched_by = _beat_for(s.get("index"), pos)
         intent = beat.get("visual_intent") or "statement"
         _energy = _es.declared(s, beat) if _motion else None
@@ -502,10 +512,14 @@ def assign_shots(data, content_plan=None, template=None):
         # made "assigned mechanically" indistinguishable from "considered and found to fit", so the one
         # judgement that grows the library could be skipped without a trace.
         s["shot_fit"] = {"verdict": "unjudged",
-                         "why": "assigned deterministically by %s%s — no one judged whether this "
-                                "register's structure carries the beat's argument" %
+                         "why": "proposed as MATERIAL by %s%s — not an assignment; no one judged whether this "
+                                "register's structure carries the beat's argument. Route it against the ideal: "
+                                "adapt, build, or as-is only if it already IS the ideal" %
                                 (how, ", reusing a register already in this film" if shot in used else ""),
-                         "assigned_by": how, "plan_matched_by": matched_by}
+                         "material": shot, "assigned_by": how, "plan_matched_by": matched_by}
+        for k in ("ideal", "form"):                  # the ideal picture comes FIRST and is never overwritten
+            if prior.get(k):
+                s["shot_fit"][k] = prior[k]
         used.add(shot)
         last_family = FAMILY.get(shot)
         lum = shot_luma(shot)
@@ -515,7 +529,9 @@ def assign_shots(data, content_plan=None, template=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Assign remotion shots to storyboard scenes (deterministic fallback).")
+    ap = argparse.ArgumentParser(description="Propose a library register per beat as MATERIAL to adapt or borrow "
+                                             "from (a family-varied skeleton, not an assignment). Write each "
+                                             "beat's shot_fit.ideal first; route every beat after.")
     ap.add_argument("out_dir")
     ap.add_argument("--template", default=None,
                     help="a shot_templates key (product-demo/kinetic-editorial/cinematic-craft/data-story/"
@@ -562,9 +578,18 @@ def main():
 
     json.dump(data, open(sb_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     seq = [(s.get("index"), s.get("shot"), FAMILY.get(s.get("shot"))) for s in data.get("slides", [])]
-    print("[shot_director] assigned %d scenes (family-varied):" % len(seq))
+    print("[shot_director] proposed MATERIAL for %d scenes (family-varied) — not an assignment:" % len(seq))
     for i, shot, fam in seq:
         print("  #%s -> %s [%s]" % (i, shot, fam))
+    no_ideal = [str(s.get("index")) for s in data.get("slides", [])
+                if not ((s.get("shot_fit") or {}).get("ideal") if isinstance(s.get("shot_fit"), dict) else None)]
+    if no_ideal:
+        print("[shot_director] WARN %d beat(s) have no shot_fit.ideal (%s) — the ideal picture comes BEFORE this "
+              "skeleton (agents/shot-director.md Step 0.55); a register proposed without one is what the "
+              "catalogue would draw, not what the beat needs" % (len(no_ideal), ", ".join(no_ideal[:12])))
+    print("[shot_director] NEXT: route every beat against its ideal — adapt (shot_adaptation.changes + a "
+          "structure prop changed), build (scripts/workshop.py), or as-is with shot_fit.shares — then "
+          "python3 scripts/validate.py %s" % a.out_dir)
 
 
 if __name__ == "__main__":

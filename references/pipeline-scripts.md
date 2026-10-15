@@ -368,7 +368,11 @@ finding it prints that you do not understand.
   tying the shot to the Design DNA; `validate.py` warns on empty props / a missing note / missing theme_cues,
   shot-critic S10+S11 check it against the render — see `references/remotion-shot-authoring.md` §B2)
   — matching the beat's intent to a register's "use when" and **varying the FAMILY across the film** (no two
-  adjacent beats read as one look). Deterministic fallback: `python scripts/shot_director.py <out_dir>`.
+  adjacent beats read as one look). `python scripts/shot_director.py <out_dir>` is a deterministic skeleton that
+  PROPOSES a register per beat as MATERIAL (`shot_fit.material`, verdict `unjudged`) after the ideals are written —
+  never the assignment; it keeps `shot_fit.ideal`/`form` and leaves routed beats alone. The design-first floor
+  (`shot_fit.ideal` first, `shot_adaptation.changes` visible in the props, half adapted or built, one built) is
+  agents/shot-director.md Step 0.55.
   **Faithfulness:** a register that shows a NUMBER (ChartLive/BeforeAfterSlider/VelocitySnap) MUST be given a
   SOURCED figure in `shot_props` — never its illustrative demo default (`validate.py` warns; see
   no-fabricated-stats). `validate.py` ERRORS on a missing/unknown `shot`, and on a partly-filled beat that leaves any copy prop
