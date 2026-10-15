@@ -115,16 +115,14 @@ def test_no_recorded_depth_is_refused_at_delivery_not_run_as_thorough(tmp_path):
 
 
 def test_a_preselected_reviewing_tier_applied_without_a_reply_is_valid(tmp_path):
-    # the pre-selection is COMPUTED (test_the_preselection_is_computed_not_chosen): fast on a plain board, standard
-    # on one where a machine gate's finding was waived
-    for tier, extra in (("fast", None), ("standard", {"energy_waiver": "a deliberately still lecture film"})):
-        out = _out(tmp_path / tier, {"tier": tier, "user_answer": "no reply (auto mode)", "preselected": tier},
-                   meta_extra=extra)
-        _brief(out)
-        _ledger(out)
-        assert not cl.validate(out, final=True)[0], (tier, cl.validate(out, final=True)[0])
-        # …but only as the PRE-SELECTED tier: a default answer naming another tier is nobody's choice
-        _set_review(out, tier="standard" if tier == "fast" else "fast")
+    # the pre-selection is `fast`, always (test_the_preselection_is_fast_even_with_a_waiver)
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "no reply (auto mode)", "preselected": "fast"})
+    _brief(out)
+    _ledger(out)
+    assert not cl.validate(out, final=True)[0], cl.validate(out, final=True)[0]
+    # …but only as the PRE-SELECTED tier: a default answer naming another tier is nobody's choice
+    for tier in ("standard", "thorough"):
+        _set_review(out, tier=tier)
         assert any("PRE-SELECTED" in e for e in cl.validate(out, final=True)[0]), tier
 
 
@@ -441,28 +439,20 @@ def test_an_old_format_history_entry_is_upgraded_in_place_not_counted_twice(tmp_
     assert cl.round_of(out, _cur(out)) == 1
 
 
-# ── the pre-selected depth is computed, not chosen ──────────────────────────────────────────────────────
+# ── the pre-selected depth is computed, not chosen: fast, always ────────────────────────────────────────
 
-def test_the_preselection_is_computed_not_chosen(tmp_path):
-    out = _out(tmp_path)
-    assert cl.preselect(out)[0] == "fast"
-    # a machine gate's finding waived — any meta.*_waiver but the review's own — calls for standard
-    for key, val in (("energy_waiver", "a deliberately still lecture film"),
-                     ("energy_waiver", {"density": "a quiet ink-wash register, chosen with the user"}),
-                     ("contrast_waiver", "a gate that does not exist yet still counts the day it is written")):
-        out = _out(tmp_path / key / str(type(val).__name__), meta_extra={key: val})
-        tier, why = cl.preselect(out)
-        assert tier == "standard" and ("meta." + key) in why, (key, tier, why)
-    # …but not the review's own waiver, and not an empty one
-    for key, val in (("review_waiver", {"reason": "watched it, ship it", "render_sha256": "0" * 64}),
-                     ("energy_waiver", ""), ("energy_waiver", {}), ("energy_waiver", {"density": "  "})):
-        out = _out(tmp_path / ("n" + key) / str(len(str(val))), meta_extra={key: val})
-        assert cl.preselect(out)[0] == "fast", (key, val)
-    # never none, never thorough, whatever is on the board
-    out = _out(tmp_path / "all", meta_extra={"energy_waiver": "x" * 20, "review_waiver": "y" * 20})
-    assert cl.preselect(out)[0] == "standard"
+def test_the_preselection_is_fast_even_with_a_waiver(tmp_path):
+    """A waived machine-gate finding does not raise the tier: the four acceptance films all carry energy_waiver,
+    and 'any waiver → standard' made standard the default. Each waiver is confirmed in its own ledger row instead."""
+    for i, extra in enumerate((None, {"energy_waiver": "a deliberately still lecture film"},
+                               {"energy_waiver": {"motion": "a diagram film, its motion is the mechanism"}},
+                               {"contrast_waiver": "a gate that does not exist yet"},
+                               {"review_waiver": "watched it, ship it"})):
+        out = _out(tmp_path / str(i), meta_extra=extra)
+        assert cl.preselect(out)[0] == "fast", extra
+    out = _out(tmp_path / "w", meta_extra={"energy_waiver": "a deliberately still lecture film"})
     p = subprocess.run([sys.executable, cl.__file__, out, "--preselect"], capture_output=True, text=True)
-    assert p.returncode == 0 and p.stdout.split("\n")[0] == "standard" and "energy_waiver" in p.stdout, p.stdout
+    assert p.returncode == 0 and p.stdout.split("\n")[0] == "fast" and "`waivers`" in p.stdout, p.stdout
 
 
 def test_final_holds_the_recorded_preselection_to_the_computed_one(tmp_path):
@@ -472,30 +462,15 @@ def test_final_holds_the_recorded_preselection_to_the_computed_one(tmp_path):
     errs = cl.validate(out, final=True)[0]
     assert any("preselected is missing" in e and "--preselect" in e for e in errs), errs
     assert not cl.validate(out)[0], "an interim run does not ask for it"
-    # the model may not pre-select the lighter tier when the board calls for standard…
-    out = _out(tmp_path / "w", {"tier": "fast", "user_answer": "no reply", "preselected": "fast"},
-               meta_extra={"energy_waiver": "a deliberately still lecture film"})
-    _brief(out)
-    _ledger(out)
-    errs = cl.validate(out, final=True)[0]
-    assert any("now calls for `standard`" in e and "Ask the question again" in e for e in errs), errs
-    # …nor `thorough`, which only the user asks for
-    _set_review(out, tier="thorough", user_answer="no reply", preselected="thorough")
-    assert any("now calls for `standard`" in e for e in cl.validate(out, final=True)[0])
-    # the user's REAL answer may pick any tier, beside the computed pre-selection
-    for tier in ("fast", "thorough"):
-        _set_review(out, tier=tier, user_answer="%s please" % tier, preselected="standard")
+    # the model may not pre-select a heavier tier either — not even on a board with a waiver
+    for pre in ("standard", "thorough"):
+        _set_review(out, preselected=pre, user_answer="fast please")
+        errs = cl.validate(out, final=True)[0]
+        assert any("pre-selects `fast`" in e and "Ask the question again" in e for e in errs), (pre, errs)
+    # the user's REAL answer may pick any tier, beside the fast pre-selection
+    for tier in ("standard", "thorough"):
+        _set_review(out, tier=tier, user_answer="%s please" % tier, preselected="fast")
         assert not cl.validate(out, final=True)[0], (tier, cl.validate(out, final=True)[0])
-    # a waiver added AFTER the question was asked: the board now calls for standard — ask again
-    out = _out(tmp_path / "late", {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
-    _brief(out)
-    _ledger(out)
-    assert not cl.validate(out, final=True)[0]
-    b = json.load(open(os.path.join(out, "storyboard.json")))
-    b["meta"]["energy_waiver"] = "the film turned out quieter than the floor; the user agreed it should be"
-    json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
-    errs = cl.validate(out, final=True)[0]
-    assert any("now calls for `standard`" in e and "asked with `fast`" in e for e in errs), errs
 
 
 def test_a_none_answer_is_held_to_the_computed_preselection_too(tmp_path):
@@ -505,3 +480,85 @@ def test_a_none_answer_is_held_to_the_computed_preselection_too(tmp_path):
     assert any("preselected is missing" in e for e in errs), errs
     _set_review(out, preselected="fast")
     assert not cl.validate(out, final=True)[0], cl.validate(out, final=True)[0]
+
+
+# ── every waived machine-gate finding is confirmed in its own ledger row ───────────────────────────────────
+
+ENERGY = {"energy_waiver": {"motion": "a diagram film held to its narration; the motion is the mechanism itself"}}
+
+
+def _owner_fail(out, holds, owner_fails, **row):
+    dims = _ledger(out, waivers=[dict({"key": "energy_waiver", "holds": holds,
+                                       "evidence": "_keyframes/scene_01.png"}, **row)])
+    if owner_fails:
+        led = json.load(open(os.path.join(out, cl.LEDGER_NAME)))
+        led["verdict"] = "REVISE"
+        i = dims.index(cl.waiver_owners()["energy_waiver"])
+        led["rows"][i] = {"id": dims[i], "verdict": "fail", "evidence": "_keyframes/scene_01.png",
+                          "fix": "give the climax a push on the built figure"}
+        json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
+
+
+def test_the_owner_of_a_waived_finding_is_read_from_the_critic(tmp_path):
+    assert cl.waiver_owners() == {"energy_waiver": "S12"}
+    assert cl.waiver_owners(os.path.join(_ROOT, "agents", "design-critic.md"), "H") == {"energy_waiver": "H6"}
+    out = _out(tmp_path, meta_extra=ENERGY)
+    assert [(w["key"], w["holds"]) for w in cl.template(out)["waivers"]] == [("energy_waiver", None)]
+    assert "diagram film" in cl.template(out)["waivers"][0]["_reason"]
+    assert cl.template(_out(tmp_path / "plain"))["waivers"] == []
+
+
+def test_a_missing_or_malformed_waiver_row_is_an_error(tmp_path):
+    out = _out(tmp_path, {"tier": "thorough", "user_answer": "thorough", "preselected": "fast"}, meta_extra=ENERGY)
+    _brief(out)
+    _ledger(out)
+    assert any("`waivers` is missing" in e and "meta.energy_waiver" in e for e in cl.validate(out)[0])
+    _ledger(out, waivers=[])
+    assert any("meta.energy_waiver" in e and "no `waivers` row" in e for e in cl.validate(out)[0])
+    _ledger(out, waivers=[{"key": "energy_waiver", "holds": "yes", "evidence": "_keyframes/scene_01.png"}])
+    assert any("needs `holds: true|false`" in e for e in cl.validate(out)[0])
+    _ledger(out, waivers=[{"key": "energy_waiver", "holds": True, "evidence": "_keyframes/scene_77.png"}])
+    assert any("cites _keyframes/scene_77.png, which does not exist" in e for e in cl.validate(out)[0])
+    _ledger(out, waivers=[{"key": "energy_waiver", "holds": True, "evidence": ""}])
+    assert any("cites no evidence" in e for e in cl.validate(out)[0])
+    _ledger(out, waivers=[{"key": "meta.energy_waiver", "holds": True, "evidence": "_keyframes/scene_01.png"}])
+    assert not cl.validate(out, final=True)[0], cl.validate(out, final=True)[0]
+
+
+def test_a_waiver_that_does_not_hold_must_fail_the_dimension_that_owns_it(tmp_path):
+    out = _out(tmp_path, {"tier": "thorough", "user_answer": "thorough", "preselected": "fast"}, meta_extra=ENERGY)
+    _brief(out)
+    _owner_fail(out, holds=False, owner_fails=False)
+    errs = cl.validate(out, final=True)[0]
+    assert any("does not hold" in e and "S12, which owns it, does not fail" in e for e in errs), errs
+    _owner_fail(out, holds=False, owner_fails=True)
+    errs = cl.validate(out, final=True)[0]
+    assert not errs, errs
+    # a waiver whose owner the critic's file never declared cannot be bound silently
+    _set_review(out)
+    b = json.load(open(os.path.join(out, "storyboard.json")))
+    b["meta"]["contrast_waiver"] = "a future gate's finding, waived"
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
+    _ledger(out, waivers=[{"key": "energy_waiver", "holds": True, "evidence": "_keyframes/scene_01.png"},
+                          {"key": "contrast_waiver", "holds": False, "evidence": "_keyframes/scene_01.png"}])
+    assert any("declares no dimension that owns" in e for e in cl.validate(out)[0])
+
+
+def test_no_waiver_no_rows_and_none_needs_none(tmp_path):
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    _brief(out)
+    _ledger(out)
+    assert not cl.validate(out, final=True)[0]
+    # the user waived the review itself: there is no ledger to carry rows in, and none are asked for
+    out = _out(tmp_path / "none", meta_extra=ENERGY)
+    _set_review(out, tier="none", user_answer="none — I watched it", preselected="fast", render_sha256=_cur(out))
+    errs, warns = cl.validate(out, final=True)
+    assert not errs and any("REVIEW WAIVED" in w for w in warns), (errs, warns)
+
+
+def test_the_brief_lists_the_waivers_to_confirm(tmp_path, monkeypatch):
+    import critic_brief
+    monkeypatch.setattr(critic_brief, "_run", lambda *a, **k: "(stubbed)")
+    text = critic_brief.build(_out(tmp_path, meta_extra=ENERGY))
+    assert "**Waivers to confirm**" in text and "`meta.energy_waiver` (owner: S12)" in text and "diagram film" in text
+    assert "Waivers to confirm** — none" in critic_brief.build(_out(tmp_path / "plain"))

@@ -290,6 +290,10 @@ Also: a ≥12-beat film with NO `camera` on any beat is a DECISION (a static reg
 delivery), and should read as one; if nothing explains it, say the film left its camera unrun and name the
 payoff/close beats that should have carried it — `python3 scripts/seam_plan.py <out_dir>` derives a plan from
 the beats' `relation` field and skips any beat already authored, so "we didn't get to it" is not a reason.
+**A waived FILM-ENERGY finding is judged here too.** `film_energy_qa` refuses a film that does not move; a board
+that waives it says why in `meta.energy_waiver` (usually: a diagram film held to its narration, whose motion IS
+the mechanism). Whether that reason is TRUE of this film — or the film is simply inert — is a camera-and-motion
+question, so it is this dimension's: a `meta.energy_waiver` row with `holds: false` makes S12 a FAIL.
 Soft dimension: S3/S4 still win.
 
 > **Precedent — `0dfde89`:** 4 of 146 registers used a 3D rotation, none used focus, and the camera had been switched off entirely — space is this tier's whole claim over the HTML one, and it had none.
@@ -353,7 +357,12 @@ library already has; whether the FORMS are really this subject's is yours.
 refuses a thin note; only you can see whether the note is TRUE. **Record it:** the brief lists every beat
 `validate.py` credits as ADAPTED or BUILT, and the ledger carries one `routes` row for each —
 `{"beat": N, "route": "adapted"|"built", "visible": true|false, "evidence": "_keyframes/scene_NN.png"}`
-(`--emit-template` lists them). `visible: false` on any row makes S14 a FAIL. Per beat: does the frame show the
+(`--emit-template` lists them). `visible: false` on any row makes S14 a FAIL. **And the WAIVERS:** every machine-gate
+finding the board waives (each non-empty `meta.*_waiver` but `review_waiver`; the brief lists them under "Waivers to
+confirm") gets one `waivers` row — `{"key": "energy_waiver", "holds": true|false, "evidence": "_keyframes/scene_NN.png"}`
+— saying whether the waiver's stated reason is true of the rendered film. A waiver does not raise the review depth;
+this row is where it is checked, and `holds: false` means the waived finding stands, so the dimension that owns it
+(the one whose text names that waiver key) must FAIL. Per beat: does the frame show the
 `shot_fit.ideal`? An ADAPTED beat's `shot_adaptation.changes` must be visible in the pixels (the layout/encoding/
 structure actually differs from the register's default use, not just its words). An AS-IS beat's
 `shot_fit.shares` must name an encoding the frame really carries — if the beat would look the same with any

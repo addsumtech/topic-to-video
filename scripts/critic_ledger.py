@@ -56,9 +56,9 @@ gate says so on every run rather than falling silent. Three properties make it s
 AND A REVIEW DEPTH THE USER CHOSE. After the first clean render the user picks how hard to review it —
 `meta.review = {tier, user_answer, preselected}` with tier fast | standard | thorough | none (SKILL.md "the
 review-depth question"). `--final` refuses a film with no `meta.review`: a depth nobody asked about is not a
-depth. The PRE-SELECTED option is computed, not chosen (preselect(): `standard` when a machine gate's finding was
-waived, else `fast`), and `--final` holds `meta.review.preselected` to it. A reviewing tier may be the pre-selected
-option applied without a reply (auto mode); `none` may not. The
+depth. The PRE-SELECTED option is computed, not chosen — preselect() returns `fast`, always — and `--final` holds
+`meta.review.preselected` to it; the user may pick any tier. A reviewing tier may be the pre-selected option applied
+without a reply (auto mode); `none` may not. The
 tier scales the WEIGHT of the loop, never the floors: every row, every cited file, an independent reviewer and
 the render pin are required on every tier that reviews. What the tier changes is the ROUND CAP — fast 1,
 standard 2, thorough unbounded — and the ROUND is the render's place in `_contact_sheet_history.json`
@@ -77,6 +77,12 @@ route row in the ledger (`routes: [{beat, route, visible, evidence}]`): the crit
 the rendered frame, and a route it cannot see fails the dimension that declares the route rows (S14 / H8). A
 self-described or source-measured route is a claim; this is where it is checked. (Not on a LEGACY film the user
 chose to keep as designed — meta.design_first, validate.design_first_legacy: design-first is not applied to it.)
+
+AND THE WAIVERS. A machine gate's finding the board waived (each non-empty `meta.*_waiver` but `review_waiver`) does
+not raise the review depth — standard adds critic-av and a round, and neither re-judges the waived finding. Instead
+each gets a `waivers` row (`{key, holds, evidence}`): the critic says whether the waiver's stated reason is TRUE of the
+rendered film, and `holds: false` must come with a FAIL on the dimension the critic's file names as that finding's
+owner (energy_waiver: S12 / H6). Required on every reviewing tier, on a legacy film too; not under `none`.
 
 The dimension lists are PARSED from the critics' files. Restating them here is how this repo's caption band
 became four disagreeing copies; a new dimension must be required by this gate the moment it is written down.
@@ -203,6 +209,20 @@ def routes_dimension(path=None, prefix="S"):
     return None
 
 
+def waiver_owners(path=None, prefix="S"):
+    """{waiver key: the dimension that owns its finding}, READ from the critic's file: each dimension whose body says
+    "a `meta.<key>` row with `holds: false` makes <its id> a FAIL" (energy_waiver: S12 on remotion, H6 on HTML) — the
+    same declaration-in-the-doctrine shape as routes_dimension, so a waiver whose owner nobody wrote down is a hole the
+    gate names, not a FAIL it silently pins on whichever title happens to match."""
+    src = open(path or _CRITIC, encoding="utf-8").read()
+    out = {}
+    for sid, body in re.findall(r"^\*\*(%s\d+)\s*·(.*?)(?=^\*\*%s\d+\s*·|\Z)" % (prefix, prefix), src, re.M | re.S):
+        for key in re.findall(r"`meta\.(\w+_waiver)`\s+row\s+with\s+`holds:\s*false`\s+makes\s+%s\s+a\s+FAIL"
+                              % re.escape(sid), body):
+            out.setdefault(key, sid)
+    return out
+
+
 def sha256_of(path):
     h = hashlib.sha256()
     with open(path, "rb") as fh:
@@ -277,6 +297,10 @@ def template(out_dir):
         ],
         # THE ROUTES validate.py CREDITS — each one the critic confirms (or not) in the rendered frame (S14 / H8)
         "routes": [{"beat": num, "route": route, "visible": None, "evidence": ""} for num, route in routes],
+        # THE WAIVED GATE FINDINGS — is each waiver's stated reason true of the rendered film? (holds: false → the
+        # dimension that owns it FAILs)
+        "waivers": [{"key": key, "holds": None, "evidence": "", "_reason": reason}
+                    for key, reason in gate_waivers(out_dir)],
     }
 
 
@@ -427,23 +451,37 @@ def _waived(v):
     return bool(v)
 
 
-def preselect(out_dir):
-    """(tier, why) — the review depth the review-depth question PRE-SELECTS, computed from the board.
+def gate_waivers(out_dir):
+    """[(key, reason)] for every machine-gate finding the board WAIVES: each non-empty `meta.<gate>_waiver` (today
+    `energy_waiver`, film_energy_qa's; a future gate's waiver counts the day it is written, without editing this),
+    except `review_waiver`, which waives the review itself. The review confirms each in a `waivers` ledger row."""
+    out = []
+    for k, v in sorted(_board_meta(out_dir).items()):
+        if not (isinstance(k, str) and k.endswith("_waiver") and k != WAIVER_KEY and _waived(v)):
+            continue
+        if isinstance(v, dict):
+            reason = "; ".join("%s: %s" % (a, str(b).strip()) for a, b in v.items() if _waived(b))
+        elif isinstance(v, (list, tuple)):
+            reason = "; ".join(str(x).strip() for x in v if _waived(x))
+        else:
+            reason = str(v).strip()
+        out.append((k, reason))
+    return out
 
-    SKILL.md said to pre-select `standard` "only on a CONCRETE trigger: a machine gate needed a waiver, or the design
-    self-check flagged an issue" — and left the choice to the model, which is the party with a reason to pick the
-    lighter tier, while no "design self-check" artifact exists anywhere to read. The trigger that IS on the board is
-    a machine gate's finding someone chose to waive: any `meta.<gate>_waiver` (today `energy_waiver`, film_energy_qa;
-    a future gate's waiver counts the day it is written, without editing this), except `review_waiver`, which waives
-    the review itself. Then `standard`; otherwise `fast`. Never `none` (only the user's own word) and never
-    `thorough` (the user's to ask for). An advisory warning argued away in triage is not a waiver and not a trigger."""
-    meta = _board_meta(out_dir)
-    keys = sorted(k for k, v in meta.items()
-                  if isinstance(k, str) and k.endswith("_waiver") and k != WAIVER_KEY and _waived(v))
-    if keys:
-        return "standard", ("a machine gate's finding was waived (%s) — a film that needed a waiver gets the second "
-                            "pair of eyes" % ", ".join("meta." + k for k in keys))
-    return "fast", "no machine gate's finding was waived (no meta.*_waiver on the board besides review_waiver)"
+
+def preselect(out_dir):
+    """(tier, why) — the review depth the review-depth question PRE-SELECTS: `fast`, always.
+
+    It used to be left to the model ("pre-select standard on a concrete trigger"), and then to a rule — standard
+    whenever a machine gate's finding was waived. Calibrated on the four acceptance films, that rule made standard
+    the de-facto default: every one of them carries `meta.energy_waiver`, because diagram films routinely waive
+    film_energy_qa's motion floor. And the bump was untargeted — standard adds critic-av and a second round, and
+    neither re-judges the waived finding. So the default stays `fast`, the user may pick any tier, and each waived
+    finding is confirmed where it can be: its own `waivers` row in the ledger (_waiver_rows), on every tier."""
+    n = len(gate_waivers(out_dir))
+    return "fast", ("the default, always; the user may pick any tier" +
+                    (" — %d waived machine-gate finding(s) on the board do not raise it: the critic confirms each in "
+                     "its own `waivers` ledger row" % n if n else ""))
 
 
 def _preselect_problems(out_dir, rv):
@@ -456,9 +494,9 @@ def _preselect_problems(out_dir, rv):
     if pre == "none" or pre not in TIERS:
         return []                                  # review() already refuses these
     if pre != want:
-        return ["the board now calls for `%s` to be pre-selected (%s), but the review-depth question was asked with "
-                "`%s` pre-selected — the pre-selection is computed (--preselect), not chosen. Ask the question again "
-                "with `%s` pre-selected, say why, and record the new answer" % (want, why, pre, want)]
+        return ["meta.%s.preselected is `%s`, but the review-depth question pre-selects `%s` (%s) — the pre-selection is "
+                "computed (--preselect), not chosen. Ask the question again with `%s` pre-selected and record the "
+                "answer; the user may still pick any tier" % (REVIEW_KEY, pre, want, why, want)]
     return []
 
 
@@ -769,6 +807,60 @@ def _route_rows(out_dir, led, by_id, warns):
     return errs
 
 
+def _waiver_rows(out_dir, led, by_id, warns):
+    """Every machine-gate finding the board waives (gate_waivers) needs a `waivers` row from the critic —
+    {key, holds: true|false, evidence} — saying whether the waiver's stated reason is TRUE of the rendered film. A
+    waiver does not raise the review depth (preselect); this row is where it is checked. `holds: false` means the
+    waived finding stands, so the dimension that owns it (waiver_owners) must FAIL. Required on every reviewing tier
+    and on a legacy film (legacy waives design-first, nothing else); a `none` review has no ledger to carry it."""
+    waived = gate_waivers(out_dir)
+    if not waived:
+        return []
+    tier = film_tier(out_dir)
+    owners = waiver_owners(*SERIES[tier][:2])
+    rows = led.get("waivers")
+    if not isinstance(rows, list):
+        return ["`waivers` is missing — the board waives %d machine-gate finding(s) (%s); for each, the critic records "
+                "{key, holds: true|false, evidence: <keyframe>} saying whether the waiver's stated reason is true of "
+                "the rendered film. --emit-template lists them."
+                % (len(waived), ", ".join("meta." + k for k, _r in waived))]
+    seen = {}
+    for r in rows:
+        if isinstance(r, dict):
+            seen[re.sub(r"^meta\.", "", str(r.get("key") or "").strip())] = r
+    errs = []
+    for key, _reason in waived:
+        r = seen.get(key)
+        if r is None:
+            errs.append("meta.%s waives a machine gate's finding and has no `waivers` row — confirm its reason against "
+                        "the rendered film: {key: %r, holds: true|false, evidence}" % (key, key))
+            continue
+        holds = r.get("holds")
+        if not isinstance(holds, bool):
+            errs.append("the `waivers` row for meta.%s needs `holds: true|false` — is the waiver's reason true of this "
+                        "film?" % key)
+        ev = str(r.get("evidence", "")).strip()
+        if not ev:
+            errs.append("the `waivers` row for meta.%s cites no evidence — name the keyframe or frame it was judged on"
+                        % key)
+        for tok in _cites(out_dir, ev):
+            errs.append("the `waivers` row for meta.%s cites %s, which does not exist" % (key, tok))
+        if holds is False:
+            owner = owners.get(key)
+            if owner is None:
+                errs.append("the `waivers` row says meta.%s does not hold, and %s declares no dimension that owns that "
+                            "finding (\"a `meta.%s` row with `holds: false` makes <id> a FAIL\") — write the owner "
+                            "into the critic's file, or update scripts/critic_ledger.py in the same change"
+                            % (key, SERIES[tier][2], key))
+            elif str((by_id.get(owner) or {}).get("verdict", "")).lower() != "fail":
+                errs.append("the `waivers` row says meta.%s does not hold — the waived finding stands — but %s, which "
+                            "owns it, does not fail" % (key, owner))
+    extra = sorted(set(seen) - {k for k, _r in waived})
+    if extra:
+        warns.append("`waivers` rows for %s, which the board does not waive" % ", ".join("meta." + k for k in extra))
+    return errs
+
+
 NOT_APPLICABLE = ("this film has no authored page — the 原样配音 tier (every beat a supplied slide) or a board of "
                   "programmatic scenes only — so there is no design to judge and no keyframe to pin: the rendered "
                   "review ledger covers the remotion and HTML tiers. On this tier the review at the chosen depth is "
@@ -936,6 +1028,9 @@ def validate(out_dir, final=False):
 
     # ── the routes validate.py credited: did the critic SEE them in the frame? (S14) ─────────────────────
     errs.extend(_route_rows(out_dir, led, by_id, warns))
+
+    # ── the machine-gate findings the board waived: is each waiver's reason true of the film? ──────────────────
+    errs.extend(_waiver_rows(out_dir, led, by_id, warns))
 
     # ── who reviewed ────────────────────────────────────────────────────────────────────────────────────
     who = str(led.get("reviewer", "")).strip().lower()

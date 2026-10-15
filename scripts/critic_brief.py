@@ -78,6 +78,24 @@ def _review_depth(meta, how, out_dir=None):
     return "**Review depth: `%s`** — %s" % (_tier or "?", text)
 
 
+def _waiver_lines(out_dir):
+    """"Waivers to confirm": each machine-gate finding the board waived, with its stated reason and the dimension
+    that owns it. A waiver does not raise the review depth; the critic confirms each in a `waivers` ledger row."""
+    import critic_ledger as _cl
+    waived = _cl.gate_waivers(out_dir)
+    if not waived:
+        return ["**Waivers to confirm** — none: the board waives no machine gate's finding."]
+    tier = _cl.film_tier(out_dir) or "remotion"
+    owners = _cl.waiver_owners(*_cl.SERIES[tier][:2])
+    L = ["**Waivers to confirm** — the board waives these machine-gate findings. For each, record a ledger "
+         "`waivers` row `{key, holds: true|false, evidence}`: is the stated reason TRUE of the rendered film? "
+         "`holds: false` means the finding stands and its owning dimension FAILs."]
+    for key, reason in waived:
+        L.append("- `meta.%s` (owner: %s) — reason given: %s" % (key, owners.get(key, "NONE DECLARED in the critic's "
+                                                                       "file"), reason[:600]))
+    return L
+
+
 def build(out_dir, ran=None):
     """The brief's text. `ran` = {script: output} for gates main() already ran (the HTML tier runs keyframe_qa
     before the sheet is built, and must not run it twice)."""
@@ -270,6 +288,8 @@ def build(out_dir, ran=None):
                 (" · changes: " + "; ".join("%s — %s" % (c.get("aspect"), c.get("what"))
                                             for c in ch if isinstance(c, dict))) if ch else ""))
     L.append("")
+    L.extend(_waiver_lines(out_dir))
+    L.append("")
     L.append("## 5 · The registers this film uses")
     L.append("")
     for shot, line in sorted(_library_entries(set(shots)).items()):
@@ -439,6 +459,8 @@ def _build_html(out_dir, board, ran):
     else:
         L.append("**Routes to confirm (H8)** — validate.py credits no page as BUILT or BESPOKE: every page is a "
                  "stock archetype or exempt. That is itself the design-first floor's finding (section 1).")
+    L.append("")
+    L.extend(_waiver_lines(out_dir))
     bl = [e for e in meta.get("build_list") or [] if isinstance(e, dict) and e.get("kind") == "component"]
     L.append("")
     if bl:

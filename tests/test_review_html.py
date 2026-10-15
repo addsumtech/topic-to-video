@@ -354,3 +354,37 @@ def test_a_failed_frame_pull_leaves_no_partial_set_for_the_brief_to_cite(tmp_pat
     assert critic_brief.main([out]) == 0
     assert [f for f in os.listdir(os.path.join(out, "_frames")) if f.endswith(".png")] == []
     assert "No `_frames/` frames" in open(os.path.join(out, "_critic_brief.md"), encoding="utf-8").read()
+
+
+# ── waived gate findings on the HTML tier: H6 owns energy; a legacy film still confirms its waivers ─────────
+
+def test_an_html_waiver_row_binds_to_h6_and_a_legacy_film_still_needs_it(tmp_path):
+    import validate as v
+    energy = {"energy_waiver": "a quiet editorial film, held to its narration"}
+    out = _html_film(tmp_path, review={"tier": "thorough", "user_answer": "thorough", "preselected": "fast"},
+                     fits={2: SHARES}, meta_extra=energy)
+    cl.record_render(out)
+    routes = [{"beat": 1, "route": "bespoke", "visible": True, "evidence": "_keyframes/scene_01.png"}]
+    led = _ledger(out, routes=routes)
+    assert any("`waivers` is missing" in e for e in cl.validate(out)[0])
+    led = _ledger(out, routes=routes, verdict="REVISE",
+                  waivers=[{"key": "energy_waiver", "holds": False, "evidence": "_keyframes/scene_02.png"}])
+    assert any("H6, which owns it, does not fail" in e for e in cl.validate(out)[0])
+    i = [r["id"] for r in led["rows"]].index("H6")
+    led["rows"][i] = {"id": "H6", "verdict": "fail", "evidence": "_keyframes/scene_02.png", "fix": "cue the reveals"}
+    json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
+    assert not cl.validate(out)[0], cl.validate(out)[0]
+    # a LEGACY film (design-first kept by the user) needs no route rows — and still confirms its waivers
+    old = v._ts(v.DESIGN_FIRST_SINCE["html"]) - 86400
+    mp4 = os.path.join(out, "out.mp4")
+    open(mp4, "wb").write(b"an old render")
+    os.utime(mp4, (old, old))
+    b = json.load(open(os.path.join(out, "storyboard.json")))
+    b["meta"]["design_first"] = {"legacy": True, "user_answer": "keep it as it is", "out_mp4_mtime": v._iso(old)}
+    for sl in b["slides"]:
+        sl.pop("shot_fit", None)
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
+    cl.record_render(out)
+    _ledger(out)
+    errs = cl.validate(out)[0]
+    assert not any("`routes`" in e for e in errs) and any("`waivers` is missing" in e for e in errs), errs

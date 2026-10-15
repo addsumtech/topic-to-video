@@ -431,7 +431,9 @@ overrides a floor.
 motion personality realised, varying beat to beat and building toward the climax), D6c (content lands one by one
 on the voice — no page dumping two facts in one reveal, no connector painting before its blocks) and D9 (one moving
 thing, CSS-driven and seek-frozen, no GIF or video backdrop, static under reduced motion). `keyframe_qa`'s sync audit
-already fails an uncued multi-point page; whether the motion MEANS something is yours.
+already fails an uncued multi-point page; whether the motion MEANS something is yours. A waived film-energy finding
+is yours too: whether `meta.energy_waiver`'s reason is true of this film — held to its narration, its motion the
+mechanism — or the film is inert; a `meta.energy_waiver` row with `holds: false` makes H6 a FAIL.
 > **Precedent — `339ca64`:** a `.reveal` cued at 88% of a 4 s scene stood at 0.65 of its entrance when the scene's
 > dip began — it never finished on screen. A cue on a last word is now led so its reveal finishes before the cut.
 > **Ask yourself:** Read one strip left to right: does each thing appear when the voice says it, and finish before
@@ -455,7 +457,12 @@ BUILT (it draws a workshop component), BESPOKE (a composition of its own), AS-IS
 half built-or-bespoke; whether a credited route is really ON SCREEN only you can see. **Record it:** the brief lists
 every page `validate.py` credits as BUILT or BESPOKE, and the ledger carries one `routes` row for each —
 `{"beat": N, "route": "built"|"bespoke", "visible": true|false, "evidence": "_keyframes/scene_NN.png"}`
-(`--emit-template` lists them). `visible: false` on any row makes H8 a FAIL. A BESPOKE page that reads as a stock
+(`--emit-template` lists them). `visible: false` on any row makes H8 a FAIL. **And the WAIVERS:** every machine-gate
+finding the board waives (each non-empty `meta.*_waiver` but `review_waiver`; the brief lists them under "Waivers to
+confirm") gets one `waivers` row — `{"key": "energy_waiver", "holds": true|false, "evidence": "_keyframes/scene_NN.png"}`
+— saying whether the waiver's stated reason is true of the rendered film. A waiver does not raise the review depth;
+this row is where it is checked, and `holds: false` means the waived finding stands, so the dimension that owns it
+(the one whose text names that waiver key) must FAIL. A BESPOKE page that reads as a stock
 archetype recoloured, a BUILT page whose component is not what the eye lands on, an AS-IS page whose
 `shot_fit.shares` names an encoding the frame does not carry: FAIL, with "build or compose" as the fix. And the
 signature built page: would a viewer remember this frame — without it misleading (H1) or decorating (H2)?

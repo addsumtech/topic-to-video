@@ -961,16 +961,17 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    | `thorough` | the full loop: REVISE → fix → re-render → fresh independent review, until PASS | open-ended; each round is a re-render plus a fresh review |
    | `none` | no critic — the user's own viewing is the review, recorded as user-waived | nothing further |
 
-   **The pre-selected option is COMPUTED, not chosen:** `python3 scripts/critic_ledger.py <out_dir> --preselect`
-   prints it and why. It is `standard` when a machine gate's finding was waived — any `meta.*_waiver` on the board
-   except `review_waiver` (today `meta.energy_waiver`, film_energy_qa's) — and `fast` otherwise; say the reason in
-   the question when it is `standard`. An advisory warning you argued for in 9a's triage is not a trigger.
-   `thorough` is never pre-selected (the user asks for it), and `none` is NEVER pre-selected and never inferred from
-   silence, a "looks fine", or a green gate — only the user's explicit pick. In auto mode, or when the user does not
-   reply, the pre-selected reviewing tier applies and is recorded as such (`"user_answer": "no reply"`,
-   `"preselected"` = the tier). `critic_ledger.py --final` requires `meta.review.preselected` and holds it to what
-   `--preselect` computes NOW — a waiver added after the question was asked means asking it again. Record the
-   answer as `meta.review` in `storyboard.json`:
+   **Pre-select `fast`** — always; the user may pick any tier (`python3 scripts/critic_ledger.py <out_dir>
+   --preselect` prints it, and `critic_ledger.py --final` requires `meta.review.preselected` to equal it). **A waived
+   machine-gate finding does not raise the tier:** standard adds critic-av and a second round, and neither re-judges
+   the waived finding. Instead the critic confirms each waiver in its own ledger row — every non-empty `meta.*_waiver`
+   but `review_waiver` (today `meta.energy_waiver`) gets a `waivers` row `{key, holds: true|false, evidence}` saying
+   whether its stated reason is true of the rendered film, and `holds: false` must come with a FAIL on the dimension
+   that owns the finding (energy: S12 on remotion, H6 on HTML), on every reviewing tier. An advisory warning you argued
+   for in 9a's triage is not a waiver. `thorough` is never pre-selected (the user asks for it), and `none` is NEVER
+   pre-selected and never inferred from silence, a "looks fine", or a green gate — only the user's explicit pick. In
+   auto mode, or when the user does not reply, the pre-selected `fast` applies and is recorded as such
+   (`"user_answer": "no reply"`, `"preselected": "fast"`). Record the answer as `meta.review` in `storyboard.json`:
 
    ```json
    "review": {"tier": "fast", "user_answer": "<the option or words the user gave, or \"no reply\">",
@@ -993,7 +994,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    The film then ships marked "reviewed at <tier>, not a PASS". **What never moves with the tier:** every
    machine gate above, the faithfulness and sourcing rules (an S3 finding on remotion, H1 on HTML, is always FIXED
    — never declined, never accepted, by anyone), the human script/audition checkpoint, an independent reviewer,
-   every ledger row, the route rows (below), and the render pin.
+   every ledger row, the route rows (below), the waiver rows, and the render pin.
 
    **`none` waives the review — and only the user may choose it.** `meta.review = {"tier": "none",
    "user_answer": "<what the user said>", "render_sha256": "<the render id, which you compute>"}`
@@ -1028,7 +1029,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    adherence, and REVISEs failing beats (the shot-director re-assigns → re-render). Its verdict is a LEDGER:
    every dimension gets a row in `<out>/_critic_ledger.json` — the clean ones too, each citing the keyframe or
    brief line it rests on — plus one `routes` row per beat `validate.py` credits as ADAPTED or BUILT, saying
-   whether that route is VISIBLE in the rendered frame (a route nobody can see fails S14) — and
+   whether that route is VISIBLE in the rendered frame (a route nobody can see fails S14), plus one `waivers` row per
+   waived machine-gate finding (9d) — and
    `python3 scripts/critic_ledger.py <out_dir>` must exit 0. **Every review round starts with `critic_brief.py`,
    and so does `--final` after you apply fixes:** it rebuilds the contact sheet from the new keyframes and
    records the render, which is what the round count and the render pin are checked against (a sheet older
@@ -1044,7 +1046,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    filmstrips and records the render) → dispatch **`agents/design-critic.md`'s delivery section** ("Rendered review —
    the delivery ledger", the H-dimensions; at `fast` it carries `critic-av`'s lens as H7, at `standard`/`thorough`
    `critic-av` runs beside it) as the same fresh subagent, which fills `_critic_ledger.json` — one row per H-dimension
-   plus one `routes` row per page `validate.py` credits BUILT or BESPOKE (a route nobody can see fails H8) — then
+   plus one `routes` row per page `validate.py` credits BUILT or BESPOKE (a route nobody can see fails H8) and one
+   `waivers` row per waived machine-gate finding (9d) — then
    `python3 scripts/critic_ledger.py <out_dir> --final`, exit 0 and its verdict read, exactly as above. The 原样配音
    tier (every beat a supplied slide) and a programmatic-only board have no authored page: their review at the chosen
    depth is `critic-av` alone on `out.mp4`, with no ledger (`critic_ledger.py` says it does not apply, exit 2).
