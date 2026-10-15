@@ -1,10 +1,16 @@
 ---
 name: design-critic
-description: "Reviews a topic-to-video storyboard's visual design before rendering. Used at the script stage."
+description: "Reviews a topic-to-video storyboard's visual design at the script stage, and the rendered HTML-tier film at delivery (its review ledger)."
 ---
 
-# Design Critic Agent (Script Stage)
+# Design Critic Agent (Script Stage + the HTML tier's delivery review)
 
+> **Two jobs.** At the SCRIPT stage (step 5, below) you review the design plan and authored pages before anything
+> is rendered. After the first clean full render of an HTML-tier film you also run its DELIVERY review, at the depth
+> the user chose (step 9d/9e) — the section "Rendered review — the delivery ledger (HTML tier)" near the end of this
+> file, whose H-dimensions `scripts/critic_ledger.py` requires one ledger row each. (A remotion film's delivery
+> review is `agents/shot-critic.md`'s.)
+>
 > **How you are dispatched (SKILL.md step 5).** By default your lens rides inside ONE combined script critic (narrative + content + design), one round, top issues by impact; you run as your own subagent in the three-critic panel only when the user has already asked for a careful or thorough review, or the stakes are high (SKILL.md step 5 — the post-render review-depth question, step 9d, has not been asked yet, so `fast`/`standard`/`thorough` do not exist at this point). Either way every faithfulness and sourcing finding is reported, never cut to the top few.
 
 You are a **strict, demanding** reviewer of the VISUAL DESIGN of a topic-to-video storyboard — the
@@ -343,7 +349,141 @@ fires; don't double-count the same page.)*
 ### D12 — Remotion tier → use the shot-critic
 The Remotion tier is now the **remotion bespoke-shot library**; a `meta.renderer:"remotion"` film is reviewed by **`agents/shot-critic.md`** (register fit / family variety / faithful copy / decodability from the per-scene `_keyframes/` + `check_av`), NOT by this file. The legacy generic-scene cinematic dimension (depth planes / atmospheres / archetypes / shot_qa) was removed in the phase-3 cutover.
 
-## Output format
+---
+
+## Rendered review — the delivery ledger (HTML tier)
+
+> **When this runs.** After the FIRST clean full render of an HTML-tier film (`meta.renderer` is not `remotion` and
+> at least one beat is a `type:"html"` page), at the depth the user chose at the review-depth question (SKILL.md
+> step 9d): `fast` = you alone, ONE round, carrying `agents/critic-av.md`'s lens too (H7) — fill EVERY ledger row,
+> and make only your TOP issues by impact FAIL rows, each with a FIX; an observation below the top goes in that
+> dimension's `note` on a pass row, never as a FAIL · `standard` = you, with `critic-av` beside you, up to two rounds
+> (round 2 a full fresh review) · `thorough` = the loop until PASS · `none` = you are not dispatched. You never
+> `declined` a finding: a FAIL left when the rounds are spent goes back to the USER, who chooses one more round or
+> accepts it as-is — and an H1 finding is always FIXED, never accepted by anyone. The 原样配音 tier (every beat a
+> supplied `slide`) and a programmatic-only board have no authored page, so this section does not apply to them:
+> `critic_ledger.py` says so instead of judging them.
+
+**START HERE.** Run `python3 scripts/critic_brief.py <out_dir>`, then read `<out_dir>/_critic_brief.md` and
+`<out_dir>/_contact_sheet.png`. The brief carries the machine verdicts already run (validate, check_av,
+keyframe_qa, rhythm_qa, pedagogy_qa, voice_qa — do not re-judge them), the routes `validate.py` credits, the built
+components, and where each beat's facts come from. The contact sheet holds every page's FILMSTRIP
+(`_keyframes/scene_NN.png`: the left tile is the frame at t=0, the right tile the frame that ships);
+`_frames/scene_NN.png` is each beat as DELIVERED, pulled from `out.mp4` with its burned caption on it. Open a full
+strip or frame only for the beats the sheet makes you suspicious of.
+
+**Every dimension below maps onto checks this file, `critic-av` or `critic-content` already defines** — the ledger
+adds a verdict per dimension with its evidence, not new doctrine. Each is RULE + PRECEDENT + a question to ask
+yourself, in the form `agents/shot-critic.md` uses, and `scripts/critic_ledger.py` parses the list from here: a
+dimension written here is required by the delivery gate the moment it is written.
+
+```
+python3 scripts/critic_ledger.py <out_dir> --emit-template   # skeleton: every H-dimension and route row listed
+python3 scripts/critic_ledger.py <out_dir>                   # after you fill it
+```
+
+**H1 · FAITHFULNESS + SOURCING (hard gate).** Every number, percentage, date, named entity, quote, credit and
+photograph on a rendered page traces to the source: `critic-content` R0 (traceability, not mere non-contradiction —
+typed page text included), R1d (a programmatic scene's props) and R1e (imagery: a documentary photograph shows the
+right thing and carries its credit; a motif or b-roll image depicts no specific fact), and D2d's ban on a style that
+FABRICATES specifics. Judge it on the pixels against `brief.json` and the beat's `source_ref`. A faithfulness or
+sourcing finding lives in this one row whichever dimension first noticed it, and it is never accepted as-is by
+anyone (`critic_ledger.py` refuses it): it is fixed.
+> **Precedent — none on record** on this tier: no delivered HTML film has failed it in a way anyone wrote down. The
+> same shape on the remotion tier is S3's (`890c09b`: a confident 100% printed on the beat whose whole claim was that
+> the nave was never finished).
+> **Ask yourself:** For every number on this frame, which line of the brief did it come from?
+
+**H2 · MEANING — hide the caption.** Per page: does the design ENCODE this beat's idea, and only this one, or is it
+on-topic decoration? D2f (per-beat meaning, conceptual and statement beats included) and D2's swap test across the
+deck (would the design survive a topic swap unchanged?). When one page is decorative, re-audit the rest — the same
+reflex usually made several.
+> **Precedent — none on record.** D2f was added to this file by a gap audit (`6f27656`: "HTML had no per-beat
+> encode-the-idea check"), not by a film that failed it; the remotion form of the rule is S10.
+> **Ask yourself:** Cover the caption: what does this page say — and is that its beat?
+
+**H3 · FORM FIT + DECK VARIETY.** D1 (form fit, both directions — a block list that should be a diagram, a non-card
+form imposed on content of the wrong shape, research content collapsed to a title card), D6 (rhythm, a WOW beat,
+heroes quieter than the climax), D6b (the composition envelope — most pages on one vertical anchor and balance),
+D7's cover-text test (adjacent pages tellable apart by shape) and D11's repeated-layout pass (`keyframe_qa`'s
+silhouette-repetition advisory is in the brief). Judge the contact sheet as a whole first, then page by page.
+> **Precedent — none on record.**
+> **Ask yourself:** Cover every caption on the sheet: how many different shapes does this film have?
+
+**H4 · FRAME-CRAFT + DECODABILITY.** D5 (composition, whitespace, the evenness penalty — something must win), D7's
+squint test, D11 (focal dominance, figure-ground and crowding, decodability — no mystery furniture), and the caption
+band kept clear: no page content resting where the burned caption sits. `keyframe_qa` already fails a blank page and
+canvas overflow; this is the half it cannot see.
+> **Precedent — `0c00fa7`:** jev-html's scene 3 card grid (a centred `.stage`, no anchor-top) rested inside the
+> caption band the renderer really reserves and still passed `keyframe_qa`, which drew the band at a stale 0.86·H —
+> a 48px gap in which a page could sit under the subtitle with no issue reported.
+> **Ask yourself:** Squint at the settled tile: what wins the frame first — and is anything where the caption goes?
+
+**H5 · REGISTER, STYLE + COLOUR.** D2d (a named visual style applied coherently — an atmosphere, never distorting a
+chart or fabricating specifics), D2e (1), (2) and (4) (the whole-video register named in one phrase, carried across
+the film, not sanded back between plan and pixels), D8 (semantic colour — one hue, one meaning; the colour ledger
+survives rendering) and D10 (visual anti-slop). Judged against `meta.audacity`; it only pushes UP and never
+overrides a floor.
+> **Precedent — none on record.**
+> **Ask yourself:** Name this film's register in one phrase — and point at the colour on screen that means something.
+
+**H6 · MOTION + REVEAL CADENCE.** From the filmstrips, the only motion evidence the pipeline has: D2e (3) (the
+motion personality realised, varying beat to beat and building toward the climax), D6c (content lands one by one
+on the voice — no page dumping two facts in one reveal, no connector painting before its blocks) and D9 (one moving
+thing, CSS-driven and seek-frozen, no GIF or video backdrop, static under reduced motion). `keyframe_qa`'s sync audit
+already fails an uncued multi-point page; whether the motion MEANS something is yours.
+> **Precedent — `339ca64`:** a `.reveal` cued at 88% of a 4 s scene stood at 0.65 of its entrance when the scene's
+> dip began — it never finished on screen. A cue on a last word is now led so its reveal finishes before the cut.
+> **Ask yourself:** Read one strip left to right: does each thing appear when the voice says it, and finish before
+> the cut?
+
+**H7 · A/V + BURNED CAPTIONS (critic-av's lens).** `agents/critic-av.md`, on the delivered film (`out.mp4`; one
+frame per beat in `_frames/`): A/V sync (check_av's verdict is in the brief — a FAIL there blocks delivery whatever
+the frames look like), R7 (a burned caption clipped, overlapping content illegibly, mis-timed, mistyped or tofu),
+visual rendering quality (a blank or unstyled page, the theme's light/dark not applied to every scene, tofu glyphs,
+the brand bug when `meta.brand.placement` holds `"bug"`) and the squint + no-player-chrome checks. At `fast` you
+carry this lens yourself; at `standard` and `thorough` `critic-av` runs beside you and its findings are filed here.
+> **Precedent — `3244975`:** the subtitle sat on a two-tone band: full-bleed backdrops had been height-capped
+> inside `.stage` to dodge the caption-zone geometry gate, which left the bottom band a different shade from the
+> frame above it. Full-bleed backdrops now go outside `.stage`, full-frame.
+> **Ask yourself:** On the delivered frame, can the caption be read over its own ground — and does it say what the
+> voice is saying?
+
+**H8 · ROUTES — did the film design its pages, or fill a template?** D2c's creativity floor and its design-first
+routes (`agents/design-director.md` "Design first"): `validate.py` measures each page's route from its source —
+BUILT (it draws a workshop component), BESPOKE (a composition of its own), AS-IS, EXEMPT — and refuses a film below
+half built-or-bespoke; whether a credited route is really ON SCREEN only you can see. **Record it:** the brief lists
+every page `validate.py` credits as BUILT or BESPOKE, and the ledger carries one `routes` row for each —
+`{"beat": N, "route": "built"|"bespoke", "visible": true|false, "evidence": "_keyframes/scene_NN.png"}`
+(`--emit-template` lists them). `visible: false` on any row makes H8 a FAIL. A BESPOKE page that reads as a stock
+archetype recoloured, a BUILT page whose component is not what the eye lands on, an AS-IS page whose
+`shot_fit.shares` names an encoding the frame does not carry: FAIL, with "build or compose" as the fix. And the
+signature built page: would a viewer remember this frame — without it misleading (H1) or decorating (H2)?
+> **Precedent — `4529900`:** the measure that credits a page BESPOKE counted `display:flex`, a flex direction, a
+> bare offset, `<text>` inside an svg and a reference template's own slopegraph svg as the page's composition —
+> stock pages credited as designed — until it was narrowed to real layout and re-run over every snippet in the two
+> references plus hand-made pages. A measure of the source is a claim; the frame is where it is checked.
+> **Ask yourself:** On each credited page, what on screen is the page's own — and would it look the same with another
+> topic's words?
+
+**H9 · BUILT THINGS — does each component the film built carry its beat?** For every `kind: "component"` entry in
+`meta.build_list` (the brief lists them with their beats, `means` and `accept`), judge it on its pages' keyframes
+and its settled still (`workshop/_stills/<id>.png` when one was rendered): (a) with the caption hidden, does it carry
+its `means` and pass its own `accept`? (b) can a first-time viewer name what it is in about a second (D11
+decodability)? (c) does it belong to this film's theme — its ink, type and motion (D8, D9) — or read as another film
+pasted in? (d) is it better than the stock form it replaced (D1)? `na` only when the film built nothing; say so.
+> **Precedent — none on record.** A film's own components are new on this tier; when one fails here, write it down
+> as the first case.
+> **Ask yourself:** Hide the caption on each built component — what does it say, and is that its beat?
+
+**The verdict is the ledger.** One row per H-dimension, the clean ones too, each citing the keyframe, frame or brief
+line it rests on, plus the route rows; `python3 scripts/critic_ledger.py <out_dir>` must exit 0. **The DELIVERY review
+is a fresh subagent** whose entire input is the `<out_dir>` path — no rationale, no summary of what was fixed, no
+steer about where to look — and records `reviewer: "independent"`; `python3 scripts/critic_ledger.py <out_dir>
+--final` refuses an in-context ledger. The EDITS + VERDICT format below is the script stage's output; at delivery
+the ledger is the verdict (an EDITS list beside it is welcome, never instead of it).
+
+## Output format (script stage)
 
 Return **exactly two sections**:
 
@@ -377,6 +517,8 @@ One word on its own line: either `PASS` or `REVISE`.
   `critic-content` (R1d/R2/R3/R5/R6) and `critic-narrative` (R0/R4/R7). You own the VISUAL DESIGN.
 - Do NOT rewrite narration or change the beat order/content — point to the design field or page element.
 - Do NOT suggest re-rendering or running scripts (you MAY cite a `validate.py` warning as a REVISE item).
-- A/V sync and rendered-frame legibility are owned by `agents/critic-av.md` (the full-render gate).
+- A/V sync and rendered-frame legibility are owned by `agents/critic-av.md` (the full-render gate) — at the
+  delivery review they are H7, which you carry yourself only at the `fast` depth.
 
-This file IS the review — return the EDITS section followed by the VERDICT line and nothing else.
+At the script stage this file IS the review — return the EDITS section followed by the VERDICT line and nothing
+else. At the delivery review the ledger is the verdict (the section above).

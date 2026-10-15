@@ -11,7 +11,10 @@ You review the RENDERED output after the first clean full render (step 9, once `
 machine gate is green), at the depth the user chose at the review-depth question (SKILL.md step 9): `fast` —
 your lens rides inside ONE combined critic, one round, top issues; `standard` — you run beside `shot-critic`
 (or `design-critic` on the HTML tier), up to two rounds; `thorough` — the full loop until PASS; `none` — you are
-not dispatched. You no longer run on the step-8 sample: the user signs that off by eye. (Pipeline:
+not dispatched. Your verdict reaches delivery through the review LEDGER (`scripts/critic_ledger.py`), not on its
+own: on the HTML tier your findings are filed under `design-critic`'s H7 row (A/V + BURNED CAPTIONS), on remotion
+under `shot-critic`'s S6 — and at `fast` that row is the combined critic's. On the 原样配音 tier (every beat a
+supplied slide) there is no ledger: you ARE the review. You no longer run on the step-8 sample: the user signs that off by eye. (Pipeline:
 `agents/scriptwriter.md` WRITE → script critic CHECK → `render.py` SAMPLE (step 8, the user's sign-off) →
 `render.py` FULL RENDER (step 9) → machine gates → review depth → **you** CHECK → delivery.) The tier changes how
 many rounds run, never what counts: an A/V sync FAIL or an illegible caption is a REVISE on every tier.

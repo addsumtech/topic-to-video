@@ -7,8 +7,9 @@ description: "Reviews a rendered Remotion-tier topic-to-video film shot by shot.
 
 > **When this runs.** After a `meta.renderer:"remotion"` render, as the design-review gate — the remotion
 > analogue of `design-critic`. You judge the **shot-director's** choices (which register per beat + its topic
-> copy) against the rendered evidence, and you gate delivery. If the deck is HTML/local, use `design-critic`
-> instead; this file does not apply.
+> copy) against the rendered evidence, and you gate delivery. If the deck is HTML/local, use `design-critic`'s
+> delivery section ("Rendered review — the delivery ledger", the H-dimensions) instead; this file does not apply —
+> the same `critic_ledger.py` gate holds that review to its H-rows.
 > **How hard is the user's choice** (`meta.review.tier`, asked after the first clean render — SKILL.md step 9):
 > `fast` = you alone, ONE round, carrying `critic-av`'s A/V lens too; fill EVERY ledger row, and make only your
 > TOP issues by impact FAIL rows, each with a FIX — an observation below the top goes in that dimension's `note`

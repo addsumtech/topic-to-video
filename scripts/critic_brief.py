@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-"""Assemble everything a shot-critic needs into ONE file, so its pass is spent on judgment.
+"""Assemble everything the rendered review needs into ONE file, so its pass is spent on judgment — on both tiers.
 
-  python3 scripts/critic_brief.py <out_dir>        # writes <out_dir>/_critic_brief.md
+  python3 scripts/critic_brief.py <out_dir>        # writes <out_dir>/_critic_brief.md (+ the contact sheet)
+
+A remotion film's brief is for agents/shot-critic.md (below). An HTML-tier film's (not remotion, at least one
+`type:"html"` page) is for agents/design-critic.md's delivery section, with critic-av's lens: it runs keyframe_qa
+FIRST, so the filmstrips the sheet is built from show the pages as they are now, pulls one frame per beat out of
+the delivered out.mp4 (`_frames/`, with its burned caption — the A/V lens's evidence), builds the sheet from the
+filmstrips, records the render and lists the HTML machine verdicts, the routes and the built components. A board
+with no authored page (the 原样配音 tier, or programmatic scenes only) has no ledger; its brief says so.
 
 WHY. A review used to cost a full render plus a long pass that opened 37 keyframes one at a time and
 re-read a 1200-line contract and catalogue — most of it to re-derive things a script had already decided.
@@ -56,8 +63,27 @@ def _library_entries(shots):
     return out
 
 
-def build(out_dir):
+def _review_depth(meta, how):
+    """The `**Review depth**` line: the tier the user chose and what it means for THIS tier's critics (`how`)."""
+    _rv = meta.get("review") if isinstance(meta.get("review"), dict) else {}
+    _tier = str(_rv.get("tier") or "").lower()
+    text = dict(how, none="the user waived the review — no critic should be running on this film.").get(
+        _tier, "NOT RECORDED — the review-depth question (SKILL.md 9d) has not been asked. Ask it before "
+               "dispatching the critic; critic_ledger.py --final refuses a film with no meta.review.")
+    return "**Review depth: `%s`** — %s" % (_tier or "?", text)
+
+
+def build(out_dir, ran=None):
+    """The brief's text. `ran` = {script: output} for gates main() already ran (the HTML tier runs keyframe_qa
+    before the sheet is built, and must not run it twice)."""
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    sys.path.insert(0, _HERE)
+    import critic_ledger as _cl
+    tier = _cl.film_tier(out_dir)
+    if tier == "html":
+        return _build_html(out_dir, board, ran or {})
+    if tier is None:
+        return _build_no_pages(out_dir, board)
     slides = board.get("slides", [])
     meta = board.get("meta", {})
     shots = [s.get("shot") for s in slides if s.get("shot")]
@@ -80,27 +106,17 @@ def build(out_dir):
              % (len(slides), meta.get("language", "?"), meta.get("aspect", "16:9"),
                 meta.get("shot_template", "-"), meta.get("audacity", "balanced")))
     L.append("")
-    if str(meta.get("renderer", "")).lower() not in ("remotion", "remotion-bespoke"):
-        L.append("> **This deck is not a `remotion` film** (`renderer` = %r). The register, family and "
-                 "growth sections below are empty by construction, and the shot-tier gates no-op. Use "
-                 "`design-critic` for the HTML tier." % meta.get("renderer"))
-        L.append("")
     # THE DEPTH THE USER CHOSE decides the shape of this pass (SKILL.md, the review-depth question). The floors
     # do not move with it: every ledger row, cited evidence, an independent reviewer.
-    _rv = meta.get("review") if isinstance(meta.get("review"), dict) else {}
-    _tier = str(_rv.get("tier") or "").lower()
-    _how = {"fast": "ONE combined pass carrying the A/V lens too (agents/critic-av.md), ONE round. Fill every "
-                    "ledger row. Only your TOP issues by impact are FAIL rows, each with a FIX; an observation "
-                    "below the top goes in that dimension's `note` on a pass row, never as a FAIL. A FAIL left "
-                    "when the round is spent goes back to the USER (one more round, or accept as-is) — you never "
-                    "decline one, and a faithfulness/sourcing FAIL is always fixed.",
-            "standard": "this critic plus agents/critic-av.md, up to TWO rounds; round 2 is a full fresh review. "
-                        "A FAIL left after round 2 goes back to the USER, as on fast.",
-            "thorough": "the full loop: REVISE → fix → re-render → fresh independent review, until PASS.",
-            "none": "the user waived the review — no critic should be running on this film."}.get(
-        _tier, "NOT RECORDED — the review-depth question (SKILL.md 9d) has not been asked. Ask it before "
-               "dispatching the critic; critic_ledger.py --final refuses a film with no meta.review.")
-    L.append("**Review depth: `%s`** — %s" % (_tier or "?", _how))
+    L.append(_review_depth(meta, {
+        "fast": "ONE combined pass carrying the A/V lens too (agents/critic-av.md), ONE round. Fill every "
+                "ledger row. Only your TOP issues by impact are FAIL rows, each with a FIX; an observation "
+                "below the top goes in that dimension's `note` on a pass row, never as a FAIL. A FAIL left "
+                "when the round is spent goes back to the USER (one more round, or accept as-is) — you never "
+                "decline one, and a faithfulness/sourcing FAIL is always fixed.",
+        "standard": "this critic plus agents/critic-av.md, up to TWO rounds; round 2 is a full fresh review. "
+                    "A FAIL left after round 2 goes back to the USER, as on fast.",
+        "thorough": "the full loop: REVISE → fix → re-render → fresh independent review, until PASS."}))
     L.append("")
     L.append("## 1 · Already decided by machine — do NOT re-judge these")
     L.append("")
@@ -260,23 +276,214 @@ def build(out_dir):
     return "\n".join(L) + "\n"
 
 
+# THE HTML TIER'S MACHINE GATES (SKILL.md 9d): what has already been decided before an HTML critic looks.
+# keyframe_qa is first because main() runs it BEFORE the sheet is built — the filmstrips the sheet is made from
+# must be the pages as they are now, not as they were when someone last ran it.
+HTML_GATES = [("keyframes, blank/overflow/caption zone, glide + sync audit", "keyframe_qa.py", (), 900),
+              ("validate", "validate.py", (), 240),
+              ("A/V", "check_av.py", (), 240),
+              ("rhythm", "rhythm_qa.py", (), 240),
+              ("teaching order", "pedagogy_qa.py", (), 240),
+              ("voice (ADVISORY — always exits 0)", "voice_qa.py", (), 240)]
+FRAMES = "_frames"
+
+
+def html_frames(out_dir, at=0.9):
+    """One frame per beat of the DELIVERED out.mp4 — `_frames/scene_NN.png` (NN = the beat's `index`, the HTML
+    keyframes' numbering), at `at` of the beat — WITH its burned caption, which the page keyframes never carry. The
+    A/V lens (critic-av R7: clipped, overlapping, mis-timed or tofu captions) has nothing to read without it.
+    render.py concatenates one clip of exactly `duration` seconds per beat, so a beat's window in out.mp4 is the
+    running sum of the board's durations (no seam overlap, unlike remotion). Returns [(number, path)]; old frames
+    are cleared first so a beat that no longer exists cannot be cited."""
+    mp4 = os.path.join(out_dir, "out.mp4")
+    if not os.path.isfile(mp4):
+        return []
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    fdir = os.path.join(out_dir, FRAMES)
+    os.makedirs(fdir, exist_ok=True)
+    for f in os.listdir(fdir):
+        if re.match(r"scene_\d+\.png$", f):
+            os.remove(os.path.join(fdir, f))
+    out, t = [], 0.0
+    for pos, s in enumerate(board.get("slides") or [], start=1):
+        dur = s.get("duration") if isinstance(s, dict) else None
+        if not isinstance(dur, (int, float)) or dur <= 0:
+            raise RuntimeError("beat %s has no duration — out.mp4's beat windows cannot be located (run tts.py)"
+                               % pos)
+        num = s.get("index", pos)
+        png = os.path.join(fdir, "scene_%02d.png" % num)
+        r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "%.3f" % (t + dur * at), "-i", mp4,
+                            "-vframes", "1", png], capture_output=True, text=True, timeout=120)
+        if r.returncode != 0 or not os.path.exists(png):
+            raise RuntimeError("ffmpeg could not pull beat %s from out.mp4: %s" % (num, (r.stderr or "").strip()[:200]))
+        out.append((num, png))
+        t += dur
+    return out
+
+
+def _build_html(out_dir, board, ran):
+    """The HTML tier's brief, for agents/design-critic.md's delivery section (H-dimensions) + critic-av's lens."""
+    slides = [x for x in board.get("slides") or [] if isinstance(x, dict)]
+    meta = board.get("meta") if isinstance(board.get("meta"), dict) else {}
+    L = ["# Critic brief — %s" % os.path.basename(os.path.abspath(out_dir)), ""]
+    L.append("%d beats · %s · aspect %s · HTML tier — review with `agents/design-critic.md` (\"Rendered review — "
+             "the delivery ledger\", the H-dimensions) · audacity `%s`"
+             % (len(slides), meta.get("language", "?"), meta.get("aspect", "16:9"), meta.get("audacity", "balanced")))
+    L.append("")
+    L.append(_review_depth(meta, {
+        "fast": "ONE pass by agents/design-critic.md's delivery section, carrying agents/critic-av.md's lens (H7), "
+                "ONE round. Fill every ledger row. Only your TOP issues by impact are FAIL rows, each with a FIX; an "
+                "observation below the top goes in that dimension's `note` on a pass row, never as a FAIL. A FAIL "
+                "left when the round is spent goes back to the USER (one more round, or accept as-is) — you never "
+                "decline one, and a faithfulness/sourcing FAIL (H1) is always fixed.",
+        "standard": "agents/design-critic.md with agents/critic-av.md beside it (its findings are filed under H7), "
+                    "up to TWO rounds; round 2 is a full fresh review. A FAIL left after round 2 goes back to the "
+                    "USER, as on fast.",
+        "thorough": "design-critic + critic-av in the full loop: REVISE → fix → re-render → fresh independent "
+                    "review, until PASS."}))
+    L.append("")
+    L.append("## 1 · Already decided by machine — do NOT re-judge these")
+    L.append("")
+    L.append("Read the verdicts; spend your pass on section 3.")
+    L.append("")
+    for label, script, args, timeout in HTML_GATES:
+        L.append("**%s**" % label)
+        L.append("```")
+        L.append(ran[script] if script in ran else _run(script, out_dir, *args, timeout=timeout))
+        L.append("```")
+    L.append("")
+    L.append("Those cover: a missing page/asset/audio · the design-first floor (built + bespoke pages ≥ half) · "
+             "uncued multi-point pages · a blank page · content overflowing the canvas or resting in the caption "
+             "band · type stepping a pixel at a time while it moves · text landing late against its spoken word · "
+             "A/V drift and non-uniform clip rates · flat pacing · a concept used before it is taught · the "
+             "narration's rhythm. A finding of yours that repeats one of these is a finding the pipeline already had.")
+    L.append("")
+    L.append("## 2 · The film at a glance")
+    L.append("")
+    L.append("`_contact_sheet.png` — every page's FILMSTRIP, numbered, labelled with its design route: left tile = "
+             "the frame at t=0, right tile = the frame that ships. **Read it first.** Open a full "
+             "`_keyframes/scene_NN.png` only for the pages it makes you suspicious of.")
+    frames = sorted(f for f in os.listdir(os.path.join(out_dir, FRAMES)) if re.match(r"scene_\d+\.png$", f)) \
+        if os.path.isdir(os.path.join(out_dir, FRAMES)) else []
+    L.append("")
+    L.append(("`%s/scene_NN.png` — each beat as DELIVERED (%d frame(s), from `out.mp4` at 90%% of the beat, with its "
+              "burned caption): the evidence for H7." % (FRAMES, len(frames))) if frames else
+             "**No `%s/` frames** — `out.mp4` is missing or could not be read, so nothing shows the burned "
+             "captions: H7 cannot be judged until the film is rendered and this brief re-run." % FRAMES)
+    L.append("")
+    import validate as _v
+    try:
+        routes = {num: (r, w, rel) for num, r, w, rel in _v.html_design_routes(meta, slides, out_dir)}
+        rerr = None
+    except Exception as e:                                    # noqa: BLE001 — report, never mask
+        routes, rerr = {}, e
+    kdir = os.path.join(out_dir, "_keyframes")
+    L.append("| beat | type | route | page | narration |")
+    L.append("|---|---|---|---|---|")
+    no_strip = []
+    for pos, s in enumerate(slides, start=1):
+        num = s.get("index", pos)
+        r, _w, rel = routes.get(num, ("-", "", None))
+        if not os.path.exists(os.path.join(kdir, "scene_%02d.png" % num)):
+            no_strip.append(str(num))
+        L.append("| %s | %s | %s | %s | %s |" % (num, s.get("type", "slide"), str(r).upper(), rel or "-",
+                                               str(s.get("narration", ""))[:60].replace("|", "/")))
+    if no_strip:
+        L.append("")
+        L.append("Beats with no filmstrip (not an HTML page, or keyframe_qa could not shoot it): %s — judge them "
+                 "from `%s/`." % (", ".join(no_strip), FRAMES))
+    L.append("")
+    L.append("## 3 · What only you can judge")
+    L.append("")
+    L.append("The H-dimensions in agents/design-critic.md, one ledger row each (`python3 scripts/critic_ledger.py "
+             "<out_dir> --emit-template`). The half no script can do:")
+    L.append("")
+    L.append("- **FAITHFULNESS (H1, hard gate)** — every number, name, quote and photograph on a page traced to "
+             "the source%s." % (" (`brief.json` is in the out_dir)" if os.path.exists(os.path.join(out_dir, "brief.json"))
+                                 else " — **there is no `brief.json` in the out_dir**: say what you traced against"))
+    L.append("- **MEANING (H2)** — hide the caption: does the page still carry THIS idea, and only this one?")
+    L.append("- **FORM FIT + VARIETY (H3)**, **FRAME-CRAFT (H4)**, **REGISTER/STYLE/COLOUR (H5)**, **MOTION (H6)** "
+             "— judged on the strips.")
+    L.append("- **A/V + BURNED CAPTIONS (H7)** — on the delivered frames; check_av's verdict is above.")
+    L.append("- **ROUTES (H8)** and **BUILT THINGS (H9)** — below.")
+    L.append("")
+    L.append("## 4 · Facts computed for you")
+    L.append("")
+    credited = [(n, r, w, rel) for n, (r, w, rel) in routes.items() if r in ("built", "bespoke")]
+    if rerr is not None:
+        L.append("**Routes to confirm (H8)** — could not be computed (%s); run scripts/validate.py" % rerr)
+    elif credited:
+        L.append("**Routes to confirm (H8)** — validate.py credits these pages; for each, record a ledger `routes` "
+                 "row `{beat, route, visible: true|false, evidence}` saying whether the route is VISIBLE in the "
+                 "rendered frame. A route you cannot see fails H8.")
+        by_num = {x.get("index", i): x for i, x in enumerate(slides, 1)}
+        for num, route, why, rel in credited:
+            fit = by_num.get(num, {}).get("shot_fit")
+            fit = fit if isinstance(fit, dict) else {}
+            L.append("- beat %s · %s (%s) · `%s` · ideal: %s" % (num, route.upper(), why, rel or "-",
+                                                                fit.get("ideal") or "-"))
+    else:
+        L.append("**Routes to confirm (H8)** — validate.py credits no page as BUILT or BESPOKE: every page is a "
+                 "stock archetype or exempt. That is itself the design-first floor's finding (section 1).")
+    bl = [e for e in meta.get("build_list") or [] if isinstance(e, dict) and e.get("kind") == "component"]
+    L.append("")
+    if bl:
+        L.append("**Built things** — judge each on H9, against its own `means` and `accept`:")
+        for e in bl:
+            still = os.path.join("workshop", "_stills", "%s.png" % e.get("id"))
+            L.append("- `%s` (component, beats %s%s) — means: %s · accept: %s%s"
+                     % (e.get("id"), e.get("beats"), ", promoted" if e.get("promoted") else "", e.get("means"),
+                        e.get("accept"),
+                        " · settled frame: `%s`" % still if os.path.exists(os.path.join(out_dir, still)) else ""))
+    else:
+        L.append("**Built things** — this film built no component (no `kind: \"component\"` entry in "
+                 "meta.build_list): H9 is `na`, and say so.")
+    return "\n".join(L) + "\n"
+
+
+def _build_no_pages(out_dir, board):
+    """A board with no authored page: no design to judge and no keyframe to pin, so no ledger — critic-av alone."""
+    meta = board.get("meta") if isinstance(board.get("meta"), dict) else {}
+    L = ["# Critic brief — %s" % os.path.basename(os.path.abspath(out_dir)), "",
+         "> **No authored page on this film** (`renderer` = %r, no `type:\"html\"` beat) — the 原样配音 tier or a "
+         "board of programmatic scenes. There is no design to judge and no keyframe to pin, so there is NO review "
+         "ledger here (`critic_ledger.py` says it does not apply). The review at the chosen depth is "
+         "`agents/critic-av.md` on `out.mp4`." % meta.get("renderer"), ""]
+    for label, script in (("A/V", "check_av.py"), ("validate", "validate.py")):
+        L += ["**%s**" % label, "```", _run(script, out_dir), "```"]
+    return "\n".join(L) + "\n"
+
+
 def main(argv):
     if not argv:
         print(__doc__.strip())
         return 2
     out_dir = os.path.abspath(argv[0])
-    try:
-        import contact_sheet
-        sheet, n, size = contact_sheet.build(out_dir)
-        made = "%s (%dx%d, %d beats)" % (os.path.basename(sheet), size[0], size[1], n)
-    except Exception as e:                                    # noqa: BLE001 — report, never mask
-        made = "NOT BUILT (%s)" % e
-    try:
-        import critic_ledger as _cl
-        _cl.record_render(out_dir)              # the render history a capped tier's last ledger is checked against
-    except Exception as e:                      # noqa: BLE001 — report, never mask
-        print("[critic_brief] render history NOT recorded (%s)" % e)
-    text = build(out_dir)
+    import critic_ledger as _cl
+    tier = _cl.film_tier(out_dir)
+    ran = {}
+    if tier == "html":
+        # THE FILMSTRIPS FIRST: keyframe_qa re-shoots every page, so the sheet built next shows the pages as they
+        # are now — and a sheet built BEFORE it would be older than its keyframes, which critic_ledger refuses.
+        ran["keyframe_qa.py"] = _run("keyframe_qa.py", out_dir, timeout=900)
+        try:
+            print("[critic_brief] %d delivered frame(s) -> %s/" % (len(html_frames(out_dir)), FRAMES))
+        except Exception as e:                                # noqa: BLE001 — report, never mask
+            print("[critic_brief] delivered frames NOT pulled (%s)" % e)
+    if tier is None:
+        made = "not built — this film has no authored page (no keyframes, no ledger)"
+    else:
+        try:
+            import contact_sheet
+            sheet, n, size = contact_sheet.build(out_dir)
+            made = "%s (%dx%d, %d beats)" % (os.path.basename(sheet), size[0], size[1], n)
+        except (Exception, SystemExit) as e:                  # noqa: BLE001 — contact_sheet exits on no keyframes
+            made = "NOT BUILT (%s)" % e
+        try:
+            _cl.record_render(out_dir)          # the render history a capped tier's last ledger is checked against
+        except Exception as e:                  # noqa: BLE001 — report, never mask
+            print("[critic_brief] render history NOT recorded (%s)" % e)
+    text = build(out_dir, ran)
     path = os.path.join(out_dir, "_critic_brief.md")
     open(path, "w", encoding="utf-8").write(text)
     print("[critic_brief] %s  ·  contact sheet: %s" % (path, made))

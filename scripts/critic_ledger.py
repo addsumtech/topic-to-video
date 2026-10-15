@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
-"""The shot-critic's per-dimension VERDICT LEDGER — the backstop that makes "silence is not consent" real.
+"""The rendered review's per-dimension VERDICT LEDGER, on both tiers — the backstop that makes "silence is not consent" real.
 
     python3 scripts/critic_ledger.py <out_dir> --emit-template   # skeleton with every dimension listed
     python3 scripts/critic_ledger.py <out_dir>                   # validate a filled ledger
     python3 scripts/critic_ledger.py <out_dir> --final           # ...as the DELIVERY gate
     python3 scripts/critic_ledger.py <out_dir> --render-id       # the current render id, alone on stdout
+
+ONE GATE, TWO CRITICS. A remotion film is reviewed by agents/shot-critic.md (the S-dimensions); an HTML-tier film
+(not remotion, at least one `type:"html"` page) by agents/design-critic.md's delivery section (the H-dimensions),
+with critic-av's lens carried in `fast` and running beside it otherwise. Everything below — rows, evidence, the
+render pin, the depth, the rounds, the user's acceptances, the routes — is the same method on both; only the list of
+dimensions and which of them is never accepted change, and both are PARSED from the critic's own file. The 原样配音
+tier (every beat a supplied slide) and a programmatic-only board have no authored page to judge and no keyframes to
+pin, so this gate says it does not apply to them (exit 2) rather than passing them.
 
 WHY THIS FILE EXISTS. The critic's Output asked it to report "each flagged scene". A dimension it never
 looked at and a dimension it checked and found clean produced the SAME artifact: nothing. The file even said
@@ -40,9 +48,9 @@ gate says so on every run rather than falling silent. Three properties make it s
   the user actually watched. Re-render — change one beat, one colour, one line of narration — and the id moves and
   the waiver no longer applies. This is the property that matters: "the user said fine once" must not become
   a standing licence over everything changed afterwards.
-* It waives THIS review only. `check_av`, `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`,
-  `film_energy_qa`, `shake_qa` and `validate.py` are untouched and still gate delivery. A waiver is a
-  judgement about taste, never about whether the file plays.
+* It waives THIS review only. `check_av`, `validate.py` and the tier's own gates (`keyframe_qa` on HTML;
+  `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`, `film_energy_qa`, `shake_qa` on remotion) are untouched
+  and still gate delivery. A waiver is a judgement about taste, never about whether the file plays.
 
 AND A REVIEW DEPTH THE USER CHOSE. After the first clean render the user picks how hard to review it —
 `meta.review = {tier, user_answer, preselected}` with tier fast | standard | thorough | none (SKILL.md "the
@@ -56,16 +64,17 @@ standard 2, thorough unbounded — and the ROUND is the render's place in `_cont
 * Once a capped tier has spent its rounds, a REVISE ledger may close the loop — pinned to the render it reviewed
   — only when every failed row is resolved: its fix `applied` in a later render, or ACCEPTED AS-IS by the user
   (`meta.review.accepted`, per finding, in their words, pinned to that render). The model never declines a
-  finding; a faithfulness or sourcing finding (S3) is never accepted by anyone — it is fixed. The film ships
+  finding; a faithfulness or sourcing finding (S3 / H1) is never accepted by anyone — it is fixed. The film ships
   marked "reviewed at <tier>, not a PASS", never as a PASS.
 `none` is the same decision as `review_waiver` and is held to the same rules: the user's own answer, pinned to
 the render they watched, never pre-selected and never inferred.
 
-AND THE ROUTES. Every beat validate.py credits as ADAPTED or BUILT carries a route row in the ledger
-(`routes: [{beat, route, visible, evidence}]`): the critic confirms the route is VISIBLE in the rendered frame,
-and a route it cannot see fails S14. A self-described adaptation is a claim; this is where it is checked.
+AND THE ROUTES. Every beat validate.py credits — ADAPTED or BUILT on remotion, BUILT or BESPOKE on HTML — carries a
+route row in the ledger (`routes: [{beat, route, visible, evidence}]`): the critic confirms the route is VISIBLE in
+the rendered frame, and a route it cannot see fails the dimension that declares the route rows (S14 / H8). A
+self-described or source-measured route is a claim; this is where it is checked.
 
-The dimension list is PARSED from agents/shot-critic.md. Restating it here is how this repo's caption band
+The dimension lists are PARSED from the critics' files. Restating them here is how this repo's caption band
 became four disagreeing copies; a new dimension must be required by this gate the moment it is written down.
 """
 import hashlib
@@ -76,11 +85,19 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _CRITIC = os.path.join(_ROOT, "agents", "shot-critic.md")
+# The HTML tier's delivery review: design-critic's H-dimensions, in the same three-part form (rule / precedent /
+# self-check) and read by the same parser — the rendered review is one method on both tiers, not two gates.
+_DESIGN_CRITIC = os.path.join(_ROOT, "agents", "design-critic.md")
 # The SECOND body of case law: rules for whoever edits the library, in the same form and parsed by
 # the same two functions. It is listed here so the precedent-resolution test walks it too — a rule
-# whose precedent nobody resolves is a rule that can cite an invented incident.
+# whose precedent nobody resolves is a rule that can cite an invented incident. The H-series is walked for the
+# same reason: a delivery dimension on the HTML tier may not cite an incident nobody can resolve either.
 _CASE_LAW = os.path.join(_ROOT, "references", "engineering-case-law.md")
-CASE_LAW_FILES = ((_CRITIC, "S"), (_CASE_LAW, "E"))
+CASE_LAW_FILES = ((_CRITIC, "S"), (_DESIGN_CRITIC, "H"), (_CASE_LAW, "E"))
+# tier -> (the critic's file, its dimension series, the critic's name as a reader dispatches it)
+SERIES = {"remotion": (_CRITIC, "S", "agents/shot-critic.md"),
+          "html": (_DESIGN_CRITIC, "H", "agents/design-critic.md")}
+_REMOTION = ("remotion", "remotion-bespoke")
 
 LEDGER_NAME = "_critic_ledger.json"
 CONTACT_SHEET = "_contact_sheet.png"
@@ -97,9 +114,9 @@ def dimensions(path=None, prefix="S"):
     found = re.findall(r"^\*\*(%s\d+)\s*·\s*([^.*]+)" % prefix, src, re.M)
     if not found:
         raise RuntimeError(
-            "no `**Sn · ...**` dimension headings found in %s — this gate requires one row per dimension and "
+            "no `**%sn · ...**` dimension headings found in %s — this gate requires one row per dimension and "
             "reads the list from there; if the heading format changed, update scripts/critic_ledger.py in the "
-            "same change." % (path or _CRITIC))
+            "same change." % (prefix, path or _CRITIC))
     seen, out = set(), []
     for sid, title in found:
         if sid in seen:
@@ -123,6 +140,63 @@ def precedents(path=None, prefix="S"):
         elif re.search(r"\*\*Precedent\s*—\s*none on record\b", body):
             out[sid] = None
     return out
+
+
+def _board(out_dir):
+    """(meta, slides) of the film's storyboard.json, or (None, None) when there is none or it cannot be read."""
+    try:
+        b = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    except Exception:                                         # noqa: BLE001 — a broken board is validate.py's
+        return None, None
+    if not isinstance(b, dict):
+        return None, None
+    meta = b.get("meta") if isinstance(b.get("meta"), dict) else {}
+    slides = [s for s in b.get("slides") or [] if isinstance(s, dict)] if isinstance(b.get("slides"), list) else []
+    return meta, slides
+
+
+def _validate_module():
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import validate as _v
+    return _v
+
+
+def film_tier(out_dir):
+    """"remotion" | "html" | None — whose dimensions this film's ledger is held to.
+
+    HTML is validate.is_html_film's definition (the one the design-first floor uses), so the two gates cannot
+    disagree about which films are HTML films. None — the 原样配音 tier, every beat a supplied slide, or a board of
+    programmatic scenes only — has no authored page and no keyframe to pin, and this gate does not apply. A missing
+    or unreadable board reads as remotion: the S-series is what this gate required before it knew about tiers, and a
+    board that cannot be read is no evidence that it is anything else."""
+    meta, slides = _board(out_dir)
+    if meta is None or str(meta.get("renderer", "")).lower() in _REMOTION:
+        return "remotion"
+    return "html" if _validate_module().is_html_film(meta, slides) else None
+
+
+def film_dimensions(out_dir):
+    """[(id, title)] for this film's tier — [] when the gate does not apply (film_tier None)."""
+    tier = film_tier(out_dir)
+    return dimensions(*SERIES[tier][:2]) if tier else []
+
+
+def critic_of(out_dir):
+    tier = film_tier(out_dir)
+    return SERIES[tier][2] if tier else "agents/critic-av.md"
+
+
+def routes_dimension(path=None, prefix="S"):
+    """The dimension the ledger's route rows bind to, READ from the critic's file: the one whose own body says
+    "`visible: false` on any row makes <its id> a FAIL" (S14 on remotion, H8 on HTML). It used to be found by a
+    GROWTH title regex, which named one series' heading and would have silently bound nothing on the other."""
+    src = open(path or _CRITIC, encoding="utf-8").read()
+    for sid, body in re.findall(r"^\*\*(%s\d+)\s*·(.*?)(?=^\*\*%s\d+\s*·|\Z)" % (prefix, prefix), src, re.M | re.S):
+        if re.search(r"`visible:\s*false`\s+on any row makes %s a FAIL" % re.escape(sid), body):
+            return sid
+    return None
 
 
 def sha256_of(path):
@@ -190,13 +264,14 @@ def template(out_dir):
         "reviewer": "",
         "_reviewer_help": "independent = a fresh subagent given only <out_dir>; in-context = the film's own "
                           "maker (allowed for an interim pass, REFUSED by --final)",
+        "_critic": critic_of(out_dir),
         "render_sha256": render_id(out_dir),
         "verdict": "REVISE",
         "rows": [
             {"id": sid, "verdict": "", "evidence": "", "note": "", "fix": "", "_dimension": title}
-            for sid, title in dimensions()
+            for sid, title in film_dimensions(out_dir)
         ],
-        # THE ROUTES validate.py CREDITS — each one the critic confirms (or not) in the rendered frame (S14)
+        # THE ROUTES validate.py CREDITS — each one the critic confirms (or not) in the rendered frame (S14 / H8)
         "routes": [{"beat": num, "route": route, "visible": None, "evidence": ""} for num, route in routes],
     }
 
@@ -218,10 +293,10 @@ def coverage(out_dir):
     # suppressed either way. Printing fourteen NO ROW lines above the one actionable line ("the waiver was
     # given for a different render") is how a reader learns to scroll past this gate's output.
     wv, wprobs = waiver(out_dir)
+    declared = film_dimensions(out_dir)
     if wv is not None:
-        return {"declared": len(dimensions()), "judged": 0, "pass": 0, "fail": 0,
+        return {"declared": len(declared), "judged": 0, "pass": 0, "fail": 0,
                 "na": [], "unjudged": [], "missing": [], "waived": not wprobs}
-    declared = dimensions()
     # Counters are named rather than indexed by the verdict string: `out[v] += 1` would reach into the
     # LIST fields the moment a new verdict shares their name, and a coverage report that raises is a
     # coverage report nobody keeps.
@@ -348,10 +423,12 @@ def accepted(out_dir):
     return out
 
 
-def never_accepted():
+def never_accepted(out_dir=None):
     """The dimensions whose FAIL is always fixed, never accepted by anyone: faithfulness and sourcing. Parsed from
-    the critic's own titles, like the dimension list itself."""
-    return {sid for sid, title in dimensions() if re.search(r"FAITHFUL|SOURC", title, re.I)}
+    the critic's own titles, like the dimension list itself — from THIS film's series (S3 on remotion, H1 on HTML);
+    with no out_dir, the S-series."""
+    dims = film_dimensions(out_dir) if out_dir else dimensions()
+    return {sid for sid, title in dims if re.search(r"FAITHFUL|SOURC", title, re.I)}
 
 
 def _history(out_dir):
@@ -510,22 +587,21 @@ def _stale_sheet(out_dir):
     return bool(frames) and max(os.path.getmtime(f) for f in frames) > os.path.getmtime(sheet)
 
 
+# the routes validate.py CREDITS on each tier, which the critic must then see in the rendered frame
+CREDITED = {"remotion": ("adapted", "built"), "html": ("built", "bespoke")}
+
+
 def _design_routes(out_dir):
-    """[(beat, route)] for the beats validate.py credits as ADAPTED or BUILT — the routes the critic must see."""
-    board = os.path.join(out_dir, "storyboard.json")
-    try:
-        b = json.load(open(board, encoding="utf-8"))
-    except Exception:                                         # noqa: BLE001 — no board, no routes to verify
+    """[(beat, route)] for the beats validate.py credits — ADAPTED or BUILT on remotion (design_routes), BUILT or
+    BESPOKE on HTML (html_design_routes, measured from the page source) — the routes the critic must see."""
+    meta, slides = _board(out_dir)
+    tier = film_tier(out_dir)
+    if not slides or meta is None or tier is None:
         return []
-    slides = b.get("slides") if isinstance(b.get("slides"), list) else []
-    meta = b.get("meta") if isinstance(b.get("meta"), dict) else {}
-    if not slides or str(meta.get("renderer", "")).lower() not in ("remotion", "remotion-bespoke"):
-        return []
-    here = os.path.dirname(os.path.abspath(__file__))
-    if here not in sys.path:
-        sys.path.insert(0, here)
-    import validate as _v
-    return [(num, r) for num, r, _w in _v.design_routes(meta, slides, out_dir) if r in ("adapted", "built")]
+    _v = _validate_module()
+    if tier == "remotion":
+        return [(num, r) for num, r, _w in _v.design_routes(meta, slides, out_dir) if r in CREDITED[tier]]
+    return [(num, r) for num, r, _w, _rel in _v.html_design_routes(meta, slides, out_dir) if r in CREDITED[tier]]
 
 
 def _cites(out_dir, ev):
@@ -543,7 +619,7 @@ def _unresolved(out_dir, by_id, failed, pin, current, tier):
     being APPLIED in a later render (the ledger is pinned to the render it reviewed, which is in the history), or
     by the USER accepting it as-is (meta.review.accepted, their words, pinned to that same render). The model
     never declines a finding, and nobody accepts a faithfulness or sourcing one: those are fixed."""
-    out, hard, acc = [], never_accepted(), accepted(out_dir)
+    out, hard, acc = [], never_accepted(out_dir), accepted(out_dir)
     ask = ("take it to the user: list the open findings and offer ONE MORE ROUND or ACCEPT AS-IS, and record an "
            "acceptance in meta.%s.accepted as {id, user_answer (their words), render_sha256: %s}"
            % (REVIEW_KEY, pin[:12] + "…"))
@@ -580,21 +656,30 @@ def _unresolved(out_dir, by_id, failed, pin, current, tier):
 
 
 def _route_rows(out_dir, led, by_id, warns):
-    """Every beat validate.py credits as ADAPTED or BUILT needs a route row from the critic — the route seen in
-    the rendered frame, not only described on the board. A route the critic could not see makes S14 a FAIL."""
+    """Every beat validate.py credits (CREDITED, per tier) needs a route row from the critic — the route seen in the
+    rendered frame, not only described on the board or measured in the page source. A route the critic could not
+    see makes the routes dimension (routes_dimension: S14 / H8) a FAIL."""
     try:
         routes = _design_routes(out_dir)
     except Exception as e:                                    # noqa: BLE001 — report, never mask
         return ["the design routes could not be computed (%s: %s) — run scripts/validate.py" % (type(e).__name__, e)]
     if not routes:
         return []
+    tier = film_tier(out_dir)
+    credited = " or ".join(r.upper() for r in CREDITED[tier])
+    rd = routes_dimension(*SERIES[tier][:2])
+    if rd is None:
+        # a route row nothing binds to is a check that cannot fail — say so rather than accept every row
+        return ["%s declares no dimension the route rows bind to (\"`visible: false` on any row makes <id> a "
+                "FAIL\") — restore that sentence, or update scripts/critic_ledger.py in the same change"
+                % SERIES[tier][2]]
     errs = []
     rows = led.get("routes")
     if not isinstance(rows, list):
-        return ["`routes` is missing — %d beat(s) are credited as ADAPTED or BUILT (%s); for each, the critic "
-                "records {beat, route, visible: true|false, evidence: <keyframe>} saying whether that route is "
-                "VISIBLE in the rendered frame (S14). --emit-template lists them."
-                % (len(routes), ", ".join("#%s %s" % rb for rb in routes[:8]))]
+        return ["`routes` is missing — %d beat(s) are credited as %s (%s); for each, the critic records {beat, "
+                "route, visible: true|false, evidence: <keyframe>} saying whether that route is VISIBLE in the "
+                "rendered frame (%s). --emit-template lists them."
+                % (len(routes), credited, ", ".join("#%s %s" % rb for rb in routes[:8]), rd)]
     seen = {}
     for r in rows:
         if isinstance(r, dict):
@@ -603,8 +688,8 @@ def _route_rows(out_dir, led, by_id, warns):
     for num, route in routes:
         r = seen.get(str(num))
         if r is None:
-            errs.append("beat #%s is credited as %s and has no route row — S14 confirms the route in the frame"
-                        % (num, route.upper()))
+            errs.append("beat #%s is credited as %s and has no route row — %s confirms the route in the frame"
+                        % (num, route.upper(), rd))
             continue
         if str(r.get("route", "")).strip().lower() != route:
             errs.append("beat #%s's route row says %r; validate.py credits it as %s — re-read the board"
@@ -620,19 +705,28 @@ def _route_rows(out_dir, led, by_id, warns):
             errs.append("beat #%s's route row cites %s, which does not exist" % (num, tok))
         if vis is False:
             invisible.append(str(num))
-    s14 = next((sid for sid, t in dimensions() if re.search(r"GROWTH", t)), None)
-    if invisible and s14 and str((by_id.get(s14) or {}).get("verdict", "")).lower() != "fail":
+    if invisible and str((by_id.get(rd) or {}).get("verdict", "")).lower() != "fail":
         errs.append("the route rows say beat(s) %s do not show their route in the frame, but %s does not fail — "
-                    "an adaptation nobody can see is the register as-is" % (", ".join(invisible), s14))
+                    "a route nobody can see is the %s as-is" % (", ".join(invisible), rd,
+                                                              "register" if tier == "remotion" else "stock page"))
     extra = sorted(set(seen) - {str(n) for n, _r in routes})
     if extra:
-        warns.append("route rows for beat(s) %s, which validate.py does not credit as adapted or built"
-                     % ", ".join(extra))
+        warns.append("route rows for beat(s) %s, which validate.py does not credit as %s"
+                     % (", ".join(extra), " or ".join(CREDITED[tier])))
     return errs
+
+
+NOT_APPLICABLE = ("this film has no authored page — the 原样配音 tier (every beat a supplied slide) or a board of "
+                  "programmatic scenes only — so there is no design to judge and no keyframe to pin: the rendered "
+                  "review ledger covers the remotion and HTML tiers. On this tier the review at the chosen depth is "
+                  "agents/critic-av.md on out.mp4, and it is NOT recorded or checked here.")
 
 
 def validate(out_dir, final=False):
     errs, warns = [], []
+    if film_tier(out_dir) is None:
+        # Not a pass: a gate that has nothing to check says so as an ERROR, so no caller can read silence as a review
+        return [NOT_APPLICABLE], []
     rv, rprobs = review(out_dir)
     if rprobs:
         errs.extend("the recorded review depth is not usable: " + p for p in rprobs)
@@ -722,7 +816,7 @@ def validate(out_dir, final=False):
                      "(this ledger's render is round %s)" % (rnd if rnd else "unknown"))
 
     # ── one row per declared dimension, no more, no fewer ───────────────────────────────────────────────
-    declared = dimensions()
+    declared = film_dimensions(out_dir)
     rows = led.get("rows")
     if not isinstance(rows, list):
         return (errs + ["`rows` must be a list, one entry per dimension"], warns)
@@ -808,6 +902,10 @@ def main(argv):
     if not os.path.isdir(out_dir):
         print("[critic_ledger] no such out_dir: %s" % out_dir)
         return 2
+    if film_tier(out_dir) is None:
+        print("[critic_ledger] NOT APPLICABLE — %s" % NOT_APPLICABLE)
+        print("[critic_ledger] nothing was checked: exit 2 is not a pass")
+        return 2
     if "--render-id" in argv:
         # The id ALONE on stdout, so the maker can record it as meta.review.render_sha256 for a `none` answer
         # without parsing prose; what it covers goes to stderr. A stale or missing sheet prints no id at all: an id
@@ -836,6 +934,8 @@ def main(argv):
     final = "--final" in argv
     wv, _wprobs = waiver(out_dir)
     _t, _c, _r, _sp = capped(out_dir)
+    print("[critic_ledger] %s tier — %s's %s-dimensions" % (film_tier(out_dir), critic_of(out_dir),
+                                                            SERIES[film_tier(out_dir)][1]))
     print("[critic_ledger] review depth: %s%s" % (
         _t, "" if review(out_dir)[0] or wv is not None else
         " (no meta.review recorded — an interim run uses the full loop; --final refuses until the review-depth "
@@ -882,15 +982,19 @@ def main(argv):
     if final and wv is not None and not errs:
         with open(nd, "w", encoding="utf-8") as fh:
             fh.write("# Delivered WITHOUT a critic review\n\n"
-                     "The user waived `shot-critic` for this render (%s in "
+                     "The user waived `%s` for this render (%s in "
                      "storyboard.json).\n\n- **Reason given:** %s\n- **Render this covers:** render id "
-                     "`%s` (contact sheet + out.mp4 + out.srt)\n\nNo critic judged register fit, meaning, "
-                     "frame-craft, boldness or direction "
-                     "adherence on this film. The deterministic gates DID run and did gate delivery.\n\n"
+                     "`%s` (contact sheet + out.mp4 + out.srt)\n\nNo critic judged %s on this film. The "
+                     "deterministic gates DID run and did gate delivery.\n\n"
                      "If this film is re-rendered, the waiver expires with it: the pin above stops matching "
                      "and `critic_ledger.py --final` asks again.\n"
-                     % ("`meta.review` = `none`" if wv.get("_from") == REVIEW_KEY else "`meta.review_waiver`",
-                        str(wv.get("reason"))[:400], str(wv.get("render_sha256"))[:16]))
+                     % (os.path.basename(critic_of(out_dir))[:-3],
+                        "`meta.review` = `none`" if wv.get("_from") == REVIEW_KEY else "`meta.review_waiver`",
+                        str(wv.get("reason"))[:400], str(wv.get("render_sha256"))[:16],
+                        "register fit, meaning, frame-craft, boldness or direction adherence"
+                        if film_tier(out_dir) == "remotion" else
+                        "faithfulness on screen, meaning, form fit, frame-craft, motion, the burned captions or the "
+                        "design routes"))
         print("[critic_ledger] delivered UNREVIEWED — rewrote NOT_DELIVERED.md to say so")
     elif final and not errs and overall == "REVISE" and capped(out_dir)[3]:
         tier, cap, rnd, _sp = capped(out_dir)

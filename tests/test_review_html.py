@@ -1,0 +1,321 @@
+"""The HTML tier's rendered review is the SAME gate as remotion's (critic_ledger.py), held to design-critic's
+H-dimensions instead of shot-critic's S-dimensions:
+
+* the H-series is parsed from agents/design-critic.md by the parser that reads the S-series, its faithfulness row is
+  never accepted, and the route rows bind to the dimension that declares them (H8), found the same way as S14;
+* every page validate.py credits BUILT or BESPOKE carries a route row;
+* critic_brief.py builds a real HTML brief: keyframe_qa first, the delivered frames, a sheet of the page filmstrips
+  (scene_NN.png ONLY — never the progress frames beside them), the render recorded;
+* a FULL HTML render leaves NOT_DELIVERED.md (the sample and the preview neither write nor remove it), and
+  critic_ledger.py --final clears it;
+* a board with no authored page (the 原样配音 tier) is not reviewed by a ledger — and the gate says so, it does not pass.
+"""
+import json
+import os
+import subprocess
+import sys
+import time
+
+import pytest
+from PIL import Image
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(_ROOT, "scripts"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import critic_ledger as cl  # noqa: E402
+import contact_sheet  # noqa: E402
+from test_html_design_first import BESPOKE_STYLE, SHARES, STOCK  # noqa: E402
+
+DESIGN_CRITIC = os.path.join(_ROOT, "agents", "design-critic.md")
+
+
+def _strip(path, tiles=5, colour=(240, 236, 228)):
+    """keyframe_qa's per-scene filmstrip: `tiles` 560x315 frames side by side."""
+    Image.new("RGB", (560 * tiles, 315), colour).save(path)
+
+
+def _html_film(tmp_path, pages=(BESPOKE_STYLE, STOCK), review=None, meta_extra=None, fits=None):
+    out = tmp_path / "film"
+    (out / "pages").mkdir(parents=True, exist_ok=True)
+    (out / "_keyframes").mkdir(exist_ok=True)
+    slides = []
+    for i, body in enumerate(pages, 1):
+        rel = "pages/scene_%02d.html" % i
+        (out / rel).write_text("<!doctype html><html><head></head><body>%s</body></html>" % body, encoding="utf-8")
+        s = {"index": i, "type": "html", "props": {"html": rel}, "narration": "Line %d." % i, "duration": 1.0}
+        if (fits or {}).get(i):
+            s["shot_fit"] = dict(fits[i])
+        slides.append(s)
+        _strip(str(out / "_keyframes" / ("scene_%02d.png" % i)))
+        # the files keyframe_qa writes BESIDE the strip — never a beat of their own
+        for extra in ("scene_%02d_p000.png" % i, "scene_%02d_p100.png" % i, "scene_%02d_resting.png" % i):
+            Image.new("RGB", (192, 108), (10, 10, 10)).save(str(out / "_keyframes" / extra))
+    meta = {"renderer": "local", "language": "en", "aspect": "16:9"}
+    if review is not None:
+        meta["review"] = review
+    meta.update(meta_extra or {})
+    (out / "storyboard.json").write_text(json.dumps({"meta": meta, "slides": slides}), encoding="utf-8")
+    sheet, _n, _size = contact_sheet.build(str(out))
+    later = time.time() + 1
+    os.utime(sheet, (later, later))
+    return str(out)
+
+
+def _ledger(out, **over):
+    led = {"reviewer": "independent", "verdict": "PASS", "render_sha256": cl.render_id(out),
+           "rows": [{"id": d, "verdict": "pass", "evidence": "_keyframes/scene_01.png"}
+                    for d, _t in cl.film_dimensions(out)]}
+    led.update(over)
+    json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
+    return led
+
+
+# ── the H-series: parsed, not listed ────────────────────────────────────────────────────────────────────
+
+def test_the_h_series_is_parsed_from_the_design_critic_by_the_same_parser():
+    dims = dict(cl.dimensions(DESIGN_CRITIC, "H"))
+    assert len(dims) >= 6 and "H1" in dims
+    assert "FAITHFULNESS" in dims["H1"]
+    # the rows the brief's task names: faithfulness (the hard gate), routes, A/V + captions, built things
+    assert any("ROUTES" in t for t in dims.values()) and any("BURNED CAPTIONS" in t for t in dims.values())
+    assert any("BUILT THINGS" in t for t in dims.values())
+    # the route rows bind to the dimension that SAYS so, on both series — not to a title regex of one of them
+    assert cl.routes_dimension(DESIGN_CRITIC, "H") == "H8"
+    assert cl.routes_dimension() == "S14"
+    # and the H-series is walked by the precedent test like the S- and E-series
+    assert (DESIGN_CRITIC, "H") in [(os.path.abspath(p), x) for p, x in cl.CASE_LAW_FILES]
+    pre = cl.precedents(DESIGN_CRITIC, "H")
+    assert set(pre) == set(dims), "every H rule carries a precedent or says `none on record`"
+
+
+def test_every_h_dimension_names_the_existing_checks_it_maps_onto():
+    """No new doctrine: each H-dimension's body names the design-critic / critic-av / critic-content checks it
+    carries into the ledger."""
+    import re
+    src = open(DESIGN_CRITIC, encoding="utf-8").read()
+    bodies = dict(re.findall(r"^\*\*(H\d+)\s*·(.*?)(?=^\*\*H\d+\s*·|\Z)", src, re.M | re.S))
+    for hid, body in bodies.items():
+        assert re.search(r"\bD\d+[a-f]?\b|\bR\d+[a-z]?\b|critic-av|critic-content", body), hid
+    # every D-check the delivery review is said to cover appears in some H body
+    allb = "\n".join(bodies.values())
+    for d in ("D1", "D2", "D2c", "D2f", "D5", "D6b", "D6c", "D7", "D8", "D9", "D10", "D11", "R7"):
+        assert re.search(r"\b%s\b" % d, allb), d
+
+
+# ── an HTML film is held to the H-series by the same gate ───────────────────────────────────────────────
+
+def test_an_html_film_is_held_to_the_h_series(tmp_path):
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    assert cl.film_tier(out) == "html"
+    tmpl = cl.template(out)
+    assert [r["id"] for r in tmpl["rows"]] == [d for d, _ in cl.dimensions(DESIGN_CRITIC, "H")]
+    assert tmpl["_critic"] == "agents/design-critic.md"
+    # a ledger written against the S-series is missing every H row
+    json.dump({"reviewer": "independent", "verdict": "PASS", "render_sha256": cl.render_id(out),
+               "rows": [{"id": d, "verdict": "pass", "evidence": "_keyframes/scene_01.png"}
+                        for d, _ in cl.dimensions()]}, open(os.path.join(out, cl.LEDGER_NAME), "w"))
+    errs = cl.validate(out)[0]
+    assert any(e.startswith("H1 ") and "has no row" in e for e in errs), errs
+    assert cl.never_accepted(out) == {"H1"} and cl.never_accepted() == {"S3"}
+
+
+def test_every_built_or_bespoke_page_needs_a_route_row(tmp_path):
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    cl.record_render(out)
+    assert cl._design_routes(out) == [(1, "bespoke")]
+    _ledger(out)
+    errs = cl.validate(out)[0]
+    assert any("`routes` is missing" in e and "BUILT or BESPOKE" in e and "(H8)" in e for e in errs), errs
+    rows = [{"beat": 1, "route": "bespoke", "visible": False, "evidence": "_keyframes/scene_01.png"}]
+    _ledger(out, routes=rows)
+    errs = cl.validate(out)[0]
+    assert any("H8 does not fail" in e and "stock page" in e for e in errs), errs
+    rows[0]["visible"] = True
+    _ledger(out, routes=rows)
+    assert not cl.validate(out)[0], cl.validate(out)[0]
+    assert [(r["beat"], r["route"]) for r in cl.template(out)["routes"]] == [(1, "bespoke")]
+
+
+def test_an_html_faithfulness_finding_is_never_accepted(tmp_path):
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    cl.record_render(out)
+    rows = [{"beat": 1, "route": "bespoke", "visible": True, "evidence": "_keyframes/scene_01.png"}]
+    led = _ledger(out, routes=rows, verdict="REVISE")
+    led["rows"][0] = {"id": "H1", "verdict": "fail", "evidence": "_keyframes/scene_01.png",
+                      "fix": "replace the unsourced 70% with the brief's 64%"}
+    json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
+    b = json.load(open(os.path.join(out, "storyboard.json")))
+    b["meta"]["review"]["accepted"] = [{"id": "H1", "user_answer": "fine, ship it", "render_sha256": cl.render_id(out)}]
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
+    errs = cl.validate(out, final=True)[0]
+    assert any("H1 is a faithfulness/sourcing finding" in e and "never" in e for e in errs), errs
+
+
+def test_a_film_with_no_authored_page_is_not_applicable_never_a_pass(tmp_path):
+    out = str(tmp_path)
+    json.dump({"meta": {"renderer": "local"},
+               "slides": [{"index": 1, "type": "slide", "image": "s1.png"}]},
+              open(os.path.join(out, "storyboard.json"), "w"))
+    assert cl.film_tier(out) is None
+    errs, _ = cl.validate(out, final=True)
+    assert errs and "no authored page" in errs[0], errs
+    for flag in ([], ["--final"], ["--emit-template"]):
+        p = subprocess.run([sys.executable, cl.__file__, out] + flag, capture_output=True, text=True)
+        assert p.returncode == 2 and "NOT APPLICABLE" in p.stdout and "critic-av" in p.stdout, (flag, p.stdout)
+    assert not os.path.exists(os.path.join(out, cl.LEDGER_NAME))
+    # and a remotion board, or one with no board at all, keeps the S-series it always had
+    json.dump({"meta": {"renderer": "remotion"}, "slides": []}, open(os.path.join(out, "storyboard.json"), "w"))
+    assert cl.film_tier(out) == "remotion"
+    os.remove(os.path.join(out, "storyboard.json"))
+    assert cl.film_tier(out) == "remotion"
+
+
+# ── the contact sheet: scene_NN.png only, labelled with something a reviewer can use ─────────────────────
+
+def test_the_contact_sheet_reads_only_scene_nn_and_lays_strips_out_wide(tmp_path):
+    out = _html_film(tmp_path, pages=(BESPOKE_STYLE, STOCK, STOCK))
+    path, n, size = contact_sheet.build(out)
+    assert n == 3, "the progress frames and the resting frame beside each strip are not beats"
+    labels = contact_sheet.labels(out)
+    assert labels[1] == "BESPOKE · scene_01.html" and labels[2] == "AS-IS · scene_02.html", labels
+    # a 5-tile strip is ONE wide cell: each tile at least 160px, not 64px inside a single-frame cell
+    assert size[0] >= 5 * 160, size
+    # numbered numerically, so beat 100 does not sort before beat 11
+    kdir = os.path.join(out, "_keyframes")
+    for i in (11, 100):
+        _strip(os.path.join(kdir, "scene_%02d.png" % i))
+    assert contact_sheet.build(out)[1] == 5
+
+
+def test_a_remotion_sheet_is_unchanged_one_frame_per_cell(tmp_path):
+    out = str(tmp_path)
+    os.makedirs(os.path.join(out, "_keyframes", "motion"))
+    json.dump({"meta": {"renderer": "remotion"}, "slides": [{"index": 1, "shot": "SplitFlap"}, {"index": 2, "shot": "TermSpace"}]},
+              open(os.path.join(out, "storyboard.json"), "w"))
+    for i in (1, 2):
+        Image.new("RGB", (1920, 1080), (30, 30, 30)).save(os.path.join(out, "_keyframes", "scene_%02d.png" % i))
+        Image.new("RGB", (1920, 1080), (90, 30, 30)).save(os.path.join(out, "_keyframes", "motion", "scene_%02d.png" % i))
+    _p, n, size = contact_sheet.build(out)
+    assert n == 2 and contact_sheet.labels(out) == {1: "SplitFlap", 2: "TermSpace"}
+    assert size[0] == 5 * (320 + 6) + 6
+
+
+# ── the brief ──────────────────────────────────────────────────────────────────────────────────────────
+
+def test_the_html_brief_is_a_real_brief(tmp_path, monkeypatch):
+    import critic_brief
+    calls = []
+    monkeypatch.setattr(critic_brief, "_run", lambda script, *a, **k: calls.append(script) or "(stubbed %s)" % script)
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    text = critic_brief.build(out)
+    assert "agents/design-critic.md" in text and "H-dimensions" in text
+    assert "not a `remotion` film" not in text
+    for script in ("keyframe_qa.py", "validate.py", "check_av.py", "rhythm_qa.py", "pedagogy_qa.py", "voice_qa.py"):
+        assert script in calls, (script, calls)
+    assert "shot_proof.py" not in calls and "text_safe_qa.py" not in calls
+    fast = text[text.index("**Review depth"):].split("\n")[0]
+    assert "critic-av.md's lens (H7)" in fast and "USER" in fast and "never as a FAIL" in fast, fast
+    assert "Routes to confirm (H8)" in text and "beat 1 · BESPOKE" in text
+    assert "| 1 | html | BESPOKE | pages/scene_01.html |" in text
+    assert "No `_frames/` frames" in text, "no out.mp4: the brief must say H7 has nothing to read"
+    # a gate main() already ran is not run twice
+    calls.clear()
+    text = critic_brief.build(out, {"keyframe_qa.py": "(already ran)"})
+    assert "keyframe_qa.py" not in calls and "(already ran)" in text
+
+
+def _tiny_mp4(path, seconds=2.0):
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "testsrc=size=160x90:rate=10:duration=%s" % seconds, "-pix_fmt", "yuv420p", path], check=True)
+
+
+def test_the_brief_runs_keyframe_qa_first_pulls_delivered_frames_and_records_the_render(tmp_path, monkeypatch):
+    import critic_brief
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    _tiny_mp4(os.path.join(out, "out.mp4"))
+    open(os.path.join(out, "out.srt"), "w").write("1\n00:00:00,000 --> 00:00:01,000\nLine 1.\n")
+    order = []
+
+    def fake_run(script, out_dir, *a, **k):
+        order.append(script)
+        if script == "keyframe_qa.py":       # it re-shoots every page, in a colour the old strips never had
+            for i in (1, 2):
+                _strip(os.path.join(out_dir, "_keyframes", "scene_%02d.png" % i), colour=(200, 40, 40))
+        return "(stubbed %s)" % script
+    monkeypatch.setattr(critic_brief, "_run", fake_run)
+    assert critic_brief.main([out]) == 0
+    assert order[0] == "keyframe_qa.py" and order.count("keyframe_qa.py") == 1, order
+    px = Image.open(os.path.join(out, cl.CONTACT_SHEET)).convert("RGB").getpixel((20, 20))
+    assert px[0] > 150 and px[1] < 90, ("the sheet shows the strips from BEFORE keyframe_qa re-shot the pages", px)
+    assert sorted(os.listdir(os.path.join(out, "_frames"))) == ["scene_01.png", "scene_02.png"]
+    assert cl.render_id(out) in cl.history_shas(out)
+    text = open(os.path.join(out, "_critic_brief.md"), encoding="utf-8").read()
+    assert "2 frame(s), from `out.mp4`" in text
+
+
+# ── NOT_DELIVERED.md on the HTML tier ──────────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def html_render_board(tmp_path, fixtures_dir, monkeypatch):
+    """A real render.py board (the deck fixture, voiced offline by `say`) whose first beat is an HTML page. The page
+    is drawn as its slide image (monkeypatched), so the test needs ffmpeg and say but no Chrome."""
+    import _common
+    if not (_common.have_tool("say") and _common.have_tool("ffmpeg")):
+        pytest.skip("needs say + ffmpeg")
+    import ingest, tts, render, storyboard as sb
+    out = str(tmp_path / "proj")
+    ingest.ingest(os.path.join(fixtures_dir, "deck.pdf"), out)
+    data = sb.load(os.path.join(out, "storyboard.json"))
+    data["meta"]["voice"] = "say:Samantha"
+    for s in data["slides"]:
+        s["narration"] = "This is slide %d." % s["index"]
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    tts.synthesize(out)
+    data = sb.load(os.path.join(out, "storyboard.json"))
+    os.makedirs(os.path.join(out, "pages"), exist_ok=True)
+    open(os.path.join(out, "pages", "scene_01.html"), "w").write("<!doctype html><html><body>x</body></html>")
+    slides_only = json.loads(json.dumps(data))
+    data["slides"][0]["type"] = "html"
+    data["slides"][0]["props"] = {"html": "pages/scene_01.html"}
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    orig = render._render_slide
+    monkeypatch.setattr(render, "_render_slide", lambda slide, *a, **k: orig(dict(slide, type="slide"), *a, **k))
+    return out, slides_only
+
+
+def test_a_full_html_render_leaves_not_delivered_and_the_sample_and_preview_leave_it_alone(html_render_board):
+    import render
+    import storyboard as sb
+    out, slides_only = html_render_board
+    nd = os.path.join(out, "NOT_DELIVERED.md")
+    render.render(out, sample=1)
+    render.render(out, preview=True)
+    assert not os.path.exists(nd), "the sample / preview wrote the delivery marker"
+    render.render(out)
+    text = open(nd, encoding="utf-8").read()
+    assert "critic_brief.py" in text and "design-critic.md" in text and "--final" in text
+    open(nd, "w").write("# sentinel\n")
+    render.render(out, sample=1)
+    render.render(out, preview=True)
+    assert open(nd).read() == "# sentinel\n", "the sample / preview rewrote or removed the marker"
+    # the 原样配音 tier has no ledger to clear a marker, so its render writes none
+    os.remove(nd)
+    sb.save(slides_only, os.path.join(out, "storyboard.json"))
+    render.render(out)
+    assert not os.path.exists(nd)
+
+
+def test_final_clears_the_marker_on_the_html_tier(tmp_path):
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    cl.record_render(out)
+    _ledger(out, routes=[{"beat": 1, "route": "bespoke", "visible": True, "evidence": "_keyframes/scene_01.png"}])
+    open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# not yet\n")
+    p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
+    assert p.returncode == 0 and "html tier" in p.stdout and "design-critic" in p.stdout, p.stdout
+    assert not os.path.exists(os.path.join(out, "NOT_DELIVERED.md")), p.stdout

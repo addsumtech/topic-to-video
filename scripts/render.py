@@ -1355,7 +1355,60 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
             _write_srt(data, os.path.join(out_dir, "out.srt"))
         print(f"({rendered} slide(s) rendered, {len(clips) - rendered} reused from cache; "
               f"{time.monotonic()-t_all:.1f}s total)")
+        if not preview:
+            _not_delivered(out_dir, data)
         return dst
+
+
+# THE RENDER DOES NOT END ON A GREEN LIGHT — on this tier either. render_remotion.py leaves NOT_DELIVERED.md beside
+# out.mp4 with the steps that remain, and critic_ledger.py --final is the only thing that removes (or rewrites) it;
+# promote.py refuses a film that still has it. This tier wrote nothing, so an HTML film read as delivered the moment
+# out.mp4 existed, and its components could be promoted from a film no critic had seen. Only the FULL render writes
+# it: the step-8 `--sample` (sample.mp4) and `--preview` (preview.mp4) return before this, and neither writes nor
+# removes the marker, because neither is the film a review covers. Only an HTML film (validate.is_html_film): the
+# 原样配音 / programmatic-only tier has no ledger to clear it, and a marker nothing can remove is a lie by `ls`.
+_NOT_DELIVERED = "NOT_DELIVERED.md"
+
+_HTML_NEXT_STEPS = '''# RENDERED, not DELIVERED
+
+`out.mp4` existing is not the same claim as this film being deliverable. The machine gates measure whether a page
+is blank, overflows, lands with its word and plays in sync. NONE of them can ask whether a page MEANS what its beat
+means, whether its numbers trace to the source, or whether the burned captions read.
+
+That half is the rendered review's — `agents/design-critic.md` ("Rendered review — the delivery ledger", the
+H-dimensions), with `agents/critic-av.md`'s lens — and it has to be a reviewer who does not know what you meant to
+draw: the maker holds the intent, and the intent is what makes a wrong page look right.
+
+Run these in order. The last one deletes this file when the review passes:
+
+```sh
+python3 scripts/check_av.py       %(out)s          # must exit 0 first
+python3 scripts/critic_brief.py   %(out)s          # keyframes + _frames/ + _contact_sheet.png + _critic_brief.md
+python3 scripts/critic_ledger.py  %(out)s --emit-template
+# dispatch agents/design-critic.md (its delivery section) as a SUBAGENT whose entire input is the path %(out)s —
+#   no rationale, no summary of what you fixed, no steer about where to look (critic-av beside it on standard+)
+# after applying fixes and re-rendering: python3 scripts/critic_brief.py %(out)s AGAIN (a new render id + history)
+python3 scripts/critic_ledger.py  %(out)s --final
+#   exit 0 means the LEDGER is well formed — NOT that the film may ship. The verdict is what
+#   ships it: --final prints `the FILM is not delivered` on a REVISE and still exits 0.
+```
+'''
+
+
+def _not_delivered(out_dir, data):
+    """Leave the remaining work IN the deliverable, not only in the log (an HTML film's full render only)."""
+    import validate as _v
+    if not _v.is_html_film(data.get("meta") or {}, data.get("slides") or []):
+        return
+    try:
+        with open(os.path.join(out_dir, _NOT_DELIVERED), "w", encoding="utf-8") as fh:
+            fh.write(_HTML_NEXT_STEPS % {"out": out_dir})
+    except OSError as e:
+        print("[render] could not write %s (%s) — the review below is still owed" % (_NOT_DELIVERED, e))
+    print("[render] RENDERED, not DELIVERED — wrote %s with the remaining steps." % _NOT_DELIVERED)
+    print("[render] next: python3 scripts/critic_brief.py %s, then agents/design-critic.md's delivery review "
+          "(input = the out_dir path, nothing else), then python3 scripts/critic_ledger.py %s --final — read its "
+          "VERDICT line: a REVISE exits 0 too and the film is NOT delivered" % (out_dir, out_dir))
 
 def main():
     ap = argparse.ArgumentParser()

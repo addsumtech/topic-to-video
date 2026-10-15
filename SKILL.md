@@ -215,8 +215,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   full-bleed graphics and container-cropped type are legal; an intentional bleed layer carries `data-bleed` with a written
   reason). It also runs as `--glide` (type crawling in whole-pixel jumps; fix through `glide()`) and `--sync` (text
   readable late vs. its spoken word; ERROR past 1.5 s).
-- `scripts/critic_brief.py <out_dir>`: assembles `_critic_brief.md` + `_contact_sheet.png` for the shot-critic. **Run it
-  before dispatching the critic.** `scripts/contact_sheet.py` builds the sheet alone.
+- `scripts/critic_brief.py <out_dir>`: assembles `_critic_brief.md` + `_contact_sheet.png` for the rendered review —
+  shot-critic on remotion, design-critic's delivery section on HTML (which also gets `_frames/`, one delivered frame
+  per beat). **Run it before dispatching the critic.** `scripts/contact_sheet.py` builds the sheet alone.
 - `scripts/settled_frame.py <clip.mp4|out_dir> <out.png|dir/> [--at 0.90] [--beat N]`: the frame to JUDGE a design on.
   Always sample late at a fixed fraction, because mid-clip grabs show animation in flight and produce confident wrong
   readings. Use `--beat N`, since the board's running duration is not the film's clock.
@@ -230,7 +231,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   reasoned about. A `COVERAGE` error (the file was decoded short) is never waivable: re-render or repair the file.
 - `scripts/shake_qa.py <out_dir>`: remotion SHAKE gate (travelling vs vibrating camera). It is paired with film_energy_qa,
   because jitter is the cheapest way to clear the motion floor. A frame it cannot lock onto is UNJUDGED.
-- `scripts/critic_ledger.py <out_dir> --final`: the independent-review gate (workflow step 9).
+- `scripts/critic_ledger.py <out_dir> --final`: the independent-review gate on both tiers (workflow step 9);
+  `--render-id` prints the id every review pin uses.
 - `scripts/deliver.py <out_dir>` is the hand-off, for EVERY render the user is asked to watch (sample, preview, final
   cut). It copies `out.mp4` + `out.srt` to `~/Desktop` (else `~/Downloads`) and prints the path. Give the user THAT
   path, never one inside this skill, `~/.claude`, or a temp folder.
@@ -954,8 +956,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 
    | option | what runs | rough cost (qualitative — no measured numbers exist for this skill) |
    |---|---|---|
-   | **`fast`** (default) | ONE combined critic (`shot-critic` carrying `critic-av`'s lens; HTML tier: `critic-av` + `design-critic`'s D-checks in one pass), ONE round; only its top issues by impact are FAIL rows | one subagent pass + one re-render if it finds something |
-   | `standard` | `shot-critic` + `critic-av` (HTML: `critic-av` + `design-critic`), up to TWO rounds, round 2 a full fresh review | about two to four subagent passes + re-renders |
+   | **`fast`** (default) | ONE combined critic (`shot-critic` carrying `critic-av`'s lens; HTML tier: `design-critic`'s delivery review carrying `critic-av`'s lens as H7), ONE round; only its top issues by impact are FAIL rows | one subagent pass + one re-render if it finds something |
+   | `standard` | `shot-critic` + `critic-av` (HTML: `design-critic` + `critic-av` beside it), up to TWO rounds, round 2 a full fresh review | about two to four subagent passes + re-renders |
    | `thorough` | the full loop: REVISE → fix → re-render → fresh independent review, until PASS | open-ended; each round is a re-render plus a fresh review |
    | `none` | no critic — the user's own viewing is the review, recorded as user-waived | nothing further |
 
@@ -1031,15 +1033,26 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    fresh subagent whose ENTIRE input is the `<out_dir>` path — no rationale, no summary of what you fixed, no
    steer about where to look — then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it
    refuses an in-context ledger, a ledger missing any dimension, a PASS pinned to an earlier render, and one
-   pinned to a render this film never had) (why: case-law W7). On the HTML tier the same depth applies to `critic-av` + `design-critic` (table
-   above).
+   pinned to a render this film never had) (why: case-law W7).
+   **On an HTML-tier film** (not remotion, at least one `type:"html"` page) the SAME method runs with the HTML
+   critics: `python3 scripts/critic_brief.py <out_dir>` (it re-runs `keyframe_qa` first, pulls one delivered frame per
+   beat out of `out.mp4` into `_frames/` — the burned caption is on it — builds `_contact_sheet.png` from the page
+   filmstrips and records the render) → dispatch **`agents/design-critic.md`'s delivery section** ("Rendered review —
+   the delivery ledger", the H-dimensions; at `fast` it carries `critic-av`'s lens as H7, at `standard`/`thorough`
+   `critic-av` runs beside it) as the same fresh subagent, which fills `_critic_ledger.json` — one row per H-dimension
+   plus one `routes` row per page `validate.py` credits BUILT or BESPOKE (a route nobody can see fails H8) — then
+   `python3 scripts/critic_ledger.py <out_dir> --final`, exit 0 and its verdict read, exactly as above. The 原样配音
+   tier (every beat a supplied slide) and a programmatic-only board have no authored page: their review at the chosen
+   depth is `critic-av` alone on `out.mp4`, with no ledger (`critic_ledger.py` says it does not apply, exit 2).
    **9f · DELIVERY CRITERION — every gate, not two** (why: case-law W5). Deliver `out.mp4`, `out.srt`, and the
    editable `storyboard.json` only after **`validate.py`, `check_av.py`, `keyframe_qa.py`, `rhythm_qa.py` and
    `pedagogy_qa.py` ALL exit 0** (`voice_qa.py` is ADVISORY and always exits 0 — read its signals and say which
    you accepted; failing a build on them would produce the "rule voice" its reference warns about). On a
    remotion film, `keyframe_qa_remotion.py` + `text_safe_qa.py` + `cjk_type_qa` (CJK film) + `film_energy_qa.py`
    + `shake_qa.py` exit 0 and the review at the user's chosen depth (`critic_ledger.py --final`) REPLACE
-   `keyframe_qa.py`, which no-ops there; `frame_safe_qa.py` is advisory. Also read `keyframe_qa`'s **deck
+   `keyframe_qa.py`, which no-ops there; `frame_safe_qa.py` is advisory. **On an HTML-tier film the review at the
+   user's chosen depth is part of the criterion too:** `critic_ledger.py <out_dir> --final` exits 0 and its verdict
+   is read (step 9e) — `render.py`'s full render leaves `NOT_DELIVERED.md`, and only that review removes it. Also read `keyframe_qa`'s **deck
    advisories** (silhouette repetition, content-band uniformity) and any scene reported **UNVERIFIED** — an
    unverified scene is not a passing scene, it is a scene nothing measured. Then record the deck's register
    into the cross-deck ledger: `python scripts/register_ledger.py record <out_dir>` (feeds the next video's

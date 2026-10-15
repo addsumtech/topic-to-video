@@ -87,6 +87,8 @@ finding it prints that you do not understand.
   picks `media.treatment: none|atmosphere|documentary` per beat (see its agent + the Imagery
   faithfulness section); reach for `documentary` on CONCRETE topics (a city, place, real system).
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical] [--reduced-motion] [--preview]` — storyboard → `out.mp4` + `out.srt`.
+  On an HTML-tier film (at least one `type:"html"` page) the FULL render — not `--sample`, not `--preview` — also
+  leaves `NOT_DELIVERED.md` with the review steps that remain; `critic_ledger.py --final` removes it (step 9e).
   **`--preview`** = the cheap ITERATION tier (~1.4–2× wall-clock; 2.5× fewer captured frames — per-scene fixed overheads eat part of the gain): 12fps captures + lighter JPEG, its own
   clip cache (`.clips_preview`) and `preview.mp4` output — temporally identical (captions/cues/word-sync
   are time-based), just choppier; never touches `out.mp4`/`.clips`. Use it while experimenting with
@@ -631,9 +633,15 @@ figure), a non-singular `the_one_thing`, or a
   is still resolved; cross-sourcing a claim clears the corroboration warning). The STRUCTURAL floor so a hollow brief can't reach the planner —
   run at step 3.5 BEFORE dispatching `content-planner`. The SEMANTIC depth audit is `critic-content` C0.
 - `scripts/critic_brief.py <out_dir>` — assembles ONE file (`_critic_brief.md`) plus a CONTACT SHEET
-  (`_contact_sheet.png`, every beat numbered in a single image) for the shot-critic: the machine verdicts
+  (`_contact_sheet.png`, every beat numbered in a single image) for the rendered review, and records the render
+  (its render id) in `_contact_sheet_history.json`. On remotion it is the shot-critic's: the machine verdicts
   already run with an explicit list of what NOT to re-judge, the catalogue entries for only the registers
-  this film uses, and the repetition / family / library-growth facts computed rather than eyeballed.
+  this film uses, and the repetition / family / library-growth facts computed rather than eyeballed. On an HTML
+  film it is design-critic's delivery review's: `keyframe_qa` re-run FIRST (the sheet is built from its page
+  filmstrips `_keyframes/scene_NN.png`, labelled with each page's design route), one delivered frame per beat
+  pulled from `out.mp4` into `_frames/` (with its burned caption, for the A/V lens), the HTML gates' verdicts
+  (validate, check_av, keyframe_qa, rhythm_qa, pedagogy_qa, voice_qa), the BUILT/BESPOKE routes to confirm and the
+  built components.
   **Run it before dispatching the critic.** A review used to open 37 keyframes one at a time and re-read a
   1200-line contract to re-derive things a script had already decided; the mechanical half is gated before
   the render now, so the critic's pass is spent on meaning, faithfulness, register fit and the film's shape.

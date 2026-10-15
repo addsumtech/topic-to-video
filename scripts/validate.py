@@ -3785,11 +3785,19 @@ def html_design_routes(meta, slides, out_dir):
     return out
 
 
+def is_html_film(meta, slides):
+    """An HTML-tier film: not a remotion film, and at least one `type:"html"` page. The slides / 原样配音 tier (every
+    beat a supplied slide) and a programmatic-only board are not — they have no authored page. ONE definition, read
+    by the design-first floor below, critic_ledger.py (whose delivery review it decides) and render.py (whose full
+    render leaves NOT_DELIVERED.md for exactly these films)."""
+    if str((meta or {}).get("renderer") or "").lower() in ("remotion", "remotion-bespoke", "remotion-legacy"):
+        return False
+    return any(isinstance(s, dict) and s.get("type") == "html" for s in slides or [])
+
+
 def _html_design_share(meta, slides, errors, warnings, out_dir):
-    if (meta.get("renderer") or "") == "remotion" or not slides or not out_dir:
-        return
-    if not any(s.get("type") == "html" for s in slides):
-        return                                         # the slides / 原样配音 tier, or a programmatic-only board
+    if not slides or not out_dir or not is_html_film(meta, slides):
+        return                                         # remotion, the slides / 原样配音 tier, or programmatic-only
     routes = html_design_routes(meta, slides, out_dir)
     counted = [r for r in routes if r[1] != "exempt"]
     by_num = {(s.get("index", i)): s for i, s in enumerate(slides, 1)}
