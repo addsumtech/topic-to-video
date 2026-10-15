@@ -133,6 +133,12 @@ def sha256_of(path):
 
 def template(out_dir):
     sheet = os.path.join(out_dir, CONTACT_SHEET)
+    try:
+        routes = _design_routes(out_dir)
+    except Exception as e:                                    # noqa: BLE001 — the gate itself reports it again
+        print("[critic_ledger] the design routes could not be computed (%s: %s) — fill `routes` by hand from "
+              "scripts/validate.py" % (type(e).__name__, e))
+        routes = []
     return {
         # EMPTY on purpose. Pre-filling "independent" would answer, on the reviewer's behalf, the one
         # question this gate exists to ask — and make the lazy path the untrue one.
@@ -146,8 +152,7 @@ def template(out_dir):
             for sid, title in dimensions()
         ],
         # THE ROUTES validate.py CREDITS — each one the critic confirms (or not) in the rendered frame (S14)
-        "routes": [{"beat": num, "route": route, "visible": None, "evidence": ""}
-                   for num, route in _design_routes(out_dir)],
+        "routes": [{"beat": num, "route": route, "visible": None, "evidence": ""} for num, route in routes],
     }
 
 
@@ -597,10 +602,11 @@ def validate(out_dir, final=False):
     overall = str(led.get("verdict", "")).strip().upper()
     got = str(led.get("contact_sheet_sha256", "")).strip().lower()
     current = False
+    stale = _stale_sheet(out_dir)
     if not os.path.exists(sheet):
         errs.append("%s is missing — run scripts/critic_brief.py first; a review with no contact sheet saw "
                     "no film" % CONTACT_SHEET)
-    elif _stale_sheet(out_dir):
+    elif stale:
         errs.append("%s is older than the keyframes — the film was re-rendered and the sheet was not rebuilt, so "
                     "every pin checked against it describes the OLD render. Re-run scripts/critic_brief.py "
                     "<out_dir> (it rebuilds the sheet and records the render), then this gate." % CONTACT_SHEET)
@@ -689,8 +695,9 @@ def validate(out_dir, final=False):
     failed = sorted(s for s, r in by_id.items() if str(r.get("verdict", "")).lower() == "fail")
     if overall == "PASS" and failed:
         errs.append("verdict is PASS while %s failed" % ", ".join(failed))
-    history_pin = bool(got) and not current and os.path.exists(sheet) and got in history_shas(out_dir)
-    if overall == "REVISE" and spent and (final or history_pin):
+    history_pin = (bool(got) and not current and not stale and os.path.exists(sheet)
+                   and got in history_shas(out_dir))
+    if overall == "REVISE" and spent and not stale and (final or history_pin):
         errs.extend(_unresolved(out_dir, by_id, failed, got, current, tier))
 
     # ── the routes validate.py credited: did the critic SEE them in the frame? (S14) ─────────────────────
