@@ -390,18 +390,12 @@ back — commit registers that are memorable and unmistakably THIS film. For eac
    that settles it: could you fit this beat into the register only by **swapping its words**? Then the
    register does not carry the argument — build.
 
-   **Building happens in the film's own workshop, and is cheap on purpose** (Step 0.55; `scripts/workshop.py`):
-   ```
-   python3 scripts/workshop.py <out_dir> new-object <Name> --means "<what the viewer must see>"   # a thing a template holds
-   python3 scripts/workshop.py <out_dir> new-shot <Name> --means "<the argument no register carries>"   # a new template
-   python3 scripts/workshop.py <out_dir> still <Name>    # LOOK at its settled frame before it enters the film
-   python3 scripts/workshop.py <out_dir> check           # type-check, imports, content contract, words from props
-   ```
-   Nothing it builds touches the library: every render of THIS film sees it and no other film does; at delivery the
-   user decides what is promoted (`scripts/promote.py`, which registers and measures it). Writing a register
-   straight into the library mid-film (`register_shot.py`) was the only way to build, and it cost a full
-   registration and measurement — which is exactly why in practice nothing was ever built and every beat got
-   matched to the closest existing register instead.
+   **Building happens in the film's own workshop, and is cheap on purpose** — the `workshop.py` commands are in
+   Step 0.55 above (`new-object` · `new-shot` · `still` · `check`). Nothing it builds touches the library: every
+   render of THIS film sees it and no other film does; at delivery the user decides what is promoted
+   (`scripts/promote.py`, which registers and measures it). Never write a register straight into the library
+   mid-film (`register_shot.py`): that costs a full registration and measurement, which is why, when it was
+   the only way to build, nothing was ever built and every beat got the closest existing register.
 
    **A new register must be REUSABLE, not a one-off.** It carries an ARGUMENT SHAPE — "two populations a
    measure cannot separate", "correlated vs independent failure" — with the topic arriving entirely through
