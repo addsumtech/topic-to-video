@@ -827,9 +827,10 @@ def _sees_a_frame(out_dir, ev):
 
 
 def _cites(out_dir, ev):
-    """The cited files in an evidence string that do not exist."""
+    """The cited files in an evidence string that do not exist — `.txt` included, so a faithfulness row that cites
+    `sources/<id>.txt` beside its frame is checked like the frame is (it used to pass as unchecked prose)."""
     bad = []
-    for tok in re.findall(r"[\w./\\-]+\.(?:png|jpg|jpeg|mp4|json|md|srt)\b", ev):
+    for tok in re.findall(r"[\w./\\-]+\.(?:png|jpg|jpeg|mp4|json|md|srt|txt)\b", ev):
         cand = tok if os.path.isabs(tok) else os.path.join(out_dir, tok)
         if not os.path.exists(cand) and not os.path.exists(os.path.join(_ROOT, tok)):
             bad.append(tok)
@@ -1042,7 +1043,12 @@ def _gate_problems(out_dir, final, history_checked=False):
                          "deliver a film its gates refuse. Fix them (re-render if the film changes), re-run python3 "
                          "scripts/critic_brief.py <out_dir>, then this gate; it never re-runs them itself"
                          % ", ".join(failed))
-    return (probs, []) if final else ([], probs)
+    if final:
+        return probs, []
+    # AN INTERIM RUN IS OFTEN THE CRITIC'S, whose ledger is fine: say whose move this is, or a reviewer reads "re-run
+    # critic_brief.py" — the maker's step, which rewrites the film directory — as its own
+    return [], ["for the film's maker, not the review (record your verdict as usual; --final refuses until this is "
+                "fixed): " + p for p in probs]
 
 
 def _gates_sentence(out_dir):
@@ -1202,10 +1208,8 @@ def validate(out_dir, final=False):
             # A cited FILE must exist. A cited brief line is prose and cannot be checked, so it is allowed
             # through — but a path that looks like a file and is not one is the failure mode worth catching:
             # it reads as specific evidence while pointing at nothing.
-            for tok in re.findall(r"[\w./\\-]+\.(?:png|jpg|jpeg|mp4|json|md|srt)\b", ev):
-                cand = tok if os.path.isabs(tok) else os.path.join(out_dir, tok)
-                if not os.path.exists(cand) and not os.path.exists(os.path.join(_ROOT, tok)):
-                    errs.append("%s cites %s, which does not exist" % (sid, tok))
+            for tok in _cites(out_dir, ev):
+                errs.append("%s cites %s, which does not exist" % (sid, tok))
         if v == "fail" and not str(r.get("fix", "")).strip():
             errs.append("%s failed with no FIX — a finding the director cannot act on is not a finding" % sid)
 

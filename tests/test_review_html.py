@@ -498,3 +498,58 @@ def test_the_brief_and_final_say_what_the_user_kept(tmp_path, monkeypatch):
     open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# not yet\n")
     p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
     assert p.returncode == 0 and "design-first: kept by the user's decision for beat(s) 1, 2" in p.stdout, p.stdout
+
+
+def test_a_page_that_reads_another_films_theme_is_an_error(tmp_path):
+    # pages link assets by ABSOLUTE file:// path, so a copied film kept reading the original's theme.css — measured
+    # on a copy of the skill's own jev-html: an edit to the copy's theme never reached its render
+    import validate as v
+    orig, copy = tmp_path / "orig", tmp_path / "copy"
+    for d in (orig, copy):
+        (d / "pages").mkdir(parents=True)
+        (d / "storyboard.json").write_text("{}")
+        (d / "theme.css").write_text(":root{}")
+    (orig / "photo.png").write_bytes(b"x")
+    page = ('<html><head><link rel="stylesheet" href="file://%s"></head><body><img src="file://%s"></body></html>'
+            % (orig / "theme.css", orig / "photo.png"))
+    (copy / "pages" / "scene_01.html").write_text(page)
+    errs, warns = [], []
+    v._check_html_assets(str(copy), "pages/scene_01.html", False, 1, errs, warns)
+    assert any("ANOTHER film's theme.css" in e and str(orig) in e for e in errs), errs
+    assert any("a file of another film" in w and "photo.png" in w for w in warns), warns
+    # the original reading its own files is clean
+    (orig / "pages" / "scene_01.html").write_text(page)
+    errs, warns = [], []
+    v._check_html_assets(str(orig), "pages/scene_01.html", False, 1, errs, warns)
+    assert not any("another film" in x.lower() for x in errs + warns), (errs, warns)
+
+
+def test_the_brief_says_where_each_beats_facts_come_from(tmp_path):
+    # both critics' methods said the brief carried it and neither did: the first delivery critic on this tier traced
+    # every page by hand-grepping sources/*.txt
+    import critic_brief
+    out = tmp_path / "film"
+    (out / "sources").mkdir(parents=True)
+    json.dump({"wiki": {"title": "Wikipedia: Jev", "tier": "secondary", "as_of": "2026-09-15"}},
+              open(out / "sources" / "index.json", "w"))
+    (out / "sources" / "wiki.txt").write_text("Jev returns typed values.")
+    json.dump({"evidence": [{"claim": "Jev returns typed values", "source_ref": "wiki#returns typed values"},
+                            {"claim": "an unsourced claim"}]}, open(out / "brief.json", "w"))
+    json.dump({"beats": [{"source_ref": "wiki#returns typed values · ghost#nowhere"}, {"stage": "land"}]},
+              open(out / "content_plan.json", "w"))
+    text = "\n".join(critic_brief._sources_lines(str(out), 2))
+    assert "beat 1: `wiki` «returns typed values» · `ghost` (NOT in sources/index.json)" in text, text
+    assert "beat 2: **no source_ref**" in text and "an unsourced claim ← **no source_ref**" in text, text
+    assert "`wiki` Wikipedia: Jev (secondary, as of 2026-09-15)" in text and "missing" not in text, text
+    # an older plan with no per-beat refs says so rather than dropping the section
+    json.dump({"beats": [{"stage": "ground"}]}, open(out / "content_plan.json", "w"))
+    os.remove(out / "sources" / "wiki.txt")
+    text = "\n".join(critic_brief._sources_lines(str(out), 1))
+    assert "NO per-beat `source_ref`" in text and "sources/wiki.txt is missing" in text, text
+
+
+def test_the_html_brief_states_the_caption_band_in_pixels():
+    import critic_brief
+    from _caption_band import caption_band_px
+    assert "y ≥ %d" % (1080 - caption_band_px(1920, 1080)) in critic_brief._caption_band_line({})
+    assert "1080x1920" in critic_brief._caption_band_line({"aspect": "9:16"})

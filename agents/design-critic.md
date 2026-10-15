@@ -368,9 +368,14 @@ The Remotion tier is now the **remotion bespoke-shot library**; a `meta.renderer
 `<out_dir>/_contact_sheet.png`. The brief carries the machine verdicts already run (validate, check_av,
 keyframe_qa, rhythm_qa, pedagogy_qa, voice_qa — do not re-judge them), the routes `validate.py` credits, the built
 components, and where each beat's facts come from. The contact sheet holds every page's FILMSTRIP
-(`_keyframes/scene_NN.png`: the left tile is the frame at t=0, the right tile the frame that ships);
-`_frames/scene_NN.png` is each beat as DELIVERED, pulled from `out.mp4` with its burned caption on it. Open a full
-strip or frame only for the beats the sheet makes you suspicious of.
+(`_keyframes/scene_NN.png`: tiles evenly spaced over its beat on the timeline that ships — five, at 0 / 25 / 50 /
+75 / 100%, as `critic_brief.py` runs keyframe_qa — the right tile is the END of the beat); `_frames/scene_NN.png` is
+each beat as DELIVERED, pulled from `out.mp4` at 90% of the beat with its burned caption on it — the SETTLED frame,
+the one a viewer holds before the cut, and the one every "settled tile" question below is judged on.
+`_keyframes/scene_NN_resting.png` (cued pages only) is the authored layout with every reveal shown: geometry's input,
+not what ships. When the right tile and the delivered frame disagree, something lands in the last tenth of its beat —
+that is an H6 finding, not a contradiction. Open a full strip or frame only for the beats the sheet makes you
+suspicious of.
 
 **Every dimension below maps onto checks this file, `critic-av` or `critic-content` already defines** — the ledger
 adds a verdict per dimension with its evidence, not new doctrine. Each is RULE + PRECEDENT + a question to ask
@@ -386,12 +391,18 @@ python3 scripts/critic_ledger.py <out_dir>                   # after you fill it
 photograph on a rendered page traces to the source: `critic-content` R0 (traceability, not mere non-contradiction —
 typed page text included), R1d (a programmatic scene's props) and R1e (imagery: a documentary photograph shows the
 right thing and carries its credit; a motif or b-roll image depicts no specific fact), and D2d's ban on a style that
-FABRICATES specifics. Judge it on the pixels against `brief.json` and the beat's `source_ref`. A faithfulness or
-sourcing finding lives in this one row whichever dimension first noticed it, and it is never accepted as-is by
-anyone (`critic_ledger.py` refuses it): it is fixed.
-> **Precedent — none on record** on this tier: no delivered HTML film has failed it in a way anyone wrote down. The
-> same shape on the remotion tier is S3's (`890c09b`: a confident 100% printed on the beat whose whole claim was that
-> the nave was never finished).
+FABRICATES specifics. Judge it on the pixels against the brief's "Where each beat's facts come from" (the plan's
+per-beat `source_ref`, brief.json's evidence and the source texts in `sources/`, which you grep for the quote). A
+factual claim the VOICE makes is this row's too — a narration line that says "real" over an example, or "outside the
+training set" where the source says "out-of-category", is unsourced exactly as a typed number is. Cite the source
+file in the row's evidence beside the frame (`sources/<id>.txt`). A faithfulness or sourcing finding lives in this
+one row whichever dimension first noticed it, and it is never accepted as-is by anyone (`critic_ledger.py` refuses
+it): it is fixed.
+> **Precedent — none on record** for a delivered HTML film. The first delivery critic run on this tier (a test copy
+> of the skill's own jev-html, 2026-10-16) failed it twice over: a page labelled "一个真实的请求" printed an invented
+> ticket number "#4471" over what the source gives only as an example, and the voice said "训练集之外" where the
+> source says "out-of-category". The same shape on the remotion tier is S3's (`890c09b`: a confident 100% printed on
+> the beat whose whole claim was that the nave was never finished).
 > **Ask yourself:** For every number on this frame, which line of the brief did it come from?
 
 **H2 · MEANING — hide the caption.** Per page: does the design ENCODE this beat's idea, and only this one, or is it

@@ -115,6 +115,99 @@ def _review_depth(meta, how, out_dir=None):
     return "**Review depth: `%s`** — %s" % (_tier or "?", text)
 
 
+def _caption_band_line(meta):
+    """Where the burned caption sits, in pixels — H4 and keyframe_qa both say "the caption band the renderer really
+    reserves", and a delivery critic had to eyeball it. The band is _caption_band.caption_band_px, the one definition
+    keyframe_qa's caption-zone check and the renderer read."""
+    try:
+        import render as _rd
+        from _caption_band import caption_band_px
+        W, H = _rd._canvas(meta, meta.get("aspect") == "9:16")
+        band = caption_band_px(W, H)
+    except Exception as e:                                    # noqa: BLE001 — a fact for the critic, never a crash
+        return "**Caption band** — could not be computed (%s); read it off the delivered frames." % e
+    return ("**Caption band** — the bottom %dpx of the %dx%d frame (y ≥ %d) is where the overlay caption burns; "
+            "content that reaches it is keyframe_qa's caption-zone finding, and a page that leaves it empty is "
+            "doing its job." % (band, W, H, H - band))
+
+
+def _load_json(path, default):
+    try:
+        return json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError):
+        return default
+
+
+def _refs(raw):
+    """[(source id, quote)] from a `source_ref` — "id#quote · id#quote", a list of those, or a bare id."""
+    items = raw if isinstance(raw, list) else re.split(r"\s+·\s+", raw) if isinstance(raw, str) else []
+    out = []
+    for it in items:
+        it = str(it).strip()
+        if it:
+            sid, _, quote = it.partition("#")
+            out.append((sid.strip(), quote.strip()))
+    return out
+
+
+def _sources_lines(out_dir, n_beats):
+    """WHERE EACH BEAT'S FACTS COME FROM — the faithfulness row's evidence, assembled. Both critics' methods said the
+    brief carried it and neither brief did: a delivery critic on the skill's own jev-html traced every page by hand-
+    grepping sources/*.txt, and found an invented ticket number and a sentence-level claim no source makes. Read from
+    content_plan.json's per-beat `source_ref` (matched to the board BY POSITION — the plan does not carry the board's
+    index), brief.json's evidence and sources/index.json; an older plan with no per-beat refs says so instead of
+    leaving the section out."""
+    plan = _load_json(os.path.join(out_dir, "content_plan.json"), {})
+    beats = [b for b in (plan.get("beats") or []) if isinstance(b, dict)] if isinstance(plan, dict) else []
+    index = _load_json(os.path.join(out_dir, "sources", "index.json"), {})
+    index = index if isinstance(index, dict) else {}
+    brief = _load_json(os.path.join(out_dir, "brief.json"), {})
+    evidence = [e for e in (brief.get("evidence") or []) if isinstance(e, dict)] if isinstance(brief, dict) else []
+
+    def name(sid):
+        if sid in index:
+            return "`%s`" % sid
+        return "`%s` (NOT in sources/index.json)" % sid
+
+    L = ["**Where each beat's facts come from** — the evidence for the faithfulness row. Each source's text is "
+         "`sources/<id>.txt`; grep it for the quote."]
+    per_beat = [(pos, _refs(b.get("source_ref"))) for pos, b in enumerate(beats, 1)]
+    if any(r for _p, r in per_beat):
+        if len(beats) != n_beats:
+            L.append("- (content_plan.json has %d beat(s), the board %d — matched by position, so read these with "
+                     "care)" % (len(beats), n_beats))
+        for pos, refs in per_beat[:n_beats]:
+            L.append("- beat %d: %s" % (pos, " · ".join("%s «%s»" % (name(sid), q[:70]) if q else name(sid)
+                                                        for sid, q in refs)
+                                        if refs else "**no source_ref** in content_plan.json — every fact on this "
+                                                     "page needs one from brief.json's evidence below, or it is "
+                                                     "unsourced"))
+    elif beats:
+        L.append("- content_plan.json records NO per-beat `source_ref` (an older plan): trace each page against "
+                 "brief.json's evidence and the source texts below.")
+    else:
+        L.append("- no content_plan.json: trace each page against brief.json's evidence and the source texts below.")
+    if evidence:
+        L.append("- brief.json evidence (%d claim(s)):" % len(evidence))
+        for e in evidence[:24]:
+            ids = sorted({sid for sid, _q in _refs(e.get("source_ref"))})
+            L.append("  - %s ← %s" % (str(e.get("claim", "")).strip()[:120], ", ".join(name(i) for i in ids) or
+                                      "**no source_ref**"))
+        if len(evidence) > 24:
+            L.append("  - … %d more in brief.json" % (len(evidence) - 24))
+    else:
+        L.append("- no brief.json evidence on file — say in the H1/S3 row what you traced against.")
+    files = []
+    for sid, m in sorted(index.items()):
+        m = m if isinstance(m, dict) else {}
+        txt = os.path.join(out_dir, "sources", "%s.txt" % sid)
+        files.append("`%s` %s (%s%s)%s" % (sid, str(m.get("title") or "")[:60], m.get("tier") or "?",
+                                           ", as of %s" % m["as_of"] if m.get("as_of") else "",
+                                           "" if os.path.exists(txt) else " — **sources/%s.txt is missing**" % sid))
+    L.append("- sources on file: %s" % ("; ".join(files) if files else "**none** (no sources/index.json)"))
+    return L
+
+
 def _waiver_lines(out_dir):
     """"Waivers to confirm": each machine-gate finding the board waived, with its stated reason and the dimension
     that owns it. A waiver does not raise the review depth; the critic confirms each in a `waivers` ledger row."""
@@ -222,12 +315,15 @@ def build(out_dir, ran=None, codes=None):
     L.append("")
     L.append("- **MEANING** — hide the caption: does the frame still carry THIS idea, and only this one?")
     L.append("- **CONTENT-FIT** — would this beat look identical on another topic with the words swapped?")
-    L.append("- **FAITHFULNESS** — every on-screen number traced to that beat's `source_ref`.")
+    L.append("- **FAITHFULNESS** — every on-screen number traced to its source (below: where each beat's facts "
+             "come from).")
     L.append("- **REGISTER FIT** — does the register's structure carry the beat's argument, or was it the "
              "closest thing in the catalogue?")
     L.append("- **SHAPE** — the film's arc, its boldness for this audacity, its seam rhythm.")
     L.append("")
     L.append("## 4 · Facts computed for you")
+    L.append("")
+    L.extend(_sources_lines(out_dir, len(slides)))
     L.append("")
     rep = [(k, v) for k, v in used.items() if v > 1]
     L.append("**Register reuse** — %s" % (", ".join("%s x%d" % kv for kv in sorted(rep, key=lambda x: -x[1]))
@@ -488,9 +584,13 @@ def _build_html(out_dir, board, ran, codes=None):
     L.append("")
     L.append("## 2 · The film at a glance")
     L.append("")
-    L.append("`_contact_sheet.png` — every page's FILMSTRIP, numbered, labelled with its design route: left tile = "
-             "the frame at t=0, right tile = the frame that ships. **Read it first.** Open a full "
+    L.append("`_contact_sheet.png` — every page's FILMSTRIP, numbered, labelled with its design route: five tiles = "
+             "the page at 0/25/50/75/100% of its beat (keyframe_qa's default, as this brief runs it) on the timeline that ships (right tile = the beat's END); the "
+             "SETTLED frame a viewer holds is `_frames/scene_NN.png` (90% of the beat, from out.mp4) — where the two "
+             "disagree, something lands in the beat's last tenth (H6). **Read it first.** Open a full "
              "`_keyframes/scene_NN.png` only for the pages it makes you suspicious of.")
+    L.append("")
+    L.append(_caption_band_line(meta))
     frames = sorted(f for f in os.listdir(os.path.join(out_dir, FRAMES)) if re.match(r"scene_\d+\.png$", f)) \
         if os.path.isdir(os.path.join(out_dir, FRAMES)) else []
     L.append("")
@@ -526,9 +626,8 @@ def _build_html(out_dir, board, ran, codes=None):
     L.append("The H-dimensions in agents/design-critic.md, one ledger row each (`python3 scripts/critic_ledger.py "
              "<out_dir> --emit-template`). The half no script can do:")
     L.append("")
-    L.append("- **FAITHFULNESS (H1, hard gate)** — every number, name, quote and photograph on a page traced to "
-             "the source%s." % (" (`brief.json` is in the out_dir)" if os.path.exists(os.path.join(out_dir, "brief.json"))
-                                 else " — **there is no `brief.json` in the out_dir**: say what you traced against"))
+    L.append("- **FAITHFULNESS (H1, hard gate)** — every number, name, quote and photograph on a page, and every "
+             "factual claim the voice makes, traced to its source (section 4: where each beat's facts come from).")
     L.append("- **MEANING (H2)** — hide the caption: does the page still carry THIS idea, and only this one?")
     L.append("- **FORM FIT + VARIETY (H3)**, **FRAME-CRAFT (H4)**, **REGISTER/STYLE/COLOUR (H5)**, **MOTION (H6)** "
              "— judged on the strips.")
@@ -536,6 +635,8 @@ def _build_html(out_dir, board, ran, codes=None):
     L.append("- **ROUTES (H8)** and **BUILT THINGS (H9)** — below.")
     L.append("")
     L.append("## 4 · Facts computed for you")
+    L.append("")
+    L.extend(_sources_lines(out_dir, len(slides)))
     L.append("")
     import critic_ledger as _cl
     kept = _v.design_first_keep(meta, slides, "html", out_dir)[0]

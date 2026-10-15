@@ -5305,6 +5305,38 @@ def _reveal_alignment(html, narration, duration, anim_seconds, words_path, tag, 
                             f"of the scene but shown at ~{sh*100:.0f}% — the reveal {when} by ~{abs(gap)*dur:.1f}s; "
                             f"re-anchor the point (data-cue) or adjust anim_seconds / the narration")
 
+def _owning_film(path):
+    """The film directory a local file belongs to — the nearest ancestor holding a storyboard.json — or None."""
+    d = os.path.dirname(os.path.realpath(path))
+    while True:
+        if os.path.isfile(os.path.join(d, "storyboard.json")):
+            return d
+        up = os.path.dirname(d)
+        if up == d:
+            return None
+        d = up
+
+
+def _other_films_asset(out_dir, local, tag, errors, warnings):
+    """A page that reads ANOTHER film's file. Pages link their assets by absolute file:// path
+    (references/html-pages.md), so a film directory that was copied or moved keeps reading the ORIGINAL's
+    files: measured on a copy of the skill's own jev-html, every page still linked the original film's
+    theme.css — an edit to the copy's theme never reaches its render, while keyframe_qa's fingerprint reads the
+    copy's, so the gate and the picture describe two different films. theme.css is this film's by contract,
+    so reading another one is an ERROR; any other file of another film is a WARN (it vanishes with that film)."""
+    owner = _owning_film(local)
+    here = os.path.realpath(out_dir)
+    if owner is None or owner == here:
+        return
+    if os.path.basename(local) == "theme.css":
+        errors.append(f"{tag}: page links {local} — ANOTHER film's theme.css, not this film's ({out_dir}/theme.css). "
+                      f"The film was copied or moved and its pages still read the original's theme, so an edit here "
+                      f"never reaches the render. Relink the page's file:// paths from {owner} to {out_dir}")
+    else:
+        warnings.append(f"{tag}: page reads {local}, a file of another film ({owner}) — it disappears with that "
+                        f"film; copy it into {out_dir} and relink")
+
+
 def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
                        anim_seconds=None, duration=None, narration=None, families=None,
                        captions_on=True, ai_look=False, soft_textures=None, comps=None, vertical=False,
@@ -5328,6 +5360,8 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
             errors.append(f"{tag}: page links a remote/data asset '{url[:50]}' — html scenes must use local file:// assets only")
         elif local and not os.path.exists(local):
             errors.append(f"{tag}: page asset not found: {local}")
+        elif local:
+            _other_films_asset(out_dir, local, tag, errors, warnings)
     if "theme.css" in html and not os.path.exists(os.path.join(out_dir, "theme.css")):
         errors.append(f"{tag}: page links theme.css but {out_dir}/theme.css is missing — run theme.py")
     hexes = []
