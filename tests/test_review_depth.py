@@ -53,12 +53,12 @@ def _set_review(out, **fields):
 
 
 def _cur(out):
-    return cl.sha256_of(os.path.join(out, cl.CONTACT_SHEET))
+    return cl.render_id(out)
 
 
 def _ledger(out, **over):
     dims = [d for d, _ in cl.dimensions()]
-    led = {"reviewer": "independent", "verdict": "PASS", "contact_sheet_sha256": _cur(out),
+    led = {"reviewer": "independent", "verdict": "PASS", "render_sha256": _cur(out),
            "rows": [{"id": d, "verdict": "pass", "evidence": "_keyframes/scene_01.png"} for d in dims]}
     led.update(over)
     json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
@@ -84,7 +84,7 @@ def _revise(out, sid=None, pin=None, **row):
     led["rows"][i] = dict({"id": sid, "verdict": "fail", "evidence": "_keyframes/scene_01.png",
                            "fix": "re-pick the beat"}, **row)
     if pin:
-        led["contact_sheet_sha256"] = pin
+        led["render_sha256"] = pin
     json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
     return sid
 
@@ -238,7 +238,7 @@ def test_the_round_is_derived_from_the_history_not_self_reported(tmp_path):
     led["round"] = 2                              # the old self-reported field, claiming the cap is spent
     json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
     _rerender(out)                                # round 2 is briefed: it must be REVIEWED, not skipped
-    led["contact_sheet_sha256"] = r1
+    led["render_sha256"] = r1
     json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
     errs, warns = cl.validate(out, final=True)
     assert any("rounds left" in e for e in errs), errs
@@ -323,3 +323,115 @@ def test_the_brief_tells_the_critic_the_fast_flow_and_the_routes_to_confirm(tmp_
     text = critic_brief.build(out)
     fast = text[text.index("**Review depth"):].split("\n")[0]
     assert "declined" not in fast and "never as a FAIL" in fast and "USER" in fast, fast
+
+
+# ── the render id: the pin covers picture, sound and captions ───────────────────────────────────────────
+
+def _film_files(out, mp4=b"mp4 v1 - picture and the voice", srt="1\n00:00:00,000 --> 00:00:01,000\nhello\n"):
+    """The delivered film the id covers beside the sheet: out.mp4 (picture + sound + burned captions), out.srt."""
+    if mp4 is not None:
+        open(os.path.join(out, "out.mp4"), "wb").write(mp4)
+    if srt is not None:
+        open(os.path.join(out, "out.srt"), "w", encoding="utf-8").write(srt)
+
+
+def test_the_render_id_is_the_sheet_alone_without_a_film_and_moves_with_sound_or_captions(tmp_path):
+    out = _out(tmp_path)
+    sheet = cl.sha256_of(os.path.join(out, cl.CONTACT_SHEET))
+    assert cl.render_id(out) == sheet, "a pictures-only record must keep the value it always had"
+    _film_files(out, srt=None)
+    with_mp4 = cl.render_id(out)
+    assert with_mp4 != sheet
+    _film_files(out, mp4=b"mp4 v2 - one narration line re-voiced", srt=None)
+    assert cl.render_id(out) not in (sheet, with_mp4), "a new voice must move the id"
+    _film_files(out, mp4=None)
+    with_srt = cl.render_id(out)
+    _film_files(out, mp4=None, srt="1\n00:00:00,000 --> 00:00:01,000\nhello, edited\n")
+    assert cl.render_id(out) != with_srt, "a caption edit must move the id"
+    # the delivered film only: a step-8 sample or an HTML --preview is not the film the user is handed
+    before = cl.render_id(out)
+    open(os.path.join(out, "sample.mp4"), "wb").write(b"sample")
+    open(os.path.join(out, "preview.mp4"), "wb").write(b"preview")
+    assert cl.render_id(out) == before
+
+
+def test_a_narration_change_after_a_pass_is_a_new_render_and_the_message_says_rebrief(tmp_path):
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    _film_files(out)
+    _brief(out)
+    _ledger(out)
+    assert not cl.validate(out, final=True)[0], cl.validate(out, final=True)[0]
+    # one narration line re-voiced and re-rendered: the keyframes (and so the sheet) need not change at all
+    _film_files(out, mp4=b"mp4 v2 - the third line re-voiced")
+    errs = cl.validate(out, final=True)[0]
+    assert any("re-rendered (its picture, sound or captions changed) after the last scripts/critic_brief.py" in e
+               and "Re-run python3 scripts/critic_brief.py" in e for e in errs), errs
+    assert not any("never had" in e for e in errs), "the misleading message is back: %r" % errs
+    _brief(out)
+    errs = cl.validate(out, final=True)[0]
+    assert any("PASS reviewed an earlier render" in e for e in errs), errs
+
+
+def test_an_audio_only_fix_moves_the_pin_so_it_counts_as_applied(tmp_path):
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    _film_files(out)
+    _brief(out)
+    reviewed = _cur(out)
+    _revise(out)                                  # the one round: REVISE on the reviewed render
+    _film_files(out, mp4=b"mp4 v2 - the mispronounced term re-voiced")
+    _brief(out)                                   # the fixed render: same picture, new sound
+    assert _cur(out) != reviewed
+    _revise(out, pin=reviewed, applied="re-voiced beat 4 with the lexicon entry")
+    errs, warns = cl.validate(out, final=True)
+    assert not errs and any("round cap is spent" in w for w in warns), (errs, warns)
+
+
+def test_a_none_answer_expires_when_the_captions_change(tmp_path):
+    out = _out(tmp_path)
+    _film_files(out)
+    out = _out(tmp_path, {"tier": "none", "user_answer": "none", "preselected": "fast", "render_sha256": _cur(out)})
+    assert not cl.validate(out, final=True)[0], cl.validate(out, final=True)[0]
+    _film_files(out, mp4=None, srt="1\n00:00:00,000 --> 00:00:01,000\na different caption\n")
+    errs = cl.validate(out, final=True)[0]
+    assert any("DIFFERENT render" in e and "sound or captions" in e for e in errs), errs
+    # a pin of the sheet ALONE (the old rule) is named as such, not as some other render
+    _set_review(out, render_sha256=cl.sha256_of(os.path.join(out, cl.CONTACT_SHEET)))
+    assert any("contact sheet ALONE" in e and "--render-id" in e for e in cl.validate(out, final=True)[0])
+
+
+def test_the_old_field_name_is_read_with_a_warning_and_an_old_rule_pin_is_named(tmp_path):
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    _brief(out)
+    _ledger(out)
+    led = json.load(open(os.path.join(out, cl.LEDGER_NAME)))
+    led[cl.LEGACY_PIN] = led.pop("render_sha256")
+    json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
+    errs, warns = cl.validate(out, final=True)
+    assert not errs and any("renamed `render_sha256`" in w for w in warns), (errs, warns)
+    # the same old ledger on a film that HAS a delivered out.mp4: it pinned the picture only
+    _film_files(out)
+    _brief(out)
+    errs = cl.validate(out, final=True)[0]
+    assert any("contact sheet ALONE" in e for e in errs), errs
+
+
+def test_render_id_on_the_command_line_and_the_template(tmp_path):
+    out = _out(tmp_path)
+    _film_files(out)
+    p = subprocess.run([sys.executable, cl.__file__, out, "--render-id"], capture_output=True, text=True)
+    assert p.returncode == 0 and p.stdout.strip() == cl.render_id(out), (p.stdout, p.stderr)
+    assert "out.mp4" in p.stderr and "out.srt" in p.stderr
+    assert cl.template(out)["render_sha256"] == cl.render_id(out) and cl.LEGACY_PIN not in cl.template(out)
+    os.remove(os.path.join(out, cl.CONTACT_SHEET))
+    p = subprocess.run([sys.executable, cl.__file__, out, "--render-id"], capture_output=True, text=True)
+    assert p.returncode == 2 and not p.stdout.strip() and "critic_brief.py" in p.stderr
+
+
+def test_an_old_format_history_entry_is_upgraded_in_place_not_counted_twice(tmp_path):
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    _film_files(out)
+    sheet = cl.sha256_of(os.path.join(out, cl.CONTACT_SHEET))
+    json.dump([{"sha": sheet, "tier": "fast"}], open(os.path.join(out, cl.HISTORY), "w"))
+    _brief(out)
+    assert cl._history(out) == [(cl.render_id(out), "fast")]
+    assert cl.round_of(out, _cur(out)) == 1

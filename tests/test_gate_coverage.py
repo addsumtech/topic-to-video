@@ -138,7 +138,7 @@ def test_critic_ledger_coverage_is_derived_from_the_critic(tmp_path):
     os.utime(os.path.join(out, critic_ledger.CONTACT_SHEET), (_t, _t))
     dims = [d for d, _ in critic_ledger.dimensions()]
     led = {"reviewer": "independent", "verdict": "PASS",
-           "contact_sheet_sha256": critic_ledger.sha256_of(os.path.join(out, critic_ledger.CONTACT_SHEET)),
+           "render_sha256": critic_ledger.render_id(out),
            "rows": [{"id": d, "verdict": "pass", "evidence": "_keyframes/scene_01.png"} for d in dims]}
     lp = os.path.join(out, critic_ledger.LEDGER_NAME)
     json.dump(led, open(lp, "w", encoding="utf-8"))
@@ -335,7 +335,7 @@ def _waiver_fixture(tmp_path, reason="我看过整片了，就这样发，不用
         Image.new("RGB", (32, 32), (20, 30, 40)).save(sheet)
     w = {"reason": reason}
     if pin == "self":
-        w["render_sha256"] = critic_ledger.sha256_of(sheet)
+        w["render_sha256"] = critic_ledger.render_id(out)
     elif pin is not None:
         w["render_sha256"] = pin
     if extra is not None:

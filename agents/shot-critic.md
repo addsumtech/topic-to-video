@@ -82,7 +82,8 @@ python3 scripts/critic_ledger.py <out_dir>                   # after you fill it
 The old output asked only for the FLAGGED scenes, which made a dimension you never looked at and a dimension
 you checked and found clean produce the same artifact: nothing. The ledger makes an unexamined dimension a
 missing row. It refuses a bare verdict (cite the keyframe or the brief line), and it refuses a ledger whose
-`contact_sheet_sha256` is not this render's — so a verdict cannot be written from a memory of an earlier one.
+`render_sha256` is not this render's id (contact sheet + `out.mp4` + `out.srt`, so a re-voiced or re-captioned
+film is a new render) — so a verdict cannot be written from a memory of an earlier one.
 
 **S1 · Register FIT.** Does the chosen `shot` express THIS beat's idea (match it to the register's LIBRARY
 "use when")? A statement beat on a data-chart register, or a climax on a flat list register, is a REVISE.

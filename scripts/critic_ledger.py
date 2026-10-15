@@ -4,6 +4,7 @@
     python3 scripts/critic_ledger.py <out_dir> --emit-template   # skeleton with every dimension listed
     python3 scripts/critic_ledger.py <out_dir>                   # validate a filled ledger
     python3 scripts/critic_ledger.py <out_dir> --final           # ...as the DELIVERY gate
+    python3 scripts/critic_ledger.py <out_dir> --render-id       # the current render id, alone on stdout
 
 WHY THIS FILE EXISTS. The critic's Output asked it to report "each flagged scene". A dimension it never
 looked at and a dimension it checked and found clean produced the SAME artifact: nothing. The file even said
@@ -18,8 +19,9 @@ TWO THINGS IT REFUSES, both learned the expensive way:
 
 * A BARE verdict. Every pass/fail must cite evidence that exists — a keyframe path under out_dir, or a line
   of the brief. "S4 pass" with nothing behind it is the same unfalsifiable claim in a machine-readable coat.
-* A ledger written WITHOUT the artifact. `contact_sheet_sha256` must match the film's actual contact sheet,
-  so a ledger cannot be authored from memory of an earlier render, or from a description of one.
+* A ledger written WITHOUT the artifact. `render_sha256` must match the film's RENDER ID — the contact sheet,
+  out.mp4 and out.srt hashed together (render_id) — so a ledger cannot be authored from memory of an earlier
+  render, or from a description of one, and a re-voiced or re-captioned film is a different render.
 
 AND, for `--final`, a ledger whose reviewer was the film's own maker. video-shotcraft states the reason
 better than I would: the maker has confirmation bias about their own output, so the first review can never be
@@ -34,8 +36,8 @@ gate says so on every run rather than falling silent. Three properties make it s
 
 * It is the USER's, not the maker's. Nothing in this pipeline may author it on its own behalf; the reason
   string is the user's own words, and an empty one is refused.
-* It EXPIRES WITH THE RENDER. The waiver pins the contact sheet's sha256, so it covers the film the user
-  actually looked at. Re-render — change one beat, one colour, one line of narration — and the sha moves and
+* It EXPIRES WITH THE RENDER. The waiver pins the render id (picture, sound and captions), so it covers the film
+  the user actually watched. Re-render — change one beat, one colour, one line of narration — and the id moves and
   the waiver no longer applies. This is the property that matters: "the user said fine once" must not become
   a standing licence over everything changed afterwards.
 * It waives THIS review only. `check_av`, `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`,
@@ -131,8 +133,51 @@ def sha256_of(path):
     return h.hexdigest()
 
 
-def template(out_dir):
+# THE RENDER ID — what every pin in this gate is pinned to: the ledger's, a `none` answer's, a waiver's, each
+# accepted finding's, and the render history's. It was the contact sheet's sha256 alone, and the sheet is drawn
+# from keyframes, which do not hear the voice: change a narration line or the captions, re-render, and the pin did
+# not move — an old PASS, waiver or acceptance went on "covering" a film nobody had watched, while SKILL.md told
+# the reader that one changed line of narration moves the sha. The id now hashes what the viewer is handed:
+#   _contact_sheet.png   the picture the reviewer read
+#   out.mp4              the film as delivered — picture, sound and the burned-in captions
+#   out.srt              the caption sidecar delivered beside it
+# Both tiers' FULL render writes those two names (render.py, render_remotion.py); the step-8 sample (sample.mp4)
+# and the HTML `--preview` (preview.mp4) are not the delivered film and are deliberately NOT covered. Nor is a board
+# edit nobody has rendered yet — the pin is about what was rendered, not what was planned. With neither out.mp4 nor
+# out.srt on disk the id IS the contact sheet's sha256, so a pictures-only record keeps the value it always had.
+RENDER_FILES = ("out.mp4", "out.srt")
+LEGACY_PIN = "contact_sheet_sha256"          # the ledger field's old name, still READ (with a WARN) — never written
+
+
+def render_id(out_dir):
+    """The current render's id (see RENDER_FILES), or "" when there is no contact sheet to anchor it."""
     sheet = os.path.join(out_dir, CONTACT_SHEET)
+    if not os.path.exists(sheet):
+        return ""
+    base = sha256_of(sheet)
+    parts = [(name, sha256_of(os.path.join(out_dir, name))) for name in RENDER_FILES
+             if os.path.isfile(os.path.join(out_dir, name))]
+    if not parts:
+        return base
+    # the NAMES go into the hash too, so an out.srt alone and an out.mp4 alone with equal bytes are not one render
+    h = hashlib.sha256(("%s:%s" % (CONTACT_SHEET, base)).encode("ascii"))
+    for name, sha in parts:
+        h.update(("\n%s:%s" % (name, sha)).encode("ascii"))
+    return h.hexdigest()
+
+
+def _pin_of(led):
+    """(pin, read_from_the_old_name) — the ledger's `render_sha256`, or its pre-rename `contact_sheet_sha256`."""
+    if not isinstance(led, dict):
+        return "", False
+    pin = str(led.get("render_sha256") or "").strip().lower()
+    if pin:
+        return pin, False
+    old = str(led.get(LEGACY_PIN) or "").strip().lower()
+    return old, bool(old)
+
+
+def template(out_dir):
     try:
         routes = _design_routes(out_dir)
     except Exception as e:                                    # noqa: BLE001 — the gate itself reports it again
@@ -145,7 +190,7 @@ def template(out_dir):
         "reviewer": "",
         "_reviewer_help": "independent = a fresh subagent given only <out_dir>; in-context = the film's own "
                           "maker (allowed for an interim pass, REFUSED by --final)",
-        "contact_sheet_sha256": sha256_of(sheet) if os.path.exists(sheet) else "",
+        "render_sha256": render_id(out_dir),
         "verdict": "REVISE",
         "rows": [
             {"id": sid, "verdict": "", "evidence": "", "note": "", "fix": "", "_dimension": title}
@@ -330,16 +375,25 @@ def history_shas(out_dir):
 
 
 def record_render(out_dir):
-    """Append the current contact sheet's sha to the out_dir's render history (critic_brief.py calls this, once
+    """Append the current render id (render_id) to the out_dir's render history (critic_brief.py calls this, once
     per review round), with the review tier recorded at the time. The ROUND of a ledger is derived from this
     history (round_of), never from a field the ledger writes about itself."""
     sheet = os.path.join(out_dir, CONTACT_SHEET)
     if not os.path.exists(sheet):
         return None
-    sha = sha256_of(sheet)
+    sha = render_id(out_dir)
     rv, rprobs = review(out_dir)
     tier = (rv or {}).get("tier") if rv and not rprobs and (rv or {}).get("tier") in ROUND_CAP else None
     hist = [{"sha": s, "tier": t} for s, t in _history(out_dir)]
+    # A HISTORY WRITTEN BEFORE THE ID COVERED SOUND holds the contact sheet's sha for this same picture. Under the
+    # old rule that WAS this render; appending the id beside it would count one render as two review rounds and
+    # spend a capped tier's round on a change of format. It is upgraded in place, keeping its tier.
+    old = sha256_of(sheet)
+    if old != sha and all(e["sha"] != sha for e in hist):
+        for e in hist:
+            if e["sha"] == old:
+                e["sha"] = sha
+                break
     for e in hist:
         if e["sha"] == sha:
             if e["tier"] is None and tier:
@@ -408,22 +462,28 @@ def waiver(out_dir):
     pinned = str(w.get("render_sha256") or "").strip().lower()
     if not pinned:
         probs.append("meta.%s.render_sha256 is empty — a waiver covers the render the user actually watched, "
-                     "so it must be pinned to one" % key)
+                     "so it must be pinned to one (python3 scripts/critic_ledger.py <out_dir> --render-id)" % key)
     elif not os.path.exists(sheet):
         probs.append("%s is missing, so the pinned render cannot be checked — run scripts/critic_brief.py"
                      % CONTACT_SHEET)
-    elif pinned != sha256_of(sheet):
-        probs.append("meta.%s was given for a DIFFERENT render (pinned %s, this film is %s). The film has "
-                     "been re-rendered since it was waived; a waiver is not a standing licence over "
-                     "everything changed afterwards. Show the user this cut and ask again, or review it."
-                     % (key, pinned[:12], sha256_of(sheet)[:12]))
+    elif pinned != render_id(out_dir):
+        now = render_id(out_dir)
+        if pinned == sha256_of(sheet):
+            probs.append("meta.%s pins the contact sheet ALONE (%s) — the rule before the pin covered sound and "
+                         "captions, so it cannot say which narration and captions the user watched. Record the "
+                         "render id of the cut the user watched (python3 scripts/critic_ledger.py <out_dir> "
+                         "--render-id → %s), asking them again if it is not that cut." % (key, pinned[:12], now[:12]))
+        else:
+            probs.append("meta.%s was given for a DIFFERENT render (pinned %s, this film is %s). The film has "
+                         "been re-rendered since it was waived — its picture, sound or captions changed; a waiver "
+                         "is not a standing licence over everything changed afterwards. Show the user this cut "
+                         "and ask again, or review it." % (key, pinned[:12], now[:12]))
     return w, probs
 
 
 def _ledger_pin(out_dir):
     try:
-        return str(json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8"))
-                   .get("contact_sheet_sha256") or "").strip().lower()
+        return _pin_of(json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8")))[0]
     except Exception:                                         # noqa: BLE001 — validate() reports the why
         return ""
 
@@ -600,9 +660,18 @@ def validate(out_dir, final=False):
     sheet = os.path.join(out_dir, CONTACT_SHEET)
     tier, cap, rnd, spent = capped(out_dir)
     overall = str(led.get("verdict", "")).strip().upper()
-    got = str(led.get("contact_sheet_sha256", "")).strip().lower()
+    got, renamed = _pin_of(led)
+    if renamed:
+        warns.append("the ledger's `%s` field was renamed `render_sha256` (the pin now covers the picture, the "
+                     "sound and the captions) — read as the pin this time; write `render_sha256`" % LEGACY_PIN)
     current = False
     stale = _stale_sheet(out_dir)
+    hist = history_shas(out_dir)
+    want = render_id(out_dir) if os.path.exists(sheet) and not stale else ""
+    # RE-RENDERED AFTER THE LAST BRIEF: the current render was never briefed, so no review round has seen it and
+    # every pin compared with it would be compared with a render the history does not know. It used to surface as
+    # "a render this film never had" — true of the PIN only by accident, and silent about the fix.
+    rerendered = bool(want) and bool(hist) and want not in hist
     if not os.path.exists(sheet):
         errs.append("%s is missing — run scripts/critic_brief.py first; a review with no contact sheet saw "
                     "no film" % CONTACT_SHEET)
@@ -610,16 +679,29 @@ def validate(out_dir, final=False):
         errs.append("%s is older than the keyframes — the film was re-rendered and the sheet was not rebuilt, so "
                     "every pin checked against it describes the OLD render. Re-run scripts/critic_brief.py "
                     "<out_dir> (it rebuilds the sheet and records the render), then this gate." % CONTACT_SHEET)
+    elif rerendered:
+        errs.append("the current render (%s) is not in the render history — the film was re-rendered (its picture, "
+                    "sound or captions changed) after the last scripts/critic_brief.py, so no review round has seen "
+                    "it. Re-run python3 scripts/critic_brief.py <out_dir> (it rebuilds the sheet and records the "
+                    "render), then this gate." % want[:12])
     else:
-        want = sha256_of(sheet)
+        if not hist:
+            warns.append("no render history (%s) — scripts/critic_brief.py records every render it briefs; without "
+                         "it no round can be derived and a re-render cannot be told from this one" % HISTORY)
         current = got == want
         if not got:
-            errs.append("contact_sheet_sha256 is empty — a ledger must be pinned to the render it reviewed")
+            errs.append("render_sha256 is empty — a ledger must be pinned to the render it reviewed "
+                        "(--emit-template fills it; --render-id prints it)")
         elif current:
             pass
-        elif got not in history_shas(out_dir):
-            errs.append("contact_sheet_sha256 %s does not match the film's contact sheet (%s) — this ledger "
-                        "reviews a DIFFERENT render than the one in %s, and not one this film ever had"
+        elif got == sha256_of(sheet):
+            errs.append("this ledger pins the contact sheet ALONE (%s) — the rule before the pin covered sound and "
+                        "captions, so it cannot say which narration and captions were reviewed. Re-run "
+                        "scripts/critic_brief.py and have the review pinned to the render id (%s)"
+                        % (got[:12], want[:12]))
+        elif got not in hist:
+            errs.append("render_sha256 %s does not match the film's render (%s) — this ledger reviews a "
+                        "DIFFERENT render than the one in %s, and not one this film ever had"
                         % (got[:12], want[:12], out_dir))
         elif overall == "PASS":
             # A PASS COVERS THE RENDER IT SAW. Anything changed after it was never judged by anyone.
@@ -627,10 +709,9 @@ def validate(out_dir, final=False):
                         "after it passed, and a PASS covers only the render it saw. Review the current render."
                         % (got[:12], want[:12]))
         elif not spent:
-            errs.append("contact_sheet_sha256 %s does not match the film's contact sheet (%s) — this ledger "
-                        "reviews an earlier render, and the %s tier has rounds left (this was round %s of %s): "
-                        "review the current render" % (got[:12], want[:12], tier, rnd if rnd else "?",
-                                                       cap if cap else "unbounded"))
+            errs.append("render_sha256 %s does not match the film's render (%s) — this ledger reviews an earlier "
+                        "render, and the %s tier has rounds left (this was round %s of %s): review the current "
+                        "render" % (got[:12], want[:12], tier, rnd if rnd else "?", cap if cap else "unbounded"))
         else:
             # A CAPPED TIER'S LAST ROUND reviewed an earlier render and its fixes were applied; the rows must
             # show every finding resolved (checked below), and the film ships marked as not re-reviewed.
@@ -695,9 +776,9 @@ def validate(out_dir, final=False):
     failed = sorted(s for s, r in by_id.items() if str(r.get("verdict", "")).lower() == "fail")
     if overall == "PASS" and failed:
         errs.append("verdict is PASS while %s failed" % ", ".join(failed))
-    history_pin = (bool(got) and not current and not stale and os.path.exists(sheet)
-                   and got in history_shas(out_dir))
-    if overall == "REVISE" and spent and not stale and (final or history_pin):
+    unpinned = stale or rerendered                # no pin can be judged against a render nobody briefed
+    history_pin = (bool(got) and not current and not unpinned and os.path.exists(sheet) and got in hist)
+    if overall == "REVISE" and spent and not unpinned and (final or history_pin):
         errs.extend(_unresolved(out_dir, by_id, failed, got, current, tier))
 
     # ── the routes validate.py credited: did the critic SEE them in the frame? (S14) ─────────────────────
@@ -721,12 +802,28 @@ def validate(out_dir, final=False):
 def main(argv):
     if not argv:
         print(__doc__.strip().splitlines()[0])
-        print("usage: critic_ledger.py <out_dir> [--emit-template] [--final]")
+        print("usage: critic_ledger.py <out_dir> [--emit-template] [--final] [--render-id]")
         return 2
     out_dir = os.path.abspath(argv[0])
     if not os.path.isdir(out_dir):
         print("[critic_ledger] no such out_dir: %s" % out_dir)
         return 2
+    if "--render-id" in argv:
+        # The id ALONE on stdout, so the maker can record it as meta.review.render_sha256 for a `none` answer
+        # without parsing prose; what it covers goes to stderr. A stale or missing sheet prints no id at all: an id
+        # of the OLD picture would pin the user's answer to a cut they did not watch.
+        if not os.path.exists(os.path.join(out_dir, CONTACT_SHEET)):
+            print("[critic_ledger] no %s — run python3 scripts/critic_brief.py %s first" % (CONTACT_SHEET, out_dir),
+                  file=sys.stderr)
+            return 2
+        if _stale_sheet(out_dir):
+            print("[critic_ledger] %s is older than the keyframes — re-run python3 scripts/critic_brief.py %s first"
+                  % (CONTACT_SHEET, out_dir), file=sys.stderr)
+            return 2
+        print(render_id(out_dir))
+        print("[critic_ledger] render id over: %s" % ", ".join(
+            [CONTACT_SHEET] + [f for f in RENDER_FILES if os.path.isfile(os.path.join(out_dir, f))]), file=sys.stderr)
+        return 0
     if "--emit-template" in argv:
         path = os.path.join(out_dir, LEDGER_NAME)
         if os.path.exists(path):
@@ -786,8 +883,9 @@ def main(argv):
         with open(nd, "w", encoding="utf-8") as fh:
             fh.write("# Delivered WITHOUT a critic review\n\n"
                      "The user waived `shot-critic` for this render (%s in "
-                     "storyboard.json).\n\n- **Reason given:** %s\n- **Render this covers:** contact sheet "
-                     "`%s`\n\nNo critic judged register fit, meaning, frame-craft, boldness or direction "
+                     "storyboard.json).\n\n- **Reason given:** %s\n- **Render this covers:** render id "
+                     "`%s` (contact sheet + out.mp4 + out.srt)\n\nNo critic judged register fit, meaning, "
+                     "frame-craft, boldness or direction "
                      "adherence on this film. The deterministic gates DID run and did gate delivery.\n\n"
                      "If this film is re-rendered, the waiver expires with it: the pin above stops matching "
                      "and `critic_ledger.py --final` asks again.\n"
@@ -798,7 +896,7 @@ def main(argv):
         tier, cap, rnd, _sp = capped(out_dir)
         led = json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8"))
         rows = [r for r in led.get("rows") or [] if str(r.get("verdict", "")).lower() == "fail"]
-        pin = str(led.get("contact_sheet_sha256") or "").strip().lower()
+        pin = _pin_of(led)[0]
         acc = accepted(out_dir)
 
         def _how(r):

@@ -968,7 +968,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 
    ```json
    "review": {"tier": "fast", "user_answer": "<the option or words the user gave, or \"no reply\">",
-              "preselected": "fast", "render_sha256": "<sha256 of _contact_sheet.png — required for none>"}
+              "preselected": "fast", "render_sha256": "<the render id — required for none>"}
    ```
 
    `critic_ledger.py --final` reads it, and refuses a film with NO `meta.review` ("ask the review question"). The
@@ -990,8 +990,12 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    route rows (below), and the render pin.
 
    **`none` waives the review — and only the user may choose it.** `meta.review = {"tier": "none",
-   "user_answer": "<what the user said>", "render_sha256": "<sha256 of _contact_sheet.png, which you compute>"}`
-   (the older `meta.review_waiver = {reason, render_sha256}` form is still read the same way).
+   "user_answer": "<what the user said>", "render_sha256": "<the render id, which you compute>"}`
+   (the older `meta.review_waiver = {reason, render_sha256}` form is still read the same way). **The render id** is
+   what every pin in the review is pinned to — the ledger's, a `none` answer's, each accepted finding's and the render
+   history's: `python3 scripts/critic_ledger.py <out_dir> --render-id` prints it, a sha256 over `_contact_sheet.png`
+   (the picture the review read), `out.mp4` (picture, sound and burned captions as delivered) and `out.srt`. The
+   step-8 `sample.mp4` and the HTML `preview.mp4` are not the delivered film and are not in it.
 
    `critic_ledger.py --final` then exits 0 without a ledger, says REVIEW WAIVED on every run, and rewrites
    `NOT_DELIVERED.md` into a record that the film shipped unreviewed and why — a waiver is **not** a PASS,
@@ -1003,7 +1007,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      party to make (`critic_ledger.py`'s own header: the maker has confirmation bias about their own output).
      If the user has not said it, there is no waiver.
    - **It expires with the render.** The pin covers the cut the user actually watched. Change one beat, one
-     colour, one line of narration, re-render — the sha moves, the waiver stops applying, and the gate asks
+     colour, one line of narration, re-render — the render id moves, the waiver stops applying, and the gate asks
      again. That is deliberate: "fine once" must not become a licence over everything changed afterwards.
      When that happens, show the user the NEW cut and ask again; do not re-stamp the pin.
    - **It waives taste, not correctness.** `check_av`, `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`,
@@ -1022,7 +1026,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    `python3 scripts/critic_ledger.py <out_dir>` must exit 0. **Every review round starts with `critic_brief.py`,
    and so does `--final` after you apply fixes:** it rebuilds the contact sheet from the new keyframes and
    records the render, which is what the round count and the render pin are checked against (a sheet older
-   than the keyframes is refused). The delivery pass is a
+   than the keyframes is refused, and so is a film re-rendered — picture, sound or captions — after the last brief:
+   an audio-only fix moves the render id too, so it counts as `applied`). The delivery pass is a
    fresh subagent whose ENTIRE input is the `<out_dir>` path — no rationale, no summary of what you fixed, no
    steer about where to look — then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it
    refuses an in-context ledger, a ledger missing any dimension, a PASS pinned to an earlier render, and one

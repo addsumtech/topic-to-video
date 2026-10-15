@@ -2689,7 +2689,7 @@ def test_the_ledger_requires_every_dimension_and_refuses_a_bare_consent(tmp_path
 
     def write(**over):
         led = {"reviewer": "independent", "verdict": "PASS",
-               "contact_sheet_sha256": mod.sha256_of(os.path.join(out, mod.CONTACT_SHEET)),
+               "render_sha256": mod.render_id(out),
                "rows": [{"id": d, "verdict": "pass", "evidence": "_keyframes/scene_03.png"} for d in dims]}
         led.update(over)
         json.dump(led, open(lp, "w", encoding="utf-8"), indent=2)
@@ -2714,7 +2714,7 @@ def test_the_ledger_requires_every_dimension_and_refuses_a_bare_consent(tmp_path
     assert any("scene_99" in e for e in mod.validate(out)[0])
 
     # pinned to a DIFFERENT render than the one in out_dir
-    write(contact_sheet_sha256="0" * 64)
+    write(render_sha256="0" * 64)
     assert any("does not match" in e for e in mod.validate(out)[0])
 
     # a failing dimension cannot be carried by a PASS, and must arrive with a fix
