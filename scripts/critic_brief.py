@@ -242,14 +242,19 @@ def build(out_dir, ran=None):
                         " · settled frame: `%s`" % still if os.path.exists(os.path.join(out_dir, still)) else ""))
     # THE ROUTES TO CONFIRM (S14): what validate.py credits as adapted or built, from the board. The critic says,
     # per beat, whether that route is VISIBLE in the frame — a ledger `routes` row each (critic_ledger.py).
+    _legacy = False
     try:
         import validate as _v
         _routes = [(n, r, w) for n, r, w in _v.design_routes(meta, slides, out_dir) if r in ("adapted", "built")]
+        _legacy = _v.design_first_legacy(meta, slides, out_dir, "remotion")["accepted"]
     except Exception as e:                                    # noqa: BLE001 — report, never mask
         _routes, _rerr = None, e
     L.append("")
     if _routes is None:
         L.append("**Routes to confirm (S14)** — could not be computed (%s); run scripts/validate.py" % _rerr)
+    elif _legacy:
+        L.append("**Routes to confirm (S14)** — none required: a LEGACY film (made before design-first; the user "
+                 "chose to keep its design — meta.design_first). Judge S14 on the film as it is, and say so.")
     elif _routes:
         L.append("**Routes to confirm (S14)** — validate.py credits these beats; for each, record a ledger "
                  "`routes` row `{beat, route, visible: true|false, evidence}` saying whether the route is VISIBLE "
@@ -415,8 +420,12 @@ def _build_html(out_dir, board, ran):
     L.append("## 4 · Facts computed for you")
     L.append("")
     credited = [(n, r, w, rel) for n, (r, w, rel) in routes.items() if r in ("built", "bespoke")]
+    legacy = _v.design_first_legacy(meta, slides, out_dir, "html")["accepted"] if rerr is None else False
     if rerr is not None:
         L.append("**Routes to confirm (H8)** — could not be computed (%s); run scripts/validate.py" % rerr)
+    elif legacy:
+        L.append("**Routes to confirm (H8)** — none required: a LEGACY film (made before design-first; the user "
+                 "chose to keep its design — meta.design_first). Judge H8 on the pages as they are, and say so.")
     elif credited:
         L.append("**Routes to confirm (H8)** — validate.py credits these pages; for each, record a ledger `routes` "
                  "row `{beat, route, visible: true|false, evidence}` saying whether the route is VISIBLE in the "

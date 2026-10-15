@@ -3795,6 +3795,149 @@ def is_html_film(meta, slides):
     return any(isinstance(s, dict) and s.get("type") == "html" for s in slides or [])
 
 
+# ── A FILM MADE BEFORE DESIGN-FIRST: THE USER DECIDES, NOT THE FLOOR ──────────────────────────────────────────────
+# The design-first floor (_design_share / _html_design_share) is an ERROR, so a film made before it existed fails
+# it on its next validate — and a one-word narration fix to an old film became a half-film redesign, decided by a
+# gate rather than by the person who owns the film. Such a film is recognisable: no beat carries `shot_fit.ideal`
+# (the field the rule introduced) AND its out.mp4 was written before the rule landed on its tier. Then the floor's
+# errors are replaced by ONE that puts the choice to the user — bring it up to design-first, or keep its design for
+# this edit — and a keep is recorded as meta.design_first = {legacy: true, user_answer, out_mp4_mtime}. The date is
+# copied into the record because the next render overwrites out.mp4 and would erase the only evidence. A fresh film
+# cannot get here on the normal path (its out.mp4 is newer than the rule, or absent), the answer must be the user's
+# own words (auto mode cannot choose legacy, as it cannot choose a `none` review), and nothing else is relaxed.
+#
+# WHEN DESIGN-FIRST BECAME AN ERROR, per tier — the commit dates of 5793006 ("Design first: a remotion film is mostly
+# adapted or built; validate errors below half or with nothing built") and cd51ea3 ("Design first on the HTML tier:
+# validate errors below half built-or-bespoke pages, measured from the page source"), read with `git log -1
+# --format=%aI`. A film whose out.mp4 is older than its tier's date could not have been made under the rule.
+DESIGN_FIRST_SINCE = {"remotion": "2026-10-15T12:44:37+02:00", "html": "2026-10-15T13:28:44+02:00"}
+LEGACY_KEY = "design_first"
+
+
+def _iso(ts):
+    import datetime as _dt
+    return _dt.datetime.fromtimestamp(ts).astimezone().isoformat(timespec="seconds")
+
+
+def _ts(text):
+    """An ISO date string as a POSIX time (a naive one read as local time), or None."""
+    import datetime as _dt
+    try:
+        d = _dt.datetime.fromisoformat(str(text).strip())
+    except (TypeError, ValueError):
+        return None
+    return (d if d.tzinfo else d.astimezone()).timestamp()
+
+
+def design_first_legacy(meta, slides, out_dir, tier):
+    """The legacy-film state of a board (see the block above), as a dict: pre_rule, claimed, accepted, and the
+    sentences the errors are built from. `tier` is "remotion" or "html"."""
+    rec = meta.get(LEGACY_KEY) if isinstance(meta.get(LEGACY_KEY), dict) else {}
+    claimed = rec.get("legacy") is True
+    ideals = []
+    plan = _plan_fits(out_dir) if (tier == "html" and out_dir) else {}
+    for pos, s in enumerate(slides, 1):
+        fit = s.get("shot_fit") if isinstance(s.get("shot_fit"), dict) else {}
+        pb = plan.get(str(s.get("index", pos))) or {}
+        if str(fit.get("ideal") or "").strip() or str(pb.get("ideal") or "").strip():
+            ideals.append(s.get("index", pos))
+    since = _ts(DESIGN_FIRST_SINCE[tier])
+    mp4 = os.path.join(out_dir or "", "out.mp4")
+    mtime = os.path.getmtime(mp4) if out_dir and os.path.isfile(mp4) else None
+    recorded = rec.get("out_mp4_mtime")
+    rec_ts = _ts(recorded) if recorded else None
+    now_pre = mtime is not None and mtime < since
+    rec_pre = rec_ts is not None and rec_ts < since
+    pre_rule = not ideals and (now_pre or rec_pre)
+    st = {"tier": tier, "claimed": claimed, "pre_rule": pre_rule, "ideals": ideals,
+          "since": _iso(since), "mtime": _iso(mtime) if mtime is not None else None,
+          "evidence_iso": _iso(mtime) if now_pre else (str(recorded) if rec_pre else None)}
+    import critic_ledger as _cl                         # its record of what is NOT an answer — one copy of it
+    ans = str(rec.get("user_answer") or "").strip()
+    st["answer_ok"] = not _cl._non_answer(ans) and len(ans) >= 2
+    st["accepted"] = pre_rule and claimed and st["answer_ok"] and rec_pre
+    if not claimed:
+        st["refused"] = None
+    elif ideals:
+        st["refused"] = ("beat(s) %s record `shot_fit.ideal`, so this film was made (or has been brought up) under "
+                         "the design-first rule — it is not a legacy film. Remove meta.%s and meet the floor"
+                         % (", ".join(str(x) for x in ideals[:8]), LEGACY_KEY))
+    elif recorded and rec_ts is None:
+        st["refused"] = ("meta.%s.out_mp4_mtime %r is not a date (ISO 8601, as validate.py printed it)"
+                         % (LEGACY_KEY, recorded))
+    elif recorded and not rec_pre:
+        st["refused"] = ("the recorded out_mp4_mtime %s is after design-first became an error on this tier (%s) — it "
+                         "is not evidence the film predates the rule" % (recorded, st["since"]))
+    elif not pre_rule:
+        st["refused"] = (
+            ("nothing shows this film predates the rule: there is no out.mp4, and the record carries no out_mp4_mtime"
+             if mtime is None else
+             "nothing shows this film predates the rule: its out.mp4 was written %s, after design-first became an "
+             "error on this tier (%s), and the record carries no earlier out_mp4_mtime" % (st["mtime"], st["since"]))
+            + ". If the film IS older, its dates were lost — a copy made without `cp -p` resets every modification "
+              "time: restore them from the original (`touch -r <original>/out.mp4 out.mp4`, or copy it again with "
+              "`cp -pR`) and run validate again, which then prints the record to keep. Otherwise bring the film up "
+              "to design-first")
+    else:
+        st["refused"] = None
+    st["record"] = {"legacy": True, "user_answer": "<what the user said>",
+                    "out_mp4_mtime": st["evidence_iso"] or "<out.mp4's date>"}
+    return st
+
+
+def _design_first(meta, slides, errors, warnings, out_dir, tier):
+    """The design-first floor for `tier`, with the legacy-film decision applied (see above)."""
+    found = []
+    if tier == "remotion":
+        _design_share(meta, slides, found, warnings, out_dir)
+    else:
+        _html_design_share(meta, slides, found, warnings, out_dir)
+    if not out_dir or not slides:
+        errors.extend(found)
+        return
+    st = design_first_legacy(meta, slides, out_dir, tier)
+    if st["refused"]:
+        errors.extend(found)
+        errors.append("design-first: meta.%s.legacy is refused — %s." % (LEGACY_KEY, st["refused"]))
+        return
+    if not st["pre_rule"]:
+        errors.extend(found)
+        return
+    when = (("out.mp4 was written %s" % st["evidence_iso"]) if st["mtime"] == st["evidence_iso"] else
+            ("it was first rendered %s (meta.%s.out_mp4_mtime; out.mp4 has been rendered again since)"
+             % (st["evidence_iso"], LEGACY_KEY)))
+    why = ("no beat records `shot_fit.ideal`, and %s, before design-first became an error on this tier (%s)"
+           % (when, st["since"]))
+    if st["accepted"]:
+        warnings.append("design-first: LEGACY film — design-first not applied, by the user's decision (%r; %s). Every "
+                        "other gate still applies; the critic's route rows are not required."
+                        % (str(meta[LEGACY_KEY].get("user_answer"))[:120], why))
+        return
+    if not found:
+        return
+    def _head(e):                                      # each floor error's own first clause, not its how-to
+        h = e.replace("design-first: ", "", 1).split(" — ")[0]
+        return (h.split(" (")[0] if len(h) > 90 else h)[:120]
+    floor = "; ".join(_head(e) for e in found)
+    ask = ("Ask the user (AskUserQuestion): (a) BRING IT UP to design-first — write each beat's ideal picture and meet "
+           "the floor — or (b) KEEP ITS EXISTING DESIGN for this edit. For (b) record their words: meta.%s = %s. The "
+           "date is the evidence the next render would erase. A default, an inference or auto mode is not an answer: "
+           "legacy is the user's choice, like a `none` review."
+           % (LEGACY_KEY, json.dumps(st["record"], ensure_ascii=False)))
+    if st["claimed"] and not st["answer_ok"]:
+        errors.append("design-first: meta.%s.legacy records no user answer (%r) — keeping a legacy film's design is "
+                      "the USER's decision, in their own words. %s"
+                      % (LEGACY_KEY, str(meta[LEGACY_KEY].get("user_answer") or ""), ask))
+    elif st["claimed"]:
+        errors.append("design-first: meta.%s.out_mp4_mtime is missing — record %r beside the user's answer: it is the "
+                      "evidence this film predates the rule, and the next render overwrites out.mp4"
+                      % (LEGACY_KEY, st["evidence_iso"]))
+    else:
+        errors.append("design-first: LEGACY FILM — made before the design-first rule (%s). It fails the floor: %s. "
+                      "Meeting it is a design change to the film, not part of this edit — so it is the user's call. %s"
+                      % (why, floor, ask))
+
+
 def _html_design_share(meta, slides, errors, warnings, out_dir):
     if not slides or not out_dir or not is_html_film(meta, slides):
         return                                         # remotion, the slides / 原样配音 tier, or programmatic-only
@@ -3994,7 +4137,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if (meta.get("renderer") or "") == "remotion":
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
         _check_build(meta, slides, errors, warnings, out_dir, skips=skips)
-        _design_share(meta, slides, errors, warnings, out_dir)
+        _design_first(meta, slides, errors, warnings, out_dir, "remotion")
         _shot_truncation(meta, slides, errors, warnings)
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings, out_dir=out_dir)
@@ -4621,7 +4764,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # WHAT AN HTML FILM BUILT — its components (workshop/html/), their build-list entries, and every custom
     # tag a page uses. A board with no workshop/html/, no component entry and no custom tag returns at once.
     _check_html_build(meta, slides, errors, warnings, out_dir, skips=skips)
-    _html_design_share(meta, slides, errors, warnings, out_dir)
+    if is_html_film(meta, slides):
+        _design_first(meta, slides, errors, warnings, out_dir, "html")
 
     # Form-fit + creativity presence — mechanical hooks for design-critic D1/D2c, read from the
     # persisted design_plan.json (semantic judgment stays with the critic; these just flag the highest-

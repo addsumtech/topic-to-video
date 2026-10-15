@@ -649,6 +649,8 @@ def _design_routes(out_dir):
     if not slides or meta is None or tier is None:
         return []
     _v = _validate_module()
+    if _v.design_first_legacy(meta, slides, out_dir, tier)["accepted"]:
+        return []        # a LEGACY film the user chose to keep as designed: design-first is not applied, by decision
     if tier == "remotion":
         return [(num, r) for num, r, _w in _v.design_routes(meta, slides, out_dir) if r in CREDITED[tier]]
     return [(num, r) for num, r, _w, _rel in _v.html_design_routes(meta, slides, out_dir) if r in CREDITED[tier]]

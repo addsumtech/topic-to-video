@@ -1080,6 +1080,15 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     (register/theme/caption changes that bust many clips), iterate with `render.py --preview`
     (12fps, own cache, `preview.mp4`) and only run the full render once the look is settled.
     Never hand-edit the video.
+    **A film made before design-first** (no beat carries `shot_fit.ideal`, and its `out.mp4` predates the rule)
+    fails the design-first floor on any re-render, so a one-word edit would force a half-film redesign. `validate.py`
+    recognises it and replaces the floor's errors with ONE that asks the USER (`AskUserQuestion`): **bring it up to
+    design-first** (write each beat's ideal and meet the floor) or **keep its existing design for this edit**. A keep
+    is recorded in their words, with the date validate prints: `meta.design_first = {"legacy": true, "user_answer":
+    "<what the user said>", "out_mp4_mtime": "<the date>"}` — then design-first is one WARNING, the critic's route
+    rows are not required, and every other gate still applies. A default, an inference or auto mode is not an answer
+    (like a `none` review); a film with an ideal on any beat, or with no evidence it predates the rule, is refused.
+    Copy an old film with `cp -pR`: a plain copy resets the dates that are the evidence.
 
 ## Guardrails
 - `duration` always comes from rendered audio (tts.py sets it) — never guess timings.
