@@ -75,8 +75,9 @@ the render they watched, never pre-selected and never inferred.
 AND THE ROUTES. Every beat validate.py credits — ADAPTED or BUILT on remotion, BUILT or BESPOKE on HTML — carries a
 route row in the ledger (`routes: [{beat, route, visible, evidence}]`): the critic confirms the route is VISIBLE in
 the rendered frame, and a route it cannot see fails the dimension that declares the route rows (S14 / H8). A
-self-described or source-measured route is a claim; this is where it is checked. (Not on a LEGACY film the user
-chose to keep as designed — meta.design_first, validate.design_first_legacy: design-first is not applied to it.)
+self-described or source-measured route is a claim; this is where it is checked. (Not for the beats the user kept
+as designed on a film made before design-first — meta.design_first.kept, validate.design_first_keep: a beat added or
+changed since is held to the routes like any other.)
 
 AND THE WAIVERS. A machine gate's finding the board waived (each non-empty `meta.*_waiver` but `review_waiver`) does
 not raise the review depth — standard adds critic-av and a round, and neither re-judges the waived finding. Instead
@@ -107,7 +108,6 @@ CASE_LAW_FILES = ((_CRITIC, "S"), (_DESIGN_CRITIC, "H"), (_CASE_LAW, "E"))
 # tier -> (the critic's file, its dimension series, the critic's name as a reader dispatches it)
 SERIES = {"remotion": (_CRITIC, "S", "agents/shot-critic.md"),
           "html": (_DESIGN_CRITIC, "H", "agents/design-critic.md")}
-_REMOTION = ("remotion", "remotion-bespoke")
 
 LEDGER_NAME = "_critic_ledger.json"
 CONTACT_SHEET = "_contact_sheet.png"
@@ -176,15 +176,15 @@ def _validate_module():
 def film_tier(out_dir):
     """"remotion" | "html" | None — whose dimensions this film's ledger is held to.
 
-    HTML is validate.is_html_film's definition (the one the design-first floor uses), so the two gates cannot
-    disagree about which films are HTML films. None — the 原样配音 tier, every beat a supplied slide, or a board of
+    It is validate.film_tier — the one definition the design-first floor, critic_brief.py, contact_sheet.py and
+    render.py also read — so no two of them can disagree about a film's tier. None — the 原样配音 tier, every beat a supplied slide, or a board of
     programmatic scenes only — has no authored page and no keyframe to pin, and this gate does not apply. A missing
     or unreadable board reads as remotion: the S-series is what this gate required before it knew about tiers, and a
     board that cannot be read is no evidence that it is anything else."""
     meta, slides = _board(out_dir)
-    if meta is None or str(meta.get("renderer", "")).lower() in _REMOTION:
+    if meta is None:
         return "remotion"
-    return "html" if _validate_module().is_html_film(meta, slides) else None
+    return _validate_module().film_tier(meta, slides)
 
 
 def film_dimensions(out_dir):
@@ -540,17 +540,40 @@ def history_shas(out_dir):
     return {sha for sha, _t in _history(out_dir)}
 
 
-def record_render(out_dir):
+def _history_raw(out_dir):
+    try:
+        h = json.load(open(os.path.join(out_dir, HISTORY), encoding="utf-8"))
+    except Exception:                                         # noqa: BLE001 — no history = no earlier render
+        return []
+    return h if isinstance(h, list) else []
+
+
+def gate_record(out_dir, sha):
+    """{gate: {exit, blocking}} critic_brief.py recorded for render `sha`, or None when it recorded none (a render
+    briefed before exit codes were kept, or not in the history at all)."""
+    for x in _history_raw(out_dir):
+        if isinstance(x, dict) and str(x.get("sha") or "").lower() == str(sha or "").lower():
+            g = x.get("gates")
+            return g if isinstance(g, dict) else None
+    return None
+
+
+def record_render(out_dir, gates=None):
     """Append the current render id (render_id) to the out_dir's render history (critic_brief.py calls this, once
-    per review round), with the review tier recorded at the time. The ROUND of a ledger is derived from this
-    history (round_of), never from a field the ledger writes about itself."""
+    per review round), with the review tier recorded at the time — and, when given, the EXIT CODE of every machine
+    gate the brief ran on this render (`gates` = {name: {exit, blocking}}), which `--final` reads instead of
+    re-running them. The ROUND of a ledger is derived from this history (round_of), never from a field the ledger
+    writes about itself."""
     sheet = os.path.join(out_dir, CONTACT_SHEET)
     if not os.path.exists(sheet):
         return None
     sha = render_id(out_dir)
     rv, rprobs = review(out_dir)
     tier = (rv or {}).get("tier") if rv and not rprobs and (rv or {}).get("tier") in ROUND_CAP else None
-    hist = [{"sha": s, "tier": t} for s, t in _history(out_dir)]
+    old_gates = {str(x.get("sha")).lower(): x.get("gates") for x in _history_raw(out_dir)
+                 if isinstance(x, dict) and isinstance(x.get("gates"), dict)}
+    hist = [dict({"sha": s, "tier": t}, **({"gates": old_gates[s]} if s in old_gates else {}))
+            for s, t in _history(out_dir)]
     # A HISTORY WRITTEN BEFORE THE ID COVERED SOUND holds the contact sheet's sha for this same picture. Under the
     # old rule that WAS this render; appending the id beside it would count one render as two review rounds and
     # spend a capped tier's round on a change of format. It is upgraded in place, keeping its tier.
@@ -564,9 +587,11 @@ def record_render(out_dir):
         if e["sha"] == sha:
             if e["tier"] is None and tier:
                 e["tier"] = tier          # first briefed before the depth was chosen; this is its review round
+            if gates is not None:
+                e["gates"] = gates        # the latest brief of this render is what its gates say now
             break
     else:
-        hist.append({"sha": sha, "tier": tier})
+        hist.append(dict({"sha": sha, "tier": tier}, **({"gates": gates} if gates is not None else {})))
     json.dump(hist, open(os.path.join(out_dir, HISTORY), "w", encoding="utf-8"), indent=1)
     return sha
 
@@ -688,11 +713,39 @@ def _design_routes(out_dir):
     if not slides or meta is None or tier is None:
         return []
     _v = _validate_module()
-    if _v.design_first_legacy(meta, slides, out_dir, tier)["accepted"]:
-        return []        # a LEGACY film the user chose to keep as designed: design-first is not applied, by decision
+    kept = _v.design_first_keep(meta, slides, tier)[0]   # beats the user kept as designed: no route to confirm
     if tier == "remotion":
-        return [(num, r) for num, r, _w in _v.design_routes(meta, slides, out_dir) if r in CREDITED[tier]]
-    return [(num, r) for num, r, _w, _rel in _v.html_design_routes(meta, slides, out_dir) if r in CREDITED[tier]]
+        return [(num, r) for num, r, _w in _v.design_routes(meta, slides, out_dir)
+                if r in CREDITED[tier] and num not in kept]
+    return [(num, r) for num, r, _w, _rel in _v.html_design_routes(meta, slides, out_dir)
+            if r in CREDITED[tier] and num not in kept]
+
+
+def kept_line(out_dir):
+    """"design-first: kept by the user's decision for beats …", or "" — said wherever delivery is said."""
+    meta, slides = _board(out_dir)
+    tier = film_tier(out_dir)
+    if meta is None or tier is None:
+        return ""
+    kept, probs, _dropped = _validate_module().design_first_keep(meta, slides, tier)
+    if not kept or probs:
+        return ""
+    return ("design-first: kept by the user's decision for beat(s) %s (%r, meta.design_first) — those beats were "
+            "not held to design-first" % (", ".join(str(x) for x in _validate_module()._beat_order(kept)),
+                                          str((meta.get("design_first") or {}).get("user_answer"))[:120]))
+
+
+FRAME_DIRS = ("_keyframes/", "_frames/")
+
+
+def _sees_a_frame(out_dir, ev):
+    """True when the evidence cites at least one IMAGE OF THE FILM that exists: a keyframe, a delivered frame, or the
+    contact sheet. A route or a waiver is a claim about what is on screen; `storyboard.json` alone is not seeing it."""
+    for tok in re.findall(r"[\w./\\-]+\.(?:png|jpg|jpeg)\b", ev):
+        rel = os.path.normpath(os.path.relpath(tok, out_dir) if os.path.isabs(tok) else tok).replace(os.sep, "/")
+        if (rel.startswith(FRAME_DIRS) or rel == CONTACT_SHEET) and os.path.isfile(os.path.join(out_dir, rel)):
+            return True
+    return False
 
 
 def _cites(out_dir, ev):
@@ -774,6 +827,9 @@ def _route_rows(out_dir, led, by_id, warns):
     seen = {}
     for r in rows:
         if isinstance(r, dict):
+            if str(r.get("beat")) in seen:
+                # last-wins would let a second, contradicting row silently replace the one the critic wrote first
+                errs.append("beat #%s has more than one route row — one row per credited beat" % r.get("beat"))
             seen[str(r.get("beat"))] = r
     invisible = []
     for num, route in routes:
@@ -794,6 +850,9 @@ def _route_rows(out_dir, led, by_id, warns):
             errs.append("beat #%s's route row cites no evidence — name the keyframe it was judged on" % num)
         for tok in _cites(out_dir, ev):
             errs.append("beat #%s's route row cites %s, which does not exist" % (num, tok))
+        if ev and not _sees_a_frame(out_dir, ev):
+            errs.append("beat #%s's route row cites no frame of the film — a route is judged on what is on screen: "
+                        "name a `_keyframes/`, `_frames/` image or `_contact_sheet.png` that exists" % num)
         if vis is False:
             invisible.append(str(num))
     if invisible and str((by_id.get(rd) or {}).get("verdict", "")).lower() != "fail":
@@ -824,11 +883,13 @@ def _waiver_rows(out_dir, led, by_id, warns):
                 "{key, holds: true|false, evidence: <keyframe>} saying whether the waiver's stated reason is true of "
                 "the rendered film. --emit-template lists them."
                 % (len(waived), ", ".join("meta." + k for k, _r in waived))]
-    seen = {}
+    seen, errs = {}, []
     for r in rows:
         if isinstance(r, dict):
-            seen[re.sub(r"^meta\.", "", str(r.get("key") or "").strip())] = r
-    errs = []
+            k = re.sub(r"^meta\.", "", str(r.get("key") or "").strip())
+            if k in seen:
+                errs.append("meta.%s has more than one `waivers` row — one row per waived finding" % k)
+            seen[k] = r
     for key, _reason in waived:
         r = seen.get(key)
         if r is None:
@@ -845,6 +906,10 @@ def _waiver_rows(out_dir, led, by_id, warns):
                         % key)
         for tok in _cites(out_dir, ev):
             errs.append("the `waivers` row for meta.%s cites %s, which does not exist" % (key, tok))
+        if ev and not _sees_a_frame(out_dir, ev):
+            errs.append("the `waivers` row for meta.%s cites no frame of the film — whether a waiver's reason is true "
+                        "is judged on the film: name a `_keyframes/`, `_frames/` image or `_contact_sheet.png` that "
+                        "exists" % key)
         if holds is False:
             owner = owners.get(key)
             if owner is None:
@@ -859,6 +924,40 @@ def _waiver_rows(out_dir, led, by_id, warns):
     if extra:
         warns.append("`waivers` rows for %s, which the board does not waive" % ", ".join("meta." + k for k in extra))
     return errs
+
+
+def _gate_problems(out_dir, final):
+    """([errors], [warnings]) from the machine gates critic_brief.py ran on the CURRENT render. `--final` used to
+    remove NOT_DELIVERED.md on a PASS ledger while validate.py and keyframe_qa were failing on the same film — and
+    promote.py and `ls` read the marker's absence as "delivered". The brief already runs those gates, so their exit
+    codes are kept in this render's history entry and read here; this gate never re-runs them. Advisory gates
+    (voice_qa, frame_safe_qa) are recorded non-blocking and never refuse. A render briefed before codes were kept
+    has no record: a WARN, since nothing says the gates passed or failed."""
+    want = render_id(out_dir)
+    if not want or want not in history_shas(out_dir):
+        return [], []                   # the history checks above already say the render was never briefed
+    rec = gate_record(out_dir, want)
+    if not rec:
+        return [], ["no machine-gate exit codes are recorded for this render (it was briefed before critic_brief.py "
+                    "kept them) — re-run python3 scripts/critic_brief.py <out_dir>; until then nothing here says "
+                    "validate / check_av / the tier's gates passed"]
+    failed = sorted("%s (exit %s)" % (name, g.get("exit")) for name, g in rec.items()
+                    if isinstance(g, dict) and g.get("blocking", True) and g.get("exit") != 0)
+    if not failed:
+        return [], []
+    msg = ("the machine gates critic_brief.py ran on this render did not pass: %s — a review cannot deliver a film "
+           "its gates refuse. Fix them (re-render if the film changes), re-run python3 scripts/critic_brief.py "
+           "<out_dir>, then this gate; it never re-runs them itself" % ", ".join(failed))
+    return ([msg], []) if final else ([], [msg])
+
+
+def _gates_sentence(out_dir):
+    rec = gate_record(out_dir, render_id(out_dir))
+    if not rec:
+        return ("No machine-gate exit codes were recorded for this render (critic_brief.py did not run on it), so "
+                "this file cannot say the deterministic gates passed — run them before handing the film over.")
+    names = sorted(n for n, g in rec.items() if isinstance(g, dict) and g.get("blocking", True))
+    return ("The machine gates critic_brief.py ran on this render (%s) all exited 0." % ", ".join(names))
 
 
 NOT_APPLICABLE = ("this film has no authored page — the 原样配音 tier (every beat a supplied slide) or a board of "
@@ -883,9 +982,10 @@ def validate(out_dir, final=False):
     if wv is not None:
         if wprobs:
             return (sorted(set(errs + ["the review waiver is not usable: " + p for p in wprobs])), [])
-        if pre_errs:
-            return (pre_errs, [])
-        return ([], ["REVIEW WAIVED BY THE USER for this render — no critic judged this film. Reason given: "
+        g_errs, g_warns = _gate_problems(out_dir, final)   # a waiver waives taste, never the gates
+        if pre_errs or g_errs:
+            return (pre_errs + g_errs, g_warns)
+        return ([], g_warns + ["REVIEW WAIVED BY THE USER for this render — no critic judged this film. Reason given: "
                      "%r. The deterministic gates still apply and still gate delivery; this waives taste, "
                      "not whether the file plays." % str(wv.get("reason"))[:160]])
     # NO DEPTH RECORDED IS NOT A DEPTH. It used to mean `thorough` in silence, so a run that never asked the
@@ -1032,6 +1132,12 @@ def validate(out_dir, final=False):
     # ── the machine-gate findings the board waived: is each waiver's reason true of the film? ──────────────────
     errs.extend(_waiver_rows(out_dir, led, by_id, warns))
 
+    # ── the machine gates the brief ran on THIS render: a PASS cannot deliver a film they refuse ──────────────
+    if not unpinned:
+        g_errs, g_warns = _gate_problems(out_dir, final)
+        errs.extend(g_errs)
+        warns.extend(g_warns)
+
     # ── who reviewed ────────────────────────────────────────────────────────────────────────────────────
     who = str(led.get("reviewer", "")).strip().lower()
     if who not in ("independent", "in-context"):
@@ -1073,9 +1179,16 @@ def main(argv):
         # without parsing prose; what it covers goes to stderr. A stale or missing sheet prints no id at all: an id
         # of the OLD picture would pin the user's answer to a cut they did not watch.
         if not os.path.exists(os.path.join(out_dir, CONTACT_SHEET)):
-            print("[critic_ledger] no %s — run python3 scripts/critic_brief.py %s first" % (CONTACT_SHEET, out_dir),
-                  file=sys.stderr)
-            return 2
+            # A `none` answer needs a pin, not a review: build the sheet from the keyframes the render left, rather
+            # than send the maker through the whole brief (every gate, minutes) for one hash
+            try:
+                import contact_sheet
+                contact_sheet.build(out_dir)
+                print("[critic_ledger] built %s from the keyframes (it was missing)" % CONTACT_SHEET, file=sys.stderr)
+            except (Exception, SystemExit) as e:              # noqa: BLE001 — no keyframes, no sheet, no id
+                print("[critic_ledger] no %s and none could be built from the keyframes (%s) — render the film, or "
+                      "run python3 scripts/critic_brief.py %s" % (CONTACT_SHEET, e, out_dir), file=sys.stderr)
+                return 2
         if _stale_sheet(out_dir):
             print("[critic_ledger] %s is older than the keyframes — re-run python3 scripts/critic_brief.py %s first"
                   % (CONTACT_SHEET, out_dir), file=sys.stderr)
@@ -1085,6 +1198,11 @@ def main(argv):
             [CONTACT_SHEET] + [f for f in RENDER_FILES if os.path.isfile(os.path.join(out_dir, f))]), file=sys.stderr)
         return 0
     if "--emit-template" in argv:
+        if _stale_sheet(out_dir):
+            # the template's pin would be the OLD picture's: the reviewer would sign a render nobody briefed
+            print("[critic_ledger] %s is older than the keyframes — re-run python3 scripts/critic_brief.py %s first, "
+                  "so the template pins the render the review will read" % (CONTACT_SHEET, out_dir))
+            return 2
         path = os.path.join(out_dir, LEDGER_NAME)
         if os.path.exists(path):
             print("[critic_ledger] %s already exists — not overwriting a filled ledger" % LEDGER_NAME)
@@ -1114,6 +1232,9 @@ def main(argv):
         print("[critic_ledger] NOT JUDGED %s" % n)
     for n in cov["missing"]:
         print("[critic_ledger] NO ROW %s" % n)
+    keep = kept_line(out_dir)
+    if keep:
+        print("[critic_ledger] %s" % keep)
     print("[critic_ledger] %s  judged %d of %d dimension(s) (%d pass / %d fail) · %d n/a · %d no row · "
           "%d error(s), %d warning(s)%s"
           % ("FAIL" if errs else "OK", cov["judged"], cov["declared"], cov["pass"], cov["fail"],
@@ -1146,8 +1267,7 @@ def main(argv):
             fh.write("# Delivered WITHOUT a critic review\n\n"
                      "The user waived `%s` for this render (%s in "
                      "storyboard.json).\n\n- **Reason given:** %s\n- **Render this covers:** render id "
-                     "`%s` (contact sheet + out.mp4 + out.srt)\n\nNo critic judged %s on this film. The "
-                     "deterministic gates DID run and did gate delivery.\n\n"
+                     "`%s` (contact sheet + out.mp4 + out.srt)\n\nNo critic judged %s on this film. %s\n%s\n"
                      "If this film is re-rendered, the waiver expires with it: the pin above stops matching "
                      "and `critic_ledger.py --final` asks again.\n"
                      % (os.path.basename(critic_of(out_dir))[:-3],
@@ -1156,7 +1276,7 @@ def main(argv):
                         "register fit, meaning, frame-craft, boldness or direction adherence"
                         if film_tier(out_dir) == "remotion" else
                         "faithfulness on screen, meaning, form fit, frame-craft, motion, the burned captions or the "
-                        "design routes"))
+                        "design routes", _gates_sentence(out_dir), ("\n" + keep + ".\n") if keep else ""))
         print("[critic_ledger] delivered UNREVIEWED — rewrote NOT_DELIVERED.md to say so")
     elif final and not errs and overall == "REVISE" and capped(out_dir)[3]:
         tier, cap, rnd, _sp = capped(out_dir)
@@ -1174,21 +1294,23 @@ def main(argv):
             fh.write("# Delivered after a `%s` review — not a PASS\n\n"
                      "The user chose the `%s` review depth (%d round%s; round %s was the last). The critic's last "
                      "round said REVISE on render `%s`; each finding was either fixed in a later render (NOT "
-                     "re-reviewed) or accepted as-is by the user, as below.\n\n%s\n\n"
-                     "The deterministic gates DID run and did gate delivery.\n"
+                     "re-reviewed) or accepted as-is by the user, as below.\n\n%s\n\n%s\n%s"
                      % (tier, tier, cap, "" if cap == 1 else "s", rnd if rnd else "?", pin[:16],
-                        "\n".join("- **%s** — %s" % (r.get("id"), _how(r)) for r in rows)))
+                        "\n".join("- **%s** — %s" % (r.get("id"), _how(r)) for r in rows),
+                        _gates_sentence(out_dir), ("\n" + keep + ".\n") if keep else ""))
         print("[critic_ledger] delivered after a %s review (round cap spent) — NOT_DELIVERED.md records it"
               % tier)
     elif final and os.path.exists(nd):
         if not errs and overall == "PASS":
             os.remove(nd)
-            print("[critic_ledger] delivery review PASSED — removed NOT_DELIVERED.md")
+            print("[critic_ledger] delivery review PASSED — removed NOT_DELIVERED.md%s"
+                  % (" (%s)" % keep if keep else ""))
         elif not errs:
             print("[critic_ledger] the ledger is well formed and its verdict is %r — the FILM is not "
                   "delivered. NOT_DELIVERED.md stays until a review passes." % (overall or "missing"))
         else:
-            print("[critic_ledger] NOT_DELIVERED.md stays: fix the ledger, then the film")
+            print("[critic_ledger] NOT_DELIVERED.md stays: fix what the errors above name — the ledger, the film or its "
+                  "machine gates")
     return 1 if errs else 0
 
 

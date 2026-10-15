@@ -36,7 +36,9 @@ def labels(out_dir):
         return {}
     slides = [s for s in board.get("slides") or [] if isinstance(s, dict)]
     meta = board.get("meta") if isinstance(board.get("meta"), dict) else {}
-    if str(meta.get("renderer", "")).lower() in ("remotion", "remotion-bespoke"):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import validate as _v                               # the ONE tier definition (validate.film_tier)
+    if _v.film_tier(meta, slides) != "html":
         # BY POSITION, NOT BY THE `index` FIELD. `render_remotion` names keyframes `scene_%02d % (i + 1)` from
         # the scene's POSITION, while this read `index + 1` — and boards in this repo use both a 0-based and a
         # 1-based `index`. On a 1-based board every label shifted by one: cell 1 showed a register name of
@@ -47,9 +49,7 @@ def labels(out_dir):
         return {pos: str(s.get("shot") or "") for pos, s in enumerate(slides, start=1)}
     # THE HTML TIER NAMES BY THE `index` FIELD: keyframe_qa writes `scene_%02d % s["index"]` — so the label is keyed
     # the same way, or a 0-based board would shift every label by one, the defect above in its other direction.
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     try:
-        import validate as _v
         routes = {num: (route, rel) for num, route, _w, rel in _v.html_design_routes(meta, slides, out_dir)}
     except Exception:                                          # noqa: BLE001 — a label is never worth a crash
         routes = {}

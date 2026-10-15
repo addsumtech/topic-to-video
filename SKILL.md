@@ -965,9 +965,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    --preselect` prints it, and `critic_ledger.py --final` requires `meta.review.preselected` to equal it). **A waived
    machine-gate finding does not raise the tier:** standard adds critic-av and a second round, and neither re-judges
    the waived finding. Instead the critic confirms each waiver in its own ledger row — every non-empty `meta.*_waiver`
-   but `review_waiver` (today `meta.energy_waiver`) gets a `waivers` row `{key, holds: true|false, evidence}` saying
-   whether its stated reason is true of the rendered film, and `holds: false` must come with a FAIL on the dimension
-   that owns the finding (energy: S12 on remotion, H6 on HTML), on every reviewing tier. An advisory warning you argued
+   but `review_waiver` gets a `waivers` row `{key, holds: true|false, evidence: <a keyframe or frame>}` saying whether
+   its stated reason is true of the rendered film (one row per key, judging every axis it names), and `holds: false`
+   must come with a FAIL on the dimension that owns the finding, on every reviewing tier. Today only remotion's
+   `film_energy_qa` consumes a waiver (`meta.energy_waiver`, owned by S12); no HTML gate does, but a waiver recorded on
+   an HTML board is confirmed the same way (H6). An advisory warning you argued
    for in 9a's triage is not a waiver. `thorough` is never pre-selected (the user asks for it), and `none` is NEVER
    pre-selected and never inferred from silence, a "looks fine", or a green gate — only the user's explicit pick. In
    auto mode, or when the user does not reply, the pre-selected `fast` applies and is recorded as such
@@ -975,8 +977,12 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 
    ```json
    "review": {"tier": "fast", "user_answer": "<the option or words the user gave, or \"no reply\">",
-              "preselected": "fast", "render_sha256": "<the render id — required for none>"}
+              "preselected": "fast", "render_sha256": "<the render id — only for none, on a remotion or HTML film>"}
    ```
+
+   On the **原样配音 tier** (every beat a supplied slide) and a programmatic-only board there is no ledger and no
+   contact sheet, so no `render_sha256` applies: record `tier`, `user_answer` and `preselected`; the review at that
+   depth is `critic-av` alone on `out.mp4` (and `none` is still only the user's word).
 
    `critic_ledger.py --final` reads it, and refuses a film with NO `meta.review` ("ask the review question"). The
    ROUND is derived from the render history `critic_brief.py` records, never self-reported. A PASS must be pinned
@@ -998,9 +1004,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 
    **`none` waives the review — and only the user may choose it.** `meta.review = {"tier": "none",
    "user_answer": "<what the user said>", "render_sha256": "<the render id, which you compute>"}`
-   (the older `meta.review_waiver = {reason, render_sha256}` form is still read the same way). **The render id** is
+   (the older `meta.review_waiver = {reason, render_sha256}` form is still read the same way). Pin it with
+   `python3 scripts/critic_ledger.py <out_dir> --render-id` — it builds the contact sheet from the keyframes when
+   there is none, so a `none` answer needs no full brief. **The render id** is
    what every pin in the review is pinned to — the ledger's, a `none` answer's, each accepted finding's and the render
-   history's: `python3 scripts/critic_ledger.py <out_dir> --render-id` prints it, a sha256 over `_contact_sheet.png`
+   history's: `--render-id` prints it, a sha256 over `_contact_sheet.png`
    (the picture the review read), `out.mp4` (picture, sound and burned captions as delivered) and `out.srt`. The
    step-8 `sample.mp4` and the HTML `preview.mp4` are not the delivered film and are not in it.
 
@@ -1083,15 +1091,18 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     (register/theme/caption changes that bust many clips), iterate with `render.py --preview`
     (12fps, own cache, `preview.mp4`) and only run the full render once the look is settled.
     Never hand-edit the video.
-    **A film made before design-first** (no beat carries `shot_fit.ideal`, and its `out.mp4` predates the rule)
-    fails the design-first floor on any re-render, so a one-word edit would force a half-film redesign. `validate.py`
-    recognises it and replaces the floor's errors with ONE that asks the USER (`AskUserQuestion`): **bring it up to
-    design-first** (write each beat's ideal and meet the floor) or **keep its existing design for this edit**. A keep
-    is recorded in their words, with the date validate prints: `meta.design_first = {"legacy": true, "user_answer":
-    "<what the user said>", "out_mp4_mtime": "<the date>"}` — then design-first is one WARNING, the critic's route
-    rows are not required, and every other gate still applies. A default, an inference or auto mode is not an answer
-    (like a `none` review); a film with an ideal on any beat, or with no evidence it predates the rule, is refused.
-    Copy an old film with `cp -pR`: a plain copy resets the dates that are the evidence.
+    **A film made before design-first** (no beat carries `shot_fit.ideal` — a board built on the normal path writes
+    them at step 3.6) fails the design-first floor on any re-render, so a one-word edit would force a half-film
+    redesign. `validate.py` replaces the floor's errors on such a board with ONE that asks the USER
+    (`AskUserQuestion`): **bring it up to design-first** (write each beat's ideal and meet the floor) or **keep its
+    existing design for this edit**. Record a keep with `python3 scripts/validate.py <out_dir> --keep-design "<what the
+    user said>"`: it writes `meta.design_first = {"legacy": true, "user_answer", "kept": [...]}` for every beat on the
+    board at that moment (refused for a non-answer — auto mode cannot keep a design — and for a board where any beat
+    already has an ideal). A kept beat stays exempt while it keeps its shot (HTML: its page); a beat added or changed
+    later follows the normal rules — its ideal, a route, `shares` for as-is — and those beats as a group must be at
+    least half adapted or built, so a single new beat is adapted or built. Writing a new beat's ideal never voids the
+    keep. validate prints one WARN naming the kept beats, the critic's route rows are owed only for the others, and
+    `critic_ledger.py --final` and the brief say what was kept. Dates prove nothing here and are not read.
 
 ## Guardrails
 - `duration` always comes from rendered audio (tts.py sets it) — never guess timings.

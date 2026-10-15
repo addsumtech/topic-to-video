@@ -3267,10 +3267,18 @@ def design_routes(meta, slides, out_dir):
     return out
 
 
-def _design_share(meta, slides, errors, warnings, out_dir):
+
+_KEPT_WHY = ("the user kept the design of beat(s) %s (meta.design_first), so only the beats added or changed since are "
+             "counted — and they must carry the film TOWARD design-first, not further from it: at least half of them "
+             "adapted or built, so a single new beat is adapted or built")
+
+
+def _design_share(meta, slides, errors, warnings, out_dir, kept=frozenset()):
+    """`kept` = beat numbers the user kept as designed (design_first_keep): left out of every rule below, and the
+    floor's share is then the share of the REMAINING beats; the signature-beat rule is the kept design's, not theirs."""
     if not slides:
         return
-    routes = design_routes(meta, slides, out_dir)
+    routes = [r for r in design_routes(meta, slides, out_dir) if r[0] not in kept]
     by_num = {(s.get("index", i)): s for i, s in enumerate(slides, 1)}
     counted = [r for r in routes if r[1] != "exempt"]
     credited = [r for r in counted if r[1] in ("built", "adapted")]
@@ -3283,14 +3291,15 @@ def _design_share(meta, slides, errors, warnings, out_dir):
                   "workshop and hold it in a register's object slot), or BUILD a shot (scripts/workshop.py "
                   "new-shot). Method: agents/shot-director.md Step 0.5")
     if share < DESIGN_SHARE_FLOOR:
-        errors.append("design-first: only %d of %d non-exempt beats are adapted or built (%d%%; the floor is "
-                      "half, and a strong film is mostly adapted or built). Rework at least %d of the as-is "
+        errors.append("design-first: only %d of %d non-exempt %sbeats are adapted or built (%d%%; the floor is "
+                      "half, and a strong film is mostly adapted or built%s). Rework at least %d of the as-is "
                       "beats — %s — by one of the %s."
-                      % (len(credited), len(counted), round(100 * share),
+                      % (len(credited), len(counted), "non-kept " if kept else "", round(100 * share),
+                         ("; " + _KEPT_WHY % ", ".join(str(x) for x in _beat_order(kept))) if kept else "",
                          int(-(-DESIGN_SHARE_FLOOR * len(counted) // 1)) - len(credited),
                          "; ".join("scene #%s (%s)" % (num, why) for num, _r, why in asis[:8])
                          + (" …" if len(asis) > 8 else ""), routes_txt))
-    if not built:
+    if not built and not kept:
         errors.append("design-first: no beat is BUILT — every film has at least one signature beat drawn for "
                       "this topic (a workshop shot, or a register whose slot holds a workshop object). Pick the "
                       "beat whose idea the library draws least well and build it: " + routes_txt)
@@ -3785,163 +3794,188 @@ def html_design_routes(meta, slides, out_dir):
     return out
 
 
+# THE FILM'S TIER — ONE DEFINITION, read by this gate's design-first floor, critic_ledger.py (whose delivery review it
+# decides), critic_brief.py, contact_sheet.py and render.py (whose full render leaves NOT_DELIVERED.md). The renderer
+# values storyboard.py accepts are `local` (or absent), `remotion` and `remotion-legacy`; `remotion-bespoke` is an
+# alias several remotion-only gates still accept for `remotion` (storyboard.py refuses it, so this gate stops at
+# "structure:" before any floor). Matching this gate's behaviour before the tiers were named: a `remotion` board gets
+# the remotion floor; ANY other board with a `type:"html"` page gets the HTML floor — `remotion-legacy` included, which
+# cannot render at all (render_remotion refuses it) but whose pages are still pages. A board with no page (the
+# slides / 原样配音 tier, or programmatic scenes only) has no design-first floor and no review ledger.
+REMOTION_RENDERERS = ("remotion", "remotion-bespoke")
+
+
+def film_tier(meta, slides):
+    """"remotion" | "html" | None — see the block above."""
+    if str((meta or {}).get("renderer") or "").lower() in REMOTION_RENDERERS:
+        return "remotion"
+    if any(isinstance(s, dict) and s.get("type") == "html" for s in slides or []):
+        return "html"
+    return None
+
+
 def is_html_film(meta, slides):
-    """An HTML-tier film: not a remotion film, and at least one `type:"html"` page. The slides / 原样配音 tier (every
-    beat a supplied slide) and a programmatic-only board are not — they have no authored page. ONE definition, read
-    by the design-first floor below, critic_ledger.py (whose delivery review it decides) and render.py (whose full
-    render leaves NOT_DELIVERED.md for exactly these films)."""
-    if str((meta or {}).get("renderer") or "").lower() in ("remotion", "remotion-bespoke", "remotion-legacy"):
-        return False
-    return any(isinstance(s, dict) and s.get("type") == "html" for s in slides or [])
+    """An HTML-tier film (film_tier == "html"): not remotion, and at least one `type:"html"` page."""
+    return film_tier(meta, slides) == "html"
 
 
-# ── A FILM MADE BEFORE DESIGN-FIRST: THE USER DECIDES, NOT THE FLOOR ──────────────────────────────────────────────
-# The design-first floor (_design_share / _html_design_share) is an ERROR, so a film made before it existed fails
-# it on its next validate — and a one-word narration fix to an old film became a half-film redesign, decided by a
-# gate rather than by the person who owns the film. Such a film is recognisable: no beat carries `shot_fit.ideal`
-# (the field the rule introduced) AND its out.mp4 was written before the rule landed on its tier. Then the floor's
-# errors are replaced by ONE that puts the choice to the user — bring it up to design-first, or keep its design for
-# this edit — and a keep is recorded as meta.design_first = {legacy: true, user_answer, out_mp4_mtime}. The date is
-# copied into the record because the next render overwrites out.mp4 and would erase the only evidence. A fresh film
-# cannot get here on the normal path (its out.mp4 is newer than the rule, or absent), the answer must be the user's
-# own words (auto mode cannot choose legacy, as it cannot choose a `none` review), and nothing else is relaxed.
+# ── A FILM MADE BEFORE DESIGN-FIRST: THE USER DECIDES, PER BEAT ───────────────────────────────────────────────────
+# The design-first floor (_design_share / _html_design_share) is an ERROR, so a film made before the rule fails it on
+# its next validate — and a one-word narration fix to an old film became a half-film redesign, decided by a gate
+# rather than by the person who owns the film. Such a board looks like this: NO beat carries `shot_fit.ideal` (HTML:
+# nor an `ideal` in design_plan.json) — the field the rule introduced, which a board built on the normal path writes
+# at step 3.6. On such a board the floor's errors are replaced by ONE that puts the choice to the user.
 #
-# WHEN DESIGN-FIRST BECAME AN ERROR, per tier — the commit dates of 5793006 ("Design first: a remotion film is mostly
-# adapted or built; validate errors below half or with nothing built") and cd51ea3 ("Design first on the HTML tier:
-# validate errors below half built-or-bespoke pages, measured from the page source"), read with `git log -1
-# --format=%aI`. A film whose out.mp4 is older than its tier's date could not have been made under the rule.
-DESIGN_FIRST_SINCE = {"remotion": "2026-10-15T12:44:37+02:00", "html": "2026-10-15T13:28:44+02:00"}
+# A KEEP IS THE USER'S, AND IT IS SCOPED TO BEATS. `validate.py <out_dir> --keep-design "<their words>"` records
+# meta.design_first = {legacy: true, user_answer, kept: [{beat, shot | page + type}]} for every beat on the board at
+# that moment — refused for a non-answer (auto mode cannot keep a design, as it cannot choose a `none` review) and
+# for a board where any beat already has an ideal. Eligibility is checked THEN, never again: a beat added later that
+# writes its ideal must not void the keep and drop the whole film back to the floor, which would punish doing the
+# right thing. A beat still in `kept` (same beat number, same shot / page) is exempt from design-first; any other —
+# new, or its shot or page changed — follows the per-beat rules, and those beats as a group carry the floor's share.
+#
+# AN EARLIER VERSION USED DATES (out.mp4 older than the rule's commit) and was wrong twice over: a date the maker can
+# set proves nothing (a `touch` turned a brand-new film OK), and the date this repo got the rule is not the date a
+# user's install did — a git clone, a plain `cp` or an unzip resets every mtime, and the only exits left were a
+# half-film redesign or the forgery the message itself spelled out. The beat list is what the user decided about.
 LEGACY_KEY = "design_first"
 
 
-def _iso(ts):
-    import datetime as _dt
-    return _dt.datetime.fromtimestamp(ts).astimezone().isoformat(timespec="seconds")
+def _beat_order(beats):
+    """Beat numbers in reading order (2 before 10), whatever mix of int and str a board used."""
+    return sorted(beats, key=lambda x: (0, x, "") if isinstance(x, int) else (1, 0, str(x)))
 
 
-def _ts(text):
-    """An ISO date string as a POSIX time (a naive one read as local time), or None."""
-    import datetime as _dt
-    try:
-        d = _dt.datetime.fromisoformat(str(text).strip())
-    except (TypeError, ValueError):
-        return None
-    return (d if d.tzinfo else d.astimezone()).timestamp()
+def _beat_ident(s, pos, tier):
+    """What a kept beat is pinned to: its number, and the shot (remotion) or the page + scene type (HTML)."""
+    num = s.get("index", pos)
+    if tier == "remotion":
+        return {"beat": num, "shot": s.get("shot")}
+    rel = (s.get("props") or {}).get("html") if isinstance(s.get("props"), dict) else None
+    return {"beat": num, "page": rel if isinstance(rel, str) else None, "type": s.get("type", "slide")}
 
 
-def design_first_legacy(meta, slides, out_dir, tier):
-    """The legacy-film state of a board (see the block above), as a dict: pre_rule, claimed, accepted, and the
-    sentences the errors are built from. `tier` is "remotion" or "html"."""
-    rec = meta.get(LEGACY_KEY) if isinstance(meta.get(LEGACY_KEY), dict) else {}
-    claimed = rec.get("legacy") is True
-    ideals = []
+def beats_with_ideal(slides, out_dir, tier):
+    """Beat numbers that carry an ideal picture — `shot_fit.ideal`, or (HTML) `ideal` on the beat in design_plan.json."""
     plan = _plan_fits(out_dir) if (tier == "html" and out_dir) else {}
+    out = []
     for pos, s in enumerate(slides, 1):
         fit = s.get("shot_fit") if isinstance(s.get("shot_fit"), dict) else {}
         pb = plan.get(str(s.get("index", pos))) or {}
         if str(fit.get("ideal") or "").strip() or str(pb.get("ideal") or "").strip():
-            ideals.append(s.get("index", pos))
-    since = _ts(DESIGN_FIRST_SINCE[tier])
-    mp4 = os.path.join(out_dir or "", "out.mp4")
-    mtime = os.path.getmtime(mp4) if out_dir and os.path.isfile(mp4) else None
-    recorded = rec.get("out_mp4_mtime")
-    rec_ts = _ts(recorded) if recorded else None
-    now_pre = mtime is not None and mtime < since
-    rec_pre = rec_ts is not None and rec_ts < since
-    pre_rule = not ideals and (now_pre or rec_pre)
-    st = {"tier": tier, "claimed": claimed, "pre_rule": pre_rule, "ideals": ideals,
-          "since": _iso(since), "mtime": _iso(mtime) if mtime is not None else None,
-          "evidence_iso": _iso(mtime) if now_pre else (str(recorded) if rec_pre else None)}
+            out.append(s.get("index", pos))
+    return out
+
+
+def design_first_keep(meta, slides, tier):
+    """(kept beat numbers, [problems with the record], dropped kept entries) — the keep the user recorded, matched
+    against the board as it is NOW: an entry counts only while its beat keeps the same shot / page."""
+    rec = meta.get(LEGACY_KEY)
+    if rec is None:
+        return set(), [], []
+    if not isinstance(rec, dict) or rec.get("legacy") is not True:
+        return set(), ["meta.%s must be what `validate.py <out_dir> --keep-design \"<the user's words>\"` records: "
+                       "{legacy: true, user_answer, kept: [...]}" % LEGACY_KEY], []
     import critic_ledger as _cl                         # its record of what is NOT an answer — one copy of it
+    probs = []
     ans = str(rec.get("user_answer") or "").strip()
-    st["answer_ok"] = not _cl._non_answer(ans) and len(ans) >= 2
-    st["accepted"] = pre_rule and claimed and st["answer_ok"] and rec_pre
-    if not claimed:
-        st["refused"] = None
-    elif ideals:
-        st["refused"] = ("beat(s) %s record `shot_fit.ideal`, so this film was made (or has been brought up) under "
-                         "the design-first rule — it is not a legacy film. Remove meta.%s and meet the floor"
-                         % (", ".join(str(x) for x in ideals[:8]), LEGACY_KEY))
-    elif recorded and rec_ts is None:
-        st["refused"] = ("meta.%s.out_mp4_mtime %r is not a date (ISO 8601, as validate.py printed it)"
-                         % (LEGACY_KEY, recorded))
-    elif recorded and not rec_pre:
-        st["refused"] = ("the recorded out_mp4_mtime %s is after design-first became an error on this tier (%s) — it "
-                         "is not evidence the film predates the rule" % (recorded, st["since"]))
-    elif not pre_rule:
-        st["refused"] = (
-            ("nothing shows this film predates the rule: there is no out.mp4, and the record carries no out_mp4_mtime"
-             if mtime is None else
-             "nothing shows this film predates the rule: its out.mp4 was written %s, after design-first became an "
-             "error on this tier (%s), and the record carries no earlier out_mp4_mtime" % (st["mtime"], st["since"]))
-            + ". If the film IS older, its dates were lost — a copy made without `cp -p` resets every modification "
-              "time: restore them from the original (`touch -r <original>/out.mp4 out.mp4`, or copy it again with "
-              "`cp -pR`) and run validate again, which then prints the record to keep. Otherwise bring the film up "
-              "to design-first")
-    else:
-        st["refused"] = None
-    st["record"] = {"legacy": True, "user_answer": "<what the user said>",
-                    "out_mp4_mtime": st["evidence_iso"] or "<out.mp4's date>"}
-    return st
+    if _cl._non_answer(ans) or len(ans) < 2:
+        probs.append("meta.%s.user_answer %r is not an answer — keeping a film's design is the USER's decision, in "
+                     "their own words (a default, an inference or auto mode is not one); re-record it with --keep-design"
+                     % (LEGACY_KEY, ans))
+    kept = rec.get("kept")
+    if not isinstance(kept, list) or not kept or not all(isinstance(k, dict) and "beat" in k for k in kept):
+        probs.append("meta.%s.kept must list the beats the user kept, as --keep-design records them" % LEGACY_KEY)
+        kept = []
+    if probs:
+        return set(), probs, []
+    now = {str(_beat_ident(s, pos, tier)["beat"]): _beat_ident(s, pos, tier) for pos, s in enumerate(slides, 1)}
+    fields = ("shot",) if tier == "remotion" else ("page", "type")
+    hold, dropped = set(), []
+    for k in kept:
+        cur = now.get(str(k.get("beat")))
+        if cur is not None and all(cur.get(f) == k.get(f) for f in fields):
+            hold.add(cur["beat"])
+        else:
+            dropped.append(str(k.get("beat")))
+    return hold, [], dropped
+
+
+def keep_design(out_dir, answer):
+    """--keep-design: record the user's keep for every beat on the board NOW. (ok, message) — nothing is written
+    unless every condition holds."""
+    path = os.path.join(out_dir, "storyboard.json")
+    try:
+        data = json.load(open(path, encoding="utf-8"))
+        meta, slides = data["meta"], data["slides"]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        return False, "cannot read %s (%s)" % (path, e)
+    tier = film_tier(meta, slides)
+    if tier is None:
+        return False, "this board has no design-first floor (no remotion shot, no HTML page) — there is nothing to keep"
+    import critic_ledger as _cl
+    ans = str(answer or "").strip()
+    if _cl._non_answer(ans) or len(ans) < 2:
+        return False, ("%r is not the user's answer — keeping the film's design is their decision, in their own words; "
+                       "a default, an inference or auto mode is not one. Ask them (AskUserQuestion)." % ans)
+    ideal = beats_with_ideal(slides, out_dir, tier)
+    if ideal:
+        return False, ("beat(s) %s already record an ideal picture, so this board was made (or has begun being brought "
+                       "up) under design-first — it is not a film to keep as it was. Meet the floor instead."
+                       % ", ".join(str(x) for x in ideal[:10]))
+    kept = [_beat_ident(s, pos, tier) for pos, s in enumerate(slides, 1)]
+    meta[LEGACY_KEY] = {"legacy": True, "user_answer": ans, "kept": kept}
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2, ensure_ascii=False)
+    return True, ("recorded meta.%s: the user kept the existing design of %d beat(s) (%s). Each stays exempt from "
+                  "design-first while it keeps its %s; a beat added or changed later follows the normal rules."
+                  % (LEGACY_KEY, len(kept), ", ".join(str(k["beat"]) for k in kept[:20]),
+                     "shot" if tier == "remotion" else "page"))
 
 
 def _design_first(meta, slides, errors, warnings, out_dir, tier):
-    """The design-first floor for `tier`, with the legacy-film decision applied (see above)."""
+    """The design-first floor for `tier`, with the user's keep (or the offer of one) applied — see above."""
+    kept, probs, dropped = design_first_keep(meta, slides, tier)
+    if probs:
+        errors.extend("design-first: " + p for p in probs)
     found = []
-    if tier == "remotion":
-        _design_share(meta, slides, found, warnings, out_dir)
-    else:
-        _html_design_share(meta, slides, found, warnings, out_dir)
-    if not out_dir or not slides:
+    share = _design_share if tier == "remotion" else _html_design_share
+    share(meta, slides, found, warnings, out_dir, kept=kept)
+    if kept:
+        rec = meta.get(LEGACY_KEY) or {}
+        warnings.append("design-first: kept by the user's decision (%r) for beat(s) %s — each is exempt while it keeps "
+                        "its %s%s; every other beat follows the normal design-first rules."
+                        % (str(rec.get("user_answer"))[:120], ", ".join(str(x) for x in _beat_order(kept)),
+                           "shot" if tier == "remotion" else "page",
+                           ("; no longer kept (changed or gone): %s" % ", ".join(dropped)) if dropped else ""))
         errors.extend(found)
         return
-    st = design_first_legacy(meta, slides, out_dir, tier)
-    if st["refused"]:
-        errors.extend(found)
-        errors.append("design-first: meta.%s.legacy is refused — %s." % (LEGACY_KEY, st["refused"]))
+    if dropped and not probs:
+        warnings.append("design-first: meta.%s kept beat(s) %s, and none of them is on the board unchanged any more — "
+                        "the whole film is held to design-first" % (LEGACY_KEY, ", ".join(dropped)))
+    if found and LEGACY_KEY not in meta and out_dir and not beats_with_ideal(slides, out_dir, tier):
+        # THE OFFER: a board that looks made before the rule gets one question instead of the floor
+        def _head(e):                                  # each floor error's own first clause, not its how-to
+            h = e.replace("design-first: ", "", 1).split(" — ")[0]
+            return (h.split(" (")[0] if len(h) > 90 else h)[:120]
+        errors.append("design-first: this film looks like it was made BEFORE design-first — no beat records "
+                      "`shot_fit.ideal`%s. It fails the floor: %s. Meeting it is a design change to the film, not part "
+                      "of an edit, so it is the user's call — ask them (AskUserQuestion): (a) BRING IT UP to "
+                      "design-first (write each beat's ideal picture and meet the floor), or (b) KEEP ITS EXISTING "
+                      "DESIGN for this edit — then record their words: python3 scripts/validate.py <out_dir> "
+                      "--keep-design \"<what the user said>\". A default, an inference or auto mode is not an answer. "
+                      "(A new film writes its ideals at step 3.6 — do that instead.)"
+                      % (" (nor design_plan.json an `ideal`)" if tier == "html" else "",
+                         "; ".join(_head(e) for e in found)))
         return
-    if not st["pre_rule"]:
-        errors.extend(found)
-        return
-    when = (("out.mp4 was written %s" % st["evidence_iso"]) if st["mtime"] == st["evidence_iso"] else
-            ("it was first rendered %s (meta.%s.out_mp4_mtime; out.mp4 has been rendered again since)"
-             % (st["evidence_iso"], LEGACY_KEY)))
-    why = ("no beat records `shot_fit.ideal`, and %s, before design-first became an error on this tier (%s)"
-           % (when, st["since"]))
-    if st["accepted"]:
-        warnings.append("design-first: LEGACY film — design-first not applied, by the user's decision (%r; %s). Every "
-                        "other gate still applies; the critic's route rows are not required."
-                        % (str(meta[LEGACY_KEY].get("user_answer"))[:120], why))
-        return
-    if not found:
-        return
-    def _head(e):                                      # each floor error's own first clause, not its how-to
-        h = e.replace("design-first: ", "", 1).split(" — ")[0]
-        return (h.split(" (")[0] if len(h) > 90 else h)[:120]
-    floor = "; ".join(_head(e) for e in found)
-    ask = ("Ask the user (AskUserQuestion): (a) BRING IT UP to design-first — write each beat's ideal picture and meet "
-           "the floor — or (b) KEEP ITS EXISTING DESIGN for this edit. For (b) record their words: meta.%s = %s. The "
-           "date is the evidence the next render would erase. A default, an inference or auto mode is not an answer: "
-           "legacy is the user's choice, like a `none` review."
-           % (LEGACY_KEY, json.dumps(st["record"], ensure_ascii=False)))
-    if st["claimed"] and not st["answer_ok"]:
-        errors.append("design-first: meta.%s.legacy records no user answer (%r) — keeping a legacy film's design is "
-                      "the USER's decision, in their own words. %s"
-                      % (LEGACY_KEY, str(meta[LEGACY_KEY].get("user_answer") or ""), ask))
-    elif st["claimed"]:
-        errors.append("design-first: meta.%s.out_mp4_mtime is missing — record %r beside the user's answer: it is the "
-                      "evidence this film predates the rule, and the next render overwrites out.mp4"
-                      % (LEGACY_KEY, st["evidence_iso"]))
-    else:
-        errors.append("design-first: LEGACY FILM — made before the design-first rule (%s). It fails the floor: %s. "
-                      "Meeting it is a design change to the film, not part of this edit — so it is the user's call. %s"
-                      % (why, floor, ask))
+    errors.extend(found)
 
 
-def _html_design_share(meta, slides, errors, warnings, out_dir):
+def _html_design_share(meta, slides, errors, warnings, out_dir, kept=frozenset()):
+    """`kept`: as in _design_share — beats the user kept as designed leave every rule, and the floor counts the rest."""
     if not slides or not out_dir or not is_html_film(meta, slides):
         return                                         # remotion, the slides / 原样配音 tier, or programmatic-only
-    routes = html_design_routes(meta, slides, out_dir)
+    routes = [r for r in html_design_routes(meta, slides, out_dir) if r[0] not in kept]
     counted = [r for r in routes if r[1] != "exempt"]
     by_num = {(s.get("index", i)): s for i, s in enumerate(slides, 1)}
     credited = [r for r in counted if r[1] in ("built", "bespoke")]
@@ -3957,20 +3991,22 @@ def _html_design_share(meta, slides, errors, warnings, out_dir):
                   "position, a transform; display:flex alone is a stock row — an inline svg that draws the "
                   "beat, or a hand-placed layout — not a stock archetype recoloured). Method: agents/design-director.md "
                   "\"Design first\"" % BESPOKE_CSS_TARGETS)
+    kept_why = ("; " + _KEPT_WHY % ", ".join(str(x) for x in _beat_order(kept))) if kept else ""
     if counted and not credited:
-        errors.append("design-first: no page is BUILT or BESPOKE — all %d non-exempt beats are stock archetypes "
-                      "(%s). Make the beat whose idea the stock archetypes draw least well the film's signature, "
-                      "by %s." % (len(counted), "; ".join(_name(num, rel) for num, _r, _w, rel in asis[:8])
-                                  + (" …" if len(asis) > 8 else ""), routes_txt))
+        errors.append("design-first: no %spage is BUILT or BESPOKE — all %d non-exempt %sbeats are stock archetypes "
+                      "(%s%s). Make the beat whose idea the stock archetypes draw least well the film's signature, "
+                      "by %s." % ("non-kept " if kept else "", len(counted), "non-kept " if kept else "",
+                                  "; ".join(_name(num, rel) for num, _r, _w, rel in asis[:8])
+                                  + (" …" if len(asis) > 8 else ""), kept_why, routes_txt))
     elif share < DESIGN_SHARE_FLOOR:
-        errors.append("design-first: only %d of %d non-exempt pages are built or bespoke (%d%%; the floor is half, "
-                      "and a strong film is mostly built or bespoke). Rework at least %d of the as-is pages — %s — "
+        errors.append("design-first: only %d of %d non-exempt %spages are built or bespoke (%d%%; the floor is half, "
+                      "and a strong film is mostly built or bespoke%s). Rework at least %d of the as-is pages — %s — "
                       "by %s."
-                      % (len(credited), len(counted), round(100 * share),
+                      % (len(credited), len(counted), "non-kept " if kept else "", round(100 * share), kept_why,
                          int(-(-DESIGN_SHARE_FLOOR * len(counted) // 1)) - len(credited),
                          "; ".join("%s: %s" % (_name(num, rel), why) for num, _r, why, rel in asis[:8])
                          + (" …" if len(asis) > 8 else ""), routes_txt))
-    if not any(r[1] == "built" for r in counted):
+    if not any(r[1] == "built" for r in counted) and not kept:
         # THE SIGNATURE BEAT IS BUILT, on this tier as on remotion — a bespoke page is composed from stock parts; a
         # built one draws the thing this topic needs and no stock form has (also on a film whose beats are exempt)
         errors.append("design-first: no page is BUILT — every film has at least one signature beat drawn for this "
@@ -5767,7 +5803,16 @@ def main():
                          "headline otherwise reads as if all ~360 of its checks ran.")
     ap.add_argument("--coverage-detail", action="store_true",
                     help="list every check that was not evaluated, with the guard that stopped it")
+    ap.add_argument("--keep-design", metavar="USER_WORDS",
+                    help="record the USER's decision to keep a pre-design-first film's existing design for this edit "
+                         "(meta.design_first, every beat on the board now), in their own words — only on a board where "
+                         "no beat has an ideal; then validate as usual")
     a = ap.parse_args()
+    if a.keep_design is not None:
+        ok, msg = keep_design(a.out_dir, a.keep_design)
+        print("[validate] --keep-design: %s%s" % ("" if ok else "REFUSED — ", msg))
+        if not ok:
+            sys.exit(2)
     cov = None
     if a.no_coverage:
         r = check(a.out_dir, pre_tts=a.pre_tts, vertical=a.vertical)

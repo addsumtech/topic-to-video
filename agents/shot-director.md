@@ -620,8 +620,9 @@ Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene:
 - A short `shot_rationale` (why this register, which family) is encouraged, for the critic.
 
 On a film that builds, also write **`meta.build_list`** (Step 0.55). `validate.py` ERRORs below the design-first
-floor (half adapted/built, one built — on a film rendered before that rule, with no ideal on any beat, one error
-that asks the user instead: SKILL.md step 10), on an as-is beat that does not earn it, on a missing/unknown `shot`, a
+floor (half adapted/built, one built — on a film made before that rule, with no ideal on any beat, one error that
+asks the user instead, and a keep recorded per beat with `validate.py <out_dir> --keep-design`: SKILL.md step 10), on
+an as-is beat that does not earn it, on a missing/unknown `shot`, a
 number-bearing register left on its demo default, or ANY copy prop left to its demo default on a partly-filled
 beat, and WARNs on empty `shot_props` or a missing `shot_adaptation` (a raw text-swap); `render_remotion.py`
 renders the chosen shots through the data-driven `Film`. Keep a family-variety pass at the end: scan the shot

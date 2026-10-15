@@ -374,17 +374,122 @@ def test_an_html_waiver_row_binds_to_h6_and_a_legacy_film_still_needs_it(tmp_pat
     led["rows"][i] = {"id": "H6", "verdict": "fail", "evidence": "_keyframes/scene_02.png", "fix": "cue the reveals"}
     json.dump(led, open(os.path.join(out, cl.LEDGER_NAME), "w"))
     assert not cl.validate(out)[0], cl.validate(out)[0]
-    # a LEGACY film (design-first kept by the user) needs no route rows — and still confirms its waivers
-    old = v._ts(v.DESIGN_FIRST_SINCE["html"]) - 86400
-    mp4 = os.path.join(out, "out.mp4")
-    open(mp4, "wb").write(b"an old render")
-    os.utime(mp4, (old, old))
+    # a film whose design the user KEPT (made before design-first) needs no route rows for the kept pages — and
+    # still confirms its waivers: the keep waives design-first, nothing else
     b = json.load(open(os.path.join(out, "storyboard.json")))
-    b["meta"]["design_first"] = {"legacy": True, "user_answer": "keep it as it is", "out_mp4_mtime": v._iso(old)}
     for sl in b["slides"]:
         sl.pop("shot_fit", None)
     json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
+    assert v.keep_design(out, "keep it as it is")[0]
     cl.record_render(out)
     _ledger(out)
     errs = cl.validate(out)[0]
     assert not any("`routes`" in e for e in errs) and any("`waivers` is missing" in e for e in errs), errs
+
+
+# ── M7: one tier definition, matching validate's behaviour before the tiers were named ──────────────────────
+
+def test_one_tier_definition_for_every_renderer_value(tmp_path):
+    import validate as v
+    html = [{"index": 1, "type": "html", "props": {"html": "pages/scene_01.html"}}]
+    slide = [{"index": 1, "type": "slide", "image": "s.png"}]
+    cases = [({"renderer": "remotion"}, html, "remotion"), ({"renderer": "remotion-bespoke"}, html, "remotion"),
+             ({"renderer": "local"}, html, "html"), ({}, html, "html"),
+             # remotion-legacy cannot render, but its pages are pages: validate gave it the HTML floor before
+             ({"renderer": "remotion-legacy"}, html, "html"),
+             ({"renderer": "local"}, slide, None), ({"renderer": "remotion-legacy"}, slide, None)]
+    for meta, slides, want in cases:
+        assert v.film_tier(meta, slides) == want, (meta, want)
+        out = tmp_path / ("t%d" % cases.index((meta, slides, want)))
+        out.mkdir()
+        (out / "storyboard.json").write_text(json.dumps({"meta": meta, "slides": slides}))
+        assert cl.film_tier(str(out)) == want, (meta, want)
+    # and the floor runs on a remotion-legacy board with pages, as it did before this branch
+    meta, slides, outd = __import__("test_html_design_first")._film(tmp_path / "leg", [STOCK, STOCK])
+    meta["renderer"] = "remotion-legacy"
+    errs = []
+    v._design_first(meta, slides, errs, [], outd, v.film_tier(meta, slides))
+    assert any(e.startswith("design-first") for e in errs), errs
+
+
+# ── M1 / M6: nothing from an earlier film is presented as this one ─────────────────────────────────────────
+
+def test_no_out_mp4_means_no_delivered_frames_from_an_earlier_film(tmp_path, monkeypatch):
+    import critic_brief
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    os.makedirs(os.path.join(out, "_frames"))
+    for i in (1, 2, 3, 4, 5, 6):
+        Image.new("RGB", (16, 9), (9, 9, 9)).save(os.path.join(out, "_frames", "scene_%02d.png" % i))
+    monkeypatch.setattr(critic_brief, "_run", lambda s, *a, **k: critic_brief.GateOutput("(stub %s)" % s, 0))
+    assert critic_brief.main([out]) == 0
+    assert [f for f in os.listdir(os.path.join(out, "_frames")) if f.endswith(".png")] == []
+    assert "No `_frames/` frames" in open(os.path.join(out, "_critic_brief.md"), encoding="utf-8").read()
+
+
+def test_no_sheet_means_no_render_recorded_and_no_old_sheet_left(tmp_path, monkeypatch, capsys):
+    import critic_brief
+    import shutil
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    shutil.rmtree(os.path.join(out, "_keyframes"))          # nothing to build a sheet from; an OLD sheet is left
+    assert os.path.exists(os.path.join(out, cl.CONTACT_SHEET))
+    monkeypatch.setattr(critic_brief, "_run", lambda s, *a, **k: critic_brief.GateOutput("(stub %s)" % s, 0))
+    assert critic_brief.main([out]) == 0
+    said = capsys.readouterr().out
+    assert "render NOT recorded: the contact sheet was not built" in said, said
+    assert not os.path.exists(os.path.join(out, cl.HISTORY))
+    assert not os.path.exists(os.path.join(out, cl.CONTACT_SHEET)), "an old sheet would pin this film to a dead one"
+
+
+# ── determinism: an unchanged film briefed twice is the same render, and keyframe_qa runs only on change ───
+
+def test_briefing_an_unchanged_film_twice_changes_nothing_and_reshoots_only_on_change(tmp_path, monkeypatch):
+    import critic_brief
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    calls = []
+
+    def fake(script, out_dir, *a, **k):
+        calls.append(script)
+        if script == "keyframe_qa.py":
+            for i in (1, 2):
+                _strip(os.path.join(out_dir, "_keyframes", "scene_%02d.png" % i), colour=(200, 40, 40))
+        return critic_brief.GateOutput("(stub %s)" % script, 0)
+    monkeypatch.setattr(critic_brief, "_run", fake)
+    assert critic_brief.main([out]) == 0
+    rid, hist = cl.render_id(out), open(os.path.join(out, cl.HISTORY)).read()
+    assert calls.count("keyframe_qa.py") == 1
+    gates = cl.gate_record(out, rid)
+    assert gates["keyframe_qa.py"] == {"exit": 0, "blocking": True}
+    assert gates["voice_qa.py"]["blocking"] is False and "validate.py" in gates
+    # the review answer is written to the board between briefs: not a keyframe input
+    b = json.load(open(os.path.join(out, "storyboard.json")))
+    b["meta"]["review"]["user_answer"] = "fast, please"
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
+    calls.clear()
+    assert critic_brief.main([out]) == 0
+    assert "keyframe_qa.py" not in calls, "keyframe_qa re-shot a film none of whose inputs changed"
+    assert cl.render_id(out) == rid and open(os.path.join(out, cl.HISTORY)).read() == hist
+    assert "(not re-run" in open(os.path.join(out, "_critic_brief.md"), encoding="utf-8").read()
+    # a page changes: the pages are re-shot
+    with open(os.path.join(out, "pages", "scene_02.html"), "a") as fh:
+        fh.write("<!-- edited -->")
+    calls.clear()
+    assert critic_brief.main([out]) == 0
+    assert calls.count("keyframe_qa.py") == 1
+
+
+def test_the_brief_and_final_say_what_the_user_kept(tmp_path, monkeypatch):
+    import critic_brief
+    import validate as v
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    assert v.keep_design(out, "keep it as it is, just fix the line")[0]
+    monkeypatch.setattr(critic_brief, "_run", lambda s, *a, **k: critic_brief.GateOutput("(stub %s)" % s, 0))
+    assert critic_brief.main([out]) == 0
+    text = open(os.path.join(out, "_critic_brief.md"), encoding="utf-8").read()
+    assert "kept by the user's decision for beat(s) 1, 2" in text
+    _ledger(out)
+    open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# not yet\n")
+    p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
+    assert p.returncode == 0 and "design-first: kept by the user's decision for beat(s) 1, 2" in p.stdout, p.stdout

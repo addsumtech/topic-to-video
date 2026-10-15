@@ -424,7 +424,14 @@ def test_render_id_on_the_command_line_and_the_template(tmp_path):
     assert p.returncode == 0 and p.stdout.strip() == cl.render_id(out), (p.stdout, p.stderr)
     assert "out.mp4" in p.stderr and "out.srt" in p.stderr
     assert cl.template(out)["render_sha256"] == cl.render_id(out) and cl.LEGACY_PIN not in cl.template(out)
+    # no sheet: a `none` pin needs no full brief — the sheet is built from the keyframes the render left
     os.remove(os.path.join(out, cl.CONTACT_SHEET))
+    p = subprocess.run([sys.executable, cl.__file__, out, "--render-id"], capture_output=True, text=True)
+    assert p.returncode == 0 and os.path.exists(os.path.join(out, cl.CONTACT_SHEET)), (p.stdout, p.stderr)
+    assert p.stdout.strip() == cl.render_id(out) and "built _contact_sheet.png from the keyframes" in p.stderr
+    # no keyframes either: nothing to build from, no id
+    os.remove(os.path.join(out, cl.CONTACT_SHEET))
+    os.remove(os.path.join(out, "_keyframes", "scene_01.png"))
     p = subprocess.run([sys.executable, cl.__file__, out, "--render-id"], capture_output=True, text=True)
     assert p.returncode == 2 and not p.stdout.strip() and "critic_brief.py" in p.stderr
 
@@ -562,3 +569,93 @@ def test_the_brief_lists_the_waivers_to_confirm(tmp_path, monkeypatch):
     text = critic_brief.build(_out(tmp_path, meta_extra=ENERGY))
     assert "**Waivers to confirm**" in text and "`meta.energy_waiver` (owner: S12)" in text and "diagram film" in text
     assert "Waivers to confirm** — none" in critic_brief.build(_out(tmp_path / "plain"))
+
+
+# ── a stale sheet is refused by every command that would pin it ────────────────────────────────────────────
+
+def test_emit_template_refuses_a_stale_sheet_like_render_id(tmp_path):
+    out = _out(tmp_path)
+    kf = os.path.join(out, "_keyframes", "scene_01.png")
+    later = time.time() + 30
+    os.utime(kf, (later, later))
+    for flag in ("--emit-template", "--render-id"):
+        p = subprocess.run([sys.executable, cl.__file__, out, flag], capture_output=True, text=True)
+        assert p.returncode == 2 and "older than the keyframes" in (p.stdout + p.stderr), (flag, p.stdout, p.stderr)
+    assert not os.path.exists(os.path.join(out, cl.LEDGER_NAME))
+
+
+# ── duplicate rows are errors, and route / waiver evidence must be a frame of the film ─────────────────────
+
+def test_duplicate_route_and_waiver_rows_and_evidence_without_a_frame_are_errors(tmp_path):
+    from test_design_first import _film
+    meta, slides = _film(tmp_path, "ba")
+    meta["design_dna"] = {"id": "x"}
+    meta.update(ENERGY)
+    out = _out(tmp_path, {"tier": "thorough", "user_answer": "thorough", "preselected": "fast"}, slides=slides,
+               meta_extra=meta)
+    _brief(out)
+    good = [{"beat": 1, "route": "built", "visible": True, "evidence": "_keyframes/scene_01.png"},
+            {"beat": 2, "route": "adapted", "visible": True, "evidence": "_keyframes/scene_01.png"}]
+    wv = [{"key": "energy_waiver", "holds": True, "evidence": "_contact_sheet.png"}]
+    _ledger(out, routes=good, waivers=wv)
+    assert not cl.validate(out)[0], cl.validate(out)[0]
+    _ledger(out, routes=good + [dict(good[1], visible=False)], waivers=wv)
+    assert any("beat #2 has more than one route row" in e for e in cl.validate(out)[0])
+    _ledger(out, routes=good, waivers=wv + [dict(wv[0], holds=False)])
+    assert any("meta.energy_waiver has more than one `waivers` row" in e for e in cl.validate(out)[0])
+    _ledger(out, routes=[good[0], dict(good[1], evidence="storyboard.json")],
+            waivers=[dict(wv[0], evidence="storyboard.json")])
+    errs = cl.validate(out)[0]
+    assert any("beat #2's route row cites no frame of the film" in e for e in errs), errs
+    assert any("meta.energy_waiver cites no frame of the film" in e for e in errs), errs
+
+
+# ── the machine gates recorded for THIS render: a PASS cannot deliver a film they refuse ────────────────────
+
+def _gates(**over):
+    g = {"validate.py": {"exit": 0, "blocking": True}, "check_av.py": {"exit": 0, "blocking": True},
+         "voice_qa.py": {"exit": 0, "blocking": False}}
+    for k, code in over.items():
+        name = k.replace("__", ".")
+        g[name] = dict(g.get(name, {"blocking": True}), exit=code)
+    return g
+
+
+def test_final_refuses_a_pass_over_failing_gates_recorded_for_this_render(tmp_path):
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    cl.record_render(out, gates=_gates(validate__py=1))
+    _ledger(out)
+    errs = cl.validate(out, final=True)[0]
+    assert any("did not pass: validate.py (exit 1)" in e and "never re-runs them" in e for e in errs), errs
+    assert not cl.validate(out)[0], "an interim run only warns"
+    open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# not yet\n")
+    p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
+    assert p.returncode == 1 and os.path.exists(os.path.join(out, "NOT_DELIVERED.md")), p.stdout
+    # an advisory gate never refuses; the blocking ones passing lets the PASS deliver
+    cl.record_render(out, gates=_gates(voice_qa__py=3))
+    p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
+    assert p.returncode == 0 and not os.path.exists(os.path.join(out, "NOT_DELIVERED.md")), p.stdout
+    # a timeout is not a pass
+    cl.record_render(out, gates=_gates(check_av__py="timeout"))
+    assert any("check_av.py (exit timeout)" in e for e in cl.validate(out, final=True)[0])
+
+
+def test_a_render_briefed_before_gates_were_recorded_is_a_warning_not_an_error(tmp_path):
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    json.dump([{"sha": _cur(out), "tier": "fast"}], open(os.path.join(out, cl.HISTORY), "w"))
+    _ledger(out)
+    errs, warns = cl.validate(out, final=True)
+    assert not errs and any("no machine-gate exit codes are recorded" in w for w in warns), (errs, warns)
+
+
+def test_a_waived_review_still_refuses_failing_gates_and_says_which_ran(tmp_path):
+    out = _out(tmp_path)
+    out = _out(tmp_path, {"tier": "none", "user_answer": "none — I watched it", "preselected": "fast",
+                          "render_sha256": _cur(out)})
+    cl.record_render(out, gates=_gates(check_av__py=1))
+    assert any("did not pass: check_av.py (exit 1)" in e for e in cl.validate(out, final=True)[0])
+    cl.record_render(out, gates=_gates())
+    open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# not yet\n")
+    p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
+    nd = open(os.path.join(out, "NOT_DELIVERED.md")).read()
+    assert p.returncode == 0 and "check_av.py, validate.py) all exited 0" in nd, (p.stdout, nd)

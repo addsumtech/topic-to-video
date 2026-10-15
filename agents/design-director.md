@@ -240,9 +240,10 @@ Aim for MOST pages built or bespoke; at least half is the floor, and the deck's 
 **Enforced.** `validate.py` measures each page's route from its source and errors when fewer than half of an HTML
 film's non-exempt pages are built or bespoke, when NO page is BUILT (the signature beat — also on a film whose
 other beats are all exempt), or when an as-is page lacks `shot_fit.ideal` + `shot_fit.shares` (or `ideal` +
-`shares` on its beat in `design_plan.json`). A film made BEFORE this rule (no ideal on any beat, out.mp4 older than
-it) gets one error instead, which puts the choice to the user — bring it up to design-first or keep its design for
-this edit (SKILL.md step 10, "A film made before design-first").
+`shares` on its beat in `design_plan.json`). A film made BEFORE this rule (no ideal on any beat) gets one error
+instead, which puts the choice to the user — bring it up to design-first, or keep its design for this edit, recorded
+per beat with `validate.py <out_dir> --keep-design "<their words>"`; pages added or changed later follow the rules
+above (SKILL.md step 10, "A film made before design-first").
 - **BUILT** — the page uses a workshop component tag.
 - **BESPOKE** — the page's own `<style>` lays out at least two page-own classes with REAL layout (grid placement, a
   multi-track grid, absolute/fixed position, a transform, a clip path), or an inline svg draws the beat (6+ shapes

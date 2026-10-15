@@ -36,17 +36,41 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REM = os.path.join(_HERE, "..", "remotion")
 
 
+class GateOutput(str):
+    """A gate's printed output that also carries its EXIT CODE (`.code`: an int, or "timeout" / "not run"). The brief
+    prints the text; main() records the codes in this render's history entry, which `critic_ledger.py --final` reads
+    so a review PASS cannot remove NOT_DELIVERED.md from a film its gates refuse. A plain str (a test stub) carries no
+    code, and nothing is recorded for it."""
+    def __new__(cls, text, code):
+        o = str.__new__(cls, text)
+        o.code = code
+        return o
+
+
+def _gate_name(script, args):
+    return " ".join((script,) + tuple(args))
+
+
 def _run(script, out_dir, *args, timeout=240):
-    """Run one gate and return its output. A gate that hangs must not take the brief with it — the brief
-    is what a reviewer waits on, and six unbounded subprocesses is six ways to wait forever."""
+    """Run one gate and return its output (a GateOutput carrying its exit code). A gate that hangs must not take
+    the brief with it — the brief is what a reviewer waits on, and six unbounded subprocesses is six ways to wait
+    forever."""
     try:
         r = subprocess.run([sys.executable, os.path.join(_HERE, script), out_dir, *args],
                            capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        return "[%s] TIMED OUT after %ds — run it yourself before trusting this brief" % (script, timeout)
+        return GateOutput("[%s] TIMED OUT after %ds — run it yourself before trusting this brief" % (script, timeout),
+                          "timeout")
     except OSError as e:
-        return "[%s] could not run: %s" % (script, e)
-    return (r.stdout or "").strip() or (r.stderr or "").strip()[:400]
+        return GateOutput("[%s] could not run: %s" % (script, e), "not run")
+    return GateOutput((r.stdout or "").strip() or (r.stderr or "").strip()[:400], r.returncode)
+
+
+def _note(codes, script, args, out):
+    """Record one gate's exit code into `codes` (when the output carries one)."""
+    code = getattr(out, "code", None)
+    if codes is not None and code is not None:
+        codes[_gate_name(script, args)] = {"exit": code, "blocking": script not in ADVISORY_GATES}
 
 
 def _library_entries(shots):
@@ -96,15 +120,15 @@ def _waiver_lines(out_dir):
     return L
 
 
-def build(out_dir, ran=None):
+def build(out_dir, ran=None, codes=None):
     """The brief's text. `ran` = {script: output} for gates main() already ran (the HTML tier runs keyframe_qa
-    before the sheet is built, and must not run it twice)."""
+    before the sheet is built, and must not run it twice); `codes`, when given, collects every gate's exit code."""
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     sys.path.insert(0, _HERE)
     import critic_ledger as _cl
     tier = _cl.film_tier(out_dir)
     if tier == "html":
-        return _build_html(out_dir, board, ran or {})
+        return _build_html(out_dir, board, ran or {}, codes)
     if tier is None:
         return _build_no_pages(out_dir, board)
     slides = board.get("slides", [])
@@ -173,7 +197,9 @@ def build(out_dir, ran=None):
                                 ("voice", "voice_qa.py", ())]:
         L.append("**%s**" % label)
         L.append("```")
-        L.append(_run(script, out_dir, *args))
+        out = _run(script, out_dir, *args)
+        _note(codes, script, args, out)
+        L.append(out)
         L.append("```")
     L.append("")
     L.append("Those cover: action-safe overflow · ink in the caption band · colour outside the film's "
@@ -260,19 +286,20 @@ def build(out_dir, ran=None):
                         " · settled frame: `%s`" % still if os.path.exists(os.path.join(out_dir, still)) else ""))
     # THE ROUTES TO CONFIRM (S14): what validate.py credits as adapted or built, from the board. The critic says,
     # per beat, whether that route is VISIBLE in the frame — a ledger `routes` row each (critic_ledger.py).
-    _legacy = False
     try:
         import validate as _v
-        _routes = [(n, r, w) for n, r, w in _v.design_routes(meta, slides, out_dir) if r in ("adapted", "built")]
-        _legacy = _v.design_first_legacy(meta, slides, out_dir, "remotion")["accepted"]
+        _kept = _v.design_first_keep(meta, slides, "remotion")[0]
+        _routes = [(n, r, w) for n, r, w in _v.design_routes(meta, slides, out_dir)
+                   if r in ("adapted", "built") and n not in _kept]
     except Exception as e:                                    # noqa: BLE001 — report, never mask
         _routes, _rerr = None, e
     L.append("")
+    _keep = _cl.kept_line(out_dir)
+    if _keep:
+        L.append("**%s.** Judge those beats as they are, and say so; every other beat is held to design-first." % _keep)
+        L.append("")
     if _routes is None:
         L.append("**Routes to confirm (S14)** — could not be computed (%s); run scripts/validate.py" % _rerr)
-    elif _legacy:
-        L.append("**Routes to confirm (S14)** — none required: a LEGACY film (made before design-first; the user "
-                 "chose to keep its design — meta.design_first). Judge S14 on the film as it is, and say so.")
     elif _routes:
         L.append("**Routes to confirm (S14)** — validate.py credits these beats; for each, record a ledger "
                  "`routes` row `{beat, route, visible: true|false, evidence}` saying whether the route is VISIBLE "
@@ -306,6 +333,11 @@ def build(out_dir, ran=None):
     return "\n".join(L) + "\n"
 
 
+# gates whose findings are signals, never a refusal: voice_qa always exits 0 by design; frame_safe_qa's border-ink
+# measure is known to be inverted (see the remotion gate list in build()). Recorded, but `blocking: false`.
+ADVISORY_GATES = {"voice_qa.py", "frame_safe_qa.py"}
+
+
 # THE HTML TIER'S MACHINE GATES (SKILL.md 9d): what has already been decided before an HTML critic looks.
 # keyframe_qa is first because main() runs it BEFORE the sheet is built — the filmstrips the sheet is made from
 # must be the pages as they are now, not as they were when someone last ran it.
@@ -318,6 +350,84 @@ HTML_GATES = [("keyframes, blank/overflow/caption zone, glide + sync audit", "ke
 FRAMES = "_frames"
 
 
+def _clear_frames(out_dir):
+    fdir = os.path.join(out_dir, FRAMES)
+    for f in (os.listdir(fdir) if os.path.isdir(fdir) else []):
+        if re.match(r"scene_\d+\.png$", f):
+            os.remove(os.path.join(fdir, f))
+
+
+# ── keyframe_qa only when its input changed ──────────────────────────────────────────────────────────────────────
+# Re-shooting every page on every brief costs minutes on a long film, and it exposes the review to a page that does
+# not render byte-identically twice: a sheet that differs on an UNCHANGED film gives it a new render id, and a new
+# render id is a new review round. So the brief re-runs keyframe_qa only when what it shoots changed — compared by
+# CONTENT, not by date (dates are what a copy, a clone or an unzip resets): the pages, the film's theme and motif
+# sheets, its workshop components, the skill's own page stylesheets and scripts, the cue timings the sweep follows,
+# keyframe_qa itself, and the storyboard minus the keys the review and the user's decisions write (meta.review,
+# meta.*_waiver, meta.design_first, meta.script_review). Missing strips, or no record of the last run, re-run it.
+KFQA_RECORD = os.path.join("_keyframes", ".keyframe_qa_last.json")
+_REVIEW_KEYS = ("review", "design_first", "script_review")
+
+
+def _sha_file(path):
+    import hashlib
+    try:
+        return hashlib.sha256(open(path, "rb").read()).hexdigest()
+    except OSError:
+        return None
+
+
+def keyframe_inputs(out_dir):
+    """sha256 over everything keyframe_qa's strips are drawn from (see above)."""
+    import glob
+    import hashlib
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    meta = dict(board.get("meta") or {})
+    for k in list(meta):
+        if k in _REVIEW_KEYS or (isinstance(k, str) and k.endswith("_waiver")):
+            meta.pop(k)
+    h = hashlib.sha256(json.dumps(dict(board, meta=meta), sort_keys=True, ensure_ascii=False).encode("utf-8"))
+    files = set()
+    for s in board.get("slides") or []:
+        rel = (s.get("props") or {}).get("html") if isinstance(s, dict) and isinstance(s.get("props"), dict) else None
+        if isinstance(rel, str) and rel:
+            files.add(os.path.join(out_dir, rel))
+    for pat in ("theme.css", "motifs.css", "workshop/html/*", "audio/*.words.json"):
+        files.update(glob.glob(os.path.join(out_dir, pat)))
+    files.update(glob.glob(os.path.join(_HERE, "..", "assets", "html", "*.css")))
+    files.update(glob.glob(os.path.join(_HERE, "..", "assets", "html", "*.js")))
+    files.add(os.path.join(_HERE, "keyframe_qa.py"))
+    for f in sorted(os.path.abspath(x) for x in files):
+        h.update(("\n%s:%s" % (os.path.relpath(f, out_dir) if f.startswith(os.path.abspath(out_dir))
+                                else os.path.basename(f), _sha_file(f))).encode("utf-8"))
+    return h.hexdigest()
+
+
+def keyframe_qa(out_dir):
+    """keyframe_qa's output for the brief (a GateOutput) — re-run only when its inputs changed or a page's strip is
+    missing; otherwise the last run's verdict and exit code, said to be that run's."""
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    need = [s.get("index", pos) for pos, s in enumerate(board.get("slides") or [], 1)
+            if isinstance(s, dict) and s.get("type") == "html"]
+    strips = all(os.path.exists(os.path.join(out_dir, "_keyframes", "scene_%02d.png" % n)) for n in need)
+    fp = keyframe_inputs(out_dir)
+    try:
+        last = json.load(open(os.path.join(out_dir, KFQA_RECORD), encoding="utf-8"))
+    except (OSError, ValueError):
+        last = {}
+    if strips and isinstance(last, dict) and last.get("inputs") == fp and "exit" in last:
+        return GateOutput("(not re-run: no page, theme, motif, component, cue timing, stylesheet or storyboard input "
+                          "changed since it last ran — this is that run's verdict)\n" + str(last.get("output", "")),
+                          last.get("exit")), False
+    out = _run("keyframe_qa.py", out_dir, timeout=900)
+    code = getattr(out, "code", None)
+    if code is not None:
+        os.makedirs(os.path.join(out_dir, "_keyframes"), exist_ok=True)
+        json.dump({"inputs": fp, "exit": code, "output": str(out)},
+                  open(os.path.join(out_dir, KFQA_RECORD), "w", encoding="utf-8"), ensure_ascii=False)
+    return out, True
+
+
 def html_frames(out_dir, at=0.9):
     """One frame per beat of the DELIVERED out.mp4 — `_frames/scene_NN.png` (NN = the beat's `index`, the HTML
     keyframes' numbering), at `at` of the beat — WITH its burned caption, which the page keyframes never carry. The
@@ -325,15 +435,15 @@ def html_frames(out_dir, at=0.9):
     render.py concatenates one clip of exactly `duration` seconds per beat, so a beat's window in out.mp4 is the
     running sum of the board's durations (no seam overlap, unlike remotion). Returns [(number, path)]; old frames
     are cleared first so a beat that no longer exists cannot be cited."""
+    # CLEARED FIRST, before any return: frames left from an earlier render would otherwise be counted by the brief
+    # ("6 delivered frames") and cited by the critic as THIS film when there is no out.mp4 to pull from at all
+    _clear_frames(out_dir)
     mp4 = os.path.join(out_dir, "out.mp4")
     if not os.path.isfile(mp4):
         return []
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     fdir = os.path.join(out_dir, FRAMES)
     os.makedirs(fdir, exist_ok=True)
-    for f in os.listdir(fdir):
-        if re.match(r"scene_\d+\.png$", f):
-            os.remove(os.path.join(fdir, f))
     out, t = [], 0.0
     for pos, s in enumerate(board.get("slides") or [], start=1):
         dur = s.get("duration") if isinstance(s, dict) else None
@@ -351,7 +461,7 @@ def html_frames(out_dir, at=0.9):
     return out
 
 
-def _build_html(out_dir, board, ran):
+def _build_html(out_dir, board, ran, codes=None):
     """The HTML tier's brief, for agents/design-critic.md's delivery section (H-dimensions) + critic-av's lens."""
     slides = [x for x in board.get("slides") or [] if isinstance(x, dict)]
     meta = board.get("meta") if isinstance(board.get("meta"), dict) else {}
@@ -379,7 +489,9 @@ def _build_html(out_dir, board, ran):
     for label, script, args, timeout in HTML_GATES:
         L.append("**%s**" % label)
         L.append("```")
-        L.append(ran[script] if script in ran else _run(script, out_dir, *args, timeout=timeout))
+        out = ran[script] if script in ran else _run(script, out_dir, *args, timeout=timeout)
+        _note(codes, script, args, out)
+        L.append(out)
         L.append("```")
     L.append("")
     L.append("Those cover: a missing page/asset/audio · the design-first floor (built + bespoke pages ≥ half) · "
@@ -439,13 +551,15 @@ def _build_html(out_dir, board, ran):
     L.append("")
     L.append("## 4 · Facts computed for you")
     L.append("")
-    credited = [(n, r, w, rel) for n, (r, w, rel) in routes.items() if r in ("built", "bespoke")]
-    legacy = _v.design_first_legacy(meta, slides, out_dir, "html")["accepted"] if rerr is None else False
+    import critic_ledger as _cl
+    kept = _v.design_first_keep(meta, slides, "html")[0]
+    credited = [(n, r, w, rel) for n, (r, w, rel) in routes.items() if r in ("built", "bespoke") and n not in kept]
+    keep = _cl.kept_line(out_dir)
+    if keep:
+        L.append("**%s.** Judge those pages as they are, and say so; every other page is held to design-first." % keep)
+        L.append("")
     if rerr is not None:
         L.append("**Routes to confirm (H8)** — could not be computed (%s); run scripts/validate.py" % rerr)
-    elif legacy:
-        L.append("**Routes to confirm (H8)** — none required: a LEGACY film (made before design-first; the user "
-                 "chose to keep its design — meta.design_first). Judge H8 on the pages as they are, and say so.")
     elif credited:
         L.append("**Routes to confirm (H8)** — validate.py credits these pages; for each, record a ledger `routes` "
                  "row `{beat, route, visible: true|false, evidence}` saying whether the route is VISIBLE in the "
@@ -499,19 +613,19 @@ def main(argv):
     tier = _cl.film_tier(out_dir)
     ran = {}
     if tier == "html":
-        # THE FILMSTRIPS FIRST: keyframe_qa re-shoots every page, so the sheet built next shows the pages as they
-        # are now — and a sheet built BEFORE it would be older than its keyframes, which critic_ledger refuses.
-        ran["keyframe_qa.py"] = _run("keyframe_qa.py", out_dir, timeout=900)
+        # THE FILMSTRIPS FIRST: when keyframe_qa re-shoots the pages, the sheet built next shows them as they are now
+        # — a sheet built BEFORE it would be older than its keyframes, which critic_ledger refuses
+        ran["keyframe_qa.py"], fresh = keyframe_qa(out_dir)
+        print("[critic_brief] keyframe_qa %s" % ("re-run: its inputs changed (or no strips / no record)" if fresh else
+                                                 "NOT re-run: none of its inputs changed since its last run"))
         try:
             print("[critic_brief] %d delivered frame(s) -> %s/" % (len(html_frames(out_dir)), FRAMES))
         except Exception as e:                                # noqa: BLE001 — report, never mask
             # NONE rather than some: a partial set would let the brief say "N frames" and the critic cite them
             # as the delivered film, while the beats after the failure were never pulled
-            fdir = os.path.join(out_dir, FRAMES)
-            for f in (os.listdir(fdir) if os.path.isdir(fdir) else []):
-                if re.match(r"scene_\d+\.png$", f):
-                    os.remove(os.path.join(fdir, f))
+            _clear_frames(out_dir)
             print("[critic_brief] delivered frames NOT pulled (%s) — none are left in %s/" % (e, FRAMES))
+    codes, sheet_ok = {}, False
     if tier is None:
         made = "not built — this film has no authored page (no keyframes, no ledger)"
     else:
@@ -519,13 +633,23 @@ def main(argv):
             import contact_sheet
             sheet, n, size = contact_sheet.build(out_dir)
             made = "%s (%dx%d, %d beats)" % (os.path.basename(sheet), size[0], size[1], n)
+            sheet_ok = True
         except (Exception, SystemExit) as e:                  # noqa: BLE001 — contact_sheet exits on no keyframes
-            made = "NOT BUILT (%s)" % e
+            # AN OLD SHEET IS NOT THIS FILM. Left in place it would anchor the render id and every pin to a picture
+            # the current keyframes no longer show; removed, critic_ledger says plainly that there is no sheet.
+            old = os.path.join(out_dir, _cl.CONTACT_SHEET)
+            if os.path.exists(old):
+                os.remove(old)
+            made = "NOT BUILT (%s) — any older sheet was removed" % e
+    text = build(out_dir, ran, codes)
+    if sheet_ok:
         try:
-            _cl.record_render(out_dir)          # the render history a capped tier's last ledger is checked against
+            _cl.record_render(out_dir, gates=codes)   # the render, and the exit code of every gate run on it
         except Exception as e:                  # noqa: BLE001 — report, never mask
             print("[critic_brief] render history NOT recorded (%s)" % e)
-    text = build(out_dir, ran)
+    elif tier is not None:
+        print("[critic_brief] render NOT recorded: the contact sheet was not built, so there is no render id to "
+              "record — fix the keyframes and re-run this")
     path = os.path.join(out_dir, "_critic_brief.md")
     open(path, "w", encoding="utf-8").write(text)
     print("[critic_brief] %s  ·  contact sheet: %s" % (path, made))

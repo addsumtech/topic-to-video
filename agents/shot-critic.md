@@ -293,7 +293,9 @@ the beats' `relation` field and skips any beat already authored, so "we didn't g
 **A waived FILM-ENERGY finding is judged here too.** `film_energy_qa` refuses a film that does not move; a board
 that waives it says why in `meta.energy_waiver` (usually: a diagram film held to its narration, whose motion IS
 the mechanism). Whether that reason is TRUE of this film — or the film is simply inert — is a camera-and-motion
-question, so it is this dimension's: a `meta.energy_waiver` row with `holds: false` makes S12 a FAIL.
+question, so it is this dimension's: a `meta.energy_waiver` row with `holds: false` makes S12 a FAIL. The one row
+judges EVERY axis the waiver covers — a per-axis waiver (`{"motion": …, "density": …}`) holds only if each named reason
+is true of the film.
 Soft dimension: S3/S4 still win.
 
 > **Precedent — `0dfde89`:** 4 of 146 registers used a 3D rotation, none used focus, and the camera had been switched off entirely — space is this tier's whole claim over the HTML one, and it had none.

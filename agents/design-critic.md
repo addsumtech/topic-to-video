@@ -431,9 +431,10 @@ overrides a floor.
 motion personality realised, varying beat to beat and building toward the climax), D6c (content lands one by one
 on the voice — no page dumping two facts in one reveal, no connector painting before its blocks) and D9 (one moving
 thing, CSS-driven and seek-frozen, no GIF or video backdrop, static under reduced motion). `keyframe_qa`'s sync audit
-already fails an uncued multi-point page; whether the motion MEANS something is yours. A waived film-energy finding
-is yours too: whether `meta.energy_waiver`'s reason is true of this film — held to its narration, its motion the
-mechanism — or the film is inert; a `meta.energy_waiver` row with `holds: false` makes H6 a FAIL.
+already fails an uncued multi-point page; whether the motion MEANS something is yours. No HTML gate consumes a waiver
+today (film_energy_qa, which `meta.energy_waiver` waives, runs on remotion films); but when an HTML board records one,
+its `waivers` row is judged here — is the stated reason true of this film, or is it inert? — and a
+`meta.energy_waiver` row with `holds: false` makes H6 a FAIL. The one row judges every axis the waiver names.
 > **Precedent — `339ca64`:** a `.reveal` cued at 88% of a 4 s scene stood at 0.65 of its entrance when the scene's
 > dip began — it never finished on screen. A cue on a last word is now led so its reveal finishes before the cut.
 > **Ask yourself:** Read one strip left to right: does each thing appear when the voice says it, and finish before
