@@ -3325,13 +3325,18 @@ def _design_share(meta, slides, errors, warnings, out_dir):
 #   BESPOKE  — the page carries a composition of its OWN, by at least one of three signals:
 #              (a) page CSS (a <style> block, or a stylesheet the page links that is neither assets/html/, the
 #                  film's theme.css nor a component's) lays out >= 2 PAGE-OWN targets — selectors whose last
-#                  compound names a class no stock stylesheet defines, or an id — with a LAYOUT declaration
-#                  (grid/flex display, grid placement, absolute/fixed position, offsets, transform, clip-path …).
-#                  Colour, type and spacing are not layout, and a rule on a stock class (`.flow{…}`) restyles the
-#                  archetype rather than composing the page — neither counts;
-#              (b) an inline <svg> that DRAWS: >= 6 drawing primitives in one svg that carries no stock class and
-#                  sits under no `icon*` element nor a `bg-*` backdrop left faint (an icon, a `.spark`, a ghosted
-#                  .bg-motif are stock; a .bg-motif raised to opacity >= .5 is the page's drawing);
+#                  compound names a class no stock stylesheet defines, or an id — with a REAL LAYOUT declaration:
+#                  grid placement (grid-area/-column/-row), a MULTI-TRACK grid (>= 2 columns or rows, or named
+#                  areas), absolute/fixed positioning, a transform, a clip/offset path or shape, multi-column flow.
+#                  `display:grid|flex` alone, a flex direction and a bare offset are not layout — they are the
+#                  stock rows and stacks written again. Colour, type and spacing are not layout either, and a
+#                  rule on a stock class (`.flow{…}`) restyles the archetype rather than composing the page;
+#              (b) an inline <svg> that DRAWS: >= 6 drawing primitives (path/line/polyline/polygon/circle/ellipse/
+#                  rect/use — TEXT is labelling, not drawing) of its own in one svg that sits under no `icon*`
+#                  element nor a `bg-*` backdrop left faint (an icon, a `.spark`, a ghosted .bg-motif are stock; a
+#                  .bg-motif raised to opacity >= .5 is the page's drawing). A primitive carrying a stock class or
+#                  a class of a reference TEMPLATE's svg (html-templates.md / html-pages.md — the slopegraph's
+#                  `.sl`) is the template copied, not the page's own drawing;
 #              (c) a hand-placed composition: >= 3 elements positioned by inline style (absolute/fixed with an
 #                  offset, or a transform). An inline grid/flex WRAPPER does not count — it is the stock
 #                  `.two`/`.split`/`.grid-asym` written longhand, the way html-templates.md's own snippets use it.
@@ -3350,7 +3355,9 @@ _HTML_TITLE_CLASSES = {"stage", "kicker", "rule", "title", "sub", "note", "label
                        "accent-fill", "anchor-top", "anchor-bottom", "frame-left", "frame-right", "thirds", "scrim",
                        "defocus", "glass", "float", "settle", "kenburns"}
 _HTML_PLATE_CLASSES = _HTML_TITLE_CLASSES | {"media", "split", "two", "chip", "good", "risk", "k", "tag", "l", "r"}
-_SVG_PRIMITIVES = {"path", "line", "polyline", "polygon", "circle", "ellipse", "rect", "text", "use"}
+_SVG_PRIMITIVES = {"path", "line", "polyline", "polygon", "circle", "ellipse", "rect", "use"}   # not text
+_TEMPLATE_DOCS = ("html-templates.md", "html-pages.md")
+_template_svg_cache = []
 _HTML_VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 BESPOKE_CSS_TARGETS = 2
 BESPOKE_SVG_PRIMITIVES = 6
@@ -3457,6 +3464,77 @@ def _layout_decls(decls):
     return hits
 
 
+def template_svg_classes():
+    """The author classes a reference TEMPLATE's svg draws with (references/html-templates.md, html-pages.md) — the
+    slopegraph's `.sl`/`.axl`. An svg drawn with them is the template copied onto the page, not the page's own
+    drawing. Stock classes are left out (they are already stock, and `.draw`/`.float` are motion utilities a page's
+    own drawing uses too), and so is a template svg that is itself a stock form (`svg.spark`). Parsed, never listed."""
+    if not _template_svg_cache:
+        refs = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "references")
+        top, parts = html_stock_classes(())
+        stock = top | set(parts)
+        found, read = set(), 0
+        for f in _TEMPLATE_DOCS:
+            try:
+                src = open(os.path.join(refs, f), encoding="utf-8").read()
+            except OSError:
+                continue
+            read += 1
+            for block in re.findall(r"<svg\b.*?</svg>", src, re.S):
+                head = re.match(r"<svg\b[^>]*>", block)
+                own = re.search(r"""class\s*=\s*["']([^"']+)["']""", head.group(0)) if head else None
+                if own and set(own.group(1).split()) & stock:
+                    continue
+                for cl in re.findall(r"""class\s*=\s*["']([^"']+)["']""", block):
+                    found.update(c for c in cl.split() if c not in stock and not c.startswith("reveal"))
+        assert read, "no reference template could be read under %s — template svgs would count as bespoke" % refs
+        _template_svg_cache.append(found)
+    return _template_svg_cache[0]
+
+
+def _grid_tracks(val):
+    """How many tracks a grid-template-columns/-rows value declares (`repeat(4,1fr)` is 4, `1fr 2fr` is 2)."""
+    v = re.sub(r"\[[^\]]*\]", " ", str(val or ""))            # line names are not tracks
+    n = 0
+    for m in re.finditer(r"repeat\(\s*(\d+|auto-fill|auto-fit)\s*,", v):
+        n += int(m.group(1)) if m.group(1).isdigit() else 2
+    v = re.sub(r"repeat\((?:[^()]|\([^()]*\))*\)", " ", v)
+    v = re.sub(r"(minmax|fit-content|calc|min|max|clamp)\((?:[^()]|\([^()]*\))*\)", "T", v)
+    return n + len(v.split())
+
+
+def _real_layout(decls):
+    """The declarations in a block that COMPOSE a layout of the page's own (see (a) in the block above): grid
+    placement, a multi-track grid, absolute/fixed positioning, a transform, a clip/offset path, multi-column flow.
+    `display:grid|flex`, a flex direction and a bare offset are not — they are stock rows and stacks."""
+    hits, positioned, offsets = [], False, []
+    for d in str(decls or "").split(";"):
+        if ":" not in d:
+            continue
+        prop, val = (x.strip().lower() for x in d.split(":", 1))
+        val = val.replace("!important", "").strip()
+        if not prop or not val or val in ("none", "auto", "initial", "unset", "inherit", "normal"):
+            continue
+        if prop in ("grid-template-columns", "grid-template-rows"):
+            if _grid_tracks(val) >= 2:
+                hits.append(prop)
+        elif prop in ("grid-template-areas", "grid-template", "grid-area", "grid-column", "grid-row",
+                      "grid-column-start", "grid-column-end", "grid-row-start", "grid-row-end",
+                      "clip-path", "offset-path", "shape-outside"):
+            hits.append(prop)
+        elif prop in ("column-count", "columns"):
+            if re.match(r"\d+", val) and int(re.match(r"\d+", val).group(0)) >= 2:
+                hits.append(prop)
+        elif prop == "position" and val in ("absolute", "fixed"):
+            positioned = True
+            hits.append(prop)
+        elif prop in ("top", "left", "right", "bottom", "inset"):
+            offsets.append(prop)
+        elif prop in ("transform", "rotate", "translate", "scale"):
+            hits.append(prop)
+    return hits + (offsets if positioned else [])
+
+
 def _own_target(selector, stock, page_ctx, page_ids):
     """True when a selector's LAST compound names an id the page carries, or a class the page carries that the stock
     does not style there: not a stock top-level class, and not a stock part (`.band` of `.bullet .band`) sitting
@@ -3484,6 +3562,10 @@ class _PageScan(HTMLParser):
     def _anc(self):
         return [c for _t, cs, _s in self.stack for c in cs]
 
+    def _svg_anc_classes(self):
+        """Classes on the elements between the open <svg> and here (a <g class="sl"> wrapping its lines)."""
+        return [c for _t, cs, _s in self.stack[self._svg["depth"] + 1:] for c in cs] if self._svg else []
+
     def _ghosted(self, cls, style):
         """True when this element or an ancestor is a backdrop (`bg-*`) left at a faint opacity (motifs.css sets
         .bg-motif to .10; an inline opacity >= .5 makes it the page's drawing, not its wallpaper)."""
@@ -3508,9 +3590,10 @@ class _PageScan(HTMLParser):
         if self._svg is not None:
             if tag in _SVG_PRIMITIVES:
                 self._svg["prims"] += 1
+                self._svg["prim_classes"].append(set(cls) | set(self._svg_anc_classes()))
         elif tag == "svg":
             self._svg = {"classes": cls, "anc": self._anc(), "prims": 0, "depth": len(self.stack),
-                         "ghosted": self._ghosted(cls, str(a.get("style") or ""))}
+                         "prim_classes": [], "ghosted": self._ghosted(cls, str(a.get("style") or ""))}
         if tag == "style":
             self._in_style = True
             self.styles.append("")
@@ -3576,10 +3659,11 @@ def html_page_route(page_path, out_dir, built_tags, pos=None, n=None):
         own_css.append(open(p, encoding="utf-8", errors="replace").read())
     stock = html_stock_classes(tuple(theme_sheets))
     # (a) page CSS laying out page-own targets
-    targets = []
+    targets, rows_only = [], 0
     for css in own_css:
         for sel, decls in _css_rules(css):
-            if not _layout_decls(decls):
+            if not _real_layout(decls):
+                rows_only += bool(_layout_decls(decls))
                 continue
             targets += [s.strip() for s in sel.split(",")
                         if s.strip() and _own_target(s, stock, scan.ctx, scan.ids)]
@@ -3588,11 +3672,12 @@ def html_page_route(page_path, out_dir, built_tags, pos=None, n=None):
         return "bespoke", "page CSS lays out %d page-own targets (%s)" % (len(targets), ", ".join(targets[:3]))
     # (b) an inline svg that draws
     stock_names = stock[0] | set(stock[1])
-    drawn = [s["prims"] for s in scan.svgs
-             if not (set(s["classes"]) & stock_names) and not s["ghosted"]
+    tmpl = template_svg_classes()
+    drawn = [sum(1 for pc in s["prim_classes"] if not (pc & tmpl)) for s in scan.svgs
+             if not (set(s["classes"]) & (stock_names | tmpl)) and not s["ghosted"]
              and not any(c.startswith("icon") for c in s["anc"] + s["classes"])]
     if drawn and max(drawn) >= BESPOKE_SVG_PRIMITIVES:
-        return "bespoke", "an inline svg draws %d primitives" % max(drawn)
+        return "bespoke", "an inline svg draws %d primitives of its own" % max(drawn)
     # (c) a hand-placed composition
     placed = wrappers = 0
     for cls, anc, style in scan.inline:
@@ -3633,6 +3718,9 @@ def html_page_route(page_path, out_dir, built_tags, pos=None, n=None):
         why.append("its svg draws %d primitive(s)" % max(drawn))
     if placed:
         why.append("%d hand-placed element(s)" % placed)
+    if rows_only:
+        why.append("%d page CSS rule(s) set only display/flex direction/a bare offset, which is stock rows and "
+                   "stacks written again" % rows_only)
     if wrappers:
         why.append("%d inline grid/flex wrapper(s), which is stock layout written longhand" % wrappers)
     return "as-is", ("stock archetypes only" + (" — " + "; ".join(why) if why else ""))
@@ -3684,22 +3772,21 @@ def _html_design_share(meta, slides, errors, warnings, out_dir):
         return                                         # the slides / 原样配音 tier, or a programmatic-only board
     routes = html_design_routes(meta, slides, out_dir)
     counted = [r for r in routes if r[1] != "exempt"]
-    if not counted:
-        return
     by_num = {(s.get("index", i)): s for i, s in enumerate(slides, 1)}
     credited = [r for r in counted if r[1] in ("built", "bespoke")]
     asis = [r for r in counted if r[1] == "as-is"]
-    share = len(credited) / float(len(counted))
+    share = len(credited) / float(len(counted)) if counted else 1.0
 
     def _name(num, rel):
         return "scene #%s%s" % (num, " (%s)" % rel if rel else "")
 
     routes_txt = ("BUILD (scripts/workshop.py <out_dir> new-component <Name>, put its <tag> on the page and add the "
                   "kind:\"component\" build-list entry) or BESPOKE (the page's own composition: a <style> that lays "
-                  "out at least %d page-own classes with grid/position/transform, an inline svg that draws the "
+                  "out at least %d page-own classes with real layout — grid placement, a multi-track grid, absolute "
+                  "position, a transform; display:flex alone is a stock row — an inline svg that draws the "
                   "beat, or a hand-placed layout — not a stock archetype recoloured). Method: agents/design-director.md "
                   "\"Design first\"" % BESPOKE_CSS_TARGETS)
-    if not credited:
+    if counted and not credited:
         errors.append("design-first: no page is BUILT or BESPOKE — all %d non-exempt beats are stock archetypes "
                       "(%s). Make the beat whose idea the stock archetypes draw least well the film's signature, "
                       "by %s." % (len(counted), "; ".join(_name(num, rel) for num, _r, _w, rel in asis[:8])
@@ -3712,9 +3799,13 @@ def _html_design_share(meta, slides, errors, warnings, out_dir):
                          int(-(-DESIGN_SHARE_FLOOR * len(counted) // 1)) - len(credited),
                          "; ".join("%s: %s" % (_name(num, rel), why) for num, _r, why, rel in asis[:8])
                          + (" …" if len(asis) > 8 else ""), routes_txt))
-    elif not any(r[1] == "built" for r in counted):
-        warnings.append("design-first: no page is BUILT — the film's signature beat is a workshop component "
-                        "(agents/design-director.md \"Design first\")")
+    if not any(r[1] == "built" for r in counted):
+        # THE SIGNATURE BEAT IS BUILT, on this tier as on remotion — a bespoke page is composed from stock parts; a
+        # built one draws the thing this topic needs and no stock form has (also on a film whose beats are exempt)
+        errors.append("design-first: no page is BUILT — every film has at least one signature beat drawn for this "
+                      "topic as a workshop component (python3 scripts/workshop.py <out_dir> new-component <Name>, "
+                      "its <tag> on the page, a kind:\"component\" build-list entry). Pick the beat whose idea the "
+                      "stock archetypes draw least well. Method: agents/design-director.md \"Design first\"")
     plan = _plan_fits(out_dir)
     thin = []
     for num, _route, _why, rel in asis:

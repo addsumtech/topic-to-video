@@ -238,12 +238,17 @@ Aim for MOST pages built or bespoke; at least half is the floor, and the deck's 
 `ideal`, `route` and (as-is) `shares` per beat in the design plan.
 
 **Enforced.** `validate.py` measures each page's route from its source and errors when fewer than half of an HTML
-film's non-exempt pages are built or bespoke, when none is, or when an as-is page lacks `shot_fit.ideal` +
-`shot_fit.shares` (or `ideal` + `shares` on its beat in `design_plan.json`).
+film's non-exempt pages are built or bespoke, when NO page is BUILT (the signature beat — also on a film whose
+other beats are all exempt), or when an as-is page lacks `shot_fit.ideal` + `shot_fit.shares` (or `ideal` +
+`shares` on its beat in `design_plan.json`).
 - **BUILT** — the page uses a workshop component tag.
-- **BESPOKE** — the page's own `<style>` lays out at least two page-own classes (grid / position / transform), or an
-  inline svg draws the beat (6+ shapes — not an icon, not a faint `.bg-motif`), or 3+ elements are hand-placed.
-- **AS-IS** — recolouring or retyping a stock archetype, restyling a stock class, an inline grid/flex wrapper.
+- **BESPOKE** — the page's own `<style>` lays out at least two page-own classes with REAL layout (grid placement, a
+  multi-track grid, absolute/fixed position, a transform, a clip path), or an inline svg draws the beat (6+ shapes
+  of its own — `<text>` labels are not drawing; not an icon, not a faint `.bg-motif`, not a reference template's
+  svg such as the slopegraph's `.sl` lines), or 3+ elements are hand-placed.
+- **AS-IS** — recolouring or retyping a stock archetype, restyling a stock class, an inline grid/flex wrapper, a
+  page `<style>` whose only "layout" is `display:flex|grid`, a flex direction or a bare offset (stock rows and
+  stacks written again).
 - **Exempt** — the opening/closing title card, a real-photo plate with its imagefetch provenance, `type:"slide"` beats.
 The design-critic (D2c) still judges whether a route is real in the frame, which the source measure cannot.
 
@@ -307,8 +312,8 @@ deck that:
   legible without a legend (the growing white gap between two bars IS the compounding loss; a value
   physically falling off a shelf IS the cliff; a filling vessel IS adoption). Emit it as top-level
   `signature_concept {beat, name, encoding, why_unexpected}`. **Hard constraints:** (a) realized in the
-  named beat with DELIVERABLE primitives (a creative USE of existing forms, never an un-renderable
-  promise); (b) it carries MEANING/data in the FOREGROUND, not background decoration (distinct from
+  named beat as a BUILT workshop component — the signature beat is built (Design first), a renderable thing
+  drawn for this topic with `scripts/workshop.py new-component`, never an un-renderable promise; (b) it carries MEANING/data in the FOREGROUND, not background decoration (distinct from
   `motif`, which recurs as atmosphere); (c) it sits UNDER clarity + faithfulness + deliverability — an
   idea that hurts the 3-second read or invents data is NOT a pass. A custom layout that merely carries
   the motif no longer counts — the signature beat must NAME the concept. **Screenshot test:** ≥1 beat a
@@ -404,8 +409,10 @@ deck that:
   not every beat may be `justify-content:center` (the `.stage` default); **≥~1/3 of content beats must be
   off-center** (top/bottom-anchored, or `.grid-asym`/`.split`/`.frame-left`); **≥1 hero must lead with its
   number/image with NO top kicker-hat.** Vary the vertical BAND too — roughly a third in the default band, a third
-  stopping HIGH with real void below (a sparse statement or pivot that needs air), a third riding LOW on the
-  baseline (a beat about a surface, a floor, a device on a desk) — driven by what the beat SAYS, never a uniform
+  stopping HIGH with real void below (content ENDS by ~0.6 of the frame height and the bottom third is empty on
+  purpose — a sparse statement or pivot that needs air), a third riding LOW on the baseline (content STARTS
+  around ~0.5 and rides the bottom — a beat about a surface, a floor, a device on a desk) — driven by what the
+  beat SAYS, never a uniform
   nudge to satisfy the metric. The classes (`band-upper`/`band-lower`/`anchor-*`/`bleed`), the worked case and
   what each gate can see are `references/html-pages.md` "Vary the ENVELOPE". *(The lint credits off-center via
   `.split`/`.grid-asym`/`.frame-*` or a non-center `justify-content` on `.stage`; a purely left/right-weighted

@@ -77,15 +77,32 @@ def test_stock_only_pages_under_half_is_an_error_naming_the_pages_and_the_routes
     assert any("no page is BUILT or BESPOKE" in e for e in errs), errs
 
 
+BUILT = "<div class='stage'><espresso-puck packed='1'></espresso-puck></div>"
+BUILT_META = {"build_list": [{"id": "EspressoPuck", "kind": "component", "beats": [1]}]}
+
+
 def test_exactly_half_passes(tmp_path):
-    meta, slides, out = _film(tmp_path, [BESPOKE_STYLE, STOCK], fits={2: SHARES})
+    meta, slides, out = _film(tmp_path, [BUILT, STOCK], fits={2: SHARES}, meta=BUILT_META)
     errs, _ = _share(meta, slides, out)
     assert not errs, errs
 
 
+def test_no_built_page_is_an_error(tmp_path):
+    # the signature beat is BUILT on this tier too — a film of bespoke pages alone is refused
+    meta, slides, out = _film(tmp_path, [BESPOKE_STYLE, BESPOKE_STYLE, STOCK], fits={3: SHARES})
+    errs, _ = _share(meta, slides, out)
+    assert any("no page is BUILT" in e for e in errs), errs
+    # …also when every other beat is exempt
+    title = "<div class='stage'><div class='title'>T</div></div>"
+    meta, slides, out = _film(tmp_path / "x", [title, title])
+    assert any("no page is BUILT" in e for e in _share(meta, slides, out)[0])
+
+
 def test_a_page_style_block_that_lays_out_its_own_classes_counts(tmp_path):
-    cjk = "<style>.主图{display:grid}.标记{position:absolute;left:4px}</style><div class='主图'><b class='标记'>中</b></div>"
-    at_rules = ("<style>@media (min-width:1px){.lane{display:grid}} @keyframes k{from{transform:scale(1)}}"
+    cjk = ("<style>.主图{display:grid;grid-template-columns:2fr 1fr}.标记{position:absolute;left:4px}</style>"
+           "<div class='主图'><b class='标记'>中</b></div>")
+    at_rules = ("<style>@media (min-width:1px){.lane{display:grid;grid-template-columns:repeat(3,1fr)}} "
+                "@keyframes k{from{transform:scale(1)}}"
                 ".pk{transform:rotate(3deg)}</style><div class='lane'><b class='pk'></b></div>")
     meta, slides, out = _film(tmp_path, [STOCK, BESPOKE_STYLE, cjk, at_rules, STOCK])
     routes = _routes(meta, slides, out)
@@ -105,8 +122,8 @@ def test_a_colour_only_override_or_a_restyled_archetype_does_not_count(tmp_path)
 
 def test_a_stock_part_reused_outside_its_archetype_is_the_pages_own(tmp_path):
     # base.css styles `.band` only inside `.bullet`; a page building its own `.band` outside one is composing
-    page = ("<style>.band{display:flex;height:140px}.nm{display:flex}</style><div class='stage'>"
-            "<div class='band'><i></i><i></i></div><div class='nm'><span>a</span></div></div>")
+    page = ("<style>.band{display:grid;grid-template-columns:2fr 1fr;height:140px}.nm{position:absolute;left:0}"
+            "</style><div class='stage'><div class='band'><i></i><i></i></div><div class='nm'><span>a</span></div></div>")
     inside = ("<style>.bullet .band{position:absolute;left:0}.nm{display:flex}</style><div class='stage'>"
               "<div class='bullet'><div class='band'></div></div><div class='nm'>a</div></div>")
     meta, slides, out = _film(tmp_path, [STOCK, page, inside, STOCK])
@@ -143,7 +160,8 @@ def test_a_component_page_is_built(tmp_path):
 
 
 def test_an_as_is_page_without_ideal_and_shares_is_an_error(tmp_path):
-    meta, slides, out = _film(tmp_path, [BESPOKE_STYLE, STOCK], fits={2: {"ideal": SHARES["ideal"], "shares": "fits"}})
+    meta, slides, out = _film(tmp_path, [BUILT, STOCK], fits={2: {"ideal": SHARES["ideal"], "shares": "fits"}},
+                              meta=BUILT_META)
     errs, _ = _share(meta, slides, out)
     assert any("AS-IS without earning it" in e and "scene #2" in e and "shot_fit.shares" in e for e in errs), errs
     slides[1]["shot_fit"] = dict(SHARES)
@@ -191,3 +209,33 @@ def test_the_floor_is_wired_into_evaluate(tmp_path):
                     "audio": "audio/%02d.mp3" % i} for i in (1, 2, 3)]
     errs = v.evaluate({"meta": {}, "slides": slides_tier}, out, pre_tts=True)["errors"]
     assert not any(e.startswith("design-first:") for e in errs), errs
+
+
+def test_display_flex_alone_is_not_a_layout_of_the_pages_own(tmp_path):
+    # the finding: <style>.r{display:flex}.c{display:flex}</style> around stock cards read as BESPOKE, while the
+    # same layout written inline was as-is
+    flex = ("<style>.r{display:flex}.c{display:flex;flex-direction:column}</style><div class='stage'>"
+            "<div class='r'><div class='c'><div class='card'>a</div></div><div class='card'>b</div></div></div>")
+    one_track = ("<style>.r{display:grid;grid-template-columns:1fr}.c{top:10px}</style><div class='stage'>"
+                 "<div class='r'><div class='c'><div class='card'>a</div></div></div></div>")
+    real = ("<style>.r{display:grid;grid-template-columns:1fr 2fr}.c{grid-column:2}</style><div class='stage'>"
+            "<div class='r'><div class='c'><div class='card'>a</div></div></div></div>")
+    meta, slides, out = _film(tmp_path, [STOCK, flex, one_track, real, STOCK])
+    routes = _routes(meta, slides, out)
+    assert [routes[i] for i in (2, 3, 4)] == ["as-is", "as-is", "bespoke"], routes
+    why = [w for n, r, w, _rel in v.html_design_routes(meta, slides, out) if n == 2][0]
+    assert "display" in why, why
+
+
+def test_a_template_svg_or_labels_are_not_the_pages_own_drawing(tmp_path):
+    # the stock slopegraph (references/html-templates.md): an unclassed <svg> of `.sl` lines and `.axl` labels
+    slope = ("<div class='stage'><svg viewBox='0 0 900 560' style='width:900px'>"
+             + "".join("<line class='sl reveal-wipe' x1='90' y1='%d' x2='810' y2='%d' stroke='var(--accent)'/>"
+                       "<text class='axl'>a</text><text>b</text>" % (100 + i * 40, 300 - i * 30) for i in range(6))
+             + "</svg></div>")
+    labels = ("<div class='stage'><svg viewBox='0 0 900 500'>" + "<line x1='0' y1='0' x2='9' y2='9'/>" * 3
+              + "<text>x</text>" * 5 + "</svg></div>")
+    meta, slides, out = _film(tmp_path, [STOCK, slope, labels, STOCK])
+    routes = _routes(meta, slides, out)
+    assert routes[2] == "as-is" and routes[3] == "as-is", routes
+    assert {"sl", "axl"} <= v.template_svg_classes() and "draw" not in v.template_svg_classes()
