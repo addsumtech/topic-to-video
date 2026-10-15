@@ -1075,7 +1075,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    you accepted; failing a build on them would produce the "rule voice" its reference warns about). On a
    remotion film, `keyframe_qa_remotion.py` + `text_safe_qa.py` + `cjk_type_qa` (CJK film) + `film_energy_qa.py`
    + `shake_qa.py` exit 0 and the review at the user's chosen depth (`critic_ledger.py --final`) REPLACE
-   `keyframe_qa.py`, which no-ops there; `frame_safe_qa.py` is advisory. **On an HTML-tier film the review at the
+   `keyframe_qa.py`, which no-ops there; `frame_safe_qa.py` is advisory. Both lists are
+   `critic_ledger.DELIVERY_GATES` — what `critic_brief.py --gates` runs and records, and what `--final` checks for this
+   render. **On an HTML-tier film the review at the
    user's chosen depth is part of the criterion too:** `critic_ledger.py <out_dir> --final` exits 0 and its verdict
    is read (step 9e) — `render.py`'s full render leaves `NOT_DELIVERED.md`, and only that review removes it. Also read `keyframe_qa`'s **deck
    advisories** (silhouette repetition, content-band uniformity) and any scene reported **UNVERIFIED** — an
