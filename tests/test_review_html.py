@@ -319,3 +319,22 @@ def test_final_clears_the_marker_on_the_html_tier(tmp_path):
     p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
     assert p.returncode == 0 and "html tier" in p.stdout and "design-critic" in p.stdout, p.stdout
     assert not os.path.exists(os.path.join(out, "NOT_DELIVERED.md")), p.stdout
+
+
+# ── the docs say what the code does ────────────────────────────────────────────────────────────────────
+
+def test_the_docs_describe_the_pin_and_the_never_accepted_findings_the_code_enforces():
+    import glob
+    docs = ["SKILL.md"] + [os.path.relpath(p, _ROOT) for p in glob.glob(os.path.join(_ROOT, "agents", "*.md"))
+                           + glob.glob(os.path.join(_ROOT, "references", "*.md"))]
+    for rel in docs:
+        src = open(os.path.join(_ROOT, rel), encoding="utf-8").read()
+        # the pin is the render id (sheet + out.mp4 + out.srt); a doc telling the reader to pin the sheet alone
+        # writes exactly the pin critic_ledger.py now refuses
+        assert "sha256 of _contact_sheet.png" not in src and "contact_sheet_sha256" not in src, rel
+    skill = open(os.path.join(_ROOT, "SKILL.md"), encoding="utf-8").read()
+    # the code never accepts faithfulness/sourcing (S3 / H1) — and nothing else; A/V sync is check_av's gate
+    assert cl.never_accepted() == {"S3"}
+    assert "never on an A/V sync or faithfulness finding" not in skill
+    row = next(l for l in skill.split("\n") if l.startswith("| step 9e critic-av"))
+    assert "faithfulness or sourcing" in row and "check_av.py" in row, row

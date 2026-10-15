@@ -991,9 +991,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    ```
 
    The film then ships marked "reviewed at <tier>, not a PASS". **What never moves with the tier:** every
-   machine gate above, the faithfulness and sourcing rules (an S3 finding is always FIXED — never declined, never
-   accepted, by anyone), the human script/audition checkpoint, an independent reviewer, every ledger row, the
-   route rows (below), and the render pin.
+   machine gate above, the faithfulness and sourcing rules (an S3 finding on remotion, H1 on HTML, is always FIXED
+   — never declined, never accepted, by anyone), the human script/audition checkpoint, an independent reviewer,
+   every ledger row, the route rows (below), and the render pin.
 
    **`none` waives the review — and only the user may choose it.** `meta.review = {"tier": "none",
    "user_answer": "<what the user said>", "render_sha256": "<the render id, which you compute>"}`
@@ -1267,7 +1267,7 @@ adds on that tier.
 | Narration overruns the beat's `est_seconds` budget (≈ `target_seconds / beats`) | Tighten wording (`references/narration-writing.md`) | 🔴 STOP and propose splitting the dense slide |
 | A/V out of sync (one slide) | Never guess timing — `duration` comes from ffprobe; re-run `tts.py --only N` | Re-render that slide with `--only N` |
 | A/V drift across the WHOLE video (audio runs longer than the video, worse later) | Mixed audio sample rates across clips (e.g. a partial edge-tts run left some scenes as `say` .aiff @22050 and others edge .mp3 @24000) → the `-c copy` concat desyncs. render.py pins `-ar 48000 -ac 1` per clip to prevent this; clear `<out_dir>/.clips/` and re-render so every clip re-encodes uniformly | Regenerate ALL audio with one engine (delete `audio/`, re-run `tts.py`) so the voice is consistent too, then clear `.clips/` and re-render |
-| step 9e critic-av (or the combined `fast` critic) finds an A/V issue | Read the issue (illegible/mistimed burned caption / off-theme or tofu render / player-chrome) → fix the cause (fix the page/theme, clear `.clips/`, re-render) → re-run `critic_brief.py`; the review depth decides whether a fresh critic round follows (step 9d) | A finding the rounds left open goes back to the user — one more round, or accept as-is (never on an A/V sync or faithfulness finding: those are fixed) |
+| step 9e critic-av (or the combined `fast` critic) finds an A/V issue | Read the issue (illegible/mistimed burned caption / off-theme or tofu render / player-chrome) → fix the cause (fix the page/theme, clear `.clips/`, re-render) → re-run `critic_brief.py`; the review depth decides whether a fresh critic round follows (step 9d) | A finding the rounds left open goes back to the user — one more round, or accept as-is (never on a faithfulness or sourcing finding — S3 / H1, which `critic_ledger.py` refuses to accept — those are fixed; A/V sync drift is not the review's to leave open either: `check_av.py` must exit 0 before delivery whatever the review says) |
 | step 1 `doctor.py` reports a REQUIRED dep missing (ffmpeg/ffprobe/PIL) | Install it (e.g. `brew install ffmpeg`, `pip install pillow`) before proceeding | Optional gaps (edge-tts/soffice/Chrome) only narrow the tiers — adjust the interview, don't block |
 | step 9 gate fails: `validate.py` exits non-zero before render | Read each ERROR (missing image/audio/page/`file://` asset, duplicate index, absent `theme.css`) → fix in `storyboard.json` / regenerate the missing asset (run `theme.py`/`imagegen.py`/`tts.py`) | Re-run `python scripts/validate.py <out_dir>` until exit 0 before calling `render.py` |
 | step 9 gate fails: `check_av.py` exits non-zero after full render | Read the issue (A/V drift / non-uniform clip rates) → fix the cause (clear `.clips/`, regenerate audio with ONE engine, re-render) | Re-run `python scripts/check_av.py <out_dir>` until exit 0 before delivering `out.mp4` |
