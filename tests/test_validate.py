@@ -1317,7 +1317,8 @@ def test_brand_authored_lockups_and_valid_brand_clean(tmp_path):
     slides = [_html_scene(tmp_path, 0, "pages/s0.html", body),
               _html_scene(tmp_path, 1, "pages/s1.html", body)]
     r = _brand_eval(tmp_path, {"logo": logo, "name": "ACME Institute"}, slides=slides)   # default placement
-    assert r["errors"] == []
+    # two title cards and nothing built: the design-first floor (no BUILT page) is a separate, deliberate finding
+    assert [e for e in r["errors"] if not e.startswith("design-first:")] == []
     assert not any("brand" in w for w in r["warnings"])
 
 
