@@ -1098,8 +1098,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     existing design for this edit**. Record a keep with `python3 scripts/validate.py <out_dir> --keep-design "<what the
     user said>"`: it writes `meta.design_first = {"legacy": true, "user_answer", "kept": [...]}` for every beat on the
     board at that moment (refused for a non-answer — auto mode cannot keep a design — and for a board where any beat
-    already has an ideal). A kept beat stays exempt while it keeps its shot (HTML: its page); a beat added or changed
-    later follows the normal rules — its ideal, a route, `shares` for as-is — and those beats as a group must be at
+    already has an ideal). A kept beat stays exempt while it keeps its shot (HTML: its page) and carries no ideal —
+    writing a kept beat's ideal means redesigning it, so it leaves the keep, and a hand-written keep over beats that
+    carry ideals keeps nothing; a beat added or changed later follows the normal rules — its ideal, a route, `shares` for as-is — and those beats as a group must be at
     least half adapted or built, so a single new beat is adapted or built. Writing a new beat's ideal never voids the
     keep. validate prints one WARN naming the kept beats, the critic's route rows are owed only for the others, and
     `critic_ledger.py --final` and the brief say what was kept. Dates prove nothing here and are not read.

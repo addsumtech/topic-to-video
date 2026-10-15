@@ -3829,10 +3829,13 @@ def is_html_film(meta, slides):
 # A KEEP IS THE USER'S, AND IT IS SCOPED TO BEATS. `validate.py <out_dir> --keep-design "<their words>"` records
 # meta.design_first = {legacy: true, user_answer, kept: [{beat, shot | page + type}]} for every beat on the board at
 # that moment — refused for a non-answer (auto mode cannot keep a design, as it cannot choose a `none` review) and
-# for a board where any beat already has an ideal. Eligibility is checked THEN, never again: a beat added later that
-# writes its ideal must not void the keep and drop the whole film back to the floor, which would punish doing the
-# right thing. A beat still in `kept` (same beat number, same shot / page) is exempt from design-first; any other —
-# new, or its shot or page changed — follows the per-beat rules, and those beats as a group carry the floor's share.
+# for a board where any beat already has an ideal. A beat added later that writes its ideal must not void the keep and
+# drop the whole film back to the floor, which would punish doing the right thing — so eligibility is held PER KEPT
+# BEAT, on every run: a kept beat counts only while it keeps the same shot / page AND carries no ideal. A beat made
+# before the rule has none; one that has an ideal is being redesigned (or was never pre-rule — a board that writes
+# ideals and then a hand-written keep listing those beats was a template-first film passing as OK), so it leaves the
+# keep. Every beat not kept — new, changed, or now carrying an ideal — follows the per-beat rules, and those beats as
+# a group carry the floor's share.
 #
 # AN EARLIER VERSION USED DATES (out.mp4 older than the rule's commit) and was wrong twice over: a date the maker can
 # set proves nothing (a `touch` turned a brand-new film OK), and the date this repo got the rule is not the date a
@@ -3867,9 +3870,10 @@ def beats_with_ideal(slides, out_dir, tier):
     return out
 
 
-def design_first_keep(meta, slides, tier):
+def design_first_keep(meta, slides, tier, out_dir=None):
     """(kept beat numbers, [problems with the record], dropped kept entries) — the keep the user recorded, matched
-    against the board as it is NOW: an entry counts only while its beat keeps the same shot / page."""
+    against the board as it is NOW: an entry counts only while its beat keeps the same shot / page and carries no
+    ideal picture (`out_dir` is needed to read an HTML beat's ideal from design_plan.json)."""
     rec = meta.get(LEGACY_KEY)
     if rec is None:
         return set(), [], []
@@ -3891,10 +3895,11 @@ def design_first_keep(meta, slides, tier):
         return set(), probs, []
     now = {str(_beat_ident(s, pos, tier)["beat"]): _beat_ident(s, pos, tier) for pos, s in enumerate(slides, 1)}
     fields = ("shot",) if tier == "remotion" else ("page", "type")
+    with_ideal = {str(b) for b in beats_with_ideal(slides, out_dir, tier)}
     hold, dropped = set(), []
     for k in kept:
         cur = now.get(str(k.get("beat")))
-        if cur is not None and all(cur.get(f) == k.get(f) for f in fields):
+        if cur is not None and all(cur.get(f) == k.get(f) for f in fields) and str(cur["beat"]) not in with_ideal:
             hold.add(cur["beat"])
         else:
             dropped.append(str(k.get("beat")))
@@ -3928,14 +3933,14 @@ def keep_design(out_dir, answer):
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2, ensure_ascii=False)
     return True, ("recorded meta.%s: the user kept the existing design of %d beat(s) (%s). Each stays exempt from "
-                  "design-first while it keeps its %s; a beat added or changed later follows the normal rules."
+                  "design-first while it keeps its %s and writes no ideal; a beat added or changed later follows the normal rules."
                   % (LEGACY_KEY, len(kept), ", ".join(str(k["beat"]) for k in kept[:20]),
                      "shot" if tier == "remotion" else "page"))
 
 
 def _design_first(meta, slides, errors, warnings, out_dir, tier):
     """The design-first floor for `tier`, with the user's keep (or the offer of one) applied — see above."""
-    kept, probs, dropped = design_first_keep(meta, slides, tier)
+    kept, probs, dropped = design_first_keep(meta, slides, tier, out_dir)
     if probs:
         errors.extend("design-first: " + p for p in probs)
     found = []
@@ -3944,15 +3949,16 @@ def _design_first(meta, slides, errors, warnings, out_dir, tier):
     if kept:
         rec = meta.get(LEGACY_KEY) or {}
         warnings.append("design-first: kept by the user's decision (%r) for beat(s) %s — each is exempt while it keeps "
-                        "its %s%s; every other beat follows the normal design-first rules."
+                        "its %s and carries no ideal%s; every other beat follows the normal design-first rules."
                         % (str(rec.get("user_answer"))[:120], ", ".join(str(x) for x in _beat_order(kept)),
                            "shot" if tier == "remotion" else "page",
-                           ("; no longer kept (changed or gone): %s" % ", ".join(dropped)) if dropped else ""))
+                           ("; no longer kept (changed, gone, or now carrying an ideal): %s" % ", ".join(dropped)) if dropped else ""))
         errors.extend(found)
         return
     if dropped and not probs:
-        warnings.append("design-first: meta.%s kept beat(s) %s, and none of them is on the board unchanged any more — "
-                        "the whole film is held to design-first" % (LEGACY_KEY, ", ".join(dropped)))
+        warnings.append("design-first: meta.%s kept beat(s) %s, and none of them is on the board unchanged and "
+                        "without an ideal any more — the whole film is held to design-first"
+                        % (LEGACY_KEY, ", ".join(dropped)))
     if found and LEGACY_KEY not in meta and out_dir and not beats_with_ideal(slides, out_dir, tier):
         # THE OFFER: a board that looks made before the rule gets one question instead of the floor
         def _head(e):                                  # each floor error's own first clause, not its how-to

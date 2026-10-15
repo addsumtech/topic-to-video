@@ -713,7 +713,7 @@ def _design_routes(out_dir):
     if not slides or meta is None or tier is None:
         return []
     _v = _validate_module()
-    kept = _v.design_first_keep(meta, slides, tier)[0]   # beats the user kept as designed: no route to confirm
+    kept = _v.design_first_keep(meta, slides, tier, out_dir)[0]   # beats the user kept as designed: no route to confirm
     if tier == "remotion":
         return [(num, r) for num, r, _w in _v.design_routes(meta, slides, out_dir)
                 if r in CREDITED[tier] and num not in kept]
@@ -727,7 +727,7 @@ def kept_line(out_dir):
     tier = film_tier(out_dir)
     if meta is None or tier is None:
         return ""
-    kept, probs, _dropped = _validate_module().design_first_keep(meta, slides, tier)
+    kept, probs, _dropped = _validate_module().design_first_keep(meta, slides, tier, out_dir)
     if not kept or probs:
         return ""
     return ("design-first: kept by the user's decision for beat(s) %s (%r, meta.design_first) — those beats were "

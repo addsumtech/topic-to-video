@@ -288,7 +288,7 @@ def build(out_dir, ran=None, codes=None):
     # per beat, whether that route is VISIBLE in the frame — a ledger `routes` row each (critic_ledger.py).
     try:
         import validate as _v
-        _kept = _v.design_first_keep(meta, slides, "remotion")[0]
+        _kept = _v.design_first_keep(meta, slides, "remotion", out_dir)[0]
         _routes = [(n, r, w) for n, r, w in _v.design_routes(meta, slides, out_dir)
                    if r in ("adapted", "built") and n not in _kept]
     except Exception as e:                                    # noqa: BLE001 — report, never mask
@@ -552,7 +552,7 @@ def _build_html(out_dir, board, ran, codes=None):
     L.append("## 4 · Facts computed for you")
     L.append("")
     import critic_ledger as _cl
-    kept = _v.design_first_keep(meta, slides, "html")[0]
+    kept = _v.design_first_keep(meta, slides, "html", out_dir)[0]
     credited = [(n, r, w, rel) for n, (r, w, rel) in routes.items() if r in ("built", "bespoke") and n not in kept]
     keep = _cl.kept_line(out_dir)
     if keep:

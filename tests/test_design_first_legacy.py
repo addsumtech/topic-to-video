@@ -4,8 +4,9 @@ proven by nothing the maker can set (no dates):
 * a board where NO beat carries `shot_fit.ideal` gets ONE error that puts the choice to the user, instead of the floor;
 * `validate.py <out_dir> --keep-design "<their words>"` records the keep for every beat on the board at that moment —
   refused for a non-answer and for a board where any beat already has an ideal;
-* a kept beat (same number, same shot / page) is exempt; a beat added or changed later follows the per-beat rules, and
-  those beats as a group carry the floor's share; a new beat that writes its ideal does NOT void the keep;
+* a kept beat (same number, same shot / page, no ideal) is exempt; a beat added or changed later, or a kept beat that
+  writes an ideal, follows the per-beat rules, and those beats as a group carry the floor's share; a new beat that
+  writes its ideal does NOT void the keep — and a hand-written keep over beats that carry ideals keeps nothing;
 * the critic's route rows are required for the non-kept credited beats only, and delivery says what was kept.
 Both tiers."""
 import json
@@ -155,7 +156,7 @@ def test_changing_a_kept_beats_shot_takes_it_out_of_the_keep(tmp_path):
     _save(out, meta, slides)
     errs, warns = _df(out, "remotion")
     assert any("scene #2" in e for e in errs), errs
-    assert len(warns) == 1 and "no longer kept (changed or gone): 2" in warns[0] and "1, 3, 4" in warns[0], warns
+    assert len(warns) == 1 and "no longer kept (changed, gone, or now carrying an ideal): 2" in warns[0] and "1, 3, 4" in warns[0], warns
 
 
 def test_a_hand_written_keep_is_held_to_the_same_answer_rule(tmp_path):
@@ -206,3 +207,31 @@ def test_a_keep_whose_every_beat_changed_says_so_and_holds_the_whole_film(tmp_pa
     errs, warns = _df(out, "remotion")
     assert errs and any("none of them is on the board unchanged" in w for w in warns), (errs, warns)
     assert v._beat_order({10, 2, 1}) == [1, 2, 10]
+
+
+def test_a_kept_beat_that_carries_an_ideal_is_not_kept_so_a_written_keep_cannot_launder_a_new_film(tmp_path):
+    """A NEW template-first film that writes ideals and then hand-writes a keep listing every beat passed as OK: the
+    command refuses such a board, but nothing re-checked a record written by hand. Held per kept beat on every run,
+    a beat with an ideal is being designed under the rule, so the keep does not cover it."""
+    for tier, build in (("remotion", _remotion), ("html", _html)):
+        out = build(tmp_path / tier)
+        floor_before, _ = _df(out, tier)
+        meta, slides = _load(out)
+        for s in slides:
+            s["shot_fit"] = {"ideal": rdf.IDEAL}
+        idents = [v._beat_ident(s, pos, tier) for pos, s in enumerate(slides, 1)]
+        meta["design_first"] = {"legacy": True, "user_answer": KEEP, "kept": idents}
+        _save(out, meta, slides)
+        errs, warns = _df(out, tier)
+        assert errs, (tier, "a written keep over beats with ideals must not clear the floor", warns)
+        assert not any("kept by the user's decision" in w for w in warns), (tier, warns)
+        assert any("none of them is on the board unchanged and without an ideal" in w for w in warns), (tier, warns)
+    # and on a real keep, writing one kept beat's ideal takes THAT beat out (it is being redesigned), not the rest
+    out = _remotion(tmp_path / "redesign")
+    assert v.keep_design(out, KEEP)[0]
+    meta, slides = _load(out)
+    slides[2]["shot_fit"] = {"ideal": rdf.IDEAL}
+    _save(out, meta, slides)
+    errs, warns = _df(out, "remotion")
+    assert any("scene #3" in e for e in errs), errs
+    assert len(warns) == 1 and "1, 2, 4" in warns[0] and "now carrying an ideal): 3" in warns[0], warns
