@@ -64,6 +64,8 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
       "token": "--fg/--muted | --green | --accent2 | --surface | --accent", "for": "what this hue means here" } ],
   "beats": {
     "1": {
+      "ideal": "one line, no archetype named — what the viewer must SEE (Design first)",
+      "route": "build|bespoke|as-is — one clause why", "shares": "(as-is only) the encoding the stock form shares with the ideal",
       "narrative_job": "diagnosis|proof|contrast|mechanism|transition|decision|action",
       "content_shape": "the data relationship (order/magnitude/part-whole/two-axes/time/causality/structure/one-claim)",
       "rejected_default": "the NEAREST COMPETING form that also fits, and why the winner beats it (stat vs line, split vs quadrant, segbar vs separate stats) — NOT a card-grid strawman",
@@ -78,16 +80,16 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
       "cue": ["optional — per-point anchor phrases (one per point, in SPOKEN order) for an html multi-point beat"]
     } } }
 ```
-> **The design-intelligence procedure lives in `references/design-intelligence-addendum.md`** — load it
-> whenever a choice risks a card grid, a repeated template, or an even medium-density page. It defines the
-> **reasoning trace** (`narrative_job`/`content_shape`/`rejected_default` — make the decision visible, §1),
-> the **rhythm map** (§2.2), the **block dependency audit** (§3), the **expanded Concept→Visual dictionary**
-> with use/avoid/failure columns (§4), the **evenness penalty** (§6), the **semantic colour ledger** (§7),
-> and the **minimum deck-level variation floors** (§8). Emit the fields above; the addendum is the how.
+> **The method is this file; the tables it cites live in `references/design-intelligence-addendum.md`** — load
+> it whenever a choice risks a card grid, a repeated template, or an even medium-density page: the **reasoning
+> trace** format + worked examples (§1), the **rhythm map** (§2.2), the **WOW** fields (§2.4), the **block
+> dependency audit** (§3), the **Concept→form dictionary** with use/avoid/failure columns (§4) and the
+> abstract-idea metaphors (§4b), the weak-vs-strong deck patterns (§5), the **evenness penalty** (§6), the
+> **semantic colour ledger** (§7), the **minimum deck-level variation floors** (§8) and archetype alternatives (§9).
 > The reasoning trace is REQUIRED on every non-`title` beat.
 - **`visual.type` ∈ {html (DEFAULT), slide, title, chart, timeline, keypoints, compare}** — you pick the
   CONCRETE type. **DEFAULT to `html`** (a bespoke Chrome-rendered page) for every designed beat: it is the
-  promoted tier and covers every form in the dictionary below. The programmatic types
+  promoted tier and covers every form in the dictionary (addendum §4). The programmatic types
   (`title`/`chart`/`timeline`/`compare`/`keypoints`, rendered by `scripts/scenes.py`) are the **no-Chrome
   fallback ONLY** — emit one solely when Chrome is unavailable; `slide` is an ingested / handed-off deck frame.
   Map the content's coarse `visual_intent` → a concrete form by its **data relationship**, then read the
@@ -119,43 +121,15 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
   is line-final") so the page author sets an explicit `animation-duration`. `validate.py` ERRORs on
   a cued animation under ~90% complete at the cut.
 
-## Concept → Visual Language (reason from concept to visualization — never map page-type to a template)
-Read the content's coarse intent (and the idea itself) and choose the form that SAYS it. This table is
-**grounded in what the renderer can actually land** — where the metaphor isn't a first-class render, the
-honest substitute + the deliverable data-form are named. **Never promise a form the renderer can't draw.**
-
-**Tier rule:** author every row's deliverable as its **`html`** form — HTML is the promoted tier. Where a
-row ALSO names a `render_*` programmatic renderer (e.g. `render_timeline`, `render_compare`), that is the
-**no-Chrome fallback**, not a co-equal choice: default to the HTML form and reach for the programmatic one
-only when Chrome is unavailable.
-
-| Concept | Deliverable form | Notes / honest substitute |
-|---|---|---|
-| **Flow / Process / Pipeline** | `.flow` (html) | numbered `.step`s + `.arrow`; `data-cue` per step. Pipeline/conveyor art is broll only — data lives in the steps |
-| **Journey / Evolution / Sequence** | `.timeline` (html) · `render_timeline` | rail of `.tl-node`, one focal `.tl-node.on`; dates in mono. Road/metro map is broll only |
-| **Growth / Trend** | `chart` kind=`line` (the curve) · `bars` · `counter` · `slope`/`dumbbell` (two points, many categories) · `dist`/`scatter`/`small_multiples` (spread / correlation / same-shape-across-N) | the curve draws on progressively. Rocket/mountain are decorative broll — magnitude lives in the chart |
-| **Comparison / Before-after** | `.split` + `.defocus` (html) · `render_compare` (programmatic) | two-column, `.defocus` the non-focal side. Two real axes → use `.quadrant` |
-| **Prioritization / Two axes** | `.quadrant` (html) | 2×2 of `.cell`, focal `.cell.on`, mono `.ax-x`/`.ax-y` |
-| **Relationship / Ecosystem / System** | `.hubspoke` (html) | hub + spokes (centre+peers, or inputs→decision). **Only a hub/star topology renders** — an arbitrary many-to-many graph does NOT; decompose to a hub |
-| **KPIs / Performance / Dashboard** | `.dash` + `.scorecard`/`.tile`/`.delta` + `.meter` | `.dash` IS the dashboard layout |
-| **Parts of a whole / Share / Dependency** | `.segbar` / `.meter` · `render_compare` kind=`split` | 100% stacked. **No Sankey** — represent the split, not the crossing flow-width |
-| **Visible surface vs hidden bulk** (submerged cost/complexity — "what you see is a fraction") | `.iceberg` (html) | small `.tip` above the `.waterline`, 2–4 `.ib-point` in the `.mass`. Motion-native (pan-down uncovers the mass). NOT three parallel cards |
-| **Scale / Ranking** | `chart` kind=`bars` (ascending) · graded `.bar` rows | ascending bars read as steps. No literal 3-D staircase |
-| **Big number / Result** | `.stat` / `chart` kind=`counter` (`props.climax`) | the counter lands its value at ~68% then holds |
-| **One idea / verbatim** | `.pullquote` (html) | a single pull-quote carries the beat |
-| **Categories (parallel, equal-weight)** | colour `.blocks` / `.card` grid / `.icon-tile` rows | the grid is right ONLY here |
-| **Hierarchy / Pyramid** | *(no pyramid)* → graded `.bar` rows / stacked `.blocks` tiers | a tapering triangle can't be drawn faithfully — let width/order carry the ranking |
-| **Loop / Cycle / Flywheel** | *(no cycle renderer)* → linear `.flow` | add a final step naming the return; the loop-back arrow isn't drawable. Orbit survives only as a `.draw` ring / `.bg-stars` decoration |
-| **Decision / Branching** | *(no tree)* → `.hubspoke` (inputs→decision) / `.quadrant` (decision matrix) | a multi-level branching tree is not deliverable |
-| **Transformation / Morphing** | *(no morph)* → `.split` before→after / two-step `.flow` | reveals are fade/rise/pop/wipe only — no shape-morph |
-| **Risk** | *(no heatmap)* → `.quadrant` (likelihood×impact) / colour `.blocks` tiers / `.meter` | no NxM colour-intensity grid exists |
-| **Strategy** | `.quadrant` / `.blocks` pillars | no compass motif ships — a compass rose is broll only |
-| **Section / divider** | `title` / full-bleed `.accent-fill` | a chapter break — sparse (a kicker + one short line); the transition dip does the "new chapter" work |
-
-When a concept isn't in the table, reason the same way: name the *data relationship* (order / magnitude /
-part-whole / two-axes / time / structure), then pick the archetype that says it. The metaphor (river,
-galaxy, mountain) may live in a **generic broll backdrop** (`.bg-soft`/`.bg-photo`, `image_tag: broll`) —
-never as the carrier of a fact.
+## Concept → form (reason from the data relationship — never map page-type to a template)
+Read the content's coarse intent (and the idea itself) and name its **data relationship** — order / magnitude /
+part-whole / two-axes / time / causality / structure / one-claim — then choose the form that SAYS it. The ONE
+dictionary of deliverable forms, with the honest substitute for every metaphor this renderer cannot draw (no
+Sankey, pyramid, cycle, tree, morph or heatmap), is **`references/design-intelligence-addendum.md` §4** — read it
+for every beat whose form is not obvious, and to fill `content_shape` + `rejected_default`. **Never promise a form
+the renderer can't draw.** Author every form as its **`html`** form (the promoted tier); a `render_*` programmatic
+renderer is the **no-Chrome fallback**, not a co-equal choice. The metaphor (river, galaxy, mountain) may live in a
+**generic broll backdrop** (`.bg-soft`/`.bg-photo`, `image_tag: broll`) — never as the carrier of a fact.
 
 **A NON-DATA beat** (a definition, principle, or emotional idea with no numbers) must NOT default to a
 bare pull-quote or generic filler — give it a **topical metaphor** from the abstract-concept→metaphor
@@ -218,14 +192,13 @@ For each imagery beat, emit `media.treatment` + (`image_prompt` for atmosphere |
 for documentary). The step-6 authoring then fetches/generates accordingly (SKILL.md step 4b + 4c).
 
 **BRAND placement (`meta.brand` — a user-supplied REAL logo).** The logo appears at the COVER + ENDCARD
-by default (`placement` default `["cover","endcard"]` — author the lockups into those two pages per
-`references/html-pages.md` "Brand lockups"); the persistent corner `bug` ONLY when the user asks for
-persistent marking. The logo is FURNITURE, not content: it never competes with an evidence beat, never
-sits over busy ground — give it a QUIET zone (a corner, or under the title block, clear space ≥ its own
-height). Pick the variant per ground (`logo_dark` on a dark ground, else `logo`); NEVER distort, recolor,
-or effect it. This is the mirror of the imagery doctrine above, not an exception to it — generated
-imagery still never fabricates a logo; only the user's verbatim file may carry the mark. On the
-slide-image tier, master-slide logos arrive baked into the frames — add nothing there.
+by default (`placement` default `["cover","endcard"]`); the persistent corner `bug` ONLY when the user asks for
+persistent marking. The logo is FURNITURE, not content: it never competes with an evidence beat and never sits
+over busy ground. This is the mirror of the imagery doctrine above, not an exception to it — generated imagery
+still never fabricates a logo; only the user's verbatim file may carry the mark. On the slide-image tier,
+master-slide logos arrive baked into the frames — add nothing there. How the lockups are authored (clear space ≥
+the logo's own height, `logo_dark` per ground, never distorted/recolored/effected): `references/html-pages.md`
+"Brand lockups".
 
 **Per-beat MOTION (`shot` + `intensity`).** Emit, per beat, a `shot` (its Ken Burns framing by narrative
 function — wide-establishing opener / medium explain / close-push on the key term / big-push climax /
@@ -235,92 +208,90 @@ from the beat's `energy` — the renderer scales the Ken Burns move by it, so th
 HTML tier the same `energy`/intensity steers the `motion_intent` verb + reveal stagger + transition length.
 See `references/motion-grammar.md` "Shot grammar" + "Motion INTENSITY".
 
-**Expanded dictionary** — `references/design-intelligence-addendum.md` §4 gives a fuller decision table
-(Use when / Avoid when / Common AI failure) and adds Bottleneck, Tradeoff, Causality, Leakage/churn,
-Operating model, Roadmap, Case study, and Insight/conclusion — all constrained to the SAME deliverable
-forms (e.g. a "leaking funnel" → descending `chart` bars; a "flywheel" → linear `.flow` with a return
-step). Use it for any beat whose logic isn't obvious from the table above, and to fill each beat's
-`content_shape` + `rejected_default` reasoning trace.
-
 ## CINEMATIC tier (Remotion) — REMOVED
 
 The legacy generic-scene cinematic tier (atmospheres, cinematic templates, TRUE-3D archetypes, `type:"cinematic"` depth-plane scenes) was removed in the phase-3 cutover. The Remotion tier is now the **remotion bespoke-shot library**: a `meta.renderer:"remotion"` film is NOT designed in this file — the **shot-director** (`agents/shot-director.md`) assigns each beat a `shot` register + `shot_props`, and the **shot-critic** (`agents/shot-critic.md`) reviews it. See `remotion/LIBRARY.md`.
 
-## Design first — the stock archetypes are MATERIAL, a bespoke page is the default
-The same flow as the Remotion tier (`agents/shot-director.md` Step 0.55 defines it; this is its HTML form). Per
-beat: write the **ideal picture** first (`ideal`, one line, no archetype named) → choose a **route** → assemble →
-check (keyframe_qa + the hide-the-caption test).
-- **build** — a workshop component (`scripts/workshop.py new-component`, on `meta.build_list`, kind `component`)
-  draws the beat's thing.
-- **bespoke** — the page's own composition: page-local CSS/SVG that lays the beat out the way its argument runs
-  (not a base.css archetype restyled).
-- **as-is** — a stock archetype (`.flow`, `.timeline`, `.scorecard`, …) ONLY when it already IS the ideal; write
-  `shares` — the encoding it shares with the ideal picture. "It fits" is not a reason.
-Aim for MOST pages built or bespoke; at least half is the floor, and the deck's signature beat is built. Apply the
-premium checklist in shot-director Step 0.55 to every page (one idea · focal hierarchy · restraint · type
-hierarchy · colour that means · motion that reveals in sequence · a signature moment that surprises, rightly).
-Record `ideal`, `route` and (as-is) `shares` per beat in the design plan. *(Not yet machine-enforced on this
-tier — `validate.py` enforces the floor on Remotion films only; the design-critic checks it here.)*
+## Design first — the ideal picture, then the route; templates and archetypes are MATERIAL
+The same method as the Remotion tier — `agents/shot-director.md` Step 0.55 is its one definition; this is its HTML
+form. Per beat, in this order:
+1. **Ideal picture — `ideal`, one line, no archetype or template named.** What must the viewer SEE for this beat to
+   land. Design it with the premium checklist of Step 0.55 (one idea · encoding · focal hierarchy · restraint ·
+   type hierarchy · colour that means · motion that reveals in sequence · a signature moment that surprises,
+   rightly).
+2. **Route — `route` + a one-clause why.**
+   - **build** — a workshop component (`scripts/workshop.py <out_dir> new-component <Name> --means "…"`, on
+     `meta.build_list`, kind `component`; contract in `references/html-pages.md` "Building a component") draws
+     the beat's thing.
+   - **bespoke** — the page's own composition: page-local CSS/SVG that lays the beat out the way its argument
+     runs. A premium template (`references/html-templates.md`) or base.css archetype whose LAYOUT, ENCODING or
+     STRUCTURE you changed for this beat's argument counts here; restyled or merely populated, it does not.
+   - **as-is** — a stock archetype or template (`.flow`, `.timeline`, `.scorecard`, `hero_stat`, …) ONLY when it
+     already IS the ideal; write `shares` — the encoding it shares with the ideal picture. "It fits" is not a
+     reason.
+3. **Assemble** it from the form classes (`references/html-pages.md` "Form markup") and the templates — start a
+   templated form FROM its template rather than reinventing the composition, then change what this beat's
+   argument needs.
+4. **Check** it: `keyframe_qa` and the hide-the-caption test.
 
-## Form selection — choose the form the content wants; keep a form ledger
-**Design is choosing, not matching.** For each `html` beat add a **`form`** field naming the chosen form
-AND the runner-up it beat, one clause: e.g. `"form": "flow — beats cards because the 5 steps are ORDERED;
-a card grid hides the sequence"`. **When the chosen form has a premium template in
-`references/html-templates.md`** — business/general (hero_stat, before_after, timeline_rail, problem_leak,
-system_map, metric_wall, case_story, flywheel) OR **research/technical** (research_method, code_architecture,
-equation_build, algorithm_build (pseudocode / a key routine, lines reveal on the voice), results_table,
-figure_focus) OR **quantitative encodings** (`.waffle`/`.gauge`/`.isotype` for
-ONE proportion, `.bullet` for actual-vs-target, slopegraph + `.waterfall` for two-point change, `.venn`/`.rings`
-for set-overlap/nested-scope, `.stepper` for an ordered procedure — see "Quantitative & structural encodings")
-— START FROM IT and populate with real content — don't
-reinvent the composition — then **adapt it to the subject** (see Freshness below); name it in the `form`
-clause (e.g. `"form": "results_table template — …"`). Every template FORM is topic-agnostic; match the
-content SHAPE, not the domain. Templates are verified premium starting points to ADAPT, not fixed slots
-(design is still choosing). The card grid is right ONLY for **parallel, unordered, equal-weight**
-items; the moment content has **order, magnitude, a relationship, time, or two axes**, pick the form that
-says it (`references/html-pages.md` catalog). Keep **no single form family above ~45%** of the `html`
-beats — when you catch a third card-grid, re-run form selection; the content almost always wants a
-`flow`/`scorecard`/`quadrant`/`timeline`. `validate.py` + the design-critic (D1) enforce this.
+Aim for MOST pages built or bespoke; at least half is the floor, and the deck's signature beat is built. Record
+`ideal`, `route` and (as-is) `shares` per beat in the design plan. *(Not yet machine-enforced on this tier —
+`validate.py` enforces the floor on Remotion films only; the design-critic (D2c) checks it here.)*
 
-**Fits vs Illuminates — pick the form that ILLUMINATES, not one that merely fits.** A form that *fits*
-holds the content without lying; a form that *illuminates* makes the RELATIONSHIP legible **without
-reading** — the trend, the rank, the share, the gap visible at a glance. Reject the merely-fitting form
-for the illuminating one. **Fit test, per data beat:** could the viewer get the trend / rank / share /
-gap — not just the number — in 3 seconds? If they'd have to READ to see the relationship, the form is
-wrong. Data-type → encoding (the discriminators the fit test enforces — reason from the existing
-Concept→Visual dictionary, these are the *rejections*): a value that **CHANGES over time** → a line, never
-a lone `.stat` (a single number hides the trajectory); a **part-of-whole / share** → `.segbar`/`.meter`,
-never separate stats (they hide the whole); a **single dominant % or "k of N"** → a `.gauge`/`.waffle`/
-`.isotype` (make the proportion FELT), not a bare `.stat`; **actual vs a target** → `.bullet` (shows the gap
-to goal), not a plain bar; the **same measure at TWO points across many categories** → a slopegraph/dumbbell
-(rank crossover), not paired stats; a **running total from signed steps** → a `.waterfall`/bridge; **nested
-scope** → `.rings`; **shared-vs-unique membership** → `.venn`; an **ordered procedure with a current
-position** → `.stepper` (not a plain `.flow`); **4–6 parallel labeled features** → an `.icon-tile` grid
-(icon + label + blurb), not a plain card wall; **one→many decomposition** → an outward-facing `.hubspoke`
-(hub in the centre, spokes radiating) or radial cluster; **3–6 compared** → bars (ascending = ranking), not
-a card grid (a grid hides the magnitude order); **two variables / positioning** → `.quadrant`/scatter.
-**Contest, not strawman:** the `rejected_default` must be the NEAREST competing form that ALSO fits (stat
-vs line, split vs quadrant, segbar vs separate stats) — if the only alternative you can name is a card
-grid, you haven't run the contest (the grid is handled by the block audit). A form that only proves it
-beats a grid has not shown it is the MOST suitable. The design-critic (D1) REVISEs a strawman rival.
+### Choosing the form — a contest, recorded in the form ledger
+**Design is choosing, not matching.** Name the 2–3 forms a beat could take, pick by its *shape*, and for each
+`html` beat add a **`form`** field naming the chosen form AND the
+runner-up it beat, one clause: e.g. `"form": "flow — beats cards because the 5 steps are ORDERED; a card grid hides
+the sequence"`. When the form has a premium template — business/general (hero_stat, before_after, timeline_rail,
+problem_leak, system_map, metric_wall, case_story, flywheel) OR **research/technical** (research_method,
+code_architecture, equation_build, algorithm_build (pseudocode / a key routine, lines reveal on the voice),
+results_table, figure_focus) OR **quantitative encodings** (`.waffle`/`.gauge`/`.isotype` for ONE proportion,
+`.bullet` for actual-vs-target, slopegraph + `.waterfall` for two-point change, `.venn`/`.rings` for
+set-overlap/nested-scope, `.stepper` for an ordered procedure — html-templates "Quantitative & structural
+encodings") — name it in the `form` clause (e.g. `"form": "results_table template — …"`). Every template FORM is
+topic-agnostic; match the content SHAPE, not the domain.
 
-**Block dependency audit (addendum §3) — stricter than the family gate.** For every beat using cards/
-`.blocks`/panels, justify ALL five conditions (parallel · unordered · equal-weight · independent · not
-better as time/flow/hierarchy/comparison/system/magnitude); **>2 CONSECUTIVE card/panel beats — regardless
-of the form NAME — force a redesign of one.** The ≤45% family gate is gameable (a "dashboard", a "metric
-matrix", and "three action cards" all read as one grid); the audit catches that. **Minimum variation
-(addendum §8, for 6+ content beats):** ≥4 distinct visual protagonists, ≥3 non-card forms, ≥1 hero, and a
-diagram / contrast / time beat whenever the content has a process / before-after / sequence. The
-design-critic (D1) enforces both.
+**Fits vs Illuminates — pick the form that ILLUMINATES, not one that merely fits.** A form that *fits* holds the
+content without lying; a form that *illuminates* makes the RELATIONSHIP legible **without reading** — the trend,
+the rank, the share, the gap visible at a glance. **Fit test, per data beat:** could the viewer get the trend /
+rank / share / gap — not just the number — in 3 seconds? If they'd have to READ to see the relationship, the form
+is wrong. The rejections the fit test enforces: a value that **CHANGES over time** → a line, never a lone `.stat`
+(a single number hides the trajectory); a **part-of-whole / share** → `.segbar`/`.meter`, never separate stats
+(they hide the whole); a **single dominant % or "k of N"** → a `.gauge`/`.waffle`/`.isotype` (make the proportion
+FELT), not a bare `.stat`; **actual vs a target** → `.bullet` (shows the gap to goal), not a plain bar; the **same
+measure at TWO points across many categories** → a slopegraph/dumbbell (rank crossover), not paired stats; a
+**running total from signed steps** → a `.waterfall`/bridge; **nested scope** → `.rings`; **shared-vs-unique
+membership** → `.venn`; an **ordered procedure with a current position** → `.stepper` (not a plain `.flow`); **4–6
+parallel labeled features** → an `.icon-tile` grid (icon + label + blurb), not a plain card wall; **one→many
+decomposition** → an outward-facing `.hubspoke` (hub in the centre, spokes radiating) or radial cluster; **3–6
+compared** → bars (ascending = ranking), not a card grid (a grid hides the magnitude order); **two variables /
+positioning** → `.quadrant`/scatter.
+
+**Contest, not strawman:** the `rejected_default` must be the NEAREST competing form that ALSO fits (stat vs line,
+split vs quadrant, segbar vs separate stats) — if the only alternative you can name is a card grid, you haven't run
+the contest (the grid is handled by the block audit). A form that only proves it beats a grid has not shown it is
+the MOST suitable. The design-critic (D1) REVISEs a strawman rival. The trace's field format and worked examples:
+addendum §1.
+
+**The card grid is the fallback, never the default.** It is right ONLY for **parallel, unordered, equal-weight**
+items; the moment content has **order, magnitude, a relationship, time, or two axes**, pick the form that says it.
+Three floors keep a deck honest, enforced by `validate.py` + the design-critic (D1):
+- **No single form family above ~45%** of the `html` beats — when you catch a third card-grid, re-run form
+  selection; the content almost always wants a `flow`/`scorecard`/`quadrant`/`timeline`.
+- **Block dependency audit (addendum §3) — stricter than the family gate,** which is gameable (a "dashboard", a
+  "metric matrix" and "three action cards" all read as one grid): every card/`.blocks`/panel beat justifies all
+  five conditions, and **>2 CONSECUTIVE card/panel beats — regardless of the form NAME — force a redesign of
+  one.**
+- **Minimum variation (addendum §8, for 6+ content beats):** ≥4 distinct visual protagonists, ≥3 non-card forms,
+  ≥1 hero, and a diagram / contrast / time beat whenever the content has a process / before-after / sequence.
 
 ## Freshness — the catalog is a FLOOR, not a formula
 The templates + archetypes are a **quality floor and a starting scaffold — never the design itself.** With
 a big catalog the failure mode is a deck of *filled-in templates*: competent, on-brand, and utterly
 interchangeable — the "boring template every time" look. A fresh video is one that could ONLY be about
-THIS subject. Make it that:
-- **Start from the CONTENT, not the catalog.** Name the 2–3 forms a beat could take, pick by its *shape*,
-  then **adapt** — shift the emphasis, re-cast the accent's role, change the hero and the layout balance —
-  so the composition fits THIS point, not a stamped skin. The form is the skeleton; the topic is the flesh.
+THIS subject — the form is the skeleton, the topic is the flesh, and Design first decides how much of a
+scaffold survives (shift the emphasis, re-cast the accent's role, change the hero and the layout balance). Make the
+deck that:
 - **Give the deck a NAMED signature_concept (creativity, not just non-repetition).** Composition variety
   makes a deck *not templated*; a signature_concept makes it *creative*. At ≥1 beat, invent an
   **apt-but-unexpected encoding** — map a piece of CONTENT MEANING onto a VISUAL PROPERTY so the idea is
@@ -416,57 +387,60 @@ THIS subject. Make it that:
   catalog clause adapted to this subject) — imagegen threads it through every image. A palette restatement is
   NOT a style_thesis; the `style_thesis` prose says WHY this style fits. The style you pick is a big lever
   for "two decks look like two different films" — pick it to MEAN something for THIS subject, not as a wash.
-- **Vary the composition ENVELOPE, not just the form.** Two beats can use DIFFERENT forms and STILL
-  share one composition — a top kicker over a vertically-centered block on a flat ground — and that IS
-  the templated look the user complains about. RULE: no two content beats may share the same composition
-  signature = (vertical anchor: `top` | `center` | `bottom` | `full-bleed`) × (horizontal balance:
-  `centered` | `left-weighted` | `right-weighted` | `split` | `asymmetric`). Not every beat may be
-  `justify-content:center` (the `.stage` default); **≥~1/3 of content beats must be off-center**
-  (top/bottom-anchored, or `.grid-asym`/`.split`); **≥1 hero must lead with its number/image with NO
-  top kicker-hat.** *(The lint credits off-center via `.split`/`.grid-asym` or a non-center
-  `justify-content` on `.stage`; a purely left/right-weighted layout still reads as varied to a viewer
-  but isn't machine-detected — so lean on `.grid-asym`/`.split`/anchor to satisfy the gate.)* `validate.py` gates center-anchor share >60%, all-pages-kicker-first, and off-center
-  <25%; `keyframe_qa` advises on centroid clustering; `design-critic` D6b REVISEs a composition-monotone
-  deck EVEN IF the form families vary. *(Exception: genuinely parallel/unordered content the form ledger
-  justifies (D1) may repeat a form — but still vary the anchor/balance and keep a signature beat.)*
-- **Background floor (html tier): content beats must not ALL share a flat plain `--bg`.** Rotate ≥2
-  backdrops or alternate plain/tinted/soft/accent-fill; a beat whose `rhythm_map` background is
-  warm/cool/hero MUST carry a real backdrop element (`.bg-soft`/`.bg-soft-tint`/`.bg-photo`/`.accent-fill`/
-  `.bg-motif`/`.bg-grid`), not bare `--bg`; place ≥1 mid-deck accent-fill or soft-textured beat to break a
-  flat run. `validate.py` warns when >60% of content pages are bare `--bg`.
-- **Flat/free tier — spend the backdrop budget on a TOPICAL motif, not generic decoration.** With no AI
-  images, the free way to make covers + main pages read "not flat" AND on-topic is a faint `.bg-motif`:
-  a simple SVG diagram derived from THIS deck's **`motif`** (the recurring atmosphere idea — NOT the
-  `signature_concept`, which must carry its meaning in the FOREGROUND, never as background decoration; a
-  ghosted node-network for an agents deck, a faint segbar for an 80/20 split), drawn at a whisper behind the
-  content — with a `.bg-soft-tint` ONLY where text overlaps it — or the ready-made `.bg-grid` schematic.
-  Author the motif backdrop on the hero + ≥1 mid-deck beat (not left to chance); keep ONE motif family
-  recurring — the same shape returning on a FEW beats (the other beats still rotate plain/tinted/accent-fill,
-  so the background floor's "≥2 backdrops" still holds), a system, not clip-art or a wallpaper on every page.
-  See `references/html-pages.md` "Topical motif backdrop". `.bg-stars`/`.bg-glow` are topic-neutral
-  fallbacks — prefer the topical motif.
-- **The freshness test (design-critic D2):** could this whole deck be lifted onto an unrelated topic by
-  swapping the words? If yes, it's a formula, not a design. Freshness is the topic showing THROUGH the
-  design — a template *used* is not design; a template *adapted to the subject* is.
+- **Vary the composition ENVELOPE, not just the form.** Two beats can use DIFFERENT forms and STILL share one
+  composition — a top kicker over a vertically-centered block on a flat ground — and that IS the templated look
+  the user complains about. A beat's composition signature = (vertical anchor: `top` | `center` | `bottom` |
+  `full-bleed`) × (horizontal balance: `centered` | `left-weighted` | `right-weighted` | `split` | `asymmetric`).
+  RULE: **no two ADJACENT content beats share a signature, and no one signature covers more than ~60% of them**;
+  not every beat may be `justify-content:center` (the `.stage` default); **≥~1/3 of content beats must be
+  off-center** (top/bottom-anchored, or `.grid-asym`/`.split`/`.frame-left`); **≥1 hero must lead with its
+  number/image with NO top kicker-hat.** Vary the vertical BAND too — roughly a third in the default band, a third
+  stopping HIGH with real void below (a sparse statement or pivot that needs air), a third riding LOW on the
+  baseline (a beat about a surface, a floor, a device on a desk) — driven by what the beat SAYS, never a uniform
+  nudge to satisfy the metric. The classes (`band-upper`/`band-lower`/`anchor-*`/`bleed`), the worked case and
+  what each gate can see are `references/html-pages.md` "Vary the ENVELOPE". *(The lint credits off-center via
+  `.split`/`.grid-asym`/`.frame-*` or a non-center `justify-content` on `.stage`; a purely left/right-weighted
+  layout still reads as varied to a viewer but isn't machine-detected — so lean on those to satisfy the gate.)*
+  `validate.py` gates center-anchor share >60%, all-pages-kicker-first, and off-center <25%; `keyframe_qa` measures
+  the band and centroid clustering; `design-critic` D6b REVISEs a composition-monotone deck EVEN IF the form
+  families vary. *(Exception: genuinely parallel/unordered content the form ledger justifies (D1) may repeat a form
+  — but still vary the anchor/balance and keep a signature beat.)*
+- **Background floor (html tier): content beats must not ALL share a flat plain `--bg`.** Rotate ≥2 backdrops or
+  alternate plain/tinted/soft/accent-fill; a beat whose `rhythm_map` background is warm/cool/hero MUST carry a real
+  backdrop element (`.bg-soft`/`.bg-soft-tint`/`.bg-photo`/`.accent-fill`/`.bg-motif`/`.bg-grid`), not bare `--bg`;
+  place ≥1 mid-deck accent-fill or soft-textured beat to break a flat run. `validate.py` warns when >60% of content
+  pages are bare `--bg`.
+- **Flat/free tier — spend the backdrop budget on a TOPICAL motif, not generic decoration.** With no AI images, the
+  free way to make covers + main pages read "not flat" AND on-topic is a faint `.bg-motif`: a simple SVG diagram
+  derived from THIS deck's **`motif`** (never the `signature_concept`, which carries its meaning in the FOREGROUND)
+  — a ghosted node-network for an agents deck, a faint segbar for an 80/20 split — or the ready-made `.bg-grid`
+  schematic. Plan it on the hero + ≥1 mid-deck beat (not left to chance), ONE motif family recurring on a FEW
+  beats (the others still rotate plain/tinted/accent-fill, so the background floor's "≥2 backdrops" still holds): a
+  system, not clip-art or a wallpaper on every page. `.bg-stars`/`.bg-glow` are topic-neutral fallbacks — prefer
+  the topical motif. The whisper opacities, the no-data rule and when to add a `.bg-soft-tint`:
+  `references/html-pages.md` "Topical motif backdrop".
 
 ## Composition density + Space Intelligence (breathing room is a design decision)
 Programmatic renderers (`title`/`chart`/`keypoints`/`compare`/`timeline`) fix their own density — leave
 them. For an **`html` beat**: design for the FRAME, not the web — scale type up (headlines read at a
-glance; body never tiny), give every beat **≥2 focal ELEMENTS** (a dominant primary + a supporting/
-background one — never two co-equal primaries) and a clear foreground/background
-separation, and let the accent be genuinely present (a single small label on an empty field reads as
+glance; body never tiny) and let the accent be genuinely present (a single small label on an empty field reads as
 unfinished). A beat with one centred line is a `title`, not an `html` page — make it a `title`.
+- **One primary, then a quieter layer — something must WIN (the focal hierarchy of the premium checklist; the
+  evenness penalty, addendum §6).** ONE primary per page (a stat OR a list OR a chart — never two co-equal primaries
+  stacked) plus a supporting/background element and a clear foreground/background separation. A beat where every
+  element has similar weight is "clean but too even" and fails the squint test: each beat needs a clear FIRST-READ
+  element, a quieter SECOND-READ layer, and at least one thing deliberately oversized / isolated / darkened /
+  framed / centred.
 - **~50–60% canvas utilization** — leave intentional whitespace; don't fill every area. Limit a beat to
   **3–6 information units**. On 16:9, the html whitespace floor caps content near **~60%** and keeps
-  `.stage` padding ≥80px; on 9:16 keep the same airy density but SPAN it ≥70% down the column (span ≠ density). **Whitespace is an ACTIVE element, not unused capacity** — if a beat feels
-  thin, **strengthen the hero or cut a secondary element; NEVER add cards to fill space** (addendum §2.3).
-  Emit each beat's `density` (~55/60% utilization + the call) so it's visible.
+  `.stage` padding ≥80px — if a row grid overflows below 960px, SPLIT the beat, never shrink the padding; on 9:16
+  keep the same airy density but SPAN it ≥70% down the column (span ≠ density). **Whitespace is an ACTIVE
+  element, not unused capacity** — if a beat feels thin, **strengthen the hero or cut a secondary element; NEVER
+  add cards to fill space.** Emit each beat's `density` (`"~55%|~60% utilization — keep airy because … | split into
+  two beats because … | compress only because …"`) so the call is visible.
   **C.R.A.P. pass** (contrast · repetition · alignment · proximity): related elements sit close and align
   to a shared edge/grid, unrelated groups are separated, and the accent repeats consistently — misaligned
   or evenly-scattered elements read as template output even at the right density.
-- **Evenness penalty (addendum §6): something must win.** A beat where every element has similar weight
-  is "clean but too even" and fails the squint test. Each beat needs a clear FIRST-READ element, a quieter
-  SECOND-READ layer, and at least one thing deliberately oversized / isolated / darkened / framed / centred.
 - **9:16 is DISTRIBUTION, not density.** The 9:16 fill rule ("span ≥70% of the top-line-to-caption zone",
   `keyframe_qa` floor 60%) measures the VERTICAL SPAN of content, not how packed it is — it prevents a
   dead void where landscape content pooled in the top ~40% of the tall canvas. Hit the span with the two
@@ -476,10 +450,10 @@ unfinished). A beat with one centred line is a `title`, not an `html` page — m
   void. Full-bleed `.bg-photo` heroes are exempt from the fill probe.
 
 ## Rhythm + Visual Surprise (the deck must never flatten)
-- **Carry a `rhythm_map` (addendum §2.2)** — one row per beat naming its density, background mode,
-  visual protagonist, emotional register, and role. **Two adjacent rows must differ in ≥2 columns**; a
-  flat column (every beat "medium / plain / cards / neutral") is the auto-generated tell. A deck can pass
-  every per-beat check and still feel repetitive — the map is what catches that.
+- **Carry a `rhythm_map`** (the columns and a worked arc: addendum §2.2) — one row per beat naming its
+  density, background mode, composition, visual protagonist, emotional register, and role. **Two adjacent rows must
+  differ in ≥2 columns**; a flat column (every beat "medium / plain / cards / neutral") is the auto-generated
+  tell. A deck can pass every per-beat check and still feel repetitive — the map is what catches that.
 - **Alternate dense and light.** Mix hero pages, dashboards, diagrams, timelines and minimalist pages so
   adjacent beats differ in structure. **No same layout on adjacent beats.** No more than 2 consecutive
   PROGRAMMATIC beats share a `visual.type`; `html` beats vary by form family (above).
@@ -504,11 +478,10 @@ unfinished). A beat with one centred line is a `title`, not an `html` page — m
     closer (a single stat, a `.pullquote`, or a hero line), with the `close`-relation dip as its exit.
     Do NOT collapse `hold` into just a transition edge (a bare fade is not a closer), and do NOT add a
     separate blank beat — the render's end-hold IS the ending.
-- **A WOW beat must EARN it (addendum §2.4).** A hero is not merely a big element — it must create a
-  deliberate contrast against its neighbours and be memorable after the deck closes. Name, per hero:
-  `why_memorable` (bold number / iconic diagram / dramatic sentence / extreme contrast / on-topic
-  metaphor) and `surrounding_contrast` (differs from the beats before + after by layout + density +
-  background mode).
+- **A WOW beat must EARN it.** A hero is not merely a big element — it must create a deliberate contrast against
+  its neighbours and be memorable after the deck closes. Emit `wow` on hero beats only (format: addendum §2.4):
+  `why_memorable` (bold number / iconic diagram / dramatic sentence / extreme contrast / on-topic metaphor) and
+  `surrounding_contrast` (differs from the beats before + after by layout + density + background mode).
 - **The opener and closer must be memorable** (a hero cover, a sparse hold), never a bland title card.
 
 ## SVG icons (push them where they earn a job) — see `references/icons.md`
@@ -542,24 +515,20 @@ screen, so keep it a **whisper**; everything goes static under reduced motion. P
 VERB (motion-grammar's table) the available motion can actually land — don't promise a SLAM the renderer
 can't deliver.
 
-**Reveal ONE BY ONE — guide the viewer step by step (author it, don't hope for it).** Every component
-that carries its own meaning is its OWN `.reveal`/`.reveal-up` with its OWN `data-cue-index` (`0..N-1`
-contiguous, spoken order) + a `data-cue=` anchor. Do NOT wrap several independent facts in one cued
-reveal (they'd land all at once — `validate.py` warns ≥2 facts/cue); do NOT leave a content reveal
-uncued (it flashes in with the header — validate warns). A number keeps its own unit/▲▼ delta as one
-unit. **Connectors reveal WITH their destination block:** an `.arrow`/`.hs-connect` gets `reveal` (plain
-fade, not `.reveal-up`) + `data-cue-index` = the LATER block's index, no `data-cue=` of its own — never
-leave it static among cued steps (validate ERRORs; it would paint before the blocks). See
-`references/html-pages.md` "Stagger cadence" + `html-templates.md`.
+**Reveal ONE BY ONE — guide the viewer step by step (author it, don't hope for it).** Plan each beat so every
+component that carries its own meaning can land on its own spoken word: that is what your per-beat `cue` anchors
+are for. The page-level contract — one `.reveal`/`.reveal-up` + one `data-cue-index` per fact (`0..N-1`, spoken
+order), never ≥2 independent facts in one cued reveal, never an uncued content reveal, a number keeping its own
+unit/▲▼ delta, and connectors (`.arrow`/`.hs-connect`) revealing WITH their destination block (a static one is a
+`validate.py` ERROR) — is `references/html-pages.md` "Stagger cadence" + `html-templates.md`.
 
-**AI look (`meta.image_source:openai`) → content pages carry a shallow topic background.** (1) Emit
-`meta.soft_texture_prompts`: 2–3 broll prompts that EVOKE THE VIDEO'S TOPIC (litmus: hide the text and
-the subject is still legible), no logos/faces/text/numbers — `imagegen` synthesizes them into
-`meta.soft_textures`. (2) On EVERY content html page (NOT the opener/closer, which keep image-forward
-`.bg-photo`+`.scrim`) place as the first two `<body>` children: `<img class="bg-soft"
-src="file://<out_dir>/<meta.soft_textures[scene_index % len]>" alt="" style="opacity:.12">` then
-`<div class="bg-soft-tint"></div>`, and put text on `.card.glass` where it sits over texture. Rotate by
-scene index so the deck stays cohesive and cheap. `validate.py` warns a flat AI-look content page.
+**AI look (`meta.image_source:openai`) → content pages carry a shallow topic background.** Emit
+`meta.soft_texture_prompts`: 2–3 broll prompts that EVOKE THE VIDEO'S TOPIC (litmus: hide the text and the subject
+is still legible), no logos/faces/text/numbers — `imagegen` synthesizes them into `meta.soft_textures`, which every
+content html page (NOT the opener/closer, which keep image-forward `.bg-photo`+`.scrim`) carries as a rotated
+`.bg-soft` + `.bg-soft-tint`, text on `.card.glass` where it sits over texture. Placement, opacities and the gates:
+`references/html-pages.md` "AI cover + per-page backgrounds" and "Soft AI backgrounds + glass cards". `validate.py`
+warns a flat AI-look content page.
 
 **Transitions are SEMANTIC — map the content's `relation` to the cut** (never random; no wipes/spins;
 when uncertain, a short fade). Set each beat's `transition` from its `relation`:
@@ -577,13 +546,14 @@ when uncertain, a short fade). Set each beat's `transition` from its `relation`:
 semantics INSIDE the scene (a timeline's reveals, a counter, a `.defocus` compare) and use the short fade
 at the cut.
 
-## The concept motif (the swap test)
-Fill the top-level `"motif"`: ONE visual idea *derived from THIS topic* that recurs, so the video
-expresses this subject, not a reusable template. **Veto:** swap the topic name for another — would the
-design still work unchanged? If yes, it's a template, not a design — sharpen the motif and at least one
-signature beat's visual so they could only belong to this subject. (The design-critic caps a
-name-swappable plan.) *(Distinct from the storyboard `image_tag: motif` imagery class and from
-`motifs.css` — same word, unrelated meanings.)*
+## The concept motif + the swap test
+Fill the top-level `"motif"`: ONE visual idea *derived from THIS topic* that recurs, so the video expresses this
+subject, not a reusable template. **The swap test (design-critic D2):** swap the topic name for another, or lift
+the whole deck onto an unrelated topic by swapping the words — would the design still work unchanged? If yes,
+it's a formula, not a design — sharpen the motif and at least one signature beat's visual so they could only belong
+to this subject. Freshness is the topic showing THROUGH the design: a template *used* is not design; a template
+*adapted to the subject* is. (The design-critic caps a name-swappable plan.) *(Distinct from the storyboard
+`image_tag: motif` imagery class and from `motifs.css` — same word, unrelated meanings.)*
 
 ## Theme & palette (topic-fitting, anti-cliché)
 Propose the top-level `"theme"`: a palette that fits the SUBJECT (travel/food/lifestyle → warm light;
@@ -596,30 +566,35 @@ is a derived complement/split-complement of the accent (not an arbitrary second 
 the electric-blue-on-`#0d1117` AI cliché unless the topic is literally code/GitHub — prefer a
 temperature-tinted bg + a topic-fitting accent. Use **semantic colours** (one hue = one meaning), never a
 single flat template palette.
-- **Carry a `color_ledger` (addendum §7):** bind each semantic role to a theme token — `--fg`/`--muted`
-  = structure/labels; `--green` = growth/positive (`.delta.up`); `--accent2`/`--rule` = risk/problem/loss
-  (`.delta.down`); `--muted`/`--surface` = neutral support; `--accent` = the through-line/decision. **No
-  accent without meaning; a problem beat is allowed to feel different from a results beat;** a deck that
-  uses one accent hue for everything is not ready.
+- **Carry a `color_ledger`** binding each semantic role to a theme token — the role→token table (structure ·
+  growth · risk · neutral · through-line) is addendum §7. **No accent without meaning; a problem beat is allowed to
+  feel different from a results beat;** a deck that uses one accent hue for everything is not ready.
 
-## Before you emit — the design critic checklist (self-review; the design-critic re-checks)
-Score each; redesign any beat that fails:
-- ☐ Can the audience grasp each beat's main message in **3 seconds**?
-- ☐ Does each beat have **one clear focal point** (squint test: big vs small, bright vs muted reads)?
+## Before you emit — the checklist (self-review; the design-critic re-checks)
+This is the whole plan's definition of ready — clean per beat is necessary but NOT sufficient; the deck must be
+art-directed. Score each; redesign any beat that fails.
+
+**Per beat — the premium checklist (shot-director Step 0.55, in its HTML form):**
+- ☐ **One idea** — can the audience grasp the beat's main message in **3 seconds**? Does it carry its `ideal`
+  and a real `route` (and `shares` if as-is)?
+- ☐ **Encoding** — does the form ILLUMINATE the relationship (fit test), and could any block-list be a diagram
+  (flow / timeline / quadrant / hubspoke)? If yes, make it one.
+- ☐ **Focal hierarchy** — one clear focal point (squint test: big vs small, bright vs muted reads), a quieter
+  second read, something that WINS (evenness penalty, §6).
+- ☐ **Restraint** — enough **whitespace** (~50–60% utilization, 16:9 near ~60%; 9:16 distributed down the column).
+- ☐ **Type hierarchy** — is the information **hierarchy** obvious?
+- ☐ **Colour that means** — is the `color_ledger` **semantic** (no accent without meaning; problem ≠ results beat)?
+- ☐ **Motion that reveals in order** — one-per-beat, seek-frozen, whisper (no GIF), each fact on its own cue?
+- ☐ **Reasoning trace** — does each non-`title` beat carry `narrative_job`/`content_shape`/`rejected_default`?
+
+**Across the deck:**
 - ☐ Does each beat differ **structurally** from its neighbour (cover-text test: told apart by SHAPE alone)?
-- ☐ Are colours **semantic**, not one decorative template palette?
-- ☐ **Could any block-list be a diagram?** (flow / timeline / quadrant / hubspoke) — if yes, make it one.
 - ☐ **Block audit:** does every card/panel beat justify all 5 conditions? Are there ≤2 consecutive? (§3)
-- ☐ Does each non-`title` beat carry its **reasoning trace** (`narrative_job`/`content_shape`/`rejected_default`)?
-- ☐ Is there enough **whitespace** (~50–60% utilization, 16:9 near ~60%; 9:16 distributed down the
-  column), and does one element **win** each beat (evenness penalty, §6)?
-- ☐ Is the information **hierarchy** obvious?
 - ☐ Does the `rhythm_map` **vary** (≥2 columns differ between neighbours), and does the deck clear the
   **minimum-variation floors** (≥4 protagonists, ≥3 non-card forms; §8)?
-- ☐ Does the deck have at least one **WOW** beat with a named `why_memorable` + `surrounding_contrast`?
-- ☐ Is the `color_ledger` **semantic** (no accent without meaning; problem ≠ results beat)?
+- ☐ **Signature moment** — a named `signature_concept`, and at least one **WOW** beat with a named
+  `why_memorable` + `surrounding_contrast`?
 - ☐ Are the **opening and closing** beats memorable?
-- ☐ Does every moving thing obey **one-per-beat, seek-frozen, whisper** (no GIF)?
 - ☐ Does the whole plan escape the **weak generated-deck pattern** (addendum §5) — not just clean per beat?
 
 ## Output contract

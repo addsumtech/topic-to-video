@@ -24,11 +24,11 @@ Use absolute `file://` paths. Order: `base.css` → `theme.css` (from `<out_dir>
 **Register-contest candidate pages (SKILL.md 3.55) substitute the theme link:** they link their OWN
 `<out_dir>/_contest/<key>/theme.css` instead — `<out_dir>/theme.css` doesn't exist yet at contest time.
 
-## Form selection — choose the form the CONTENT wants (do NOT default to a card grid)
-**Design is choosing, not matching.** A `.card`/`.row` grid is the right answer ONLY for **parallel,
-unordered, equal-weight** items. The moment the content has **order, magnitude, a relationship, time,
-or two axes**, a non-card form says it better. For each beat, name the 2–3 forms it *could* take, then
-pick the one whose shape matches the content (all classes are in `base.css`, all reveal-ready):
+## Form markup — the classes for each form (choosing the form is the design-director's)
+Which form a beat takes — the ideal picture, the route (build / bespoke / as-is), the form contest and the
+card-grid floors — is `agents/design-director.md` "Design first"; the full concept→form dictionary is
+`references/design-intelligence-addendum.md` §4. This is the markup for the forms it picks (all classes are in
+`base.css`, all reveal-ready). The card grid is right ONLY for **parallel, unordered, equal-weight** items:
 
 | The content is… | Reach for |
 |---|---|
@@ -45,14 +45,10 @@ pick the one whose shape matches the content (all classes are in `base.css`, all
 | **Truly parallel, equal-weight items** | a `.card` grid (`.dash` 3-up / `.grid-asym`) — the *considered* choice for THIS shape only |
 | **A title / section** | `.kicker` + `.rule` + `.title` (+ `.sub`); a mono `.chrome` footer ties the deck together — ONLY when `meta.captions:false` (see `.chrome` note below) |
 
-For each beat, record the pick as a one-line **form ledger**: *winner — beats `<runner-up>` because …*
-(the design-director emits this; the design-critic audits it).
-
-**Premium templates — don't reinvent the composition.** For the richer composite forms, start from a
-verified, ready-to-adapt page in **`references/html-templates.md`** (`hero_stat`, `before_after`,
-`timeline_rail`, `problem_leak`/funnel, `system_map`, `metric_wall` = dashboard-with-one-hero-metric,
-`case_story`, `flywheel`) — copy it, swap in your REAL content, keep the reveals + cues. These are quality
-floors to ADAPT, not fixed slots; the plain archetype snippets above are for simpler beats.
+Composite forms start from a verified, ready-to-adapt page in **`references/html-templates.md`** (`hero_stat`,
+`before_after`, `timeline_rail`, `problem_leak`/funnel, `system_map`, `metric_wall` = dashboard-with-one-hero-metric,
+`case_story`, `flywheel`, and the research/quantitative set) — copy it, swap in your REAL content, keep the reveals +
+cues, then change what the beat's argument needs (the director's route says how much).
 
 ## Reveal animation (so the page captures cleanly)
 - Add `class="reveal"` or `class="reveal-up"` to elements you want to animate in.
@@ -369,13 +365,10 @@ the reveals spread across the whole scene alongside the backdrop — a calm, cor
 hero/closer, but the reason a living backdrop belongs on sparse beats, not dense content pages.
 
 ## SVG icons (category marks, used with restraint) — see `references/icons.md`
-Inline-SVG line icons (one coherent Lucide family, themeable via `currentColor`) can mark a row of
-**category / feature cards** or flag status. Use the `.icon-tile` / `.icon-badge` / `.icon` classes
-(in `motifs.css`) and paste a glyph from `references/icons.md`. Discipline (enforced by `critic-content`):
-an icon must do a JOB (answer *what is this / what does it do / why care*) — never decoration; ONE
-family; **semantic fit**; color-code a category row by setting `color:` per tile; keep the text label;
-≤ the title size; and **no icon on an evidence/stat beat** (a `chart`/number/figure is the focal
-point). A few, consistent, purposeful — not one on every page.
+WHEN a beat gets icons is design-director "SVG icons" (category/feature rows only, never on an evidence/stat beat,
+one family, ≤ the title size, never decoration); the doctrine and glyph library are `references/icons.md`. The
+markup: inline-SVG Lucide line icons, themeable via `currentColor`, in the `.icon-tile` / `.icon-badge` / `.icon`
+classes (`motifs.css`); color-code a category row by setting `color:` per tile, and keep the text label.
 
 ## Theming (topic-fitting color)
 Link the stylesheets in THIS order: `base.css` → **`theme.css`** → `motifs.css`. `theme.css` is
@@ -423,11 +416,10 @@ paragraph doesn't scan (`keyframe_qa` flags it); centering is for display elemen
 pull-quotes, stats) and centered diagram archetypes only.
 
 ## Layout diversity — no samey deck (enforced)
-Across the deck's `html` scenes, **no single form family may exceed ~45%**. A deck that is card/row
-grids top to bottom reads as auto-generated — the exact "AI slop" this tier exists to avoid. If you're
-reaching for a card grid a third time, STOP and re-read the form-selection table above: the content
-almost always wants a `.flow` / `.scorecard` / `.quadrant` / `.timeline` / `.hubspoke` / `.segbar`
-instead. `validate.py` counts the families and warns when one dominates; `design-critic` (D1) fails it.
+The floors — no single form family above ~45% of the `html` scenes, the block audit, the composition envelope — are
+design-director "Choosing the form" and "Freshness"; `validate.py` counts the families and warns when one
+dominates, and `design-critic` (D1) fails it. If you're reaching for a card grid a third time, STOP: the content
+almost always wants a `.flow` / `.scorecard` / `.quadrant` / `.timeline` / `.hubspoke` / `.segbar` instead.
 
 ### Vary the ENVELOPE, not just the alignment
 Form diversity and left/right balance are not enough. The subtler monotony is the **content band** —
@@ -436,16 +428,10 @@ where content starts and stops vertically. A deck can be genuinely varied horizo
 pages ended their content on the same line** (~0.82 of frame height). Every page filled the same
 rectangle: masthead at the top, content down to just above the caption zone, page after page.
 
-So when you plan a deck, treat the band as a design variable with a target distribution — roughly:
-- **~1/3 in the default band** (top kicker → content → caption clearance). The workhorse.
-- **~1/3 stopping HIGH with real void below** — a statement or pivot beat that needs air. Content
-  ends by ~0.6 and the bottom third is *empty on purpose*.
-- **~1/3 sitting LOW on the baseline** — a beat about a surface, a floor, a foundation, a device on a
-  desk. Content starts around ~0.5 and rides the bottom.
-
-Drive it from what the beat SAYS — a sparse pivot earns void, a "this sits on your desk" beat earns
-the baseline. A uniform nudge to satisfy the metric is worse than leaving it alone. `keyframe_qa`
-measures the real band from the DOM and flags a shared edge above 60%.
+So the band is a design variable with a target distribution — roughly a third each in the default band, stopping
+HIGH with real void below, and sitting LOW on the baseline (the targets and when each fits: design-director
+"Vary the composition ENVELOPE"). Drive it from what the beat SAYS; a uniform nudge to satisfy the metric is
+worse than leaving it alone. `keyframe_qa` measures the real band from the DOM and flags a shared edge above 60%.
 
 **The classes that express it** (base.css; vertical.css restates each for the 1920-tall 9:16 stage —
 the bottom paddings already clear the caption burn, so reaching for the baseline can never collide
@@ -628,8 +614,8 @@ The most common defect is **content appearing well before the narration reaches 
   `audio/NN.words.json`; your stagger `animation-delay` values on cued points are ignored.
 
 ## One-concept rule + whitespace floor
-ONE primary per page (a stat OR a list OR a chart — not two stacked). Content must not fill more than
-~60% of the canvas; if a row grid overflows below 960px, SPLIT the beat — never shrink `.stage` padding below 80px.
+ONE primary per page and the ~60% whitespace floor are design-director "Composition density". On the page: if a
+row grid overflows below 960px, SPLIT the beat — never shrink `.stage` padding below 80px.
 
 ## 9:16 vertical pages (1080×1920) — LINK `vertical.css`, don't hand-crop
 The design system is 1920×1080; a 9:16 deck (`meta.aspect:"9:16"`) just links the **shipped canonical

@@ -1,10 +1,9 @@
 # Design Intelligence Addendum
 
-Deep reference for `agents/design-director.md` (and the `agents/design-critic.md` gates). Load it
-whenever a design choice risks becoming a **card grid, a repeated template, or a visually even
-medium-density page**. It turns "reason concept → visualization" from advice into an operational,
-testable procedure — the difference between "clean and consistent" and "art-directed and
-content-specific."
+Deep reference for `agents/design-director.md` (and the `agents/design-critic.md` gates): the tables, floors
+and worked examples the director's method cites. The method itself — ideal picture → route → assemble → check, the
+form contest, composition, density and the self-review checklist — lives in the director; load this whenever a
+choice risks becoming a **card grid, a repeated template, or a visually even medium-density page**.
 
 **Deliverability rule (non-negotiable):** every visual language below is named as a form the renderer
 can ACTUALLY land (the archetypes in `references/html-pages.md` + the programmatic renderers). Where a
@@ -42,9 +41,8 @@ Worked example (research — the same move, non-business):
 
 ## 2. The five bottlenecks (strengthened)
 
-**2.1 Layout Intelligence.** Every beat identifies its NARRATIVE JOB before a layout. A layout is
-**invalid if it is only a container for content** rather than a visual explanation of the idea. (Emit
-`narrative_job` + `rejected_default` above.)
+**2.1 Layout Intelligence.** Every beat identifies its NARRATIVE JOB before a layout; a layout is **invalid if it
+is only a container for content** rather than a visual explanation of the idea (the trace in §1).
 
 **2.2 Rhythm Design.** A deck can pass every per-beat check and still feel repetitive. The design plan
 must carry a **rhythm map** — slide-to-slide variation across density, background, protagonist, and
@@ -61,21 +59,13 @@ a research arc runs question → method → result → conclusion, not problem �
 | 4 | medium | cool/`--accent` tint | bottom × grid-asym | payoff — a system `.hubspoke` *or* a `results_table` / `chart` | constructive | solution / result |
 
 Two adjacent rows must differ in at least TWO columns. A flat column (every row "medium / plain /
-cards / neutral") is the auto-generated tell. **The Composition column may not be flat either:** no two
-adjacent beats may share the same (anchor × balance), and ≥~1/3 of beats must be off-center. And **bind
-the Background tag to an ACTUAL backdrop element** — a warm/cool/hero background MUST be a real
-`.bg-soft`/`.bg-soft-tint`/`.bg-photo`/`.accent-fill`, not a bare `--bg` (`validate.py` gates
-composition-center-share, off-center share, and bare-bg share).
+cards / neutral") is the auto-generated tell. The Composition column follows the envelope rule (no two adjacent
+beats share an anchor × balance; ≥~1/3 off-center) and a warm/cool/hero Background tag binds to a real backdrop
+element — both are design-director "Freshness" (envelope + background floor), which `validate.py` gates.
 
-**2.3 Space Intelligence.** Whitespace is an ACTIVE element, not unused capacity. If a beat feels thin,
-**strengthen the hero or cut a secondary element — never add cards to fill space.** Emit the schema's
-single `density` field = the number + the call:
-```
-density: "~55%|~60% utilization — keep airy because … | split into two beats because … | compress only because …"
-```
-Target roughly **~50–60% content utilization** — on 16:9 the html whitespace floor caps content near
-**~60%**; on 9:16 keep the same airy DENSITY but DISTRIBUTE it to SPAN ≥70% of the column (gaps + a
-lower-zone motif), never cram (span ≠ density; see `references/html-pages.md` "9:16").
+**2.3 Space Intelligence.** The density rule — ~50–60% utilization, whitespace as an active element, never cards
+to fill space, and the `density` field's format — is design-director "Composition density"; on 9:16 see
+`references/html-pages.md` "9:16".
 
 **2.4 Visual Surprise.** A WOW beat is not merely a big element — it must create a **deliberate
 contrast** against its neighbours and be memorable after the deck closes. For each hero beat emit:
@@ -86,9 +76,8 @@ surrounding_contrast: differs from beat X-1 and X+1 by layout + density + backgr
 These land in the per-beat schema as `wow.why_memorable` / `wow.surrounding_contrast` (the beat id is the
 object key — there is no separate `wow_beat` field). Emit `wow` on hero beats only.
 
-**2.5 Visual Reasoning.** Do NOT map "problem slide → three cards." Map the CONTENT LOGIC: "this problem
-is three interacting failure points → a causal `.flow` / a converging `.hubspoke` / a descending funnel."
-Reason from the relationship, then pick the archetype that says it.
+**2.5 Visual Reasoning.** Map the CONTENT LOGIC, not the slide type: "this problem is three interacting failure
+points → a causal `.flow` / a converging `.hubspoke` / a descending funnel", never "problem slide → three cards".
 
 ---
 
@@ -109,20 +98,24 @@ one must be redesigned unless a content reason is stated. The design-critic (D1)
 ---
 
 ## 4. Concept → Visual Language dictionary (deliverable, with use / avoid / failure)
-Reason from the content logic to the form. **The "Deliverable form" column is what THIS renderer can
-land** — a `*` marks a metaphor that is broll-only or approximated (the honest data-form is named first).
+The ONE concept→form dictionary (design-director's form selection reads it; the markup for each class is
+`references/html-pages.md` "Form markup"). Reason from the content logic to the form. **The "Deliverable form"
+column is what THIS renderer can land** — an *italic* note marks a metaphor that is broll-only or approximated (the
+honest data-form is named first). Author every row as its **`html`** form; a `render_*` renderer named in a row is
+the no-Chrome fallback, not a co-equal choice. A concept not listed: name its data relationship (order /
+magnitude / part-whole / two-axes / time / structure) and pick the form that says it.
 
 | Concept / content logic | Deliverable form (ours) | Use when | Avoid when | Common AI failure |
 |---|---|---|---|---|
-| Flow / Process | `.flow` (numbered steps + arrows) | steps happen in sequence | items are unordered | four cards with arrows |
-| Journey / Evolution | `.timeline` · `render_timeline` | time or stages matter | no chronology | timeline as decoration, too much text |
-| Growth / Trend | `chart` line (curve) / `slope` / `dumbbell` / `waterfall` / bars / counter | progress/acceleration is central | change is qualitative | a random upward arrow |
-| Loop / Flywheel / Compounding | linear `.flow` with a "return" step *(no cycle renderer)* | each step feeds the next | steps don't feed back | a pretty circle with no compounding logic |
-| Comparison / Before-after | `.split` + `.defocus` · `render_compare` | two states/options contrast | >3 alternatives | a table where visual contrast is needed |
-| Hierarchy / Ranking | graded `.bar` rows / stacked `.blocks` tiers *(no pyramid)* | levels/magnitude matter | items are equal-weight | a flat card grid |
-| Prioritization / Two axes | `.quadrant` | choice/order on two axes | there is no ranking | a quadrant with weak/undefined axes |
-| Relationship / Ecosystem / System | `.hubspoke` (hub+spokes) *(no arbitrary graph)* | actors converge on a centre | a simple sequence | random nodes with no meaning |
-| Parts of a whole / Share | `.segbar`/`.meter` · a SINGLE dominant % → `.gauge`/`.waffle`/`.isotype` · actual-vs-target → `.bullet` · `render_compare` split | proportions of one whole | independent items | a pie-like grid of equal cards |
+| Flow / Process / Pipeline | `.flow` (numbered `.step`s + `.arrow`; `data-cue` per step) — pipeline/conveyor art is broll only | steps happen in sequence | items are unordered | four cards with arrows |
+| Journey / Evolution / Sequence | `.timeline` (rail of `.tl-node`, one focal `.tl-node.on`, dates in mono) · `render_timeline` — a road/metro map is broll only | time or stages matter | no chronology | timeline as decoration, too much text |
+| Growth / Trend | `chart` line (the curve draws on progressively) / `slope` / `dumbbell` / `waterfall` / bars / counter — a rocket/mountain is broll only; magnitude lives in the chart | progress/acceleration is central | change is qualitative | a random upward arrow |
+| Loop / Flywheel / Compounding | linear `.flow` with a final step naming the return *(no cycle renderer; the loop-back arrow isn't drawable — an orbit survives only as a `.draw` ring / `.bg-stars` decoration)* | each step feeds the next | steps don't feed back | a pretty circle with no compounding logic |
+| Comparison / Before-after | `.split` + `.defocus` on the non-focal side · `render_compare` — two real axes → `.quadrant` | two states/options contrast | >3 alternatives | a table where visual contrast is needed |
+| Hierarchy / Ranking / Scale | graded `.bar` rows / stacked `.blocks` tiers / ascending `chart` bars (they read as steps) *(no pyramid — a tapering triangle can't be drawn faithfully, so width/order carry the rank; no literal 3-D staircase)* | levels/magnitude matter | items are equal-weight | a flat card grid |
+| Prioritization / Two axes | `.quadrant` (2×2 `.cell`, focal `.cell.on`, mono `.ax-x`/`.ax-y`) | choice/order on two axes | there is no ranking | a quadrant with weak/undefined axes |
+| Relationship / Ecosystem / System | `.hubspoke` (hub+spokes: centre+peers, or inputs→decision) *(only a hub/star topology renders — decompose an arbitrary many-to-many graph to a hub)* | actors converge on a centre | a simple sequence | random nodes with no meaning |
+| Parts of a whole / Share | `.segbar`/`.meter` (100% stacked) · a SINGLE dominant % → `.gauge`/`.waffle`/`.isotype` · actual-vs-target → `.bullet` · `render_compare` split | proportions of one whole | independent items | a pie-like grid of equal cards |
 | Visible surface vs hidden bulk (submerged cost/complexity/work — "what you see is a fraction") | `.iceberg` (small `.tip` above the `.waterline`, 2–4 `.ib-point` in the `.mass`) — motion-native pan-down uncovers the mass | the point is *most is hidden* | the parts are equal-weight / independent | three parallel cards that flatten the visible-vs-hidden read |
 | Two-point change (many categories) | slopegraph (SVG) / `chart` `dumbbell` | the same measure at TWO points across items — rank crossover / gap | one series over time (use a line) | paired stats that hide the crossover |
 | Set overlap / membership | `.venn` (2–3 hue-outlined circles) *(membership, NOT area)* | shared vs unique matters | a strict hierarchy | circles sized to imply a fake proportion |
@@ -131,11 +124,11 @@ land** — a `*` marks a metaphor that is broll-only or approximated (the honest
 | Running total from signed steps | `.waterfall` (bridge) | a start total becomes an end total via +/− steps | independent magnitudes | floating bars with wrong offsets that lie |
 | Distribution / spread / correlation | `chart` `dist` (box + strip) / `scatter` / `small_multiples` | variance, outliers, a correlation, or the-same-shape-across-N | one summary number suffices | a bar of the mean that hides the spread |
 | Dependency | `.flow` (A feeds B) / `.segbar` *(no Sankey)* | inputs feed outputs | no volume/dependency | arrows with no weight or logic |
-| KPIs / Performance | `.dash` + `.scorecard`/`.tile`/`.delta` | KPIs are central | the story is causal | a KPI wall with no hierarchy |
+| KPIs / Performance / Dashboard | `.dash` (it IS the dashboard layout) + `.scorecard`/`.tile`/`.delta` + `.meter` | KPIs are central | the story is causal | a KPI wall with no hierarchy |
 | Progress | `.meter` / milestone `.timeline` | completion status matters | open-ended exploration | decorative progress bars |
-| Big number / Result | `.stat` / `chart` counter (`props.climax`) | one magnitude must land | many values are close | a giant number with no context |
+| Big number / Result | `.stat` / `chart` counter (`props.climax`; lands its value at ~68% then holds) | one magnitude must land | many values are close | a giant number with no context |
 | One idea / Insight / Conclusion | `.pullquote` / hero `title` / `.accent-fill` band | one message must land emotionally | detail-heavy content | the conclusion hidden small at the bottom |
-| Section / divider | `title` / full-bleed `.accent-fill` | a chapter break | mid-topic | a full content page used as a divider |
+| Section / divider | `title` / full-bleed `.accent-fill` — sparse (a kicker + one short line); the transition dip does the "new chapter" work | a chapter break | mid-topic | a full content page used as a divider |
 | Bottleneck / Leakage / Drop-off (churn, attrition, signal/sample loss) | descending `render_chart` bars (funnel) / `.flow` with the constraint `.step.on` *(no hourglass/leaking-bucket)* | loss/constraint across stages | multiple unrelated problems | three warning cards |
 | Method / pipeline (input→process→output) | `.flow` (neutral, method step `.on`) — `research_method` template | a method transforms input to output | a data-flow *graph* with branches | four cards with arrows |
 | Layered architecture / system tiers | stacked `.blocks` tiers — `code_architecture` template | a system organised in layers | a convergent hub (use `.hubspoke`) | boxes joined by meaningless lines |
@@ -149,8 +142,10 @@ land** — a `*` marks a metaphor that is broll-only or approximated (the honest
 | Roadmap | quarterly `.timeline` / milestone rail | future sequencing matters | no time order | three cards labelled Q1/Q2/H2 |
 | Case study | `.timeline` (journey) as the PRIMARY, one small `.stat`/`.delta` proof accent (not a co-equal block) | an entity changes over time | a pure metric summary | a timeline with no protagonist |
 | Operating model | `.hubspoke` / stacked `.blocks` layers / `.dash` *(no RACI/org-tree)* | roles/process/metrics interact | pure narrative | an org chart as decoration |
-| Strategy | `.quadrant` / `.blocks` pillars *(no compass)* | direction & tradeoffs matter | pure execution detail | a decorative compass icon |
-| Categories (last resort) | colour `.blocks` / `.card` grid / `.icon-tile` rows | units are parallel/unordered/equal-weight | any order/magnitude/relation exists | a card grid for everything |
+| Strategy | `.quadrant` / `.blocks` pillars *(no compass — a compass rose is broll only)* | direction & tradeoffs matter | pure execution detail | a decorative compass icon |
+| Decision / Branching | `.hubspoke` (inputs→decision) / `.quadrant` (decision matrix) *(no tree — a multi-level branching tree is not deliverable)* | a choice resolves several inputs | a sequence of steps | a branching tree the renderer cannot draw |
+| Transformation / Morphing | `.split` before→after / two-step `.flow` *(no morph — reveals are fade/rise/pop/wipe only)* | a thing becomes another | nothing actually changes | a promised shape-morph that renders as two stills |
+| Categories (last resort) | colour `.blocks` / `.card` grid / `.icon-tile` rows — the grid is right ONLY here | units are parallel/unordered/equal-weight | any order/magnitude/relation exists | a card grid for everything |
 
 ### 4b. Abstract concept → concrete metaphor (for NON-data beats)
 The dictionary above maps DATA relationships to forms. A **purely conceptual/emotional beat with no
@@ -197,12 +192,12 @@ If the plan resembles the weak pattern, redesign it.
 ---
 
 ## 6. Evenness penalty (something must win)
-A beat is weak if all elements have similar visual weight ("clean but too even"). The design must decide
-what wins. Check every beat:
+A beat is weak if all elements have similar visual weight ("clean but too even"). Check every beat:
 - Is there a clear **first-read** element? a clear **second-read** layer? Are supporting details visibly
   **quieter**? Is at least ONE thing deliberately **oversized / isolated / darkened / framed / centred**?
 
-If everything is equally polite, the beat fails the evenness penalty (design-critic D5).
+If everything is equally polite, the beat fails (design-critic D5). The director applies it as the focal
+hierarchy of its premium checklist.
 
 ---
 
@@ -259,7 +254,7 @@ deliverable form (§4):
 ---
 
 ## 10. What "ready" means
-The design plan is ready when: every non-title beat carries its reasoning trace (§1); the block audit
-(§3) passes; the rhythm map (§2.2) varies; the colour ledger (§7) is semantic; the deck clears the
-minimum-variation floors (§8); at least one beat is a named, contrast-creating WOW (§2.4); and no beat is
-evenly-weighted (§6). Clean per-beat is necessary but NOT sufficient — the deck must be art-directed.
+Ready = design-director "Before you emit — the checklist": the per-beat premium checklist and the deck-level
+items, which cite §1 (reasoning trace), §2.2 (rhythm map), §2.4 (WOW), §3 (block audit), §5, §6 (evenness), §7
+(colour ledger) and §8 (variation floors). Clean per-beat is necessary but NOT sufficient — the deck must be
+art-directed.
