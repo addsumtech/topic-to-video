@@ -154,5 +154,5 @@ still has a `source_ref`; invent no facts/numbers).
 Return ONLY the JSON content plan (no prose). The **design-director** reads it next to produce the design
 plan (concrete visuals, form, motif, theme, icons, motion, transitions), and the **scriptwriter** writes
 narration from `narration_intent` + `est_seconds` + `continuity`. Your `motif`-free plan carries the
-CONTENT: `arc`, `continuity`, `relation`, `climax`/`hold`, and faithfulness — the critic panel
-(`critic-content` + `critic-narrative`) audits those; the **design-critic** audits the design plan.
+CONTENT: `arc`, `continuity`, `relation`, `climax`/`hold`, and faithfulness — the script critic
+(the `critic-content` + `critic-narrative` lenses) audits those; the **design-critic** audits the design plan.

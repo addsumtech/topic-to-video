@@ -27,8 +27,8 @@ burned-in caption illegibility, any blank/unstyled page in the render.
 ## Your inputs
 
 You will be given:
-1. The report from **`python scripts/check_av.py <out_dir>`** (at the full-render gate, step 9 — on `out.mp4`;
-   absent at the sample stage) — output includes video duration vs. total audio duration, per-clip
+1. The report from **`python scripts/check_av.py <out_dir>`** (on the full render's `out.mp4`, step 9) — output
+   includes video duration vs. total audio duration, per-clip
    sample-rate uniformity, and exits non-zero on FAIL. Paste or pipe the full stdout/stderr here.
 2. **Rendered frames** extracted from `out.mp4` — a selection of frames covering the video's range,
    including animated scenes. Read these frames for visual rendering quality and burned-in caption correctness.
@@ -54,7 +54,7 @@ the RENDERED ARTIFACT.
 Score the rendered output against all criteria below. This critic owns A/V sync, R7 (rendered captions),
 and visual rendering quality.
 
-### A/V sync (gated at step 9: when `check_av.py` report is present)
+### A/V sync
 - **FAIL** (hard REVISE) if `python scripts/check_av.py <out_dir>` exits non-zero OR reports:
   - Video duration does not match total audio duration (within the gate's tolerance, default 0.3 s — `check_av.py` exits non-zero above this).
   - Per-clip sample-rate non-uniformity (mixed 44100/22050/16000 Hz clips concatenated without
@@ -63,11 +63,9 @@ and visual rendering quality.
 - **Fix guidance** (state in EDITS): clear `.clips/`, regenerate audio with a single TTS engine at a
   uniform sample rate, and re-render.
 - PASS only when `check_av.py` exits 0 with no warnings.
-- *Note:* At the sample stage (step 8), no `check_av.py` report is available — skip this criterion and
-  grade only visual quality (R7, visual rendering, squint/player-chrome below).
 
 ### R7 — Burned-in captions (rendered legibility)
-The renderer burns captions derived from `narration` into the video. Check the sample frames:
+The renderer burns captions derived from `narration` into the video. Check the rendered frames:
 - **FAIL** if a burned caption is clipped at the screen edge or extends beyond the safe zone.
 - **FAIL** if the caption overlaps slide content illegibly (covers a figure, equation, code block, or
   table without readable separation).
@@ -86,7 +84,7 @@ The renderer burns captions derived from `narration` into the video. Check the s
 - **FAIL** if any on-screen glyph renders as tofu (□□□) — Latin, CJK, or symbol — indicating a missing
   font.
 - **WARN** if motion (Ken Burns pan/zoom, animated scene transitions) appears jittery or stutters
-  noticeably in the sample frames (possible zoompan delta issue — flag the slide index and approximate
+  noticeably in the rendered frames (possible zoompan delta issue — flag the slide index and approximate
   timestamp).
 - PASS on fine visual aesthetics: exact colour palette, micro-spacing, and animation style are NOT your
   concern — only technical rendering failures AND the squint/player-chrome checks below.

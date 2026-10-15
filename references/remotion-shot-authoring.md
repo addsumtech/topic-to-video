@@ -44,8 +44,9 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    out of `[H - CAPTION_BAND, H]` — the ONLY allowed thing down there is a small `credit` line at `bottom:8`.
    A shot label at `0.9·H` WILL overlap the caption.
    **The band is `captionBand(W, H)`, not the constant.** `CAPTION_BAND = 150` is a legacy landscape number kept
-   for compatibility; the live reserve is DERIVED from the caption's own type size — **227px at 1080p landscape,
-   298px at 9:16** (a narrow frame wraps the same sentence to an extra line). Take every content bottom edge from
+   for compatibility; the live reserve is DERIVED from the caption's own type size — **200px at 1080p landscape,
+   257px at 9:16** (a narrow frame wraps the same sentence to an extra line; `python3 scripts/_caption_band.py`
+   prints every aspect from the runtime's own fractions). Take every content bottom edge from
    `captionBand(W, H)` / `contentBottom(W, H)` — never a literal `bottom: N` (the small credit line above is the
    one exception). That rule is the fallout of GROWING the band: a viewer read the caption as part of the content
    above it, and the gap was paid for out of the BAND rather than out of the type — shrinking the type had dropped
@@ -81,7 +82,7 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    monotone clock, so it cannot bring an item the voice names first ahead of one the frame shows first.
 10. **Determinism.** Pure function of `useT()`/frame. No `Date.now()`/`Math.random()`/argless `new Date()` — use
    `hash01(i)` for stable pseudo-randomness. Signed data must render signed; CJK copy must fit; aspect must adapt.
-11. **Author in FRACTIONS so the shot reflows to ANY aspect.** *(`validate.py` still cites this as §A.9.)* The Film Composition is aspect-driven: `meta.aspect`
+11. **Author in FRACTIONS so the shot reflows to ANY aspect.** The Film Composition is aspect-driven: `meta.aspect`
    (or `--vertical`) renders 16:9 `1920×1080` / 9:16 `1080×1920` / 1:1 / 4:5 / 4:3 (Root.tsx `calculateMetadata` +
    render_remotion pass an `aspect` prop; preview a shot at portrait with `--props '{"aspect":"9:16"}'`). A shot
    reads W/H from `useVideoConfig` and must lay out in **fractions of W/H** — never hardcoded 1920/1080 — so it

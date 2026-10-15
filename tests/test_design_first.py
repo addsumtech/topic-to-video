@@ -202,3 +202,22 @@ def test_the_skeleton_proposes_material_after_the_ideal_and_never_clobbers_a_rou
     assert "MATERIAL" in fit["why"] and "not an assignment" in fit["why"]
     assert board["slides"][1]["shot"] == "WsShotA" and board["slides"][1]["shot_fit"]["verdict"] == "build"
     assert board["slides"][1]["shot_props"] == {"x": 1}
+
+
+def test_validate_cites_the_section_that_holds_the_aspect_rule_and_the_doc_states_the_real_band():
+    import re as _re
+    errs, warns = [], []
+    meta = {"renderer": "remotion", "aspect": "9:16"}
+    r = v.evaluate({"meta": meta, "slides": [{"index": 1, "shot": "KnowledgeGraph", "shot_props": {},
+                                             "narration": "A sentence.", "duration": 5.0,
+                                             "audio": "audio/01.mp3"}]}, "/tmp")
+    msg = [w for w in r["warnings"] if "non-16:9" in w]
+    assert msg, r["warnings"]
+    n = int(_re.search(r"§A\.(\d+)", msg[0]).group(1))
+    doc = open(os.path.join(_ROOT, "references", "remotion-shot-authoring.md"), encoding="utf-8").read()
+    sec_a = doc[doc.index("## A ·"):doc.index("## A2 ·")]
+    item = _re.search(r"^%d\. \*\*(.+?)\*\*" % n, sec_a, _re.M)
+    assert item and "aspect" in item.group(1).lower(), (n, item and item.group(1))
+    import _caption_band as cb
+    assert "**%dpx at 1080p landscape" % cb.caption_band_px(1920, 1080) in doc
+    assert "%dpx at 9:16**" % cb.caption_band_px(1080, 1920) in doc

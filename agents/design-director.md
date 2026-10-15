@@ -618,6 +618,6 @@ Return ONLY the design-plan JSON (no prose). The assistant merges it with the co
 `visual.type`+`props` become the storyboard scene, your `transition` becomes the per-scene edges, your
 `icons`/`media`/`cue` shape the authored page, and a `climax` beat's scene carries `props.climax:true` (the
 climax marker `rhythm_qa` reads; it also drives the counter-landing hold only on a `chart` counter).
-Both plans go to the critic panel — `motif`, `form`, `theme`, the `relation`→`transition` mapping, icons,
+Both plans go to the script critic (SKILL.md step 5) — `motif`, `form`, `theme`, the `relation`→`transition` mapping, icons,
 and the squint/rhythm/whitespace calls live HERE and the **design-critic** audits them; the content plan
 carries `continuity`/`relation`/faithfulness for `critic-content`/`critic-narrative`.

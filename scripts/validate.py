@@ -2828,7 +2828,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
     elif _asp != "16:9":
         warnings.append(f"remotion: meta.aspect='{_asp}' (non-16:9) — most library shots are 16:9-tuned; still-render "
                         f"EACH chosen shot at this aspect and fix/swap any that don't reflow (multi-column must STACK, "
-                        f"wide elements must not run off-frame) — references/remotion-shot-authoring.md §A.9.")
+                        f"wide elements must not run off-frame) — references/remotion-shot-authoring.md §A.11.")
     # THE ENERGY SKELETON. The plan declares an `energy` per beat; the library sweep measures a motion per
     # register; nothing between the planner and the register picker used to read the first against the
     # second. Measured on a delivered film: the plan's climax sat on a register UNDER the delivery motion
