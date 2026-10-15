@@ -115,12 +115,10 @@ Rules that make this a derivation rather than a shopping list:
    register, you shopped. Go back to the brief.
 3. **Write it to `meta.form_vocabulary`** — the whole list, as the artifact it is.
 
-### Then, per beat
-Choose the FORM first, from your own list. Only then ask the catalogue:
-* a register already carries that form → use it, adapted (`shot_fit.verdict: "fit"`/`"adapt"`);
-* nothing does → **BUILD it** (`"build"`) in the film's workshop — an OBJECT a library template holds, or a new
-  film-local SHOT — and put it on the build list first (Step 0.55). This is the normal case on a subject the
-  library has not met, not an emergency.
+### Then, per beat — the ONE design flow (defined in Step 0.55; nothing else restates it)
+Choose the FORM first, from your own list, then run Step 0.55 for the beat: **ideal picture → route → assemble →
+check.** The library is MATERIAL for that picture (registers to adapt, objects' slots, parts, motion), never the
+menu the beat is picked from.
 * Record which form the beat realises: **`shot_fit.form` MUST name one of `meta.form_vocabulary`.**
   `validate.py` ERRORS on a beat whose `shot_fit.form` is missing or not in the list — which is what stops
   the catalogue from quietly supplying the vocabulary again.
@@ -148,20 +146,45 @@ register. Build the FORM, give it an argument shape and props, and it joins the 
 — that is how family J (survey: gazetteer entry, map plate, strata column, plan palimpsest, tally ledger,
 museum label) came to exist, one film too late.
 
-## Step 0.55 — NEED FIRST: the ideal picture, then the catalogue; what the library lacks is BUILT
+## Step 0.55 — DESIGN FIRST: the ideal picture, then the route; the library is material
 
-For every beat, BEFORE you open LIBRARY.md, write down the IDEAL picture: the specific thing a viewer must SEE for
-this beat to land — an object (a coffee puck under pressure), a mechanism (water forced through it), a relation
-(loose against packed). Then resolve it to one of:
+The library cannot cover the scenes a topic throws at it. Every beat therefore starts from an OPEN design, and a
+register used unchanged is the exception that has to earn it. Per beat, in this order:
 
-* **fit** — a library register carries it as it is (`shot_fit.verdict: "fit"`);
-* **adapt** — a library register carries it re-sized and re-worded, its structure unchanged (`"adapt"`, §B2);
-* **object** — a library TEMPLATE holds it and the thing itself is built: a register with an object slot —
-  `ObjectStage` (one thing, named), `ObjectCompare` (two, one difference), `ObjectPath` (through stations,
-  changing), `ObjectTurntable` (in the round), `TechnicalPlate` `art`, `HudReticle` `object`, a device's
-  `screen` — plus a new object (`"build"`, `ref` = the object);
-* **shot** — no template arranges the frame the way the argument does: a new film-local register (`"build"`,
-  `ref` = the shot).
+1. **Ideal picture — `shot_fit.ideal`, one line, no register named.** What must the viewer SEE for this beat to
+   land: an object (a coffee puck under pressure), a mechanism (water forced through it), a relation (loose
+   against packed). Design it with the checklist below.
+2. **Route — `shot_fit.verdict` + a one-clause `why`.**
+   * **build** — the picture is drawn for this film: an OBJECT held in a library template's slot (`ObjectStage`
+     one thing named · `ObjectCompare` two, one difference · `ObjectPath` through stations, changing ·
+     `ObjectTurntable` in the round · `TechnicalPlate` `art` · `HudReticle` `object` · a device's `screen`), or a
+     new film-local SHOT when no template arranges the frame the way the argument does. `ref` = the build-list id.
+   * **adapt** — a register is the starting material and its LAYOUT, ENCODING or STRUCTURE is changed for this
+     idea. Record each change in `shot_adaptation.changes = [{aspect: "layout"|"encoding"|"structure", what,
+     why}]` — `what` names the change, `why` what this beat's idea needs from it. Copy, colour and palette are
+     not adaptations; a re-worded register is AS-IS.
+   * **fit (as-is)** — only when the register already IS the ideal picture. Write `shot_fit.shares`: the
+     encoding it shares with the ideal (what its position, size, colour, motion or sequence carries). "It fits"
+     is not a reason; if you cannot name the encoding, the register is not the ideal — adapt or build.
+3. **Assemble** it from runtime blocks (`references/building-blocks.md`), borrowing what fits from registers.
+4. **Check** it: `workshop.py still` + `check` for a built thing; the hide-the-caption test for every beat.
+
+**The floor `validate.py` ERRORs on** (definitions in `scripts/validate.py` above `DESIGN_SHARE_FLOOR`): at least
+HALF of the non-exempt beats ADAPTED or BUILT, and at least ONE BUILT — the film's **signature beat**. Exempt: a
+`CinematicTitle` used as the first/last beat, and an evidence register (`PhotoPlate`, `RealVersus`, …) holding its
+real picture. Half is the floor, not the target: **a strong film is mostly adapted or built.**
+
+### Designing a shot from nothing — the per-beat checklist (premium, not merely new)
+- [ ] **What the viewer must see** — the one claim, as a picture; one strong visual idea per beat.
+- [ ] **Encoding** — which quantity/relation rides on position, size, colour, motion or sequence (each channel
+      means one thing; nothing decorative on a channel that carries data).
+- [ ] **Focal hierarchy** — one focal point, then a second read, then detail; the eye's path is the argument's.
+- [ ] **Restraint** — few elements, real whitespace; cut anything the claim does not need.
+- [ ] **Typography with hierarchy** — at most three sizes; the display size goes to the one word that matters.
+- [ ] **Colour that MEANS** — the accent marks the thing the beat is about, nothing else.
+- [ ] **Motion reveals the argument in sequence** — cause before effect, part before whole; it settles.
+- [ ] **Signature moment** — the film builds toward one built beat designed to SURPRISE: an unexpected but RIGHT
+      metaphor or encoding a viewer would remember. Bold never overrides clarity or faithfulness.
 
 Every object or shot you build goes on **`meta.build_list`** FIRST — before it is drawn — so the reason for it and
 the test it must pass are written while the need is fresh:
@@ -194,7 +217,7 @@ beat 3 and tamped on beat 4, through its `props`) and across templates; a shot i
 shot declares `GROUND` (the DNA token its ground is painted from — the caption's ink is picked from it and
 `shot_proof.py` measures the claim) and `PROVENANCE` (its idiom world).
 
-**Do not be lazy about it.** Step 0.5 already requires half the form vocabulary to be forms the library lacks;
+**Do not settle.** Step 0.5 already requires half the form vocabulary to be forms the library lacks;
 each of those is a build-list entry, or a written reason it is not. A topic the library has never met with an empty
 build list is the signature of assembling from what exists — the critic's S14 and S15 look for exactly that. What
 the film builds stays in its workshop; at delivery the USER decides what is promoted into the library
@@ -299,9 +322,9 @@ shots the same way OR use the library registers reading the DNA tokens — never
 This is style-AGNOSTIC: it holds for terminal, editorial, product/apple, blueprint, or any `meta.design_dna`.
 
 ## The mandate — clear AND bold AND meaningful
-For each beat ask *"what is the clearest hand-written LANGUAGE for THIS idea?"* — match the beat's intent to a
-register's "use when", never "which card layout". Then fill that register's props from the beat's own content so
-it speaks the topic, not WorkBuddy. **Lean toward the chosen `meta.shot_template`'s families** (Step 0) while
+For each beat ask *"what is the clearest hand-written LANGUAGE for THIS idea?"* — answered by the ideal picture
+and route of Step 0.55 (the one place the flow is defined), never by "which card layout". Whatever register the
+route lands on, its props come from the beat's own content so it speaks the topic, not WorkBuddy. **Lean toward the chosen `meta.shot_template`'s families** (Step 0) while
 keeping the family-variety rule.
 
 **Every shot must ENCODE its beat, not decorate it.** Apply the litmus from `references/remotion-shot-authoring.md`:
@@ -340,7 +363,7 @@ you rebuilt). **Building a small in-style variant is the NORMAL move, not a last
 carry the idea, write a variant that keeps its VIBE but is composed around the real content; only when the fix is
 a pure demo-length assumption (a fixed label width, an un-padded box) FIX the shared register at the source so
 every future film benefits. **Record the redesign per scene in `shot_adaptation` = `{kept, redesigned,
-topic_idea}`** — what STYLE you kept, which MODULES/components + content you rebuilt for this topic, and the
+topic_idea, changes}`** (`changes` is what makes the beat count as ADAPTED — Step 0.55) — what STYLE you kept, which MODULES/components + content you rebuilt for this topic, and the
 topic-specific creative idea the shot now encodes. It is a REQUIRED artifact (validate.py WARNs when it's missing
 or `shot_props` is empty; shot-critic S10 checks the note against the rendered frame): writing it forces the
 redesign to be a decision, not a reflex. Always still-render a shot with its ACTUAL
@@ -581,9 +604,9 @@ style AND any stock modules that ALREADY fit the topic that you kept, the module
 for this topic, the topic-specific idea the shot now encodes, and — on a DNA-themed film — **`theme_cues`: the 2-3
 concrete cues that tie THIS shot to the global visual system** (e.g. `["mono heading","▸ prompt","terminal grid",
 "green accent"]`) so the Design DNA verifiably runs through every frame; per the KEEP-THE-STYLE-REDESIGN-THE-REST
-rule above — keep what fits, redesign what doesn't, don't blindly change everything). Also set **`shot_fit` = `{verdict: "fit"|"adapt"|"build", why}`** per scene (rule 0) — the judgement of
-whether a register's structure actually carries the beat's argument, and the ONLY thing that can surface
-"nothing in the library can draw this". On a film that builds, also write **`meta.build_list`** (Step 0.55) and
+rule above — keep what fits, redesign what doesn't, don't blindly change everything). Also set **`shot_fit` = `{ideal, verdict: "fit"|"adapt"|"build", why, shares?}`** per scene (Step 0.55 —
+`shares` on every as-is beat) and **`shot_adaptation.changes`** on every adapted one; `validate.py` ERRORs below
+the design-first floor (half adapted/built, one built) and on an as-is beat that does not earn it. On a film that builds, also write **`meta.build_list`** (Step 0.55) and
 `shot_fit.ref` on every beat that uses a built item. On the FEW beats that earn them, also set `transition_style` (Rule 5) and `camera` (the camera section); `python3 scripts/seam_plan.py <out_dir>` then fills the beats you left and skips every one you authored. Then record your choices for the critic: a short
 `shot_rationale` per scene (why this register, which family) is encouraged. `validate.py` errors on a
 missing/unknown `shot`, a number-bearing register left on its demo default, or ANY copy prop left to its demo

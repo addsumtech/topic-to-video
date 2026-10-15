@@ -20,6 +20,13 @@ def _deck(n=6):
                         "audio": f"audio/{i+1:02d}.mp3", "duration": 8.0, "narration": "A sentence."} for i in range(n)]}
 
 
+def _ok(r):
+    """No errors OTHER than the design-first floor. `_deck` is a minimal board of library registers used as-is,
+    which validate._design_share refuses by design (tests/test_design_first.py owns that rule); the tests that
+    call this are about other gates and must stay judged on those alone."""
+    return not [e for e in r["errors"] if not e.startswith("design-first:")]
+
+
 def test_shotluma_covers_all_shots():
     # the film tier's luminance foundation (captions contrast + P2 dip) must know EVERY shot's ground —
     # a new shot has to be MEASURED, not silently defaulted. (groundLum falls back to 'dark', but the map
@@ -115,7 +122,7 @@ def _remotion_deck(shots):
 def test_validate_warns_on_luminance_strobe():
     strobe = ["KnowledgeGraph", "BlockAssembly", "MaterialHero", "BlueprintGrid", "MapRoutes", "HandDrawn"]
     r = v.evaluate(_remotion_deck(strobe), "/tmp")                  # dark/light every seam -> strobe
-    assert r["ok"] and any("STROBES" in w for w in r["warnings"]), r["warnings"]
+    assert _ok(r) and any("STROBES" in w for w in r["warnings"]), r["warnings"]
     calm = ["CinematicTitle", "KnowledgeGraph", "MaterialHero", "MapRoutes", "FocalIsolation", "ParticleForm"]
     assert not any("STROBES" in w for w in v.evaluate(_remotion_deck(calm), "/tmp")["warnings"])   # all dark -> calm
 
@@ -167,8 +174,10 @@ def test_contest_sample_builds_valid_film_props():
 
 
 def test_valid_deck_passes():
+    # structurally valid — its ONLY errors are the design-first floor, since every beat is a register as-is
     r = v.evaluate(_deck(6), "/tmp")
-    assert r["ok"], r["errors"]
+    assert _ok(r), r["errors"]
+    assert r["errors"] and all(e.startswith("design-first:") for e in r["errors"]), r["errors"]
     assert r["scenes"] == 6
 
 
@@ -264,14 +273,14 @@ def test_validate_warns_on_bespoke_template():
     d = _deck(3)
     d["meta"]["shot_template"] = "molten-ledger-noir"
     r = v.evaluate(d, "/tmp")
-    assert r["ok"] and any("not one of the 6 SEED directions" in w for w in r["warnings"])
+    assert _ok(r) and any("not one of the 6 SEED directions" in w for w in r["warnings"])
 
 
 def test_validate_warns_on_template_without_contest():
     d = _deck(3)
     d["meta"]["shot_template"] = "data-story"
     r = v.evaluate(d, "/tmp")
-    assert r["ok"] and any("no `meta.shot_template_contest`" in w for w in r["warnings"])
+    assert _ok(r) and any("no `meta.shot_template_contest`" in w for w in r["warnings"])
 
 
 def test_validate_bold_audacity_requires_contest():
@@ -281,7 +290,7 @@ def test_validate_bold_audacity_requires_contest():
     assert not r["ok"] and any("REQUIRES a `meta.shot_template_contest`" in e for e in r["errors"])
     # conservative may skip the contest entirely
     d["meta"]["audacity"] = "conservative"; d["meta"].pop("shot_template", None)
-    assert v.evaluate(d, "/tmp")["ok"]
+    assert _ok(v.evaluate(d, "/tmp"))
 
 
 def test_validate_warns_on_over_marked_seams():
@@ -290,7 +299,7 @@ def test_validate_warns_on_over_marked_seams():
     for s in d["slides"][1:]:
         s["transition_style"] = "slide"
     r = v.evaluate(d, "/tmp")
-    assert r["ok"] and any("MARKED with a kinetic transition" in w for w in r["warnings"]), r["warnings"]
+    assert _ok(r) and any("MARKED with a kinetic transition" in w for w in r["warnings"]), r["warnings"]
     # a budgeted film (2 marks) stays clean
     d2 = _deck(6)
     d2["slides"][2]["transition_style"] = "clock"
@@ -342,7 +351,7 @@ def test_validate_contest_shape_and_winner():
     d["meta"]["shot_template_contest"] = {"candidates": ["data-story", "product-demo", "kinetic-editorial"],
                                           "winner": "data-story", "user_pick": True}
     r = v.evaluate(d, "/tmp")
-    assert r["ok"] and not any("shot_template_contest" in w for w in r["warnings"]), r["warnings"]
+    assert _ok(r) and not any("shot_template_contest" in w for w in r["warnings"]), r["warnings"]
 
 
 def test_contest_frame_within_every_hero_duration():
@@ -682,7 +691,7 @@ def test_validate_warns_on_an_unknown_atom_form():
                                "line": "#222", "decoration": [], "motion": "smooth",
                                "atoms": {"bar": "sparkline"}}
     r = v.evaluate(d, "/tmp")
-    assert r["ok"], r["errors"]                      # a warning, never an error — the runtime falls back
+    assert _ok(r), r["errors"]                      # a warning, never an error — the runtime falls back
     assert any("sparkline" in w for w in r["warnings"]), r["warnings"]
 
 

@@ -5,6 +5,8 @@ workshop, `../runtime/<module>` in the library), React, Remotion, and the librar
 Each module's own source header is the long form — this is the map. Objects are covered in
 `references/object-authoring.md`; the frame-craft floor every register obeys is `references/remotion-shot-authoring.md`.
 
+> **Designing a shot from nothing** — the per-beat method and the premium checklist (one idea, encoding, focal hierarchy, restraint, type hierarchy, colour that means, motion that reveals, a signature moment) live in ONE place: `agents/shot-director.md` Step 0.55. This file is what you assemble the result FROM.
+
 ## Time and motion
 
 ### `motion`

@@ -7,6 +7,8 @@ that has a slot for one — `ObjectStage`, `ObjectCompare`, `ObjectPath`, `Objec
 `HudReticle` (`object`), a device's `screen` — and is named on the film's `meta.build_list`. What to draw it WITH is
 `references/building-blocks.md`.
 
+> **Designing a shot from nothing** — the per-beat method and the premium checklist (one idea, encoding, focal hierarchy, restraint, type hierarchy, colour that means, motion that reveals, a signature moment) live in ONE place: `agents/shot-director.md` Step 0.55. This file is what you assemble the result FROM.
+
 ## The five rules
 
 1. **It ENCODES its beat.** Hide the caption: the object must still carry THIS beat's idea — the build-list entry's

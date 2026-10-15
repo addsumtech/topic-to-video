@@ -2509,7 +2509,8 @@ def test_the_idiom_world_gate_actually_refuses_the_wrong_world():
              "audio": "audio/%02d.mp3" % i, "duration": 5.0, "narration": "A line."} for i in range(4)]}
 
     def errs(b):
-        return v.evaluate(b, "/tmp")["errors"]
+        # the design-first floor (tests/test_design_first.py) is a different rule over the same minimal board
+        return [e for e in v.evaluate(b, "/tmp")["errors"] if not e.startswith("design-first:")]
 
     assert not errs(board()), errs(board())
 
@@ -2560,7 +2561,7 @@ def test_every_beat_must_name_a_form_the_film_derived():
             mutate(b)
         return b
 
-    assert not v.evaluate(board(), "/tmp")["errors"]
+    assert not [e for e in v.evaluate(board(), "/tmp")["errors"] if not e.startswith("design-first:")]
 
     def drop(b):
         del b["slides"][2]["shot_fit"]["form"]

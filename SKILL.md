@@ -668,9 +668,13 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      + content for THIS topic — never a raw text-swap; §B2), keeping family-variety AND **boldness** (reach past
      the obvious register, scaled by audacity; note each beat's `rejected_default`), AND ensuring every shot
      ENCODES its beat (hide the caption — does the visual still carry THIS idea?) and COHERES with the chosen
-     direction (palette/motion/motif, not a random stack). **NEED FIRST, then the catalogue, then BUILD what it lacks** (shot-director Step 0.55): for each beat
-     write the ideal picture, then resolve it to fit / adapt / an OBJECT a library template holds / a new film-local
-     SHOT. Every built thing goes on `meta.build_list` with its `means` and `accept`, is written in the film's own
+     direction (palette/motion/motif, not a random stack). **DESIGN FIRST — the library is material, not a menu** (the one flow, defined in shot-director Step 0.55):
+     per beat write the ideal picture (`shot_fit.ideal`, no register named), then a route — BUILD (an object in a
+     template's slot, or a film-local shot), ADAPT (layout/encoding/structure changed, recorded in
+     `shot_adaptation.changes`), or AS-IS only when the register already IS the ideal (`shot_fit.shares` names the
+     encoding it shares) — then assemble from runtime blocks and check. `validate.py` ERRORs when fewer than HALF of
+     the non-exempt beats are adapted or built, or none is built (the film's signature beat, designed to surprise);
+     half is the floor, a strong film is mostly adapted or built. Every built thing goes on `meta.build_list` with its `means` and `accept`, is written in the film's own
      workshop (`scripts/workshop.py new-object | new-shot | still | check`; what to build with:
      `references/building-blocks.md`; how to make it mean something: `references/object-authoring.md`) and never
      touches the library. Real imagery where the topic is concrete stays the documentary tier's. SKIP the HTML design plan (no `design_plan.json`).
@@ -819,10 +823,18 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     it (`workshop.py <out_dir> still <Name>`), and `workshop.py <out_dir> check` must be clean before the page
     uses it. `validate.py` holds the build list and the pages to each other. At delivery, promotion is the
     user's choice, as on the Remotion tier (`python3 scripts/promote.py <out_dir> <Name>`).
-5. **Parallel critic panel — narration + content + design (REQUIRED, not optional).** On the
-   **原样配音** tier there is no authored design to judge: dispatch the narration and content critics only
-   (the script is still written, and still has to be right). Otherwise dispatch
-   `agents/critic-narrative.md`, `agents/critic-content.md`, AND `agents/design-critic.md`
+5. **Script critic — ONE combined critic, ONE round, by default.** Dispatch ONE subagent carrying all three
+   lenses — hand it `agents/critic-narrative.md`, `agents/critic-content.md` and `agents/design-critic.md` as its
+   brief (on the **原样配音** tier, the first two only: there is no authored design to judge) — for ONE round,
+   reporting the top issues by impact; apply its EDITS and go on. The user's own script + audition checkpoint
+   below is what follows it, and that checkpoint never moves.
+   **The full 3-critic PANEL instead** (the loop below, until all three PASS) when EITHER the user asked for a
+   `standard` or `thorough` review earlier in the run, OR the stakes are high — a defense, a launch the user
+   called important, an external/paying audience, or anything they said must not go wrong. Decide it from what
+   the user SAID (interview answers, the purpose they gave), record it as `meta.script_review = {"mode":
+   "combined"|"panel", "why": "..."}`, and say which you ran at the checkpoint. Never fewer than the combined
+   critic; the floors below (faithfulness, sourcing, the human checkpoint) are the same either way.
+   The panel: dispatch `agents/critic-narrative.md`, `agents/critic-content.md`, AND `agents/design-critic.md`
    **concurrently — in ONE message with three Agent calls** — on the storyboard **plus the comprehension
    brief / source material AND both plans** (the content plan carries `continuity`/`relation`/faithfulness;
    the design plan carries `motif` + `form` + `theme` + the `relation`→`transition` mapping — each critic
@@ -842,9 +854,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      idea, not just decorate on-topic? applies to conceptual/statement beats too)**, transition rhythm vs `relation` (D3), icons (D4),
      composition/whitespace (D5), visual rhythm + a WOW beat (D6), squint/cover-text (D7), semantic
      colour (D8), motion discipline / no-GIF (D9), visual anti-slop (D10).
-   **Overall PASS only when ALL THREE critics return PASS.** Apply the **UNION** of their required
-   EDITS to the storyboard, then re-dispatch the critics (or just the failing one) until all
-   return PASS. THEN:
+   **Panel mode: overall PASS only when ALL THREE critics return PASS.** Apply the **UNION** of their
+   required EDITS to the storyboard, then re-dispatch the critics (or just the failing one) until all
+   return PASS. **Either mode — a faithfulness or sourcing finding is never "top issues only": every one is
+   fixed before the checkpoint.** THEN:
    **BOTH TIERS — THEN MAKE IT AUDIBLE, BEFORE the checkpoint — `python3 scripts/script_audition.py <out_dir>`.**
    It speaks five beats (hook, climax, close and two consecutive middles) through the board's OWN voice,
    joined by the film's own measured pause, into `audition.mp3` in seconds. **Listen to it in order, and
@@ -867,7 +880,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    send, so a board that merely CARRIES a paid voice never spends on a key nobody chose.) The audition
    speaks through the film's own voice path (`tts.film_voice` + `tts.speak`): same language detection,
    same pronunciation layer, no silent fallback — what is heard here is what the film will say.
-   🔴 **CHECKPOINT · 🛑 STOP:** present the full, critic-panel-passed script **and the audition audio**,
+   🔴 **CHECKPOINT · 🛑 STOP:** present the full, critic-reviewed script **and the audition audio**,
    and get the user's edits/approval before the full TTS run. A script nobody has HEARD has not been
    checked, whatever the metrics say.
 6. **Motion** — read `references/motion-grammar.md`. Default motion is a gentle centered
@@ -888,13 +901,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    (`pip install edge-tts`) for natural neural voices; if the user declines, set
    `meta.voice` to a `say:` fallback and continue. Then run `tts.py` (use `--only N` while
    iterating on one slide). edge-tts emits `.mp3`; `say` emits `.wav` — both fine.
-8. **Sample sign-off** — `render.py <out_dir> --sample N`. Then:
-   a. **AV critic:** dispatch `agents/critic-av.md` on the sample frames. It verifies
-      burned-in caption legibility, font/glyph correctness, R7-rendered visual quality,
-      and the squint/player-chrome checks. Require its **PASS** before the sign-off.
-      NOTE: do NOT run `check_av.py` on the sample — `check_av.py` probes `out.mp4` and
-      `.clips/`, which exist only after the FULL render (step 9).
-   Show `sample.mp4` to the user only after the critic passes.
+8. **Sample sign-off** — `render.py <out_dir> --sample N`, then show `sample.mp4` to the user
+   (`deliver.py`). No critic runs on the sample: the A/V review (`agents/critic-av.md`) moved to the review
+   depth the user picks after the first clean full render (step 9). Look at the sample frames yourself first
+   — caption legibility, glyphs, nothing cut off — before you hand it over.
    🔴 **CHECKPOINT · 🛑 STOP:** get explicit approval of the style (voice/pace/motion/
    captions) BEFORE the full render. Iterate on the sample until they approve — never
    batch-render all slides unsigned-off.
@@ -959,16 +969,47 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    + `text_safe_qa` + `film_energy_qa` + (advisory) `frame_safe_qa` reports: it judges register fit, family
    variety, faithful copy (no demo-number/WorkBuddy-
    leftover), decodability, **MEANING (S10 — does each shot's design ENCODE its beat's idea, not just look good?)**,
-   and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns → re-render).
-   Deliver only after **shot-critic PASSES and `check_av` + `keyframe_qa_remotion` + `text_safe_qa` +
+   and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns → re-render)
+   — at the depth the user chose (the review-depth question below; `thorough` is this full loop).
+   Deliver only after **the review at that depth closes and `check_av` + `keyframe_qa_remotion` + `text_safe_qa` +
    `cjk_type_qa` exit 0 (on a CJK film) + `film_energy_qa` exit 0 + `shake_qa` exit 0** (the two are a PAIR: the first refuses a film that does not move, the second refuses one that moves without going anywhere, and passing the first by tripping the second is the specific failure this tier has shipped before) (`frame_safe_qa` is advisory — read it, say which warnings you accepted)
-   — and that PASS must be an INDEPENDENT one: re-dispatch the critic as a fresh subagent given only the
+   — and that review must be an INDEPENDENT one: re-dispatch the critic as a fresh subagent given only the
    `<out_dir>` path, then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it refuses an
-   in-context ledger, a ledger missing any dimension, and one pinned to a different render's contact sheet).
+   in-context ledger, a ledger missing any dimension, and one pinned to a render this film never had).
 
-   **The user may WAIVE this review — and only the user may.** At the delivery checkpoint, offer it as a
-   third option beside "review it" and "revise first": *skip the critic, I have watched it and it is
-   finished*. If they take it, write their own words into `meta.review_waiver` in `storyboard.json`:
+   🔴 **THE REVIEW-DEPTH QUESTION — asked after the FIRST clean render, with the film in front of the user**
+   (modelled on slide-maker's post-build review question). When every machine gate is green (validate,
+   text_safe incl. `--glide`/`--sync`, keyframe_qa / keyframe_qa_remotion, check_av, shot_proof, cjk_type_qa,
+   film_energy_qa, shake_qa, rhythm_qa, pedagogy_qa), FIRST hand the film over — `python3 scripts/deliver.py
+   <out_dir>` and give the user that path — THEN ask ONE question (`AskUserQuestion`; on a host with no choice UI,
+   one typed question in the user's language, listing the four options with their text below):
+
+   | option | what runs | rough cost (qualitative — no measured numbers exist for this skill) |
+   |---|---|---|
+   | **`fast`** (default) | ONE combined critic (`shot-critic` carrying `critic-av`'s lens; HTML tier: `critic-av` + `design-critic`'s D-checks in one pass), ONE round, top issues by impact; the rest recorded `declined` | one subagent pass + one re-render if it finds something |
+   | `standard` | `shot-critic` + `critic-av` (HTML: `critic-av` + `design-critic`), up to TWO rounds, round 2 a full fresh review | about two to four subagent passes + re-renders |
+   | `thorough` | today's full loop: REVISE → fix → re-render → fresh independent review, until PASS | open-ended; each round is a re-render plus a fresh review |
+   | `none` | no critic — the user's own viewing is the review, recorded as user-waived | nothing further |
+
+   **Pre-select `fast`** when the plan/design self-checks and every machine gate came back clean. **Pre-select
+   `standard`, and say why in the question,** when a gate needed a waiver or an accepted warning you had to argue
+   for, or the design self-check flagged issues. `none` is NEVER pre-selected and never inferred from silence,
+   a "looks fine", or a green gate — only the user's explicit pick. Record the answer in `storyboard.json`:
+
+   ```json
+   "review": {"tier": "fast", "user_answer": "<the option or words the user gave>",
+              "preselected": "fast", "render_sha256": "<sha256 of _contact_sheet.png — required for none>"}
+   ```
+
+   `critic_ledger.py --final` reads it: a capped tier (`fast` 1 round, `standard` 2) whose last round said REVISE
+   closes when every failed row records `applied` (what changed) or `declined` (why not), and the film is marked
+   "reviewed at <tier>, not re-reviewed" — never a PASS; no `meta.review` at all means `thorough`. **What never
+   moves with the tier:** every machine gate above, the faithfulness and sourcing rules (a sourcing or
+   faithfulness finding is always fixed, never `declined`), the human script/audition checkpoint, an independent
+   reviewer, every ledger row, and the render pin.
+
+   **`none` waives the review — and only the user may choose it.** `meta.review = {"tier": "none",
+   "user_answer": ..., "render_sha256": ...}` (the older `meta.review_waiver` form is still read the same way):
 
    ```json
    "review_waiver": {"reason": "<what the user actually said>",
@@ -1009,8 +1050,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0** (`voice_qa.py` is ADVISORY and always
    exits 0 — read its signals and say which you accepted; failing a build on them would produce the
    "rule voice" its reference warns about) (on a `meta.renderer:"remotion"` deck,
-   `keyframe_qa_remotion.py` + `text_safe_qa.py` + `film_energy_qa.py` + shot-critic PASS REPLACE
-`keyframe_qa.py`, which no-ops there; `frame_safe_qa.py` is advisory).
+   `keyframe_qa_remotion.py` + `text_safe_qa.py` + `film_energy_qa.py` + the review at the user's chosen
+depth (`critic_ledger.py --final`) REPLACE `keyframe_qa.py`, which no-ops there; `frame_safe_qa.py` is advisory).
    Naming only the first two is
    how a deck shipped "all green" while the gates that actually look at the pages were never
    consulted. Also read `keyframe_qa`'s **deck advisories** (silhouette repetition, content-band

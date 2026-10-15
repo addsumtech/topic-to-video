@@ -3062,6 +3062,173 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
                 errors.append("workshop: " + p)
 
 
+# ── DESIGN-FIRST: THE FILM IS MOSTLY ADAPTED OR BUILT, AND AN AS-IS REGISTER EARNS ITS PLACE ─────────────────
+# The library cannot cover the scenes a topic throws at it; picking from it beat by beat is how a film comes out
+# as the catalogue's centre of gravity with the topic's words on top. So every beat starts from the IDEAL
+# PICTURE (`shot_fit.ideal`, one line, no template in it) and the library is MATERIAL. This gate measures the
+# result, per beat, from the board and the workshop — never from a self-described verdict alone:
+#   BUILT    — the beat's shot is a workshop shot (or a build-list shot since promoted), or its props hold a
+#              workshop object (or a build-list object since promoted).
+#   ADAPTED  — `shot_adaptation.changes` holds at least one {aspect, what, why} whose aspect is a STRUCTURAL
+#              one (layout | encoding | structure), with a substantive `what` (what changed) and a substantive
+#              `why` (what this beat's idea needs), and the two are not the same sentence. Copy, colour and
+#              palette are not adaptations: a text swap with a recoloured accent is the register as-is.
+#   EXEMPT   — a stock form the beat legitimately IS, used as-is: CinematicTitle as the FIRST or LAST beat (the
+#              open/close title card), or an evidence register (one that refuses to render without a real
+#              picture — parsed by register_energy.evidence_props) whose every evidence prop is set.
+#              Exempt beats leave the denominator; they are never credited.
+#   AS-IS    — everything else. It must carry `shot_fit.ideal` AND `shot_fit.shares`: the encoding the register
+#              already shares with that ideal picture (what its position/size/colour/motion/sequence carries).
+# The floor: (built + adapted) >= half of the non-exempt beats, and at least one BUILT beat (the signature).
+# Half is the FLOOR an error enforces, not the target — a strong film is mostly adapted or built.
+DESIGN_SHARE_FLOOR = 0.5
+_STRUCTURAL_ASPECTS = ("layout", "encoding", "structure")
+_TITLE_CARD_REGISTERS = {"CinematicTitle"}
+_GENERIC_FIT = {"it fits", "fits", "fit", "good fit", "perfect fit", "fits well", "matches", "it matches",
+                "same", "as is", "as-is", "default", "适合", "合适", "正好", "符合", "匹配", "一样"}
+
+
+def _substance(text):
+    """A language-neutral size for a justification: Latin words + CJK characters / 2. "it fits" is 2; a clause
+    that names an encoding and a reason is well over 6 in any script."""
+    t = str(text or "")
+    cjk = len(re.findall(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]", t))
+    words = len(re.findall(r"[A-Za-z0-9\u00c0-\u024f]+", t))
+    return words + cjk / 2.0
+
+
+def _specific(text, floor=6):
+    t = str(text or "").strip()
+    if t.lower().strip(" .。!！") in _GENERIC_FIT:
+        return False
+    return _substance(t) >= floor
+
+
+def adaptation_problem(adapt):
+    """None when `shot_adaptation` meets the ADAPTED minimum, else why not (a sentence for the FIX)."""
+    if not isinstance(adapt, dict):
+        return "no shot_adaptation"
+    ch = adapt.get("changes")
+    if isinstance(ch, dict):
+        ch = [ch]
+    if not isinstance(ch, list) or not ch:
+        return ("shot_adaptation.changes is missing — name what changed ({aspect: layout|encoding|structure, "
+                "what, why})")
+    seen = []
+    for c in ch:
+        if not isinstance(c, dict):
+            seen.append("an entry is not an object")
+            continue
+        aspect = str(c.get("aspect") or "").strip().lower()
+        what, why = str(c.get("what") or "").strip(), str(c.get("why") or "").strip()
+        if aspect not in _STRUCTURAL_ASPECTS:
+            seen.append("aspect %r is not layout/encoding/structure (copy, colour and palette do not count)"
+                        % (c.get("aspect"),))
+        elif not _specific(what, 4):
+            seen.append("`what` is too thin to verify (%r)" % what[:40])
+        elif not _specific(why, 4):
+            seen.append("`why` does not say what this beat's idea needs (%r)" % why[:40])
+        elif what == why:
+            seen.append("`what` and `why` are the same sentence")
+        else:
+            return None
+    return "no change in shot_adaptation.changes qualifies: " + "; ".join(seen[:2])
+
+
+def design_routes(meta, slides, out_dir):
+    """[(beat number, route, reason)] with route in built | adapted | exempt | as-is — see the block above."""
+    import workshop as _ws
+    film_shots = _ws.shot_names(out_dir) if out_dir else set()
+    film_objects = _ws.object_names(out_dir) if out_dir else set()
+    bl = meta.get("build_list") if isinstance(meta.get("build_list"), list) else []
+    bl_shots = {e.get("id") for e in bl if isinstance(e, dict) and e.get("kind") == "shot"}
+    bl_objects = {e.get("id") for e in bl if isinstance(e, dict) and e.get("kind") == "object"}
+    built_shots, built_objects = film_shots | bl_shots, film_objects | bl_objects
+    try:
+        import register_energy as _re
+        evidence = _re.evidence_props()
+    except Exception:                                   # noqa: BLE001 — no exemption beats a false one
+        evidence = {}
+    out, n = [], len(slides)
+    for pos, s in enumerate(slides, 1):
+        num = s.get("index", pos)
+        shot = s.get("shot")
+        sp = s.get("shot_props") if isinstance(s.get("shot_props"), dict) else {}
+        if shot in built_shots:
+            out.append((num, "built", "its shot %s is this film's own" % shot)); continue
+        src = _ws.shot_source(out_dir, shot) if shot else None
+        held = []
+        if src and built_objects:
+            try:
+                held = sorted({r["id"] for _p, r in _ws.object_refs(src, sp, shot)
+                               if isinstance(r, dict) and r.get("id") in built_objects})
+            except Exception:                           # noqa: BLE001 — _check_build reports malformed refs
+                held = []
+        if held:
+            out.append((num, "built", "%s holds the built object %s" % (shot, held[0]))); continue
+        prob = adaptation_problem(s.get("shot_adaptation"))
+        if prob is None:
+            out.append((num, "adapted", "")); continue
+        if shot in _TITLE_CARD_REGISTERS and pos in (1, n):
+            out.append((num, "exempt", "the %s title card" % ("opening" if pos == 1 else "closing"))); continue
+        ev = evidence.get(shot)
+        if ev and all(sp.get(k) for k in ev):
+            out.append((num, "exempt", "a real picture on %s" % shot)); continue
+        out.append((num, "as-is", prob))
+    return out
+
+
+def _design_share(meta, slides, errors, warnings, out_dir):
+    if not slides:
+        return
+    routes = design_routes(meta, slides, out_dir)
+    by_num = {(s.get("index", i)): s for i, s in enumerate(slides, 1)}
+    counted = [r for r in routes if r[1] != "exempt"]
+    if not counted:
+        return
+    credited = [r for r in counted if r[1] in ("built", "adapted")]
+    built = [r for r in counted if r[1] == "built"]
+    asis = [r for r in counted if r[1] == "as-is"]
+    share = len(credited) / float(len(counted))
+    routes_txt = ("three routes: ADAPT (change its layout/encoding/structure and record "
+                  "shot_adaptation.changes [{aspect, what, why}]), SLOT AN OBJECT (draw the thing in the film's "
+                  "workshop and hold it in a register's object slot), or BUILD a shot (scripts/workshop.py "
+                  "new-shot). Method: agents/shot-director.md Step 0.5")
+    if share < DESIGN_SHARE_FLOOR:
+        errors.append("design-first: only %d of %d non-exempt beats are adapted or built (%d%%; the floor is "
+                      "half, and a strong film is mostly adapted or built). Rework at least %d of the as-is "
+                      "beats — %s — by one of the %s."
+                      % (len(credited), len(counted), round(100 * share),
+                         int(-(-DESIGN_SHARE_FLOOR * len(counted) // 1)) - len(credited),
+                         "; ".join("scene #%s (%s)" % (num, why) for num, _r, why in asis[:8])
+                         + (" …" if len(asis) > 8 else ""), routes_txt))
+    if not built:
+        errors.append("design-first: no beat is BUILT — every film has at least one signature beat drawn for "
+                      "this topic (a workshop shot, or a register whose slot holds a workshop object). Pick the "
+                      "beat whose idea the library draws least well and build it: " + routes_txt)
+    thin = []
+    for num, route, _why in asis:
+        fit = by_num.get(num, {}).get("shot_fit")
+        fit = fit if isinstance(fit, dict) else {}
+        miss = [f for f in ("ideal", "shares") if not _specific(fit.get(f))]
+        if miss:
+            thin.append("scene #%s (%s)" % (num, " and ".join("shot_fit.%s" % f for f in miss)))
+    if thin:
+        errors.append("design-first: %d beat(s) use a register AS-IS without earning it — %s. An as-is beat "
+                      "writes `shot_fit.ideal` (the picture this idea needs, one line, no template named) and "
+                      "`shot_fit.shares` (the encoding the register already shares with that picture — what its "
+                      "position, size, colour, motion or sequence carries). A generic \"it fits\" does not "
+                      "count. If you cannot name it, the register is not the ideal: adapt or build."
+                      % (len(thin), "; ".join(thin[:8]) + (" …" if len(thin) > 8 else "")))
+    no_ideal = [num for num, route, _w in counted if route != "as-is"
+                and not _specific(((by_num.get(num, {}).get("shot_fit") or {}) if isinstance(
+                    by_num.get(num, {}).get("shot_fit"), dict) else {}).get("ideal"))]
+    if no_ideal:
+        warnings.append("design-first: %d adapted/built beat(s) record no `shot_fit.ideal` (scenes %s) — the "
+                        "one-line picture the beat was designed toward is what a critic checks the route against"
+                        % (len(no_ideal), ", ".join(str(x) for x in no_ideal[:10])))
+
+
 def _check_html_build(meta, slides, errors, warnings, out_dir, skips=None):
     """WHAT AN HTML FILM BUILT (docs/superpowers/specs/2026-10-05-html-workshop-design.md). Every component in
     workshop/html/ has a `kind: "component"` build-list entry; every such entry names a component that exists
@@ -3201,6 +3368,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if (meta.get("renderer") or "") == "remotion":
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
         _check_build(meta, slides, errors, warnings, out_dir, skips=skips)
+        _design_share(meta, slides, errors, warnings, out_dir)
         _shot_truncation(meta, slides, errors, warnings)
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings, out_dir=out_dir)

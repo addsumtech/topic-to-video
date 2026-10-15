@@ -119,8 +119,11 @@ def test_a_board_that_builds_nothing_is_judged_exactly_as_before(tmp_path, monke
     errs = _errs(board, tmp_path)
     assert not os.path.exists(tmp_path / "workshop")
     assert any("not registered in registry.ts" in e for e in errs), errs
-    assert not [e for e in errs if "shot_fit.ref" in e or "names no `ref`" in e or "build_list" in e
-                or "workshop" in e or "Design DNA" in e or "the film built" in e], errs
+    # the design-first floor (validate._design_share) is a separate, deliberate finding on a film that built
+    # nothing; this test is about the build-list checks staying silent
+    assert not [e for e in errs if not e.startswith("design-first") and (
+                "shot_fit.ref" in e or "names no `ref`" in e or "build_list" in e
+                or "workshop" in e or "Design DNA" in e or "the film built" in e)], errs
 
 
 def test_an_unknown_object_is_named_with_what_exists(tmp_path):

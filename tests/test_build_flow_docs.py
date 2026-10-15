@@ -14,7 +14,8 @@ def _read(*p):
 
 def test_the_shot_director_is_told_to_build_and_how():
     d = _read("agents", "shot-director.md")
-    for needle in ("## Step 0.55 — NEED FIRST", "meta.build_list", '"ref"', "workshop.py <out_dir> new-object",
+    for needle in ("## Step 0.55 — DESIGN FIRST", "shot_fit.ideal", "shot_fit.shares", "shot_adaptation.changes",
+                   "DESIGN_SHARE_FLOOR", "Designing a shot from nothing", "meta.build_list", '"ref"', "workshop.py <out_dir> new-object",
                    "workshop.py <out_dir> new-shot", "workshop.py <out_dir> still", "ObjectStage", "ObjectCompare",
                    "ObjectPath", "ObjectTurntable", "references/object-authoring.md", "references/building-blocks.md",
                    "scripts/promote.py"):

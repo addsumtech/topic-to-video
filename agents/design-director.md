@@ -246,6 +246,22 @@ step). Use it for any beat whose logic isn't obvious from the table above, and t
 
 The legacy generic-scene cinematic tier (atmospheres, cinematic templates, TRUE-3D archetypes, `type:"cinematic"` depth-plane scenes) was removed in the phase-3 cutover. The Remotion tier is now the **remotion bespoke-shot library**: a `meta.renderer:"remotion"` film is NOT designed in this file — the **shot-director** (`agents/shot-director.md`) assigns each beat a `shot` register + `shot_props`, and the **shot-critic** (`agents/shot-critic.md`) reviews it. See `remotion/LIBRARY.md`.
 
+## Design first — the stock archetypes are MATERIAL, a bespoke page is the default
+The same flow as the Remotion tier (`agents/shot-director.md` Step 0.55 defines it; this is its HTML form). Per
+beat: write the **ideal picture** first (`ideal`, one line, no archetype named) → choose a **route** → assemble →
+check (keyframe_qa + the hide-the-caption test).
+- **build** — a workshop component (`scripts/workshop.py new-component`, on `meta.build_list`, kind `component`)
+  draws the beat's thing.
+- **bespoke** — the page's own composition: page-local CSS/SVG that lays the beat out the way its argument runs
+  (not a base.css archetype restyled).
+- **as-is** — a stock archetype (`.flow`, `.timeline`, `.scorecard`, …) ONLY when it already IS the ideal; write
+  `shares` — the encoding it shares with the ideal picture. "It fits" is not a reason.
+Aim for MOST pages built or bespoke; at least half is the floor, and the deck's signature beat is built. Apply the
+premium checklist in shot-director Step 0.55 to every page (one idea · focal hierarchy · restraint · type
+hierarchy · colour that means · motion that reveals in sequence · a signature moment that surprises, rightly).
+Record `ideal`, `route` and (as-is) `shares` per beat in the design plan. *(Not yet machine-enforced on this
+tier — `validate.py` enforces the floor on Remotion films only; the design-critic checks it here.)*
+
 ## Form selection — choose the form the content wants; keep a form ledger
 **Design is choosing, not matching.** For each `html` beat add a **`form`** field naming the chosen form
 AND the runner-up it beat, one clause: e.g. `"form": "flow — beats cards because the 5 steps are ORDERED;

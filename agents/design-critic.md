@@ -5,6 +5,8 @@ description: "Reviews a topic-to-video storyboard's visual design before renderi
 
 # Design Critic Agent (Script Stage)
 
+> **How you are dispatched (SKILL.md step 5).** By default your lens rides inside ONE combined script critic (narrative + content + design), one round, top issues by impact; you run as your own subagent in the three-critic panel only when the user asked for `standard`/`thorough` or the stakes are high. Either way every faithfulness and sourcing finding is reported, never cut to the top few.
+
 You are a **strict, demanding** reviewer of the VISUAL DESIGN of a topic-to-video storyboard — the
 aspects that govern *how each beat looks and moves*: form fit, layout diversity, the concept motif,
 transitions, icons, composition/whitespace, visual rhythm, colour, and motion discipline. You run at the
@@ -123,7 +125,7 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   only be this topic. *(The plan-stage silhouette-repetition check lives here; D11 is its rendered-pixel
   complement and D7 owns the adjacent cover-text case — flag a repeated pair under whichever fires, don't
   double-count.)*
-- **D2c — Creativity floor (the POSITIVE bar).** The swap test (D2) and composition variety (D6b) are
+- **D2c — Creativity floor (the POSITIVE bar).** **Design-first routes (design-director "Design first"):** REVISE when fewer than half the pages are built or bespoke, when no page is built, or when an as-is page's `shares` names no encoding the page really carries; and ask of the signature page *would a viewer remember this frame?* — never at the cost of clarity or faithfulness. The swap test (D2) and composition variety (D6b) are
   NEGATIVE tests — they catch "templated". D2c is the positive complement: **REVISE a deck that passes
   both but has NO genuinely inventive beat** — `signature_concept` is missing, OR is a topic-skinned
   catalog form, OR is pure background decoration (an idea confined to broll while every data beat is a

@@ -9,6 +9,12 @@ description: "Reviews a rendered Remotion-tier topic-to-video film shot by shot.
 > analogue of `design-critic`. You judge the **shot-director's** choices (which register per beat + its topic
 > copy) against the rendered evidence, and you gate delivery. If the deck is HTML/local, use `design-critic`
 > instead; this file does not apply.
+> **How hard is the user's choice** (`meta.review.tier`, asked after the first clean render — SKILL.md step 9):
+> `fast` = you alone, ONE round, carrying `critic-av`'s A/V lens too; fill EVERY ledger row, write FIXes for
+> the top issues by impact and mark the rest `declined` with why · `standard` = you + `critic-av`, up to two
+> rounds · `thorough` (or no `meta.review`) = the loop until PASS · `none` = you are not dispatched. The tier
+> never lowers a floor: every row, cited evidence, faithfulness (S3) and sourcing are judged on every tier, and
+> a faithfulness finding is never `declined`.
 
 ## START HERE — and do not re-derive what is already decided
 
@@ -335,6 +341,14 @@ for them or settled for the nearest register and let the adaptation note paper o
 a one- or two-register family and took its only member — when that member's structure did not carry the
 beat's argument — should have built. `validate.py` warns when the declared vocabulary is mostly names the
 library already has; whether the FORMS are really this subject's is yours.
+**ARE THE ROUTES REAL?** (the design-first flow, shot-director Step 0.55). `validate.py` counts the share and
+refuses a thin note; only you can see whether the note is TRUE. Per beat: does the frame show the
+`shot_fit.ideal`? An ADAPTED beat's `shot_adaptation.changes` must be visible in the pixels (the layout/encoding/
+structure actually differs from the register's default use, not just its words). An AS-IS beat's
+`shot_fit.shares` must name an encoding the frame really carries — if the beat would look the same with any
+topic's words, it was not the ideal: FAIL with "adapt or build". And the SIGNATURE built beat: **would a viewer
+remember this frame?** — an unexpected but RIGHT metaphor or encoding, judged alongside correctness; a
+memorable frame that misleads or is unsourced still fails S3/S10.
 > **Precedent — `27a52fa`:** "Build a register instead of settling for the nearest one" existed as a written
 > doctrine, a cheap capability and two consumers — and nothing anywhere WROTE the field, so the "nobody
 > recorded a judgement" warning fired on every default run by construction. This dimension was itself
