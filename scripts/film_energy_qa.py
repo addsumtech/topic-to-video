@@ -168,6 +168,27 @@ _EDGE = 0.04          # a local step this size is a mark; below it is paper grai
 DENSITY_LONG_SIDE = 384
 
 
+def beat_spans(board, n, fps):
+    """[(index, shot, f0, f1)] — each beat's sampled frames [f0, f1) ON THE FILM'S OWN CLOCK. A beat's position in
+    out.mp4 is NOT the running sum of the board's durations: the renderer compresses every cut by its seam length,
+    so summing durations drifts further out of place with every seam — eleven seconds of it by the end of a 30-beat
+    film. The seam length is read from the renderer rather than restated here, so the two cannot disagree. The
+    first and last sampled frame of each window are dropped (they straddle a cut); a beat shorter than two sampled
+    frames is left out. Raises when the board cannot be read; callers keep their film-level numbers."""
+    import render_remotion as _rr
+    slides = board.get("slides") or []
+    seam = _rr._REMOTION2_TR / float((board.get("meta") or {}).get("fps") or 30)
+    out, t = [], 0.0
+    for i, sl in enumerate(slides):
+        a = t
+        b = a + float(sl.get("duration") or 0)
+        t = b - (seam if i + 1 < len(slides) else 0)
+        f0, f1 = int(a * fps) + 1, min(n, int(b * fps) - 1)
+        if f1 > f0:
+            out.append((i + 1, sl.get("shot"), f0, f1))
+    return out
+
+
 def density(path, board=None, fps=12, long_side=None):
     """{median, beats:[{index, shot, drawn}]} — how much of each frame is DRAWN ON, at the resolution that
     question needs. Returns None when it cannot decode; the axis then reports that it did not run."""
@@ -192,24 +213,11 @@ def density(path, board=None, fps=12, long_side=None):
         return None
     F = np.frombuffer(proc.stdout[:n * w * h], dtype=np.uint8).reshape(n, h, w).astype(np.float32) / 255.0
     out = {"median": float(np.median([_drawn(f) for f in F[::2]])), "beats": []}
-    # PER-BEAT, ON THE FILM'S OWN CLOCK. A beat's position in out.mp4 is NOT the running sum of the board's
-    # durations: the renderer compresses every cut by its seam length, so summing durations drifts further
-    # out of place with every seam — eleven seconds of it by the end of a 30-beat film. The seam length is
-    # read from the renderer rather than restated here, so the two cannot disagree.
+    # PER-BEAT, ON THE FILM'S OWN CLOCK (beat_spans).
     if board:
         try:
-            import render_remotion as _rr
-            slides = board.get("slides") or []
-            seam = _rr._REMOTION2_TR / float((board.get("meta") or {}).get("fps") or 30)
-            t = 0.0
-            for i, sl in enumerate(slides):
-                a = t
-                b = a + float(sl.get("duration") or 0)
-                t = b - (seam if i + 1 < len(slides) else 0)
-                f0, f1 = int(a * fps) + 1, min(n, int(b * fps) - 1)
-                if f1 <= f0:
-                    continue                       # a beat shorter than two sampled frames says nothing
-                out["beats"].append({"index": i + 1, "shot": sl.get("shot"),
+            for idx, shot, f0, f1 in beat_spans(board, n, fps):
+                out["beats"].append({"index": idx, "shot": shot,
                                      "drawn": float(np.mean([_drawn(f) for f in F[f0:f1]]))})
         except Exception:                          # noqa: BLE001 — the per-beat half never breaks the axis
             out["beats"] = []
@@ -260,7 +268,7 @@ def probe_duration(path):
     return None
 
 
-def measure(path, fps=12, long_side=192):
+def measure(path, fps=12, long_side=192, board=None):
     """Greyscale frame-difference, ink coverage and luminance spread. Same instrument for every film.
 
     The sampling frame PRESERVES ASPECT. Forcing every film into 192x108 squashes a portrait one, and
@@ -291,7 +299,20 @@ def measure(path, fps=12, long_side=192):
     if n < MIN_FRAMES:
         return n                                     # an INT, not None: the caller says which failure it was
     F = np.frombuffer(raw[:n * w * h], dtype=np.uint8).reshape(n, h, w).astype(np.float32) / 255.0
-    d = np.abs(np.diff(F, axis=0)).mean(axis=(1, 2))
+    D = np.abs(np.diff(F, axis=0))
+    d = D.mean(axis=(1, 2))
+    # FROZEN is not "under the floor". A small object moving — a needle, grains settling — changes a few hundred
+    # pixels and stays far under a whole-frame mean; frozen means NO pixel changed by a mark's step (_EDGE) AND the
+    # frame as a whole changed less than the floor (a fade moves every pixel a little and no pixel by a mark), so a
+    # frozen difference is always also an under-floor one. And it is asked over a SECOND as well as a frame: a slow
+    # drift — an idle clock, a low-contrast object creeping a pixel at a time — moves under a mark's step between two
+    # sampled frames and well past it within a second, and frame-to-frame alone would call it frozen.
+    moved = (D > _EDGE).any(axis=(1, 2)) | (d >= MOTION_P75_FLOOR)
+    del D
+    lag = max(1, int(round(fps * LUMA_WINDOW_SECONDS)))
+    for i in range(len(moved)):
+        if not moved[i] and i + 1 >= lag:
+            moved[i] = bool((np.abs(F[i + 1] - F[i + 1 - lag]) > _EDGE).any())
     ink = []                                       # density has its own decode — see DENSITY_LONG_SIDE
     lum = F.mean(axis=(1, 2))
     k = max(1, int(round(fps * LUMA_WINDOW_SECONDS)))
@@ -307,6 +328,9 @@ def measure(path, fps=12, long_side=192):
     # length is read from the renderer rather than restated, so the two cannot disagree.
     return {
         "beats": [],
+        "motion_beats": motion_by_beat(d, moved, board, n, fps) if board else [],
+        # the share of frame differences under the motion floor: p75 < floor exactly when this is over 0.75
+        "motion_under_floor": float((d < MOTION_P75_FLOOR).mean()),
         "seconds": n / fps,
         "frames": n,
         "fps": fps,
@@ -323,6 +347,67 @@ def measure(path, fps=12, long_side=192):
         "luma_steps": steps,
         "luma_windows": len(win),
     }
+
+
+# WHERE THE FILM SITS UNDER THE FLOOR. The motion floor asks one question of the whole film — are more than three
+# quarters of its frame differences under MOTION_P75_FLOOR? — and a film under it was told only its p75. Every diagram
+# film this skill has delivered sits under it (p75 0.0005-0.0015, each one waived), and the waiver was the only lever
+# the message offered, because it never said WHICH beats hold the film down. This splits the same count by beat, at
+# the floor's own threshold, so nothing new is calibrated: the film's share under the floor is its beats' summed.
+#
+# UNDER THE FLOOR IS NOT FROZEN, and the split says both. Measured on three delivered films: a GradientRuler beat was
+# under the floor for 94% of its frames and frozen for 0% (its ruler never stops moving — a few hundred pixels of a
+# 20,736-pixel decode), while a NeuralField beat was under it for 96% and frozen for 74%. A reason like "the motion IS
+# the mechanism" is about the first kind; only FROZEN seconds — no pixel changed by a mark's step — say that nothing
+# on the frame moves. Reading the under-floor seconds as "still" would call the first beat inert.
+def motion_by_beat(d, moved, board, n, fps):
+    """[{index, shot, seconds, under_s, frozen_s, p75}] — each beat's sampled seconds, how many of them are under the
+    motion floor, how many are FROZEN (no pixel changed), and the beat's own p75. [] when the board cannot be placed
+    on the film."""
+    try:
+        import numpy as np
+        rows = []
+        for idx, shot, f0, f1 in beat_spans(board, n, fps):
+            hi = max(f0, f1 - 1)                     # differences BETWEEN this beat's own frames
+            seg, mv = d[f0:hi], moved[f0:hi]
+            if len(seg) < 4:
+                continue
+            rows.append({"index": idx, "shot": shot, "seconds": len(seg) / float(fps),
+                         "under_s": float((seg < MOTION_P75_FLOOR).sum()) / fps,
+                         "frozen_s": float((~mv).sum()) / fps,
+                         "p75": float(np.percentile(seg, 75))})
+        return rows
+    except Exception:                              # noqa: BLE001 — the per-beat half never breaks the axis
+        return []
+
+
+def under_floor_line(m):
+    """One sentence naming the beats that hold the film under the motion floor, or "" when there is no per-beat
+    split. The film clears the floor once AT MOST three quarters of its frame differences are under it, so the
+    shortfall is the under-floor seconds above that share — counted over the whole film, seams included — and the
+    beats are listed most-under first until they cover it (at least three, at most six)."""
+    rows = sorted(m.get("motion_beats") or [], key=lambda r: (-r["under_s"], r["index"]))
+    if not rows or m.get("motion_under_floor") is None:
+        return ""
+    fps = float(m.get("fps") or 12)
+    diffs = max(0, int(m.get("frames", 0)) - 1)
+    over = max(0.0, (m["motion_under_floor"] - 0.75) * diffs / fps)
+    named, cover = [], 0.0
+    for r in rows:
+        if r["under_s"] <= 0 or (len(named) >= 3 and cover >= over):
+            break
+        named.append(r)
+        cover += r["under_s"]
+        if len(named) == 6:
+            break
+    if not named:
+        return ""
+    return (" By beat — seconds under the floor, and of those the FROZEN ones (no pixel changed; a small object "
+            "moving is under the floor but not frozen): %s. About %.1fs under the floor would have to move more for "
+            "the film to clear it — shorter holds, a register that keeps its object running (the stage registers' "
+            "idle clock), or a beat split in two; or, if the stillness IS the design, say why per beat in the waiver."
+            % ("; ".join("beat %d (%s) %.1f of %.1fs under, %.1fs frozen" % (
+                r["index"], r["shot"] or "?", r["under_s"], r["seconds"], r["frozen_s"]) for r in named), over))
 
 
 AXES = ("MOTION", "DENSITY", "LIGHT", "LIGHT ARC")
@@ -391,7 +476,7 @@ def check(out_dir):
             meta = board.get("meta") or {}
         except Exception:                                        # noqa: BLE001 - a broken board is another gate's job
             meta, board = {}, None
-    m = measure(mp4)
+    m = measure(mp4, board=board)
     if isinstance(m, dict):
         _d = density(mp4, board=board)
         if _d:
@@ -417,8 +502,8 @@ def check(out_dir):
         errs.append("MOTION: frame-diff p75 is %.4f, under the %.4f floor (half the quietest reference "
                     "film's %.4f). Three quarters of this film's frames are within %.2f%% of the frame "
                     "before them — that is a slideshow, and the html tier renders slideshows for a "
-                    "fraction of the cost. What this tier is FOR is time."
-                    % (m["motion_p75"], MOTION_P75_FLOOR, 0.0075, m["motion_p75"] * 100))
+                    "fraction of the cost. What this tier is FOR is time.%s"
+                    % (m["motion_p75"], MOTION_P75_FLOOR, 0.0075, m["motion_p75"] * 100, under_floor_line(m)))
     # DENSITY REPORTS, IT DOES NOT GATE — see `_drawn` above for why the floor went with the old metric.
     # The useful question was never "is the median frame 12%"; it is "WHICH of my beats is least drawn on",
     # and that one is answerable without a reference corpus because a film is compared against itself. A
@@ -519,9 +604,11 @@ def main(argv):
         # COVERAGE BEFORE FINDINGS. The old first word was the measured length, which on a half-decoded file
         # read as the film's length; what a reader needs first is how much of the film these numbers are.
         print("[film_energy] measured %s" % coverage_line(m))
-        print("              motion p50/p75/p90 %.4f/%.4f/%.4f  ink %.1f%%  light %.3f  arc %s (%d window(s))"
+        # INK MAY BE ABSENT: density has its own decode, and when it fails the axis WARNs that it did not run —
+        # this line used to multiply the None it left and crash the gate after it had said so
+        print("              motion p50/p75/p90 %.4f/%.4f/%.4f  ink %s  light %.3f  arc %s (%d window(s))"
               % (m["motion_p50"], m["motion_p75"], m["motion_p90"],
-                 m["ink_median"] * 100, m["luma_range"],
+                 "n/a" if m.get("ink_median") is None else "%.1f%%" % (m["ink_median"] * 100), m["luma_range"],
                  "n/a" if m["luma_steps"] is None else "%.1f%%" % (m["luma_steps"] * 100),
                  m["luma_windows"]))
         print("              reference floors: motion p75 >= %.4f · light >= %.3f · arc >= %.1f%% "

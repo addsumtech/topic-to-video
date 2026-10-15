@@ -231,6 +231,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   from four launch films). A deliberately quiet film declares `meta.energy_waiver` with a REASON. The waiver is PER-AXIS:
   an object waives only the axis it names; a plain string waives all four and says so. Waive the axis you actually
   reasoned about. A `COVERAGE` error (the file was decoded short) is never waivable: re-render or repair the file.
+  A MOTION finding names the beats holding the film under the floor — seconds under it and, of those, FROZEN (no
+  pixel changed); a small thing moving is under the floor but never frozen. Fix those beats before waiving.
 - `scripts/shake_qa.py <out_dir>`: remotion SHAKE gate (travelling vs vibrating camera). It is paired with film_energy_qa,
   because jitter is the cheapest way to clear the motion floor. A frame it cannot lock onto is UNJUDGED.
 - `scripts/critic_ledger.py <out_dir> --final`: the independent-review gate on both tiers (workflow step 9);

@@ -295,7 +295,11 @@ that waives it says why in `meta.energy_waiver` (usually: a diagram film held to
 the mechanism). Whether that reason is TRUE of this film — or the film is simply inert — is a camera-and-motion
 question, so it is this dimension's: a `meta.energy_waiver` row with `holds: false` makes S12 a FAIL. The one row
 judges EVERY axis the waiver covers — a per-axis waiver (`{"motion": …, "density": …}`) holds only if each named reason
-is true of the film.
+is true of the film. Judge a MOTION reason against the numbers, not the prose: `film_energy_qa`'s waived MOTION line
+(brief section 1) gives, per beat, the seconds UNDER the floor and, of those, the FROZEN ones (no pixel changed). Under
+the floor is not inert — a needle or a settling grain stays under a whole-frame floor — so judge "the motion is the
+mechanism" against the FROZEN seconds: a beat the reason says moves, frozen for most of its length, is where
+`holds: false` comes from (cite its keyframe); a beat under the floor but never frozen is moving, just small.
 Soft dimension: S3/S4 still win.
 
 > **Precedent — `0dfde89`:** 4 of 146 registers used a 3D rotation, none used focus, and the camera had been switched off entirely — space is this tier's whole claim over the HTML one, and it had none.

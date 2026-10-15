@@ -384,3 +384,79 @@ def test_density_reports_per_beat_and_no_longer_floors_the_film(slideshow):
         assert any("MOTION" in e for e in errs), errs
     finally:
         os.remove(os.path.join(slideshow, "storyboard.json"))
+
+
+# ── the motion floor says WHICH beats hold the film under it, and which of those are actually frozen ──────────
+
+@pytest.fixture(scope="module")
+def held_moving_creep(tmp_path_factory):
+    """Three 4 s beats, each under the motion floor for a different reason: a HELD frame (nothing changes), a small
+    box sliding across a still page (a mechanism moving in a corner — under a whole-frame floor, never frozen), and
+    a low-contrast box CREEPING a pixel at a time (between two sampled frames mostly nothing changes, within a
+    second it has visibly moved — the idle clock's kind of motion)."""
+    d = tmp_path_factory.mktemp("held_moving_creep")
+    page = "color=c=0x14181f:s=320x180:r=24:d=4"
+    _render(str(d / "a.mp4"), ["-f", "lavfi", "-i", page])
+    _render(str(d / "b.mp4"), ["-f", "lavfi", "-i", page, "-f", "lavfi", "-i", "color=c=0xe8e2d0:s=12x12:r=24:d=4",
+                               "-filter_complex", "[0][1]overlay=x='40+t*20':y=60"])
+    _render(str(d / "c.mp4"), ["-f", "lavfi", "-i", page, "-f", "lavfi", "-i", "color=c=0x34404e:s=40x40:r=24:d=4",
+                               "-filter_complex", "[0][1]overlay=x='120+t*4':y=60"])
+    open(d / "list.txt", "w").write("".join("file '%s'\n" % (d / x) for x in ("a.mp4", "b.mp4", "c.mp4")))
+    _render(str(d / "out.mp4"), ["-f", "concat", "-safe", "0", "-i", str(d / "list.txt")])
+    return str(d)
+
+
+def _three_beats(out_dir):
+    import render_remotion as rr
+    seam = rr._REMOTION2_TR / 30.0              # the renderer overlaps each cut by its seam; the board says so
+    board = {"meta": {"renderer": "remotion", "fps": 30},
+             "slides": [{"index": 1, "shot": "Held", "duration": 4.0 + seam},
+                        {"index": 2, "shot": "Mechanism", "duration": 4.0 + seam},
+                        {"index": 3, "shot": "Creep", "duration": 4.0}]}
+    json.dump(board, open(os.path.join(out_dir, "storyboard.json"), "w", encoding="utf-8"))
+    return board
+
+
+def test_the_motion_split_tells_frozen_from_a_small_thing_moving(held_moving_creep):
+    _three_beats(held_moving_creep)
+    try:
+        errs, _warns, m = g.check(held_moving_creep)
+        rows = {r["shot"]: r for r in m["motion_beats"]}
+        assert set(rows) == {"Held", "Mechanism", "Creep"}, m["motion_beats"]
+        for r in rows.values():                 # all three hold the film under the whole-frame floor...
+            assert r["under_s"] >= 0.8 * r["seconds"], r
+        # ...but only the held beat is frozen: the box never stops, and the creep moves within every second
+        assert rows["Held"]["frozen_s"] >= 0.8 * rows["Held"]["seconds"], rows["Held"]
+        assert rows["Mechanism"]["frozen_s"] <= 0.1 * rows["Mechanism"]["seconds"], rows["Mechanism"]
+        assert rows["Creep"]["frozen_s"] <= 0.3 * rows["Creep"]["seconds"], rows["Creep"]
+        for r in rows.values():
+            assert r["frozen_s"] <= r["under_s"] + 1e-9, "a frozen second is always also under the floor"
+        motion = [e for e in errs if e.startswith("MOTION:")]
+        assert motion and "beat 2 (Mechanism)" in motion[0] and "frozen" in motion[0], motion
+    finally:
+        os.remove(os.path.join(held_moving_creep, "storyboard.json"))
+
+
+def test_the_motion_split_rides_into_a_waived_line_so_the_critic_sees_it(held_moving_creep):
+    board = _three_beats(held_moving_creep)
+    board["meta"]["energy_waiver"] = {"motion": "a diagram film whose motion is its mechanism"}
+    json.dump(board, open(os.path.join(held_moving_creep, "storyboard.json"), "w", encoding="utf-8"))
+    try:
+        errs, warns, _m = g.check(held_moving_creep)
+        assert not any(e.startswith("MOTION") for e in errs), errs
+        waived = [w for w in warns if w.startswith("waived (MOTION)")]
+        assert waived and "By beat" in waived[0] and "beat 1 (Held)" in waived[0], warns
+    finally:
+        os.remove(os.path.join(held_moving_creep, "storyboard.json"))
+
+
+def test_no_board_no_split_and_the_film_level_finding_stands(held_moving_creep):
+    errs, _warns, m = g.check(held_moving_creep)
+    assert m["motion_beats"] == [] and any(e.startswith("MOTION:") and "By beat" not in e for e in errs), errs
+
+
+def test_a_failed_density_decode_does_not_crash_the_summary(held_moving_creep, monkeypatch, capsys):
+    monkeypatch.setattr(g, "density", lambda *a, **k: None)
+    g.main([held_moving_creep])
+    out = capsys.readouterr().out
+    assert "ink n/a" in out and "DENSITY: not measured" in out, out

@@ -878,7 +878,7 @@ def _energy(mod, measurement, board=None):
     open(os.path.join(d, "out.mp4"), "wb").write(b"\0")           # existence is all check() asks of it
     if board is not None:
         _json.dump(board, open(os.path.join(d, "storyboard.json"), "w", encoding="utf-8"))
-    mod.measure = lambda path: measurement
+    mod.measure = lambda path, **k: measurement
     return mod.check(d)
 
 
@@ -939,7 +939,7 @@ def _probe_a_missing_film_is_not_a_pass(mod):
 def _probe_an_undecodable_film_is_not_a_pass(mod):
     d = tempfile.mkdtemp()
     open(os.path.join(d, "out.mp4"), "wb").write(b"\0")
-    mod.measure = lambda path: None
+    mod.measure = lambda path, **k: None
     errs, _warns, _m = mod.check(d)
     assert errs, "a film that could not be decoded reported as clean"
 
@@ -947,7 +947,7 @@ def _probe_an_undecodable_film_is_not_a_pass(mod):
 def _probe_a_film_too_short_to_measure_is_not_a_pass(mod):
     d = tempfile.mkdtemp()
     open(os.path.join(d, "out.mp4"), "wb").write(b"\0")
-    mod.measure = lambda path: 5                       # an INT = decoded, but only 5 sampled frames
+    mod.measure = lambda path, **k: 5                       # an INT = decoded, but only 5 sampled frames
     errs, _warns, _m = mod.check(d)
     assert errs, "a half-second clip reported as a clean film"
     assert any("frame" in e for e in errs), "the error does not say the film was too SHORT: %r" % errs
