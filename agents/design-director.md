@@ -235,8 +235,17 @@ form. Per beat, in this order:
 4. **Check** it: `keyframe_qa` and the hide-the-caption test.
 
 Aim for MOST pages built or bespoke; at least half is the floor, and the deck's signature beat is built. Record
-`ideal`, `route` and (as-is) `shares` per beat in the design plan. *(Not yet machine-enforced on this tier —
-`validate.py` enforces the floor on Remotion films only; the design-critic (D2c) checks it here.)*
+`ideal`, `route` and (as-is) `shares` per beat in the design plan.
+
+**Enforced.** `validate.py` measures each page's route from its source and errors when fewer than half of an HTML
+film's non-exempt pages are built or bespoke, when none is, or when an as-is page lacks `shot_fit.ideal` +
+`shot_fit.shares` (or `ideal` + `shares` on its beat in `design_plan.json`).
+- **BUILT** — the page uses a workshop component tag.
+- **BESPOKE** — the page's own `<style>` lays out at least two page-own classes (grid / position / transform), or an
+  inline svg draws the beat (6+ shapes — not an icon, not a faint `.bg-motif`), or 3+ elements are hand-placed.
+- **AS-IS** — recolouring or retyping a stock archetype, restyling a stock class, an inline grid/flex wrapper.
+- **Exempt** — the opening/closing title card, a real-photo plate with its imagefetch provenance, `type:"slide"` beats.
+The design-critic (D2c) still judges whether a route is real in the frame, which the source measure cannot.
 
 ### Choosing the form — a contest, recorded in the form ledger
 **Design is choosing, not matching.** Name the 2–3 forms a beat could take, pick by its *shape*, and for each

@@ -26,7 +26,8 @@ Use absolute `file://` paths. Order: `base.css` → `theme.css` (from `<out_dir>
 
 ## Form markup — the classes for each form (choosing the form is the design-director's)
 Which form a beat takes — the ideal picture, the route (build / bespoke / as-is), the form contest and the
-card-grid floors — is `agents/design-director.md` "Design first"; the full concept→form dictionary is
+card-grid floors — is `agents/design-director.md` "Design first" (`validate.py` enforces its half-built-or-bespoke
+floor from each page's source; what counts is listed there under **Enforced**); the full concept→form dictionary is
 `references/design-intelligence-addendum.md` §4. This is the markup for the forms it picks (all classes are in
 `base.css`, all reveal-ready). The card grid is right ONLY for **parallel, unordered, equal-weight** items:
 
