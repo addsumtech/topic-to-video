@@ -83,7 +83,7 @@ def test_the_workflow_requires_it_before_the_script_checkpoint():
     skill = open(os.path.join(_ROOT, "SKILL.md"), encoding="utf-8").read()
     assert "script_audition.py" in skill, "the workflow never tells anyone to run the audition"
     i_aud = skill.index("script_audition.py")
-    i_chk = skill.index("present the full, critic-panel-passed script")
+    i_chk = skill.index("present the full, critic-reviewed script")
     assert i_aud < i_chk, "the audition is mentioned AFTER the checkpoint it is supposed to inform"
     # The rule is that the workflow no longer PRESCRIBES silence before the sign-off — not that the
     # words never appear. This file's own explanation of what changed quotes the old instruction, and a

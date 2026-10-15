@@ -85,6 +85,17 @@ def build(out_dir):
                  "growth sections below are empty by construction, and the shot-tier gates no-op. Use "
                  "`design-critic` for the HTML tier." % meta.get("renderer"))
         L.append("")
+    # THE DEPTH THE USER CHOSE decides the shape of this pass (SKILL.md, the review-depth question). The floors
+    # do not move with it: every ledger row, cited evidence, an independent reviewer.
+    _rv = meta.get("review") if isinstance(meta.get("review"), dict) else {}
+    _tier = str(_rv.get("tier") or "").lower() or "thorough"
+    _how = {"fast": "ONE combined pass carrying the A/V lens too (agents/critic-av.md), ONE round. Fill every "
+                    "ledger row; write FIXes for the top issues by impact and mark the rest `declined` with why.",
+            "standard": "this critic plus agents/critic-av.md, up to TWO rounds; round 2 is a full fresh review.",
+            "thorough": "the full loop: REVISE → fix → re-render → fresh independent review, until PASS.",
+            "none": "the user waived the review — no critic should be running on this film."}.get(_tier, "?")
+    L.append("**Review depth: `%s`**%s — %s" % (_tier, "" if _rv else " (no meta.review recorded)", _how))
+    L.append("")
     L.append("## 1 · Already decided by machine — do NOT re-judge these")
     L.append("")
     L.append("Read the verdicts; spend your pass on section 3.")
@@ -230,6 +241,11 @@ def main(argv):
         made = "%s (%dx%d, %d beats)" % (os.path.basename(sheet), size[0], size[1], n)
     except Exception as e:                                    # noqa: BLE001 — report, never mask
         made = "NOT BUILT (%s)" % e
+    try:
+        import critic_ledger as _cl
+        _cl.record_render(out_dir)              # the render history a capped tier's last ledger is checked against
+    except Exception as e:                      # noqa: BLE001 — report, never mask
+        print("[critic_brief] render history NOT recorded (%s)" % e)
     text = build(out_dir)
     path = os.path.join(out_dir, "_critic_brief.md")
     open(path, "w", encoding="utf-8").write(text)

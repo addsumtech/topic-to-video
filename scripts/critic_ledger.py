@@ -42,6 +42,17 @@ gate says so on every run rather than falling silent. Three properties make it s
   `film_energy_qa`, `shake_qa` and `validate.py` are untouched and still gate delivery. A waiver is a
   judgement about taste, never about whether the file plays.
 
+AND A REVIEW DEPTH THE USER CHOSE. After the first clean render the user picks how hard to review it —
+`meta.review = {tier, user_answer}` with tier fast | standard | thorough | none (SKILL.md "the review-depth
+question"). The tier scales the WEIGHT of the loop, never the floors: every row, every cited file, an
+independent reviewer and the render pin are required on every tier that reviews. What the tier changes is the
+ROUND CAP — fast 1, standard 2, thorough unbounded (the loop until PASS, which is also what an absent
+`meta.review` means: a depth nobody chose is never the light one). Once a capped tier has spent its rounds, a
+REVISE ledger may close the loop when every failed row records what was `applied` (or why it was `declined`);
+the film ships marked "reviewed at <tier>, last round's fixes not re-reviewed", never as a PASS.
+`none` is the same decision as `review_waiver` and is held to the same rules: the user's own answer, pinned to
+the render they watched, never pre-selected and never inferred.
+
 The dimension list is PARSED from agents/shot-critic.md. Restating it here is how this repo's caption band
 became four disagreeing copies; a new dimension must be required by this gate the moment it is written down.
 """
@@ -179,6 +190,70 @@ def coverage(out_dir):
     return out
 
 
+REVIEW_KEY = "review"
+TIERS = ("fast", "standard", "thorough", "none")
+ROUND_CAP = {"fast": 1, "standard": 2, "thorough": None}
+HISTORY = "_contact_sheet_history.json"
+# words that record a DEFAULT or an inference rather than an answer — `none` must be the user's own word
+_NOT_AN_ANSWER = {"default", "auto", "inferred", "assumed", "no answer", "no reply", "silence", "timeout",
+                  "n/a", "na", "unknown", "preselected", "pre-selected"}
+
+
+def _board_meta(out_dir):
+    board = os.path.join(out_dir, "storyboard.json")
+    if not os.path.exists(board):
+        return {}
+    try:
+        return (json.load(open(board, encoding="utf-8")) or {}).get("meta") or {}
+    except Exception:                                         # noqa: BLE001 — a broken board is validate.py's
+        return {}
+
+
+def review(out_dir):
+    """(review_dict, [problems]) — the depth the user chose at the review question, or (None, []).
+
+    None means nobody recorded a choice, and the gate then behaves as `thorough`: the full independent loop
+    until PASS. Nothing here ever turns an absent or malformed answer into a lighter tier, least of all `none`."""
+    r = _board_meta(out_dir).get(REVIEW_KEY)
+    if r is None:
+        return None, []
+    if not isinstance(r, dict):
+        return None, ["meta.%s must be an object {tier, user_answer}" % REVIEW_KEY]
+    probs = []
+    tier = str(r.get("tier") or "").strip().lower()
+    if tier not in TIERS:
+        probs.append("meta.%s.tier %r must be one of %s" % (REVIEW_KEY, r.get("tier"), " | ".join(TIERS)))
+    ans = str(r.get("user_answer") or "").strip()
+    if not ans or (ans.startswith("<") and ans.endswith(">")) or ans.lower() in _NOT_AN_ANSWER:
+        probs.append("meta.%s.user_answer %r is not an answer — record what the user actually said (or the "
+                     "option they picked) at the review question; a tier nobody chose is not a tier"
+                     % (REVIEW_KEY, ans))
+    if str(r.get("preselected") or "").strip().lower() == "none":
+        probs.append("meta.%s.preselected is 'none' — `none` is never pre-selected; it exists only as the "
+                     "user's own answer" % REVIEW_KEY)
+    return dict(r, tier=tier), probs
+
+
+def _history(out_dir):
+    try:
+        h = json.load(open(os.path.join(out_dir, HISTORY), encoding="utf-8"))
+        return {str(x).lower() for x in h} if isinstance(h, list) else set()
+    except Exception:                                         # noqa: BLE001 — no history = no earlier render
+        return set()
+
+
+def record_render(out_dir):
+    """Append the current contact sheet's sha to the out_dir's render history (critic_brief.py calls this), so
+    a capped tier's last-round ledger can be checked against a render this film really had."""
+    sheet = os.path.join(out_dir, CONTACT_SHEET)
+    if not os.path.exists(sheet):
+        return None
+    sha = sha256_of(sheet)
+    hist = sorted(_history(out_dir) | {sha})
+    json.dump(hist, open(os.path.join(out_dir, HISTORY), "w", encoding="utf-8"), indent=1)
+    return sha
+
+
 WAIVER_KEY = "review_waiver"
 
 
@@ -196,6 +271,15 @@ def waiver(out_dir):
     except Exception:                                         # noqa: BLE001 — a broken board is validate.py's
         return None, []
     w = meta.get(WAIVER_KEY)
+    rv = meta.get(REVIEW_KEY)
+    if w is None and isinstance(rv, dict) and str(rv.get("tier") or "").strip().lower() == "none":
+        # THE REVIEW QUESTION'S `none` IS A WAIVER, held to the same pin and expiry. Its reason is the user's
+        # answer; review() refuses an answer that is really a default, so this only ever sees a real one.
+        rprobs = review(out_dir)[1]
+        w = {"reason": str(rv.get("user_answer") or ""), "render_sha256": rv.get("render_sha256"),
+             "_from": REVIEW_KEY}
+        if rprobs:
+            return w, rprobs
     if w is None:
         return None, []
     if isinstance(w, str):
@@ -204,7 +288,9 @@ def waiver(out_dir):
         return None, ["meta.%s must be an object {reason, render_sha256} or a reason string" % WAIVER_KEY]
     probs = []
     reason = str(w.get("reason") or "").strip()
-    if len(reason) < 12:
+    if w.get("_from") == REVIEW_KEY:
+        pass                     # a picked option ("none") is a complete answer; review() vetted it above
+    elif len(reason) < 12:
         probs.append("meta.%s.reason is empty or too short — a waiver is a decision someone made, and the "
                      "record has to say what it was, in the user's own words" % WAIVER_KEY)
     sheet = os.path.join(out_dir, CONTACT_SHEET)
@@ -223,23 +309,39 @@ def waiver(out_dir):
     return w, probs
 
 
+def capped(out_dir):
+    """(tier, cap, round, spent) for the ledger in out_dir. `spent` is True once a capped tier has used its
+    rounds; thorough (and an unrecorded tier) never is."""
+    rv, rprobs = review(out_dir)
+    tier = (rv or {}).get("tier") if rv and not rprobs else "thorough"
+    cap = ROUND_CAP.get(tier)
+    try:
+        rnd = int(json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8")).get("round") or 1)
+    except Exception:                                         # noqa: BLE001
+        rnd = 1
+    return tier, cap, rnd, bool(cap is not None and rnd >= cap)
+
+
 def validate(out_dir, final=False):
     errs, warns = [], []
+    rv, rprobs = review(out_dir)
+    if rprobs:
+        errs.extend("the recorded review depth is not usable: " + p for p in rprobs)
     wv, wprobs = waiver(out_dir)
     if wv is not None:
         if wprobs:
-            return (["the review waiver is not usable: " + p for p in wprobs], [])
+            return (sorted(set(errs + ["the review waiver is not usable: " + p for p in wprobs])), [])
         return ([], ["REVIEW WAIVED BY THE USER for this render — no critic judged this film. Reason given: "
                      "%r. The deterministic gates still apply and still gate delivery; this waives taste, "
                      "not whether the file plays." % str(wv.get("reason"))[:160]])
     path = os.path.join(out_dir, LEDGER_NAME)
     if not os.path.exists(path):
-        return (["no %s — the review produced no per-dimension record. Run with --emit-template, fill every "
+        return (errs + ["no %s — the review produced no per-dimension record. Run with --emit-template, fill every "
                  "row, then re-run this gate." % LEDGER_NAME], [])
     try:
         led = json.load(open(path, encoding="utf-8"))
     except Exception as e:                                    # noqa: BLE001 - report, don't crash the gate
-        return (["%s is not valid JSON: %s" % (LEDGER_NAME, e)], [])
+        return (errs + ["%s is not valid JSON: %s" % (LEDGER_NAME, e)], [])
 
     # ── the artifact the reviewer actually looked at ────────────────────────────────────────────────────
     sheet = os.path.join(out_dir, CONTACT_SHEET)
@@ -251,6 +353,11 @@ def validate(out_dir, final=False):
         got = str(led.get("contact_sheet_sha256", "")).strip().lower()
         if not got:
             errs.append("contact_sheet_sha256 is empty — a ledger must be pinned to the render it reviewed")
+        elif got != want and capped(out_dir)[3] and got in _history(out_dir):
+            # A CAPPED TIER'S LAST ROUND reviewed an earlier render, its fixes were applied, and the tier the
+            # user chose does not re-review them. The pin must still name a render this film really had.
+            warns.append("this ledger reviews an earlier render (%s) — the %s tier's round cap is spent, so "
+                         "its fixes ship without a re-review" % (got[:12], capped(out_dir)[0]))
         elif got != want:
             errs.append("contact_sheet_sha256 %s does not match the film's contact sheet (%s) — this ledger "
                         "reviews a DIFFERENT render than the one in %s" % (got[:12], want[:12], out_dir))
@@ -311,6 +418,21 @@ def validate(out_dir, final=False):
     failed = sorted(s for s, r in by_id.items() if str(r.get("verdict", "")).lower() == "fail")
     if overall == "PASS" and failed:
         errs.append("verdict is PASS while %s failed" % ", ".join(failed))
+    tier, cap, rnd, spent = capped(out_dir)
+    if final and overall == "REVISE" and spent:
+        # THE ROUND CAP CLOSES THE LOOP, NOT THE FINDINGS: each failed row says what was done about it.
+        current = (os.path.exists(sheet)
+                   and str(led.get("contact_sheet_sha256", "")).strip().lower() == sha256_of(sheet))
+        for sid in failed:
+            r = by_id[sid]
+            if current and not str(r.get("declined", "")).strip():
+                errs.append("%s failed on THIS render and records no `declined` reason — the %s tier's last "
+                            "round is spent, so either apply the fix and re-render, or say why it is left"
+                            % (sid, tier))
+            elif not current and not (str(r.get("applied", "")).strip() or str(r.get("declined", "")).strip()):
+                errs.append("%s failed and records neither `applied` (what was changed) nor `declined` (why "
+                            "not) — the %s tier ships the last round's fixes without a re-review, so the "
+                            "record has to say what they were" % (sid, tier))
 
     # ── who reviewed ────────────────────────────────────────────────────────────────────────────────────
     who = str(led.get("reviewer", "")).strip().lower()
@@ -346,6 +468,9 @@ def main(argv):
 
     final = "--final" in argv
     wv, _wprobs = waiver(out_dir)
+    _t, _c, _r, _sp = capped(out_dir)
+    print("[critic_ledger] review depth: %s%s" % (_t, "" if review(out_dir)[0] else
+                                                  " (no meta.review recorded — the full loop applies)"))
     errs, warns = validate(out_dir, final=final)
     cov = coverage(out_dir)
     for w in warns:
@@ -397,6 +522,21 @@ def main(argv):
                      % (str(wv.get("reason"))[:400],
                         str(wv.get("render_sha256"))[:16]))
         print("[critic_ledger] delivered UNREVIEWED — rewrote NOT_DELIVERED.md to say so")
+    elif final and not errs and overall == "REVISE" and capped(out_dir)[3]:
+        tier, cap, rnd, _sp = capped(out_dir)
+        led = json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8"))
+        rows = [r for r in led.get("rows") or [] if str(r.get("verdict", "")).lower() == "fail"]
+        with open(nd, "w", encoding="utf-8") as fh:
+            fh.write("# Delivered after a `%s` review — not a PASS\n\n"
+                     "The user chose the `%s` review depth (%d round%s). The critic's last round said REVISE; "
+                     "its fixes were applied or declined as below and were NOT re-reviewed.\n\n%s\n\n"
+                     "The deterministic gates DID run and did gate delivery.\n"
+                     % (tier, tier, cap, "" if cap == 1 else "s",
+                        "\n".join("- **%s** — applied: %s · declined: %s"
+                                   % (r.get("id"), str(r.get("applied") or "-")[:200],
+                                      str(r.get("declined") or "-")[:200]) for r in rows)))
+        print("[critic_ledger] delivered after a %s review (round cap spent) — NOT_DELIVERED.md records it"
+              % tier)
     elif final and os.path.exists(nd):
         if not errs and overall == "PASS":
             os.remove(nd)
