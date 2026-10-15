@@ -343,6 +343,11 @@ def _waiver_fixture(tmp_path, reason="我看过整片了，就这样发，不用
     board = {"meta": {"renderer": "remotion", "review_waiver": w}, "slides": []}
     json.dump(board, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"))
     open(os.path.join(out, "NOT_DELIVERED.md"), "w", encoding="utf-8").write("# not yet\n")
+    # what `critic_brief.py --gates` leaves: every delivery gate run on this render, all green — a waiver waives
+    # taste, and --final still refuses a render nobody ran the gates on
+    critic_ledger.record_render(out, gates={critic_ledger.gate_name(s, a): {"exit": 0, "blocking": b}
+                                            for _l, s, a, _t, b in critic_ledger.delivery_gates(out)},
+                                review_round=False)
     return out
 
 

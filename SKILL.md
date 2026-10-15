@@ -218,6 +218,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 - `scripts/critic_brief.py <out_dir>`: assembles `_critic_brief.md` + `_contact_sheet.png` for the rendered review —
   shot-critic on remotion, design-critic's delivery section on HTML (which also gets `_frames/`, one delivered frame
   per beat). **Run it before dispatching the critic.** `scripts/contact_sheet.py` builds the sheet alone.
+  `--gates` runs only the tier's delivery gates, records their exit codes for this render and exits 1 on a failure —
+  the check before the review-depth question, and the record a `none` answer is delivered on.
 - `scripts/settled_frame.py <clip.mp4|out_dir> <out.png|dir/> [--at 0.90] [--beat N]`: the frame to JUDGE a design on.
   Always sample late at a fixed fraction, because mid-clip grabs show animation in flight and produce confident wrong
   readings. Use `--beat N`, since the board's running duration is not the film's clock.
@@ -948,11 +950,15 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    which of its warnings you accepted. `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`).
 
    **9d · 🔴 THE REVIEW-DEPTH QUESTION — asked after the FIRST clean render, with the film in front of the user**
-   (modelled on slide-maker's post-build review question). When every machine gate is green (validate,
-   text_safe incl. `--glide`/`--sync`, keyframe_qa / keyframe_qa_remotion, check_av, shot_proof, cjk_type_qa,
-   film_energy_qa, shake_qa, rhythm_qa, pedagogy_qa), FIRST hand the film over — `python3 scripts/deliver.py
-   <out_dir>` and give the user that path — THEN ask ONE question (`AskUserQuestion`; on a host with no choice UI,
-   one typed question in the user's language, listing the four options with their text below):
+   (modelled on slide-maker's post-build review question). When every machine gate is green —
+   `python3 scripts/critic_brief.py <out_dir> --gates` exits 0: it runs the tier's delivery gates once on this render
+   (remotion: validate, check_av, keyframe_qa_remotion, text_safe incl. `--glide`/`--sync`, cjk_type_qa on a CJK film,
+   film_energy_qa, shake_qa, rhythm_qa, pedagogy_qa, shot_proof; HTML: keyframe_qa, validate, check_av, rhythm_qa,
+   pedagogy_qa) and records each exit code against the render id, and `critic_ledger.py --final` refuses a render
+   whose record is missing a gate or holds a failure, on every path, `none` included — FIRST hand the film over
+   — `python3 scripts/deliver.py <out_dir>` and give the user that path — THEN ask ONE question
+   (`AskUserQuestion`; on a host with no choice UI, one typed question in the user's language, listing the four
+   options with their text below):
 
    | option | what runs | rough cost (qualitative — no measured numbers exist for this skill) |
    |---|---|---|
@@ -1012,9 +1018,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    (the picture the review read), `out.mp4` (picture, sound and burned captions as delivered) and `out.srt`. The
    step-8 `sample.mp4` and the HTML `preview.mp4` are not the delivered film and are not in it.
 
-   `critic_ledger.py --final` then exits 0 without a ledger, says REVIEW WAIVED on every run, and rewrites
-   `NOT_DELIVERED.md` into a record that the film shipped unreviewed and why — a waiver is **not** a PASS,
-   and `ls` must keep answering "was this ever looked at?" truthfully.
+   `critic_ledger.py --final` then exits 0 without a ledger — once the `--gates` record for this render is
+   complete and green (re-run `critic_brief.py <out_dir> --gates` after any re-render) — says REVIEW WAIVED on
+   every run, and rewrites `NOT_DELIVERED.md` into a record that the film shipped unreviewed and why — a waiver
+   is **not** a PASS, and `ls` must keep answering "was this ever looked at?" truthfully.
 
    Three things bind you here:
    - **Never author it on your own behalf.** Not to save time, not because the gates are green, not because
@@ -1026,7 +1033,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      again. That is deliberate: "fine once" must not become a licence over everything changed afterwards.
      When that happens, show the user the NEW cut and ask again; do not re-stamp the pin.
    - **It waives taste, not correctness.** `check_av`, `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`,
-     `film_energy_qa`, `shake_qa` and `validate.py` all still run and still gate delivery. A waived film is
+     `film_energy_qa`, `shake_qa` and `validate.py` all still run and still gate delivery: `--final` reads their
+     exit codes from the `--gates` record of this render. A waived film is
      one nobody judged for register fit, meaning, frame-craft or boldness — not one nobody checked plays.
 
    **9e · The review, at the depth chosen.** On a remotion film, run `python3 scripts/critic_brief.py <out_dir>`,

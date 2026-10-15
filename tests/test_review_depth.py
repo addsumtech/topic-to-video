@@ -65,9 +65,20 @@ def _ledger(out, **over):
     return dims
 
 
+def _green(out):
+    """A record of every delivery gate this film needs, all exited 0 — what a clean critic_brief.py run leaves."""
+    return {cl.gate_name(s, a): {"exit": 0, "blocking": b} for _l, s, a, _t, b in cl.delivery_gates(out)}
+
+
+def _gates_run(out):
+    """`critic_brief.py --gates`'s side effect: every delivery gate's exit code recorded for this render, no round."""
+    cl.record_render(out, gates=_green(out), review_round=False)
+
+
 def _brief(out):
-    """critic_brief.py's side effect: the current render enters the history (one review round)."""
-    cl.record_render(out)
+    """critic_brief.py's side effect: the current render enters the history (one review round), with the exit code
+    of every delivery gate it ran on it."""
+    cl.record_render(out, gates=_green(out))
 
 
 def _rerender(out, colour=(90, 20, 20)):
@@ -129,6 +140,7 @@ def test_a_preselected_reviewing_tier_applied_without_a_reply_is_valid(tmp_path)
 def test_none_answered_by_the_user_waives_this_render_only(tmp_path):
     out = _out(tmp_path)
     out = _out(tmp_path, {"tier": "none", "user_answer": "none", "preselected": "fast", "render_sha256": _cur(out)})
+    _gates_run(out)
     errs, warns = cl.validate(out, final=True)
     assert not errs and any("REVIEW WAIVED" in w for w in warns), (errs, warns)
     open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# not yet\n")
@@ -392,6 +404,7 @@ def test_a_none_answer_expires_when_the_captions_change(tmp_path):
     out = _out(tmp_path)
     _film_files(out)
     out = _out(tmp_path, {"tier": "none", "user_answer": "none", "preselected": "fast", "render_sha256": _cur(out)})
+    _gates_run(out)
     assert not cl.validate(out, final=True)[0], cl.validate(out, final=True)[0]
     _film_files(out, mp4=None, srt="1\n00:00:00,000 --> 00:00:01,000\na different caption\n")
     errs = cl.validate(out, final=True)[0]
@@ -483,6 +496,7 @@ def test_final_holds_the_recorded_preselection_to_the_computed_one(tmp_path):
 def test_a_none_answer_is_held_to_the_computed_preselection_too(tmp_path):
     out = _out(tmp_path)
     out = _out(tmp_path, {"tier": "none", "user_answer": "none — I watched it", "render_sha256": _cur(out)})
+    _gates_run(out)
     errs = cl.validate(out, final=True)[0]
     assert any("preselected is missing" in e for e in errs), errs
     _set_review(out, preselected="fast")
@@ -559,6 +573,7 @@ def test_no_waiver_no_rows_and_none_needs_none(tmp_path):
     # the user waived the review itself: there is no ledger to carry rows in, and none are asked for
     out = _out(tmp_path / "none", meta_extra=ENERGY)
     _set_review(out, tier="none", user_answer="none — I watched it", preselected="fast", render_sha256=_cur(out))
+    _gates_run(out)
     errs, warns = cl.validate(out, final=True)
     assert not errs and any("REVIEW WAIVED" in w for w in warns), (errs, warns)
 
@@ -612,9 +627,10 @@ def test_duplicate_route_and_waiver_rows_and_evidence_without_a_frame_are_errors
 
 # ── the machine gates recorded for THIS render: a PASS cannot deliver a film they refuse ────────────────────
 
-def _gates(**over):
-    g = {"validate.py": {"exit": 0, "blocking": True}, "check_av.py": {"exit": 0, "blocking": True},
-         "voice_qa.py": {"exit": 0, "blocking": False}}
+def _gates(out=None, **over):
+    g = _green(out) if out else {}
+    g.update({"validate.py": {"exit": 0, "blocking": True}, "check_av.py": {"exit": 0, "blocking": True},
+              "voice_qa.py": {"exit": 0, "blocking": False}})
     for k, code in over.items():
         name = k.replace("__", ".")
         g[name] = dict(g.get(name, {"blocking": True}), exit=code)
@@ -623,7 +639,7 @@ def _gates(**over):
 
 def test_final_refuses_a_pass_over_failing_gates_recorded_for_this_render(tmp_path):
     out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
-    cl.record_render(out, gates=_gates(validate__py=1))
+    cl.record_render(out, gates=_gates(out, validate__py=1))
     _ledger(out)
     errs = cl.validate(out, final=True)[0]
     assert any("did not pass: validate.py (exit 1)" in e and "never re-runs them" in e for e in errs), errs
@@ -632,30 +648,74 @@ def test_final_refuses_a_pass_over_failing_gates_recorded_for_this_render(tmp_pa
     p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
     assert p.returncode == 1 and os.path.exists(os.path.join(out, "NOT_DELIVERED.md")), p.stdout
     # an advisory gate never refuses; the blocking ones passing lets the PASS deliver
-    cl.record_render(out, gates=_gates(voice_qa__py=3))
+    cl.record_render(out, gates=_gates(out, voice_qa__py=3))
     p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
     assert p.returncode == 0 and not os.path.exists(os.path.join(out, "NOT_DELIVERED.md")), p.stdout
     # a timeout is not a pass
-    cl.record_render(out, gates=_gates(check_av__py="timeout"))
+    cl.record_render(out, gates=_gates(out, check_av__py="timeout"))
     assert any("check_av.py (exit timeout)" in e for e in cl.validate(out, final=True)[0])
 
 
-def test_a_render_briefed_before_gates_were_recorded_is_a_warning_not_an_error(tmp_path):
+def test_a_render_with_no_gate_record_is_refused_at_delivery_and_warned_before(tmp_path):
+    # briefed before exit codes were kept: nothing says the gates passed, so delivery is refused until they are run
     out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
     json.dump([{"sha": _cur(out), "tier": "fast"}], open(os.path.join(out, cl.HISTORY), "w"))
     _ledger(out)
-    errs, warns = cl.validate(out, final=True)
+    errs = cl.validate(out, final=True)[0]
+    assert any("no machine-gate exit codes are recorded" in e and "--gates" in e for e in errs), errs
+    errs, warns = cl.validate(out)
     assert not errs and any("no machine-gate exit codes are recorded" in w for w in warns), (errs, warns)
+
+
+def test_a_gate_nobody_ran_is_not_a_gate_that_passed(tmp_path):
+    # THE HOLE THIS CLOSES: the remotion brief never ran film_energy_qa / shake_qa / rhythm_qa / pedagogy_qa, and
+    # --final read only what it ran — a film those gates refuse was delivered by a PASS
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    old = {"validate.py": {"exit": 0, "blocking": True}, "check_av.py": {"exit": 0, "blocking": True},
+           "keyframe_qa_remotion.py": {"exit": 0, "blocking": True}, "text_safe_qa.py": {"exit": 0, "blocking": True},
+           "text_safe_qa.py --glide": {"exit": 0, "blocking": True},
+           "text_safe_qa.py --sync": {"exit": 0, "blocking": True}, "shot_proof.py": {"exit": 0, "blocking": True},
+           "voice_qa.py": {"exit": 0, "blocking": False}, "frame_safe_qa.py": {"exit": 0, "blocking": False}}
+    cl.record_render(out, gates=old)
+    _ledger(out)
+    errs = cl.validate(out, final=True)[0]
+    hit = [e for e in errs if "never run on this render" in e]
+    assert hit and all(g in hit[0] for g in ("film_energy_qa.py", "shake_qa.py", "rhythm_qa.py", "pedagogy_qa.py")), errs
+    assert "cjk_type_qa.py" not in hit[0], "an English film is not held to the CJK type gate"
+    # the full list, one of them failing: refused, named
+    cl.record_render(out, gates=_gates(out, film_energy_qa__py=1))
+    errs = cl.validate(out, final=True)[0]
+    assert any("did not pass: film_energy_qa.py (exit 1)" in e for e in errs), errs
+    cl.record_render(out, gates=_gates(out))
+    assert not cl.validate(out, final=True)[0], cl.validate(out, final=True)[0]
+
+
+def test_a_chinese_film_is_held_to_the_cjk_type_gate(tmp_path):
+    slides = [{"shot": "KineticManifesto", "shot_props": {"title": "磁共振如何成像"}}]
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"}, slides=slides)
+    assert "cjk_type_qa.py" in [s for _l, s, _a, _t, _b in cl.delivery_gates(out)]
+    en = _out(tmp_path / "en", slides=[{"shot": "KineticManifesto", "shot_props": {"title": "How MRI works"}}])
+    assert "cjk_type_qa.py" not in [s for _l, s, _a, _t, _b in cl.delivery_gates(en)]
+
+
+def test_a_gates_run_records_codes_without_spending_a_review_round(tmp_path):
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    _gates_run(out)
+    assert cl.round_of(out, _cur(out)) is None, "a gate run is not a review round"
+    assert cl.gate_record(out, _cur(out))
+    _brief(out)                                   # the brief on the same render makes it round 1, once
+    assert cl.round_of(out, _cur(out)) == 1 and len(cl.history_shas(out)) == 1
 
 
 def test_a_waived_review_still_refuses_failing_gates_and_says_which_ran(tmp_path):
     out = _out(tmp_path)
     out = _out(tmp_path, {"tier": "none", "user_answer": "none — I watched it", "preselected": "fast",
                           "render_sha256": _cur(out)})
-    cl.record_render(out, gates=_gates(check_av__py=1))
+    cl.record_render(out, gates=_gates(out, check_av__py=1))
     assert any("did not pass: check_av.py (exit 1)" in e for e in cl.validate(out, final=True)[0])
-    cl.record_render(out, gates=_gates())
+    cl.record_render(out, gates=_gates(out))
     open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# not yet\n")
     p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
     nd = open(os.path.join(out, "NOT_DELIVERED.md")).read()
-    assert p.returncode == 0 and "check_av.py, validate.py) all exited 0" in nd, (p.stdout, nd)
+    assert p.returncode == 0 and "all exited 0" in nd and "check_av.py" in nd and "film_energy_qa.py" in nd, \
+        (p.stdout, nd)

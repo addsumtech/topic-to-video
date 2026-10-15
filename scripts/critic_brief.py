@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Assemble everything the rendered review needs into ONE file, so its pass is spent on judgment — on both tiers.
 
-  python3 scripts/critic_brief.py <out_dir>        # writes <out_dir>/_critic_brief.md (+ the contact sheet)
+  python3 scripts/critic_brief.py <out_dir>          # writes <out_dir>/_critic_brief.md (+ the contact sheet)
+  python3 scripts/critic_brief.py <out_dir> --gates  # only the delivery gates: run, record, exit 1 on a failure
 
 A remotion film's brief is for agents/shot-critic.md (below). An HTML-tier film's (not remotion, at least one
 `type:"html"` page) is for agents/design-critic.md's delivery section, with critic-av's lens: it runs keyframe_qa
@@ -24,6 +25,11 @@ The brief carries:
 
 It deliberately does NOT summarise the beats' meaning. That is the judgment being asked for, and handing
 over a summary of it would answer the question the critic is there to ask.
+
+`--gates` runs the same delivery gates (critic_ledger.DELIVERY_GATES, the tier's list) and records their exit codes
+against the render id WITHOUT writing a brief: the check before the review-depth question (SKILL.md 9d), and the
+record a `none` answer is delivered on — `critic_ledger.py --final` refuses a render whose record is missing a gate
+or holds a failure, on every path. It exits 1 when a blocking gate failed, 2 when no render could be recorded.
 """
 import collections
 import json
@@ -48,7 +54,8 @@ class GateOutput(str):
 
 
 def _gate_name(script, args):
-    return " ".join((script,) + tuple(args))
+    import critic_ledger as _cl
+    return _cl.gate_name(script, args)
 
 
 def _run(script, out_dir, *args, timeout=240):
@@ -71,6 +78,12 @@ def _note(codes, script, args, out):
     code = getattr(out, "code", None)
     if codes is not None and code is not None:
         codes[_gate_name(script, args)] = {"exit": code, "blocking": script not in ADVISORY_GATES}
+
+
+def _gate_rows(out_dir):
+    """This film's delivery gates — critic_ledger.delivery_gates, the list `--final` holds the record to."""
+    import critic_ledger as _cl
+    return _cl.delivery_gates(out_dir)
 
 
 def _library_entries(shots):
@@ -169,35 +182,10 @@ def build(out_dir, ran=None, codes=None):
     L.append("")
     L.append("Read the verdicts; spend your pass on section 3.")
     L.append("")
-    for label, script, args in [("validate", "validate.py", ()),
-                                ("A/V", "check_av.py", ()),
-                                ("keyframes", "keyframe_qa_remotion.py", ()),
-                                # THE AUTHORITATIVE TYPE GATE GOES FIRST, AND IT WAS MISSING ENTIRELY.
-                                # This brief shipped `frame_safe_qa` — the border-ink measure whose own
-                                # header records it as INVERTED (it passes every genuinely-cut case and
-                                # blocks every deliberate full-bleed) — and omitted `text_safe_qa`, which
-                                # asks the DOM whether any TYPE is actually cut off and is what decides.
-                                # Measured on the film that found this: the critic was handed a 4-error
-                                # FAIL, checked all four against the pixels, and found every one was the
-                                # inverted measure (a full-bleed diagonal read as 63% caption-band ink, a
-                                # display word its own source documents as "cropped by the frame on
-                                # purpose"). It then had to run the right gate itself. That critic caught
-                                # it; the next one would have filed four revisions against frames that are
-                                # correct, while nothing measured the failure that actually destroys type.
-                                ("TYPE cut off (authoritative)", "text_safe_qa.py", ()),
-                                # type that MOVES and steps a whole pixel at a time against its own drawing — no
-                                # still can show it, so the census reads every frame (runtime/glide.ts)
-                                ("TYPE steps while it moves (every frame, census)", "text_safe_qa.py", ("--glide",)),
-                                # text that appears seconds after the voice names it (or long before): the same
-                                # census, read against audio/NN.words.json (scripts/sync_qa.py)
-                                ("TEXT lands with the voice (every frame, census)", "text_safe_qa.py", ("--sync",)),
-                                ("frame-safe (ADVISORY — border ink; known inverted, see above)",
-                                 "frame_safe_qa.py", ()),
-                                ("proof sheet", "shot_proof.py", ()),
-                                ("voice", "voice_qa.py", ())]:
+    for label, script, args, timeout, _blocking in _gate_rows(out_dir):
         L.append("**%s**" % label)
         L.append("```")
-        out = _run(script, out_dir, *args)
+        out = _run(script, out_dir, *args, timeout=timeout)
         _note(codes, script, args, out)
         L.append(out)
         L.append("```")
@@ -205,8 +193,11 @@ def build(out_dir, ran=None, codes=None):
     L.append("Those cover: action-safe overflow · ink in the caption band · colour outside the film's "
              "palette · a dead (narrow AND off-centre) frame · an empty frame · a register's demo default "
              "left in props · two beats on the same prop shape · a figure still moving at the frame the "
-             "gate captures · A/V drift · blank keyframes · caption craft · the narration's rhythm. "
-             "A finding of yours that repeats one of these is a finding the pipeline already had.")
+             "gate captures · A/V drift · blank keyframes · caption craft · the narration's rhythm · CJK type "
+             "piled into itself · a film that does not move or has no light (film_energy) · a camera that "
+             "vibrates instead of travelling (shake) · flat pacing · a concept used before it is taught. "
+             "A finding of yours that repeats one of these is a finding the pipeline already had. A WAIVED "
+             "film-energy finding is the exception: whether its stated reason is true is yours (the waiver rows).")
     L.append("")
     L.append("## 2 · The film at a glance")
     L.append("")
@@ -334,19 +325,14 @@ def build(out_dir, ran=None, codes=None):
 
 
 # gates whose findings are signals, never a refusal: voice_qa always exits 0 by design; frame_safe_qa's border-ink
-# measure is known to be inverted (see the remotion gate list in build()). Recorded, but `blocking: false`.
-ADVISORY_GATES = {"voice_qa.py", "frame_safe_qa.py"}
+# measure is known to be inverted (critic_ledger.DELIVERY_GATES says why). Recorded, but `blocking: false`. Derived
+# from that list, so a gate cannot be advisory here and blocking at --final.
+def _advisory():
+    import critic_ledger as _cl
+    return {s for rows in _cl.DELIVERY_GATES.values() for _l, s, _a, _t, blocking, _ap in rows if not blocking}
 
 
-# THE HTML TIER'S MACHINE GATES (SKILL.md 9d): what has already been decided before an HTML critic looks.
-# keyframe_qa is first because main() runs it BEFORE the sheet is built — the filmstrips the sheet is made from
-# must be the pages as they are now, not as they were when someone last ran it.
-HTML_GATES = [("keyframes, blank/overflow/caption zone, glide + sync audit", "keyframe_qa.py", (), 900),
-              ("validate", "validate.py", (), 240),
-              ("A/V", "check_av.py", (), 240),
-              ("rhythm", "rhythm_qa.py", (), 240),
-              ("teaching order", "pedagogy_qa.py", (), 240),
-              ("voice (ADVISORY — always exits 0)", "voice_qa.py", (), 240)]
+ADVISORY_GATES = _advisory()
 FRAMES = "_frames"
 
 
@@ -486,7 +472,7 @@ def _build_html(out_dir, board, ran, codes=None):
     L.append("")
     L.append("Read the verdicts; spend your pass on section 3.")
     L.append("")
-    for label, script, args, timeout in HTML_GATES:
+    for label, script, args, timeout, _blocking in _gate_rows(out_dir):
         L.append("**%s**" % label)
         L.append("```")
         out = ran[script] if script in ran else _run(script, out_dir, *args, timeout=timeout)
@@ -604,11 +590,64 @@ def _build_no_pages(out_dir, board):
     return "\n".join(L) + "\n"
 
 
+def _failure_excerpt(out, n=6):
+    """The lines of a failed gate's output that say WHY: its ERROR / FAIL lines (first n), then its last line, which
+    every gate here spends on its verdict. The plain tail was validate.py's coverage table — eight lines on which
+    branches were taken, and not one of the ERRORs that failed the film."""
+    lines = [x for x in str(out).strip().splitlines() if x.strip()]
+    why = [x for x in lines if re.search(r"\bERROR\b|\bFAIL(ED)?\b", x)]
+    if not why:
+        return lines[-8:]
+    picked = why[:n]
+    if lines and lines[-1] not in picked:
+        picked.append(lines[-1])
+    return picked
+
+
+def _gates_only(out_dir, tier, ran, sheet_ok, made):
+    """`--gates`: run this film's delivery gates, record their exit codes against the render id WITHOUT counting a
+    review round (the brief that follows on the same render does), print one line per gate and the tail of every
+    blocking failure. Exit 1 on a blocking failure; 2 when nothing could be recorded (no contact sheet), since
+    `--final` would then refuse the film for want of a record; 0 otherwise."""
+    import critic_ledger as _cl
+    rows = _gate_rows(out_dir) if tier else [("A/V", "check_av.py", (), 240, True),
+                                            ("validate", "validate.py", (), 240, True)]
+    codes, bad = {}, []
+    for label, script, args, timeout, blocking in rows:
+        out = ran[script] if (script in ran and not args) else _run(script, out_dir, *args, timeout=timeout)
+        _note(codes, script, args, out)
+        code = getattr(out, "code", None)
+        name = _cl.gate_name(script, args)
+        verdict = "ok" if code == 0 else ("advisory (exit %s)" % code if not blocking else "FAIL (exit %s)" % code)
+        print("[critic_brief] %-26s %s" % (name, verdict))
+        if blocking and code != 0:
+            bad.append(name)
+            for line in _failure_excerpt(out):
+                print("    | " + line[:220])
+    if tier is None:
+        print("[critic_brief] no authored page — nothing to record (this tier has no review ledger)")
+        return 1 if bad else 0
+    if not sheet_ok:
+        print("[critic_brief] gate results NOT recorded: the contact sheet was not built (%s), so there is no render "
+              "id to record them against — fix the keyframes and re-run" % made)
+        return 2
+    try:
+        rid = _cl.record_render(out_dir, gates=codes, review_round=False)
+    except Exception as e:                                    # noqa: BLE001 — report, never mask
+        print("[critic_brief] gate results NOT recorded (%s)" % e)
+        return 2
+    print("[critic_brief] %s  %d gate(s) recorded for render %s; %d blocking failure(s)%s"
+          % ("FAIL" if bad else "OK", len(codes), (rid or "?")[:12], len(bad),
+             (": " + ", ".join(bad)) if bad else ""))
+    return 1 if bad else 0
+
+
 def main(argv):
     if not argv:
         print(__doc__.strip())
         return 2
     out_dir = os.path.abspath(argv[0])
+    gates_only = "--gates" in argv[1:]
     import critic_ledger as _cl
     tier = _cl.film_tier(out_dir)
     ran = {}
@@ -619,7 +658,8 @@ def main(argv):
         print("[critic_brief] keyframe_qa %s" % ("re-run: its inputs changed (or no strips / no record)" if fresh else
                                                  "NOT re-run: none of its inputs changed since its last run"))
         try:
-            print("[critic_brief] %d delivered frame(s) -> %s/" % (len(html_frames(out_dir)), FRAMES))
+            if not gates_only:                                # --gates: the frames are the critic's evidence
+                print("[critic_brief] %d delivered frame(s) -> %s/" % (len(html_frames(out_dir)), FRAMES))
         except Exception as e:                                # noqa: BLE001 — report, never mask
             # NONE rather than some: a partial set would let the brief say "N frames" and the critic cite them
             # as the delivered film, while the beats after the failure were never pulled
@@ -641,6 +681,8 @@ def main(argv):
             if os.path.exists(old):
                 os.remove(old)
             made = "NOT BUILT (%s) — any older sheet was removed" % e
+    if gates_only:
+        return _gates_only(out_dir, tier, ran, sheet_ok, made)
     text = build(out_dir, ran, codes)
     if sheet_ok:
         try:

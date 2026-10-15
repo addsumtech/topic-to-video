@@ -49,9 +49,11 @@ gate says so on every run rather than falling silent. Three properties make it s
   the user actually watched. Re-render — change one beat, one colour, one line of narration — and the id moves and
   the waiver no longer applies. This is the property that matters: "the user said fine once" must not become
   a standing licence over everything changed afterwards.
-* It waives THIS review only. `check_av`, `validate.py` and the tier's own gates (`keyframe_qa` on HTML;
-  `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`, `film_energy_qa`, `shake_qa` on remotion) are untouched
-  and still gate delivery. A waiver is a judgement about taste, never about whether the file plays.
+* It waives THIS review only. `check_av`, `validate.py` and the tier's own gates (DELIVERY_GATES: `keyframe_qa` on
+  HTML; `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`, `film_energy_qa`, `shake_qa` on remotion) are
+  untouched and still gate delivery — `--final` reads their exit codes, recorded for this render by
+  `critic_brief.py --gates`, on this path as on every other. A waiver is a judgement about taste, never about
+  whether the file plays.
 
 AND A REVIEW DEPTH THE USER CHOSE. After the first clean render the user picks how hard to review it —
 `meta.review = {tier, user_answer, preselected}` with tier fast | standard | thorough | none (SKILL.md "the
@@ -196,6 +198,79 @@ def film_dimensions(out_dir):
 def critic_of(out_dir):
     tier = film_tier(out_dir)
     return SERIES[tier][2] if tier else "agents/critic-av.md"
+
+
+def _cjk_copy(out_dir):
+    """True when a beat's on-frame copy (`shot_props`) holds CJK — the films cjk_type_qa audits. Read with the gate's
+    own CJK class, so the two cannot disagree about which films are Chinese; on an English film it would sweep
+    registers that shaped no CJK copy and report them as un-fed, a failure that is not one."""
+    _meta, slides = _board(out_dir)
+    try:
+        from cjk_type_qa import _HAS_CJK
+    except Exception:                                         # noqa: BLE001 — cannot ask: run the gate, it decides
+        return True
+    return any(_HAS_CJK.search(json.dumps(s.get("shot_props") or {}, ensure_ascii=False)) for s in slides or [])
+
+
+# THE DELIVERY GATES, ONE LIST PER TIER (SKILL.md 9d) — (label, script, args, timeout, blocking, applies).
+# critic_brief.py RUNS them (`--gates` alone, or inside the brief) and records each exit code against the render id;
+# `--final` refuses a render whose record is MISSING one or holds a blocking failure, on every path — `none` included
+# (_gate_problems). It used to read whatever the brief happened to run: the remotion brief never ran film_energy_qa,
+# shake_qa, cjk_type_qa, rhythm_qa or pedagogy_qa, and a `none` film was never briefed at all, so a film those gates
+# refused was delivered while SKILL.md and this file's header said they "still gate delivery".
+# `applies(out_dir)` is None for every film of the tier. Advisory gates are run and recorded, never refuse.
+DELIVERY_GATES = {
+    "remotion": [
+        ("validate", "validate.py", (), 240, True, None),
+        ("A/V", "check_av.py", (), 240, True, None),
+        ("keyframes", "keyframe_qa_remotion.py", (), 240, True, None),
+        # THE AUTHORITATIVE TYPE GATE GOES FIRST, AND IT WAS MISSING ENTIRELY. This brief shipped `frame_safe_qa` —
+        # the border-ink measure whose own header records it as INVERTED (it passes every genuinely-cut case and
+        # blocks every deliberate full-bleed) — and omitted `text_safe_qa`, which asks the DOM whether any TYPE is
+        # actually cut off and is what decides. Measured on the film that found this: the critic was handed a
+        # 4-error FAIL, checked all four against the pixels, and found every one was the inverted measure (a
+        # full-bleed diagonal read as 63% caption-band ink, a display word its own source documents as "cropped by
+        # the frame on purpose"). It then had to run the right gate itself.
+        ("TYPE cut off (authoritative)", "text_safe_qa.py", (), 240, True, None),
+        # type that MOVES and steps a whole pixel at a time against its own drawing — no still can show it, so the
+        # census reads every frame (runtime/glide.ts)
+        ("TYPE steps while it moves (every frame, census)", "text_safe_qa.py", ("--glide",), 240, True, None),
+        # text that appears seconds after the voice names it (or long before): the same census, read against
+        # audio/NN.words.json (scripts/sync_qa.py)
+        ("TEXT lands with the voice (every frame, census)", "text_safe_qa.py", ("--sync",), 240, True, None),
+        ("CJK type holds together in this film's registers", "cjk_type_qa.py", (), 600, True, _cjk_copy),
+        # the only gates that judge the FILM rather than a frame: does it move, and does it move without vibrating
+        ("FILM ENERGY — motion, light, light arc (density measured)", "film_energy_qa.py", (), 300, True, None),
+        ("SHAKE — travelling vs vibrating", "shake_qa.py", (), 300, True, None),
+        ("rhythm", "rhythm_qa.py", (), 240, True, None),
+        ("teaching order", "pedagogy_qa.py", (), 240, True, None),
+        ("frame-safe (ADVISORY — border ink; known inverted, see above)", "frame_safe_qa.py", (), 240, False, None),
+        ("proof sheet", "shot_proof.py", (), 240, True, None),
+        ("voice (ADVISORY — always exits 0)", "voice_qa.py", (), 240, False, None),
+    ],
+    # keyframe_qa is first because critic_brief.main() runs it BEFORE the sheet is built — the filmstrips the sheet is
+    # made from must be the pages as they are now, not as they were when someone last ran it.
+    "html": [
+        ("keyframes, blank/overflow/caption zone, glide + sync audit", "keyframe_qa.py", (), 900, True, None),
+        ("validate", "validate.py", (), 240, True, None),
+        ("A/V", "check_av.py", (), 240, True, None),
+        ("rhythm", "rhythm_qa.py", (), 240, True, None),
+        ("teaching order", "pedagogy_qa.py", (), 240, True, None),
+        ("voice (ADVISORY — always exits 0)", "voice_qa.py", (), 240, False, None),
+    ],
+}
+
+
+def gate_name(script, args=()):
+    """The key a gate's exit code is recorded under: the script, then its arguments."""
+    return " ".join((script,) + tuple(args))
+
+
+def delivery_gates(out_dir):
+    """[(label, script, args, timeout, blocking)] — the DELIVERY_GATES of this film's tier that apply to it; [] for a
+    film with no authored page (film_tier None)."""
+    return [(lab, s, a, t, b) for lab, s, a, t, b, ap in DELIVERY_GATES.get(film_tier(out_dir)) or ()
+            if ap is None or ap(out_dir)]
 
 
 def routes_dimension(path=None, prefix="S"):
@@ -558,18 +633,21 @@ def gate_record(out_dir, sha):
     return None
 
 
-def record_render(out_dir, gates=None):
+def record_render(out_dir, gates=None, review_round=True):
     """Append the current render id (render_id) to the out_dir's render history (critic_brief.py calls this, once
     per review round), with the review tier recorded at the time — and, when given, the EXIT CODE of every machine
     gate the brief ran on this render (`gates` = {name: {exit, blocking}}), which `--final` reads instead of
     re-running them. The ROUND of a ledger is derived from this history (round_of), never from a field the ledger
-    writes about itself."""
+    writes about itself. `review_round=False` (`critic_brief.py --gates`) records the gates without making this
+    render a review round: no critic was briefed on it, and a capped tier must not spend a round on a gate run."""
     sheet = os.path.join(out_dir, CONTACT_SHEET)
     if not os.path.exists(sheet):
         return None
     sha = render_id(out_dir)
     rv, rprobs = review(out_dir)
     tier = (rv or {}).get("tier") if rv and not rprobs and (rv or {}).get("tier") in ROUND_CAP else None
+    if not review_round:
+        tier = None
     old_gates = {str(x.get("sha")).lower(): x.get("gates") for x in _history_raw(out_dir)
                  if isinstance(x, dict) and isinstance(x.get("gates"), dict)}
     hist = [dict({"sha": s, "tier": t}, **({"gates": old_gates[s]} if s in old_gates else {}))
@@ -926,29 +1004,45 @@ def _waiver_rows(out_dir, led, by_id, warns):
     return errs
 
 
-def _gate_problems(out_dir, final):
+def _gate_problems(out_dir, final, history_checked=False):
     """([errors], [warnings]) from the machine gates critic_brief.py ran on the CURRENT render. `--final` used to
     remove NOT_DELIVERED.md on a PASS ledger while validate.py and keyframe_qa were failing on the same film — and
     promote.py and `ls` read the marker's absence as "delivered". The brief already runs those gates, so their exit
     codes are kept in this render's history entry and read here; this gate never re-runs them. Advisory gates
-    (voice_qa, frame_safe_qa) are recorded non-blocking and never refuse. A render briefed before codes were kept
-    has no record: a WARN, since nothing says the gates passed or failed."""
+    (voice_qa, frame_safe_qa) are recorded non-blocking and never refuse.
+
+    COMPLETE, NOT WHATEVER RAN. The record must hold every blocking gate of DELIVERY_GATES that applies to this film:
+    a gate nobody ran is not a gate that passed. And it is required on every path — the `none` path too, where no
+    brief is read but `critic_brief.py --gates` records the same codes. On `--final` a missing record or a missing
+    gate is an ERROR; an interim run says so as a WARN. `history_checked` is set by the reviewing path, whose own
+    history checks already name a render that was never briefed."""
     want = render_id(out_dir)
-    if not want or want not in history_shas(out_dir):
+    if not want:
+        return [], []                   # no contact sheet: the sheet checks say so, and there is no render to pin
+    if history_checked and want not in history_shas(out_dir):
         return [], []                   # the history checks above already say the render was never briefed
+    need = [gate_name(s, a) for _l, s, a, _t, blocking in delivery_gates(out_dir) if blocking]
     rec = gate_record(out_dir, want)
+    probs = []
     if not rec:
-        return [], ["no machine-gate exit codes are recorded for this render (it was briefed before critic_brief.py "
-                    "kept them) — re-run python3 scripts/critic_brief.py <out_dir>; until then nothing here says "
-                    "validate / check_av / the tier's gates passed"]
-    failed = sorted("%s (exit %s)" % (name, g.get("exit")) for name, g in rec.items()
-                    if isinstance(g, dict) and g.get("blocking", True) and g.get("exit") != 0)
-    if not failed:
-        return [], []
-    msg = ("the machine gates critic_brief.py ran on this render did not pass: %s — a review cannot deliver a film "
-           "its gates refuse. Fix them (re-render if the film changes), re-run python3 scripts/critic_brief.py "
-           "<out_dir>, then this gate; it never re-runs them itself" % ", ".join(failed))
-    return ([msg], []) if final else ([], [msg])
+        probs.append("no machine-gate exit codes are recorded for this render (%s) — run python3 "
+                     "scripts/critic_brief.py <out_dir> --gates (or the full brief), which runs this tier's delivery "
+                     "gates on it and records them; until then nothing here says %s passed"
+                     % (want[:12], ", ".join(need) or "the tier's gates"))
+    else:
+        missing = [n for n in need if n not in rec]
+        if missing:
+            probs.append("these delivery gates were never run on this render: %s — a gate nobody ran is not one "
+                         "that passed. Re-run python3 scripts/critic_brief.py <out_dir> --gates (or the full brief), "
+                         "then this gate" % ", ".join(missing))
+        failed = sorted("%s (exit %s)" % (name, g.get("exit")) for name, g in rec.items()
+                        if isinstance(g, dict) and g.get("blocking", True) and g.get("exit") != 0)
+        if failed:
+            probs.append("the machine gates critic_brief.py ran on this render did not pass: %s — a review cannot "
+                         "deliver a film its gates refuse. Fix them (re-render if the film changes), re-run python3 "
+                         "scripts/critic_brief.py <out_dir>, then this gate; it never re-runs them itself"
+                         % ", ".join(failed))
+    return (probs, []) if final else ([], probs)
 
 
 def _gates_sentence(out_dir):
@@ -1134,7 +1228,7 @@ def validate(out_dir, final=False):
 
     # ── the machine gates the brief ran on THIS render: a PASS cannot deliver a film they refuse ──────────────
     if not unpinned:
-        g_errs, g_warns = _gate_problems(out_dir, final)
+        g_errs, g_warns = _gate_problems(out_dir, final, history_checked=True)
         errs.extend(g_errs)
         warns.extend(g_warns)
 

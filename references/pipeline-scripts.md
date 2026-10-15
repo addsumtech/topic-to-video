@@ -646,6 +646,13 @@ figure), a non-singular `the_one_thing`, or a
   1200-line contract to re-derive things a script had already decided; the mechanical half is gated before
   the render now, so the critic's pass is spent on meaning, faithfulness, register fit and the film's shape.
   `scripts/contact_sheet.py` builds the sheet alone if you want it without the brief.
+  **The delivery gates are one list per tier** (`critic_ledger.DELIVERY_GATES`; remotion adds cjk_type_qa on a CJK
+  film, film_energy_qa, shake_qa, rhythm_qa and pedagogy_qa to the frame gates), and the brief runs all of them and
+  records each exit code against the render id. `critic_brief.py <out_dir> --gates` does only that — no brief, no
+  `_frames/`, no review round spent — and exits 1 on a blocking failure, 2 when there is no contact sheet to anchor
+  the record. `critic_ledger.py --final` refuses a render whose record is missing a gate or holds a failure, on
+  every path (a `none` answer included): until 2026-10 the remotion brief never ran the five gates above and
+  `none` was never briefed at all, so a film they refused could be delivered.
 - `scripts/settled_frame.py <clip.mp4|out_dir> <out.png|dir/> [--at 0.90] [--beat N]` — the frame worth
   JUDGING a design on. Every register animates in: type sets word by word, a plate draws on, a stamp lands
   at 0.62–0.78, a counter rolls toward its final string. A frame grabbed mid-clip shows that machinery

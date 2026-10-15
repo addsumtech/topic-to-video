@@ -317,6 +317,11 @@ def test_final_clears_the_marker_on_the_html_tier(tmp_path):
     _ledger(out, routes=[{"beat": 1, "route": "bespoke", "visible": True, "evidence": "_keyframes/scene_01.png"}])
     open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# not yet\n")
     p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
+    assert p.returncode == 1 and "no machine-gate exit codes" in p.stdout, "delivered with no gate run"
+    cl.record_render(out, gates={cl.gate_name(s, a): {"exit": 0, "blocking": b}
+                                 for _l, s, a, _t, b in cl.delivery_gates(out)})
+    assert [s for _l, s, _a, _t, _b in cl.delivery_gates(out)][0] == "keyframe_qa.py"
+    p = subprocess.run([sys.executable, cl.__file__, out, "--final"], capture_output=True, text=True)
     assert p.returncode == 0 and "html tier" in p.stdout and "design-critic" in p.stdout, p.stdout
     assert not os.path.exists(os.path.join(out, "NOT_DELIVERED.md")), p.stdout
 
