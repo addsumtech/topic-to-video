@@ -338,3 +338,19 @@ def test_the_docs_describe_the_pin_and_the_never_accepted_findings_the_code_enfo
     assert "never on an A/V sync or faithfulness finding" not in skill
     row = next(l for l in skill.split("\n") if l.startswith("| step 9e critic-av"))
     assert "faithfulness or sourcing" in row and "check_av.py" in row, row
+
+
+def test_a_failed_frame_pull_leaves_no_partial_set_for_the_brief_to_cite(tmp_path, monkeypatch):
+    import critic_brief
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    _tiny_mp4(os.path.join(out, "out.mp4"))
+    monkeypatch.setattr(critic_brief, "_run", lambda script, *a, **k: "(stubbed %s)" % script)
+    assert critic_brief.main([out]) == 0
+    assert len(os.listdir(os.path.join(out, "_frames"))) == 2
+    b = json.load(open(os.path.join(out, "storyboard.json")))
+    del b["slides"][1]["duration"]                   # beat 2 can no longer be located in out.mp4
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
+    assert critic_brief.main([out]) == 0
+    assert [f for f in os.listdir(os.path.join(out, "_frames")) if f.endswith(".png")] == []
+    assert "No `_frames/` frames" in open(os.path.join(out, "_critic_brief.md"), encoding="utf-8").read()

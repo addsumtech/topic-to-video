@@ -75,7 +75,8 @@ the render they watched, never pre-selected and never inferred.
 AND THE ROUTES. Every beat validate.py credits — ADAPTED or BUILT on remotion, BUILT or BESPOKE on HTML — carries a
 route row in the ledger (`routes: [{beat, route, visible, evidence}]`): the critic confirms the route is VISIBLE in
 the rendered frame, and a route it cannot see fails the dimension that declares the route rows (S14 / H8). A
-self-described or source-measured route is a claim; this is where it is checked.
+self-described or source-measured route is a claim; this is where it is checked. (Not on a LEGACY film the user
+chose to keep as designed — meta.design_first, validate.design_first_legacy: design-first is not applied to it.)
 
 The dimension lists are PARSED from the critics' files. Restating them here is how this repo's caption band
 became four disagreeing copies; a new dimension must be required by this gate the moment it is written down.

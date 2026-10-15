@@ -483,7 +483,13 @@ def main(argv):
         try:
             print("[critic_brief] %d delivered frame(s) -> %s/" % (len(html_frames(out_dir)), FRAMES))
         except Exception as e:                                # noqa: BLE001 — report, never mask
-            print("[critic_brief] delivered frames NOT pulled (%s)" % e)
+            # NONE rather than some: a partial set would let the brief say "N frames" and the critic cite them
+            # as the delivered film, while the beats after the failure were never pulled
+            fdir = os.path.join(out_dir, FRAMES)
+            for f in (os.listdir(fdir) if os.path.isdir(fdir) else []):
+                if re.match(r"scene_\d+\.png$", f):
+                    os.remove(os.path.join(fdir, f))
+            print("[critic_brief] delivered frames NOT pulled (%s) — none are left in %s/" % (e, FRAMES))
     if tier is None:
         made = "not built — this film has no authored page (no keyframes, no ledger)"
     else:
