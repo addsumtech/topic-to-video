@@ -3066,26 +3066,36 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
 # The library cannot cover the scenes a topic throws at it; picking from it beat by beat is how a film comes out
 # as the catalogue's centre of gravity with the topic's words on top. So every beat starts from the IDEAL
 # PICTURE (`shot_fit.ideal`, one line, no template in it) and the library is MATERIAL. This gate measures the
-# result, per beat, from the board and the workshop — never from a self-described verdict alone:
-#   BUILT    — the beat's shot is a workshop shot (or a build-list shot since promoted), or its props hold a
-#              workshop object (or a build-list object since promoted).
-#   ADAPTED  — `shot_adaptation.changes` holds at least one {aspect, what, why} whose aspect is a STRUCTURAL
-#              one (layout | encoding | structure), with a substantive `what` (what changed) and a substantive
-#              `why` (what this beat's idea needs), and the two are not the same sentence. Copy, colour and
-#              palette are not adaptations: a text swap with a recoloured accent is the register as-is.
+# result, per beat, from the board, the workshop and the register's own source. Decided in this order:
 #   EXEMPT   — a stock form the beat legitimately IS, used as-is: CinematicTitle as the FIRST or LAST beat (the
 #              open/close title card), or an evidence register (one that refuses to render without a real
 #              picture — parsed by register_energy.evidence_props) whose every evidence prop is set.
-#              Exempt beats leave the denominator; they are never credited.
+#              Exempt beats leave the denominator; they are never credited, whatever their notes claim.
+#   BUILT    — the beat's shot is a workshop shot, or its props hold a workshop object — or a build-list entry
+#              since PROMOTED, but only when the library's catalogue line says it was built for THIS film
+#              (scripts/promote.py writes "built for the film <title>"); naming a library register on the build
+#              list builds nothing.
+#   ADAPTED  — two things, both required. (1) `shot_adaptation.changes` holds at least one {aspect, what, why}
+#              whose aspect is STRUCTURAL (layout | encoding | structure), with a substantive `what` and `why`
+#              that are not the same sentence. (2) The change is MEASURABLE: the beat sets at least one of the
+#              register's structure-affecting props (declared type other than a string or a list of strings, and
+#              not colour/plumbing) to a value other than the register's own default. A register that takes only
+#              copy cannot be adapted from the board — re-worded, it is as-is; changed, it is built.
+#              The critic then confirms each ADAPTED/BUILT route is visible in the frame (critic_ledger.py routes).
 #   AS-IS    — everything else. It must carry `shot_fit.ideal` AND `shot_fit.shares`: the encoding the register
 #              already shares with that ideal picture (what its position/size/colour/motion/sequence carries).
-# The floor: (built + adapted) >= half of the non-exempt beats, and at least one BUILT beat (the signature).
+# The floor: (built + adapted) >= half of the non-exempt beats, and at least one BUILT beat (the signature) —
+# also on a film whose every beat is exempt. Every adapted or built beat records its `shot_fit.ideal`.
 # Half is the FLOOR an error enforces, not the target — a strong film is mostly adapted or built.
 DESIGN_SHARE_FLOOR = 0.5
 _STRUCTURAL_ASPECTS = ("layout", "encoding", "structure")
 _TITLE_CARD_REGISTERS = {"CinematicTitle"}
 _GENERIC_FIT = {"it fits", "fits", "fit", "good fit", "perfect fit", "fits well", "matches", "it matches",
                 "same", "as is", "as-is", "default", "适合", "合适", "正好", "符合", "匹配", "一样"}
+_REMOTION_SHOTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
+# props that set colour, a picture's source or plumbing — turning them changes no layout, encoding or structure
+_NON_STRUCTURAL_PROPS = {"accent", "accent2", "imageAspect", "aspect", "dna", "page", "face", "seed", "credit",
+                         "w", "h", "t", "yaw", "idle"}
 
 
 def _substance(text):
@@ -3135,14 +3145,89 @@ def adaptation_problem(adapt):
     return "no change in shot_adaptation.changes qualifies: " + "; ".join(seen[:2])
 
 
+def structural_props(shot):
+    """{prop: declared type} for the register's structure-affecting props — read from its own signature."""
+    try:
+        import cjk_type_qa as _cq
+        sig, _src = _cq.prop_signature(shot)
+    except Exception:                                   # noqa: BLE001 — an unreadable register adapts nothing
+        return {}
+    out = {}
+    for p, t in (sig or {}).items():
+        t2 = re.sub(r"\|(?:undefined|null)", "", str(t).replace(" ", ""))
+        if p in _NON_STRUCTURAL_PROPS or re.match(r"^src[A-Z]?", p):
+            continue
+        if t2 in ("string", "string[]", "Array<string>", "readonlystring[]"):
+            continue
+        out[p] = t2
+    return out
+
+
+def _register_defaults(shot):
+    """{prop: default} from the register's destructuring defaults — strings, numbers and booleans."""
+    path = os.path.join(_REMOTION_SHOTS, shot + ".tsx")
+    try:
+        src = open(path, encoding="utf-8").read()
+    except OSError:
+        return {}
+    import shot_proof as _sp
+    out = dict(_sp.defaults_from_source(src, shot))
+    m = re.search(r"export const %s\s*:\s*React\.FC<" % re.escape(shot), src)
+    if m:
+        blk = src[m.end():]
+        blk = blk[:blk.find("=> {") if blk.find("=> {") > 0 else 4000]
+        for bm in re.finditer(r"(?<![:\w])([a-z]\w*)\s*=\s*(true|false)\b", blk):
+            out.setdefault(bm.group(1), bm.group(2) == "true")
+    return out
+
+
+def structural_change(shot, sp):
+    """(changed keys, None) when the beat sets a structure-affecting prop away from the register's default,
+    else ([], why not) — the measurable half of ADAPTED."""
+    keys = structural_props(shot)
+    if not keys:
+        return [], ("%s takes only copy (no layout/encoding/structure prop), so it cannot be adapted from the "
+                    "board — re-worded it is as-is; to change it, build" % shot)
+    dflt = _register_defaults(shot)
+    changed = []
+    for k in sorted(keys):
+        if k not in sp or sp.get(k) is None:
+            continue
+        if k in dflt and str(sp.get(k)).strip().lower() == str(dflt[k]).strip().lower():
+            continue
+        changed.append(k)
+    if not changed:
+        return [], ("no structure-affecting prop of %s is set away from its default (%s) — the changes it "
+                    "describes are not in its props" % (shot, ", ".join(sorted(keys)[:6])))
+    return changed, None
+
+
+def _promoted_for(eid, kind, meta, out_dir):
+    """True when the library's catalogue says `eid` was promoted from THIS film (promote.py records the film)."""
+    names = {str(meta.get("title") or "").strip(), os.path.basename(os.path.abspath(out_dir)) if out_dir else ""}
+    names.discard("")
+    try:
+        lib = open(os.path.join(os.path.dirname(os.path.dirname(_REMOTION_SHOTS)), "LIBRARY.md"),
+                   encoding="utf-8").read()
+    except OSError:
+        return False
+    if kind == "shot":
+        m = re.search(r"^\d+\. \*\*%s\*\* — .*built for the film (.+?)\.?\s*$" % re.escape(eid), lib, re.M)
+    else:
+        m = re.search(r"^- \*\*%s\*\* — .*\*Built for the film (.+?)\.?\*" % re.escape(eid), lib, re.M)
+    return bool(m) and m.group(1).strip() in names
+
+
 def design_routes(meta, slides, out_dir):
     """[(beat number, route, reason)] with route in built | adapted | exempt | as-is — see the block above."""
     import workshop as _ws
     film_shots = _ws.shot_names(out_dir) if out_dir else set()
     film_objects = _ws.object_names(out_dir) if out_dir else set()
     bl = meta.get("build_list") if isinstance(meta.get("build_list"), list) else []
-    bl_shots = {e.get("id") for e in bl if isinstance(e, dict) and e.get("kind") == "shot"}
-    bl_objects = {e.get("id") for e in bl if isinstance(e, dict) and e.get("kind") == "object"}
+    promoted = {(e.get("id"), e.get("kind")) for e in bl
+                if isinstance(e, dict) and e.get("promoted") is True and isinstance(e.get("id"), str)}
+    bl_shots = {i for i, k in promoted if k == "shot" and _promoted_for(i, "shot", meta, out_dir)}
+    bl_objects = {i for i, k in promoted if k == "object" and _promoted_for(i, "object", meta, out_dir)}
     built_shots, built_objects = film_shots | bl_shots, film_objects | bl_objects
     try:
         import register_energy as _re
@@ -3154,6 +3239,12 @@ def design_routes(meta, slides, out_dir):
         num = s.get("index", pos)
         shot = s.get("shot")
         sp = s.get("shot_props") if isinstance(s.get("shot_props"), dict) else {}
+        # EXEMPTIONS FIRST: a title card or a real picture is what it is, and a note added to it credits nothing
+        if shot in _TITLE_CARD_REGISTERS and pos in (1, n):
+            out.append((num, "exempt", "the %s title card" % ("opening" if pos == 1 else "closing"))); continue
+        ev = evidence.get(shot)
+        if ev and all(sp.get(k) for k in ev):
+            out.append((num, "exempt", "a real picture on %s" % shot)); continue
         if shot in built_shots:
             out.append((num, "built", "its shot %s is this film's own" % shot)); continue
         src = _ws.shot_source(out_dir, shot) if shot else None
@@ -3167,13 +3258,11 @@ def design_routes(meta, slides, out_dir):
         if held:
             out.append((num, "built", "%s holds the built object %s" % (shot, held[0]))); continue
         prob = adaptation_problem(s.get("shot_adaptation"))
-        if prob is None:
-            out.append((num, "adapted", "")); continue
-        if shot in _TITLE_CARD_REGISTERS and pos in (1, n):
-            out.append((num, "exempt", "the %s title card" % ("opening" if pos == 1 else "closing"))); continue
-        ev = evidence.get(shot)
-        if ev and all(sp.get(k) for k in ev):
-            out.append((num, "exempt", "a real picture on %s" % shot)); continue
+        if prob is None and shot:
+            changed, why = structural_change(shot, sp)
+            if changed:
+                out.append((num, "adapted", "")); continue
+            prob = why
         out.append((num, "as-is", prob))
     return out
 
@@ -3184,12 +3273,11 @@ def _design_share(meta, slides, errors, warnings, out_dir):
     routes = design_routes(meta, slides, out_dir)
     by_num = {(s.get("index", i)): s for i, s in enumerate(slides, 1)}
     counted = [r for r in routes if r[1] != "exempt"]
-    if not counted:
-        return
     credited = [r for r in counted if r[1] in ("built", "adapted")]
     built = [r for r in counted if r[1] == "built"]
     asis = [r for r in counted if r[1] == "as-is"]
-    share = len(credited) / float(len(counted))
+    # AN ALL-EXEMPT FILM still has its signature beat to build: exempting every beat is not a way out of designing
+    share = len(credited) / float(len(counted)) if counted else 1.0
     routes_txt = ("three routes: ADAPT (change its layout/encoding/structure and record "
                   "shot_adaptation.changes [{aspect, what, why}]), SLOT AN OBJECT (draw the thing in the film's "
                   "workshop and hold it in a register's object slot), or BUILD a shot (scripts/workshop.py "
@@ -3224,9 +3312,9 @@ def _design_share(meta, slides, errors, warnings, out_dir):
                 and not _specific(((by_num.get(num, {}).get("shot_fit") or {}) if isinstance(
                     by_num.get(num, {}).get("shot_fit"), dict) else {}).get("ideal"))]
     if no_ideal:
-        warnings.append("design-first: %d adapted/built beat(s) record no `shot_fit.ideal` (scenes %s) — the "
-                        "one-line picture the beat was designed toward is what a critic checks the route against"
-                        % (len(no_ideal), ", ".join(str(x) for x in no_ideal[:10])))
+        errors.append("design-first: %d adapted/built beat(s) record no `shot_fit.ideal` (scenes %s) — every beat "
+                      "starts from its ideal picture (one line, no register named), written BEFORE the route; it is "
+                      "what the critic checks the route against" % (len(no_ideal), ", ".join(str(x) for x in no_ideal[:10])))
 
 
 # ── DESIGN-FIRST, HTML TIER: MOST PAGES ARE BUILT OR BESPOKE, AND A STOCK PAGE EARNS ITS PLACE ──────────────────

@@ -164,7 +164,12 @@ register used unchanged is the exception that has to earn it. Per beat, in this 
    * **adapt** — a register is the starting material and its LAYOUT, ENCODING or STRUCTURE is changed for this
      idea. Record each change in `shot_adaptation.changes = [{aspect: "layout"|"encoding"|"structure", what,
      why}]` — `what` names the change, `why` what this beat's idea needs from it. Copy, colour and palette are
-     not adaptations; a re-worded register is AS-IS.
+     not adaptations; a re-worded register is AS-IS. **The change must be in the props:** the beat sets at
+     least one of the register's structure-affecting props (any declared type other than a string or a list of
+     strings — a layout enum, a count, a flag, an array of structured items, an object slot) to something other
+     than the register's own default. A register that takes only copy cannot be adapted from the board: to
+     change its form, BUILD (a film-local shot that borrows from it). The critic then confirms in the rendered
+     frame that the route is visible (a `routes` row in its ledger).
    * **fit (as-is)** — only when the register already IS the ideal picture. Write `shot_fit.shares`: the
      encoding it shares with the ideal (what its position, size, colour, motion or sequence carries). "It fits"
      is not a reason; if you cannot name the encoding, the register is not the ideal — adapt or build.
@@ -172,9 +177,12 @@ register used unchanged is the exception that has to earn it. Per beat, in this 
 4. **Check** it: `workshop.py still` + `check` for a built thing; the hide-the-caption test for every beat.
 
 **The floor `validate.py` ERRORs on** (definitions in `scripts/validate.py` above `DESIGN_SHARE_FLOOR`): at least
-HALF of the non-exempt beats ADAPTED or BUILT, and at least ONE BUILT — the film's **signature beat**. Exempt: a
-`CinematicTitle` used as the first/last beat, and an evidence register (`PhotoPlate`, `RealVersus`, …) holding its
-real picture. Half is the floor, not the target: **a strong film is mostly adapted or built.**
+HALF of the non-exempt beats ADAPTED or BUILT, at least ONE BUILT — the film's **signature beat**, even on a film
+whose every other beat is exempt — and a `shot_fit.ideal` on every adapted or built beat. Exemptions are decided
+FIRST, and an adaptation note on an exempt beat credits nothing: a `CinematicTitle` used as the first/last beat,
+and an evidence register (`PhotoPlate`, `RealVersus`, …) holding its real picture. A build-list entry marked
+`promoted` counts as built only when the library's catalogue line says it was built for THIS film. Half is the
+floor, not the target: **a strong film is mostly adapted or built.**
 
 ### Designing a shot from nothing — the per-beat checklist (premium, not merely new)
 - [ ] **What the viewer must see** — the one claim, as a picture; one strong visual idea per beat.

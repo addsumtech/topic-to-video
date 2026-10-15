@@ -13,6 +13,7 @@ from test_build_list import SHOT  # noqa: E402  — a minimal valid workshop sho
 GOOD_CHANGE = {"aspect": "layout",
                "what": "the three cells become one horizontal timeline with the middle step enlarged",
                "why": "this beat argues that the middle step is the bottleneck, so it must dominate the row"}
+IDEAL = "three sources wired to one hub, two of them also wired to each other"
 AS_IS_FIT = {"verdict": "fit",
              "ideal": "a field of identical dots where one dot lights up and the rest stay dim",
              "shares": "its grid already encodes many-equal-items by position, and its single highlight "
@@ -28,10 +29,13 @@ def _film(tmp_path, routes):
     for i, r in enumerate(routes, 1):
         s = {"index": i, "shot": "KnowledgeGraph", "shot_props": {"title": "t"}}
         if r == "b":
-            s = {"index": i, "shot": "WsShotA", "shot_props": {}, "shot_fit": {"verdict": "build", "ref": "WsShotA"}}
+            s = {"index": i, "shot": "WsShotA", "shot_props": {},
+                 "shot_fit": {"verdict": "build", "ref": "WsShotA", "ideal": IDEAL}}
         elif r == "a":
+            # the change is MEASURABLE: KnowledgeGraph's `links` (a structure prop) is set — chords it draws
+            s["shot_props"] = {"title": "t", "items": ["a", "b", "c"], "links": [[0, 1]]}
             s["shot_adaptation"] = {"changes": [dict(GOOD_CHANGE)]}
-            s["shot_fit"] = {"verdict": "adapt", "why": "x"}
+            s["shot_fit"] = {"verdict": "adapt", "why": "x", "ideal": IDEAL}
         elif r == "s":
             s["shot_fit"] = dict(AS_IS_FIT)
         slides.append(s)
@@ -114,3 +118,69 @@ def test_the_floor_is_wired_into_evaluate():
          "slides": [{"index": i, "shot": "KnowledgeGraph", "shot_props": {}, "audio": "audio/%02d.mp3" % i,
                      "duration": 6.0, "narration": "A sentence."} for i in (1, 2, 3)]}
     assert any(e.startswith("design-first:") for e in v.evaluate(d, "/tmp")["errors"])
+
+
+def test_a_promoted_entry_is_built_only_when_the_catalogue_names_this_film(tmp_path):
+    # a LIBRARY register named on the build list as "promoted" builds nothing
+    meta, slides = _film(tmp_path, "aa")
+    slides[0] = {"index": 1, "shot": "KineticManifesto", "shot_props": {}, "shot_fit": {"ideal": IDEAL}}
+    meta["build_list"].append({"id": "KineticManifesto", "kind": "shot", "promoted": True, "slot": "own",
+                               "means": "m", "accept": "a"})
+    routes = dict((n, r) for n, r, _w in v.design_routes(meta, slides, str(tmp_path)))
+    assert routes[1] == "as-is", routes
+    # a register promote.py really promoted FROM this film still counts as built
+    lib = open(os.path.join(_ROOT, "remotion", "LIBRARY.md"), encoding="utf-8").read()
+    import re as _re
+    m = _re.search(r"^\d+\. \*\*(\w+)\*\* — .*built for the film (.+?)\.?\s*$", lib, _re.M)
+    assert m, "no promoted register in LIBRARY.md to test against"
+    meta["title"] = m.group(2).strip()
+    meta["build_list"][-1]["id"] = m.group(1)
+    slides[0]["shot"] = m.group(1)
+    routes = dict((n, r) for n, r, _w in v.design_routes(meta, slides, str(tmp_path)))
+    assert routes[1] == "built", routes
+    meta["title"] = "some other film"
+    assert dict((n, r) for n, r, _w in v.design_routes(meta, slides, str(tmp_path)))[1] == "as-is"
+
+
+def test_exemptions_are_decided_before_an_adaptation_note(tmp_path):
+    # the finding: changes added to the opening/closing CinematicTitle lifted 3/8 to 5/10
+    meta, slides = _film(tmp_path, "bsss")
+    for k in (0, 3):
+        slides[k] = {"index": k + 1, "shot": "CinematicTitle", "shot_props": {"title": "t"},
+                     "shot_adaptation": {"changes": [dict(GOOD_CHANGE)]}, "shot_fit": {"ideal": IDEAL}}
+    slides[1] = {"index": 2, "shot": "WsShotA", "shot_props": {},
+                 "shot_fit": {"verdict": "build", "ref": "WsShotA", "ideal": IDEAL}}
+    routes = [r for _n, r, _w in v.design_routes(meta, slides, str(tmp_path))]
+    assert routes == ["exempt", "built", "as-is", "exempt"], routes
+
+
+def test_an_adaptation_must_be_measurable_in_the_props(tmp_path):
+    meta, slides = _film(tmp_path, "ba")
+    assert dict((n, r) for n, r, _w in v.design_routes(meta, slides, str(tmp_path)))[2] == "adapted"
+    slides[1]["shot_props"] = {"title": "t", "items": ["a", "b", "c"]}       # copy only: the note describes nothing
+    route, why = [(r, w) for n, r, w in v.design_routes(meta, slides, str(tmp_path)) if n == 2][0]
+    assert route == "as-is" and "links" in why, (route, why)
+    # a register whose props are all copy cannot be adapted from the board
+    slides[1]["shot"] = "CinematicTitle"
+    route, why = [(r, w) for n, r, w in v.design_routes(meta, slides + [dict(slides[0], index=3)],
+                                                         str(tmp_path)) if n == 2][0]
+    assert route == "as-is" and "only copy" in why, (route, why)
+    # a structure prop left at the register's own default is no change
+    assert v._register_defaults("ObjectPath").get("route") == "line"
+    assert v.structural_change("ObjectPath", {"route": "line"})[0] == []
+    assert v.structural_change("ObjectPath", {"route": "arc"})[0] == ["route"]
+    assert v.structural_change("EdCompare", {"framed": False})[0] == []          # a boolean default is read too
+    assert v.structural_change("EdCompare", {"framed": True})[0] == ["framed"]
+
+
+def test_an_all_exempt_film_still_needs_its_built_beat_and_routes_need_an_ideal(tmp_path):
+    meta, slides = _film(tmp_path, "bb")
+    slides[0] = {"index": 1, "shot": "CinematicTitle", "shot_props": {"title": "t"}}
+    slides[1] = {"index": 2, "shot": "CinematicTitle", "shot_props": {"title": "t"}}
+    meta["build_list"] = []
+    errs, _ = _share(tmp_path, meta, slides)
+    assert any("no beat is BUILT" in e for e in errs), errs
+    meta, slides = _film(tmp_path, "ba")
+    slides[1]["shot_fit"].pop("ideal")
+    errs, _ = _share(tmp_path, meta, slides)
+    assert any("record no `shot_fit.ideal`" in e for e in errs), errs
