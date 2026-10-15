@@ -418,7 +418,7 @@ finding it prints that you do not understand.
   `4:3`) or `--vertical` renders portrait `1080×1920` etc. (Root.tsx `calculateMetadata`). Shots author in W/H
   FRACTIONS so they reflow; **on a non-16:9 film the shot-director must still-render each chosen shot at that
   aspect and fix/swap any that don't reflow** (multi-column must STACK in portrait; wide elements must not run
-  off-frame) — see `references/remotion-shot-authoring.md` §A.9. Most centered/stacked/chart shots reflow as-is;
+  off-frame) — see `references/remotion-shot-authoring.md` §A.11. Most centered/stacked/chart shots reflow as-is;
   the library's fixed multi-column + wide-horizontal registers need this per-shot pass.
   **That pass is now MECHANICAL, and it is not a rare problem.** `python3 scripts/text_safe_qa.py --library
   --aspect=9:16` measured **68 findings across 24 of 149 registers** where 16:9 reports zero — every one a

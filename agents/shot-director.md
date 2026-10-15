@@ -63,6 +63,8 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
    direction not in the seed set, hand the script the direction's own shot list (or build the mini-storyboard by
    hand and render it via `render_remotion`). ALSO render one still per direction at **`--frame=110`** (frame 0 is
    un-started; every hero ≥150f, so 110 = `CONTEST_FRAME` settled) so the mechanical diversity gate can run.
+   Without `--render` the script only prints each sample's render command. A still in place of the sample video
+   is the cheap fallback only when the Node render budget is tight; default to samples.
 3. **DIVERSITY gate (mechanical).** `python scripts/contest_diversity.py <out>/_contest_*.png` — a flagged pair
    (clustered mode+palette+silhouette) means the divergence was theatre: REDIVERGE that pair (conceive a genuinely
    different atmosphere) before showing the user.
@@ -315,8 +317,11 @@ drawing sheet). **(2) Grammar** — every OTHER beat inherits the DNA (type, pal
 status/annotation cues) on OPEN canvas, with a layout chosen PER CONTENT so beats don't all look alike. **(3)
 Motion** — reveal as the style's native ACTION → RESULT (terminal: `$ cmd` runs → output grows; product: a soft
 scale-in; blueprint: a measured draw-on). Then **ASSIMILATE each shot**: translate its content idea into the DNA
-across ≥2-3 of {typography, layout, components, motion, transition, narrative-metaphor}, and **reject any shot
-that could be dropped unchanged into a different style without anyone noticing.** For terminal use the `Term*`
+across ≥2-3 of {typography · layout (the style's logic, not a generic slide) · components (panels/labels/
+dividers/status primitives) · motion (enter/transform per the motion grammar) · transition · narrative metaphor (can
+the content be *expressed through* the design concept?)}, and **reject any shot that could be dropped unchanged
+into a different style without anyone noticing.** The terminal worked example of all three layers (`TermFrame`,
+the native seams, the reveal character) is `references/remotion-shot-authoring.md` §C2. For terminal use the `Term*`
 family + `TermFrame` (default OPEN, `framed` only on anchors); for a style with no family yet, build style-native
 shots the same way OR use the library registers reading the DNA tokens — never a reskinned generic component.
 This is style-AGNOSTIC: it holds for terminal, editorial, product/apple, blueprint, or any `meta.design_dna`.
@@ -324,71 +329,66 @@ This is style-AGNOSTIC: it holds for terminal, editorial, product/apple, bluepri
 ## The mandate — clear AND bold AND meaningful
 For each beat ask *"what is the clearest hand-written LANGUAGE for THIS idea?"* — answered by the ideal picture
 and route of Step 0.55 (the one place the flow is defined), never by "which card layout". Whatever register the
-route lands on, its props come from the beat's own content so it speaks the topic, not WorkBuddy. **Lean toward the chosen `meta.shot_template`'s families** (Step 0) while
-keeping the family-variety rule.
+route lands on, its props come from the beat's own content so it speaks the topic, not WorkBuddy. **Lean toward
+the chosen `meta.shot_template`'s families** (Step 0) while keeping the family-variety rule, and **COHERE with the
+chosen direction** — carry its palette/motion/motif across beats (`references/remotion-shot-authoring.md` §C).
 
-**Every shot must ENCODE its beat, not decorate it.** Apply the litmus from `references/remotion-shot-authoring.md`:
-*hide the caption — does the visual still carry THIS specific idea, and only this one?* A design that could sit
-under any nearby caption, or reads as generic "science/tech atmosphere," is a FAIL — its structure must mirror the
-content (symmetry / direction / accumulation / sparsity / cause→effect). See the anti-pattern catalogue there for
-the concrete traps (radial-burst-for-RF, waveform-for-FID, mandala-for-k-space, glitch-for-aliasing, a diagram
-where an equation is clearer, colored blocks instead of a real image). **When NO library register encodes a
-topic-specific idea, BUILD a bespoke shot** (`src/shots/*.tsx`, registered in every sync point) rather than force
-a near-miss — swapping among generic registers hits a ceiling and drags in leftover demo copy. **Reach for the
-real-imagery tier on concrete topics** — composite a real image the design ACTS on (reconstructs / folds /
-denoises), compute real data with numpy (FFT, partial reconstructions), credit CC-BY — keep the design language's
-VIBE but fill it with real, sourced, generalizing content (the image is a `src` prop). **COHERE with the chosen
-direction:** carry its palette/motion/motif across beats (family variety is about silhouette, not a licence to
-switch visual worlds every beat). And **audit ALL beats** with the hide-the-caption test, not just flagged ones.
+**Every shot must ENCODE its beat, not decorate it — the check of Step 0.55, applied to EVERY beat.** *Hide the
+caption — does the visual still carry THIS specific idea, and only this one?* A design that could sit under any
+nearby caption, or reads as generic "science/tech atmosphere," is a FAIL — its structure must mirror the content
+(symmetry / direction / accumulation / sparsity / cause→effect). The traps that shipped (radial-burst-for-RF,
+waveform-for-FID, mandala-for-k-space, glitch-for-aliasing, a diagram where an equation is clearer, colored blocks
+instead of a real image) are the anti-pattern table in `references/remotion-shot-authoring.md` §B. When NO
+register encodes a topic-specific idea, the route is **build** (Step 0.55, in the film's workshop) — never force
+a near-miss, which hits a ceiling and drags in leftover demo copy. On a concrete topic reach for the real-imagery
+tier (Rule 1 and §B). And **audit ALL beats** with the hide-the-caption test, not just the flagged ones.
 
-**KEEP THE STYLE, REDESIGN THE REST — never text-swap a register's demo (临场设计优化 — see
+**ADAPT = KEEP THE STYLE, REDESIGN THE REST — never text-swap a register's demo (临场设计优化; worked examples in
 `references/remotion-shot-authoring.md` §B2).** A register is a STYLE (its vibe, motion, material, typographic
 attitude) wrapped around DEMO scaffolding — placeholder mini-widgets, generic glyphs, demo-length labels, a stock
 module count and layout. **Keep the style — and keep any stock module that ALREADY encodes THIS topic's content —
-and treat the REST of the demo scaffolding as a mannequin to rebuild.** The DEFAULT
-posture on EVERY beat, EVERY topic is to redesign both the CONTENT *and* the register's own MODULES/COMPONENTS so
-its structure *represents THIS topic's content* — not merely to change the words. Concretely: swap placeholder
-motifs for ones that MEAN the item (a product tile shows that product's glyph, not a random chart); re-shape the
-MODULES to the content's real relationship (parallel questions stack — they don't get sequence-arrows; a "loop"
-is a cycle, not a row; a hierarchy nests, not lists); add/drop/recompose components so the beat's specific idea
-is the thing on screen; and **size for the REAL copy** — long labels overflow a box tuned to short demo words,
-offset arrows land on long phrases, a tiny marker vanishes (frame-craft §A.8). Litmus: *would this beat look the
-same on a totally different topic with only the words changed?* If yes, you text-swapped — redesign it.
-**Judgment, not reflex — don't blindly rewrite what already fits.** If a register's stock module/component ALREADY
-expresses THIS beat's content well (its structure genuinely encodes the idea, not just the demo's), KEEP it —
-changing it only to look different is as wrong as text-swapping, and wastes the register's proven strengths. Decide
-per module: does it carry the DEMO's meaning or THIS topic's? Keep the ones that fit, redesign the ones that don't,
-and record BOTH sides in `shot_adaptation` (`kept` = the style + the modules that already fit; `redesigned` = what
-you rebuilt). **Building a small in-style variant is the NORMAL move, not a last resort:** whenever the register's stock modules don't
-carry the idea, write a variant that keeps its VIBE but is composed around the real content; only when the fix is
-a pure demo-length assumption (a fixed label width, an un-padded box) FIX the shared register at the source so
-every future film benefits. **Record the redesign per scene in `shot_adaptation` = `{kept, redesigned,
-topic_idea, changes}`** (`changes` is what makes the beat count as ADAPTED — Step 0.55) — what STYLE you kept, which MODULES/components + content you rebuilt for this topic, and the
-topic-specific creative idea the shot now encodes. It is a REQUIRED artifact (validate.py WARNs when it's missing
-or `shot_props` is empty; shot-critic S10 checks the note against the rendered frame): writing it forces the
-redesign to be a decision, not a reflex. Always still-render a shot with its ACTUAL
-props before trusting it (`npx remotion still … --props='<real props>'`). **On a non-16:9 film (`meta.aspect` !=
-16:9): still-render EVERY chosen shot AT that aspect** (`--props '{"aspect":"9:16",…}'`) and fix/swap any that don't
-reflow — a multi-column layout must STACK in portrait, wide elements must not run off-frame (references/remotion-shot-authoring.md
-§A.9); most centered/stacked/chart shots are fine, the fixed multi-column + wide-horizontal ones need this pass.
-**BOLDNESS is not optional — it scales with `meta.audacity`.** Clarity is the
-floor, not the ceiling: reach past the OBVIOUS register for the surprising-but-apt one, especially on the hero +
-climax beats. At `bold`/`experimental`, a mix of safe/expected registers is a FAILURE the shot-critic (S8) sends
-back — commit registers that are memorable and unmistakably THIS film. For each beat, briefly note the
-`rejected_default` (the obvious register you passed over) so the choice is a decision, not a reflex.
+and treat the REST of the demo scaffolding as a mannequin to rebuild.** The DEFAULT posture on EVERY beat, EVERY
+topic is to redesign both the CONTENT *and* the register's own MODULES/COMPONENTS so its structure *represents
+THIS topic's content* — not merely to change the words: motifs that MEAN the item, modules re-shaped to the
+content's real relationship (parallel questions stack; a "loop" is a cycle; a hierarchy nests), components
+added/dropped so the beat's idea is the thing on screen, and sizes set for the REAL copy (§A.12). Litmus: *would
+this beat look the same on a totally different topic with only the words changed?* If yes, you text-swapped.
+**Judgment, not reflex — don't blindly rewrite what already fits.** Changing a module that already carries THIS
+beat's content, only to look different, is as wrong as text-swapping. Decide per module: does it carry the DEMO's
+meaning or THIS topic's? When the fix is a pure demo-length assumption (a fixed label width, an un-padded box), FIX
+the shared register at the source so every future film benefits; when the stock modules cannot carry the idea at
+all, write an in-style variant (its VIBE, composed around the real content) as a workshop shot — the **build**
+route, and the NORMAL move, not a last resort.
+
+**Record it per scene in `shot_adaptation` = `{kept, redesigned, topic_idea, changes, theme_cues}`** — `kept` the
+style + the modules that already fit, `redesigned` the modules/components + content you rebuilt, `topic_idea` the
+topic-specific idea the shot now encodes, `changes` the `[{aspect, what, why}]` that make the beat count as ADAPTED
+(Step 0.55), and `theme_cues` on a DNA-themed film (Output). It is a REQUIRED artifact (validate.py WARNs when it's
+missing or `shot_props` is empty; shot-critic S10 checks the note against the rendered frame): writing it forces
+the redesign to be a decision, not a reflex.
+
+**Check every chosen shot with its ACTUAL props before trusting it** (`npx remotion still … --props='<real
+props>'`, or `workshop.py <out_dir> still` for a built one). **On a non-16:9 film (`meta.aspect` != 16:9):
+still-render EVERY chosen shot AT that aspect** (`--props '{"aspect":"9:16",…}'`) and fix/swap any that don't
+reflow — a multi-column layout must STACK in portrait, wide elements must not run off-frame
+(`references/remotion-shot-authoring.md` §A.11).
+
+**BOLDNESS is not optional — it scales with `meta.audacity`.** Clarity is the floor, not the ceiling: reach past
+the OBVIOUS register for the surprising-but-apt one, especially on the hero + climax beats (the signature moment
+of the Step 0.55 checklist). At `bold`/`experimental`, a mix of safe/expected registers is a FAILURE the
+shot-critic (S8) sends back — commit registers that are memorable and unmistakably THIS film. For each beat,
+briefly note the `rejected_default` (the obvious register you passed over) so the choice is a decision, not a
+reflex.
 
 ## Rules (all six bind)
-0. **Match the beat to a register — or BUILD one. Judge, per beat, and record the judgement.**
-   Before rule 1, ask what the beat is actually ARGUING and whether any register's *structure* already
-   carries that shape. Record the answer on the scene as **`shot_fit` = `{verdict, why}`**:
-   - **`fit`** — the register's own structure carries this argument as-is.
-   - **`adapt`** — the structure carries it; its modules/components get redesigned for this content (§B2).
-   - **`build`** — no register's structure carries it, so you AUTHOR A NEW ONE.
-
-   **The line between `adapt` and `build` is structure vs sizing** (`references/remotion-shot-authoring.md`):
-   redesigning a register's modules is `adapt`; needing a different *shape of argument* is `build`. The test
-   that settles it: could you fit this beat into the register only by **swapping its words**? Then the
-   register does not carry the argument — build.
+0. **Route every beat — `shot_fit` is Step 0.55's record, not a second definition.** Write
+   `shot_fit = {ideal, verdict: "fit"|"adapt"|"build", why, shares?}` on every scene exactly as Step 0.55 defines
+   the three routes. **The line between `adapt` and `build` is the frame, not the effort:** `adapt` keeps a
+   register's frame and changes its layout, encoding or structure for this beat (recorded in
+   `shot_adaptation.changes`); `build` is needed when no template arranges the frame the way the argument runs (a
+   new shot) or the frame is right and only the subject is missing (an object). A register you could use only by
+   **swapping its words** is neither — that is `fit` (as-is), and it must name the encoding it `shares` or it is
+   not the ideal.
 
    **Building happens in the film's own workshop, and is cheap on purpose** — the `workshop.py` commands are in
    Step 0.55 above (`new-object` · `new-shot` · `still` · `check`). Nothing it builds touches the library: every
@@ -586,25 +586,28 @@ the deterministic fallback assigner already softens streaks. (The MARKED **carry
 a *needed* dark↔light turn read as continuity rather than a flip — see Rule 5.)
 
 ## Output
-Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene, `shot` (a valid id from
-`remotion/src/shots/*.tsx`) + `shot_props` (an object of TOPIC copy — never leave it `{}`, which ships the
-register's demo mannequin). **Fill EVERY copy prop the register has, or set the ones you want blank to `""`
-(`[]` for a list).** Every register carries illustrative defaults so it can be previewed standalone, and an
-omitted prop PRINTS them: a delivered Chinese film gave BentoReveal its own `title`/`hero`/`heroKicker` and no
-`items`, so six of the frame's seven cells read *Throughput / Coverage / Trend / Signals / Team / Auto-sync* —
-English demo labels presented as that product's own. `validate.py` now ERRORS on it and names the exact copy;
-`python3 scripts/demo_copy_qa.py <out_dir>` lists it, and `--library` shows what each register would print. + **`shot_adaptation` = `{kept, redesigned, topic_idea, theme_cues}`** (REQUIRED — the
-style AND any stock modules that ALREADY fit the topic that you kept, the modules/components + content you rebuilt
-for this topic, the topic-specific idea the shot now encodes, and — on a DNA-themed film — **`theme_cues`: the 2-3
-concrete cues that tie THIS shot to the global visual system** (e.g. `["mono heading","▸ prompt","terminal grid",
-"green accent"]`) so the Design DNA verifiably runs through every frame; per the KEEP-THE-STYLE-REDESIGN-THE-REST
-rule above — keep what fits, redesign what doesn't, don't blindly change everything). Also set **`shot_fit` = `{ideal, verdict: "fit"|"adapt"|"build", why, shares?}`** per scene (Step 0.55 —
-`shares` on every as-is beat) and **`shot_adaptation.changes`** on every adapted one; `validate.py` ERRORs below
-the design-first floor (half adapted/built, one built) and on an as-is beat that does not earn it. On a film that builds, also write **`meta.build_list`** (Step 0.55) and
-`shot_fit.ref` on every beat that uses a built item. On the FEW beats that earn them, also set `transition_style` (Rule 5) and `camera` (the camera section); `python3 scripts/seam_plan.py <out_dir>` then fills the beats you left and skips every one you authored. Then record your choices for the critic: a short
-`shot_rationale` per scene (why this register, which family) is encouraged. `validate.py` errors on a
-missing/unknown `shot`, a number-bearing register left on its demo default, or ANY copy prop left to its demo
-default on a partly-filled beat, and WARNs on empty `shot_props` or a
-missing `shot_adaptation` (a raw text-swap); `render_remotion.py` renders the chosen shots through the data-driven
-`Film`. Keep a family-variety pass at the end: scan the shot sequence and swap any adjacent same-family pair for
-an equally-fitting register from a different family.
+Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene:
+- **`shot`** — a valid id from `remotion/src/shots/*.tsx` (or a workshop shot).
+- **`shot_props`** — an object of TOPIC copy, never `{}` (which ships the register's demo mannequin). **Fill EVERY
+  copy prop the register has, or set the ones you want blank to `""` (`[]` for a list).** Every register carries
+  illustrative defaults so it can be previewed standalone, and an omitted prop PRINTS them: a delivered Chinese
+  film gave BentoReveal its own `title`/`hero`/`heroKicker` and no `items`, so six of the frame's seven cells read
+  *Throughput / Coverage / Trend / Signals / Team / Auto-sync* — English demo labels presented as that product's
+  own. `validate.py` now ERRORS on it and names the exact copy; `python3 scripts/demo_copy_qa.py <out_dir>` lists
+  it, and `--library` shows what each register would print.
+- **`shot_fit` = `{ideal, verdict: "fit"|"adapt"|"build", why, shares?}`** (Step 0.55 — `shares` on every as-is
+  beat, `ref` on every beat that uses a built item, `form` from `meta.form_vocabulary`).
+- **`shot_adaptation` = `{kept, redesigned, topic_idea, changes, theme_cues}`** (REQUIRED — The mandate above;
+  `changes` on every adapted beat). On a DNA-themed film, **`theme_cues`** are the 2-3 concrete cues that tie THIS
+  shot to the global visual system (e.g. `["mono heading","▸ prompt","terminal grid","green accent"]`) so the
+  Design DNA verifiably runs through every frame.
+- On the FEW beats that earn them, `transition_style` (Rule 5) and `camera` (the camera section);
+  `python3 scripts/seam_plan.py <out_dir>` then fills the beats you left and skips every one you authored.
+- A short `shot_rationale` (why this register, which family) is encouraged, for the critic.
+
+On a film that builds, also write **`meta.build_list`** (Step 0.55). `validate.py` ERRORs below the design-first
+floor (half adapted/built, one built), on an as-is beat that does not earn it, on a missing/unknown `shot`, a
+number-bearing register left on its demo default, or ANY copy prop left to its demo default on a partly-filled
+beat, and WARNs on empty `shot_props` or a missing `shot_adaptation` (a raw text-swap); `render_remotion.py`
+renders the chosen shots through the data-driven `Film`. Keep a family-variety pass at the end: scan the shot
+sequence and swap any adjacent same-family pair for an equally-fitting register from a different family.

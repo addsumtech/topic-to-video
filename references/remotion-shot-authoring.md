@@ -81,7 +81,7 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    monotone clock, so it cannot bring an item the voice names first ahead of one the frame shows first.
 10. **Determinism.** Pure function of `useT()`/frame. No `Date.now()`/`Math.random()`/argless `new Date()` — use
    `hash01(i)` for stable pseudo-randomness. Signed data must render signed; CJK copy must fit; aspect must adapt.
-11. **Author in FRACTIONS so the shot reflows to ANY aspect.** The Film Composition is aspect-driven: `meta.aspect`
+11. **Author in FRACTIONS so the shot reflows to ANY aspect.** *(`validate.py` still cites this as §A.9.)* The Film Composition is aspect-driven: `meta.aspect`
    (or `--vertical`) renders 16:9 `1920×1080` / 9:16 `1080×1920` / 1:1 / 4:5 / 4:3 (Root.tsx `calculateMetadata` +
    render_remotion pass an `aspect` prop; preview a shot at portrait with `--props '{"aspect":"9:16"}'`). A shot
    reads W/H from `useVideoConfig` and must lay out in **fractions of W/H** — never hardcoded 1920/1080 — so it
@@ -186,25 +186,23 @@ geometric invariant, that is the test to write.
 | "You can't go faster" | text overflowing decorative boxes | a gradient-speed bar physically capped at the slew-rate + PNS ceilings |
 | Compressed sensing | yet another node diagram | the typeset objective `min‖Ψx‖₁ s.t. ‖Fx−y‖₂≤ε`, annotated — **an equation IS a valid encoding** |
 
-**Operating rules that follow:**
-- **Build BESPOKE when no library register encodes the specific concept.** Swapping among generic library
-  registers hits a ceiling for topic-specific ideas (and often drags in leftover demo copy / mangled numbers).
-  When a beat needs a real mechanism shown, write a new `src/shots/*.tsx` (register it in all sync points — see
-  the shot-registration note) rather than forcing a near-miss register.
-- **Use REAL imagery on concrete topics (the documentary tier), not colored blocks.** Composite a real MRI;
+**What follows for the author** (the method — routes, the per-beat checklist, the audit — is shot-director Step
+0.55 and its mandate; this is the how):
+- **When no register encodes the concept, the route is BUILD, in the film's workshop** (`workshop.py <out_dir>
+  new-shot` / `new-object`, shot-director Step 0.55) — not a near-miss register, and not a new `src/shots/*.tsx`
+  registered mid-film; the user decides at delivery what is promoted into the library (`scripts/promote.py`).
+- **Real imagery on concrete topics (the documentary tier), not colored blocks.** Composite a real MRI;
   compute the real k-space and the real center-only / edge-only reconstructions with numpy (`fft2`/`ifft2`);
-  fetch a license-clean real photo via `imagefetch.py`. A real image the design ACTS ON (reconstructs, folds,
-  denoises) both teaches and looks premium. Keep the design language's VIBE/technique but fill it with real,
-  substantive, sourced content — and it must generalize: the image is a `src` prop, so the same shot serves any
-  topic. Credit CC-BY on screen. **Take the credit from the sidecar, never from memory** — `imagefetch.py`
-  writes a `<file>.json` beside each image naming the real author + licence, and `validate.py` ERRORs when a beat
-  shows an image whose sidecar author it does not credit. A shot therefore receives its credit as a PROP (like the
-  `src`) and never hardcodes one: a hardcoded credit is both a wrong attribution the moment the image is swapped
-  and, since it is a real person's name, a fabricated fact.
+  fetch a license-clean real photo via `imagefetch.py` (shot-director Rule 1: PhotoPlate and its kin, and the
+  sidecar credit `validate.py` ERRORs on). A real image the design ACTS ON (reconstructs, folds, denoises) both
+  teaches and looks premium. Keep the design language's VIBE/technique but fill it with real, substantive,
+  sourced content — and it must generalize: the image is a `src` prop, so the same shot serves any topic. Credit
+  CC-BY on screen. A shot therefore receives its credit as a PROP (like the `src`) and never hardcodes one: a
+  hardcoded credit is both a wrong attribution the moment the image is swapped and, since it is a real person's
+  name, a fabricated fact.
 - **Audit ALL beats, not just the ones flagged.** When one shot is found decorative, re-run the hide-the-caption
   test on EVERY beat (举一反三) — the same reflex usually produced several. Fix the whole class.
-- **No fabricated data.** A number-bearing shot must carry a SOURCED figure (traces to `source_ref`), never its
-  demo default and never an invented stat.
+- **No fabricated data** — a number-bearing shot carries a SOURCED figure (shot-director Rule 3).
 
 ## B1 · A picture beside a label is a claim — the content contract (for whoever WRITES a register)
 
@@ -237,25 +235,11 @@ printed the demo defaults. `tests/test_library_signatures.py` now holds LIBRARY.
 
 ## B2 · Adapt the register to the topic — don't text-swap the demo
 
-A register ships with **demo scaffolding**: placeholder mini-widgets, generic glyphs, a demo-length label set, a
-fixed element count, a stock layout. **That scaffolding is a mannequin, not your content.** The lazy move —
-picking a register and only changing the text while keeping its demo furniture — produces a beat that is
-on-topic in words but generic in design, and it is a REVISE. Per the user's rule: *keep ONLY the design
-language's STYLE (its framework, vibe, motion, material), and re-design both the CONTENT **and the register's own
-MODULES/COMPONENTS** so the design actually represents THIS topic's content.* This is "临场设计优化" — adapt the
-language to the subject on the spot, every time, for every topic. **Rebuilding the components to fit the subject
-is the DEFAULT, not a special case** — the words changing is the *least* of it. **But it is a judgment call, not a
-blanket rewrite:** if a register's stock module/component ALREADY encodes THIS topic's content well, KEEP it —
-changing what already fits just to look different is as wrong as text-swapping, and throws away the register's
-proven strengths. Decide per module — does it carry the DEMO's meaning or THIS topic's? — keep the ones that fit,
-redesign the ones that don't. (This is why `shot_adaptation.kept` records the modules you kept, not just "style".)
-
-**Record the redesign, per scene, in `shot_adaptation` = `{kept, redesigned, topic_idea}`** (a REQUIRED field on
-every remotion scene): the STYLE you kept, the MODULES/components + content you rebuilt for this topic, and the
-topic-specific creative idea the shot now encodes. `validate.py` WARNs when it is missing or `shot_props` is empty
-(a raw text-swap); the shot-critic (S10) reads the note and checks it against the rendered frame. Writing it is
-what makes the redesign a decision instead of a reflex — a note you cannot fill honestly is a beat you have not
-actually adapted.
+The rule — keep the STYLE, redesign the rest, judged per module, recorded in `shot_adaptation` — is the adapt
+route of shot-director Step 0.55, stated once in its mandate ("ADAPT = KEEP THE STYLE, REDESIGN THE REST"). A
+register ships with **demo scaffolding** (placeholder mini-widgets, generic glyphs, a demo-length label set, a fixed
+element count, a stock layout); that scaffolding is a mannequin, not your content, and a beat that kept it is a
+REVISE. This section is the worked how-to.
 
 **The litmus:** *would this beat look the same on a completely different topic with only the words swapped?* If
 yes, you text-swapped a template — redesign the content. Concretely:
@@ -267,18 +251,16 @@ yes, you text-swapped a template — redesign the content. Concretely:
   (`PLAN → BUILD → SHIP`) is wrong for three PARALLEL open questions — the arrows assert an order that isn't
   there and collide with the long text. Re-lay it out (stack them, drop the arrows) so the layout states the
   right relationship. A "loop" must read as a CYCLE, not a linear row; a hierarchy as nesting, not a list.
-- **Build an in-style variant whenever the stock modules don't carry the idea — that's the NORMAL move, not a
-  last resort.** Don't reserve it for when the structure obviously "fights" the topic; reach for it any time the
-  register's stock modules don't already *encode* this beat's content. Write a small bespoke shot that keeps the
-  register's VIBE (the bento pop, the interrogation light, the mechanical coupling) but whose modules/components
-  are composed around the real content. This is the line between *using* a design language and *reskinning a
-  demo*. (This session added `PlatformSurfaces` from
-  BentoReveal and `OpenQuestions` from SpotlightStage for exactly this reason; `TensionScale` for the mission
-  tension; and fixed CubeRotate/CardFlip3D's demo-length assumptions in place.)
+- **An in-style variant is a BUILT shot.** When the register's stock modules don't already *encode* this beat's
+  content, write a small shot in the film's workshop that keeps the register's VIBE (the bento pop, the
+  interrogation light, the mechanical coupling) but whose modules/components are composed around the real
+  content — the line between *using* a design language and *reskinning a demo*. (Earlier films added
+  `PlatformSurfaces` from BentoReveal and `OpenQuestions` from SpotlightStage for exactly this reason, and
+  `TensionScale` for the mission tension; CubeRotate/CardFlip3D's demo-length assumptions were fixed in place.)
 - **Prefer editing the shared register when the fix generalises.** A demo-length assumption (a fixed 92px label,
   a 22px marker, an un-padded box, arrows offset for short words) is a BUG in the register, not just this beat —
   fix it at the source (pad + wrap + split long strings; size the marker; make the arrow offset adaptive) so
-  every future film benefits. Build a NEW shot only when the *structure* differs, not merely the sizing.
+  every future film benefits. A sizing defect is never a reason to BUILD; a frame the register cannot arrange is.
 
 Both the shot-director (when authoring) and the shot-critic (S10) apply this — a beat that kept its register's
 demo scaffolding is flagged and redesigned, not shipped.
@@ -298,8 +280,8 @@ languages:
 
 ## C2 · Design DNA — the GLOBAL visual system (reuse the STRUCTURE, not the visual identity)
 
-The selected template is **NOT a set of reusable frames — it is the film's whole visual system.** A library
-register bundles two separable things: its **STRUCTURE** (composition + motion + information hierarchy — the
+shot-director Step 0.6 writes the film's DNA (the template as a whole visual system, not a set of frames); this
+section is how registers wear it. A library register bundles two separable things: its **STRUCTURE** (composition + motion + information hierarchy — the
 reusable asset) and its **VISUAL IDENTITY** (typography, palette, container/border, decoration — hardcoded in the
 .tsx). The DNA architecture **pulls the identity OUT of the register into one film-wide `DesignDNA`** (`remotion/
 src/runtime/dna.tsx`) that every migrated register reads via **`useDNA()`**, so the SAME structure (a bar race, a
@@ -473,10 +455,10 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
 - **`python scripts/dna_smoke.py [--template <direction>]` renders EVERY registered shot once, in one film.** Static
   tools cannot see a hook inserted into the wrong SCOPE (`dna is not defined`), and the bundler strips types without
   checking them; only a render catches it. Run it after any bulk shot change, and under at least two DNAs.
-- **Consistency ≠ repetition.** The DNA does NOT make every frame a terminal window — a metric/chart/diagram beat
-  inherits the type + palette + motion + 2–3 cues, it does NOT become a black-green box. Record the cues in
-  `shot_adaptation.theme_cues`; **shot-critic S11** audits per-frame coverage + the FINAL TEST (remove the obvious
-  themed shots — can a viewer still infer the design language? if no, the DNA hasn't propagated deeply enough).
+- **Consistency ≠ repetition** (shot-director Step 0.6) — a metric/chart/diagram beat inherits the type + palette
+  + motion + 2–3 cues and records them in `shot_adaptation.theme_cues`; **shot-critic S11** audits per-frame
+  coverage + the FINAL TEST (remove the obvious themed shots — can a viewer still infer the design language? if
+  no, the DNA hasn't propagated deeply enough).
 - **TWO UNIVERSAL mechanisms carry the DNA across EVERY shot with no per-shot edits (Film.tsx) — use these before
   hand-editing 100 registers:** (1) **Global type** — Film injects `.dna-film * { font-family: <dna.fontMono>
   !important }`, so a terminal film reads as MONOSPACE everywhere (overrides each shot's inline font-family, keeps
@@ -489,34 +471,27 @@ analogue of the html tier's `theme.css`). Reuse the structural idea, **never** c
   `breadcrumb`). Author a DISTINCT path/status per beat (`~/hermes ▸ eval/tools` · `● 90% / 84%`) so it's the "one
   terminal session" frame, NOT a repeated decoration. Per-register token migration (bg/accent) then only has to
   handle the shot's OWN salient colours; type + chrome are already global.
-- **THE THREE-LAYER MODEL — style is a GRAMMAR, not a layout template (this is the #1 trap).** The failure mode
-  is BOTH directions: too weak = reskin the original component (a gauge tinted green); too strong = make EVERY
-  frame the same explicit terminal WINDOW (a black panel with `● ● ●` + `$ cmd` + a box). Both are wrong. Split
-  the style into three layers: **(1) Surface** — only 2-3 ANCHOR beats show an explicit terminal window (a boot,
-  a code editor, an ending `$ ready_`). **(2) Visual grammar (the important one)** — EVERY other beat inherits the
-  terminal DNA *without* a window box: mono type, a `$`/`❯` command line, cursor `▋`, `~/ ./ [01]` syntax, tree/
-  indent/`-`/`+`/box-drawing, CLI status — on the OPEN dark canvas, with a layout chosen PER CONTENT (a hero
-  number on void, an open bar readout, an open diff, an open timeline), so beats don't all look the same. **(3)
-  Motion grammar** — reveal via `command → execute → result`: a `$ eval` line types + runs, THEN the figure/chart/
-  diagram grows out as the OUTPUT (the output need NOT be in a box). The shared `runtime/dna.tsx` **`TermFrame`**
-  implements this: `framed` = the explicit window (anchors only), default = OPEN (typed command line → result on
-  open canvas). A terminal-native shot uses `TermFrame` and provides its content; DEFAULT to open. **The motion
-  layer also lives in the SEAMS + the reveal CHARACTER (built in Film.tsx / dna.tsx):** an UNMARKED cut becomes the
-  DNA's native action via `dnaDefaultSeam` (terminal → a `screenClear` — a bg dip + an accent scanline sweep, i.e.
-  the console redrawing; product → a push; editorial/blueprint → a page/sheet wipe), luminance-safe, with explicit
-  chapter marks still winning; and `dna.motion` (`type`/`execute`/`smooth`/`mechanical`) sets the reveal CHARACTER
-  (terminal results POP out, product eases, blueprint steps). So a themed film's cuts + reveals belong to its
-  world, not a generic fade — the analogue of the surface/grammar split, for TIME.
-- **STYLE ASSIMILATION gate (run per shot before implementing).** Take the shot's content idea and deliberately
-  TRANSLATE it into the active DNA across ≥2-3 of: typography · layout (style logic, not a generic slide) ·
-  components (panels/labels/dividers/status primitives) · motion (enter/transform per the motion grammar) ·
-  transition · narrative metaphor (can the content be *expressed through* the design concept?). **Reject any shot
-  that could be dropped unchanged into a completely different style without anyone noticing.** Consistency does
-  NOT mean every frame looks the same — it means every frame FEELS designed by the same system.
-- **THIS ALL GENERALISES TO ANY STYLE — terminal is just the worked example.** The pipeline is style-agnostic:
-  *pick a template → extract its DNA → design each shot for its CONTENT → assimilate the shot into the DNA
-  (three-layer: a few explicit "container" frames, the rest inherit the grammar on open canvas, motion reveals
-  as the style's native action) → validate (S11 + the reject rule).* Only the REALIZATION differs per style:
+- **THE THREE-LAYER MODEL, worked for terminal** (the model and the per-shot STYLE ASSIMILATION gate — translate
+  each shot into the DNA across ≥2-3 of typography/layout/components/motion/transition/narrative-metaphor, and
+  reject any shot that could be dropped unchanged into a different style — are shot-director Step 0.7). Too weak
+  = a gauge tinted green; too strong = EVERY frame the same terminal WINDOW (a black panel with `● ● ●` + `$ cmd`
+  + a box). **(1) Surface** — only 2-3 ANCHOR beats show an explicit terminal window (a boot, a code editor, an
+  ending `$ ready_`). **(2) Visual grammar** — EVERY other beat inherits the terminal DNA *without* a window box:
+  mono type, a `$`/`❯` command line, cursor `▋`, `~/ ./ [01]` syntax, tree/indent/`-`/`+`/box-drawing, CLI status
+  — on the OPEN dark canvas, with a layout chosen PER CONTENT (a hero number on void, an open bar readout, an open
+  diff, an open timeline). **(3) Motion grammar** — reveal via `command → execute → result`: a `$ eval` line types
+  + runs, THEN the figure/chart/diagram grows out as the OUTPUT (the output need NOT be in a box). The shared
+  `runtime/dna.tsx` **`TermFrame`** implements this: `framed` = the explicit window (anchors only), default = OPEN
+  (typed command line → result on open canvas). A terminal-native shot uses `TermFrame` and provides its content;
+  DEFAULT to open. **The motion layer also lives in the SEAMS + the reveal CHARACTER (built in Film.tsx /
+  dna.tsx):** an UNMARKED cut becomes the DNA's native action via `dnaDefaultSeam` (terminal → a `screenClear` — a
+  bg dip + an accent scanline sweep, i.e. the console redrawing; product → a push; editorial/blueprint → a
+  page/sheet wipe), luminance-safe, with explicit chapter marks still winning; and `dna.motion`
+  (`type`/`execute`/`smooth`/`mechanical`) sets the reveal CHARACTER (terminal results POP out, product eases,
+  blueprint steps). So a themed film's cuts + reveals belong to its world, not a generic fade — the analogue of the
+  surface/grammar split, for TIME. Consistency does NOT mean every frame looks the same — it means every frame
+  FEELS designed by the same system.
+- **THIS ALL GENERALISES TO ANY STYLE — terminal is just the worked example.** Only the REALIZATION differs:
   - **DNA tokens** — `runtime/dna.tsx` ships presets for `terminal` · `editorial` · `product`/`apple` ·
     `blueprint` (+ `neutral`); `dnaFromTemplate` maps a `shot_template` to one, or author `meta.design_dna`
     explicitly. `uniformType:true` (terminal) → Film forces one font; a MIXED-type style (editorial serif+sans)
@@ -610,19 +585,10 @@ the suite.
 ## D · Selecting the direction — show VIDEO samples, not text or a single still
 
 A direction is defined by its MOTION and feel; a text pitch (and even a single still) can't convey it — the user
-must SEE it move. So the contest surfaces a short **sample video per direction**:
-
-```
-python scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out_dir>   # builds a mini-storyboard per direction
-# then render each printed command → <out_dir>/_contest_<key>.mp4 (a ~6s narrated-silent sample of that direction's look+motion)
-```
-
-Each sample sequences that direction's hero + a couple of representative registers, carrying the TOPIC copy, run
-through the real `Film` (real transitions, captions, motion). Montage/present the samples via `AskUserQuestion`
-(winner first, "(Recommended)"), let the user PICK from what they can actually watch, then record
-`meta.shot_template` + `meta.shot_template_contest` as before. A single still remains the cheap fallback only when
-the Node render budget is tight; default to samples.
-
+must SEE it move. The whole contest — widths, the sample command (`contest_sample.py … --render` →
+`<out_dir>/_contest_<key>.mp4`, a ~6s sample of the direction's hero + two representative registers with the TOPIC
+copy, through the real `Film`), the diversity gate, the judge, the `AskUserQuestion` pick and what to record — is
+shot-director Step 0.
 
 ## Icons — the default for category content, not a garnish
 
