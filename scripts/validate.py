@@ -3229,6 +3229,425 @@ def _design_share(meta, slides, errors, warnings, out_dir):
                         % (len(no_ideal), ", ".join(str(x) for x in no_ideal[:10])))
 
 
+# ── DESIGN-FIRST, HTML TIER: MOST PAGES ARE BUILT OR BESPOKE, AND A STOCK PAGE EARNS ITS PLACE ──────────────────
+# The same floor as `_design_share` (above), measured from the PAGE SOURCE rather than from a self-described
+# route — agents/design-director.md "Design first" names the routes; this is how each is recognised:
+#   BUILT    — the page draws a workshop component: a custom tag of this film's workshop/html/ component or of a
+#              `kind: "component"` build-list entry (the entry's contract is `_check_html_build`'s job).
+#   BESPOKE  — the page carries a composition of its OWN, by at least one of three signals:
+#              (a) page CSS (a <style> block, or a stylesheet the page links that is neither assets/html/, the
+#                  film's theme.css nor a component's) lays out >= 2 PAGE-OWN targets — selectors whose last
+#                  compound names a class no stock stylesheet defines, or an id — with a LAYOUT declaration
+#                  (grid/flex display, grid placement, absolute/fixed position, offsets, transform, clip-path …).
+#                  Colour, type and spacing are not layout, and a rule on a stock class (`.flow{…}`) restyles the
+#                  archetype rather than composing the page — neither counts;
+#              (b) an inline <svg> that DRAWS: >= 6 drawing primitives in one svg that carries no stock class and
+#                  sits under no `icon*` element nor a `bg-*` backdrop left faint (an icon, a `.spark`, a ghosted
+#                  .bg-motif are stock; a .bg-motif raised to opacity >= .5 is the page's drawing);
+#              (c) a hand-placed composition: >= 3 elements positioned by inline style (absolute/fixed with an
+#                  offset, or a transform). An inline grid/flex WRAPPER does not count — it is the stock
+#                  `.two`/`.split`/`.grid-asym` written longhand, the way html-templates.md's own snippets use it.
+#   EXEMPT   — the open/close title card (first or last beat; a .title/h1 and no stock class beyond the title
+#              set — kicker/rule/sub/note/label, reveals, a backdrop), a real-photo plate (an `img.bg-photo` or
+#              `.media img` whose file carries imagefetch's provenance sidecar `<file>.json`, on a page with no
+#              stock archetype around it), and a `type:"slide"` beat (a picture the user or a source supplied).
+#              Exempt beats leave the denominator; they are never credited.
+#   AS-IS    — everything else, programmatic scene types included. It must carry `shot_fit.ideal` AND
+#              `shot_fit.shares` (the board field the remotion tier uses), or `ideal` + `shares` on its beat in a
+#              persisted design_plan.json.
+# The floor: (built + bespoke) >= half of the non-exempt beats. Runs only on an HTML film — a board with at least
+# one `type:"html"` beat that is not a remotion film; the slides / 原样配音 tier (every beat a `slide`) is exempt.
+_HTML_STOCK_SHEETS = ("base.css", "motifs.css", "vertical.css", "reduced-motion.css")
+_HTML_TITLE_CLASSES = {"stage", "kicker", "rule", "title", "sub", "note", "label", "credit", "chrome", "grad-text",
+                       "accent-fill", "anchor-top", "anchor-bottom", "frame-left", "frame-right", "thirds", "scrim",
+                       "defocus", "glass", "float", "settle", "kenburns"}
+_HTML_PLATE_CLASSES = _HTML_TITLE_CLASSES | {"media", "split", "two", "chip", "good", "risk", "k", "tag", "l", "r"}
+_SVG_PRIMITIVES = {"path", "line", "polyline", "polygon", "circle", "ellipse", "rect", "text", "use"}
+_HTML_VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+BESPOKE_CSS_TARGETS = 2
+BESPOKE_SVG_PRIMITIVES = 6
+BESPOKE_PLACED = 3
+_stock_class_cache = {}
+
+
+_CLASS_RE = re.compile(r"\.(-?[^\W\d][\w-]*)")             # CSS idents may be non-ASCII (`.主图`)
+
+
+def _split_compounds(selector):
+    """A selector's compounds, pseudo-classes/elements removed: `.flow > .step.on:hover` → ['.flow', '.step.on']."""
+    sel = re.sub(r"::?[\w-]+(\([^)]*\))?", "", selector.strip())
+    return [c for c in re.split(r"\s*[>+~]\s*|\s+", sel) if c]
+
+
+def html_stock_classes(extra_sheets=()):
+    """(top, parts) from the stock stylesheets (assets/html/*, plus the film's theme.css): `top` holds the classes
+    a stock selector styles on their own (`.flow`, `.stage.anchor-top`); `parts` maps a class the stock styles only
+    INSIDE another (`.bullet .band`) to those context classes — outside them the stock CSS does nothing to it."""
+    key = tuple(extra_sheets)
+    if key not in _stock_class_cache:
+        here = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "html")
+        top, parts, read = set(), {}, 0
+        for p in [os.path.join(here, f) for f in _HTML_STOCK_SHEETS] + list(extra_sheets):
+            try:
+                css = open(p, encoding="utf-8", errors="replace").read()
+            except OSError:
+                continue
+            read += 1
+            for sel, _d in _css_rules(css):
+                for one in sel.split(","):
+                    comps = _split_compounds(one)
+                    if not comps:
+                        continue
+                    ctx = {c for comp in comps[:-1] for c in _CLASS_RE.findall(comp)}
+                    for c in _CLASS_RE.findall(comps[-1]):
+                        if ctx:
+                            parts.setdefault(c, set()).update(ctx)
+                        else:
+                            top.add(c)
+                    for comp in comps[:-1]:              # a context class is itself a stock class
+                        top.update(_CLASS_RE.findall(comp))
+        assert read and top, ("no stock stylesheet could be read under %s — the bespoke measure would credit every "
+                              "class" % here)
+        _stock_class_cache[key] = (top, parts)
+    return _stock_class_cache[key]
+
+
+def _css_rules(css):
+    """[(selector, declarations)] of a stylesheet, @media/@supports flattened, @keyframes/@font-face skipped."""
+    css = re.sub(r"/\*.*?\*/", "", css or "", flags=re.S)
+    out, i, n, start = [], 0, len(css), 0
+    while i < n:
+        c = css[i]
+        if c == "{":
+            prelude = css[start:i].strip()
+            if prelude.startswith("@") and not re.match(r"@(media|supports|container|layer|document)\b", prelude):
+                depth, j = 1, i + 1                      # @keyframes / @font-face / @page: skip the whole block
+                while j < n and depth:
+                    depth += {"{": 1, "}": -1}.get(css[j], 0)
+                    j += 1
+                i = start = j
+                continue
+            if prelude.startswith("@"):                  # a grouping at-rule: descend into its rules
+                i = start = i + 1
+                continue
+            j = css.find("}", i)
+            j = n if j < 0 else j
+            out.append((prelude, css[i + 1:j]))
+            i = start = j + 1
+            continue
+        if c in "};":
+            if c == "}" or css[start:i].strip().startswith("@"):
+                start = i + 1
+        i += 1
+    return out
+
+
+def _layout_decls(decls):
+    """The LAYOUT declarations in a declaration block (colour, type, spacing and size are not layout)."""
+    hits = []
+    for d in str(decls or "").split(";"):
+        if ":" not in d:
+            continue
+        prop, val = (x.strip().lower() for x in d.split(":", 1))
+        val = val.replace("!important", "").strip()
+        if not prop or not val:
+            continue
+        if prop == "display" and val in ("grid", "inline-grid", "flex", "inline-flex"):
+            hits.append(prop)
+        elif prop.startswith("grid-template") or prop in ("grid-area", "grid-column", "grid-row", "grid-column-start",
+                                                         "grid-column-end", "grid-row-start", "grid-row-end",
+                                                         "grid-auto-flow", "flex-direction", "column-count",
+                                                         "columns", "clip-path", "offset-path", "shape-outside"):
+            if val not in ("none", "auto", "initial", "unset", "inherit"):
+                hits.append(prop)
+        elif prop == "position" and val in ("absolute", "fixed", "sticky"):
+            hits.append(prop)
+        elif prop in ("top", "left", "right", "bottom", "inset") and val not in ("auto", "initial", "unset"):
+            hits.append(prop)
+        elif prop in ("transform", "rotate", "translate", "scale") and val not in ("none", "initial", "unset"):
+            hits.append(prop)
+    return hits
+
+
+def _own_target(selector, stock, page_ctx, page_ids):
+    """True when a selector's LAST compound names an id the page carries, or a class the page carries that the stock
+    does not style there: not a stock top-level class, and not a stock part (`.band` of `.bullet .band`) sitting
+    under one of its stock contexts — in the selector or in the page. A rule styling nothing composes nothing."""
+    top, parts = stock
+    comps = _split_compounds(selector)
+    if not comps:
+        return False
+    if any(i in page_ids for i in re.findall(r"#(-?[^\W\d][\w-]*)", comps[-1])):
+        return True
+    ctx = {c for comp in comps[:-1] for c in _CLASS_RE.findall(comp)}
+    return any(c in page_ctx and c not in top and not (parts.get(c, set()) & (ctx | page_ctx[c]))
+               for c in _CLASS_RE.findall(comps[-1]))
+
+
+class _PageScan(HTMLParser):
+    """One pass over a page: style blocks, linked sheets, inline styles, svgs and images, with ancestor classes."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack, self.styles, self.links, self.inline, self.svgs, self.imgs = [], [], [], [], [], []
+        self.classes, self.headings, self._in_style, self._svg = [], 0, False, None
+        self.ctx, self.ids = {}, set()                   # class -> every ancestor class it sits under; element ids
+
+    def _anc(self):
+        return [c for _t, cs, _s in self.stack for c in cs]
+
+    def _ghosted(self, cls, style):
+        """True when this element or an ancestor is a backdrop (`bg-*`) left at a faint opacity (motifs.css sets
+        .bg-motif to .10; an inline opacity >= .5 makes it the page's drawing, not its wallpaper)."""
+        for cs, st in [(c, s) for _t, c, s in self.stack] + [(cls, style)]:
+            if any(c.startswith("bg-") for c in cs):
+                m = re.search(r"(?:^|;)\s*opacity\s*:\s*([\d.]+)", st or "")
+                try:
+                    if m is None or float(m.group(1)) < 0.5:
+                        return True
+                except ValueError:
+                    return True
+        return False
+
+    def handle_starttag(self, tag, attrs):
+        self._open(tag, dict(attrs), void=tag in _HTML_VOID)
+
+    def handle_startendtag(self, tag, attrs):
+        self._open(tag, dict(attrs), void=True)
+
+    def _open(self, tag, a, void):
+        cls = str(a.get("class") or "").split()
+        if self._svg is not None:
+            if tag in _SVG_PRIMITIVES:
+                self._svg["prims"] += 1
+        elif tag == "svg":
+            self._svg = {"classes": cls, "anc": self._anc(), "prims": 0, "depth": len(self.stack),
+                         "ghosted": self._ghosted(cls, str(a.get("style") or ""))}
+        if tag == "style":
+            self._in_style = True
+            self.styles.append("")
+        elif tag == "link" and "stylesheet" in str(a.get("rel") or "").lower():
+            self.links.append(str(a.get("href") or ""))
+        elif tag == "img":
+            self.imgs.append((str(a.get("src") or ""), cls, self._anc()))
+        if tag == "h1":
+            self.headings += 1
+        if self._svg is None or tag == "svg":
+            self.classes.extend(cls)
+            anc = set(self._anc())
+            for c in cls:
+                self.ctx.setdefault(c, set()).update(anc)
+            if a.get("id"):
+                self.ids.add(str(a.get("id")))
+            if a.get("style"):
+                self.inline.append((cls, self._anc(), str(a.get("style"))))
+        if not void:
+            self.stack.append((tag, cls, str(a.get("style") or "")))
+
+    def handle_endtag(self, tag):
+        if tag == "style":
+            self._in_style = False
+        for k in range(len(self.stack) - 1, -1, -1):
+            if self.stack[k][0] == tag:
+                del self.stack[k:]
+                break
+        if tag == "svg" and self._svg is not None and len(self.stack) <= self._svg["depth"]:
+            self.svgs.append(self._svg)
+            self._svg = None
+
+    def handle_data(self, data):
+        if self._in_style and self.styles:
+            self.styles[-1] += data
+
+
+def html_page_route(page_path, out_dir, built_tags, pos=None, n=None):
+    """(route, signal) for one page — route in built | bespoke | exempt | as-is (see the block above)."""
+    import workshop as _ws
+    html = open(page_path, encoding="utf-8", errors="replace").read()
+    tags = [t for t in _ws.page_custom_tags(html) if t in built_tags]
+    if tags:
+        return "built", "draws the workshop component <%s>" % tags[0]
+    scan = _PageScan()
+    scan.feed(re.sub(r"<!--.*?-->", "", html, flags=re.S))
+    scan.close()
+    if scan._svg is not None:                         # an unclosed <svg> still drew what it drew
+        scan.svgs.append(scan._svg)
+    assets_html = os.path.realpath(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                                "assets", "html"))
+    workshop_html = os.path.realpath(os.path.join(out_dir, "workshop")) if out_dir else None
+    theme_sheets, own_css = [], list(scan.styles)
+    for href in scan.links:
+        p = _ws._resolve(href, page_path)
+        if not p or not os.path.isfile(p):
+            continue
+        if p.startswith(assets_html + os.sep) or (workshop_html and p.startswith(workshop_html + os.sep)):
+            continue                                   # stock sheets (read below) and a component's own css
+        if os.path.basename(p) == "theme.css":
+            theme_sheets.append(p)                     # theme.py's output: whatever it defines is stock
+            continue
+        own_css.append(open(p, encoding="utf-8", errors="replace").read())
+    stock = html_stock_classes(tuple(theme_sheets))
+    # (a) page CSS laying out page-own targets
+    targets = []
+    for css in own_css:
+        for sel, decls in _css_rules(css):
+            if not _layout_decls(decls):
+                continue
+            targets += [s.strip() for s in sel.split(",")
+                        if s.strip() and _own_target(s, stock, scan.ctx, scan.ids)]
+    targets = list(dict.fromkeys(targets))
+    if len(targets) >= BESPOKE_CSS_TARGETS:
+        return "bespoke", "page CSS lays out %d page-own targets (%s)" % (len(targets), ", ".join(targets[:3]))
+    # (b) an inline svg that draws
+    stock_names = stock[0] | set(stock[1])
+    drawn = [s["prims"] for s in scan.svgs
+             if not (set(s["classes"]) & stock_names) and not s["ghosted"]
+             and not any(c.startswith("icon") for c in s["anc"] + s["classes"])]
+    if drawn and max(drawn) >= BESPOKE_SVG_PRIMITIVES:
+        return "bespoke", "an inline svg draws %d primitives" % max(drawn)
+    # (c) a hand-placed composition
+    placed = wrappers = 0
+    for cls, anc, style in scan.inline:
+        if any(c.startswith("bg-") for c in cls):
+            continue
+        hits = set(_layout_decls(style))
+        wrappers += "display" in hits
+        if ("position" in hits and hits & {"top", "left", "right", "bottom", "inset"}) or \
+                hits & {"transform", "rotate", "translate"}:
+            placed += 1
+    if placed >= BESPOKE_PLACED:
+        return "bespoke", "%d elements are hand-placed by inline position/transform" % placed
+    # EXEMPT: a real-photo plate — the picture IS the page (no archetype around it; a photo inside a hub-and-spoke
+    # is a stock page that happens to hold a photo)
+    used = set(scan.classes)
+    archetypes = sorted(c for c in used & stock_names if c not in _HTML_PLATE_CLASSES
+                        and not c.startswith("reveal") and not c.startswith("bg-"))
+    for src, cls, anc in (scan.imgs if not archetypes else []):
+        if "bg-photo" in cls or "media" in anc:
+            p = _ws._resolve(src, page_path)
+            side = (p + ".json") if p else None
+            if side and os.path.isfile(p) and os.path.isfile(side):
+                try:
+                    prov = json.load(open(side, encoding="utf-8"))
+                except (OSError, ValueError):
+                    prov = {}
+                if isinstance(prov, dict) and (prov.get("artist") or prov.get("license")):
+                    return "exempt", "a real-photo plate (%s, with its provenance)" % os.path.basename(p)
+    # EXEMPT: the open/close title card
+    if pos is not None and pos in (1, n) and ("title" in used or scan.headings) and all(
+            c in _HTML_TITLE_CLASSES or c.startswith("reveal") or c.startswith("bg-")
+            for c in used if c in stock_names):          # page-own classes may dress a title; no archetype may
+        return "exempt", "the %s title card" % ("opening" if pos == 1 else "closing")
+    why = []
+    if targets:
+        why.append("page CSS lays out only %s" % targets[0])
+    if drawn:
+        why.append("its svg draws %d primitive(s)" % max(drawn))
+    if placed:
+        why.append("%d hand-placed element(s)" % placed)
+    if wrappers:
+        why.append("%d inline grid/flex wrapper(s), which is stock layout written longhand" % wrappers)
+    return "as-is", ("stock archetypes only" + (" — " + "; ".join(why) if why else ""))
+
+
+def _plan_fits(out_dir):
+    """{beat index as str: beat dict} from a persisted design_plan.json, else {}."""
+    try:
+        plan = json.load(open(os.path.join(out_dir, "design_plan.json"), encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    if not isinstance(plan, dict):
+        return {}
+    raw = plan.get("beats") or plan.get("scenes") or []
+    beats = ([dict(v, index=k) for k, v in raw.items() if isinstance(v, dict)] if isinstance(raw, dict)
+             else [b for b in raw if isinstance(b, dict)])
+    return {str(b.get("index", b.get("beat"))): b for b in beats}
+
+
+def html_design_routes(meta, slides, out_dir):
+    """[(beat number, route, reason, page rel or None)] for an HTML film — see the block above."""
+    import workshop as _ws
+    bl = meta.get("build_list") if isinstance(meta.get("build_list"), list) else []
+    names = (_ws.component_names(out_dir) if out_dir else set()) | {
+        e.get("id") for e in bl if isinstance(e, dict) and e.get("kind") == "component" and isinstance(e.get("id"), str)}
+    built_tags = {_ws.component_tag(x) for x in names if x}
+    out, n = [], len(slides)
+    for pos, s in enumerate(slides, 1):
+        num, t = s.get("index", pos), s.get("type", "slide")
+        rel = (s.get("props") or {}).get("html") if isinstance(s.get("props"), dict) else None
+        if t == "slide":
+            out.append((num, "exempt", "a supplied picture (type slide)", None)); continue
+        if t == "html" and isinstance(rel, str) and rel:
+            path = os.path.join(out_dir or "", rel)
+            if not os.path.isfile(path):
+                continue                               # the page-exists check reports it
+            route, why = html_page_route(path, out_dir, built_tags, pos, n)
+            out.append((num, route, why, rel)); continue
+        if t == "title" and pos in (1, n):
+            out.append((num, "exempt", "the %s title card" % ("opening" if pos == 1 else "closing"), None)); continue
+        out.append((num, "as-is", "a stock %s scene" % t, None))
+    return out
+
+
+def _html_design_share(meta, slides, errors, warnings, out_dir):
+    if (meta.get("renderer") or "") == "remotion" or not slides or not out_dir:
+        return
+    if not any(s.get("type") == "html" for s in slides):
+        return                                         # the slides / 原样配音 tier, or a programmatic-only board
+    routes = html_design_routes(meta, slides, out_dir)
+    counted = [r for r in routes if r[1] != "exempt"]
+    if not counted:
+        return
+    by_num = {(s.get("index", i)): s for i, s in enumerate(slides, 1)}
+    credited = [r for r in counted if r[1] in ("built", "bespoke")]
+    asis = [r for r in counted if r[1] == "as-is"]
+    share = len(credited) / float(len(counted))
+
+    def _name(num, rel):
+        return "scene #%s%s" % (num, " (%s)" % rel if rel else "")
+
+    routes_txt = ("BUILD (scripts/workshop.py <out_dir> new-component <Name>, put its <tag> on the page and add the "
+                  "kind:\"component\" build-list entry) or BESPOKE (the page's own composition: a <style> that lays "
+                  "out at least %d page-own classes with grid/position/transform, an inline svg that draws the "
+                  "beat, or a hand-placed layout — not a stock archetype recoloured). Method: agents/design-director.md "
+                  "\"Design first\"" % BESPOKE_CSS_TARGETS)
+    if not credited:
+        errors.append("design-first: no page is BUILT or BESPOKE — all %d non-exempt beats are stock archetypes "
+                      "(%s). Make the beat whose idea the stock archetypes draw least well the film's signature, "
+                      "by %s." % (len(counted), "; ".join(_name(num, rel) for num, _r, _w, rel in asis[:8])
+                                  + (" …" if len(asis) > 8 else ""), routes_txt))
+    elif share < DESIGN_SHARE_FLOOR:
+        errors.append("design-first: only %d of %d non-exempt pages are built or bespoke (%d%%; the floor is half, "
+                      "and a strong film is mostly built or bespoke). Rework at least %d of the as-is pages — %s — "
+                      "by %s."
+                      % (len(credited), len(counted), round(100 * share),
+                         int(-(-DESIGN_SHARE_FLOOR * len(counted) // 1)) - len(credited),
+                         "; ".join("%s: %s" % (_name(num, rel), why) for num, _r, why, rel in asis[:8])
+                         + (" …" if len(asis) > 8 else ""), routes_txt))
+    elif not any(r[1] == "built" for r in counted):
+        warnings.append("design-first: no page is BUILT — the film's signature beat is a workshop component "
+                        "(agents/design-director.md \"Design first\")")
+    plan = _plan_fits(out_dir)
+    thin = []
+    for num, _route, _why, rel in asis:
+        fit = by_num.get(num, {}).get("shot_fit")
+        fit = dict(fit) if isinstance(fit, dict) else {}
+        pb = plan.get(str(num)) or {}
+        for f in ("ideal", "shares"):
+            if not _specific(fit.get(f)) and _specific(pb.get(f)):
+                fit[f] = pb.get(f)
+        miss = [f for f in ("ideal", "shares") if not _specific(fit.get(f))]
+        if miss:
+            thin.append("%s (%s)" % (_name(num, rel), " and ".join("shot_fit.%s" % f for f in miss)))
+    if thin:
+        errors.append("design-first: %d page(s) use stock archetypes AS-IS without earning it — %s. An as-is page "
+                      "writes `shot_fit.ideal` (the picture this idea needs, one line, no archetype named) and "
+                      "`shot_fit.shares` (the encoding the stock archetype already shares with that picture) on its "
+                      "beat — or `ideal` + `shares` on the beat in design_plan.json. \"It fits\" does not count. If "
+                      "you cannot name it, the archetype is not the ideal: %s."
+                      % (len(thin), "; ".join(thin[:8]) + (" …" if len(thin) > 8 else ""), routes_txt))
+
+
 def _check_html_build(meta, slides, errors, warnings, out_dir, skips=None):
     """WHAT AN HTML FILM BUILT (docs/superpowers/specs/2026-10-05-html-workshop-design.md). Every component in
     workshop/html/ has a `kind: "component"` build-list entry; every such entry names a component that exists
@@ -3995,6 +4414,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # WHAT AN HTML FILM BUILT — its components (workshop/html/), their build-list entries, and every custom
     # tag a page uses. A board with no workshop/html/, no component entry and no custom tag returns at once.
     _check_html_build(meta, slides, errors, warnings, out_dir, skips=skips)
+    _html_design_share(meta, slides, errors, warnings, out_dir)
 
     # Form-fit + creativity presence — mechanical hooks for design-critic D1/D2c, read from the
     # persisted design_plan.json (semantic judgment stays with the critic; these just flag the highest-

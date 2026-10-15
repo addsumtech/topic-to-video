@@ -576,7 +576,9 @@ def test_quantitative_archetypes_validate_clean(tmp_path):
             '</div>')
     slide = _html_scene(tmp_path, 0, "pages/s0.html", body)
     r = validate.evaluate(_board(str(tmp_path), [slide]), str(tmp_path))
-    assert r["errors"] == []
+    # a one-page film of stock archetypes is below the design-first floor (tests/test_html_design_first.py);
+    # what this test owns is that the archetypes themselves raise nothing
+    assert [e for e in r["errors"] if not e.startswith("design-first:")] == []
     assert not any("independently-meaningful facts" in w for w in r["warnings"])
     assert not any("uncued on a cued page" in w for w in r["warnings"])
 
