@@ -115,19 +115,22 @@ def test_no_recorded_depth_is_refused_at_delivery_not_run_as_thorough(tmp_path):
 
 
 def test_a_preselected_reviewing_tier_applied_without_a_reply_is_valid(tmp_path):
-    for tier in ("fast", "standard", "thorough"):
-        out = _out(tmp_path, {"tier": tier, "user_answer": "no reply (auto mode)", "preselected": tier})
+    # the pre-selection is COMPUTED (test_the_preselection_is_computed_not_chosen): fast on a plain board, standard
+    # on one where a machine gate's finding was waived
+    for tier, extra in (("fast", None), ("standard", {"energy_waiver": "a deliberately still lecture film"})):
+        out = _out(tmp_path / tier, {"tier": tier, "user_answer": "no reply (auto mode)", "preselected": tier},
+                   meta_extra=extra)
         _brief(out)
         _ledger(out)
         assert not cl.validate(out, final=True)[0], (tier, cl.validate(out, final=True)[0])
         # …but only as the PRE-SELECTED tier: a default answer naming another tier is nobody's choice
-        _set_review(out, preselected="fast" if tier != "fast" else "standard")
+        _set_review(out, tier="standard" if tier == "fast" else "fast")
         assert any("PRE-SELECTED" in e for e in cl.validate(out, final=True)[0]), tier
 
 
 def test_none_answered_by_the_user_waives_this_render_only(tmp_path):
     out = _out(tmp_path)
-    out = _out(tmp_path, {"tier": "none", "user_answer": "none", "render_sha256": _cur(out)})
+    out = _out(tmp_path, {"tier": "none", "user_answer": "none", "preselected": "fast", "render_sha256": _cur(out)})
     errs, warns = cl.validate(out, final=True)
     assert not errs and any("REVIEW WAIVED" in w for w in warns), (errs, warns)
     open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# not yet\n")
@@ -143,7 +146,7 @@ def test_none_answered_by_the_user_waives_this_render_only(tmp_path):
 
 def test_a_pass_must_be_on_the_current_render_even_when_the_cap_is_spent(tmp_path):
     # fast → render 1 PASS → the user asks for a change → re-render → briefed again → --final
-    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast"})
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
     _brief(out)
     _ledger(out)
     assert not cl.validate(out, final=True)[0]
@@ -158,7 +161,7 @@ def test_a_pass_must_be_on_the_current_render_even_when_the_cap_is_spent(tmp_pat
 
 
 def test_a_rebuilt_film_with_a_stale_contact_sheet_is_refused(tmp_path):
-    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast"})
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
     _brief(out)
     _ledger(out)
     kf = os.path.join(out, "_keyframes", "scene_01.png")
@@ -171,7 +174,7 @@ def test_a_rebuilt_film_with_a_stale_contact_sheet_is_refused(tmp_path):
 # ── a capped tier's spent last round: the USER decides what is left ─────────────────────────────────────
 
 def test_fast_ships_after_its_one_round_when_every_fix_was_applied(tmp_path):
-    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast"})
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
     _brief(out)
     reviewed = _cur(out)
     _revise(out)
@@ -189,7 +192,7 @@ def test_fast_ships_after_its_one_round_when_every_fix_was_applied(tmp_path):
 
 
 def test_the_model_may_not_decline_a_finding_the_user_may_accept_it(tmp_path):
-    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast"})
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
     _brief(out)
     sid = [d for d in [d for d, _ in cl.dimensions()] if d not in cl.never_accepted()][0]
     _revise(out, sid=sid, declined="it reads fine to me")
@@ -210,7 +213,7 @@ def test_the_model_may_not_decline_a_finding_the_user_may_accept_it(tmp_path):
 
 
 def test_a_faithfulness_finding_is_never_declined_or_accepted_only_fixed(tmp_path):
-    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast"})
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
     _brief(out)
     reviewed = _cur(out)
     _revise(out, sid=S3, declined="the number is close enough")
@@ -229,7 +232,7 @@ def test_a_faithfulness_finding_is_never_declined_or_accepted_only_fixed(tmp_pat
 # ── the round comes from the render history ─────────────────────────────────────────────────────────────
 
 def test_the_round_is_derived_from_the_history_not_self_reported(tmp_path):
-    out = _out(tmp_path, {"tier": "standard", "user_answer": "standard"})
+    out = _out(tmp_path, {"tier": "standard", "user_answer": "standard", "preselected": "fast"})
     _brief(out)                                   # round 1
     r1 = _cur(out)
     assert cl.round_of(out, r1) == 1
@@ -253,7 +256,7 @@ def test_the_round_is_derived_from_the_history_not_self_reported(tmp_path):
     assert cl.capped(out)[2:] == (2, True)
     assert not cl.validate(out, final=True)[0], cl.validate(out, final=True)[0]
     # thorough never spends: a REVISE on an earlier render is refused
-    out2 = _out(tmp_path / "t", {"tier": "thorough", "user_answer": "thorough"})
+    out2 = _out(tmp_path / "t", {"tier": "thorough", "user_answer": "thorough", "preselected": "fast"})
     _brief(out2)
     t1 = _cur(out2)
     _revise(out2, applied="x")
@@ -275,7 +278,7 @@ def test_a_render_briefed_before_the_depth_was_chosen_is_round_one_once_it_is(tm
 
 
 def test_the_tier_never_lowers_the_floors(tmp_path):
-    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast"})
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
     _brief(out)
     _revise(out, pin="0" * 64, applied="x")
     assert any("does not match" in e for e in cl.validate(out, final=True)[0])
@@ -292,7 +295,7 @@ def test_every_adapted_or_built_beat_needs_a_route_row(tmp_path):
     from test_design_first import _film
     meta, slides = _film(tmp_path, "ba")
     meta["design_dna"] = {"id": "x"}
-    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast"}, slides=slides, meta_extra=meta)
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast", "preselected": "fast"}, slides=slides, meta_extra=meta)
     _brief(out)
     _ledger(out)
     errs = cl.validate(out)[0]
@@ -318,6 +321,7 @@ def test_the_brief_tells_the_critic_the_fast_flow_and_the_routes_to_confirm(tmp_
     out = _out(tmp_path, None, slides=slides, meta_extra=meta)
     text = critic_brief.build(out)
     assert "NOT RECORDED" in text and "review-depth question" in text
+    assert "computed, not chosen: `fast`" in text, "the brief must say which option the question pre-selects"
     assert "beat 1 · BUILT" in text and "beat 2 · ADAPTED" in text and "visible" in text
     _set_review(out, tier="fast", user_answer="fast")
     text = critic_brief.build(out)
@@ -435,3 +439,69 @@ def test_an_old_format_history_entry_is_upgraded_in_place_not_counted_twice(tmp_
     _brief(out)
     assert cl._history(out) == [(cl.render_id(out), "fast")]
     assert cl.round_of(out, _cur(out)) == 1
+
+
+# ── the pre-selected depth is computed, not chosen ──────────────────────────────────────────────────────
+
+def test_the_preselection_is_computed_not_chosen(tmp_path):
+    out = _out(tmp_path)
+    assert cl.preselect(out)[0] == "fast"
+    # a machine gate's finding waived — any meta.*_waiver but the review's own — calls for standard
+    for key, val in (("energy_waiver", "a deliberately still lecture film"),
+                     ("energy_waiver", {"density": "a quiet ink-wash register, chosen with the user"}),
+                     ("contrast_waiver", "a gate that does not exist yet still counts the day it is written")):
+        out = _out(tmp_path / key / str(type(val).__name__), meta_extra={key: val})
+        tier, why = cl.preselect(out)
+        assert tier == "standard" and ("meta." + key) in why, (key, tier, why)
+    # …but not the review's own waiver, and not an empty one
+    for key, val in (("review_waiver", {"reason": "watched it, ship it", "render_sha256": "0" * 64}),
+                     ("energy_waiver", ""), ("energy_waiver", {}), ("energy_waiver", {"density": "  "})):
+        out = _out(tmp_path / ("n" + key) / str(len(str(val))), meta_extra={key: val})
+        assert cl.preselect(out)[0] == "fast", (key, val)
+    # never none, never thorough, whatever is on the board
+    out = _out(tmp_path / "all", meta_extra={"energy_waiver": "x" * 20, "review_waiver": "y" * 20})
+    assert cl.preselect(out)[0] == "standard"
+    p = subprocess.run([sys.executable, cl.__file__, out, "--preselect"], capture_output=True, text=True)
+    assert p.returncode == 0 and p.stdout.split("\n")[0] == "standard" and "energy_waiver" in p.stdout, p.stdout
+
+
+def test_final_holds_the_recorded_preselection_to_the_computed_one(tmp_path):
+    out = _out(tmp_path, {"tier": "fast", "user_answer": "fast"})
+    _brief(out)
+    _ledger(out)
+    errs = cl.validate(out, final=True)[0]
+    assert any("preselected is missing" in e and "--preselect" in e for e in errs), errs
+    assert not cl.validate(out)[0], "an interim run does not ask for it"
+    # the model may not pre-select the lighter tier when the board calls for standard…
+    out = _out(tmp_path / "w", {"tier": "fast", "user_answer": "no reply", "preselected": "fast"},
+               meta_extra={"energy_waiver": "a deliberately still lecture film"})
+    _brief(out)
+    _ledger(out)
+    errs = cl.validate(out, final=True)[0]
+    assert any("now calls for `standard`" in e and "Ask the question again" in e for e in errs), errs
+    # …nor `thorough`, which only the user asks for
+    _set_review(out, tier="thorough", user_answer="no reply", preselected="thorough")
+    assert any("now calls for `standard`" in e for e in cl.validate(out, final=True)[0])
+    # the user's REAL answer may pick any tier, beside the computed pre-selection
+    for tier in ("fast", "thorough"):
+        _set_review(out, tier=tier, user_answer="%s please" % tier, preselected="standard")
+        assert not cl.validate(out, final=True)[0], (tier, cl.validate(out, final=True)[0])
+    # a waiver added AFTER the question was asked: the board now calls for standard — ask again
+    out = _out(tmp_path / "late", {"tier": "fast", "user_answer": "fast", "preselected": "fast"})
+    _brief(out)
+    _ledger(out)
+    assert not cl.validate(out, final=True)[0]
+    b = json.load(open(os.path.join(out, "storyboard.json")))
+    b["meta"]["energy_waiver"] = "the film turned out quieter than the floor; the user agreed it should be"
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
+    errs = cl.validate(out, final=True)[0]
+    assert any("now calls for `standard`" in e and "asked with `fast`" in e for e in errs), errs
+
+
+def test_a_none_answer_is_held_to_the_computed_preselection_too(tmp_path):
+    out = _out(tmp_path)
+    out = _out(tmp_path, {"tier": "none", "user_answer": "none — I watched it", "render_sha256": _cur(out)})
+    errs = cl.validate(out, final=True)[0]
+    assert any("preselected is missing" in e for e in errs), errs
+    _set_review(out, preselected="fast")
+    assert not cl.validate(out, final=True)[0], cl.validate(out, final=True)[0]

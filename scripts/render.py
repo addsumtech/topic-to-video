@@ -1383,6 +1383,7 @@ Run these in order. The last one deletes this file when the review passes:
 
 ```sh
 python3 scripts/check_av.py       %(out)s          # must exit 0 first
+python3 scripts/critic_ledger.py  %(out)s --preselect      # the depth to pre-select; then ask the review-depth question
 python3 scripts/critic_brief.py   %(out)s          # keyframes + _frames/ + _contact_sheet.png + _critic_brief.md
 python3 scripts/critic_ledger.py  %(out)s --emit-template
 # dispatch agents/design-critic.md (its delivery section) as a SUBAGENT whose entire input is the path %(out)s —

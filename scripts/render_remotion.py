@@ -803,6 +803,7 @@ maker holds the intent, and the intent is what makes a wrong frame look right.
 Run these in order. The last one deletes this file when it passes:
 
 ```sh
+python3 scripts/critic_ledger.py  %(out)s --preselect      # the depth to pre-select; then ask the review-depth question
 python3 scripts/critic_brief.py   %(out)s          # _critic_brief.md + _contact_sheet.png
 python3 scripts/critic_ledger.py  %(out)s --emit-template
 # dispatch agents/shot-critic.md as a SUBAGENT whose entire input is the path %(out)s —

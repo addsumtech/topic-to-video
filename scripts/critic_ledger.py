@@ -5,6 +5,7 @@
     python3 scripts/critic_ledger.py <out_dir>                   # validate a filled ledger
     python3 scripts/critic_ledger.py <out_dir> --final           # ...as the DELIVERY gate
     python3 scripts/critic_ledger.py <out_dir> --render-id       # the current render id, alone on stdout
+    python3 scripts/critic_ledger.py <out_dir> --preselect       # the review depth to pre-select, and why
 
 ONE GATE, TWO CRITICS. A remotion film is reviewed by agents/shot-critic.md (the S-dimensions); an HTML-tier film
 (not remotion, at least one `type:"html"` page) by agents/design-critic.md's delivery section (the H-dimensions),
@@ -55,7 +56,9 @@ gate says so on every run rather than falling silent. Three properties make it s
 AND A REVIEW DEPTH THE USER CHOSE. After the first clean render the user picks how hard to review it —
 `meta.review = {tier, user_answer, preselected}` with tier fast | standard | thorough | none (SKILL.md "the
 review-depth question"). `--final` refuses a film with no `meta.review`: a depth nobody asked about is not a
-depth. A reviewing tier may be the PRE-SELECTED option applied without a reply (auto mode); `none` may not. The
+depth. The PRE-SELECTED option is computed, not chosen (preselect(): `standard` when a machine gate's finding was
+waived, else `fast`), and `--final` holds `meta.review.preselected` to it. A reviewing tier may be the pre-selected
+option applied without a reply (auto mode); `none` may not. The
 tier scales the WEIGHT of the loop, never the floors: every row, every cited file, an independent reviewer and
 the render pin are required on every tier that reviews. What the tier changes is the ROUND CAP — fast 1,
 standard 2, thorough unbounded — and the ROUND is the render's place in `_contact_sheet_history.json`
@@ -411,6 +414,53 @@ def review(out_dir):
     return dict(r, tier=tier), probs
 
 
+def _waived(v):
+    """True when a waiver value actually waives something: a non-empty reason, or an object/list holding one. An
+    empty `{}` or `""` waives nothing (film_energy_qa.parse_waiver drops empty reasons the same way)."""
+    if isinstance(v, str):
+        return bool(v.strip())
+    if isinstance(v, dict):
+        return any(_waived(x) for x in v.values())
+    if isinstance(v, (list, tuple)):
+        return any(_waived(x) for x in v)
+    return bool(v)
+
+
+def preselect(out_dir):
+    """(tier, why) — the review depth the review-depth question PRE-SELECTS, computed from the board.
+
+    SKILL.md said to pre-select `standard` "only on a CONCRETE trigger: a machine gate needed a waiver, or the design
+    self-check flagged an issue" — and left the choice to the model, which is the party with a reason to pick the
+    lighter tier, while no "design self-check" artifact exists anywhere to read. The trigger that IS on the board is
+    a machine gate's finding someone chose to waive: any `meta.<gate>_waiver` (today `energy_waiver`, film_energy_qa;
+    a future gate's waiver counts the day it is written, without editing this), except `review_waiver`, which waives
+    the review itself. Then `standard`; otherwise `fast`. Never `none` (only the user's own word) and never
+    `thorough` (the user's to ask for). An advisory warning argued away in triage is not a waiver and not a trigger."""
+    meta = _board_meta(out_dir)
+    keys = sorted(k for k, v in meta.items()
+                  if isinstance(k, str) and k.endswith("_waiver") and k != WAIVER_KEY and _waived(v))
+    if keys:
+        return "standard", ("a machine gate's finding was waived (%s) — a film that needed a waiver gets the second "
+                            "pair of eyes" % ", ".join("meta." + k for k in keys))
+    return "fast", "no machine gate's finding was waived (no meta.*_waiver on the board besides review_waiver)"
+
+
+def _preselect_problems(out_dir, rv):
+    """--final: meta.review.preselected must be recorded and must be what preselect() computes NOW."""
+    want, why = preselect(out_dir)
+    pre = str((rv or {}).get("preselected") or "").strip().lower()
+    if not pre:
+        return ["meta.%s.preselected is missing — record the tier the question PRE-SELECTED; it is computed, not "
+                "chosen: python3 scripts/critic_ledger.py <out_dir> --preselect → `%s` (%s)" % (REVIEW_KEY, want, why)]
+    if pre == "none" or pre not in TIERS:
+        return []                                  # review() already refuses these
+    if pre != want:
+        return ["the board now calls for `%s` to be pre-selected (%s), but the review-depth question was asked with "
+                "`%s` pre-selected — the pre-selection is computed (--preselect), not chosen. Ask the question again "
+                "with `%s` pre-selected, say why, and record the new answer" % (want, why, pre, want)]
+    return []
+
+
 def accepted(out_dir):
     """{(finding id, render sha)} the user accepted as-is (meta.review.accepted)."""
     r = _board_meta(out_dir).get(REVIEW_KEY)
@@ -730,10 +780,16 @@ def validate(out_dir, final=False):
     rv, rprobs = review(out_dir)
     if rprobs:
         errs.extend("the recorded review depth is not usable: " + p for p in rprobs)
+    # THE PRE-SELECTION IS COMPUTED, not chosen (preselect): checked at delivery, on every answer the question took
+    # — `none` included, since it too was asked with a pre-selected option beside it
+    pre_errs = _preselect_problems(out_dir, rv) if final and rv is not None and not rprobs else []
+    errs.extend(pre_errs)
     wv, wprobs = waiver(out_dir)
     if wv is not None:
         if wprobs:
             return (sorted(set(errs + ["the review waiver is not usable: " + p for p in wprobs])), [])
+        if pre_errs:
+            return (pre_errs, [])
         return ([], ["REVIEW WAIVED BY THE USER for this render — no critic judged this film. Reason given: "
                      "%r. The deterministic gates still apply and still gate delivery; this waives taste, "
                      "not whether the file plays." % str(wv.get("reason"))[:160]])
@@ -896,12 +952,20 @@ def validate(out_dir, final=False):
 def main(argv):
     if not argv:
         print(__doc__.strip().splitlines()[0])
-        print("usage: critic_ledger.py <out_dir> [--emit-template] [--final] [--render-id]")
+        print("usage: critic_ledger.py <out_dir> [--emit-template] [--final] [--render-id] [--preselect]")
         return 2
     out_dir = os.path.abspath(argv[0])
     if not os.path.isdir(out_dir):
         print("[critic_ledger] no such out_dir: %s" % out_dir)
         return 2
+    if "--preselect" in argv:
+        # the tier ALONE on the first line, the reason on the second — the reason is said in the question. Asked on
+        # every tier, the 原样配音 one included: the review-depth question is, even where no ledger follows it
+        tier, why = preselect(out_dir)
+        print(tier)
+        print("[critic_ledger] pre-select `%s` — %s. Record it as meta.%s.preselected; never `none`, never `thorough`."
+              % (tier, why, REVIEW_KEY))
+        return 0
     if film_tier(out_dir) is None:
         print("[critic_ledger] NOT APPLICABLE — %s" % NOT_APPLICABLE)
         print("[critic_ledger] nothing was checked: exit 2 is not a pass")

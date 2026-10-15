@@ -2682,7 +2682,8 @@ def test_the_ledger_requires_every_dimension_and_refuses_a_bare_consent(tmp_path
     _t = os.path.getmtime(os.path.join(out, "_keyframes", "scene_03.png")) + 1
     os.utime(os.path.join(out, mod.CONTACT_SHEET), (_t, _t))
     # delivery needs the depth the user chose (SKILL.md 9d); the full loop here
-    json.dump({"meta": {"renderer": "remotion", "review": {"tier": "thorough", "user_answer": "thorough"}},
+    json.dump({"meta": {"renderer": "remotion", "review": {"tier": "thorough", "user_answer": "thorough",
+                                                               "preselected": "fast"}},
                "slides": []}, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"))
     lp = os.path.join(out, mod.LEDGER_NAME)
     dims = [d for d, _ in mod.dimensions()]

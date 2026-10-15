@@ -63,13 +63,18 @@ def _library_entries(shots):
     return out
 
 
-def _review_depth(meta, how):
+def _review_depth(meta, how, out_dir=None):
     """The `**Review depth**` line: the tier the user chose and what it means for THIS tier's critics (`how`)."""
     _rv = meta.get("review") if isinstance(meta.get("review"), dict) else {}
     _tier = str(_rv.get("tier") or "").lower()
+    pre = ""
+    if out_dir:
+        import critic_ledger as _cl
+        want, why = _cl.preselect(out_dir)
+        pre = " Its pre-selected option is computed, not chosen: `%s` (%s)." % (want, why)
     text = dict(how, none="the user waived the review — no critic should be running on this film.").get(
         _tier, "NOT RECORDED — the review-depth question (SKILL.md 9d) has not been asked. Ask it before "
-               "dispatching the critic; critic_ledger.py --final refuses a film with no meta.review.")
+               "dispatching the critic; critic_ledger.py --final refuses a film with no meta.review." + pre)
     return "**Review depth: `%s`** — %s" % (_tier or "?", text)
 
 
@@ -116,7 +121,7 @@ def build(out_dir, ran=None):
                 "decline one, and a faithfulness/sourcing FAIL is always fixed.",
         "standard": "this critic plus agents/critic-av.md, up to TWO rounds; round 2 is a full fresh review. "
                     "A FAIL left after round 2 goes back to the USER, as on fast.",
-        "thorough": "the full loop: REVISE → fix → re-render → fresh independent review, until PASS."}))
+        "thorough": "the full loop: REVISE → fix → re-render → fresh independent review, until PASS."}, out_dir))
     L.append("")
     L.append("## 1 · Already decided by machine — do NOT re-judge these")
     L.append("")
@@ -340,7 +345,7 @@ def _build_html(out_dir, board, ran):
                     "up to TWO rounds; round 2 is a full fresh review. A FAIL left after round 2 goes back to the "
                     "USER, as on fast.",
         "thorough": "design-critic + critic-av in the full loop: REVISE → fix → re-render → fresh independent "
-                    "review, until PASS."}))
+                    "review, until PASS."}, out_dir))
     L.append("")
     L.append("## 1 · Already decided by machine — do NOT re-judge these")
     L.append("")

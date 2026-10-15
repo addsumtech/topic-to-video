@@ -961,12 +961,16 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    | `thorough` | the full loop: REVISE → fix → re-render → fresh independent review, until PASS | open-ended; each round is a re-render plus a fresh review |
    | `none` | no critic — the user's own viewing is the review, recorded as user-waived | nothing further |
 
-   **Pre-select `fast`** by default. **Pre-select `standard`, and say why in the question,** only on a CONCRETE
-   trigger: a machine gate needed a waiver, or the design self-check flagged an issue. An advisory warning you
-   argued for in 9a's triage is not a trigger. `none` is NEVER pre-selected and never inferred from silence, a
-   "looks fine", or a green gate — only the user's explicit pick. In auto mode, or when the user does not reply,
-   the pre-selected reviewing tier applies and is recorded as such (`"user_answer": "no reply"`, `"preselected"`
-   = the tier). Record the answer as `meta.review` in `storyboard.json`:
+   **The pre-selected option is COMPUTED, not chosen:** `python3 scripts/critic_ledger.py <out_dir> --preselect`
+   prints it and why. It is `standard` when a machine gate's finding was waived — any `meta.*_waiver` on the board
+   except `review_waiver` (today `meta.energy_waiver`, film_energy_qa's) — and `fast` otherwise; say the reason in
+   the question when it is `standard`. An advisory warning you argued for in 9a's triage is not a trigger.
+   `thorough` is never pre-selected (the user asks for it), and `none` is NEVER pre-selected and never inferred from
+   silence, a "looks fine", or a green gate — only the user's explicit pick. In auto mode, or when the user does not
+   reply, the pre-selected reviewing tier applies and is recorded as such (`"user_answer": "no reply"`,
+   `"preselected"` = the tier). `critic_ledger.py --final` requires `meta.review.preselected` and holds it to what
+   `--preselect` computes NOW — a waiver added after the question was asked means asking it again. Record the
+   answer as `meta.review` in `storyboard.json`:
 
    ```json
    "review": {"tier": "fast", "user_answer": "<the option or words the user gave, or \"no reply\">",
