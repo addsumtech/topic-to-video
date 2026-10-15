@@ -4074,18 +4074,21 @@ def test_the_critic_brief_ships_the_gate_that_decides_and_labels_the_one_that_do
     the judgement to go around the brief. The next one files four revisions against correct frames while
     nothing measures the failure that actually destroys type.
     """
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = open(os.path.join(root, "scripts", "critic_brief.py"), encoding="utf-8").read()
-
-    assert "text_safe_qa.py" in src, (
+    # The brief runs critic_ledger.DELIVERY_GATES (the list --final also holds the record to), so the property is
+    # asked of that list, in the order the brief prints it — not of whichever file happens to spell it out.
+    import critic_ledger as cl
+    rows = cl.DELIVERY_GATES["remotion"]
+    scripts = [s for _l, s, _a, _t, _b, _ap in rows]
+    assert "text_safe_qa.py" in scripts, (
         "critic_brief no longer hands the critic the gate that DECIDES whether type is cut off")
-    assert src.index("text_safe_qa.py") < src.index("frame_safe_qa.py"), (
+    assert scripts.index("text_safe_qa.py") < scripts.index("frame_safe_qa.py"), (
         "the advisory border measure is printed before the authoritative type gate — a reader takes the "
         "first verdict as the verdict")
-    band = src[src.index("frame_safe_qa.py") - 400:src.index("frame_safe_qa.py") + 60]
-    assert "ADVISORY" in band or "advisory" in band, (
+    label, _s, _a, _t, blocking, _ap = rows[scripts.index("frame_safe_qa.py")]
+    assert "ADVISORY" in label and blocking is False, (
         "frame_safe_qa is still presented as a peer of the real gate; its own label has to say it is "
         "advisory, or the critic reads a known-inverted FAIL as a finding")
+    assert all(b for _l, s, _a, _t, b, _ap in rows if s == "text_safe_qa.py"), "the authoritative gate must block"
 
 
 def test_lastleg_kicker_clears_its_own_rail_and_its_gap_label_is_bounded():
