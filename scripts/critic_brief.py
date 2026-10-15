@@ -88,13 +88,19 @@ def build(out_dir):
     # THE DEPTH THE USER CHOSE decides the shape of this pass (SKILL.md, the review-depth question). The floors
     # do not move with it: every ledger row, cited evidence, an independent reviewer.
     _rv = meta.get("review") if isinstance(meta.get("review"), dict) else {}
-    _tier = str(_rv.get("tier") or "").lower() or "thorough"
+    _tier = str(_rv.get("tier") or "").lower()
     _how = {"fast": "ONE combined pass carrying the A/V lens too (agents/critic-av.md), ONE round. Fill every "
-                    "ledger row; write FIXes for the top issues by impact and mark the rest `declined` with why.",
-            "standard": "this critic plus agents/critic-av.md, up to TWO rounds; round 2 is a full fresh review.",
+                    "ledger row. Only your TOP issues by impact are FAIL rows, each with a FIX; an observation "
+                    "below the top goes in that dimension's `note` on a pass row, never as a FAIL. A FAIL left "
+                    "when the round is spent goes back to the USER (one more round, or accept as-is) — you never "
+                    "decline one, and a faithfulness/sourcing FAIL is always fixed.",
+            "standard": "this critic plus agents/critic-av.md, up to TWO rounds; round 2 is a full fresh review. "
+                        "A FAIL left after round 2 goes back to the USER, as on fast.",
             "thorough": "the full loop: REVISE → fix → re-render → fresh independent review, until PASS.",
-            "none": "the user waived the review — no critic should be running on this film."}.get(_tier, "?")
-    L.append("**Review depth: `%s`**%s — %s" % (_tier, "" if _rv else " (no meta.review recorded)", _how))
+            "none": "the user waived the review — no critic should be running on this film."}.get(
+        _tier, "NOT RECORDED — the review-depth question (SKILL.md 9d) has not been asked. Ask it before "
+               "dispatching the critic; critic_ledger.py --final refuses a film with no meta.review.")
+    L.append("**Review depth: `%s`** — %s" % (_tier or "?", _how))
     L.append("")
     L.append("## 1 · Already decided by machine — do NOT re-judge these")
     L.append("")
@@ -213,6 +219,30 @@ def build(out_dir):
                         "`, `".join(e["slot"]) if isinstance(e.get("slot"), list) else e.get("slot"), e.get("beats"),
                         ", promoted" if e.get("promoted") else "", e.get("means"), e.get("accept"),
                         " · settled frame: `%s`" % still if os.path.exists(os.path.join(out_dir, still)) else ""))
+    # THE ROUTES TO CONFIRM (S14): what validate.py credits as adapted or built, from the board. The critic says,
+    # per beat, whether that route is VISIBLE in the frame — a ledger `routes` row each (critic_ledger.py).
+    try:
+        import validate as _v
+        _routes = [(n, r, w) for n, r, w in _v.design_routes(meta, slides, out_dir) if r in ("adapted", "built")]
+    except Exception as e:                                    # noqa: BLE001 — report, never mask
+        _routes, _rerr = None, e
+    L.append("")
+    if _routes is None:
+        L.append("**Routes to confirm (S14)** — could not be computed (%s); run scripts/validate.py" % _rerr)
+    elif _routes:
+        L.append("**Routes to confirm (S14)** — validate.py credits these beats; for each, record a ledger "
+                 "`routes` row `{beat, route, visible: true|false, evidence}` saying whether the route is VISIBLE "
+                 "in the rendered frame. A route you cannot see fails S14.")
+        by_pos = {i: sl for i, sl in enumerate(slides, 1)}
+        for num, route, why in _routes:
+            sl = next((x for i, x in by_pos.items() if x.get("index", i) == num), {})
+            fit = sl.get("shot_fit") if isinstance(sl.get("shot_fit"), dict) else {}
+            ad = sl.get("shot_adaptation") if isinstance(sl.get("shot_adaptation"), dict) else {}
+            ch = ad.get("changes") if isinstance(ad.get("changes"), list) else []
+            L.append("- beat %s · %s%s · ideal: %s%s" % (
+                num, route.upper(), (" (%s)" % why) if why else "", fit.get("ideal") or "-",
+                (" · changes: " + "; ".join("%s — %s" % (c.get("aspect"), c.get("what"))
+                                            for c in ch if isinstance(c, dict))) if ch else ""))
     L.append("")
     L.append("## 5 · The registers this film uses")
     L.append("")

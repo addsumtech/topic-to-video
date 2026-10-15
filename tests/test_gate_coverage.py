@@ -130,9 +130,12 @@ def test_check_av_main_exits_nonzero_when_it_could_not_measure(tmp_path):
 def test_critic_ledger_coverage_is_derived_from_the_critic(tmp_path):
     from PIL import Image
     out = str(tmp_path)
-    Image.new("RGB", (32, 32), (20, 30, 40)).save(os.path.join(out, critic_ledger.CONTACT_SHEET))
     os.makedirs(os.path.join(out, "_keyframes"))
     Image.new("RGB", (16, 16), (200, 200, 200)).save(os.path.join(out, "_keyframes", "scene_01.png"))
+    # the sheet is built FROM the keyframes, so it is the newer file (a stale sheet is refused)
+    Image.new("RGB", (32, 32), (20, 30, 40)).save(os.path.join(out, critic_ledger.CONTACT_SHEET))
+    _t = os.path.getmtime(os.path.join(out, "_keyframes", "scene_01.png")) + 1
+    os.utime(os.path.join(out, critic_ledger.CONTACT_SHEET), (_t, _t))
     dims = [d for d, _ in critic_ledger.dimensions()]
     led = {"reviewer": "independent", "verdict": "PASS",
            "contact_sheet_sha256": critic_ledger.sha256_of(os.path.join(out, critic_ledger.CONTACT_SHEET)),

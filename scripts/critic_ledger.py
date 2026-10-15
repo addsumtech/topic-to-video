@@ -43,15 +43,25 @@ gate says so on every run rather than falling silent. Three properties make it s
   judgement about taste, never about whether the file plays.
 
 AND A REVIEW DEPTH THE USER CHOSE. After the first clean render the user picks how hard to review it —
-`meta.review = {tier, user_answer}` with tier fast | standard | thorough | none (SKILL.md "the review-depth
-question"). The tier scales the WEIGHT of the loop, never the floors: every row, every cited file, an
-independent reviewer and the render pin are required on every tier that reviews. What the tier changes is the
-ROUND CAP — fast 1, standard 2, thorough unbounded (the loop until PASS, which is also what an absent
-`meta.review` means: a depth nobody chose is never the light one). Once a capped tier has spent its rounds, a
-REVISE ledger may close the loop when every failed row records what was `applied` (or why it was `declined`);
-the film ships marked "reviewed at <tier>, last round's fixes not re-reviewed", never as a PASS.
+`meta.review = {tier, user_answer, preselected}` with tier fast | standard | thorough | none (SKILL.md "the
+review-depth question"). `--final` refuses a film with no `meta.review`: a depth nobody asked about is not a
+depth. A reviewing tier may be the PRE-SELECTED option applied without a reply (auto mode); `none` may not. The
+tier scales the WEIGHT of the loop, never the floors: every row, every cited file, an independent reviewer and
+the render pin are required on every tier that reviews. What the tier changes is the ROUND CAP — fast 1,
+standard 2, thorough unbounded — and the ROUND is the render's place in `_contact_sheet_history.json`
+(critic_brief.py records each briefed render), never a number the ledger writes about itself.
+* A PASS covers the render it saw: it must be pinned to the CURRENT render.
+* Once a capped tier has spent its rounds, a REVISE ledger may close the loop — pinned to the render it reviewed
+  — only when every failed row is resolved: its fix `applied` in a later render, or ACCEPTED AS-IS by the user
+  (`meta.review.accepted`, per finding, in their words, pinned to that render). The model never declines a
+  finding; a faithfulness or sourcing finding (S3) is never accepted by anyone — it is fixed. The film ships
+  marked "reviewed at <tier>, not a PASS", never as a PASS.
 `none` is the same decision as `review_waiver` and is held to the same rules: the user's own answer, pinned to
 the render they watched, never pre-selected and never inferred.
+
+AND THE ROUTES. Every beat validate.py credits as ADAPTED or BUILT carries a route row in the ledger
+(`routes: [{beat, route, visible, evidence}]`): the critic confirms the route is VISIBLE in the rendered frame,
+and a route it cannot see fails S14. A self-described adaptation is a claim; this is where it is checked.
 
 The dimension list is PARSED from agents/shot-critic.md. Restating it here is how this repo's caption band
 became four disagreeing copies; a new dimension must be required by this gate the moment it is written down.
@@ -135,6 +145,9 @@ def template(out_dir):
             {"id": sid, "verdict": "", "evidence": "", "note": "", "fix": "", "_dimension": title}
             for sid, title in dimensions()
         ],
+        # THE ROUTES validate.py CREDITS — each one the critic confirms (or not) in the rendered frame (S14)
+        "routes": [{"beat": num, "route": route, "visible": None, "evidence": ""}
+                   for num, route in _design_routes(out_dir)],
     }
 
 
@@ -194,9 +207,11 @@ REVIEW_KEY = "review"
 TIERS = ("fast", "standard", "thorough", "none")
 ROUND_CAP = {"fast": 1, "standard": 2, "thorough": None}
 HISTORY = "_contact_sheet_history.json"
-# words that record a DEFAULT or an inference rather than an answer — `none` must be the user's own word
-_NOT_AN_ANSWER = {"default", "auto", "inferred", "assumed", "no answer", "no reply", "silence", "timeout",
-                  "n/a", "na", "unknown", "preselected", "pre-selected"}
+# words that record a DEFAULT or an inference rather than an answer. They are fine on fast/standard/thorough
+# when the tier is the PRE-SELECTED one (auto mode, or no reply) — a reviewing tier applied by default is still a
+# review. They are never enough for `none`, which exists only as the user's own word.
+_NOT_AN_ANSWER = {"default", "auto", "auto mode", "inferred", "assumed", "no answer", "no reply", "silence",
+                  "timeout", "n/a", "na", "unknown", "preselected", "pre-selected"}
 
 
 def _board_meta(out_dir):
@@ -209,49 +224,138 @@ def _board_meta(out_dir):
         return {}
 
 
+def _placeholder(text):
+    t = str(text or "").strip()
+    return t.startswith("<") and t.endswith(">")
+
+
+def _non_answer(text):
+    """True for an empty answer, the template placeholder, or a record of NO answer ("no reply", "auto mode",
+    "default (auto mode)") — matched as a leading phrase, so a note after it does not turn it into an answer."""
+    t = str(text or "").strip()
+    if not t or _placeholder(t):
+        return True
+    low = t.lower()
+    return any(low == w or re.match(re.escape(w) + r"(?![a-z])", low) for w in _NOT_AN_ANSWER)
+
+
 def review(out_dir):
     """(review_dict, [problems]) — the depth the user chose at the review question, or (None, []).
 
-    None means nobody recorded a choice, and the gate then behaves as `thorough`: the full independent loop
-    until PASS. Nothing here ever turns an absent or malformed answer into a lighter tier, least of all `none`."""
+    None means nobody recorded a choice. `--final` refuses that ("ask the review question"); an interim run
+    behaves as `thorough`. Nothing here ever turns an absent or malformed answer into a lighter tier, least of
+    all `none`."""
     r = _board_meta(out_dir).get(REVIEW_KEY)
     if r is None:
         return None, []
     if not isinstance(r, dict):
-        return None, ["meta.%s must be an object {tier, user_answer}" % REVIEW_KEY]
+        return None, ["meta.%s must be an object {tier, user_answer, preselected}" % REVIEW_KEY]
     probs = []
     tier = str(r.get("tier") or "").strip().lower()
     if tier not in TIERS:
         probs.append("meta.%s.tier %r must be one of %s" % (REVIEW_KEY, r.get("tier"), " | ".join(TIERS)))
     ans = str(r.get("user_answer") or "").strip()
-    if not ans or (ans.startswith("<") and ans.endswith(">")) or ans.lower() in _NOT_AN_ANSWER:
-        probs.append("meta.%s.user_answer %r is not an answer — record what the user actually said (or the "
-                     "option they picked) at the review question; a tier nobody chose is not a tier"
+    pre = str(r.get("preselected") or "").strip().lower()
+    if _placeholder(ans):
+        probs.append("meta.%s.user_answer %r is the template's placeholder, not an answer — record what the user said, or "
+                     "\"no reply\" when the pre-selected tier was applied without one" % (REVIEW_KEY, ans))
+    elif tier == "none" and _non_answer(ans):
+        probs.append("meta.%s.user_answer %r is not an answer — `none` exists only as the user's own word (the "
+                     "option they picked, or what they said); a default, an inference or silence is not it"
                      % (REVIEW_KEY, ans))
-    if str(r.get("preselected") or "").strip().lower() == "none":
+    elif tier in ROUND_CAP and _non_answer(ans) and pre != tier:
+        probs.append("meta.%s.user_answer %r records no reply, so the tier must be the one you PRE-SELECTED — "
+                     "set meta.%s.preselected to %r, or record the user's actual answer"
+                     % (REVIEW_KEY, ans, REVIEW_KEY, tier))
+    if pre == "none":
         probs.append("meta.%s.preselected is 'none' — `none` is never pre-selected; it exists only as the "
                      "user's own answer" % REVIEW_KEY)
+    elif pre and pre not in TIERS:
+        probs.append("meta.%s.preselected %r must be one of %s" % (REVIEW_KEY, pre, " | ".join(TIERS[:3])))
+    acc = r.get("accepted")
+    if acc is not None and not isinstance(acc, list):
+        probs.append("meta.%s.accepted must be a list of {id, user_answer, render_sha256} — one per finding the "
+                     "user accepted as-is" % REVIEW_KEY)
+    for i, a in enumerate(acc if isinstance(acc, list) else []):
+        if not isinstance(a, dict) or not str(a.get("id") or "").strip():
+            probs.append("meta.%s.accepted[%d] must be {id, user_answer, render_sha256}" % (REVIEW_KEY, i))
+        elif _non_answer(a.get("user_answer")) or len(str(a.get("user_answer")).strip()) < 2:
+            probs.append("meta.%s.accepted[%d] (%s) carries no user answer — an accepted finding is the USER's "
+                         "decision, recorded in their own words; nobody else may accept one"
+                         % (REVIEW_KEY, i, a.get("id")))
     return dict(r, tier=tier), probs
 
 
+def accepted(out_dir):
+    """{(finding id, render sha)} the user accepted as-is (meta.review.accepted)."""
+    r = _board_meta(out_dir).get(REVIEW_KEY)
+    acc = r.get("accepted") if isinstance(r, dict) else None
+    out = {}
+    for a in acc if isinstance(acc, list) else []:
+        if isinstance(a, dict) and not _non_answer(a.get("user_answer")) and len(str(a.get("user_answer")).strip()) >= 2:
+            out[(str(a.get("id") or "").strip(), str(a.get("render_sha256") or "").strip().lower())] = \
+                str(a.get("user_answer")).strip()
+    return out
+
+
+def never_accepted():
+    """The dimensions whose FAIL is always fixed, never accepted by anyone: faithfulness and sourcing. Parsed from
+    the critic's own titles, like the dimension list itself."""
+    return {sid for sid, title in dimensions() if re.search(r"FAITHFUL|SOURC", title, re.I)}
+
+
 def _history(out_dir):
+    """[(sha, tier at the time)] in the order the renders were first briefed. The older file — a sorted list of
+    shas — carries no order and no tier, so its renders count for membership but for no round."""
     try:
         h = json.load(open(os.path.join(out_dir, HISTORY), encoding="utf-8"))
-        return {str(x).lower() for x in h} if isinstance(h, list) else set()
     except Exception:                                         # noqa: BLE001 — no history = no earlier render
-        return set()
+        return []
+    out = []
+    for x in h if isinstance(h, list) else []:
+        if isinstance(x, dict) and x.get("sha"):
+            out.append((str(x["sha"]).lower(), x.get("tier") or None))
+        elif isinstance(x, str):
+            out.append((x.lower(), None))
+    return out
+
+
+def history_shas(out_dir):
+    return {sha for sha, _t in _history(out_dir)}
 
 
 def record_render(out_dir):
-    """Append the current contact sheet's sha to the out_dir's render history (critic_brief.py calls this), so
-    a capped tier's last-round ledger can be checked against a render this film really had."""
+    """Append the current contact sheet's sha to the out_dir's render history (critic_brief.py calls this, once
+    per review round), with the review tier recorded at the time. The ROUND of a ledger is derived from this
+    history (round_of), never from a field the ledger writes about itself."""
     sheet = os.path.join(out_dir, CONTACT_SHEET)
     if not os.path.exists(sheet):
         return None
     sha = sha256_of(sheet)
-    hist = sorted(_history(out_dir) | {sha})
+    rv, rprobs = review(out_dir)
+    tier = (rv or {}).get("tier") if rv and not rprobs and (rv or {}).get("tier") in ROUND_CAP else None
+    hist = [{"sha": s, "tier": t} for s, t in _history(out_dir)]
+    for e in hist:
+        if e["sha"] == sha:
+            if e["tier"] is None and tier:
+                e["tier"] = tier          # first briefed before the depth was chosen; this is its review round
+            break
+    else:
+        hist.append({"sha": sha, "tier": tier})
     json.dump(hist, open(os.path.join(out_dir, HISTORY), "w", encoding="utf-8"), indent=1)
     return sha
+
+
+def round_of(out_dir, sha):
+    """The review round a render was, counted from the render history: its position among the renders briefed
+    after the review depth was chosen. None when the render is not in the history or predates that choice."""
+    n = 0
+    for s, t in _history(out_dir):
+        if t:
+            n += 1
+        if s == str(sha or "").lower():
+            return n if t else None
+    return None
 
 
 WAIVER_KEY = "review_waiver"
@@ -286,6 +390,8 @@ def waiver(out_dir):
         w = {"reason": w}
     if not isinstance(w, dict):
         return None, ["meta.%s must be an object {reason, render_sha256} or a reason string" % WAIVER_KEY]
+    # name the field the user's answer actually lives in — `meta.review` (tier none) or the older form
+    key = REVIEW_KEY if w.get("_from") == REVIEW_KEY else WAIVER_KEY
     probs = []
     reason = str(w.get("reason") or "").strip()
     if w.get("_from") == REVIEW_KEY:
@@ -297,7 +403,7 @@ def waiver(out_dir):
     pinned = str(w.get("render_sha256") or "").strip().lower()
     if not pinned:
         probs.append("meta.%s.render_sha256 is empty — a waiver covers the render the user actually watched, "
-                     "so it must be pinned to one" % WAIVER_KEY)
+                     "so it must be pinned to one" % key)
     elif not os.path.exists(sheet):
         probs.append("%s is missing, so the pinned render cannot be checked — run scripts/critic_brief.py"
                      % CONTACT_SHEET)
@@ -305,21 +411,159 @@ def waiver(out_dir):
         probs.append("meta.%s was given for a DIFFERENT render (pinned %s, this film is %s). The film has "
                      "been re-rendered since it was waived; a waiver is not a standing licence over "
                      "everything changed afterwards. Show the user this cut and ask again, or review it."
-                     % (WAIVER_KEY, pinned[:12], sha256_of(sheet)[:12]))
+                     % (key, pinned[:12], sha256_of(sheet)[:12]))
     return w, probs
 
 
+def _ledger_pin(out_dir):
+    try:
+        return str(json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8"))
+                   .get("contact_sheet_sha256") or "").strip().lower()
+    except Exception:                                         # noqa: BLE001 — validate() reports the why
+        return ""
+
+
 def capped(out_dir):
-    """(tier, cap, round, spent) for the ledger in out_dir. `spent` is True once a capped tier has used its
-    rounds; thorough (and an unrecorded tier) never is."""
+    """(tier, cap, round, spent) for the ledger in out_dir. The ROUND is the round of the render the ledger is
+    pinned to, derived from the render history (round_of) — never read from the ledger. `spent` is True once a
+    capped tier has used its rounds; thorough (and an unrecorded tier) never is."""
     rv, rprobs = review(out_dir)
     tier = (rv or {}).get("tier") if rv and not rprobs else "thorough"
     cap = ROUND_CAP.get(tier)
+    rnd = round_of(out_dir, _ledger_pin(out_dir))
+    return tier, cap, rnd, bool(cap is not None and rnd is not None and rnd >= cap)
+
+
+def _stale_sheet(out_dir):
+    """True when a keyframe is newer than the contact sheet — the film was re-rendered and critic_brief.py was
+    not re-run, so the sheet (and every pin checked against it) still describes the OLD render."""
+    sheet = os.path.join(out_dir, CONTACT_SHEET)
+    kdir = os.path.join(out_dir, "_keyframes")
+    if not (os.path.exists(sheet) and os.path.isdir(kdir)):
+        return False
+    frames = [os.path.join(kdir, f) for f in os.listdir(kdir) if re.match(r"scene_\d+\.png$", f)]
+    return bool(frames) and max(os.path.getmtime(f) for f in frames) > os.path.getmtime(sheet)
+
+
+def _design_routes(out_dir):
+    """[(beat, route)] for the beats validate.py credits as ADAPTED or BUILT — the routes the critic must see."""
+    board = os.path.join(out_dir, "storyboard.json")
     try:
-        rnd = int(json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8")).get("round") or 1)
-    except Exception:                                         # noqa: BLE001
-        rnd = 1
-    return tier, cap, rnd, bool(cap is not None and rnd >= cap)
+        b = json.load(open(board, encoding="utf-8"))
+    except Exception:                                         # noqa: BLE001 — no board, no routes to verify
+        return []
+    slides = b.get("slides") if isinstance(b.get("slides"), list) else []
+    meta = b.get("meta") if isinstance(b.get("meta"), dict) else {}
+    if not slides or str(meta.get("renderer", "")).lower() not in ("remotion", "remotion-bespoke"):
+        return []
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import validate as _v
+    return [(num, r) for num, r, _w in _v.design_routes(meta, slides, out_dir) if r in ("adapted", "built")]
+
+
+def _cites(out_dir, ev):
+    """The cited files in an evidence string that do not exist."""
+    bad = []
+    for tok in re.findall(r"[\w./\\-]+\.(?:png|jpg|jpeg|mp4|json|md|srt)\b", ev):
+        cand = tok if os.path.isabs(tok) else os.path.join(out_dir, tok)
+        if not os.path.exists(cand) and not os.path.exists(os.path.join(_ROOT, tok)):
+            bad.append(tok)
+    return bad
+
+
+def _unresolved(out_dir, by_id, failed, pin, current, tier):
+    """Why each failed row of a capped tier's spent last round is NOT resolved. A finding is resolved by the fix
+    being APPLIED in a later render (the ledger is pinned to the render it reviewed, which is in the history), or
+    by the USER accepting it as-is (meta.review.accepted, their words, pinned to that same render). The model
+    never declines a finding, and nobody accepts a faithfulness or sourcing one: those are fixed."""
+    out, hard, acc = [], never_accepted(), accepted(out_dir)
+    ask = ("take it to the user: list the open findings and offer ONE MORE ROUND or ACCEPT AS-IS, and record an "
+           "acceptance in meta.%s.accepted as {id, user_answer (their words), render_sha256: %s}"
+           % (REVIEW_KEY, pin[:12] + "…"))
+    for sid in failed:
+        r = by_id[sid]
+        applied = str(r.get("applied", "")).strip()
+        user_ok = (sid, pin) in acc
+        if str(r.get("declined", "")).strip():
+            out.append("%s records `declined` — at the %s tier the model may not decline a finding. Apply the "
+                       "fix, or %s" % (sid, tier, ask))
+            continue
+        if sid in hard:
+            if user_ok or any(k[0] == sid for k in acc):
+                out.append("%s is a faithfulness/sourcing finding and was recorded as ACCEPTED — those are never "
+                           "accepted, by anyone: fix it, re-render, re-run critic_brief.py" % sid)
+            elif current or not applied:
+                out.append("%s (faithfulness/sourcing) failed and is not fixed — it is never accepted, by anyone: "
+                           "apply the fix, re-render, re-run scripts/critic_brief.py, and record `applied`" % sid)
+            continue
+        if user_ok:
+            continue
+        if applied and not current:
+            continue
+        if applied and current:
+            out.append("%s records `applied`, but this ledger is pinned to the CURRENT render — the fix is not in "
+                       "the film yet. Re-render and re-run scripts/critic_brief.py, or %s" % (sid, ask))
+        else:
+            stale = any(k[0] == sid for k in acc)
+            out.append("%s failed and is unresolved — the %s tier's rounds are spent. Apply its fix (record "
+                       "`applied` and re-render), or %s%s"
+                       % (sid, tier, ask, " (an acceptance pinned to another render does not carry over)"
+                          if stale else ""))
+    return out
+
+
+def _route_rows(out_dir, led, by_id, warns):
+    """Every beat validate.py credits as ADAPTED or BUILT needs a route row from the critic — the route seen in
+    the rendered frame, not only described on the board. A route the critic could not see makes S14 a FAIL."""
+    try:
+        routes = _design_routes(out_dir)
+    except Exception as e:                                    # noqa: BLE001 — report, never mask
+        return ["the design routes could not be computed (%s: %s) — run scripts/validate.py" % (type(e).__name__, e)]
+    if not routes:
+        return []
+    errs = []
+    rows = led.get("routes")
+    if not isinstance(rows, list):
+        return ["`routes` is missing — %d beat(s) are credited as ADAPTED or BUILT (%s); for each, the critic "
+                "records {beat, route, visible: true|false, evidence: <keyframe>} saying whether that route is "
+                "VISIBLE in the rendered frame (S14). --emit-template lists them."
+                % (len(routes), ", ".join("#%s %s" % rb for rb in routes[:8]))]
+    seen = {}
+    for r in rows:
+        if isinstance(r, dict):
+            seen[str(r.get("beat"))] = r
+    invisible = []
+    for num, route in routes:
+        r = seen.get(str(num))
+        if r is None:
+            errs.append("beat #%s is credited as %s and has no route row — S14 confirms the route in the frame"
+                        % (num, route.upper()))
+            continue
+        if str(r.get("route", "")).strip().lower() != route:
+            errs.append("beat #%s's route row says %r; validate.py credits it as %s — re-read the board"
+                        % (num, r.get("route"), route))
+        vis = r.get("visible")
+        if not isinstance(vis, bool):
+            errs.append("beat #%s's route row needs `visible: true|false` — is the %s route visible in the frame?"
+                        % (num, route))
+        ev = str(r.get("evidence", "")).strip()
+        if not ev:
+            errs.append("beat #%s's route row cites no evidence — name the keyframe it was judged on" % num)
+        for tok in _cites(out_dir, ev):
+            errs.append("beat #%s's route row cites %s, which does not exist" % (num, tok))
+        if vis is False:
+            invisible.append(str(num))
+    s14 = next((sid for sid, t in dimensions() if re.search(r"GROWTH", t)), None)
+    if invisible and s14 and str((by_id.get(s14) or {}).get("verdict", "")).lower() != "fail":
+        errs.append("the route rows say beat(s) %s do not show their route in the frame, but %s does not fail — "
+                    "an adaptation nobody can see is the register as-is" % (", ".join(invisible), s14))
+    extra = sorted(set(seen) - {str(n) for n, _r in routes})
+    if extra:
+        warns.append("route rows for beat(s) %s, which validate.py does not credit as adapted or built"
+                     % ", ".join(extra))
+    return errs
 
 
 def validate(out_dir, final=False):
@@ -334,33 +578,61 @@ def validate(out_dir, final=False):
         return ([], ["REVIEW WAIVED BY THE USER for this render — no critic judged this film. Reason given: "
                      "%r. The deterministic gates still apply and still gate delivery; this waives taste, "
                      "not whether the file plays." % str(wv.get("reason"))[:160]])
+    # NO DEPTH RECORDED IS NOT A DEPTH. It used to mean `thorough` in silence, so a run that never asked the
+    # question looked exactly like one where the user chose the full loop.
+    no_depth = ("no meta.%s recorded — ask the review-depth question (SKILL.md 9d: fast | standard | thorough "
+                "| none) and record the answer before delivery" % REVIEW_KEY) if rv is None and final else None
     path = os.path.join(out_dir, LEDGER_NAME)
     if not os.path.exists(path):
         return (errs + ["no %s — the review produced no per-dimension record. Run with --emit-template, fill every "
-                 "row, then re-run this gate." % LEDGER_NAME], [])
+                 "row, then re-run this gate." % LEDGER_NAME] + ([no_depth] if no_depth else []), [])
     try:
         led = json.load(open(path, encoding="utf-8"))
     except Exception as e:                                    # noqa: BLE001 - report, don't crash the gate
-        return (errs + ["%s is not valid JSON: %s" % (LEDGER_NAME, e)], [])
+        return (errs + ["%s is not valid JSON: %s" % (LEDGER_NAME, e)] + ([no_depth] if no_depth else []), [])
 
     # ── the artifact the reviewer actually looked at ────────────────────────────────────────────────────
     sheet = os.path.join(out_dir, CONTACT_SHEET)
+    tier, cap, rnd, spent = capped(out_dir)
+    overall = str(led.get("verdict", "")).strip().upper()
+    got = str(led.get("contact_sheet_sha256", "")).strip().lower()
+    current = False
     if not os.path.exists(sheet):
         errs.append("%s is missing — run scripts/critic_brief.py first; a review with no contact sheet saw "
                     "no film" % CONTACT_SHEET)
+    elif _stale_sheet(out_dir):
+        errs.append("%s is older than the keyframes — the film was re-rendered and the sheet was not rebuilt, so "
+                    "every pin checked against it describes the OLD render. Re-run scripts/critic_brief.py "
+                    "<out_dir> (it rebuilds the sheet and records the render), then this gate." % CONTACT_SHEET)
     else:
         want = sha256_of(sheet)
-        got = str(led.get("contact_sheet_sha256", "")).strip().lower()
+        current = got == want
         if not got:
             errs.append("contact_sheet_sha256 is empty — a ledger must be pinned to the render it reviewed")
-        elif got != want and capped(out_dir)[3] and got in _history(out_dir):
-            # A CAPPED TIER'S LAST ROUND reviewed an earlier render, its fixes were applied, and the tier the
-            # user chose does not re-review them. The pin must still name a render this film really had.
-            warns.append("this ledger reviews an earlier render (%s) — the %s tier's round cap is spent, so "
-                         "its fixes ship without a re-review" % (got[:12], capped(out_dir)[0]))
-        elif got != want:
+        elif current:
+            pass
+        elif got not in history_shas(out_dir):
             errs.append("contact_sheet_sha256 %s does not match the film's contact sheet (%s) — this ledger "
-                        "reviews a DIFFERENT render than the one in %s" % (got[:12], want[:12], out_dir))
+                        "reviews a DIFFERENT render than the one in %s, and not one this film ever had"
+                        % (got[:12], want[:12], out_dir))
+        elif overall == "PASS":
+            # A PASS COVERS THE RENDER IT SAW. Anything changed after it was never judged by anyone.
+            errs.append("this PASS reviewed an earlier render (%s), not the current one (%s) — the film changed "
+                        "after it passed, and a PASS covers only the render it saw. Review the current render."
+                        % (got[:12], want[:12]))
+        elif not spent:
+            errs.append("contact_sheet_sha256 %s does not match the film's contact sheet (%s) — this ledger "
+                        "reviews an earlier render, and the %s tier has rounds left (this was round %s of %s): "
+                        "review the current render" % (got[:12], want[:12], tier, rnd if rnd else "?",
+                                                       cap if cap else "unbounded"))
+        else:
+            # A CAPPED TIER'S LAST ROUND reviewed an earlier render and its fixes were applied; the rows must
+            # show every finding resolved (checked below), and the film ships marked as not re-reviewed.
+            warns.append("this ledger reviews an earlier render (%s) — the %s tier's round cap is spent, so "
+                         "its applied fixes ship without a re-review" % (got[:12], tier))
+    if "round" in led:
+        warns.append("the ledger's own `round` field is ignored — the round is derived from the render history "
+                     "(this ledger's render is round %s)" % (rnd if rnd else "unknown"))
 
     # ── one row per declared dimension, no more, no fewer ───────────────────────────────────────────────
     declared = dimensions()
@@ -412,27 +684,17 @@ def validate(out_dir, final=False):
             errs.append("%s failed with no FIX — a finding the director cannot act on is not a finding" % sid)
 
     # ── the film-level verdict must agree with the rows ─────────────────────────────────────────────────
-    overall = str(led.get("verdict", "")).strip().upper()
     if overall not in ("PASS", "REVISE"):
         errs.append("verdict must be PASS or REVISE")
     failed = sorted(s for s, r in by_id.items() if str(r.get("verdict", "")).lower() == "fail")
     if overall == "PASS" and failed:
         errs.append("verdict is PASS while %s failed" % ", ".join(failed))
-    tier, cap, rnd, spent = capped(out_dir)
-    if final and overall == "REVISE" and spent:
-        # THE ROUND CAP CLOSES THE LOOP, NOT THE FINDINGS: each failed row says what was done about it.
-        current = (os.path.exists(sheet)
-                   and str(led.get("contact_sheet_sha256", "")).strip().lower() == sha256_of(sheet))
-        for sid in failed:
-            r = by_id[sid]
-            if current and not str(r.get("declined", "")).strip():
-                errs.append("%s failed on THIS render and records no `declined` reason — the %s tier's last "
-                            "round is spent, so either apply the fix and re-render, or say why it is left"
-                            % (sid, tier))
-            elif not current and not (str(r.get("applied", "")).strip() or str(r.get("declined", "")).strip()):
-                errs.append("%s failed and records neither `applied` (what was changed) nor `declined` (why "
-                            "not) — the %s tier ships the last round's fixes without a re-review, so the "
-                            "record has to say what they were" % (sid, tier))
+    history_pin = bool(got) and not current and os.path.exists(sheet) and got in history_shas(out_dir)
+    if overall == "REVISE" and spent and (final or history_pin):
+        errs.extend(_unresolved(out_dir, by_id, failed, got, current, tier))
+
+    # ── the routes validate.py credited: did the critic SEE them in the frame? (S14) ─────────────────────
+    errs.extend(_route_rows(out_dir, led, by_id, warns))
 
     # ── who reviewed ────────────────────────────────────────────────────────────────────────────────────
     who = str(led.get("reviewer", "")).strip().lower()
@@ -444,7 +706,8 @@ def validate(out_dir, final=False):
                     "whose whole input is <out_dir>, and let it reach its own verdict.")
     elif who == "in-context":
         warns.append("in-context review — fine for an interim pass; delivery needs an independent one")
-
+    if no_depth:
+        errs.append(no_depth)
     return errs, warns
 
 
@@ -469,8 +732,10 @@ def main(argv):
     final = "--final" in argv
     wv, _wprobs = waiver(out_dir)
     _t, _c, _r, _sp = capped(out_dir)
-    print("[critic_ledger] review depth: %s%s" % (_t, "" if review(out_dir)[0] else
-                                                  " (no meta.review recorded — the full loop applies)"))
+    print("[critic_ledger] review depth: %s%s" % (
+        _t, "" if review(out_dir)[0] or wv is not None else
+        " (no meta.review recorded — an interim run uses the full loop; --final refuses until the review-depth "
+        "question is asked)"))
     errs, warns = validate(out_dir, final=final)
     cov = coverage(out_dir)
     for w in warns:
@@ -513,28 +778,35 @@ def main(argv):
     if final and wv is not None and not errs:
         with open(nd, "w", encoding="utf-8") as fh:
             fh.write("# Delivered WITHOUT a critic review\n\n"
-                     "The user waived `shot-critic` for this render (`meta.review_waiver` in "
+                     "The user waived `shot-critic` for this render (%s in "
                      "storyboard.json).\n\n- **Reason given:** %s\n- **Render this covers:** contact sheet "
                      "`%s`\n\nNo critic judged register fit, meaning, frame-craft, boldness or direction "
                      "adherence on this film. The deterministic gates DID run and did gate delivery.\n\n"
                      "If this film is re-rendered, the waiver expires with it: the pin above stops matching "
                      "and `critic_ledger.py --final` asks again.\n"
-                     % (str(wv.get("reason"))[:400],
-                        str(wv.get("render_sha256"))[:16]))
+                     % ("`meta.review` = `none`" if wv.get("_from") == REVIEW_KEY else "`meta.review_waiver`",
+                        str(wv.get("reason"))[:400], str(wv.get("render_sha256"))[:16]))
         print("[critic_ledger] delivered UNREVIEWED — rewrote NOT_DELIVERED.md to say so")
     elif final and not errs and overall == "REVISE" and capped(out_dir)[3]:
         tier, cap, rnd, _sp = capped(out_dir)
         led = json.load(open(os.path.join(out_dir, LEDGER_NAME), encoding="utf-8"))
         rows = [r for r in led.get("rows") or [] if str(r.get("verdict", "")).lower() == "fail"]
+        pin = str(led.get("contact_sheet_sha256") or "").strip().lower()
+        acc = accepted(out_dir)
+
+        def _how(r):
+            sid = str(r.get("id"))
+            if (sid, pin) in acc:
+                return "ACCEPTED AS-IS by the user: \"%s\"" % acc[(sid, pin)][:200]
+            return "fix applied, not re-reviewed: %s" % str(r.get("applied") or "-")[:200]
         with open(nd, "w", encoding="utf-8") as fh:
             fh.write("# Delivered after a `%s` review — not a PASS\n\n"
-                     "The user chose the `%s` review depth (%d round%s). The critic's last round said REVISE; "
-                     "its fixes were applied or declined as below and were NOT re-reviewed.\n\n%s\n\n"
+                     "The user chose the `%s` review depth (%d round%s; round %s was the last). The critic's last "
+                     "round said REVISE on render `%s`; each finding was either fixed in a later render (NOT "
+                     "re-reviewed) or accepted as-is by the user, as below.\n\n%s\n\n"
                      "The deterministic gates DID run and did gate delivery.\n"
-                     % (tier, tier, cap, "" if cap == 1 else "s",
-                        "\n".join("- **%s** — applied: %s · declined: %s"
-                                   % (r.get("id"), str(r.get("applied") or "-")[:200],
-                                      str(r.get("declined") or "-")[:200]) for r in rows)))
+                     % (tier, tier, cap, "" if cap == 1 else "s", rnd if rnd else "?", pin[:16],
+                        "\n".join("- **%s** — %s" % (r.get("id"), _how(r)) for r in rows)))
         print("[critic_ledger] delivered after a %s review (round cap spent) — NOT_DELIVERED.md records it"
               % tier)
     elif final and os.path.exists(nd):

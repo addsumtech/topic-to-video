@@ -10,11 +10,14 @@ description: "Reviews a rendered Remotion-tier topic-to-video film shot by shot.
 > copy) against the rendered evidence, and you gate delivery. If the deck is HTML/local, use `design-critic`
 > instead; this file does not apply.
 > **How hard is the user's choice** (`meta.review.tier`, asked after the first clean render — SKILL.md step 9):
-> `fast` = you alone, ONE round, carrying `critic-av`'s A/V lens too; fill EVERY ledger row, write FIXes for
-> the top issues by impact and mark the rest `declined` with why · `standard` = you + `critic-av`, up to two
-> rounds · `thorough` (or no `meta.review`) = the loop until PASS · `none` = you are not dispatched. The tier
-> never lowers a floor: every row, cited evidence, faithfulness (S3) and sourcing are judged on every tier, and
-> a faithfulness finding is never `declined`.
+> `fast` = you alone, ONE round, carrying `critic-av`'s A/V lens too; fill EVERY ledger row, and make only your
+> TOP issues by impact FAIL rows, each with a FIX — an observation below the top goes in that dimension's `note`
+> on a pass row, never as a FAIL · `standard` = you + `critic-av`, up to two rounds · `thorough` = the loop
+> until PASS · `none` = you are not dispatched. (No `meta.review` at all means the question was never asked:
+> say so; `--final` refuses it.) You never `declined` a finding: a FAIL left when the rounds are spent goes back
+> to the USER, who chooses one more round or accepts it as-is. The tier never lowers a floor: every row, cited
+> evidence, faithfulness (S3) and sourcing are judged on every tier, and an S3 finding — a number, quote, source
+> or photograph that does not trace to the beat's source — is always FIXED, never accepted by anyone.
 
 ## START HERE — and do not re-derive what is already decided
 
@@ -97,7 +100,10 @@ pipeline already had. What a count cannot answer is the next line.
 > **Precedent — `3685843`:** Same film. The cause was a selection RULE, not taste: registers were picked by "renders correctly on paper" instead of "belongs to this subject", and this library's centre of gravity is AI-product films — so that filter returned Term* and product registers for a place.
 > **Ask yourself:** Which family is this film leaning on, and did it CHOOSE that family or default into it?
 
-**S3 · FAITHFULNESS (hard gate).** Every on-screen NUMBER must trace to the beat's `source_ref` — a register
+**S3 · FAITHFULNESS (hard gate).** Faithfulness AND sourcing live in this one row, which is never accepted
+as-is by anyone (critic_ledger.py refuses it): a number, quote, source or real photograph that does not trace to
+the beat's `source_ref` (a photograph of the wrong place or thing included) is an S3 FAIL, whichever dimension
+first noticed it. Every on-screen NUMBER must trace to the beat's `source_ref` — a register
 that shows a figure (ChartLive/BeforeAfterSlider/VelocitySnap/BlueprintGrid counter) left on its **demo default**
 (128k / +18% / 0ms / WorkBuddy's 68×) on a DIFFERENT topic is a hard REVISE (pass a sourced figure or switch to a
 non-number register). No invented stats, quotes, or sources. And **no WorkBuddy-leftover copy** — a non-WorkBuddy
@@ -342,7 +348,10 @@ a one- or two-register family and took its only member — when that member's st
 beat's argument — should have built. `validate.py` warns when the declared vocabulary is mostly names the
 library already has; whether the FORMS are really this subject's is yours.
 **ARE THE ROUTES REAL?** (the design-first flow, shot-director Step 0.55). `validate.py` counts the share and
-refuses a thin note; only you can see whether the note is TRUE. Per beat: does the frame show the
+refuses a thin note; only you can see whether the note is TRUE. **Record it:** the brief lists every beat
+`validate.py` credits as ADAPTED or BUILT, and the ledger carries one `routes` row for each —
+`{"beat": N, "route": "adapted"|"built", "visible": true|false, "evidence": "_keyframes/scene_NN.png"}`
+(`--emit-template` lists them). `visible: false` on any row makes S14 a FAIL. Per beat: does the frame show the
 `shot_fit.ideal`? An ADAPTED beat's `shot_adaptation.changes` must be visible in the pixels (the layout/encoding/
 structure actually differs from the register's default use, not just its words). An AS-IS beat's
 `shot_fit.shares` must name an encoding the frame really carries — if the beat would look the same with any

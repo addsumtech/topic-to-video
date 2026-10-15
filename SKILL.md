@@ -936,36 +936,44 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 
    | option | what runs | rough cost (qualitative — no measured numbers exist for this skill) |
    |---|---|---|
-   | **`fast`** (default) | ONE combined critic (`shot-critic` carrying `critic-av`'s lens; HTML tier: `critic-av` + `design-critic`'s D-checks in one pass), ONE round, top issues by impact; the rest recorded `declined` | one subagent pass + one re-render if it finds something |
+   | **`fast`** (default) | ONE combined critic (`shot-critic` carrying `critic-av`'s lens; HTML tier: `critic-av` + `design-critic`'s D-checks in one pass), ONE round; only its top issues by impact are FAIL rows | one subagent pass + one re-render if it finds something |
    | `standard` | `shot-critic` + `critic-av` (HTML: `critic-av` + `design-critic`), up to TWO rounds, round 2 a full fresh review | about two to four subagent passes + re-renders |
    | `thorough` | the full loop: REVISE → fix → re-render → fresh independent review, until PASS | open-ended; each round is a re-render plus a fresh review |
    | `none` | no critic — the user's own viewing is the review, recorded as user-waived | nothing further |
 
-   **Pre-select `fast`** when the plan/design self-checks and every machine gate came back clean. **Pre-select
-   `standard`, and say why in the question,** when a gate needed a waiver or an accepted warning you had to argue
-   for, or the design self-check flagged issues. `none` is NEVER pre-selected and never inferred from silence,
-   a "looks fine", or a green gate — only the user's explicit pick. Record the answer as `meta.review` in
-   `storyboard.json`:
+   **Pre-select `fast`** by default. **Pre-select `standard`, and say why in the question,** only on a CONCRETE
+   trigger: a machine gate needed a waiver, or the design self-check flagged an issue. An advisory warning you
+   argued for in 9a's triage is not a trigger. `none` is NEVER pre-selected and never inferred from silence, a
+   "looks fine", or a green gate — only the user's explicit pick. In auto mode, or when the user does not reply,
+   the pre-selected reviewing tier applies and is recorded as such (`"user_answer": "no reply"`, `"preselected"`
+   = the tier). Record the answer as `meta.review` in `storyboard.json`:
 
    ```json
-   "review": {"tier": "fast", "user_answer": "<the option or words the user gave>",
+   "review": {"tier": "fast", "user_answer": "<the option or words the user gave, or \"no reply\">",
               "preselected": "fast", "render_sha256": "<sha256 of _contact_sheet.png — required for none>"}
    ```
 
-   `critic_ledger.py --final` reads it: a capped tier (`fast` 1 round, `standard` 2) whose last round said REVISE
-   closes when every failed row records `applied` (what changed) or `declined` (why not), and the film is marked
-   "reviewed at <tier>, not re-reviewed" — never a PASS; no `meta.review` at all means `thorough`. **What never
-   moves with the tier:** every machine gate above, the faithfulness and sourcing rules (a sourcing or
-   faithfulness finding is always fixed, never `declined`), the human script/audition checkpoint, an independent
-   reviewer, every ledger row, and the render pin.
-
-   **`none` waives the review — and only the user may choose it.** `meta.review = {"tier": "none",
-   "user_answer": ..., "render_sha256": ...}` (the older `meta.review_waiver` form is still read the same way):
+   `critic_ledger.py --final` reads it, and refuses a film with NO `meta.review` ("ask the review question"). The
+   ROUND is derived from the render history `critic_brief.py` records, never self-reported. A PASS must be pinned
+   to the CURRENT render. When a capped tier (`fast` 1 round, `standard` 2) has spent its rounds and the last one
+   said REVISE, every failed row is resolved one of two ways: its fix is **applied** in a re-render (record
+   `applied`; re-run `critic_brief.py` so the sheet and history match the new render), or — for a finding you
+   did not fix — it goes back to the **USER**: list the open findings and offer **one more round** or **accept
+   as-is**. You never decline a finding yourself. An acceptance is the user's, recorded per finding with their
+   words, pinned to the render the critic reviewed:
 
    ```json
-   "review_waiver": {"reason": "<what the user actually said>",
-                     "render_sha256": "<sha256 of _contact_sheet.png, which you compute>"}
+   "review": {..., "accepted": [{"id": "S8", "user_answer": "<their words>", "render_sha256": "<the ledger's pin>"}]}
    ```
+
+   The film then ships marked "reviewed at <tier>, not a PASS". **What never moves with the tier:** every
+   machine gate above, the faithfulness and sourcing rules (an S3 finding is always FIXED — never declined, never
+   accepted, by anyone), the human script/audition checkpoint, an independent reviewer, every ledger row, the
+   route rows (below), and the render pin.
+
+   **`none` waives the review — and only the user may choose it.** `meta.review = {"tier": "none",
+   "user_answer": "<what the user said>", "render_sha256": "<sha256 of _contact_sheet.png, which you compute>"}`
+   (the older `meta.review_waiver = {reason, render_sha256}` form is still read the same way).
 
    `critic_ledger.py --final` then exits 0 without a ledger, says REVIEW WAIVED on every run, and rewrites
    `NOT_DELIVERED.md` into a record that the film shipped unreviewed and why — a waiver is **not** a PASS,
@@ -991,11 +999,16 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    design ENCODE its beat's idea, not just look good?)**, **boldness (S8, audacity-scaled)** and direction
    adherence, and REVISEs failing beats (the shot-director re-assigns → re-render). Its verdict is a LEDGER:
    every dimension gets a row in `<out>/_critic_ledger.json` — the clean ones too, each citing the keyframe or
-   brief line it rests on — and `python3 scripts/critic_ledger.py <out_dir>` must exit 0. The delivery pass is a
+   brief line it rests on — plus one `routes` row per beat `validate.py` credits as ADAPTED or BUILT, saying
+   whether that route is VISIBLE in the rendered frame (a route nobody can see fails S14) — and
+   `python3 scripts/critic_ledger.py <out_dir>` must exit 0. **Every review round starts with `critic_brief.py`,
+   and so does `--final` after you apply fixes:** it rebuilds the contact sheet from the new keyframes and
+   records the render, which is what the round count and the render pin are checked against (a sheet older
+   than the keyframes is refused). The delivery pass is a
    fresh subagent whose ENTIRE input is the `<out_dir>` path — no rationale, no summary of what you fixed, no
    steer about where to look — then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it
-   refuses an in-context ledger, a ledger missing any dimension, and one pinned to a render this film never
-   had) (why: case-law W7). On the HTML tier the same depth applies to `critic-av` + `design-critic` (table
+   refuses an in-context ledger, a ledger missing any dimension, a PASS pinned to an earlier render, and one
+   pinned to a render this film never had) (why: case-law W7). On the HTML tier the same depth applies to `critic-av` + `design-critic` (table
    above).
    **9f · DELIVERY CRITERION — every gate, not two** (why: case-law W5). Deliver `out.mp4`, `out.srt`, and the
    editable `storyboard.json` only after **`validate.py`, `check_av.py`, `keyframe_qa.py`, `rhythm_qa.py` and

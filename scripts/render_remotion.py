@@ -807,6 +807,8 @@ python3 scripts/critic_brief.py   %(out)s          # _critic_brief.md + _contact
 python3 scripts/critic_ledger.py  %(out)s --emit-template
 # dispatch agents/shot-critic.md as a SUBAGENT whose entire input is the path %(out)s —
 #   no rationale, no summary of what you fixed, no steer about where to look
+# after applying fixes and re-rendering: python3 scripts/critic_brief.py %(out)s AGAIN (a new sheet + history),
+#   and ask the review-depth question first if meta.review is not recorded (SKILL.md 9d) — --final refuses both
 python3 scripts/critic_ledger.py  %(out)s --final
 #   exit 0 means the LEDGER is well formed — NOT that the film may ship. The verdict is what
 #   ships it: --final prints `the FILM is not delivered` on a REVISE and still exits 0, because

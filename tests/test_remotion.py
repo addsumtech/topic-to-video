@@ -2675,9 +2675,15 @@ def test_the_ledger_requires_every_dimension_and_refuses_a_bare_consent(tmp_path
     from PIL import Image
     mod, root = _critic_ledger()
     out = str(tmp_path)
-    Image.new("RGB", (64, 64), (30, 40, 60)).save(os.path.join(out, mod.CONTACT_SHEET))
     os.makedirs(os.path.join(out, "_keyframes"), exist_ok=True)
     Image.new("RGB", (32, 32), (200, 200, 200)).save(os.path.join(out, "_keyframes", "scene_03.png"))
+    # the sheet is built FROM the keyframes, so it is the newer file (a stale sheet is refused)
+    Image.new("RGB", (64, 64), (30, 40, 60)).save(os.path.join(out, mod.CONTACT_SHEET))
+    _t = os.path.getmtime(os.path.join(out, "_keyframes", "scene_03.png")) + 1
+    os.utime(os.path.join(out, mod.CONTACT_SHEET), (_t, _t))
+    # delivery needs the depth the user chose (SKILL.md 9d); the full loop here
+    json.dump({"meta": {"renderer": "remotion", "review": {"tier": "thorough", "user_answer": "thorough"}},
+               "slides": []}, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"))
     lp = os.path.join(out, mod.LEDGER_NAME)
     dims = [d for d, _ in mod.dimensions()]
 
