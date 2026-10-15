@@ -511,6 +511,14 @@ def fed_hash(name, ev=None):
     deeper, on the one register whose artefact this repo actually regenerates. Containment is now checked
     by resolving the path instead of by banning the separator, which is what the ban was standing in for —
     an absolute path or one climbing out of `public/` is refused, a nested one is read.
+
+    ...AND AN IMAGE IS ITS PIXELS, NOT ITS FILE. `public/` is not committed: `ensure_fixture` draws the stand-in
+    photograph on first use, from a fixed formula, so every machine gets the same PIXELS — but Pillow's PNG
+    encoder does not promise the same BYTES across versions (the committed rows were measured on a 14959-byte
+    file; Pillow 12.3 writes the identical picture in 14427). Hashed as bytes, every fresh install read the five
+    evidence registers fed that fixture as stale, so `density_advice` refused to advise and the gates that drop
+    stale rows dropped them — over a picture no pixel of which had changed. A decodable image is hashed as
+    mode + size + decoded pixels, which is what the register was fed; anything else as its bytes.
     """
     ev = evidence_props() if ev is None else ev
     props = ev.get(name)
@@ -524,8 +532,20 @@ def fed_hash(name, ev=None):
             continue
         f = os.path.realpath(os.path.join(pub, v))
         if f.startswith(pub + os.sep) and os.path.isfile(f):
-            h.update(open(f, "rb").read())
+            h.update(_artefact_bytes(f))
     return h.hexdigest()[:10]
+
+
+def _artefact_bytes(path):
+    """What a fed file contributes to fed_hash: an image's mode, size and decoded pixels (independent of how the
+    encoder packed them), or the raw bytes of anything PIL cannot decode."""
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            im.load()
+            return ("%s|%dx%d|" % (im.mode, im.size[0], im.size[1])).encode() + im.tobytes()
+    except Exception:                                         # noqa: BLE001 — not an image: its bytes are its identity
+        return open(path, "rb").read()
 
 
 def register_maps(data):
@@ -553,6 +573,9 @@ def stale(data):
     now = source_hashes()
     rows = data.get("registers") or {}
     was = data.get("_source") or {}
+    # `public/` is not committed: on a fresh install the stand-in photograph does not exist until something draws
+    # it, and fed_hash over a missing file is a different hash — every evidence row stale on first use.
+    ensure_fixture()
     # the SECOND dimension: rows written before this existed carry no `_fed`, and are left to the source
     # check alone rather than all being declared stale at once
     fed_was = data.get("_fed") or {}

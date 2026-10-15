@@ -266,6 +266,7 @@ def stale(data):
     """[(register, why)] — the same shape and the same reason as register_energy.stale, plus the fixture."""
     now = {n: re_mod.source_hash(n) for n in universe()}
     rows, was, out = data.get("registers") or {}, data.get("_source") or {}, []
+    re_mod.ensure_fixture()                                # a fresh install draws it first (register_energy.stale)
     fed = data.get("_props") or {}
     failed = failures(data)
     for n in sorted(rows):

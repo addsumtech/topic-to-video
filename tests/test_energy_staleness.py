@@ -262,3 +262,45 @@ def test_an_artefact_in_a_subdirectory_is_part_of_the_hash_and_one_outside_publi
     outside.write_bytes(b"two")
     assert re_.fed_hash("Y", ev) == before_y, (
         "a prop value climbing out of public/ was read as a fixture: %r" % ev["Y"])
+
+
+def test_a_fixture_is_its_pixels_not_its_encoding(tmp_path, monkeypatch):
+    """`public/` is not committed: `ensure_fixture` draws the stand-in photograph on first use, the same pixels on
+    every machine — but Pillow does not promise the same PNG BYTES across versions (the committed rows were measured
+    on a 14959-byte file; Pillow 12.3 writes the identical picture in 14427). Hashed as bytes, every fresh install
+    read the five registers fed that fixture as stale and `density_advice` refused to advise. The same picture
+    encoded two ways is one artefact; one changed pixel is another."""
+    from PIL import Image
+    monkeypatch.setattr(re_, "_REMOTION", str(tmp_path))
+    (tmp_path / "public").mkdir()
+    f = tmp_path / "public" / "fixture.png"
+    im = Image.new("RGB", (64, 40))
+    im.putdata([((x * 7) % 256, (y * 11) % 256, (x + y) % 256) for y in range(40) for x in range(64)])
+    ev = {"X": {"src": "fixture.png"}}
+
+    im.save(f, compress_level=1)
+    fast = f.read_bytes()
+    a = re_.fed_hash("X", ev)
+    im.save(f, compress_level=9)
+    assert f.read_bytes() != fast, "the two encodings must differ for this test to mean anything"
+    assert re_.fed_hash("X", ev) == a, "the same pixels, encoded differently, read as a changed artefact"
+
+    im.putpixel((3, 3), (255, 0, 0))
+    im.save(f, compress_level=9)
+    assert re_.fed_hash("X", ev) != a, "a changed pixel did not move the artefact's hash"
+
+    f.write_bytes(b"not an image")                       # anything PIL cannot decode is still hashed, as bytes
+    b = re_.fed_hash("X", ev)
+    f.write_bytes(b"not an image either")
+    assert re_.fed_hash("X", ev) != b
+
+
+def test_staleness_draws_a_missing_fixture_before_it_hashes(monkeypatch):
+    """On a fresh install the fixture does not exist until something draws it; hashing a missing file is a
+    different hash, so `stale()` would call every evidence row stale on first use. Both readers draw it first."""
+    import prop_reach as pr
+    calls = []
+    monkeypatch.setattr(re_, "ensure_fixture", lambda: calls.append(1))
+    re_.stale({"registers": {}})
+    pr.stale({"registers": {}})
+    assert len(calls) == 2, calls
