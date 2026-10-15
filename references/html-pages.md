@@ -273,7 +273,7 @@ AUTHORED into the first/last pages — `render.py` does not draw them (only the 
 fine here — only the render bug needs raster).
 
 **Cover LOCKUP — furniture, never the hero.** Small, in a TOP corner or under the title block —
-never the bottom ~14% (that's the overlay caption zone; a bottom-corner lockup trips the blocking
+never the bottom caption band (`caption_band_px`: 200 px ≈ 18.5% at 16:9 — the overlay caption zone; a bottom-corner lockup trips the blocking
 caption-zone gate). The topic is the hero, the mark is a byline — it must not compete with the
 title/kicker:
 ```html

@@ -89,7 +89,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     (`references/motion-grammar.md` "Transition rhythm" / "Transition STYLE").
   - **Captions.** `meta.caption_mode` defaults to `overlay`: the subtitle sits directly on the frame's own ground, with no
     strip and no white/black halo. Its ink is the deck's own content colour for that ground, and its outline is the
-    sampled ground. **Authors MUST keep content out of the bottom ~15%**; keyframe_qa gates it. `band` is the opt-in
+    sampled ground. **Authors MUST keep content out of the bottom caption band (`caption_band_px`: 200 px ≈ 18.5% at 16:9, 257 px on 9:16/1:1/4:5 — keyframe_qa's finding prints the exact edge)**; keyframe_qa gates it. `band` is the opt-in
     footer strip (canvas grows; `meta.caption_band` `flush`|`contrast`). `meta.caption_scale` defaults to 1.0. Karaoke
     `meta.captions_karaoke` (`auto`|`off`) needs edge word times (CJK matched by char-span) and falls back to line chunks
     without them. The remotion tier follows the same rule with no scrim (`references/captions.md`).
@@ -355,7 +355,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      `meta.target_seconds` (~40 / ~75 / ~150 / ~300; an explicit "4 minutes"→240 via Other) and
      `meta.aspect` (9:16 for a vertical option, else 16:9). **Captions are burned in by default**
      (`captions:true`, `caption_mode:"overlay"` — the subtitle sits on the frame's own background, no strip,
-     no white halo, content kept clear of the bottom ~15%; see "Captions" under Pipeline scripts and `references/pipeline-scripts.md` "Caption placement"); (Other →
+     no white halo, content kept clear of the bottom caption band; see "Captions" under Pipeline scripts and `references/captions.md` "Placement"); (Other →
      captions OFF, per-word karaoke highlight, `caption_mode:"band"` for a separate footer strip, or a
      reduced-motion accessibility variant). `meta.target_seconds` is exactly the field the **content-planner** turns
      into beat count (**beats ≈ target_seconds/4**, with per-beat `est_seconds` summed to the target)

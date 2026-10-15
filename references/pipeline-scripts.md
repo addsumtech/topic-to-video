@@ -143,21 +143,11 @@ finding it prints that you do not understand.
   (`auto` default | `off`). The highlight colour is **contrast-picked per scene** against the caption band's
   ground (prefers `--accent`, else `--accent2`/gold/high-contrast b/w) AND kept distinct from the
   neighbouring words — so the spoken word never vanishes into an accent-fill / same-colour band.
-  **Caption placement — `meta.caption_mode` (DEFAULT `overlay`):** the caption requirement is: the FRAME'S
-  OWN BACKGROUND fills the whole frame and the subtitle sits DIRECTLY on it — **no separate solid strip/bar
-  for the caption, and no white/black halo** — in a colour that CONTRASTS the frame's real bottom ground,
-  with the LAYOUT keeping content clear of the caption zone so they never conflict, AND the subtitle TEXT in
-  the SAME colour the frame's own content uses on that ground. `overlay` delivers this: it keeps `W×H` (no
-  canvas growth, exact 16:9), burns the caption flush at the very bottom, and — keyed off each scene's
-  sampled bottom ground — the ink is **the deck's OWN content colour for that ground** (`--fg` on a
-  light/neutral page, `--on-accent` on a saturated/colored/dark fill — e.g. a red accent-fill flood gets
-  WHITE caption text to match its white content, NOT an independent max-contrast dark), the per-glyph
-  OUTLINE is **the frame's OWN sampled ground colour** (invisible on the clean caption zone, never a white
-  bar), and the karaoke word is a distinct contrasting accent. Authors MUST keep content out of the bottom
-  ~15% (keyframe_qa gates it) so the zone stays the frame's own clean ground. `band` is the OPT-IN alternative — a dedicated strip BELOW the content
-  (canvas grows to `W×(H+~126–138px)`) for when you deliberately want a separate footer region rather than
-  the caption on the frame; `meta.caption_band` `flush` (samples the scene's edge colour) | `contrast`
-  (fixed `--fg` bar). `meta.caption_scale` (default 1.0) tunes the caption font. Same rule on the remotion
+  **Caption placement — `meta.caption_mode` (DEFAULT `overlay`):** the subtitle sits directly on the frame's
+  own ground — no strip, no white/black halo, ink = the deck's own content colour for that ground, outline =
+  the sampled ground; authors MUST keep content out of the bottom caption band (`caption_band_px`: 200 px ≈ 18.5% at 16:9, 257 px on 9:16/1:1/4:5 — keyframe_qa's finding prints the exact edge). `band` is the opt-in footer strip
+  (`meta.caption_band` `flush` | `contrast`). The full rule and both modes live in `references/captions.md`
+  "Placement". `meta.caption_scale` (default 1.0) tunes the caption font. Same rule on the remotion
   tier: the caption draws on the frame's ground (NO scrim rectangle), contrast-picked, shots reserve the
   band so nothing is occluded (see `references/captions.md`).
   **Timed callouts:** a callout carrying a `cue` anchor phrase (or an explicit `at` 0..1 fraction)
@@ -721,7 +711,7 @@ agent on the beats it points at.
   ways: OVERFLOWING the 1920×1080 canvas (full-bleed backdrops are correctly ignored); text CLIPPED
   INSIDE a card/box (a fixed-height / `overflow:hidden` box slicing its own content — the box fits so
   the canvas check can't see it; fill/bar components that legitimately clip a `.fill` are excluded);
-  and content reaching into the bottom **caption zone** (the lowest ~14% where an overlay subtitle
+  and content reaching into the bottom **caption zone** (`caption_band_px` — 200 px ≈ 18.5% at 16:9 — where an overlay subtitle
   burns — it would sit under the caption; `caption_mode:band` and captions-off decks are exempt).
   It also advises (non-blocking) on any
   CENTERED multi-line running paragraph (body text should be left-aligned to scan; display/diagram

@@ -49,7 +49,7 @@ that:
   WHITE caption; a cream page gets dark), NOT an independent max-contrast pick (which clashed — a dark
   caption under white-on-red content). The per-glyph OUTLINE is **the frame's OWN sampled ground colour** —
   invisible on the clean caption zone, a subtle hair only where the ground varies, NEVER a white bar. The
-  karaoke word is a distinct contrasting accent. The subtitle sits on the frame's own content background. **The only rule authors owe it:** keep content out of the bottom ~15% (heroes/airy
+  karaoke word is a distinct contrasting accent. The subtitle sits on the frame's own content background. **The only rule authors owe it:** keep content out of the bottom caption band (`caption_band_px`: 200 px ≈ 18.5% at 16:9, 257 px on 9:16/1:1/4:5 — keyframe_qa's finding prints the exact edge) (heroes/airy
   beats are fine; a dense bottom-anchored beat must leave the zone clear — `keyframe_qa` gates it). Applies
   to BOTH aspects; a top-anchored 9:16 deck (bottom empty) reads it as the frame's own footer.
 - **`"band"` (opt-in alt):** the caption is drawn in a **dedicated strip BELOW the content**, so it never
