@@ -81,9 +81,16 @@ BUILT = "<div class='stage'><espresso-puck packed='1'></espresso-puck></div>"
 BUILT_META = {"build_list": [{"id": "EspressoPuck", "kind": "component", "beats": [1]}]}
 
 
+def _built(out):
+    """The page's component exists in the film's own workshop."""
+    os.makedirs(os.path.join(out, "workshop", "html"), exist_ok=True)
+    open(os.path.join(out, "workshop", "html", "EspressoPuck.js"), "w").write("// component")
+    return out
+
+
 def test_exactly_half_passes(tmp_path):
     meta, slides, out = _film(tmp_path, [BUILT, STOCK], fits={2: SHARES}, meta=BUILT_META)
-    errs, _ = _share(meta, slides, out)
+    errs, _ = _share(meta, slides, _built(out))
     assert not errs, errs
 
 
@@ -154,14 +161,29 @@ def test_a_component_page_is_built(tmp_path):
     os.makedirs(os.path.join(out, "workshop", "html"))
     open(os.path.join(out, "workshop", "html", "EspressoPuck.js"), "w").write("// component")
     assert _routes(meta, slides, out)[2] == "built"
-    meta2 = {"build_list": [{"id": "EspressoPuck", "kind": "component", "beats": [2]}]}
+    # a build-list entry alone builds nothing: once promoted, it is this film's only if the catalogue says so
     os.remove(os.path.join(out, "workshop", "html", "EspressoPuck.js"))
-    assert _routes(meta2, slides, out)[2] == "built", "a build-list component (e.g. promoted) is a build too"
+    meta2 = {"title": "Espresso", "build_list": [{"id": "EspressoPuck", "kind": "component", "beats": [2]}]}
+    assert _routes(meta2, slides, out)[2] == "as-is", "an unpromoted entry with no workshop file is not a build"
+    meta2["build_list"][0]["promoted"] = True
+    doc = os.path.join(out, "html-components.md")
+    open(doc, "w").write("# HTML components\n\n## EspressoPuck — `<espresso-puck>`\n\n**Means:** m\n\n"
+                         "**Judged against:** a *(built for the film Espresso)*\n")
+    import pytest
+    mp = pytest.MonkeyPatch()
+    try:
+        mp.setattr(v, "_HTML_COMPONENTS_DOC", doc)
+        assert _routes(meta2, slides, out)[2] == "built", "a component promoted FROM this film is still its build"
+        meta2["title"] = "Another film"
+        assert _routes(meta2, slides, out)[2] == "as-is", "a library component another film built is not ours"
+    finally:
+        mp.undo()
 
 
 def test_an_as_is_page_without_ideal_and_shares_is_an_error(tmp_path):
     meta, slides, out = _film(tmp_path, [BUILT, STOCK], fits={2: {"ideal": SHARES["ideal"], "shares": "fits"}},
                               meta=BUILT_META)
+    _built(out)
     errs, _ = _share(meta, slides, out)
     assert any("AS-IS without earning it" in e and "scene #2" in e and "shot_fit.shares" in e for e in errs), errs
     slides[1]["shot_fit"] = dict(SHARES)

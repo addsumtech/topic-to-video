@@ -3320,8 +3320,9 @@ def _design_share(meta, slides, errors, warnings, out_dir):
 # ── DESIGN-FIRST, HTML TIER: MOST PAGES ARE BUILT OR BESPOKE, AND A STOCK PAGE EARNS ITS PLACE ──────────────────
 # The same floor as `_design_share` (above), measured from the PAGE SOURCE rather than from a self-described
 # route — agents/design-director.md "Design first" names the routes; this is how each is recognised:
-#   BUILT    — the page draws a workshop component: a custom tag of this film's workshop/html/ component or of a
-#              `kind: "component"` build-list entry (the entry's contract is `_check_html_build`'s job).
+#   BUILT    — the page draws a workshop component: a custom tag of this film's workshop/html/ component, or of a
+#              PROMOTED `kind: "component"` build-list entry whose catalogue entry (references/html-components.md,
+#              written by promote.py) names this film (the entry's contract is `_check_html_build`'s job).
 #   BESPOKE  — the page carries a composition of its OWN, by at least one of three signals:
 #              (a) page CSS (a <style> block, or a stylesheet the page links that is neither assets/html/, the
 #                  film's theme.css nor a component's) lays out >= 2 PAGE-OWN targets — selectors whose last
@@ -3740,12 +3741,31 @@ def _plan_fits(out_dir):
     return {str(b.get("index", b.get("beat"))): b for b in beats}
 
 
+_HTML_COMPONENTS_DOC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "references",
+                                    "html-components.md")
+
+
+def _component_promoted_for(eid, meta, out_dir):
+    """True when references/html-components.md (written by promote.py) says component `eid` was built for THIS film."""
+    names = {str(meta.get("title") or "").strip(), os.path.basename(os.path.abspath(out_dir)) if out_dir else ""}
+    names.discard("")
+    try:
+        doc = open(_HTML_COMPONENTS_DOC, encoding="utf-8").read()
+    except OSError:
+        return False
+    m = re.search(r"^## %s — .*?\(built for the film (.+?)\)\*" % re.escape(eid), doc, re.M | re.S)
+    return bool(m) and m.group(1).strip() in names
+
+
 def html_design_routes(meta, slides, out_dir):
-    """[(beat number, route, reason, page rel or None)] for an HTML film — see the block above."""
+    """[(beat number, route, reason, page rel or None)] for an HTML film — see the block above. A build-list
+    component counts as built from the film's workshop, or — once promoted — only when the library's component
+    catalogue says it was built for THIS film (the same rule as the remotion tier's `_promoted_for`)."""
     import workshop as _ws
     bl = meta.get("build_list") if isinstance(meta.get("build_list"), list) else []
     names = (_ws.component_names(out_dir) if out_dir else set()) | {
-        e.get("id") for e in bl if isinstance(e, dict) and e.get("kind") == "component" and isinstance(e.get("id"), str)}
+        e.get("id") for e in bl if isinstance(e, dict) and e.get("kind") == "component" and isinstance(e.get("id"), str)
+        and e.get("promoted") is True and _component_promoted_for(e["id"], meta, out_dir)}
     built_tags = {_ws.component_tag(x) for x in names if x}
     out, n = [], len(slides)
     for pos, s in enumerate(slides, 1):
