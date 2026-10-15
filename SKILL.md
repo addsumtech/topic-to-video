@@ -271,13 +271,12 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    ONLY what is genuinely undetermined — ⑥ Grounding when a deck is the only material, ⑦ Brand when the
    topic triggers it — and is skipped when both are settled; **⑤ Voice is asked at the script audition**,
    where the user HEARS the voice instead of choosing an engine in the abstract. Batches 2–3 still fire
-   only when an answer triggers them. A common free/default run is now ONE option screen (it used to be
-   two, seven questions, before anything existed to look at or listen to), with zero mandatory free-text
-   beyond the single topic line on a no-deck run.
+   only when an answer triggers them. A common free/default run is ONE option screen, with zero mandatory
+   free-text beyond the single topic line on a no-deck run (why: `references/engineering-case-law.md` W1).
 
    **Batch 1 — core intent + essentials.** Screen A = ①–④, every run. Screen B = ⑥ Grounding (only when
-   undetermined) + ⑦ Brand (only when triggered) — skip it when neither applies. ⑤ Voice moves to the
-   script audition — per the batching note above.
+   undetermined) + ⑦ Brand (only when triggered) — skip it when neither applies. ⑤ Voice is asked at the
+   script audition (step 5).
    **No-deck (make-from-scratch) runs — capture the topic FIRST:** if the user has a deck
    (pptx/pdf/images) SKIP this (the deck IS the topic); with **no** input deck, before screen A ask ONE
    plain-text line for the **topic sentence** — a plain prompt ONLY because the topic is an irreducible
@@ -362,17 +361,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      into beat count (**beats ≈ target_seconds/4**, with per-beat `est_seconds` summed to the target)
      and the design-director reads to scale hero/climax cadence — so it SUBSUMES the old per-slide
      pace ask (a per-slide ceiling, if ever wanted, is just `target_seconds / beats`).
-   - **⑤ Voice engine** *(→ `meta.voice`; asked AT THE SCRIPT AUDITION, not up front)* — until then
-     `meta.voice` stays `"auto"`, which resolves to a language-matched edge-tts voice (free), so the
-     audition has a voice to speak in. Choosing an engine before hearing anything was the most abstract
-     question in the interview; at the audition the user has just heard one and can say "keep it" or
-     "try another". The narration engine menu: **edge-tts** (free **default**, natural, needs network, accent-matched;
-     the ONLY engine that emits per-word timings for word-exact caption/reveal sync) · **MiniMax**
-     (paid, most natural, esp. **Chinese**; needs a key) · **OpenAI** (paid, premium neural; needs a
-     key) · **macOS `say`** (offline, robotic fallback). (Other → an accent or gender preference.)
-     State the tradeoff aloud: only edge-tts gives per-word timings, so say/MiniMax/OpenAI HTML reveals
-     use the text-position estimate (tracks the voice's pacing, not word-exact). A cloud engine
-     (MiniMax/OpenAI) then triggers **Batch 2** (key setup out-of-band + a voice-sample pick).
+   - **⑤ Voice engine** *(→ `meta.voice`; asked AT THE SCRIPT AUDITION, step 5, where its menu lives)* —
+     until then `meta.voice` stays `"auto"`, which resolves to a language-matched edge-tts voice (free), so
+     the audition has a voice to speak in; at the audition the user has just heard one and can say "keep it"
+     or "try another". A cloud engine (MiniMax/OpenAI) picked there triggers **Batch 2**.
    - **⑥ Grounding material** *(→ how step 3 gets its facts; ASKED ONLY WHEN UNDETERMINED)* — how to
      ground + fact-check the narration (slides/topic alone rarely say enough to narrate *well* — step 3
      depends on this). Most runs already answer it: the user supplied source files/paths/a repo → use
@@ -454,24 +446,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    `~/.openai_key`, requested out-of-band). `meta.image_provider` is `auto` (default, Codex-first),
    `codex`, or `openai`. The skill-wide default stays **flat/free** — AI imagery is opt-in.
 
-   **After the look is chosen (HTML tiers):** the content-planner plans the beats and the
-   design-director designs each beat's visual (form, motif, icons, motion); you author one
-   `pages/scene_NN.html` per beat on `assets/html/base.css` (faithful — real content only), starting
-   from a verified form in `references/html-templates.md` (don't reinvent the composition), following
-   `references/html-pages.md`. A full-bleed backdrop may gently **breathe** (seek-frozen
-   `.bg-live`/`.bg-drift` on a sparse hero/hold beat; deterministic, off under reduced motion).
-   Immediately after authoring, run `python scripts/keyframe_qa.py <out_dir>` (~1 min, no audio) to
-   catch a blank page / canvas overflow while it's a one-edit fix, then hand `_keyframes/all.png` to
-   `agents/design-critic.md` for its **D11 rendered pass** (focal dominance, repeated layout,
-   crowding, figure-ground) — fix what it flags while pages are cheap to edit. Set `meta.chrome_path`
-   if Chrome isn't at the default macOS location.
-
    **Notes.** **Reduced motion** (accessibility variant — no zoom/pan, opacity-only reveals) is off
    by default; only set `meta.reduced_motion` if the audience needs it or the user asks via Batch 1
-   ④ Other. **Language** drives the caption font (CJK needs a system font — the bundled Latin one
-   tofus) and the default voice, so a wrong code here yields mojibake captions or mispronounced audio
-   downstream; set `meta.language` to the code (`en`/`zh`/`ja`/`ko`/`es`/`fr`/`de`/…), defaulting to
-   the slides' own detected language but always confirmed (voice-over may differ from the deck).
+   ④ Other. **Language** (②) drives the caption font (CJK needs a CJK font — the bundled Latin one
+   tofus) and the default voice, so a wrong code yields mojibake captions or mispronounced audio
+   downstream.
 2. **Ingest** — run `ingest.py`. Report slide count and whether speaker notes were found.
    **SKIP on a no-deck / from-scratch run** (`ingest.py` requires an input deck): just create
    `<out_dir>`; `storyboard.json` is built at step 3.6 by merging the two plans — and remember to
@@ -638,77 +617,56 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      `<out_dir>/design_plan.json`** — `validate.py` flags a content_shape↔form mismatch + a missing
      `signature_concept`/`style_thesis`/`design_register` (and an invalid `meta.audacity`), and the
      **design-critic** (D1 fit, D2c creativity floor, **D2e whole-video register + motion personality**)
-     judges them. **CINEMATIC decks (`meta.renderer:"remotion"`, alias `"remotion"` — the bespoke-shot film
-     tier):** the design step is NOT this file — dispatch **`agents/shot-director.md`** instead. It runs in
-     TWO parts. **① The shot-template CONTEST — full divergence+selection, the remotion analogue of 3.55:**
-     a *direction* is a whole-film ATMOSPHERE (a named look + a lean toward certain register FAMILIES + a hero;
-     each beat is still its own language). WIDTH scales by `meta.audacity` (`conservative` skips · `balanced` 3 ·
-     `bold` 5 · `experimental` 7): `python scripts/shot_templates.py --route "<topic>" --audacity <a> --out <out>`.
-     The 6 templates are SEEDS — the shot-director must **CONCEIVE bold, topic-specific directions** (not just
-     route the 6) to reach the width, forcing real divergence. **The router no longer pretends otherwise:** it
-     returns only genuine keyword matches and PRINTS the shortfall, where it used to pad from a fixed fallback
-     order and put an unrelated direction on the ballot (a 3D craft look offered for an AI-office-agent film;
-     the scoring was ASCII-only, so a CJK topic matched nothing and got the padding every time). A conceived
-     direction reaches the same render path via `contest_sample.py --conceived <file.json>` —
-     `[{key, pitch, dna, seam, shots: [[ShotId, {props}], ...]}]`, a direction stated as FRAMES. **Render a short SAMPLE VIDEO per direction so the
-     user can SEE its look + MOTION** (a text pitch or a single still can't convey a design language — motion IS
-     the language): `python scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out> --render` →
-     `_contest_<key>.mp4` (~6s each, hero + 2 representative registers through the real Film). Also render one
-     still per direction at **`--frame=110`** for the **diversity gate** `scripts/contest_diversity.py
+     judges them.
+     **CINEMATIC films (`meta.renderer:"remotion"` — the bespoke-shot tier): the design step is
+     `agents/shot-director.md`, not the design-director**, and there is no `design_plan.json`. When the film
+     came from a pptx whose theme is not Office's default, first run `python3 scripts/dna_from_deck.py <out_dir>`
+     so the film carries the deck's own brand rather than a direction's preset (`validate.py` warns when it did
+     not). The shot-director's file holds each procedure; the sequence is:
+     **① The shot-template CONTEST — divergence + selection, the remotion analogue of 3.55.** A *direction* is a
+     whole-film ATMOSPHERE (a named look + a lean toward certain register FAMILIES + a hero; each beat is still
+     its own language). Width by `meta.audacity` (`conservative` skips · `balanced` 3 · `bold` 5 · `experimental`
+     7): `python scripts/shot_templates.py --route "<topic>" --audacity <a> --out <out>`. The 6 templates are
+     SEEDS: the router returns only genuine keyword matches and PRINTS the shortfall, and the shot-director
+     **CONCEIVES bold, topic-specific directions** to reach the width (why: case-law W6). A conceived direction
+     reaches the same render path via `contest_sample.py --conceived <file.json>` —
+     `[{key, pitch, dna, seam, shots: [[ShotId, {props}], ...]}]`, a direction stated as FRAMES. **Render a short
+     SAMPLE VIDEO per direction so the user can SEE its look + MOTION** (motion IS the language; a pitch or a
+     still cannot show it): `python scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out>
+     --render` → `_contest_<key>.mp4` (~6s each, hero + 2 representative registers through the real Film). Render
+     one still per direction at **`--frame=110`** for the **diversity gate** `scripts/contest_diversity.py
      <out>/_contest_*.png` (rediverge a clustered pair); **JUDGE** with `agents/shot-critic.md` in judge mode
-     (floor-break + rank → winner+runner-up); surface the judged finalists — **the sample videos** — to the USER
-     via `AskUserQuestion`; record `meta.shot_template` + `meta.shot_template_contest {candidates, winner,
+     (floor-break + rank → winner+runner-up); surface the finalists' **sample videos** to the USER via
+     `AskUserQuestion`; record `meta.shot_template` + `meta.shot_template_contest {candidates, winner,
      user_pick, width, audacity, judge_ranked}`. `validate.py` ERRORS a bold/experimental film with NO contest
      and checks width-vs-audacity.
-     **② The per-beat assignment:** **read `references/remotion-shot-authoring.md` FIRST** (the frame-craft floor +
-     the meaning mandate + the real-imagery tier + the anti-pattern catalogue — this is where future films fail
-     silently). Run `python scripts/shot_director.py <out_dir> --template <seed-key>` for a
-     deterministic family-varied skeleton BIASED to the direction, then the shot-director agent fills each beat's
-     `shot` + faithful `shot_props` + `shot_adaptation` (keep the register's STYLE, REDESIGN its modules/components
-     + content for THIS topic — never a raw text-swap; §B2), keeping family-variety AND **boldness** (reach past
-     the obvious register, scaled by audacity; note each beat's `rejected_default`), AND ensuring every shot
-     ENCODES its beat (hide the caption — does the visual still carry THIS idea?) and COHERES with the chosen
-     direction (palette/motion/motif, not a random stack). **DESIGN FIRST — the library is material, not a menu** (the one flow, defined in shot-director Step 0.55):
-     per beat write the ideal picture (`shot_fit.ideal`, no register named), then a route — BUILD (an object in a
-     template's slot, or a film-local shot), ADAPT (layout/encoding/structure changed, recorded in
-     `shot_adaptation.changes`), or AS-IS only when the register already IS the ideal (`shot_fit.shares` names the
-     encoding it shares) — then assemble from runtime blocks and check. `validate.py` ERRORs when fewer than HALF of
-     the non-exempt beats are adapted or built, or none is built (the film's signature beat, designed to surprise);
-     half is the floor, a strong film is mostly adapted or built. Every built thing goes on `meta.build_list` with its `means` and `accept`, is written in the film's own
-     workshop (`scripts/workshop.py new-object | new-shot | still | check`; what to build with:
+     **② The per-beat assignment — DESIGN FIRST; the library is material, not a menu** (the one flow, defined
+     in shot-director Step 0.55). **Read `references/remotion-shot-authoring.md` FIRST** (the frame-craft floor,
+     the meaning mandate, the real-imagery tier, the anti-pattern catalogue — where films fail silently). Run
+     `python scripts/shot_director.py <out_dir> --template <seed-key>` for a deterministic family-varied skeleton
+     biased to the direction; then per beat the shot-director writes the ideal picture (`shot_fit.ideal`, no
+     register named), then a route — BUILD (an object in a template's slot, or a film-local shot), ADAPT
+     (layout/encoding/structure changed, recorded in `shot_adaptation.changes`), or AS-IS only when the register
+     already IS the ideal (`shot_fit.shares` names the encoding it shares) — then assembles from runtime blocks
+     and checks. Each beat gets `shot` + faithful `shot_props` + `shot_adaptation` (never a raw text-swap),
+     ENCODES its beat (hide the caption — does the visual still carry THIS idea?), coheres with the direction
+     (palette/motion/motif, not a random stack), keeps family variety, and reaches past the obvious register as audacity allows (note its `rejected_default`). `validate.py`
+     ERRORs when fewer than HALF of the non-exempt beats are adapted or built, or none is built (the film's
+     signature beat, designed to surprise); half is the floor, a strong film is mostly adapted or built. Every
+     built thing goes on `meta.build_list` with its `means` and `accept`, is written in the film's own workshop
+     (`scripts/workshop.py new-object | new-shot | still | check`; what to build with:
      `references/building-blocks.md`; how to make it mean something: `references/object-authoring.md`) and never
-     touches the library. Real imagery where the topic is concrete stays the documentary tier's. SKIP the HTML design plan (no `design_plan.json`).
-     **③ Then run `python scripts/seam_plan.py <out_dir>` — the film's CUTS and CAMERA.** It is a
-     verify-and-fill pass, not a competitor: it SKIPS every beat the shot-director already marked, so
-     authored intent always wins. What it adds is the half an author cannot do by reading — it mirrors the
-     renderer's luminance guard, which silently downgrades a kinetic mark placed across a dark↔light
-     boundary (a mark spent there simply vanishes), and it derives 2-4 MOTIVATED camera beats from the
-     `relation` each beat already declares (payoff → push, close/opener → pull, everything else holds).
-     Skipping this step is how a 35-beat film shipped with all 34 of its cuts identical and a camera that
-     never moved, while every gate stayed green: the capability was complete, tested, documented — and
-     unreached, which on screen is the same as absent. `validate.py` warns when a film of ≥12 beats carries
-     no marked seam at all, and warns the other way when a declared `design_dna.seam` makes so many cuts
-     kinetic that the marks stop being punctuation.
-     After the render, the review gate is **`agents/shot-critic.md`** (the design-critic analogue): S1 fit · S2
-     variety · S3 faithfulness · S4 decodability · S6 A/V **+ the deterministic `keyframe_qa_remotion.py` blank-
-     frame backstop** · **S8 boldness (audacity-scaled)** · **S10 meaning + content-fit (the `shot_adaptation`
-     note checked against the pixels — was the register redesigned, not text-swapped?)** · S7 direction-adherence — from `_keyframes/scene_NN.png`
-     + `check_av`; it REVISEs failing beats (re-assign, re-render). A `shot`-based scene on the local renderer is a validate ERROR.
-     **The critic's verdict is a LEDGER, and the delivery pass is a fresh subagent.** Every dimension gets a
-     row in `<out>/_critic_ledger.json` — the clean ones too, each citing the keyframe or brief line it rests
-     on — and `python3 scripts/critic_ledger.py <out_dir>` must exit 0. Reporting only the FLAGGED beats made
-     a dimension nobody looked at indistinguishable from one checked and found clean. Then, before delivery,
-     dispatch `agents/shot-critic.md` as a subagent whose ENTIRE input is the `<out_dir>` path — no rationale,
-     no summary of what you fixed, no steer about where to look — and gate on
-     `python3 scripts/critic_ledger.py <out_dir> --final`, which REFUSES a ledger the film's own maker wrote.
-     The maker holds the intent, and the intent is what makes a wrong frame look right.
-     **PROMOTION IS THE USER'S CHOICE, AT DELIVERY.** When the film is delivered (`critic_ledger.py --final`
-     passed), list its built things — each with its settled frame (`workshop/_stills/`) and its gate results — and
-     ask the user with `AskUserQuestion` (multiSelect) which, if any, to promote into the library. For each one
-     chosen: `python3 scripts/promote.py <out_dir> <Name>` (an object: it joins remotion/src/objects and the
-     catalogue) or `... --family <X> --use-when "…" --motion "…"` (a shot: registered at every sync point and
-     measured in the right order). Nothing is promoted without the user's pick; nothing a film builds reaches
-     another film until it is.
+     touches the library. Real imagery where the topic is concrete stays the documentary tier's. A `shot`-based
+     scene on the local renderer is a validate ERROR.
+     **③ Then run `python scripts/seam_plan.py <out_dir>` — the film's CUTS and CAMERA.** A verify-and-fill pass,
+     not a competitor: it SKIPS every beat the shot-director already marked, so authored intent always wins. It
+     adds what an author cannot do by reading — it mirrors the renderer's luminance guard (a kinetic mark across a
+     dark↔light boundary is silently downgraded, so a mark spent there vanishes) and derives 2-4 MOTIVATED camera
+     beats from each beat's `relation` (payoff → push, close/opener → pull, else hold). Never skip it (why:
+     case-law W2). `validate.py` warns when a film of ≥12 beats carries no marked seam at all, and when a
+     declared `design_dna.seam` makes so many cuts kinetic that the marks stop being punctuation.
+     The review after the render (`agents/shot-critic.md`, its ledger, `critic_ledger.py --final`) and
+     promotion of built things are steps 9d–9f.
      **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing
@@ -720,37 +678,37 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      missing-contest warning would silently never fire. **Persist the interview's brand assets into
      `meta.brand` at this merge too** (and copy the files to `assets/brand/` if not already) — the
      theme auto-seed, the render bug, and every brand lint read the STORYBOARD meta; a brand recorded
-     only in conversation notes never reaches any of them. **Keep BOTH plan files** — the critic
-     panel (step 5) receives them: `critic-content`/`critic-narrative` audit the content plan (continuity,
-     relation, faithfulness); the **design-critic** audits the design plan (motif, form diversity,
+     only in conversation notes never reaches any of them. **Keep BOTH plan files** — the script
+     critic (step 5) receives them: the `critic-content`/`critic-narrative` lenses audit the content plan
+     (continuity, relation, faithfulness); the **design-critic** lens audits the design plan (motif, form diversity,
      transitions, icons, whitespace, rhythm, colour, motion).
-- **Theme:** run `scripts/theme.py <out_dir> [--style <meta.visual_style>]` AFTER the design plan and BEFORE
-  authoring pages or programmatic scenes — it samples `frames/` for a curated light/dark palette fitting the
-  topic (or pass `--mode/--accent/--accent2/--bg` from the **design-director's** `theme` when there are no
-  frames — **EXCEPT the accent on a branded deck**: when `meta.brand` is set, OMIT `--accent` so the
-  brand auto-seed fires, or pass the brand hue itself; the director's topic-derived accent would
-  silently override the mark's colour — the exact deck class the seed exists for is the from-scratch
-  designed one with no frames). **Pass `--style <the deck's visual_style>`** (from `references/visual-styles.md`) so the chosen
-  style seeds the palette + emits style-hint vars. **base.css/motifs.css AUTO-consume** `--radius` (card +
-  data-component corners), `--font-display`/`--font-body` (the style's bundled TYPE — see below),
-  `--border-weight`+`--border-ink` (the `--hairline` border), `--grid-strength` (`.bg-grid` density) — so
-  every HTML frame follows the style with no per-page effort; `--motif-ink` is an author hint for the
-  `.bg-motif` linework. **Style TYPE:** the style maps to a bundled SIL-OFL FACE (Bangers for comic/manga,
-  Space Grotesk for grotesque/geometric, Playfair Display for serif/editorial, JetBrains Mono for
-  mono/technical — `@font-face`'d from `assets/fonts/`, CJK+generic fallback) on `--font-display` (every
-  headline + hero-number/value role) and a readable `--font-body`, so a comic deck reads comic and a Swiss
-  deck reads grotesque; `--font-kind` lets the programmatic tier use the same face. An explicit
-  `--accent`/`--mode` (and a frame-sampled BRAND palette) still win, and the WCAG floors run after, so a style
-  can never make an unreadable palette. The style applies on EVERY tier (flat/HTML + the programmatic
-  renderers read `--font-kind` to pick the same bundled title face), not just AI imagery. Pages link `base.css` →
-  `theme.css` → `motifs.css`; the programmatic renderers parse the same vars. 🔴 the plan checkpoint now also
-  shows the palette + mode + **visual style**.
-- **Re-conceive, don't mirror:** the content-planner designs a video arc (hook + throughline +
-  resequencing), not the slide order — faithful to the substance.
-- **Illustrated pages:** build a beat's design-plan `media` as a `.split` page (text + a STATIC image panel,
-  see `references/html-pages.md`; Ken-Burns is disabled inside `.split` so it doesn't compete with
-  revealing bullets — Ken-Burns is for full-bleed hero `.bg-photo` only); generate the image via
-  `imagegen` (codex/key); keep it a generic broll. Most pages stay typographic.
+     - **Theme (HTML and programmatic tiers):** run `scripts/theme.py <out_dir> [--style <meta.visual_style>]` AFTER the design plan and BEFORE
+       authoring pages or programmatic scenes — it samples `frames/` for a curated light/dark palette fitting the
+       topic (or pass `--mode/--accent/--accent2/--bg` from the **design-director's** `theme` when there are no
+       frames — **EXCEPT the accent on a branded deck**: when `meta.brand` is set, OMIT `--accent` so the
+       brand auto-seed fires, or pass the brand hue itself; the director's topic-derived accent would
+       silently override the mark's colour — the exact deck class the seed exists for is the from-scratch
+       designed one with no frames). **Pass `--style <the deck's visual_style>`** (from `references/visual-styles.md`) so the chosen
+       style seeds the palette + emits style-hint vars. **base.css/motifs.css AUTO-consume** `--radius` (card +
+       data-component corners), `--font-display`/`--font-body` (the style's bundled TYPE — see below),
+       `--border-weight`+`--border-ink` (the `--hairline` border), `--grid-strength` (`.bg-grid` density) — so
+       every HTML frame follows the style with no per-page effort; `--motif-ink` is an author hint for the
+       `.bg-motif` linework. **Style TYPE:** the style maps to a bundled SIL-OFL FACE (Bangers for comic/manga,
+       Space Grotesk for grotesque/geometric, Playfair Display for serif/editorial, JetBrains Mono for
+       mono/technical — `@font-face`'d from `assets/fonts/`, CJK+generic fallback) on `--font-display` (every
+       headline + hero-number/value role) and a readable `--font-body`, so a comic deck reads comic and a Swiss
+       deck reads grotesque; `--font-kind` lets the programmatic tier use the same face. An explicit
+       `--accent`/`--mode` (and a frame-sampled BRAND palette) still win, and the WCAG floors run after, so a style
+       can never make an unreadable palette. The style applies on EVERY tier (flat/HTML + the programmatic
+       renderers read `--font-kind` to pick the same bundled title face), not just AI imagery. Pages link `base.css` →
+       `theme.css` → `motifs.css`; the programmatic renderers parse the same vars. The plan checkpoint below
+       shows the palette + mode + **visual style**.
+     - **Re-conceive, don't mirror:** the content-planner designs a video arc (hook + throughline +
+       resequencing), not the slide order — faithful to the substance.
+     - **Illustrated pages:** build a beat's design-plan `media` as a `.split` page (text + a STATIC image panel,
+       see `references/html-pages.md`; Ken-Burns is disabled inside `.split` so it doesn't compete with
+       revealing bullets — Ken-Burns is for full-bleed hero `.bg-photo` only); generate the image via
+       `imagegen` (codex/key); keep it a generic broll. Most pages stay typographic.
      🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + coarse visual intents + the
      continuity through-line) AND the design plan (**motif** + theme palette + per-beat forms), and get
      the user's OK before authoring narration. If the user changes the register/style HERE (after a
@@ -766,7 +724,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    `est_seconds` budget, swap in its `too_dense` fallback line or tighten it) and `pronunciation_notes`
    (already folded into how a term is SPELLED in the line — the renderer has no SSML). The scriptwriter follows `references/narration-writing.md` (the style
    basis). The on-screen **captions are auto-derived from the narration**, so its words are also
-   the subtitle. (PLAN → **DESIGN** → **WRITE** → CHECK: content-planner plans, design-director designs, scriptwriter writes, the parallel critic panel — `critic-narrative` + `critic-content` + `design-critic` — checks in parallel.)
+   the subtitle. (PLAN → **DESIGN** → **WRITE** → CHECK: content-planner plans, design-director designs, scriptwriter writes, the script critic of step 5 checks.)
 4b. **Image prompts (AI-backdrop look only — `image_source:"openai"`).** The generated art is
     ALWAYS a background/atmosphere layer behind an HTML page (a soft `.bg-soft` texture or a hero
     `.bg-photo`/`.split` cover), never a standalone image scene: for each page that wants a backdrop,
@@ -782,7 +740,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     motif from the brief + narration if either fails. **The low-opacity `.bg-soft` textures rotated
     behind content pages are deck-level atmosphere and MEANT to be reused** — only litmus (a) applies to
     them. (`critic-content` R1e enforces this split.)
-    The critic panel (step 5, R1e via `critic-content`) reviews the prompts.
+    The script critic (step 5; `critic-content` R1e) reviews the prompts.
     🔴 **CHECKPOINT · 🛑 STOP:** present every prompt + the estimated cost
     (`imagegen.cost_estimate(n, quality)`) and get sign-off BEFORE spending. Then run
     `imagegen.py <out_dir>` (the paid step; cached after). No key / API error → fall back to the
@@ -793,7 +751,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     (Codex) — then reference the file by `file://` in the page. The `imagegen.py <out_dir>` CLI path
     generates any deck-level `image_prompt` backdrops/cover in one pass; these direct calls cover the
     per-beat page media.
-4c. **Documentary (REAL-image) fetch — FREE, no key.** **Skip on the 原样配音 tier** (the user's own slides, `type:"slide"` — the deck IS the design). For every beat the design plan marks
+4c. **Documentary (REAL-image) fetch — FREE, no key.** **Skip on the 原样配音 tier** (see 3.6). For every beat the design plan marks
     `media.treatment:"documentary"` (the design-director's per-beat imagery DECISION — see its "IMAGERY
     TREATMENT" procedure: `none` for data beats, `atmosphere` for mood, `documentary` to SHOW a real
     concrete subject), fetch the real image at authoring time:
@@ -806,14 +764,19 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     `fetch` returns None, degrade per the design plan — `atmosphere` if the beat wanted mood, else `none`
     (never ship a blank). **A `FetchError` (the CLI's exit 2) is NOT that case:** Commons did not answer — a
     rate limit, a server error, the network — after the retries. It says nothing about which images exist, so
-    run it again after a minute; never degrade the beat on it. No spend + no checkpoint (it's free + real), but the critic panel (R1e) still
+    run it again after a minute; never degrade the beat on it. No spend + no checkpoint (it's free + real), but the script critic (R1e) still
     checks the query matched the subject and the credit is present. Keep it to the 2–4 most physical beats.
-4d. **Author the pages (HTML tiers).** **Skip on the 原样配音 tier** (the user's own slides, `type:"slide"` — the deck IS the design). This is where the deck's `pages/scene_NN.html` are actually
+4d. **Author the pages (HTML tiers).** **Skip on the 原样配音 tier** (see 3.6). This is where the deck's `pages/scene_NN.html` are actually
     written — one page per beat from the design plan (form + props + cue anchors + media), on
     `base.css` + `theme.css` (+ `motifs.css`; `vertical.css` last on 9:16), per
-    `references/html-pages.md`. The full authoring procedure (including the archetype and cue-anchor
-    rules) is the "After the look is chosen (HTML tiers)" passage in step 1's interview notes — follow
-    it HERE in the sequence, then run `keyframe_qa` on the authored pages before the critic panel.
+    `references/html-pages.md`, faithful (real content only), each starting from a verified form in
+    `references/html-templates.md` (don't reinvent the composition). A full-bleed backdrop may gently
+    **breathe** (seek-frozen `.bg-live`/`.bg-drift` on a sparse hero/hold beat; deterministic, off under
+    reduced motion). Set `meta.chrome_path` if Chrome isn't at the default macOS location.
+    Immediately after authoring, run `python scripts/keyframe_qa.py <out_dir>` (~1 min, no audio) to
+    catch a blank page / canvas overflow while it's a one-edit fix, then hand `_keyframes/all.png` to
+    `agents/design-critic.md` for its **D11 rendered pass** (focal dominance, repeated layout,
+    crowding, figure-ground) — fix what it flags while pages are cheap to edit, before the script critic.
     **BUILD what base.css lacks — the same build-list step as the Remotion tier.** For each beat, write the
     ideal picture first; when no base.css form carries it (a coffee puck in section, a scale's load cell), build
     a COMPONENT — a custom element in the film's own workshop — instead of hand-drawing it into one page: add
@@ -821,15 +784,16 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     with the caption covered, `accept`, `slot: "page"`), then `python3 scripts/workshop.py <out_dir>
     new-component <Name> --means "…"`, draw it per `references/html-pages.md` "Building a component", look at
     it (`workshop.py <out_dir> still <Name>`), and `workshop.py <out_dir> check` must be clean before the page
-    uses it. `validate.py` holds the build list and the pages to each other. At delivery, promotion is the
-    user's choice, as on the Remotion tier (`python3 scripts/promote.py <out_dir> <Name>`).
+    uses it. `validate.py` holds the build list and the pages to each other. Promotion into the library is
+    the user's choice at delivery (step 9f).
 5. **Script critic — ONE combined critic, ONE round, by default.** Dispatch ONE subagent carrying all three
    lenses — hand it `agents/critic-narrative.md`, `agents/critic-content.md` and `agents/design-critic.md` as its
    brief (on the **原样配音** tier, the first two only: there is no authored design to judge) — for ONE round,
    reporting the top issues by impact; apply its EDITS and go on. The user's own script + audition checkpoint
    below is what follows it, and that checkpoint never moves.
-   **The full 3-critic PANEL instead** (the loop below, until all three PASS) when EITHER the user asked for a
-   `standard` or `thorough` review earlier in the run, OR the stakes are high — a defense, a launch the user
+   **The full 3-critic PANEL instead** (the loop below, until all three PASS) when EITHER the user has asked
+   for a careful or thorough review by this point (the post-render review-depth question of step 9d has not
+   been asked yet, so this is only what they volunteered), OR the stakes are high — a defense, a launch the user
    called important, an external/paying audience, or anything they said must not go wrong. Decide it from what
    the user SAID (interview answers, the purpose they gave), record it as `meta.script_review = {"mode":
    "combined"|"panel", "why": "..."}`, and say which you ran at the checkpoint. Never fewer than the combined
@@ -862,18 +826,15 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    It speaks five beats (hook, climax, close and two consecutive middles) through the board's OWN voice,
    joined by the film's own measured pause, into `audition.mp3` in seconds. **Listen to it in order, and
    send it to the user with the script.**
-   This is not a nicety, it is the step whose absence shipped a machine-sounding film: a 37-beat script
-   cleared every `voice_qa` metric (CV 0.45 · antithesis 8% · connectives 38% · aphorism endings 5%),
-   passed two independent content critics, was read end-to-end by its author — and the person it was made
-   for said, on the first listen, 「脚本没有人的感觉，读起来也很机器」. Every check in this pipeline READS
-   the narration; the defect is AUDIBLE. `references/anti-ai-voice.md` opened with "the last pass is
-   always a human read-aloud" and nothing in the workflow produced anything to read aloud.
-   The old instruction here was *"do not synthesize audio until they sign off"* — which made the sign-off
-   a reading of a document whose only destiny is to be heard. Auditioning five beats is not the full
-   synth; the full run still waits for approval.
-   **Ask ⑤ Voice HERE**, right after they have heard it: keep this voice (the free edge-tts default,
-   and the only engine with per-word timings — html reveals and karaoke captions land on the exact word)
-   · MiniMax (paid, most natural, especially Chinese) · OpenAI (paid) · macOS `say` (offline). A paid pick
+   Never skip it: every check in this pipeline READS the narration, and the defect that ships is AUDIBLE
+   (why: `references/engineering-case-law.md` W1). Auditioning five beats is not the full synth; the full run
+   still waits for approval.
+   **Ask ⑤ Voice HERE**, right after they have heard it. Menu: **keep this voice** (edge-tts, the free
+   default — natural, needs network, accent-matched, and the ONLY engine with per-word timings, so html
+   reveals and karaoke captions land on the exact word) · **MiniMax** (paid, most natural, especially
+   Chinese; needs a key) · **OpenAI** (paid, premium neural; needs a key) · **macOS `say`** (offline, robotic
+   fallback). (Other → an accent or gender preference.) State the trade-off aloud: with say/MiniMax/OpenAI,
+   HTML reveals use the text-position estimate (tracks the voice's pacing, not word-exact). A paid pick
    triggers Batch 2 (key + a voice-sample pick), then re-run `script_audition.py <out_dir> --allow-paid` in
    the new voice before sign-off — the user signs off on the voice they will actually get. (The flag is
    the consent: without it the audition refuses a paid engine and says how many characters it would
@@ -908,17 +869,14 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    🔴 **CHECKPOINT · 🛑 STOP:** get explicit approval of the style (voice/pace/motion/
    captions) BEFORE the full render. Iterate on the sample until they approve — never
    batch-render all slides unsigned-off.
-9. **Full render** — first the PRE-render gate: `python scripts/validate.py <out_dir>`. A
-   non-zero exit means a referenced image/audio/page/asset is missing, an index is duplicated,
-   `theme.css` is absent, or a caption is a wall of text — fix every ERROR before rendering (it
-   catches in ~1s what would otherwise waste a multi-minute render).
-   **WARNING TRIAGE — required, not "skim the warnings too".** Warnings do not block the render, which
-   is exactly why they get shipped: a deck once delivered "all green" carrying **94** of them, including
-   28 pages flagged FLAT on a PAID image tier and every reveal-choreography defect on the deck. An exit
-   code of 0 is a floor, not a verdict. So before delivering, GROUP the warnings by kind (they repeat —
-   94 collapsed to ~10 kinds) and put every kind in one of three buckets: **fix** · **accept, with a
-   one-line reason** · **can't fix here**. Then TELL THE USER the accepted ones and why. A warning
-   silently swallowed is a defect you chose and hid; a warning accepted out loud is a design decision.
+9. **Full render — gate, render, review, deliver**, in this order (9a → 9f).
+   **9a · Pre-render gates.** First `python scripts/validate.py <out_dir>`. A non-zero exit means a referenced
+   image/audio/page/asset is missing, an index is duplicated, `theme.css` is absent, or a caption is a wall of
+   text — fix every ERROR before rendering (it catches in ~1s what would otherwise waste a multi-minute render).
+   **WARNING TRIAGE — required, not "skim the warnings too".** An exit code of 0 is a floor, not a verdict:
+   GROUP the warnings by kind (they repeat) and put every kind in one of three buckets — **fix** · **accept,
+   with a one-line reason** · **can't fix here** — then TELL THE USER the accepted ones and why. A warning
+   silently swallowed is a defect you chose and hid; one accepted out loud is a design decision (why: case-law W3).
    **BOTH TIERS — also run `python scripts/rhythm_qa.py <out_dir>`** (needs the real durations, so after tts) — it
    flags flat pacing: uniform scene lengths, a mis-placed or missing climax, a non-sparse closer, an
    over-held static image, or no attention reset for >~35s. Fix the ERRORs; treat the WARNs as
@@ -927,57 +885,49 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    concept used before it is introduced (walks `content_plan.json`'s concept DAG). Fix every ERROR;
    it no-ops if `content_plan.json` wasn't persisted.
    **BOTH TIERS — run `python scripts/voice_qa.py <out_dir>`** — the VOICE gate (see
-   `references/anti-ai-voice.md`). The narration is the ONE thing the two tiers share outright: both read
-   the same `narration` in the same `storyboard.json`, and `tts.py` speaks it for both. This instruction
-   used to sit between "On a remotion deck…" and "For an HTML-tier deck…", so an html author reading down
-   the page hit the remotion sentence, saw it was not their tier, and skipped the voice gate with it — a
-   rule that exists and is not on the path its reader takes is not a rule.
-   It reports the vocabulary tells AND the rhythm distribution (sentence-length CV, balanced-pair share,
-   connective share, antithesis share, and how many beats hold a single sentence). Treat each number as a
-   place to look, not a target: fix the beats that genuinely read as template, leave the ones that trip a
-   check and still sound like a person, and say out loud which you accepted. Then READ THE WHOLE SCRIPT
-   ALOUD — the metrics catch distribution, only the read catches deadness.
-   **On a `meta.renderer:"remotion"` deck, run `python scripts/shot_proof.py <out_dir>`
-   BEFORE the full render** — it catches, in ~3 minutes, the mechanical findings that otherwise cost
-   a full render (6–8 minutes for a 37-beat film) plus a shot-critic pass to discover: a leftover register default, two beats
-   rendering the same picture, action-safe overflow, ink in the caption band, an off-palette colour,
-   a dead frame. Fix every ERROR and triage the warnings out loud, exactly as with validate.
-   **For an HTML-tier deck, also run `python scripts/keyframe_qa.py <out_dir>`** — it screenshots
-   every page at several reveal states into `<out_dir>/_keyframes/` and flags any BLANK page or
-   content overflowing the 1080 canvas (open `_keyframes/all.png` and eyeball for tofu / off-theme /
-   mistimed reveals). Fix any FAIL before the full render — cheaper than finding it in `out.mp4`. Then
-   `render.py <out_dir>` (for 9:16 set `meta.aspect:"9:16"` — render and validate both honor it,
-   captions auto-scale off the narrow dimension, and HTML pages must be RE-AUTHORED vertically —
-   top-anchored, single-column restacks, vertical timeline rail; see `references/html-pages.md`
-   "9:16 vertical pages";
-   the `--vertical` flag also forces it on both), and the POST-render A/V gate:
-   `python scripts/check_av.py <out_dir>`. A non-zero exit means A/V drift or non-uniform clip
-   rates — fix the root cause (clear `.clips/`, fix audio or regenerate failing clips, and
-   re-render) before delivering.
-   **For a `meta.renderer:"remotion"` deck** (the bespoke-shot tier), `render_remotion.py` writes `out.srt`
-   + `_keyframes/scene_NN.png` itself; the html-only `keyframe_qa.py` (which returns 0 on a remotion deck) is
-   replaced by its remotion twin **`keyframe_qa_remotion.py <out_dir>`** (a deterministic blank-frame backstop on
-   the keyframes) PLUS **`text_safe_qa.py <out_dir>`** — the FRAME-CRAFT gate: it ERRORs when any
-   TYPE is cut off by the canvas, asked of the DOM rather than inferred from border ink (see `text_safe_qa.py` in `references/pipeline-scripts.md`;
-   the pixel version it replaces was inverted, blocking full-bleed technique and missing every real cut).
-   **`frame_safe_qa.py <out_dir>`** stays as an ADVISORY read — a flooded border and a brightness OUTLIER
-   scene (a white/bright shot in a dark film = palette clash) are worth seeing, never worth blocking. PLUS **`film_energy_qa.py <out_dir>`** — the FILM-ENERGY gate: motion,
-   density and light measured against real launch films (see `film_energy_qa.py` in `references/pipeline-scripts.md`). It is the only gate that
-   judges the FILM rather than a frame, and the only one that can catch a delivery which is correct in
-   every frame and inert as a film. `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`). At the
-   DESIGN layer, dispatch **`agents/shot-critic.md`** on those keyframes + the `check_av` + `keyframe_qa_remotion`
-   + `text_safe_qa` + `film_energy_qa` + (advisory) `frame_safe_qa` reports: it judges register fit, family
-   variety, faithful copy (no demo-number/WorkBuddy-
-   leftover), decodability, **MEANING (S10 — does each shot's design ENCODE its beat's idea, not just look good?)**,
-   and **boldness (S8, audacity-scaled)**, and REVISEs failing beats (the shot-director re-assigns → re-render)
-   — at the depth the user chose (the review-depth question below; `thorough` is this full loop).
-   Deliver only after **the review at that depth closes and `check_av` + `keyframe_qa_remotion` + `text_safe_qa` +
-   `cjk_type_qa` exit 0 (on a CJK film) + `film_energy_qa` exit 0 + `shake_qa` exit 0** (the two are a PAIR: the first refuses a film that does not move, the second refuses one that moves without going anywhere, and passing the first by tripping the second is the specific failure this tier has shipped before) (`frame_safe_qa` is advisory — read it, say which warnings you accepted)
-   — and that review must be an INDEPENDENT one: re-dispatch the critic as a fresh subagent given only the
-   `<out_dir>` path, then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it refuses an
-   in-context ledger, a ledger missing any dimension, and one pinned to a render this film never had).
+   `references/anti-ai-voice.md`); the narration is the one thing the two tiers share outright (why this says
+   BOTH TIERS: case-law W4). It reports the vocabulary tells AND the rhythm distribution (sentence-length CV,
+   balanced-pair share, connective share, antithesis share, and how many beats hold a single sentence). Treat
+   each number as a place to look, not a target: fix the beats that genuinely read as template, leave the ones
+   that trip a check and still sound like a person, and say out loud which you accepted. Then READ THE WHOLE
+   SCRIPT ALOUD — the metrics catch distribution, only the read catches deadness.
+   **Remotion film — three more, none of which costs a render of the film:**
+   • `python scripts/shot_proof.py <out_dir>` — catches in ~3 minutes the mechanical findings that otherwise
+     cost a full render (6–8 minutes for a 37-beat film) plus a shot-critic pass: a leftover register default,
+     two beats rendering the same picture, action-safe overflow, ink in the caption band, an off-palette
+     colour, a dead frame. Fix every ERROR and triage the warnings out loud, exactly as with validate.
+   • `python3 scripts/energy_skeleton.py <out_dir>` — reads the plan's declared `energy` per beat against each
+     register's measured motion (a climax on a register UNDER the delivery motion floor is the defect it
+     catches). Fix the beats it names or re-declare them.
+   • `python3 scripts/cjk_type_qa.py <out_dir>` — **required when `meta.language` is CJK**; run it serially.
+     The library is authored with short English demo copy, and a face set at `line-height: 0.82` is confident
+     Latin typography and a collision in Chinese. `text_safe_qa` cannot see it (nothing is cut off — the copy
+     sits inside the frame and is unreadable).
+   **HTML-tier deck — also run `python scripts/keyframe_qa.py <out_dir>`**: it screenshots every page at
+   several reveal states into `<out_dir>/_keyframes/` and flags any BLANK page or content overflowing the 1080
+   canvas (open `_keyframes/all.png` and eyeball for tofu / off-theme / mistimed reveals). Fix any FAIL before
+   the full render — cheaper than finding it in `out.mp4`.
+   **9b · Render.** `render.py <out_dir>` (HTML/image tiers) or `render_remotion.py <out_dir>` (remotion; it
+   writes `out.srt` + `_keyframes/scene_NN.png` itself). For 9:16 set `meta.aspect:"9:16"` — render and validate
+   both honor it, captions auto-scale off the narrow dimension, and HTML pages must be RE-AUTHORED vertically
+   (top-anchored, single-column restacks, vertical timeline rail; `references/html-pages.md` "9:16 vertical
+   pages"); the `--vertical` flag also forces it on both.
+   **9c · Post-render gates.** `python scripts/check_av.py <out_dir>` on both tiers: a non-zero exit means A/V
+   drift or non-uniform clip rates — fix the root cause (clear `.clips/`, fix audio or regenerate failing
+   clips, and re-render) before delivering. On a remotion film the html-only `keyframe_qa.py` (which returns 0
+   there) is replaced by: **`keyframe_qa_remotion.py <out_dir>`** (a deterministic blank-frame backstop on the
+   keyframes) · **`text_safe_qa.py <out_dir>`** — the FRAME-CRAFT gate: it ERRORs when any TYPE is cut off by
+   the canvas, asked of the DOM rather than inferred from border ink (its entry in
+   `references/pipeline-scripts.md`) · **`film_energy_qa.py <out_dir>`** — the FILM-ENERGY gate: motion,
+   density and light measured against real launch films, the only gate that judges the FILM rather than a
+   frame, so the only one that catches a delivery correct in every frame and inert as a film · **`shake_qa.py
+   <out_dir>`** — paired with film_energy_qa: the first refuses a film that does not move, the second one that
+   moves without going anywhere, and passing the first by tripping the second is a failure this tier has
+   shipped. **`frame_safe_qa.py <out_dir>`** is an ADVISORY read — a flooded border and a brightness OUTLIER
+   scene (a white/bright shot in a dark film = palette clash) are worth seeing, never worth blocking; say
+   which of its warnings you accepted. `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`).
 
-   🔴 **THE REVIEW-DEPTH QUESTION — asked after the FIRST clean render, with the film in front of the user**
+   **9d · 🔴 THE REVIEW-DEPTH QUESTION — asked after the FIRST clean render, with the film in front of the user**
    (modelled on slide-maker's post-build review question). When every machine gate is green (validate,
    text_safe incl. `--glide`/`--sync`, keyframe_qa / keyframe_qa_remotion, check_av, shot_proof, cjk_type_qa,
    film_energy_qa, shake_qa, rhythm_qa, pedagogy_qa), FIRST hand the film over — `python3 scripts/deliver.py
@@ -988,13 +938,14 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    |---|---|---|
    | **`fast`** (default) | ONE combined critic (`shot-critic` carrying `critic-av`'s lens; HTML tier: `critic-av` + `design-critic`'s D-checks in one pass), ONE round, top issues by impact; the rest recorded `declined` | one subagent pass + one re-render if it finds something |
    | `standard` | `shot-critic` + `critic-av` (HTML: `critic-av` + `design-critic`), up to TWO rounds, round 2 a full fresh review | about two to four subagent passes + re-renders |
-   | `thorough` | today's full loop: REVISE → fix → re-render → fresh independent review, until PASS | open-ended; each round is a re-render plus a fresh review |
+   | `thorough` | the full loop: REVISE → fix → re-render → fresh independent review, until PASS | open-ended; each round is a re-render plus a fresh review |
    | `none` | no critic — the user's own viewing is the review, recorded as user-waived | nothing further |
 
    **Pre-select `fast`** when the plan/design self-checks and every machine gate came back clean. **Pre-select
    `standard`, and say why in the question,** when a gate needed a waiver or an accepted warning you had to argue
    for, or the design self-check flagged issues. `none` is NEVER pre-selected and never inferred from silence,
-   a "looks fine", or a green gate — only the user's explicit pick. Record the answer in `storyboard.json`:
+   a "looks fine", or a green gate — only the user's explicit pick. Record the answer as `meta.review` in
+   `storyboard.json`:
 
    ```json
    "review": {"tier": "fast", "user_answer": "<the option or words the user gave>",
@@ -1032,41 +983,45 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    - **It waives taste, not correctness.** `check_av`, `keyframe_qa_remotion`, `text_safe_qa`, `cjk_type_qa`,
      `film_energy_qa`, `shake_qa` and `validate.py` all still run and still gate delivery. A waived film is
      one nobody judged for register fit, meaning, frame-craft or boldness — not one nobody checked plays.
-   **BEFORE the render, on a `meta.renderer:"remotion"` film, run the two PRE-render checks this tier grew
-   after shipping films that passed everything and still read wrong.** Neither costs a render of the film:
-   • `python3 scripts/energy_skeleton.py <out_dir>` — the plan declares an `energy` per beat and the sweep
-     measures a motion per register; nothing used to read one against the other, and a delivered film put
-     its climax on a register UNDER the delivery motion floor. Fix the beats it names or re-declare them.
-   • `python3 scripts/cjk_type_qa.py <out_dir>` — **required when `meta.language` is CJK.** The library is
-     authored with short English demo copy, and a face set at `line-height: 0.82` is confident Latin
-     typography and a collision in Chinese. `text_safe_qa` cannot see it (nothing is cut off — the copy sits
-     inside the frame and is unreadable), which is exactly how two registers shipped a pile of overlapping
-     type in a delivered film.
-   **And when the film came from a pptx** whose theme is not Office's default, run
-   `python3 scripts/dna_from_deck.py <out_dir>` BEFORE the shot-director so the film carries the deck's own
-   brand rather than a direction's preset; `validate.py` warns when it did not.
-   **DELIVERY CRITERION — every gate, not two.** Deliver `out.mp4`,
-   `out.srt`, and the editable `storyboard.json` only after **`validate.py`, `check_av.py`,
-   `keyframe_qa.py`, `rhythm_qa.py` and `pedagogy_qa.py` ALL exit 0** (`voice_qa.py` is ADVISORY and always
-   exits 0 — read its signals and say which you accepted; failing a build on them would produce the
-   "rule voice" its reference warns about) (on a `meta.renderer:"remotion"` deck,
-   `keyframe_qa_remotion.py` + `text_safe_qa.py` + `film_energy_qa.py` + the review at the user's chosen
-depth (`critic_ledger.py --final`) REPLACE `keyframe_qa.py`, which no-ops there; `frame_safe_qa.py` is advisory).
-   Naming only the first two is
-   how a deck shipped "all green" while the gates that actually look at the pages were never
-   consulted. Also read `keyframe_qa`'s **deck advisories** (silhouette repetition, content-band
-   uniformity) and any scene reported **UNVERIFIED** — an unverified scene is not a passing scene, it
-   is a scene nothing measured. Then record the deck's register into the
-   cross-deck ledger: `python scripts/register_ledger.py record <out_dir>` (feeds the next video's
+
+   **9e · The review, at the depth chosen.** On a remotion film, run `python3 scripts/critic_brief.py <out_dir>`,
+   then dispatch **`agents/shot-critic.md`** on the keyframes + the `check_av` + `keyframe_qa_remotion` +
+   `text_safe_qa` + `film_energy_qa` + (advisory) `frame_safe_qa` reports. It judges register fit, family
+   variety, faithful copy (no demo-number/WorkBuddy leftover), decodability, **MEANING (S10 — does each shot's
+   design ENCODE its beat's idea, not just look good?)**, **boldness (S8, audacity-scaled)** and direction
+   adherence, and REVISEs failing beats (the shot-director re-assigns → re-render). Its verdict is a LEDGER:
+   every dimension gets a row in `<out>/_critic_ledger.json` — the clean ones too, each citing the keyframe or
+   brief line it rests on — and `python3 scripts/critic_ledger.py <out_dir>` must exit 0. The delivery pass is a
+   fresh subagent whose ENTIRE input is the `<out_dir>` path — no rationale, no summary of what you fixed, no
+   steer about where to look — then `python3 scripts/critic_ledger.py <out_dir> --final` (exit 0 required; it
+   refuses an in-context ledger, a ledger missing any dimension, and one pinned to a render this film never
+   had) (why: case-law W7). On the HTML tier the same depth applies to `critic-av` + `design-critic` (table
+   above).
+   **9f · DELIVERY CRITERION — every gate, not two** (why: case-law W5). Deliver `out.mp4`, `out.srt`, and the
+   editable `storyboard.json` only after **`validate.py`, `check_av.py`, `keyframe_qa.py`, `rhythm_qa.py` and
+   `pedagogy_qa.py` ALL exit 0** (`voice_qa.py` is ADVISORY and always exits 0 — read its signals and say which
+   you accepted; failing a build on them would produce the "rule voice" its reference warns about). On a
+   remotion film, `keyframe_qa_remotion.py` + `text_safe_qa.py` + `cjk_type_qa` (CJK film) + `film_energy_qa.py`
+   + `shake_qa.py` exit 0 and the review at the user's chosen depth (`critic_ledger.py --final`) REPLACE
+   `keyframe_qa.py`, which no-ops there; `frame_safe_qa.py` is advisory. Also read `keyframe_qa`'s **deck
+   advisories** (silhouette repetition, content-band uniformity) and any scene reported **UNVERIFIED** — an
+   unverified scene is not a passing scene, it is a scene nothing measured. Then record the deck's register
+   into the cross-deck ledger: `python scripts/register_ledger.py record <out_dir>` (feeds the next video's
    contest with "what the last decks looked like").
+   **PROMOTION IS THE USER'S CHOICE, AT DELIVERY** (both tiers). List the film's built things (`meta.build_list`)
+   — each with its settled frame (`workshop/_stills/`) and its gate results — and ask the user with
+   `AskUserQuestion` (multiSelect) which, if any, to promote into the library. For each one chosen:
+   `python3 scripts/promote.py <out_dir> <Name>` (an object or an HTML component: it joins the library and the
+   catalogue) or `... --family <X> --use-when "…" --motion "…"` (a remotion shot: registered at every sync point
+   and measured in the right order). Nothing is promoted without the user's pick; nothing a film builds reaches
+   another film until it is.
    **Then hand the user the video WHERE THEY LOOK FOR IT — always, for every render they are asked to
    watch (a sample, a preview, the final cut):** `python3 scripts/deliver.py <out_dir>` copies `out.mp4`
    (and `out.srt` beside it, same name) to `~/Desktop`, or to `~/Downloads` when the Desktop cannot be
    written, and prints the path — give the user THAT path, and send the file too when the session can.
    Never point the user at a file inside this skill's folder, `~/.claude`, a `.superpowers/` or other
-   hidden work folder, or a temp directory: nobody browses there, and handing the user such a path has
-   cost real time more than once. If neither folder can be written (macOS can withdraw access
-   mid-session), ask the user for a folder and pass `--to`.
+   hidden work folder, or a temp directory: nobody browses there. If neither folder can be written (macOS can
+   withdraw access mid-session), ask the user for a folder and pass `--to`.
 10. **Iterate** — any change = edit `storyboard.json`, then re-run render (the per-slide
     clip cache re-renders only changed slides) and tts (`--only N`). For DESIGN experiments
     (register/theme/caption changes that bust many clips), iterate with `render.py --preview`
@@ -1098,12 +1053,12 @@ depth (`critic_ledger.py --final`) REPLACE `keyframe_qa.py`, which no-ops there;
   stay in sync. Reach for `1.2–1.3` when a faithful script overruns the target runtime.
   **The knob is BIDIRECTIONAL, and slowing DOWN is the fix for a video that feels rushed or whose
   scene-ends read as abrupt.** The instinct — "give the viewer more time to read" — must NOT be paid
-  for by padding a long SILENT, STATIC tail onto each clip via `audio_breath`: a frame frozen and
-  silent for 2–3 s then hard-cut reads as the video HANGING, not as breathing room (a real deck shipped
-  this and the viewer called every scene-end "a stiff obvious gap"). Reading time belongs INSIDE the
-  narration — set `tts_speed` to ~`0.9–0.92` so the whole delivery is unhurried and the reveals land
-  leisurely — leaving only a SHORT natural breath (`audio_breath` ~0.4–0.5, or a per-scene tail of
-  ≤~1 s) after the last word. Slow-voice + short-breath + a gentle seam beats fast-voice + long-dead-tail
+  for by padding a long SILENT, STATIC tail onto each clip: a frame frozen and silent for 2–3 s then
+  hard-cut reads as the video HANGING, not as breathing room (a viewer called every such scene-end "a stiff
+  obvious gap"). Reading time belongs INSIDE the narration — set `tts_speed` to ~`0.9–0.92` so the whole
+  delivery is unhurried and the reveals land leisurely — leaving only the SHORT heard pause of
+  `meta.scene_pause` (default 0.55 s, keep ≤ ~0.9 s; see `tts.py` under Pipeline scripts) after the last
+  word. `meta.audio_breath` is a RAW pad that overrides it — set it only deliberately. Slow-voice + short-breath + a gentle seam beats fast-voice + long-dead-tail
   at the same total runtime, every time. (Rule of thumb: if any page's on-screen text exceeds ~28
   characters/second of its own duration it will feel too fast — lower `tts_speed` or split the page,
   don't just freeze the tail.)
@@ -1133,10 +1088,8 @@ depth (`critic_ledger.py --final`) REPLACE `keyframe_qa.py`, which no-ops there;
   (`Film.tsx` BrandMark, on every scene subject to `placement`), served from the out_dir; it has no AUTHORED
   cover/endcard lockup page (that's an html-tier concept), so a remotion `brand` shows only the bug. The logo is NEVER stretched (preserve
   aspect), never recolored, no effects.
-- **HTML pages tier:** `type:"html"` scenes render an authored page via headless Chrome
-  (`render_html`), captured as seekable CSS reveals. Pages render only real content (faithful);
-  the per-clip cache busts when the page file, `theme.css` (re-theming), or `audio/NN.words.json`
-  (new edge run) changes. Locate Chrome via `meta.chrome_path` if needed.
+- **HTML pages tier cache:** a page's clip re-renders when the page file, `theme.css` (re-theming), or
+  `audio/NN.words.json` (new edge run) changes.
 - **Anti-slop (design-critic D10 / AV-critic):** no emoji in titles; no hardcoded hex — use semantic vars
   (`var(--bg)`, `var(--accent)`, etc.; `validate.py` lints raw `#hex` in style/SVG colors,
   `design-critic` D10 fails it); no gradient-mesh backgrounds; no player-chrome / progress
@@ -1164,32 +1117,27 @@ depth (`critic_ledger.py --final`) REPLACE `keyframe_qa.py`, which no-ops there;
   audio paths — important for a **paced** voice (say/openai/**MiniMax**, no per-word timings): a linear
   stagger only aligns if the narration introduces the points at roughly even intervals; otherwise cue it
   with edge-tts, restructure the narration, or tune `anim_seconds`. `critic-content` R2 confirms the fix.
-- **Theming:** `theme.py` → `theme.css` (semantic `:root` vars) themes BOTH tiers — the `html`
-  pages link it, and the programmatic scenes (`title`/`chart`/`keypoints`/`compare`/`timeline`)
-  parse the SAME vars (one color world), falling back to the dark palette only when no `theme.css`
-  exists. Pick a palette/mode that fits the TOPIC (not always dark); author pages with the vars,
-  never raw hex. Mixing html + programmatic scenes in one deck is fine — they share the palette.
-  Re-running `theme.py` busts ALL cached clips (both tiers read it).
-- **Image provider:** `imagegen.py` auto-detects the `codex` CLI and uses its native image-gen
-  (no key, Codex-plan-billed, slower) when present; else the OpenAI key (`OPENAI_API_KEY` /
-  `~/.openai_key`). `meta.image_provider` (`auto`/`codex`/`openai`) overrides. Codex and OpenAI
-  images cache separately (keyed by provider).
+- **Theming:** one colour world — html pages link `theme.css` and the programmatic scenes parse the SAME
+  vars (dark palette only when no `theme.css` exists), so mixing the two in one deck is fine. Pick a
+  palette/mode that fits the TOPIC (not always dark); never raw hex. Re-running `theme.py` busts ALL cached
+  clips. (When to run it: step 3.6 "Theme".)
+- **Image provider:** Codex-first, else the OpenAI key (Batch 3 "Provider"); Codex and OpenAI images
+  cache separately (keyed by provider).
 - **API key — never persist it.** Applies to the OpenAI key (gpt-image / openai TTS) AND the
   **MiniMax key** (`MINIMAX_API_KEY` / `~/.minimax_key`). Request it fresh each run and pass it ONLY
   via the env var (or `imagegen.py --key`) for that one call. NEVER write any key into
   `storyboard.json`, any script, the `.assets/` manifest, a log, or any committed file — the scripts
   keep it only in the request header, nowhere on disk. If the user pasted a key into the chat, remind
   them to rotate it (the transcript retains it).
-- **Pacing — keep cuts moving.** Don't let one frame linger: aim for roughly ≤8s per scene,
-  especially image/b-roll (a held static image reads as sluggish even with Ken Burns). If a
-  scene's narration runs long, split it into shorter beats/cuts rather than holding one frame.
+- **Pacing — keep cuts moving.** Prefer MANY short beats (~3–6s, one idea each; ≈ `target_seconds/4`
+  beats) and roughly ≤8s per scene, especially image/b-roll (a held static image reads as sluggish even
+  with Ken Burns). If a scene's narration runs long, split it into shorter beats rather than holding one
+  frame; the animated renderers' internal reveals keep the screen moving.
 - **Informative-first visuals.** A beat that states a fact or concept uses an INFORMATIVE
   visual — `chart`, `compare` (split/versus breakdown), `keypoints` (kinetic labeled points),
   or `timeline` — never a decorative photoreal image. AI photoreal (`image_prompt`/`broll`) is
   allowed as a rare atmospheric opener/closer OR as illustrative accompaniment on a content beat
   where the fact stays as on-page text (e.g. a `.split` page); never as the sole carrier of a claim.
-- **Energetic pacing.** Prefer MANY short beats (~3–6s, one idea each; ≈ `video_seconds/4`
-  beats) over a few long holds; the animated renderers' internal reveals keep the screen moving.
 - **Audio↔visual.** Each narration line must MATCH what is on screen (its beat's visual) — the
   `critic-content` (R2) fails a mismatch.
 - **Language is set once, in `meta.language`** — write the narration in that language, and
@@ -1280,7 +1228,7 @@ For anything else, read `references/troubleshooting.md` before guessing.
   the checkpoint is a listen, and a script nobody heard has not been checked.
 - ❌ Narrate from the slides alone, or invent facts/numbers — ground in the material (or a
   web fact-check) and stay strictly faithful (step 3).
-- ❌ Skip the critic panel — the parallel `critic-narrative` + `critic-content` + `design-critic` check (step 5) is REQUIRED; ship only when ALL THREE return PASS.
+- ❌ Skip the script critic (step 5) — the combined critic runs on every run (the 3-critic panel when step 5 calls for it, shipping only when all three PASS), and every faithfulness or sourcing finding is fixed, never cut to the top few.
 - ❌ Read slide bullets aloud verbatim — write *spoken* narration (`references/narration-writing.md`).
 - ❌ Guess a slide's `duration` — it must come from ffprobe via `tts.py`.
 - ❌ Hand-edit `out.mp4`; change `storyboard.json` and re-render (`--only N`).

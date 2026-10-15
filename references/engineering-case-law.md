@@ -244,3 +244,55 @@ regions, and report the largest.
 > tile, so a 5×5 grid read as five vertical strips. Scaling the shadow to the ground took it to 0.3%.
 > **Ask yourself:** Of everything this gate reports as one number, what two pictures would score the same —
 > and would a reader tell them apart in a second?
+
+---
+
+## Run-time case notes — why the workflow says what it says
+
+The E-rules above bind whoever EDITS the library. The notes below are the precedents behind rules that bind
+a FILM RUN; the rule itself lives in `SKILL.md` at the step where it is acted on, in imperative form, and
+points here for the why. They are numbered `W`, not `E`, so `critic_ledger.py` does not read them as library
+rules; append-only, like the rest of this file.
+
+**W1 · THE SCRIPT IS HEARD BEFORE IT IS SIGNED OFF** (SKILL.md step 5, `script_audition.py`).
+> **Precedent — `164117a`:** a 37-beat script cleared every `voice_qa` metric (CV 0.45 · antithesis 8% ·
+> connectives 38% · aphorism endings 5%), passed two independent content critics, was read end-to-end by its
+> author — and the person it was made for said, on the first listen, 「脚本没有人的感觉，读起来也很机器」.
+> Every check in this pipeline READS the narration; the defect is AUDIBLE. `references/anti-ai-voice.md`
+> opened with "the last pass is always a human read-aloud" and nothing in the workflow produced anything to
+> read aloud. The old instruction at that step was "do not synthesize audio until they sign off", which made
+> the sign-off a reading of a document whose only destiny is to be heard. `1b1cfa0` then moved the voice
+> question (⑤) to the audition: choosing an engine before hearing anything was the most abstract question in
+> the interview, and the up-front interview shrank from two screens and seven questions to one screen.
+
+**W2 · A CAPABILITY THE RUN NEVER CALLS IS ABSENT** (SKILL.md step 3.6 ③, `seam_plan.py`).
+> **Precedent — `515cc8b`:** a 35-beat film shipped with all 34 of its cuts the same anonymous cross-fade and
+> a camera that never moved, while every gate stayed green. The seam vocabulary was complete, tested and
+> documented — and unreached, because nothing in the authoring path wrote `transition_in`. On screen,
+> unreached is the same as absent. `6976ab5` put the planner on the workflow path.
+
+**W3 · WARNINGS ARE TRIAGED OUT LOUD** (SKILL.md step 9a).
+> **Precedent — `28db3e1`:** a deck was delivered "all green" carrying **94** warnings, including 28 pages
+> flagged FLAT on a PAID image tier and every reveal-choreography defect on the deck. Grouped by kind the 94
+> collapsed to ~10. Warnings do not block, which is exactly why they ship.
+
+**W4 · A BOTH-TIERS GATE IS NEVER INTRODUCED BY A ONE-TIER SENTENCE** (SKILL.md step 9a, the `BOTH TIERS`
+lead-ins; `tests/test_shared_gates_are_on_both_paths.py` holds it).
+> **Precedent — `c898edb`:** the `voice_qa` instruction sat between "On a remotion deck…" and "For an
+> HTML-tier deck…", so an html author reading down the page hit the remotion sentence, saw it was not their
+> tier, and skipped the voice gate with it. A rule that exists and is not on its reader's path is not a rule.
+
+**W5 · THE DELIVERY CRITERION NAMES EVERY GATE** (SKILL.md step 9f).
+> **Precedent — `c819c84`:** the criterion named only `validate.py` and `check_av.py`, and a deck shipped
+> "all green" while the gates that actually look at the pages were never consulted.
+
+**W6 · THE DIRECTION ROUTER NEVER PADS THE BALLOT** (SKILL.md step 3.6 ①).
+> **Precedent — `0252348`:** `shot_templates.py --route` padded a short match list from a fixed fallback
+> order and put an unrelated direction on the ballot (a 3D craft look for an AI-office-agent film); its
+> scoring was ASCII-only, so a CJK topic matched nothing and got the padding every time. It now returns only
+> genuine keyword matches and prints the shortfall, which the shot-director fills by conceiving directions.
+
+**W7 · THE REVIEW LEDGER HAS EVERY ROW, AND THE DELIVERY REVIEWER IS NOT THE MAKER** (SKILL.md step 9e).
+> **Precedent — `c38f365`:** reporting only the FLAGGED beats made a dimension nobody looked at
+> indistinguishable from one checked and found clean. And the maker holds the intent — the intent is what
+> makes a wrong frame look right — so the delivery pass is a fresh subagent given only the out_dir path.
