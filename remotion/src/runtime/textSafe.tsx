@@ -48,6 +48,49 @@ export type Violation = {
   tag: string;
   cls: string;
   font: string;
+  /** the type's RENDERED size in px (font-size × every transform above it), present only when it is under
+   *  TYPE_WARN_FRAC of the frame's short side — reported when the caller asks (`typeSize`), never a cut */
+  small?: number;
+  /** the frame's short side in px, so the reader can scale the floor to the aspect */
+  short?: number;
+  /** present on ONE record per frame when `typeSize` is asked: the frame's TITLE — its largest visible type — with
+   *  its box centre as fractions of the frame, so a film's titles can be compared beat to beat */
+  title?: {cx: number; cy: number; px: number};
+};
+
+// THE TYPE-SIZE FLOOR. Nothing measured how SMALL type is: text_safe asked whether it was cut, cjk_type whether it
+// collided, and a frame full of 19-26 px labels passed both. On the GPS test film the user's checkpoint asked for
+// labels of ~30 px and titles of ~56 px at 1080; two library registers set their kickers in code at 26 px
+// (CinematicTitle) and 19 px (ObjectCompare), so the film had to replace them. Scaled to the frame's SHORT side so
+// it means the same at every aspect: under TYPE_WARN_FRAC (≈30 px at 1080) is a warning, under TYPE_ERROR_FRAC
+// (≈24 px) an error the reader cannot fix by squinting. Declared texture — a field of glyphs, a ticker whose
+// characters are pattern, not copy — opts out with `data-small="why"`.
+export const TYPE_WARN_FRAC = 0.0275;   // 29.7 px at 1080: a 30 px label passes
+export const TYPE_ERROR_FRAC = 0.022;
+
+/** The size a viewer actually sees: font-size × the scale of every transform above it (an SVG's viewBox included). */
+export const renderedPx = (el: Element, cs: CSSStyleDeclaration): number => {
+  const fs = parseFloat(cs.fontSize || '0');
+  if (!(fs > 0)) return 0;
+  const g = el as unknown as {getScreenCTM?: () => DOMMatrix | null};
+  if (typeof g.getScreenCTM === 'function') {
+    const m = g.getScreenCTM();
+    if (m) return fs * Math.sqrt(Math.abs(m.a * m.d - m.b * m.c));
+  }
+  const win = el.ownerDocument?.defaultView;
+  let scale = 1;
+  for (let n: Element | null = el; n && win; n = n.parentElement) {
+    const M = selfMatrix(win.getComputedStyle(n));
+    if (M) scale *= Math.sqrt(Math.abs(M[0] * M[3] - M[1] * M[2]));
+  }
+  return fs * scale;
+};
+
+const composedOpacity = (el: Element): number => {
+  const win = el.ownerDocument?.defaultView;
+  let o = 1;
+  for (let n: Element | null = el; n && win; n = n.parentElement) o *= parseFloat(win.getComputedStyle(n).opacity || '1');
+  return o;
 };
 
 const TOL = 1.0;          // sub-pixel layout noise; a real clip is tens of pixels
@@ -1243,10 +1286,12 @@ export const auditUnfedText = (root: Element, fed: unknown[], scope: 'all' | 'sl
 };
 
 /** Every text element whose VISIBLE box crosses the canvas edge, with no ancestor claiming the clip. */
-export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
+export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false): Violation[] => {
   const win = root.ownerDocument?.defaultView;
   if (!win) return [];
   const out: Violation[] = [];
+  let title: {el: Element; text: string; px: number; r: DOMRect | {left: number; top: number; right: number;
+    bottom: number}} | null = null;
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text) return;
@@ -1254,6 +1299,10 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
     if (el.closest?.('[data-bleed]')) return;         // an explicit, rare escape from a clip
     const r = visibleRect(el, frame);
     if (!r) return;
+    if (typeSize && composedOpacity(el) >= 0.5) {
+      const tpx = renderedPx(el, win.getComputedStyle(el));
+      if (!title || tpx > title.px) title = {el, text, px: tpx, r};
+    }
     const over = {
       left: frame.left - r.left,
       top: frame.top - r.top,
@@ -1272,7 +1321,13 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
     const bandTop = frame.bottom - captionBand(frame.width, frame.height);
     const intoBand = r.bottom - bandTop;
     const band = intoBand > floor ? Math.round(Math.min(intoBand, r.height)) : 0;
-    if (!Object.keys(sides).length && !band) return;
+    const short = Math.min(frame.width, frame.height);
+    let small = 0;
+    if (typeSize && !el.closest?.('[data-small]') && composedOpacity(el) >= 0.5) {
+      const px = renderedPx(el, cs);
+      if (px > 0 && px < TYPE_WARN_FRAC * short) small = Math.round(px * 10) / 10;
+    }
+    if (!Object.keys(sides).length && !band && !small) return;
     out.push({
       out: sides,
       ...(band ? {band} : {}),
@@ -1280,8 +1335,17 @@ export const auditTextSafety = (root: Element, frame: DOMRect): Violation[] => {
       tag: el.tagName.toLowerCase(),
       cls: (el.getAttribute('class') ?? '').slice(0, 40),
       font: `${cs.fontSize} ${(cs.fontFamily || '').split(',')[0]}`,
+      ...(small ? {small, short: Math.round(short)} : {}),
     });
   });
+  if (title) {
+    const t = title as {text: string; px: number; r: {left: number; top: number; right: number; bottom: number}};
+    // FIRST, so the payload cap (MAX_REPORTED) can never cut it off a busy frame
+    out.unshift({out: {}, text: t.text.length > 48 ? t.text.slice(0, 48) + '…' : t.text, tag: 'title', cls: '', font: '',
+      title: {cx: Math.round(((t.r.left + t.r.right) / 2 - frame.left) / frame.width * 1000) / 1000,
+              cy: Math.round(((t.r.top + t.r.bottom) / 2 - frame.top) / frame.height * 1000) / 1000,
+              px: Math.round(t.px)}});
+  }
   return out;
 };
 
@@ -1518,7 +1582,8 @@ export const TypeGlideAudit: React.FC = () => {
  * own and collects the failures rather than stopping at the first.
  */
 export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collisions' | 'fed' | 'unfed';
-  fed?: unknown[]; scope?: 'all' | 'slots'}> = ({enabled = false, mode = 'safe', fed, scope = 'all'}) => {
+  fed?: unknown[]; scope?: 'all' | 'slots'; typeSize?: boolean}> = ({enabled = false, mode = 'safe', fed, scope = 'all',
+  typeSize = false}) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const [handle] = React.useState(() =>
     enabled ? delayRender('text-safe audit', {timeoutInMilliseconds: 60000}) : null);
@@ -1570,7 +1635,7 @@ export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collis
         } else continueRender(handle);
         return;
       }
-      const viol = auditTextSafety(body, frame);
+      const viol = auditTextSafety(body, frame, typeSize);
       if (viol.length) {
         const head = viol.slice(0, MAX_REPORTED);
         if (viol.length > head.length) {

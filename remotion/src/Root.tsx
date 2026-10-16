@@ -327,6 +327,24 @@ export const CutOffCleanProbe: React.FC = () => (
 );
 
 
+// TYPE SIZE, as the viewer sees it (runtime/textSafe.tsx renderedPx): an 18 px label is under the floor; the same
+// label declared texture (`data-small`) is not reported; one set at 18 px inside a 2.5x scale renders at 45 px and
+// passes; in an SVG whose viewBox scales 10x, font-size 4 renders at 40 px and passes while font-size 1.5 renders at
+// 15 px and is under it. A size gate that read `font-size` alone would get the last three wrong.
+export const SmallTypeProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff', color: '#000',
+    font: '600 18px/1.2 var(--f-body, Inter, system-ui, sans-serif)'}}>
+    <div style={{position: 'absolute', left: 120, top: 120}}>TINY LABEL UNDER THE FLOOR</div>
+    <div data-small="tick marks on a scale, not copy" style={{position: 'absolute', left: 120, top: 200}}>TICK 0 1 2 3</div>
+    <div style={{position: 'absolute', left: 120, top: 300, transform: 'scale(2.5)', transformOrigin: '0 0'}}>
+      SCALED UP TO READ</div>
+    <svg viewBox="0 0 100 50" width={1000} height={500} style={{position: 'absolute', left: 120, top: 420}}>
+      <text x={2} y={10} fontSize={4}>SVG LARGE ENOUGH</text>
+      <text x={2} y={30} fontSize={1.5}>SVG TOO SMALL</text>
+    </svg>
+  </div>
+);
+
 // A LAST LINE HOLDING ONE CHARACTER, and the one-property fix. Chinese breaks between any two glyphs, so a
 // label a single unit too wide for its box drops one character onto a line of its own — a delivered film's
 // card read 「Craft · 直接开」 over a line holding just 「干」. Fifteen characters in a box seven wide is that
@@ -373,7 +391,7 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   const {dna, aspect: _a, ...rest} = p as {dna?: unknown; aspect?: unknown};
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
   const _p = p as {textSafe?: unknown; typeCollisions?: unknown; fedText?: unknown; unfedText?: unknown;
-    unfedScope?: unknown};
+    unfedScope?: unknown; typeSize?: unknown};
   // `fedText` asks a THIRD question of the same walk: of the strings the caller fed this register, which
   // never reached the screen? It is how a gate tells a legitimately sparse frame from one drawn out of
   // `undefined` — see `auditFedText`.
@@ -384,7 +402,8 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   const audit = <TextSafeAudit enabled={Boolean(_p.textSafe || _p.typeCollisions || _p.fedText || _p.unfedText)}
                                mode={mode}
                                fed={Array.isArray(_p.unfedText) ? _p.unfedText : Array.isArray(_p.fedText) ? _p.fedText : []}
-                               scope={_p.unfedScope === 'slots' ? 'slots' : 'all'} />;
+                               scope={_p.unfedScope === 'slots' ? 'slots' : 'all'}
+                               typeSize={Boolean(_p.typeSize)} />;
   // `typeGlide` arms the per-frame census instead (runtime/textSafe.tsx TypeGlideAudit): it never cancels, and it
   // is read across a range of frames rather than at one, so it rides beside the still-mode audit, not in it.
   const glide = (p as {typeGlide?: unknown}).typeGlide ? <TypeGlideAudit /> : null;
@@ -436,6 +455,7 @@ export const RemotionRoot: React.FC = () => (
     {F('CaptionBandCleanProbe', CaptionBandCleanProbe, 165)}
     {F('CutOffProbe', CutOffProbe, 165)}
     {F('CutOffCleanProbe', CutOffCleanProbe, 165)}
+    {F('SmallTypeProbe', SmallTypeProbe, 165)}
     {F('OrphanLineProbe', OrphanLineProbe, 165)}
     {F('BalancedLineProbe', BalancedLineProbe, 165)}
     {F('TightLeadingProbe', TightLeadingProbe, 165)}

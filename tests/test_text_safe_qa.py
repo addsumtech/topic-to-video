@@ -482,3 +482,24 @@ def test_a_cjk_sweep_never_sweeps_a_register_in_english_under_a_cjk_headline(mon
     assert "2 of 4 registers (--limit=4 — of %d registers in shots/) at CJK fixtures" % len(
         g.durations()) in text, text
     assert rc == 2
+
+
+def test_type_under_the_size_floor_is_reported_as_the_viewer_sees_it(tmp_path):
+    # nothing measured type SIZE: a frame of 19-26 px labels passed every gate, and the first sweep found 53 of 194
+    # registers under ~24 px. The size is the RENDERED one — font-size times every transform and viewBox above it.
+    found = g.audit_shot("SmallTypeProbe", {"dna": "product"}, 82, str(tmp_path / "small.png"), type_size=True)
+    small = {v["text"]: v for v in found if v.get("small")}
+    assert "TINY LABEL UNDER THE FLOOR" in small and g.type_size_level(small["TINY LABEL UNDER THE FLOOR"]) == "error"
+    assert "SVG TOO SMALL" in small and small["SVG TOO SMALL"]["small"] < 24, small
+    assert not any(t.startswith("TICK") for t in small), "declared texture (data-small) is not copy"
+    assert "SCALED UP TO READ" not in small and "SVG LARGE ENOUGH" not in small, small
+    # without the flag nothing about size is said (the library sweep's baseline is unchanged unless asked)
+    assert not any(v.get("small") for v in g.audit_shot("SmallTypeProbe", {"dna": "product"}, 82,
+                                                         str(tmp_path / "s2.png")))
+
+
+def test_the_library_type_debt_is_a_warning_in_a_film_and_a_films_own_shot_is_held_to_the_floor():
+    debt = g.type_debt()
+    assert len(debt) >= 50 and all(set(r) == {"min_px", "under_error", "under_warn"} for r in debt.values())
+    lib = g.durations()
+    assert set(debt) <= set(lib), "the debt names registers the library no longer has: %s" % (set(debt) - set(lib))

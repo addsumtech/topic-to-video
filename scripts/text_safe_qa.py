@@ -62,7 +62,7 @@ def durations():
     return out
 
 
-def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None):
+def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size=False):
     """Render one shot with the audit armed. Returns [] (clean) or the violation list it reported.
 
     Props travel by FILE, never on the command line: a beat's real copy is routinely CJK, and a multibyte
@@ -70,6 +70,8 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None):
     """
     payload = dict(props or {})
     payload["textSafe"] = True
+    if type_size:
+        payload["typeSize"] = True            # also report type rendered under the size floor (runtime/textSafe.tsx)
     pf = tmp_png + ".props.json"
     with open(pf, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, allow_nan=False)
@@ -117,6 +119,89 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None):
     return []
 
 
+# the floor's two levels, as fractions of the frame's short side — the SAME constants runtime/textSafe.tsx reports
+# against (TYPE_WARN_FRAC there decides what is sent; this decides which of it is an error)
+TYPE_WARN_FRAC, TYPE_ERROR_FRAC = 0.0275, 0.022
+
+
+TYPE_DEBT = os.path.join(_REMOTION, "type_debt.json")
+
+
+def type_debt():
+    """{register: {min_px, under_error, under_warn}} — the library's known small type (remotion/type_debt.json)."""
+    try:
+        return json.load(open(TYPE_DEBT, encoding="utf-8")).get("registers") or {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+# TITLE PLACEMENT. A user's review of the GPS design found nearly every title top-left — a repeated composition no
+# gate could see, because each frame alone is fine. The walker reports each frame's largest visible type (its title)
+# and where it sits; this asks whether one ninth of the frame holds most of the film's titles.
+TITLE_ZONE_SHARE = 0.6
+TITLE_ZONE_MIN = 4
+
+
+def _zone(cx, cy):
+    col = "left" if cx < 1 / 3 else "right" if cx > 2 / 3 else "centre"
+    row = "top" if cy < 1 / 3 else "bottom" if cy > 2 / 3 else "middle"
+    return row + "-" + col
+
+
+def title_repetition(titles):
+    """A warning when most of a film's beats put their title in the same ninth of the frame, else None."""
+    if len(titles) < TITLE_ZONE_MIN:
+        return None
+    import collections
+    zones = collections.Counter(_zone(t["cx"], t["cy"]) for _i, _s, t, _x in titles)
+    zone, n = zones.most_common(1)[0]
+    if n < TITLE_ZONE_MIN or n / len(titles) < TITLE_ZONE_SHARE:
+        return None
+    beats = [str(i) for i, _s, t, _x in titles if _zone(t["cx"], t["cy"]) == zone]
+    return ("TITLE PLACEMENT — %d of %d beats put their title (their largest type) in the %s of the frame (beats %s): "
+            "a repeated composition, however different the pictures. Move the title with each composition (bottom over "
+            "the ground, a side column, inside the scene) or leave it out where the picture speaks"
+            % (n, len(titles), zone, ", ".join(beats)))
+
+
+def write_type_debt(findings, scope):
+    """Rewrite remotion/type_debt.json from a `--library --type-size` sweep's findings — the ONE way the record is
+    made, so it is a measurement anyone can repeat rather than a list someone kept."""
+    reg = {}
+    for f in findings:
+        m = re.match(r"^(\w+): SMALL TYPE \((error|warn)\) — .*? is set at (\d+(?:\.\d+)?) px", f)
+        if not m:
+            continue
+        r = reg.setdefault(m.group(1), {"min_px": 999.0, "under_error": 0, "under_warn": 0})
+        r["min_px"] = round(min(r["min_px"], float(m.group(3))), 1)
+        r["under_" + m.group(2)] += 1
+    try:
+        why = json.load(open(TYPE_DEBT, encoding="utf-8")).get("_why", "")
+    except (OSError, ValueError, AttributeError):
+        why = ""
+    with open(TYPE_DEBT, "w", encoding="utf-8") as fh:
+        json.dump({"_why": why, "_measured": "python3 scripts/text_safe_qa.py --library --type-size --write-debt · " + scope,
+                   "registers": dict(sorted(reg.items()))}, fh, ensure_ascii=False, indent=1)
+    return reg
+
+
+def type_size_level(v):
+    """'error' | 'warn' | None for one reported element: under ~24 px at 1080 a viewer cannot read it on a phone,
+    under ~30 px it is a label the user's own review asked to be larger."""
+    px, short = v.get("small"), v.get("short")
+    if not px or not short:
+        return None
+    return "error" if px < TYPE_ERROR_FRAC * short else "warn"
+
+
+def _describe_small(v):
+    err = type_size_level(v) == "error"
+    return ("%r is set at %.0f px — %s (at this frame: under %d px is an error, under %d px a warning). Cut words "
+            "rather than shrink them; texture that is not copy may say so with data-small=\"why\""
+            % (v.get("text", ""), v["small"], "too small to read on a phone" if err else "under the label floor",
+               round(TYPE_ERROR_FRAC * v["short"]), round(TYPE_WARN_FRAC * v["short"])))
+
+
 def _describe(v):
     """Name the DEFECT, not just the string. A finding that prints a line of copy and a font size leaves the
     reader to work out what is wrong with it, and the two defects this audit reports want opposite fixes:
@@ -132,7 +217,7 @@ def _describe(v):
                         "  [%s]" % v["font"] if v.get("font") else "")
 
 
-def scan_film(out_dir):
+def scan_film(out_dir, warnings=None):
     """(findings, checked, universe, skipped) — the last two are the point.
 
     `if not shot or shot not in durs: continue` dropped two different beats into one silent branch, and the
@@ -147,7 +232,7 @@ def scan_film(out_dir):
     # A FILM'S OWN SHOTS are registers too: measured the same way, rendered in a bundle that holds its workshop.
     durs.update(_ws.durations(out_dir))
     env = _ws.prepare(out_dir)
-    findings, checked, skipped = [], 0, []
+    findings, checked, skipped, titles = [], 0, [], []
     slides = board.get("slides") or []
     tmp = os.path.join(out_dir, "._textsafe.png")
     for i, s in enumerate(slides, 1):
@@ -168,18 +253,42 @@ def scan_film(out_dir):
             props.setdefault("aspect", meta["aspect"])
         frame = int(round(rr.frame_at_t(durs[shot], rr.SETTLED_T)))
         checked += 1
-        for v in audit_shot(shot, props, frame, tmp, public_dir=out_dir, env=env):
+        debt, own = type_debt(), set(_ws.shot_names(out_dir))
+        for v in audit_shot(shot, props, frame, tmp, public_dir=out_dir, env=env, type_size=True):
+            if v.get("title"):
+                titles.append((i, shot, v["title"], v.get("text", "")))
+                continue
+            lvl = type_size_level(v)
+            if lvl and not v.get("out") and not v.get("band"):
+                line = "scene %02d (%s): SMALL TYPE — %s" % (i, shot, _describe_small(v))
+                if lvl == "error" and shot not in own:
+                    # A LIBRARY register's type size is the library's to fix (remotion/type_debt.json lists what the
+                    # default-props sweep found; a register's labels fed by a film — ObjectStage's callouts at 19-22 px
+                    # on the mri film — can only show up here). Said loudly, never refused: a film should not be blocked
+                    # for a register the catalogue still offers. A film's OWN shot is its author's, and is held to it.
+                    known = debt.get(shot, {}).get("min_px")
+                    lvl, line = "warn", line + (" — LIBRARY TYPE DEBT: %s sets type down to %s px" % (shot, known)
+                                                if known else " — LIBRARY TYPE DEBT not yet listed for %s" % shot) + \
+                        "; pick a register that does not, or adapt this one's type"
+                if lvl == "error":
+                    findings.append(line)
+                elif warnings is not None:
+                    warnings.append(line)
+                continue
             findings.append("scene %02d (%s): %s" % (i, shot, _describe(v)))
     for p in (tmp, tmp + ".props.json"):
         if os.path.exists(p):
             os.remove(p)
+    note = title_repetition(titles)
+    if note and warnings is not None:
+        warnings.append(note)
     return findings, checked, len(slides), skipped
 
 
 DEFAULT_DNA = "product"
 
 
-def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False):
+def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False, type_size=False):
     """Sweep the catalogue. `aspect` matters: a register laid out for 16:9 can hold its type comfortably and
     still clip it at 9:16, which is the failure mode a portrait film meets and a landscape sweep never sees.
 
@@ -257,7 +366,13 @@ def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False)
         props.update(cjk_fixture.get(n) or {})
         props.update(evidence.get(n) or {})
         swept += 1
-        for v in audit_shot(n, props, frame, tmp):
+        for v in audit_shot(n, props, frame, tmp, type_size=type_size):
+            if v.get("title"):
+                continue
+            lvl = type_size_level(v)
+            if lvl and not v.get("out") and not v.get("band"):
+                findings.append("%s: SMALL TYPE (%s) — %s" % (n, lvl, _describe_small(v)))
+                continue
             findings.append("%s: %s" % (n, _describe(v)))
         if i % 20 == 0:
             print("  swept %d/%d" % (i, len(names)), flush=True)
@@ -820,10 +935,10 @@ _USAGE = ("usage: text_safe_qa.py <out_dir> | --library [--only=A,B] [--aspect=1
 
 
 def main(argv):
-    if not argv:
-        print(__doc__.strip().splitlines()[0])
-        print("usage: text_safe_qa.py <out_dir> | --library")
-        return 2
+    if not argv or argv[0] in ("-h", "--help"):
+        print(__doc__.strip() if argv else __doc__.strip().splitlines()[0])
+        print(_USAGE if argv else "usage: text_safe_qa.py <out_dir> | --library")
+        return 0 if argv else 2
     if "--sync" in argv:
         return main_sync(argv)
     if "--glide" in argv:
@@ -862,7 +977,8 @@ def main(argv):
         # but only by accident. In `register_energy` the same typing dropped the filter and swept all 164
         # registers in silence. One reader, one guard, everywhere (scripts/_common.argflag).
         _c.refuse_unknown(argv, valued=("limit", "aspect", "dna", "only"),
-                          switches=("library", "all-aspects", "all-dna", "cjk"), usage=_USAGE)
+                          switches=("library", "all-aspects", "all-dna", "cjk", "type-size", "write-debt"),
+                          usage=_USAGE)
         _lim = _c.argflag(argv, "limit")
         limit = int(_lim) if _lim else None
         aspect = _c.argflag(argv, "aspect")
@@ -878,7 +994,7 @@ def main(argv):
         cjk = "--cjk" in argv
         if dna in ("", "none"):
             dna = None
-        findings, n, universe, notmeasured = scan_library(limit, aspect, dna, only, cjk)
+        findings, n, universe, notmeasured = scan_library(limit, aspect, dna, only, cjk, type_size="--type-size" in argv)
         # `--only` AND `--limit` NARROW THE UNIVERSE, and "4 of 4 registers" reads as the catalogue. The
         # catalogue's own size is printed beside them so a narrowed run can never be mistaken for a full one.
         catalogue = len(durations())
@@ -889,10 +1005,17 @@ def main(argv):
             n, universe, narrowed, "CJK fixtures" if cjk else "default props", dna or "none",
             " · aspect %s" % aspect if aspect else "")
         what = "register(s) NOT swept"
+        if "--write-debt" in argv:
+            if not ("--type-size" in argv and universe == catalogue and not cjk and not aspect):
+                print("[text_safe] --write-debt needs the WHOLE library, at default props and aspect, with --type-size")
+                return 2
+            print("[text_safe] wrote %s: %d register(s) with type under the floor"
+                  % (os.path.relpath(TYPE_DEBT, _ROOT), len(write_type_debt(findings, scope))))
     else:
         import workshop as _ws
+        film_warnings = []
         try:
-            findings, n, universe, notmeasured = scan_film(os.path.abspath(argv[0]))
+            findings, n, universe, notmeasured = scan_film(os.path.abspath(argv[0]), warnings=film_warnings)
         except _ws.WorkshopError as e:
             for x in e.problems:
                 print("[text_safe] PROBLEM: " + x)
@@ -900,6 +1023,8 @@ def main(argv):
         scope = "%d of %d beats" % (n, universe)
         what = "beat(s) NOT measured"
         notmeasured = [(x, None) for x in notmeasured]
+        for w in film_warnings:
+            print("[text_safe] WARN %s" % w)
     for f in findings:
         print("[text_safe] ERROR %s" % f)
     # THE SCOPE LINE IS THE COVERAGE LINE, and the two universes this script covers must never be mistaken

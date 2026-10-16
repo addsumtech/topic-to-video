@@ -1,0 +1,466 @@
+{
+ "_why": "Registers that set some visible type under the size floor (runtime/textSafe.tsx TYPE_ERROR_FRAC / TYPE_WARN_FRAC of the frame's short side: ~24 px / ~30 px at 1080). Nothing measured type SIZE before 2026-10-16, and the first sweep found 53 of 194 registers under 24 px and 70 more under 30 px — the library-wide cause of a user's review that the labels were too small to read. In a film, small type on ANY library register is a WARNING (the debt is the library's; a register fed a film's copy can show more than this default-props sweep saw), small type on a film's OWN shot is an ERROR, and the list may only shrink: raise a register's type and re-run the sweep to take it off.",
+ "_measured": "python3 scripts/text_safe_qa.py --library --type-size --write-debt · 194 of 194 registers at default props · dna=product",
+ "registers": {
+  "Aliasing": {
+   "min_px": 15.0,
+   "under_error": 3,
+   "under_warn": 1
+  },
+  "AnswerStream": {
+   "min_px": 16.0,
+   "under_error": 3,
+   "under_warn": 3
+  },
+  "AverageHides": {
+   "min_px": 18.0,
+   "under_error": 5,
+   "under_warn": 0
+  },
+  "BentoReveal": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "BlockAssembly": {
+   "min_px": 17.0,
+   "under_error": 2,
+   "under_warn": 6
+  },
+  "BlueprintGrid": {
+   "min_px": 22.0,
+   "under_error": 2,
+   "under_warn": 3
+  },
+  "BreaksWhenAsked": {
+   "min_px": 22.0,
+   "under_error": 6,
+   "under_warn": 0
+  },
+  "CardFlip3D": {
+   "min_px": 20.0,
+   "under_error": 6,
+   "under_warn": 0
+  },
+  "CarryOver": {
+   "min_px": 16.0,
+   "under_error": 5,
+   "under_warn": 6
+  },
+  "CinematicTitle": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "CircuitTrace": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 5
+  },
+  "CodeCompose": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "ComicPanels": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 3
+  },
+  "CommandSummon": {
+   "min_px": 21.0,
+   "under_error": 4,
+   "under_warn": 0
+  },
+  "CompanionCard": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "CompressedSensingEq": {
+   "min_px": 18.0,
+   "under_error": 2,
+   "under_warn": 2
+  },
+  "CraneUp": {
+   "min_px": 15.0,
+   "under_error": 7,
+   "under_warn": 0
+  },
+  "CursorStory": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "DataMonolith": {
+   "min_px": 22.0,
+   "under_error": 12,
+   "under_warn": 0
+  },
+  "DataOrrery": {
+   "min_px": 22.0,
+   "under_error": 1,
+   "under_warn": 0
+  },
+  "DiffusionDenoise": {
+   "min_px": 18.0,
+   "under_error": 2,
+   "under_warn": 0
+  },
+  "EdCompare": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 3
+  },
+  "EdStat": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "EdTimeline": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "Escalation": {
+   "min_px": 16.0,
+   "under_error": 8,
+   "under_warn": 4
+  },
+  "ExplodedSchematic": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 11
+  },
+  "FallbackPath": {
+   "min_px": 21.0,
+   "under_error": 2,
+   "under_warn": 2
+  },
+  "FrequencyEncode": {
+   "min_px": 18.0,
+   "under_error": 4,
+   "under_warn": 0
+  },
+  "GFactorNoise": {
+   "min_px": 20.0,
+   "under_error": 7,
+   "under_warn": 0
+  },
+  "GaugeCluster": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 3
+  },
+  "GearTrain": {
+   "min_px": 20.0,
+   "under_error": 3,
+   "under_warn": 0
+  },
+  "GlowPick": {
+   "min_px": 21.0,
+   "under_error": 1,
+   "under_warn": 6
+  },
+  "GradientTilt": {
+   "min_px": 18.0,
+   "under_error": 4,
+   "under_warn": 0
+  },
+  "HardBarrier": {
+   "min_px": 21.0,
+   "under_error": 3,
+   "under_warn": 3
+  },
+  "HeldInstant": {
+   "min_px": 18.0,
+   "under_error": 2,
+   "under_warn": 3
+  },
+  "HudReticle": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 4
+  },
+  "InOrder": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "InducedFID": {
+   "min_px": 19.0,
+   "under_error": 3,
+   "under_warn": 0
+  },
+  "IsoWorld": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 5
+  },
+  "KSpaceAnatomy": {
+   "min_px": 19.0,
+   "under_error": 4,
+   "under_warn": 2
+  },
+  "KSpaceReal": {
+   "min_px": 17.0,
+   "under_error": 3,
+   "under_warn": 2
+  },
+  "KSpaceToImage": {
+   "min_px": 22.0,
+   "under_error": 1,
+   "under_warn": 0
+  },
+  "KnowledgeGraph": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 7
+  },
+  "LarmorPrecession": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 3
+  },
+  "LastLeg": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 4
+  },
+  "MRIPipeline": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 4
+  },
+  "MagazineSpread": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 2
+  },
+  "MagnetizationTip": {
+   "min_px": 19.0,
+   "under_error": 2,
+   "under_warn": 3
+  },
+  "MapPlate": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 4
+  },
+  "MapRoutes": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 6
+  },
+  "MaterialHero": {
+   "min_px": 29.0,
+   "under_error": 0,
+   "under_warn": 6
+  },
+  "NearTheLine": {
+   "min_px": 18.0,
+   "under_error": 7,
+   "under_warn": 0
+  },
+  "NeuralField": {
+   "min_px": 28.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "OpenQuestions": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 3
+  },
+  "OverlapSeparation": {
+   "min_px": 19.0,
+   "under_error": 10,
+   "under_warn": 2
+  },
+  "PhaseEncodeStep": {
+   "min_px": 17.0,
+   "under_error": 4,
+   "under_warn": 0
+  },
+  "PhysicsStack": {
+   "min_px": 28.0,
+   "under_error": 0,
+   "under_warn": 5
+  },
+  "PlanPalimpsest": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "PlaneStack": {
+   "min_px": 16.0,
+   "under_error": 8,
+   "under_warn": 1
+  },
+  "PlatformSurfaces": {
+   "min_px": 20.0,
+   "under_error": 5,
+   "under_warn": 1
+  },
+  "PositioningMatrix": {
+   "min_px": 22.0,
+   "under_error": 3,
+   "under_warn": 4
+  },
+  "ProfileGrowth": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 3
+  },
+  "PulledThread": {
+   "min_px": 18.0,
+   "under_error": 2,
+   "under_warn": 4
+  },
+  "QuadSplit": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "RealVersus": {
+   "min_px": 22.0,
+   "under_error": 1,
+   "under_warn": 0
+  },
+  "RestsOn": {
+   "min_px": 23.0,
+   "under_error": 3,
+   "under_warn": 0
+  },
+  "SameStuffChanged": {
+   "min_px": 18.0,
+   "under_error": 4,
+   "under_warn": 1
+  },
+  "ScreenBubble": {
+   "min_px": 20.0,
+   "under_error": 1,
+   "under_warn": 2
+  },
+  "SeamBetween": {
+   "min_px": 29.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "SectionRoute": {
+   "min_px": 20.0,
+   "under_error": 4,
+   "under_warn": 4
+  },
+  "SharedBlindspot": {
+   "min_px": 20.0,
+   "under_error": 7,
+   "under_warn": 0
+  },
+  "ShorteningHold": {
+   "min_px": 18.0,
+   "under_error": 2,
+   "under_warn": 2
+  },
+  "SpectrumPulse": {
+   "min_px": 20.0,
+   "under_error": 1,
+   "under_warn": 0
+  },
+  "SpeedLimit": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 4
+  },
+  "SpinningProton": {
+   "min_px": 20.0,
+   "under_error": 1,
+   "under_warn": 1
+  },
+  "SpinsAlign": {
+   "min_px": 20.0,
+   "under_error": 1,
+   "under_warn": 2
+  },
+  "SplitFlap": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "StateSheet": {
+   "min_px": 15.0,
+   "under_error": 12,
+   "under_warn": 0
+  },
+  "StatedBy": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 4
+  },
+  "StrataColumn": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 4
+  },
+  "SurfaceCarousel": {
+   "min_px": 18.0,
+   "under_error": 1,
+   "under_warn": 6
+  },
+  "SwissEditorial": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 2
+  },
+  "TallyLedger": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
+  "TaskFold": {
+   "min_px": 25.0,
+   "under_error": 0,
+   "under_warn": 12
+  },
+  "TechnicalPlate": {
+   "min_px": 24.0,
+   "under_error": 0,
+   "under_warn": 5
+  },
+  "TemporalAccelerate": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 4
+  },
+  "TensionScale": {
+   "min_px": 15.0,
+   "under_error": 6,
+   "under_warn": 0
+  },
+  "TermBars": {
+   "min_px": 19.0,
+   "under_error": 5,
+   "under_warn": 2
+  },
+  "TermSpace": {
+   "min_px": 12.0,
+   "under_error": 6,
+   "under_warn": 4
+  },
+  "UndersampledKspace": {
+   "min_px": 22.0,
+   "under_error": 3,
+   "under_warn": 1
+  },
+  "ViewSwitch": {
+   "min_px": 21.0,
+   "under_error": 8,
+   "under_warn": 2
+  },
+  "WorksThrough": {
+   "min_px": 18.0,
+   "under_error": 7,
+   "under_warn": 1
+  }
+ }
+}
