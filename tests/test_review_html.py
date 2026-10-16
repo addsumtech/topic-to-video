@@ -553,3 +553,56 @@ def test_the_html_brief_states_the_caption_band_in_pixels():
     from _caption_band import caption_band_px
     assert "y ≥ %d" % (1080 - caption_band_px(1920, 1080)) in critic_brief._caption_band_line({})
     assert "1080x1920" in critic_brief._caption_band_line({"aspect": "9:16"})
+
+
+def test_a_brief_after_gates_on_the_same_render_reuses_them_and_any_input_change_reruns(tmp_path, monkeypatch):
+    # `--gates` before the review question, then the brief on the same render, ran every delivery gate twice — two to
+    # three and a half minutes re-measuring a film nobody had touched
+    import critic_brief
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    calls, codes = [], {}
+
+    def fake(script, out_dir, *a, **k):
+        calls.append(cl.gate_name(script, a))
+        if script == "keyframe_qa.py":
+            for i in (1, 2):
+                _strip(os.path.join(out_dir, "_keyframes", "scene_%02d.png" % i), colour=(200, 40, 40))
+        return critic_brief.GateOutput("(stub %s)" % script, codes.get(script, 0))
+    monkeypatch.setattr(critic_brief, "_run", fake)
+    need = sorted(cl.gate_name(s, a) for _l, s, a, _t, _b in cl.delivery_gates(out))
+    assert critic_brief.main([out, "--gates"]) == 0 and sorted(calls) == need
+    calls.clear()
+    assert critic_brief.main([out]) == 0
+    assert calls == [], "the brief re-ran gates --gates had just run on this render"
+    assert sorted(cl.gate_record(out, cl.render_id(out))) == need, "the reused verdicts are still recorded"
+    brief = open(os.path.join(out, "_critic_brief.md"), encoding="utf-8").read()
+    assert brief.count("not re-run") >= len(need) - 1 and "(stub validate.py)" in brief
+    # the review answer is written between the two runs: not an input to any gate
+    b = json.load(open(os.path.join(out, "storyboard.json")))
+    b["meta"]["review"]["user_answer"] = "fast, please"
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
+    calls.clear()
+    critic_brief.main([out])
+    assert calls == [], calls
+    # anything else on the board is: every gate runs again
+    b["slides"][0]["narration"] = b["slides"][0].get("narration", "") + " 再说一句。"
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w"))
+    calls.clear()
+    critic_brief.main([out])
+    assert sorted(calls) == need, calls
+    # so is a file nobody listed — inputs are everything but the review's and the gates' own outputs
+    os.makedirs(os.path.join(out, "media"), exist_ok=True)
+    open(os.path.join(out, "media", "new.png"), "wb").write(b"x")
+    calls.clear()
+    critic_brief.main([out])
+    assert "validate.py" in calls, calls
+    # a gate that did not finish is never reused (an input changes first, so every gate really runs)
+    codes["check_av.py"] = "timeout"
+    open(os.path.join(out, "media", "another.png"), "wb").write(b"y")
+    calls.clear()
+    critic_brief.main([out, "--gates"])
+    assert "check_av.py" in calls, calls
+    calls.clear()
+    critic_brief.main([out])
+    assert calls == ["check_av.py"], calls

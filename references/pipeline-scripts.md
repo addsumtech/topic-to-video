@@ -652,7 +652,7 @@ figure), a non-singular `the_one_thing`, or a
   `_frames/`, no review round spent — and exits 1 on a blocking failure, 2 when there is no contact sheet to anchor
   the record. `critic_ledger.py --final` refuses a render whose record is missing a gate or holds a failure, on
   every path (a `none` answer included): until 2026-10 the remotion brief never ran the five gates above and
-  `none` was never briefed at all, so a film they refused could be delivered.
+  `none` was never briefed at all, so a film they refused could be delivered. **A gate run is reused, not repeated:** each run leaves its verdicts in `_gate_runs.json` with the render id and a fingerprint of everything the gates read (the film folder minus the review's and the gates' own `_`/`.`-prefixed outputs and the review answer, plus the skill's code), so the brief that follows `--gates` on the same render takes under a second instead of re-running two to three and a half minutes of gates; any change to an input re-runs them, and a gate that timed out is never reused.
 - `scripts/settled_frame.py <clip.mp4|out_dir> <out.png|dir/> [--at 0.90] [--beat N]` — the frame worth
   JUDGING a design on. Every register animates in: type sets word by word, a plate draws on, a stamp lands
   at 0.62–0.78, a counter rolls toward its final string. A frame grabbed mid-clip shows that machinery

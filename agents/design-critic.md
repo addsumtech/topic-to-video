@@ -355,7 +355,8 @@ The Remotion tier is now the **remotion bespoke-shot library**; a `meta.renderer
 
 > **When this runs.** After the FIRST clean full render of an HTML-tier film (`meta.renderer` is not `remotion` and
 > at least one beat is a `type:"html"` page), at the depth the user chose at the review-depth question (SKILL.md
-> step 9d): `fast` = you alone, ONE round, carrying `agents/critic-av.md`'s lens too (H7) — fill EVERY ledger row,
+> step 9d): `fast` = you alone, ONE round, carrying `agents/critic-av.md`'s lens too (H7) — fill EVERY ledger row
+> (a PASS row is one line: its verdict and the frame it rests on, `_contact_sheet.png` for a whole-film dimension),
 > and make only your TOP issues by impact FAIL rows, each with a FIX; an observation below the top goes in that
 > dimension's `note` on a pass row, never as a FAIL · `standard` = you, with `critic-av` beside you, up to two rounds
 > (round 2 a full fresh review) · `thorough` = the loop until PASS · `none` = you are not dispatched. You never

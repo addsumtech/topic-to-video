@@ -11,7 +11,8 @@ description: "Reviews a rendered Remotion-tier topic-to-video film shot by shot.
 > delivery section ("Rendered review — the delivery ledger", the H-dimensions) instead; this file does not apply —
 > the same `critic_ledger.py` gate holds that review to its H-rows.
 > **How hard is the user's choice** (`meta.review.tier`, asked after the first clean render — SKILL.md step 9):
-> `fast` = you alone, ONE round, carrying `critic-av`'s A/V lens too; fill EVERY ledger row, and make only your
+> `fast` = you alone, ONE round, carrying `critic-av`'s A/V lens too; fill EVERY ledger row (a PASS row is one
+> line: its verdict and the frame it rests on, `_contact_sheet.png` for a whole-film dimension), and make only your
 > TOP issues by impact FAIL rows, each with a FIX — an observation below the top goes in that dimension's `note`
 > on a pass row, never as a FAIL · `standard` = you + `critic-av`, up to two rounds · `thorough` = the loop
 > until PASS · `none` = you are not dispatched. (No `meta.review` at all means the question was never asked:

@@ -219,7 +219,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   shot-critic on remotion, design-critic's delivery section on HTML (which also gets `_frames/`, one delivered frame
   per beat). **Run it before dispatching the critic.** `scripts/contact_sheet.py` builds the sheet alone.
   `--gates` runs only the tier's delivery gates, records their exit codes for this render and exits 1 on a failure —
-  the check before the review-depth question, and the record a `none` answer is delivered on.
+  the check before the review-depth question, and the record a `none` answer is delivered on. A later brief of the
+  same render reuses those results while nothing they read has changed (`_gate_runs.json`), instead of re-running them.
 - `scripts/settled_frame.py <clip.mp4|out_dir> <out.png|dir/> [--at 0.90] [--beat N]`: the frame to JUDGE a design on.
   Always sample late at a fixed fraction, because mid-clip grabs show animation in flight and produce confident wrong
   readings. Use `--beat N`, since the board's running duration is not the film's clock.

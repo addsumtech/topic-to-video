@@ -32,6 +32,7 @@ record a `none` answer is delivered on — `critic_ledger.py --final` refuses a 
 or holds a failure, on every path. It exits 1 when a blocking gate failed, 2 when no render could be recorded.
 """
 import collections
+import hashlib
 import json
 import os
 import re
@@ -71,6 +72,98 @@ def _run(script, out_dir, *args, timeout=240):
     except OSError as e:
         return GateOutput("[%s] could not run: %s" % (script, e), "not run")
     return GateOutput((r.stdout or "").strip() or (r.stderr or "").strip()[:400], r.returncode)
+
+
+# ── a gate already run on THIS render, with nothing it reads changed since, is not run again ──────────────────────
+# The check before the review-depth question (`--gates`) runs every delivery gate, and the brief that follows on the
+# same render ran them all again: a remotion film's census gates, the CJK sweep and the energy decode, two to three
+# and a half minutes, re-measuring a film nobody had touched. Each run now leaves its results in GATE_RUNS with the
+# render id and a fingerprint of everything the gates read; a later run on the same render with the same inputs
+# prints the recorded verdict and exit code instead of re-running. What counts as an input is decided by EXCLUSION —
+# the review's and the gates' own outputs (every `_`/`.`-prefixed name, the delivered files the render id already
+# covers) — so a file nobody thought to list is an input, and an unexpected one costs a re-run, never a stale pass.
+GATE_RUNS = "_gate_runs.json"
+_CACHE = None              # main() sets {"render", "inputs", "gates": {name: {exit, blocking, output}}}
+_NOT_INPUTS = {"out.mp4", "out.srt", "sample.mp4", "preview.mp4", "audition.mp3", "NOT_DELIVERED.md", "qa",
+               "voice_samples"}
+_REVIEW_ONLY_KEYS = ("review", "review_waiver")   # written between `--gates` and the brief; no gate reads them
+_SKILL_INPUTS = (("scripts", None), (os.path.join("remotion", "src"), None), ("remotion", ".json"),
+                 (os.path.join("assets", "html"), None))
+
+
+def _hash_tree(h, base, label, ext=None, top_skip=()):
+    for dp, dns, fns in os.walk(base):
+        dns[:] = sorted(d for d in dns if not d.startswith((".", "_")) and not (dp == base and d in top_skip))
+        if ext and dp != base:
+            continue                                   # ("remotion", ".json"): its top-level manifests only
+        for f in sorted(fns):
+            if f.startswith((".", "_")) or (dp == base and f in top_skip) or (ext and not f.endswith(ext)):
+                continue
+            path = os.path.join(dp, f)
+            rel = os.path.relpath(path, base)
+            if label == "film" and rel == "storyboard.json":
+                try:
+                    b = json.load(open(path, encoding="utf-8"))
+                    meta = {k: v for k, v in (b.get("meta") or {}).items() if k not in _REVIEW_ONLY_KEYS}
+                    data = json.dumps(dict(b, meta=meta), sort_keys=True, ensure_ascii=False).encode("utf-8")
+                except (OSError, ValueError, AttributeError):
+                    data = open(path, "rb").read()
+            else:
+                data = open(path, "rb").read()
+            h.update(("\n%s:%s:" % (label, rel)).encode("utf-8"))
+            h.update(hashlib.sha256(data).digest())
+
+
+def gate_inputs(out_dir):
+    """A fingerprint of everything a delivery gate reads apart from the render itself: the film folder minus the
+    review's and the gates' outputs (and the review answer, which no gate reads), plus the skill's own code."""
+    h = hashlib.sha256()
+    _hash_tree(h, out_dir, "film", top_skip=_NOT_INPUTS)
+    root = os.path.join(_HERE, "..")
+    for sub, ext in _SKILL_INPUTS:
+        _hash_tree(h, os.path.join(root, sub), "skill:" + sub + (ext or ""), ext=ext)
+    return h.hexdigest()
+
+
+def _load_gate_runs(out_dir, rid, inputs):
+    """The gate results recorded on this render with these inputs ({name: {exit, blocking, output}}), else {}."""
+    try:
+        rec = json.load(open(os.path.join(out_dir, GATE_RUNS), encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(rec, dict) or rec.get("render") != rid or rec.get("inputs") != inputs:
+        return {}
+    return rec.get("gates") if isinstance(rec.get("gates"), dict) else {}
+
+
+def _gate_run(script, out_dir, args=(), timeout=240):
+    """Run one delivery gate — or, when main() found it recorded on this render with nothing it reads changed, hand
+    back that run's verdict and exit code. Only a real exit code is kept: a timeout or a gate that could not start is
+    run again next time."""
+    import critic_ledger as _cl
+    name = _cl.gate_name(script, args)
+    cache = _CACHE
+    if cache is not None and name in cache.get("hit", {}):
+        g = cache["hit"][name]
+        cache["gates"][name] = g
+        return GateOutput("(not re-run: recorded on this render by an earlier critic_brief.py run, and nothing it "
+                          "reads has changed since — this is that run's verdict)\n" + str(g.get("output", "")),
+                          g.get("exit"))
+    out = _run(script, out_dir, *args, timeout=timeout)
+    code = getattr(out, "code", None)
+    if cache is not None and isinstance(code, int):
+        cache["gates"][name] = {"exit": code, "output": str(out)}
+    return out
+
+
+def _save_gate_runs(out_dir):
+    if _CACHE is None or not _CACHE.get("render"):
+        return
+    try:
+        json.dump({"render": _CACHE["render"], "inputs": _CACHE["inputs"], "gates": _CACHE["gates"]},
+                  open(os.path.join(out_dir, GATE_RUNS), "w", encoding="utf-8"), ensure_ascii=False)
+    except OSError as e:
+        print("[critic_brief] gate results not kept for reuse (%s) — the next run re-runs them" % e)
 
 
 def _note(codes, script, args, out):
@@ -263,8 +356,10 @@ def build(out_dir, ran=None, codes=None):
     # do not move with it: every ledger row, cited evidence, an independent reviewer.
     L.append(_review_depth(meta, {
         "fast": "ONE combined pass carrying the A/V lens too (agents/critic-av.md), ONE round. Fill every "
-                "ledger row. Only your TOP issues by impact are FAIL rows, each with a FIX; an observation "
-                "below the top goes in that dimension's `note` on a pass row, never as a FAIL. A FAIL left "
+                "ledger row — a PASS row is one line, its verdict and the frame it rests on (`_contact_sheet.png` "
+                "for a whole-film dimension); spend the words on the FAILs. Only your TOP issues by impact are "
+                "FAIL rows, each with a FIX; an observation below the top goes in that dimension's `note` on a "
+                "pass row, never as a FAIL. A FAIL left "
                 "when the round is spent goes back to the USER (one more round, or accept as-is) — you never "
                 "decline one, and a faithfulness/sourcing FAIL is always fixed.",
         "standard": "this critic plus agents/critic-av.md, up to TWO rounds; round 2 is a full fresh review. "
@@ -278,7 +373,7 @@ def build(out_dir, ran=None, codes=None):
     for label, script, args, timeout, _blocking in _gate_rows(out_dir):
         L.append("**%s**" % label)
         L.append("```")
-        out = _run(script, out_dir, *args, timeout=timeout)
+        out = _gate_run(script, out_dir, args, timeout=timeout)
         _note(codes, script, args, out)
         L.append(out)
         L.append("```")
@@ -554,7 +649,9 @@ def _build_html(out_dir, board, ran, codes=None):
     L.append("")
     L.append(_review_depth(meta, {
         "fast": "ONE pass by agents/design-critic.md's delivery section, carrying agents/critic-av.md's lens (H7), "
-                "ONE round. Fill every ledger row. Only your TOP issues by impact are FAIL rows, each with a FIX; an "
+                "ONE round. Fill every ledger row — a PASS row is one line, its verdict and the frame it rests on "
+                "(`_contact_sheet.png` for a whole-film dimension); spend the words on the FAILs. Only your TOP "
+                "issues by impact are FAIL rows, each with a FIX; an "
                 "observation below the top goes in that dimension's `note` on a pass row, never as a FAIL. A FAIL "
                 "left when the round is spent goes back to the USER (one more round, or accept as-is) — you never "
                 "decline one, and a faithfulness/sourcing FAIL (H1) is always fixed.",
@@ -571,7 +668,7 @@ def _build_html(out_dir, board, ran, codes=None):
     for label, script, args, timeout, _blocking in _gate_rows(out_dir):
         L.append("**%s**" % label)
         L.append("```")
-        out = ran[script] if script in ran else _run(script, out_dir, *args, timeout=timeout)
+        out = ran[script] if script in ran else _gate_run(script, out_dir, args, timeout=timeout)
         _note(codes, script, args, out)
         L.append(out)
         L.append("```")
@@ -715,7 +812,7 @@ def _gates_only(out_dir, tier, ran, sheet_ok, made):
                                             ("validate", "validate.py", (), 240, True)]
     codes, bad = {}, []
     for label, script, args, timeout, blocking in rows:
-        out = ran[script] if (script in ran and not args) else _run(script, out_dir, *args, timeout=timeout)
+        out = ran[script] if (script in ran and not args) else _gate_run(script, out_dir, args, timeout=timeout)
         _note(codes, script, args, out)
         code = getattr(out, "code", None)
         name = _cl.gate_name(script, args)
@@ -782,9 +879,20 @@ def main(argv):
             if os.path.exists(old):
                 os.remove(old)
             made = "NOT BUILT (%s) — any older sheet was removed" % e
-    if gates_only:
-        return _gates_only(out_dir, tier, ran, sheet_ok, made)
-    text = build(out_dir, ran, codes)
+    global _CACHE
+    if sheet_ok:
+        rid, inputs = _cl.render_id(out_dir), gate_inputs(out_dir)
+        _CACHE = {"render": rid, "inputs": inputs, "hit": _load_gate_runs(out_dir, rid, inputs), "gates": {}}
+        if _CACHE["hit"]:
+            print("[critic_brief] %d gate result(s) recorded on this render with unchanged inputs — reused, not re-run"
+                  % len(_CACHE["hit"]))
+    try:
+        if gates_only:
+            return _gates_only(out_dir, tier, ran, sheet_ok, made)
+        text = build(out_dir, ran, codes)
+    finally:
+        _save_gate_runs(out_dir)
+        _CACHE = None
     if sheet_ok:
         try:
             _cl.record_render(out_dir, gates=codes)   # the render, and the exit code of every gate run on it
