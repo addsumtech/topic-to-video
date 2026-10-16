@@ -406,3 +406,6 @@ def test_a_batch_that_stops_part_way_leaves_the_film_working_and_resumes(tmp_pat
     # the same batch again finishes it (ShotA was registered before its measurement failed: it is not moved twice)
     pr.promote_batch(out, spec)
     assert os.path.isfile(str(lib / "shots" / "ShotA.tsx")) and not os.path.exists(os.path.join(shots, "ShotA.tsx"))
+    assert os.path.isfile(str(lib / "cards" / "ShotA.md")), "the card its interrupted promotion never reached"
+    entries = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))["meta"]["build_list"]
+    assert all(e.get("promoted") for e in entries if e["id"] in ("Sat", "ShotA")), entries

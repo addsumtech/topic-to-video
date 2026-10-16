@@ -464,6 +464,33 @@ def promote_component(out_dir, name, dry_run=False, log=print):
     return plan
 
 
+def _write_card(name, entry, use_when, motion, types, docs, provenance, family, film, note):
+    _write(os.path.join(CARDS, name + ".md"),
+           _card(name, entry, use_when, motion, types, docs, provenance, family, film)
+           .replace("**Provenance:**", _measured_line(name) + ("\n\n**Review:**%s." % note.replace(" · ", " ")
+                                                                if note else "") + "\n\n**Provenance:**"))
+
+
+def _card_if_missing(out_dir, sp, board, film, log):
+    """A shot the library already holds as this film's promotion but with NO card — its batch stopped after
+    registration and before the card (the GPS film's RangeSpheres): written now, from the library's own source."""
+    name = sp["name"]
+    lib_src = os.path.join(SHOTS, name + ".tsx")
+    if not os.path.isfile(lib_src) or os.path.isfile(os.path.join(CARDS, name + ".md")):
+        return
+    entry = next((e for e in (board.get("meta") or {}).get("build_list") or []
+                  if isinstance(e, dict) and e.get("id") == name), {}) or {}
+    src = _read(lib_src)
+    types, docs = prop_docs(src, name)
+    for p_, d_ in (entry.get("props_doc") or {}).items():
+        if p_ in types and p_ not in docs and str(d_).strip():
+            what, _sep, feel = str(d_).partition(" — ")
+            docs[p_] = (what.strip(), feel.strip() or "—")
+    _write_card(name, entry, sp.get("use_when") or "", sp.get("motion") or "", types, docs,
+                ws.provenances(out_dir).get(name) or "", sp.get("family") or "", film, _unreviewed_note(out_dir))
+    log("[promote] %s: wrote the card its interrupted promotion never reached" % name)
+
+
 def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=False, log=print, batch=None,
             keep_workshop=False):
     if name in ws.component_names(out_dir) and name not in ws.shot_names(out_dir) | ws.object_names(out_dir):
@@ -522,10 +549,7 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
                     "%s is registered but NOT fully measured; run, in order: %s — or, if the fix is an edit to "
                     "the register, every row measured so far describes the old source: run them all, in order: %s"
                     % (name, "; ".join(left), "; ".join(every))])
-        _write(os.path.join(CARDS, name + ".md"),
-               _card(name, entry, use_when, motion, types, docs, provenance, family, film)
-               .replace("**Provenance:**", _measured_line(name) + ("\n\n**Review:**%s." % note.replace(" · ", " ")
-                                                                    if note else "") + "\n\n**Provenance:**"))
+        _write_card(name, entry, use_when, motion, types, docs, provenance, family, film, note)
     else:
         _index_object(name)
         _catalogue_object(name, entry, sorted(k for k in types if k not in ("w", "h", "t", "dna", "yaw", "idle")), film,
@@ -553,8 +577,20 @@ def _promoted_from(out_dir, name, film):
 
 
 def _finish(out_dir, paths, objs, log):
-    """The film follows its promoted things: their workshop copies go, and any workshop file still importing one by
-    a relative path imports the library's (`@objects/X`, `@shots/X`)."""
+    """The film follows its promoted things: their workshop copies go, their build-list entries say `promoted` (an
+    interrupted item never reached the line in promote() that marks it, and validate then looked for its workshop
+    file), and any workshop file still importing one by a relative path imports the library's (`@objects/X`,
+    `@shots/X`)."""
+    import storyboard as sb
+    bp = os.path.join(out_dir, "storyboard.json")
+    board = json.loads(_read(bp))
+    marked = False
+    for e in (board.get("meta") or {}).get("build_list") or []:
+        if isinstance(e, dict) and e.get("id") in paths and not e.get("promoted"):
+            e["promoted"] = True
+            marked = True
+    if marked:
+        sb.save(board, bp)
     for p in paths.values():
         if os.path.exists(p):
             os.remove(p)
@@ -610,6 +646,9 @@ def promote_batch(out_dir, specs, dry_run=False, log=print):
             " (already in the library: %s)" % ", ".join(already) if already else ""))
         return todo
     done = list(already)
+    for sp in order:
+        if sp["name"] in already and sp["name"] not in objs:
+            _card_if_missing(out_dir, sp, board, film, log)
     try:
         for sp in todo:
             try:
