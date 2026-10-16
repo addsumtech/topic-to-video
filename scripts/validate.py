@@ -2725,7 +2725,9 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         import shot_director as _sdf
         import collections as _cof
         _fseq = [_sdf.FAMILY.get(x) for x in seq if _sdf.FAMILY.get(x)]
-        if len(slides) >= 10 and _fseq:
+        # counted over the LIBRARY beats: a film's own shot belongs to no catalogue family, so a mostly-built film
+        # (14 of 16 built on the GPS design pass) was told its "16 beats span only 2 design families"
+        if len(_fseq) >= 10:
             _spread = len(set(_fseq))
             if _spread < 6:
                 warnings.append(

@@ -105,3 +105,12 @@ def test_an_outdated_edge_tts_403_names_the_upgrade():
     hint = tts.failure_hint("edge", Exception("403, message='Invalid response status', url='wss://speech…'"))
     assert "pip install -U edge-tts" in hint
     assert tts.failure_hint("edge", Exception("timed out")) == "" and tts.failure_hint("say", Exception("403")) == ""
+
+
+def test_family_spread_counts_library_beats_not_a_films_own_shots():
+    # a mostly-built film was told "16 beats span only 2 design families"; its own shots belong to no family
+    built = [{"index": i + 1, "shot": "Built%d" % i} for i in range(14)]
+    lib = [{"index": 15, "shot": "CinematicTitle"}, {"index": 16, "shot": "ObjectCompare"}]
+    r = v.evaluate({"meta": {"renderer": "remotion"}, "slides": built + lib}, "/tmp", pre_tts=True)
+    assert not any("design famil" in w and "span only" in w for w in r["warnings"]), \
+        [w for w in r["warnings"] if "famil" in w]
