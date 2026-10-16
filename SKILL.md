@@ -1094,7 +1094,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    `python3 scripts/promote.py <out_dir> <Name>` (an object or an HTML component: it joins the library and the
    catalogue) or `... --family <X> --use-when "…" --motion "…"` (a remotion shot: registered at every sync point
    and measured in the right order). Nothing is promoted without the user's pick; nothing a film builds reaches
-   another film until it is.
+   another film until it is. A film the user shipped with review `none` promotes too, once `--final` passes on it; its
+   library entry says it was never critic-reviewed.
    **Then hand the user the video WHERE THEY LOOK FOR IT — always, for every render they are asked to
    watch (a sample, a preview, the final cut):** `python3 scripts/deliver.py <out_dir>` copies `out.mp4`
    (and `out.srt` beside it, same name) to `~/Desktop`, or to `~/Downloads` when the Desktop cannot be

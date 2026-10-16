@@ -305,3 +305,27 @@ def test_ground_reach_is_measured_again_once_the_luma_emits_have_written_the_row
     assert all("--only" in cmds[i] and "SomeRegister" in cmds[i] for i in reach)
     final = [(t, c[-1]) for t, c in zip(tags, cmds)][-2:]
     assert sorted(final) == [("measure_ground_luma.py", "--stale"), ("measure_ground_reach.py", "--stale")], final
+
+
+def test_a_film_the_user_shipped_without_a_critic_promotes_and_says_so(tmp_path, sandbox, monkeypatch):
+    # SKILL.md 9f makes promotion the USER's choice, and so is `none` at the review question — but a `none` film keeps a
+    # rewritten NOT_DELIVERED.md, so the GPS test film's user could not promote what they had just chosen to promote.
+    # It is accepted when the user's waiver holds for THIS render with every delivery gate green, and the library
+    # entry says the item was never critic-reviewed.
+    import critic_ledger as cl
+    out = _film(tmp_path)
+    open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# Delivered WITHOUT a critic review\n")
+    monkeypatch.setattr(cl, "waiver", lambda o: ({"reason": "none", "_from": "review"}, []))
+    monkeypatch.setattr(cl, "validate", lambda o, final=False: ([], []))
+    monkeypatch.setattr(cl, "render_id", lambda o: "95df6db6b59437e8" + "0" * 48)
+    pr.promote(out, "EspressoPuck")
+    lib, _calls = sandbox
+    entry = [l for l in open(str(lib / "LIBRARY.md"), encoding="utf-8") if "**EspressoPuck**" in l]
+    assert entry and "NOT critic-reviewed: the user waived the review of render 95df6db6b594" in entry[0], entry
+    # the gates are not waived with it: a record that is missing or red refuses, as before
+    out2 = _film(tmp_path / "two")
+    open(os.path.join(out2, "NOT_DELIVERED.md"), "w").write("# Delivered WITHOUT a critic review\n")
+    monkeypatch.setattr(cl, "validate", lambda o, final=False: (["these delivery gates were never run"], []))
+    with pytest.raises(pr.PromoteError) as e:
+        pr.promote(out2, "EspressoPuck")
+    assert any("no review waiver the user gave holds" in p for p in e.value.problems), e.value.problems

@@ -15,8 +15,9 @@ rewrites the register's own row, which the later measurements hash) — and a ca
 and its props' own comments. An object goes to remotion/src/objects/, into the library's object index and its catalogue section. The
 film then uses the library's copy: its workshop copy is removed and its build-list entry marked `promoted`.
 
-REFUSED, never guessed: a film that is not delivered (no out.mp4, or NOT_DELIVERED.md still there — the critic has
-not passed it); an item changed after that render; an item the workshop check fails; an item not on the build list;
+REFUSED, never guessed: a film that is not delivered (no out.mp4, or NOT_DELIVERED.md still there with neither a
+critic pass nor a review waiver the USER gave for this render with every delivery gate green — that waived film is
+promoted, and its library entry says it was never critic-reviewed); an item changed after that render; an item the workshop check fails; an item not on the build list;
 a name the library already has; a shot without --family/--use-when/--motion; an import the library cannot resolve (a
 workshop helper, an asset); a shot prop with no trailing comment (the card's table is written from them).
 If a measurement fails, the register is left registered but not fully measured, and the message names the steps that
@@ -72,15 +73,44 @@ def _write(p, text):
         fh.write(text)
 
 
+def user_waived(out_dir):
+    """The render id when the USER chose to ship this film without a critic (`meta.review` tier `none`, or the older
+    review_waiver) and `critic_ledger.py --final` passes on it as it is now — the pin matches the current render and
+    every delivery gate is recorded green for it. None otherwise."""
+    import critic_ledger as cl
+    wv, wprobs = cl.waiver(out_dir)
+    if wv is None or wprobs:
+        return None
+    errs, _w = cl.validate(out_dir, final=True)
+    return None if errs else cl.render_id(out_dir)
+
+
+def delivery_problems(out_dir):
+    """Why this film does not count as delivered for promotion ([] when it does). PROMOTION IS THE USER'S CHOICE
+    (SKILL.md 9f), and so is `none` at the review question: a film the user watched and shipped without a critic used
+    to be refused here because its NOT_DELIVERED.md is REWRITTEN rather than removed (a waiver is not a PASS), so the
+    two user decisions contradicted each other on the GPS test film. It is accepted when that waiver holds for the
+    current render and every delivery gate is recorded green — and the library entry then says it was never reviewed."""
+    if not os.path.exists(os.path.join(out_dir, "NOT_DELIVERED.md")):
+        return []
+    if user_waived(out_dir):
+        return []
+    return ["NOT_DELIVERED.md is still there — the film is not delivered: no critic passed it, and no review waiver "
+            "the user gave holds for this render with every delivery gate green (critic_ledger.py --final says which)"]
+
+
+def _unreviewed_note(out_dir):
+    rid = user_waived(out_dir) if os.path.exists(os.path.join(out_dir, "NOT_DELIVERED.md")) else None
+    return (" · NOT critic-reviewed: the user waived the review of render %s" % rid[:12]) if rid else ""
+
+
 def preconditions(out_dir, name):
     """(kind, source path, build-list entry, board) — or PromoteError naming EVERY reason it may not be promoted."""
     probs = []
     mp4 = os.path.join(out_dir, "out.mp4")
     if not os.path.isfile(mp4):
         probs.append("the film has no out.mp4 — promote from a delivered film")
-    if os.path.exists(os.path.join(out_dir, "NOT_DELIVERED.md")):
-        probs.append("NOT_DELIVERED.md is still there — the critic has not passed this film "
-                     "(critic_ledger.py --final removes it when the review passes)")
+    probs += delivery_problems(out_dir)
     kind = "shot" if name in ws.shot_names(out_dir) else ("object" if name in ws.object_names(out_dir) else None)
     if kind is None:
         raise PromoteError(probs + ["%s is not in this film's workshop" % name])
@@ -222,22 +252,23 @@ def _index_object(name):
     _write(p, s[:end] + "  %s: {C: O_%s.%s, meta: O_%s.META},\n" % (name, name, name, name) + s[end:])
 
 
-def _catalogue_shot(name, entry, use_when, types, film):
+def _catalogue_shot(name, entry, use_when, types, film, note=""):
     s = _read(LIBRARY)
     m = re.search(r"^(\d+)\. \*\*%s\*\* — .*$" % re.escape(name), s, re.M)
     if not m:
         raise PromoteError(["register_shot wrote no LIBRARY.md entry for %s" % name])
-    line = "%s. **%s** — %s *Use: %s.* `%s` · built for the film %s." % (
-        m.group(1), name, entry["means"], use_when.rstrip("."), ", ".join(sorted(types)), film)
+    # the note goes BEFORE "built for the film": validate reads the film's title from the end of this line
+    line = "%s. **%s** — %s *Use: %s.* `%s`%s · built for the film %s." % (
+        m.group(1), name, entry["means"], use_when.rstrip("."), ", ".join(sorted(types)), note, film)
     _write(LIBRARY, s[:m.start()] + line + s[m.end():])
 
 
-def _catalogue_object(name, entry, props, film):
+def _catalogue_object(name, entry, props, film, note=""):
     s = _read(LIBRARY)
     if OBJECTS_ANCHOR not in s:
         raise PromoteError(["LIBRARY.md has no objects section (%s)" % OBJECTS_ANCHOR])
-    line = "- **%s** — %s *Built for the film %s.*%s" % (
-        name, entry["means"], film, (" `%s`" % ", ".join(sorted(props))) if props else "")
+    line = "- **%s** — %s *Built for the film %s.*%s%s" % (
+        name, entry["means"], film, (" `%s`" % ", ".join(sorted(props))) if props else "", note)
     _write(LIBRARY, s.rstrip("\n") + "\n" + line + "\n")
 
 
@@ -248,9 +279,7 @@ def _component_preconditions(out_dir, name):
     mp4 = os.path.join(out_dir, "out.mp4")
     if not os.path.isfile(mp4):
         probs.append("the film has no out.mp4 — promote from a delivered film")
-    if os.path.exists(os.path.join(out_dir, "NOT_DELIVERED.md")):
-        probs.append("NOT_DELIVERED.md is still there — the critic has not passed this film "
-                     "(critic_ledger.py --final removes it when the review passes)")
+    probs += delivery_problems(out_dir)
     js, css = ws.component_paths(out_dir, name)
     if os.path.isfile(mp4):
         for f in (js, css):
@@ -357,6 +386,7 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
         return promote_component(out_dir, name, dry_run=dry_run, log=log)
     kind, src_path, entry, board = preconditions(out_dir, name)
     film = (board.get("meta") or {}).get("title") or os.path.basename(os.path.abspath(out_dir))
+    note = _unreviewed_note(out_dir)
     src = _read(src_path)
     dest_dir = SHOTS if kind == "shot" else OBJECTS
     text, probs = library_source(src, kind, name)
@@ -379,7 +409,7 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
     _write(plan["to"], text)
     if kind == "shot":
         _register(name, family, use_when, provenance)
-        _catalogue_shot(name, entry, use_when, types, film)
+        _catalogue_shot(name, entry, use_when, types, film, note)
         for i, cmd in enumerate(plan["measure"]):
             try:
                 _run(cmd, log=log)
@@ -393,10 +423,12 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
                     % (name, "; ".join(left), "; ".join(every))])
         _write(os.path.join(CARDS, name + ".md"),
                _card(name, entry, use_when, motion, types, docs, provenance, family, film)
-               .replace("**Provenance:**", _measured_line(name) + "\n\n**Provenance:**"))
+               .replace("**Provenance:**", _measured_line(name) + ("\n\n**Review:**%s." % note.replace(" · ", " ")
+                                                                    if note else "") + "\n\n**Provenance:**"))
     else:
         _index_object(name)
-        _catalogue_object(name, entry, sorted(k for k in types if k not in ("w", "h", "t", "dna", "yaw", "idle")), film)
+        _catalogue_object(name, entry, sorted(k for k in types if k not in ("w", "h", "t", "dna", "yaw", "idle")), film,
+                          note)
     # the film now uses the library's copy
     import storyboard as sb
     os.remove(src_path)
