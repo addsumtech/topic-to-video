@@ -730,6 +730,9 @@ def import_problems(out_dir, files):
             elif spec.startswith("@shots/"):
                 if spec[len("@shots/"):] not in lib:
                     probs.append("%s imports %s — there is no library register %r" % (rel, spec, spec[7:]))
+            elif spec.startswith("@objects/"):
+                if spec[len("@objects/"):] not in library_object_names():
+                    probs.append("%s imports %s — there is no library object %r" % (rel, spec, spec[9:]))
             elif spec.startswith("."):
                 target = os.path.normpath(os.path.join(os.path.dirname(f), spec))
                 if not (target + os.sep).startswith(ws + os.sep):
@@ -812,6 +815,7 @@ def typecheck(out_dir):
                "paths": {"@workshop": [os.path.join(ws, "index.ts")],
                          "@runtime/*": [os.path.join(RUNTIME, "*")],
                          "@shots/*": [os.path.join(LIB_SHOTS, "*")],
+                         "@objects/*": [os.path.join(LIB_OBJECTS, "*")],
                          "*": [os.path.join(REMOTION, "node_modules", "*"),
                                os.path.join(REMOTION, "node_modules", "@types", "*")]}},
            "include": [os.path.join(ws, "objects"), os.path.join(ws, "shots"), os.path.join(ws, "index.ts"),

@@ -30,6 +30,9 @@ Config.overrideWebpackConfig((c) => ({
       '@workshop$': WORKSHOP ? path.join(WORKSHOP, 'index.ts') : path.join(ROOT, 'src', 'workshop', 'none.ts'),
       '@runtime': path.join(ROOT, 'src', 'runtime'),
       '@shots': path.join(ROOT, 'src', 'shots'),
+      // a library OBJECT, for film code that imports one directly (a promoted object's helpers, e.g. a satellite's
+      // nadirPoint) — scripts/promote.py --batch points the film's remaining shots here
+      '@objects': path.join(ROOT, 'src', 'objects'),
     },
     // NOT a project-wide `resolve.modules` prepend — that one line put this project's node_modules ahead of
     // EVERY module's lookup, workshop or not, and flattened the library's own dependency tree onto it: r3f and

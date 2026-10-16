@@ -329,3 +329,42 @@ def test_a_film_the_user_shipped_without_a_critic_promotes_and_says_so(tmp_path,
     with pytest.raises(pr.PromoteError) as e:
         pr.promote(out2, "EspressoPuck")
     assert any("no review waiver the user gave holds" in p for p in e.value.problems), e.value.problems
+
+
+def test_a_batch_promotes_items_that_import_each_other_and_their_shared_helper(tmp_path, sandbox, monkeypatch):
+    # the GPS test film: three shots shared `./orbitKit` and imported `../objects/GpsSatellite`, and promoting them one
+    # at a time refused every one ("a workshop file the library cannot resolve")
+    lib, calls = sandbox
+    monkeypatch.setattr(pr, "KITS", str(lib / "kits"))
+    out = _film(tmp_path, name="Sat", kind="object")
+    shots = os.path.join(out, "workshop", "shots")
+    os.makedirs(shots, exist_ok=True)
+    open(os.path.join(shots, "orbitKit.ts"), "w").write("export const starField = (n: number) => n * 2;\n")
+    uses = ("import {starField} from './orbitKit';\nimport {Sat} from '../objects/Sat';\n")
+    for nm in ("ShotA", "ShotB"):
+        src = (SHOT % {"name": nm}).replace("import {TermTable} from '@shots/TermTable';\n", uses)
+        open(os.path.join(shots, nm + ".tsx"), "w").write(src)
+    b = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
+    b["meta"]["build_list"].append({"id": "ShotA", "kind": "shot", "beats": [2], "slot": "own", "means": "the range",
+                                    "accept": "four arcs meet", "props_doc": {"title": "the frame's heading — short",
+                                                                              "flow": "speed — faster reads as urgency"}})
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    time.sleep(0.02)
+    open(os.path.join(out, "out.mp4"), "wb").write(b"\0")          # the render is newer than every source
+    # one at a time, the shot is refused for importing its sibling object
+    with pytest.raises(pr.PromoteError) as e:
+        pr.promote(out, "ShotA", family="D", use_when="ranges meet", motion="arcs swing in")
+    assert any("not in this promotion" in p for p in e.value.problems), e.value.problems
+    spec = [{"name": "ShotA", "family": "D", "use_when": "ranges meet", "motion": "arcs swing in"}, {"name": "Sat"}]
+    order = pr.promote_batch(out, spec)
+    assert [s["name"] for s in order] == ["Sat", "ShotA"], "objects first"
+    shot_lib = open(str(lib / "shots" / "ShotA.tsx")).read()
+    assert "from '../kits/orbitKit'" in shot_lib and "from '../objects/Sat'" in shot_lib, shot_lib
+    assert os.path.isfile(str(lib / "kits" / "orbitKit.ts")) and os.path.isfile(str(lib / "objects" / "Sat.tsx"))
+    card = open(str(lib / "cards" / "ShotA.md")).read()
+    assert "speed" in card and "urgency" in card, "props documented from the build list"
+    # the film keeps working: its copies are gone and its remaining shot imports the library's object
+    assert not os.path.exists(os.path.join(shots, "ShotA.tsx"))
+    assert not os.path.exists(os.path.join(out, "workshop", "objects", "Sat.tsx"))
+    rest = open(os.path.join(shots, "ShotB.tsx")).read()
+    assert "from '@objects/Sat'" in rest and "./orbitKit" in rest, rest

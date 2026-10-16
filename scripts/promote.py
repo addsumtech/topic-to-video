@@ -47,6 +47,7 @@ OBJECTS = os.path.join(REMOTION, "src", "objects")
 CARDS = os.path.join(REMOTION, "cards")
 LIBRARY = os.path.join(REMOTION, "LIBRARY.md")
 OBJECTS_ANCHOR = "<!-- OBJECTS (scripts/promote.py appends below) -->"
+KITS = os.path.join(REMOTION, "src", "kits")         # helper modules promoted items share (a film's workshop helpers)
 HTML_COMPONENTS_DOC = os.path.join(SKILL, "references", "html-components.md")
 HTML_COMPONENTS_HEAD = """# HTML components (the page tier's library)
 
@@ -133,11 +134,71 @@ def preconditions(out_dir, name):
     return kind, src, entry, board
 
 
-def library_source(text, kind, name):
-    """The workshop source as library code: `@runtime/` and `@shots/` become relative imports. A relative import
-    in workshop code names a workshop file or asset, which the library cannot resolve — refused by name, as is an
-    alias naming nothing. A shot's GROUND and PROVENANCE declarations (and the comment lines directly above them)
-    are dropped: the library MEASURES the ground, and the provenance goes to shot_director."""
+def _resolve(base_dir, spec):
+    p = os.path.normpath(os.path.join(base_dir, spec))
+    for ext in ("", ".tsx", ".ts"):
+        if os.path.isfile(p + ext):
+            return p + ext
+    return None
+
+
+def _classify(out_dir, path):
+    """('shot'|'object', Name) for a workshop ITEM (a top-level .tsx in shots/ or objects/), else ('helper', None)."""
+    wsd = ws.workshop_dir(out_dir)
+    for kind in ws.KINDS:
+        folder = os.path.join(wsd, kind)
+        if os.path.dirname(path) == folder and path.endswith(".tsx"):
+            return kind[:-1], os.path.basename(path)[:-4]
+    return "helper", None
+
+
+def _aliases(text, kind):
+    rel = {"shot": ("../runtime/", "./", "../objects/"), "object": ("../runtime/", "../shots/", "./"),
+           "kit": ("../runtime/", "../shots/", "../objects/")}[kind]
+    for alias, to in zip(("@runtime/", "@shots/", "@objects/"), rel):
+        text = text.replace("'" + alias, "'" + to).replace('"' + alias, '"' + to)
+    return text
+
+
+def _relink(text, src_dir, out_dir, here, name, batch, kits, probs):
+    """Rewrite one file's RELATIVE imports for its library home (`here`: 'shot' | 'object' | 'kit'). A promoted or
+    library ITEM keeps a relative path into its own folder; a workshop HELPER is collected into `kits` and imported
+    from src/kits/; anything else is refused by name."""
+    lib_items = ws.library_shot_names() | ws.library_object_names()
+    out = text
+    for spec in sorted(set(ws._IMPORT.findall(text)), key=len, reverse=True):
+        if not spec.startswith("."):
+            continue
+        target = _resolve(src_dir, spec)
+        if target is None:
+            probs.append("%s imports %r — nothing in the film's workshop answers it" % (name, spec))
+            continue
+        tkind, tname = _classify(out_dir, target)
+        if tkind == "helper":
+            stem = os.path.splitext(os.path.basename(target))[0]
+            if kits.get(stem) not in (None, target):
+                probs.append("%s: two different workshop helpers are both called %r — rename one" % (name, stem))
+                continue
+            kits[stem] = target
+            new = ("./%s" if here == "kit" else "../kits/%s") % stem
+        elif tname in batch or tname in lib_items:
+            folder = "shots" if tkind == "shot" else "objects"
+            new = ("./%s" % tname) if here == tkind else ("../%s/%s" % (folder, tname))
+        else:
+            probs.append("%s imports %r — a workshop %s that is not in this promotion and not in the library; promote "
+                         "it in the same batch (promote.py <out_dir> --batch <spec.json>)" % (name, spec, tkind))
+            continue
+        out = out.replace("'%s'" % spec, "'%s'" % new).replace('"%s"' % spec, '"%s"' % new)
+    return out
+
+
+def library_source(text, kind, name, out_dir=None, src_dir=None, batch=frozenset(), kits=None):
+    """The workshop source as library code: `@runtime/`, `@shots/` and `@objects/` become relative imports. A RELATIVE
+    import names a workshop file: a promoted-in-this-batch or library ITEM keeps a relative path (the library's
+    folders mirror the workshop's), a workshop HELPER goes to src/kits/ (`kits` collects it), and anything else is
+    refused by name. On the GPS test film three shots shared `./orbitKit` and imported `../objects/GpsSatellite`, and
+    each was refused one at a time. A shot's GROUND and PROVENANCE declarations (and the comment lines directly above
+    them) are dropped: the library MEASURES the ground, and the provenance goes to shot_director."""
     probs = []
     for spec in ws._IMPORT.findall(text):
         if spec.startswith("@runtime/"):
@@ -145,16 +206,38 @@ def library_source(text, kind, name):
             if not any(os.path.isfile(os.path.join(ws.RUNTIME, mod + e)) for e in ("", ".ts", ".tsx", ".json")):
                 probs.append("%s imports %s — there is no runtime module %r" % (name, spec, mod))
         elif spec.startswith("@shots/"):
-            if spec[len("@shots/"):] not in ws.library_shot_names():
+            if spec[len("@shots/"):] not in ws.library_shot_names() | set(batch):
                 probs.append("%s imports %s — there is no library register %r" % (name, spec, spec[len("@shots/"):]))
-        elif spec.startswith("."):
+        elif spec.startswith("@objects/"):
+            if spec[len("@objects/"):] not in ws.library_object_names() | set(batch):
+                probs.append("%s imports %s — there is no library object %r" % (name, spec, spec[len("@objects/"):]))
+        elif spec.startswith(".") and (out_dir is None or src_dir is None):
             probs.append("%s imports %r — a workshop file or asset the library cannot resolve; inline it, or promote "
                          "it first" % (name, spec))
-    shots_rel = "./" if kind == "shot" else "../shots/"
-    out = text.replace("'@runtime/", "'../runtime/").replace('"@runtime/', '"../runtime/')
-    out = out.replace("'@shots/", "'" + shots_rel).replace('"@shots/', '"' + shots_rel)
+    out = text
+    if out_dir is not None and src_dir is not None:
+        out = _relink(out, src_dir, out_dir, kind, name, set(batch), kits if kits is not None else {}, probs)
+    out = _aliases(out, kind)
     if kind == "shot":
         out = re.sub(r"(?:^[ \t]*//[^\n]*\n)*^export const (?:GROUND|PROVENANCE)\b[^\n]*\n", "", out, flags=re.M)
+    return out, probs
+
+
+def kit_sources(out_dir, kits, batch):
+    """{library kit path: source} for every collected helper, its own imports relinked (and any helper IT imports
+    collected in turn), plus the problems — a kit the library already holds with DIFFERENT code is refused."""
+    done, out, probs = set(), {}, []
+    while set(kits) - done:
+        for stem in sorted(set(kits) - done):
+            done.add(stem)
+            src = kits[stem]
+            text = _relink(_read(src), os.path.dirname(src), out_dir, "kit", stem, set(batch), kits, probs)
+            text = _aliases(text, "kit")
+            dest = os.path.join(KITS, stem + os.path.splitext(src)[1])
+            if os.path.isfile(dest) and _read(dest) != text:
+                probs.append("the library already has a kit %s with different code — rename the film's helper %r"
+                             % (os.path.relpath(dest, REMOTION), stem))
+            out[dest] = text
     return out, probs
 
 
@@ -381,7 +464,8 @@ def promote_component(out_dir, name, dry_run=False, log=print):
     return plan
 
 
-def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=False, log=print):
+def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=False, log=print, batch=None,
+            keep_workshop=False):
     if name in ws.component_names(out_dir) and name not in ws.shot_names(out_dir) | ws.object_names(out_dir):
         return promote_component(out_dir, name, dry_run=dry_run, log=log)
     kind, src_path, entry, board = preconditions(out_dir, name)
@@ -389,23 +473,40 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
     note = _unreviewed_note(out_dir)
     src = _read(src_path)
     dest_dir = SHOTS if kind == "shot" else OBJECTS
-    text, probs = library_source(src, kind, name)
+    kits = {}
+    text, probs = library_source(src, kind, name, out_dir=out_dir, src_dir=os.path.dirname(src_path),
+                                 batch=frozenset(batch or ()), kits=kits)
+    kit_files, kit_probs = kit_sources(out_dir, kits, batch or ())
+    probs += kit_probs
     types, docs = prop_docs(src, name)
+    # A PROP'S DOCUMENTATION MAY LIVE ON THE BUILD LIST: `props_doc: {prop: "what it sets — the feel of turning it"}`.
+    # Writing it into the source after the render would make the source newer than the film and refuse the item
+    # ("changed after the film was rendered"); the board is not part of the render.
+    for p_, d_ in ((entry or {}).get("props_doc") or {}).items():
+        if p_ in types and p_ not in docs and str(d_).strip():
+            what, _sep, feel = str(d_).partition(" — ")
+            docs[p_] = (what.strip(), feel.strip() or "—")
     provenance = ws.provenances(out_dir).get(name)
     if kind == "shot":
         for flag, v in (("--family", family), ("--use-when", use_when), ("--motion", motion)):
             if not str(v or "").strip():
                 probs.append("a shot needs %s — its catalogue entry and card are written from it" % flag)
         for p in sorted(set(types) - set(docs)):
-            probs.append("`%s` has no trailing comment in %s's props type — the card's table is written from them "
-                         "(`%s?: T;   // what it sets — the feel of turning it`)" % (p, name, p))
+            probs.append("`%s` has no trailing comment in %s's props type and no `props_doc` entry on its build list — "
+                         "the card's table is written from them (`%s?: T;   // what it sets — the feel of turning it`, or "
+                         "build_list[…].props_doc.%s)" % (p, name, p, p))
     if probs:
         raise PromoteError(probs)
-    plan = {"kind": kind, "to": os.path.join(dest_dir, name + ".tsx"), "measure": measurements(name) if kind == "shot" else []}
+    plan = {"kind": kind, "to": os.path.join(dest_dir, name + ".tsx"), "kits": sorted(kit_files),
+            "measure": measurements(name) if kind == "shot" else []}
     if dry_run:
         log("[promote] would move %s (%s) into %s%s" % (name, kind, plan["to"],
             "; then register and measure it" if kind == "shot" else "; then index and catalogue it"))
         return plan
+    for dest, ktext in kit_files.items():
+        if not os.path.isfile(dest):
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            _write(dest, ktext)
     _write(plan["to"], text)
     if kind == "shot":
         _register(name, family, use_when, provenance)
@@ -429,9 +530,10 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
         _index_object(name)
         _catalogue_object(name, entry, sorted(k for k in types if k not in ("w", "h", "t", "dna", "yaw", "idle")), film,
                           note)
-    # the film now uses the library's copy
+    # the film now uses the library's copy (a batch removes its copies once every item is in)
     import storyboard as sb
-    os.remove(src_path)
+    if not keep_workshop:
+        os.remove(src_path)
     for e in board["meta"]["build_list"]:
         if isinstance(e, dict) and e.get("id") == name:
             e["promoted"] = True
@@ -440,16 +542,71 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
     return plan
 
 
+def promote_batch(out_dir, specs, dry_run=False, log=print):
+    """Promote several of one film's built things together — objects first, then shots — so items that import each
+    other, and the helpers they share, move as one. Every item is checked before anything is written; then each is
+    promoted with its workshop copy kept until the last is in; then the copies go and any workshop file that still
+    imports a promoted item is pointed at the library (`@objects/X`, `@shots/X`)."""
+    names = [str(sp.get("name")) for sp in specs]
+    objs, shots = ws.object_names(out_dir), ws.shot_names(out_dir)
+    order = [sp for sp in specs if sp.get("name") in objs] + [sp for sp in specs if sp.get("name") not in objs]
+    probs = []
+    for sp in order:
+        try:
+            promote(out_dir, sp["name"], sp.get("family"), sp.get("use_when"), sp.get("motion"), dry_run=True,
+                    log=lambda *_a: None, batch=names)
+        except PromoteError as e:
+            probs += e.problems
+    if probs:
+        raise PromoteError(probs)
+    if dry_run:
+        log("[promote] would promote, in order: %s" % ", ".join(sp["name"] for sp in order))
+        return order
+    paths = {}
+    for sp in order:
+        kind = "object" if sp["name"] in objs else "shot"
+        paths[sp["name"]] = os.path.join(ws.workshop_dir(out_dir), kind + "s", sp["name"] + ".tsx")
+        promote(out_dir, sp["name"], sp.get("family"), sp.get("use_when"), sp.get("motion"), log=log, batch=names,
+                keep_workshop=True)
+    for p in paths.values():
+        if os.path.exists(p):
+            os.remove(p)
+    relinked = []
+    for f in ws.source_files(out_dir):
+        text = _read(f)
+        new = text
+        for spec in set(ws._IMPORT.findall(text)):
+            if not spec.startswith("."):
+                continue
+            stem = os.path.splitext(os.path.basename(spec))[0]
+            if stem in paths and os.path.normpath(os.path.join(os.path.dirname(f), spec)) in \
+                    {os.path.splitext(p)[0] for p in paths.values()} | set(paths.values()):
+                alias = "@objects/" if stem in objs else "@shots/"
+                new = new.replace("'%s'" % spec, "'%s%s'" % (alias, stem)).replace('"%s"' % spec, '"%s%s"' % (alias, stem))
+        if new != text:
+            _write(f, new)
+            relinked.append(os.path.relpath(f, out_dir))
+    log("[promote] batch done: %s in the library%s" % (", ".join(names), ("; the film's %s now import them from the "
+        "library" % ", ".join(relinked)) if relinked else ""))
+    return order
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Promote a delivered film's built thing into the library.")
     ap.add_argument("out_dir")
-    ap.add_argument("name")
+    ap.add_argument("name", nargs="?")
+    ap.add_argument("--batch", help="a JSON list [{name, family?, use_when?, motion?}] promoted together")
     ap.add_argument("--family")
     ap.add_argument("--use-when")
     ap.add_argument("--motion")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     try:
+        if a.batch:
+            promote_batch(a.out_dir, json.load(open(a.batch, encoding="utf-8")), a.dry_run)
+            return 0
+        if not a.name:
+            ap.error("give a NAME, or --batch <spec.json>")
         promote(a.out_dir, a.name, a.family, a.use_when, a.motion, a.dry_run)
         return 0
     except PromoteError as e:

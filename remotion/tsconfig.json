@@ -12,7 +12,8 @@
     "paths": {
       "@workshop": ["./src/workshop/none.ts"],
       "@runtime/*": ["./src/runtime/*"],
-      "@shots/*": ["./src/shots/*"]
+      "@shots/*": ["./src/shots/*"],
+      "@objects/*": ["./src/objects/*"]
     }
   },
   "include": ["src"]
