@@ -3168,10 +3168,17 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
 #              The critic then confirms each ADAPTED/BUILT route is visible in the frame (critic_ledger.py routes).
 #   AS-IS    — everything else. It must carry `shot_fit.ideal` AND `shot_fit.shares`: the encoding the register
 #              already shares with that ideal picture (what its position/size/colour/motion/sequence carries).
-# The floor: (built + adapted) >= half of the non-exempt beats, and at least one BUILT beat (the signature) —
-# also on a film whose every beat is exempt. Every adapted or built beat records its `shot_fit.ideal`.
-# Half is the FLOOR an error enforces, not the target — a strong film is mostly adapted or built.
+# The floor: (built + adapted) >= half of the non-exempt beats, AND built >= half of them, and at least one BUILT
+# beat (the signature) — also on a film whose every beat is exempt. Every adapted or built beat records its
+# `shot_fit.ideal`. Half is the FLOOR an error enforces, not the target — a strong film is mostly built.
+# WHY BUILT HAS ITS OWN HALF (2026-10-17). ADAPTED is one structure prop set away from a register's default, so
+# a film of re-propped templates cleared the old floor with a single built beat — the "mostly existing templates"
+# film the user rejected on the GPS contest. The films that read as designed for their subject were built: GPS
+# 15 of 15, its satellite crafted once and held in 11 beats; the compound-interest test built a passbook kit and
+# composed every beat from it. The cheapest honest route is still open: the film's own crafted subject held in a
+# library frame's object slot counts as built.
 DESIGN_SHARE_FLOOR = 0.5
+BUILT_SHARE_FLOOR = 0.5
 _STRUCTURAL_ASPECTS = ("layout", "encoding", "structure")
 _TITLE_CARD_REGISTERS = {"CinematicTitle"}
 _GENERIC_FIT = {"it fits", "fits", "fit", "good fit", "perfect fit", "fits well", "matches", "it matches",
@@ -3354,7 +3361,7 @@ def design_routes(meta, slides, out_dir):
 
 _KEPT_WHY = ("the user kept the design of beat(s) %s (meta.design_first), so only the beats added or changed since are "
              "counted — and they must carry the film TOWARD design-first, not further from it: at least half of them "
-             "adapted or built, so a single new beat is adapted or built")
+             "%s, so a single new beat is %s")
 
 
 def _design_share(meta, slides, errors, warnings, out_dir, kept=frozenset()):
@@ -3379,10 +3386,26 @@ def _design_share(meta, slides, errors, warnings, out_dir, kept=frozenset()):
                       "half, and a strong film is mostly adapted or built%s). Rework at least %d of the as-is "
                       "beats — %s — by one of the %s."
                       % (len(credited), len(counted), "non-kept " if kept else "", round(100 * share),
-                         ("; " + _KEPT_WHY % ", ".join(str(x) for x in _beat_order(kept))) if kept else "",
+                         ("; " + _KEPT_WHY % (", ".join(str(x) for x in _beat_order(kept)), "built", "built"))
+                         if kept else "",
                          int(-(-DESIGN_SHARE_FLOOR * len(counted) // 1)) - len(credited),
                          "; ".join("scene #%s (%s)" % (num, why) for num, _r, why in asis[:8])
                          + (" …" if len(asis) > 8 else ""), routes_txt))
+    built_share = len(built) / float(len(counted)) if counted else 1.0
+    # a kept film skips the no-built-beat rule below (its signature is the kept design's), so its new beats are held
+    # to the built half here even when none of them is built yet
+    if (built or kept) and counted and built_share < BUILT_SHARE_FLOOR:
+        need = int(-(-BUILT_SHARE_FLOOR * len(counted) // 1)) - len(built)
+        others = [num for num, r, _w in counted if r != "built"]
+        errors.append("design-first: only %d of %d non-exempt %sbeats are BUILT (%d%%; the floor is half). Adapting a "
+                      "register re-props a template; a film mostly made of them reads as templates, whatever its "
+                      "palette. Build %d more of scenes %s: hold this film's own crafted subject (its workshop "
+                      "object) in a frame's object slot, or compose a workshop shot from the film's own kit — "
+                      "agents/shot-director.md Step 0.55, \"The film's SUBJECT, crafted once, recurring\"."
+                      % (len(built), len(counted), "non-kept " if kept else "", round(100 * built_share), need,
+                         ", ".join("#%s" % x for x in others[:12]))
+                      + (("; " + _KEPT_WHY % (", ".join(str(x) for x in _beat_order(kept)), "built", "built"))
+                         if kept else ""))
     if not built and not kept:
         errors.append("design-first: no beat is BUILT — every film has at least one signature beat drawn for "
                       "this topic (a workshop shot, or a register whose slot holds a workshop object). Pick the "
@@ -4081,7 +4104,8 @@ def _html_design_share(meta, slides, errors, warnings, out_dir, kept=frozenset()
                   "position, a transform; display:flex alone is a stock row — an inline svg that draws the "
                   "beat, or a hand-placed layout — not a stock archetype recoloured). Method: agents/design-director.md "
                   "\"Design first\"" % BESPOKE_CSS_TARGETS)
-    kept_why = ("; " + _KEPT_WHY % ", ".join(str(x) for x in _beat_order(kept))) if kept else ""
+    kept_why = ("; " + _KEPT_WHY % (", ".join(str(x) for x in _beat_order(kept)), "built or bespoke",
+                                    "built or bespoke")) if kept else ""
     if counted and not credited:
         errors.append("design-first: no %spage is BUILT or BESPOKE — all %d non-exempt %sbeats are stock archetypes "
                       "(%s%s). Make the beat whose idea the stock archetypes draw least well the film's signature, "

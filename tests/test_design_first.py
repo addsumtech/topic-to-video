@@ -1,5 +1,6 @@
-"""Design-first is a floor validate enforces: at least half of a remotion film's non-exempt beats are ADAPTED or
-BUILT, at least one is BUILT, and a register used AS-IS earns it (`shot_fit.ideal` + `shot_fit.shares`).
+"""Design-first is a floor validate enforces: at least half of a remotion film's non-exempt beats are BUILT (so at
+least half are adapted or built too), at least one is BUILT, and a register used AS-IS earns it (`shot_fit.ideal` +
+`shot_fit.shares`).
 Definitions live in scripts/validate.py above `DESIGN_SHARE_FLOOR`; the method in agents/shot-director.md."""
 import os
 import sys
@@ -58,10 +59,20 @@ def test_too_many_as_is_beats_is_an_error_naming_them_and_the_routes(tmp_path):
     assert "scene #2" in msg[0] and "ADAPT" in msg[0] and "SLOT AN OBJECT" in msg[0] and "BUILD" in msg[0]
 
 
-def test_exactly_half_passes(tmp_path):
-    meta, slides = _film(tmp_path, "basss"[:4])        # b a s s → 2 of 4
+def test_exactly_half_built_passes(tmp_path):
+    meta, slides = _film(tmp_path, "bbas")             # b b a s → 2 of 4 built
     errs, _ = _share(tmp_path, meta, slides)
     assert not errs, errs
+
+
+def test_a_film_of_re_propped_templates_fails_on_its_built_share(tmp_path):
+    """One built beat and the rest adapted cleared the old floor: the "mostly existing templates" film the user
+    rejected. Adapting re-props a template, so built carries its own half."""
+    meta, slides = _film(tmp_path, "baaa")             # 4 of 4 adapted-or-built, 1 of 4 built
+    errs, _ = _share(tmp_path, meta, slides)
+    msg = [e for e in errs if "are BUILT" in e]
+    assert msg and "only 1 of 4" in msg[0] and "Build 1 more" in msg[0] and "#2" in msg[0], errs
+    assert not [e for e in errs if "are adapted or built" in e], errs
 
 
 def test_a_film_with_no_built_beat_fails_even_when_all_are_adapted(tmp_path):
@@ -71,7 +82,7 @@ def test_a_film_with_no_built_beat_fails_even_when_all_are_adapted(tmp_path):
 
 
 def test_a_vague_adaptation_note_does_not_count(tmp_path):
-    meta, slides = _film(tmp_path, "baaa")
+    meta, slides = _film(tmp_path, "bbaaa")
     vague = [
         {"redesigned": "changed it for this topic", "topic_idea": "the idea"},          # legacy free text
         {"changes": [{"aspect": "copy", "what": "rewrote every label into this film's own words entirely",
@@ -80,16 +91,16 @@ def test_a_vague_adaptation_note_does_not_count(tmp_path):
         {"changes": [{"aspect": "encoding", "what": "size now encodes the share of each source file",
                       "why": "size now encodes the share of each source file"}]},       # what == why
     ]
-    for k, bad in enumerate(vague[:3], 1):
+    for k, bad in enumerate(vague[:3], 2):
         slides[k]["shot_adaptation"] = bad
     errs, _ = _share(tmp_path, meta, slides)
-    assert any("only 1 of 4" in e for e in errs), errs
+    assert any("only 2 of 5" in e and "adapted or built" in e for e in errs), errs
     assert v.adaptation_problem(vague[3]) is not None
     assert v.adaptation_problem({"changes": [GOOD_CHANGE]}) is None
 
 
 def test_an_as_is_beat_must_earn_it(tmp_path):
-    meta, slides = _film(tmp_path, "bas")
+    meta, slides = _film(tmp_path, "bbs")
     errs, _ = _share(tmp_path, meta, slides)
     assert not errs, errs
     slides[2]["shot_fit"] = {"verdict": "fit", "ideal": "x", "shares": "it fits"}

@@ -373,7 +373,7 @@ finding it prints that you do not understand.
   adjacent beats read as one look). `python scripts/shot_director.py <out_dir>` is a deterministic skeleton that
   PROPOSES a register per beat as MATERIAL (`shot_fit.material`, verdict `unjudged`) after the ideals are written —
   never the assignment; it keeps `shot_fit.ideal`/`form` and leaves routed beats alone. The design-first floor
-  (`shot_fit.ideal` first, `shot_adaptation.changes` visible in the props, half adapted or built, one built) is
+  (`shot_fit.ideal` first, `shot_adaptation.changes` visible in the props, half built, one built) is
   agents/shot-director.md Step 0.55.
   **Faithfulness:** a register that shows a NUMBER (ChartLive/BeforeAfterSlider/VelocitySnap) MUST be given a
   SOURCED figure in `shot_props` — never its illustrative demo default (`validate.py` warns; see

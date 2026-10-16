@@ -197,12 +197,16 @@ register used unchanged is the exception that has to earn it. Per beat, in this 
 4. **Check** it: `workshop.py still` + `check` for a built thing; the hide-the-caption test for every beat.
 
 **The floor `validate.py` ERRORs on** (definitions in `scripts/validate.py` above `DESIGN_SHARE_FLOOR`): at least
-HALF of the non-exempt beats ADAPTED or BUILT, at least ONE BUILT — the film's **signature beat**, even on a film
+HALF of the non-exempt beats BUILT — adapting a register re-props a template, so it does not count toward this half;
+the film's own crafted subject held in a frame's object slot does — at least ONE BUILT — the film's **signature
+beat**, even on a film
 whose every other beat is exempt — and a `shot_fit.ideal` on every adapted or built beat. Exemptions are decided
 FIRST, and an adaptation note on an exempt beat credits nothing: a `CinematicTitle` used as the first/last beat,
 and an evidence register (`PhotoPlate`, `RealVersus`, …) holding its real picture. A build-list entry marked
 `promoted` counts as built only when the library's catalogue line says it was built for THIS film. Half is the
-floor, not the target: **a strong film is mostly adapted or built.**
+floor, not the target: **a strong film is mostly built** (GPS: 15 of 15; the compound-interest test composed every
+beat from one passbook kit). The proposals `shot_director.py` writes are chosen by an intent keyword, never by your
+ideal: read them as donors of technique, not as the beat's frame.
 
 ### Designing a shot from nothing — the per-beat checklist (premium, not merely new)
 - [ ] **What the viewer must see** — the one claim, as a picture; one strong visual idea per beat.
@@ -655,7 +659,7 @@ Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene:
 - A short `shot_rationale` (why this register, which family) is encouraged, for the critic.
 
 On a film that builds, also write **`meta.build_list`** (Step 0.55). `validate.py` ERRORs below the design-first
-floor (half adapted/built, one built — on a film made before that rule, with no ideal on any beat, one error that
+floor (half built, one built — on a film made before that rule, with no ideal on any beat, one error that
 asks the user instead, and a keep recorded per beat with `validate.py <out_dir> --keep-design`: SKILL.md step 10), on
 an as-is beat that does not earn it, on a missing/unknown `shot`, a
 number-bearing register left on its demo default, or ANY copy prop left to its demo default on a partly-filled

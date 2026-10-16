@@ -476,3 +476,22 @@ def test_shot_director_plans_no_camera_for_beats_it_only_proposed(monkeypatch, t
     assert "still carry proposed material" in said and "seam_plan.py" in said, said
     after = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
     assert not any(sl.get("camera") or sl.get("transition_in") for sl in after["slides"])
+
+
+def test_the_proposals_name_the_films_own_material_first(tmp_path):
+    """The keyword proposals never read the ideal (the compound test drew LiquidChrome for a passbook's cloth cover);
+    the film's own workshop is named before them, and the built half is stated."""
+    import subprocess
+    out = tmp_path / "film"
+    d = out / "workshop" / "shots"
+    d.mkdir(parents=True)
+    from test_build_list import SHOT
+    (d / "PassbookCarry.tsx").write_text(SHOT % {"name": "PassbookCarry"}, encoding="utf-8")
+    (out / "storyboard.json").write_text(json.dumps({"meta": {}, "slides": [
+        {"index": 1, "narration": "x", "shot_fit": {"ideal": "a passbook page prints its first line"}}]}),
+        encoding="utf-8")
+    p = subprocess.run([sys.executable, os.path.join(_ROOT, "scripts", "shot_director.py"), str(out)],
+                       capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr
+    assert "OWN material" in p.stdout and "PassbookCarry" in p.stdout, p.stdout
+    assert "HALF the non-exempt beats BUILT" in p.stdout, p.stdout

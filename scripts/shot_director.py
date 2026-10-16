@@ -603,9 +603,23 @@ def main():
         print("[shot_director] WARN %d beat(s) have no shot_fit.ideal (%s) — the ideal picture comes BEFORE this "
               "skeleton (agents/shot-director.md Step 0.55); a register proposed without one is what the "
               "catalogue would draw, not what the beat needs" % (len(no_ideal), ", ".join(no_ideal[:12])))
-    print("[shot_director] NEXT: route every beat against its ideal — adapt (shot_adaptation.changes + a "
-          "structure prop changed), build (scripts/workshop.py), or as-is with shot_fit.shares — then "
-          "python3 scripts/validate.py %s" % a.out_dir)
+    # THE FILM'S OWN MATERIAL COMES FIRST. The proposals above are matched on an intent KEYWORD and never read the
+    # ideal — on the compound-interest test, "the passbook closes on its cloth cover" drew LiquidChrome and "the
+    # 1,000 slides down into year two" drew CommandSummon. Listed alone they anchor the beat on a template; the
+    # film usually already holds better material (the contest's winning hero, its kit), so it is named here first.
+    try:
+        import workshop as _ws
+        own = sorted(_ws.shot_names(a.out_dir)) + sorted(_ws.object_names(a.out_dir))
+    except Exception:                                # noqa: BLE001 — no workshop is simply no own material yet
+        own = []
+    if own:
+        print("[shot_director] this film's OWN material, the first thing to compose beats from: %s" % ", ".join(own))
+    print("[shot_director] the proposals above are chosen by an intent keyword, not by your ideal — read them as "
+          "donors of technique. The floor is HALF the non-exempt beats BUILT (a workshop shot, or the film's own "
+          "object held in a frame's slot); adapting a register does not count toward it.")
+    print("[shot_director] NEXT: route every beat against its ideal — build (scripts/workshop.py; compose from the "
+          "film's own material), adapt (shot_adaptation.changes + a structure prop changed), or as-is with "
+          "shot_fit.shares — then python3 scripts/validate.py %s" % a.out_dir)
 
 
 if __name__ == "__main__":

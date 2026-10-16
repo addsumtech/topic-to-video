@@ -683,8 +683,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      encoding it shares) — then assembles from runtime blocks and checks. Each beat gets `shot` + faithful `shot_props` + `shot_adaptation` (never a raw text-swap),
      ENCODES its beat (hide the caption — does the visual still carry THIS idea?), coheres with the direction
      (palette/motion/motif, not a random stack), keeps family variety, and reaches past the obvious register as audacity allows (note its `rejected_default`). `validate.py`
-     ERRORs when fewer than HALF of the non-exempt beats are adapted or built, or none is built (the film's
-     signature beat, designed to surprise); half is the floor, a strong film is mostly adapted or built. Every
+     ERRORs when fewer than HALF of the non-exempt beats are BUILT (a workshop shot, or the film's own crafted
+     object held in a frame's slot — adapting re-props a template, so it does not count toward this half), or none is
+     built (the film's signature beat, designed to surprise); half is the floor, a strong film is mostly built. Every
      built thing goes on `meta.build_list` with its `means` and `accept`, is written in the film's own workshop
      (`scripts/workshop.py new-object | new-shot | still | check`; what to build with:
      `references/building-blocks.md`; how to make it mean something: `references/object-authoring.md`) and never
@@ -1132,7 +1133,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     already has an ideal). A kept beat stays exempt while it keeps its shot (HTML: its page) and carries no ideal —
     writing a kept beat's ideal means redesigning it, so it leaves the keep, and a hand-written keep over beats that
     carry ideals keeps nothing; a beat added or changed later follows the normal rules — its ideal, a route, `shares` for as-is — and those beats as a group must be at
-    least half adapted or built, so a single new beat is adapted or built. Writing a new beat's ideal never voids the
+    least half built, so a single new beat is built. Writing a new beat's ideal never voids the
     keep. validate prints one WARN naming the kept beats, the critic's route rows are owed only for the others, and
     `critic_ledger.py --final` and the brief say what was kept. Dates prove nothing here and are not read.
 

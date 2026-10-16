@@ -59,15 +59,15 @@ def _df(out, tier):
 
 
 def _add_beat(out, tier, adapted=False):
-    """A beat added AFTER the keep — an as-is stock beat, or (adapted) one carrying its ideal and a route."""
+    """A beat added AFTER the keep — an as-is stock beat, or (adapted) one designed under the current floor: BUILT on
+    the remotion tier (adapting re-props a template and does not count toward its built half), BESPOKE on html."""
     meta, slides = _load(out)
     n = len(slides) + 1
     if tier == "remotion":
         s = {"index": n, "shot": "KnowledgeGraph", "shot_props": {"title": "new"}}
         if adapted:
-            s["shot_props"] = {"title": "t", "items": ["a", "b", "c"], "links": [[0, 1]]}
-            s["shot_adaptation"] = {"changes": [dict(rdf.GOOD_CHANGE)]}
-            s["shot_fit"] = {"verdict": "adapt", "why": "x", "ideal": rdf.IDEAL}
+            s = {"index": n, "shot": "WsShotA", "shot_props": {},
+                 "shot_fit": {"verdict": "build", "ref": "WsShotA", "ideal": rdf.IDEAL}}
     else:
         rel = "pages/scene_%02d.html" % n
         open(os.path.join(out, rel), "w").write("<!doctype html><html><head></head><body>%s</body></html>"
@@ -136,7 +136,8 @@ def test_a_beat_added_after_the_keep_follows_the_rules_and_its_ideal_does_not_vo
         errs, warns = _df(out, tier)
         assert errs, (tier, "a new as-is beat with no ideal must not ride on the keep")
         share = [e for e in errs if "non-kept" in e]
-        assert share and "a single new beat is adapted or built" in share[0], (tier, errs)
+        assert share and ("a single new beat is %s" % ("built" if tier == "remotion" else "built or bespoke")
+                          in share[0]), (tier, errs)
         assert any(("scene #%s" % n) in e and "shot_fit.ideal" in e for e in errs), (tier, errs)
         assert len(warns) == 1 and "1, 2, 3, 4" in warns[0], "the keep still holds for the beats it named"
         # the new beat does the right thing — its ideal and a route: the keep stands, nothing is left to fix
@@ -235,3 +236,18 @@ def test_a_kept_beat_that_carries_an_ideal_is_not_kept_so_a_written_keep_cannot_
     errs, warns = _df(out, "remotion")
     assert any("scene #3" in e for e in errs), errs
     assert len(warns) == 1 and "1, 2, 4" in warns[0] and "now carrying an ideal): 3" in warns[0], warns
+
+
+def test_a_beat_added_after_the_keep_is_not_carried_by_a_re_propped_template(tmp_path):
+    """Remotion: the new beats are held to the built half too — an adapted one re-props a template."""
+    out = _remotion(tmp_path / "r")
+    assert v.keep_design(out, KEEP)[0]
+    meta, slides = _load(out)
+    n = len(slides) + 1
+    slides.append({"index": n, "shot": "KnowledgeGraph",
+                   "shot_props": {"title": "t", "items": ["a", "b", "c"], "links": [[0, 1]]},
+                   "shot_adaptation": {"changes": [dict(rdf.GOOD_CHANGE)]},
+                   "shot_fit": {"verdict": "adapt", "why": "x", "ideal": rdf.IDEAL}})
+    _save(out, meta, slides)
+    errs, _ = _df(out, "remotion")
+    assert any("are BUILT" in e and "#%d" % n in e and "a single new beat is built" in e for e in errs), errs
