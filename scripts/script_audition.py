@@ -112,8 +112,8 @@ def audition(out_dir, beats=None, out_name="audition.mp3", allow_paid=False):
         try:
             _tts.speak(text, p, spoken_meta, prov, name)
         except Exception as exc:                                             # noqa: BLE001 — name the beat
-            raise RuntimeError("%s could not speak beat %s (%s) — nothing was auditioned"
-                               % (voice, idx, exc)) from exc
+            raise RuntimeError("%s could not speak beat %s (%s)%s — nothing was auditioned"
+                               % (voice, idx, exc, _tts.failure_hint(prov, exc))) from exc
         if not (os.path.exists(p) and os.path.getsize(p) > 0):
             raise RuntimeError("the engine produced no audio for beat %s — nothing was auditioned" % idx)
         parts.append(p)

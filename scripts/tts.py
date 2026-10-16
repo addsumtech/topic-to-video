@@ -830,6 +830,22 @@ def film_voice(meta, slides):
     return prov, name, lang, note
 
 
+def failure_hint(prov, exc):
+    """A next step for an engine failure that has one. edge-tts answering 403 'Invalid response status' is almost
+    always the LIBRARY, not the network: Microsoft rotates the token check its client must pass, and an older
+    edge-tts fails every request. Measured 2026-10-16: 7.2.8 got 403 on every beat, 7.3.1 spoke at once."""
+    msg = str(exc)
+    if prov == "edge" and ("403" in msg or "Invalid response status" in msg):
+        try:
+            import importlib.metadata as _md
+            ver = _md.version("edge-tts")
+        except Exception:                                     # noqa: BLE001 — the hint stands without a version
+            ver = "?"
+        return (" — edge-tts %s is probably older than the service's current token check: "
+                "python3 -m pip install -U edge-tts, then run this again" % ver)
+    return ""
+
+
 def speak(text, dest, meta, prov, name):
     """One clip the way the film says it: the ear's text (`spoken_text`), then the engine.
 
@@ -896,7 +912,7 @@ def synthesize(out_dir, only=None):
             # Fall back to the LANGUAGE-MATCHED say voice — not a hardcoded English one,
             # or a non-English project (e.g. zh) would get garbled English audio.
             fb, _ = _resolve_say_voice("Samantha", data["meta"].get("language", "auto"))
-            print(f"[tts] {prov} failed ({e}); falling back to say:{fb}")
+            print(f"[tts] {prov} failed ({e}){failure_hint(prov, e)}; falling back to say:{fb}")
             rel = os.path.join("audio", f"{s['index']:02d}.{SAY_EXT}")
             dest = os.path.join(out_dir, rel)
             _say(text, dest, fb)

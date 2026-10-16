@@ -88,3 +88,20 @@ def test_a_built_films_unmeasured_energy_is_one_line_and_a_designed_direction_is
     assert len(own) == 1 and "4 beat(s)" in own[0], [w for w in r["warnings"] if "energy" in w]
     assert not any("is unmeasured BY DESIGN" in w for w in r["warnings"])
     assert not any("not one of the 6 SEED directions" in w for w in r["warnings"])
+
+
+def test_a_helper_subfolder_of_code_is_allowed_and_a_picture_in_it_is_named(tmp_path):
+    import workshop as ws
+    parts = tmp_path / "workshop" / "shots" / "parts"
+    parts.mkdir(parents=True)
+    (parts / "satellite.ts").write_text("export const n = 1;\n")
+    assert not [p for p in ws.names_problems(str(tmp_path)) if "parts" in p], ws.names_problems(str(tmp_path))
+    (parts / "foil.png").write_bytes(b"x")
+    assert any("parts/foil.png: a helper folder holds .ts/.tsx code only" in p for p in ws.names_problems(str(tmp_path)))
+
+
+def test_an_outdated_edge_tts_403_names_the_upgrade():
+    import tts
+    hint = tts.failure_hint("edge", Exception("403, message='Invalid response status', url='wss://speech…'"))
+    assert "pip install -U edge-tts" in hint
+    assert tts.failure_hint("edge", Exception("timed out")) == "" and tts.failure_hint("say", Exception("403")) == ""

@@ -823,8 +823,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     the user's choice at delivery (step 9f).
 5. **Script critic — ONE combined critic, ONE round, by default.** Dispatch ONE subagent carrying all three
    lenses — hand it `agents/critic-narrative.md`, `agents/critic-content.md` and `agents/design-critic.md` as its
-   brief (on the **原样配音** tier, the first two only: there is no authored design to judge) — for ONE round,
-   reporting the top issues by impact; apply its EDITS and go on. The user's own script + audition checkpoint
+   brief (on the **原样配音** tier, the first two only: there is no authored design to judge; on a **remotion** film
+   the design lens is `agents/shot-critic.md`'s per-beat rows that read the board — S1 fit, S5 copy, S10 meaning —
+   judged on `shot_fit`/`shot_props` and `_design_review`/`_proof` stills, since design-critic.md's D-rules assume
+   html pages) — for ONE round, reporting the top issues by impact; apply its EDITS and go on. Every lens estimates
+   length with `scripts/pace.py`, never a bare chars-per-second rate. The user's own script + audition checkpoint
    below is what follows it, and that checkpoint never moves.
    **The full 3-critic PANEL instead** (the loop below, until all three PASS) when EITHER the user has asked
    for a careful or thorough review by this point (the post-render review-depth question of step 9d has not

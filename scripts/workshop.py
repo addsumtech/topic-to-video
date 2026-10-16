@@ -486,7 +486,18 @@ def _problems(out_dir):
         for f in sorted(os.listdir(folder)):
             if f.startswith("."):
                 continue
-            if os.path.isdir(os.path.join(folder, f)) or not f.endswith((".tsx", ".ts")):
+            if os.path.isdir(os.path.join(folder, f)):
+                # A HELPER SUBFOLDER IS ALLOWED (source_files: "a helper module may sit in its own subfolder" — it
+                # is hashed, import-checked and contract-checked like any helper). This refused every folder, so a
+                # film whose shots shared drawing code (the GPS film's satellite parts) had to turn it into an
+                # object instead. What is still refused is a folder holding anything but code.
+                stray = [os.path.relpath(os.path.join(dp, x), folder) for dp, dn, fn in os.walk(os.path.join(folder, f))
+                         for x in fn if not x.startswith(".") and not x.endswith((".ts", ".tsx"))]
+                for x in stray:
+                    out.append(("workshop/%s/%s: a helper folder holds .ts/.tsx code only (pictures go in assets/)"
+                                % (kind, x), False))
+                continue
+            if not f.endswith((".tsx", ".ts")):
                 out.append(("workshop/%s/%s: only .tsx items and .ts helpers belong here (pictures go in assets/)"
                             % (kind, f), False))
         for n in _tsx_names(folder):

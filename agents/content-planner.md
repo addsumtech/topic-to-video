@@ -14,7 +14,8 @@ or transitions — that is the **design-director**'s job (`agents/design-directo
 plan. You do not write final narration; you design content beats.
 
 ## Inputs
-- The comprehension brief (one-sentence message, key contributions, method essence, and per-slide point).
+- The comprehension brief, `brief.json` (`thesis`, `mechanism`, `evidence` [{claim, source_ref}], `why_it_matters`,
+  `the_one_thing`, `misconceptions`, `per_unit`, `unknowns`, `source_health`), and the source texts in `sources/`.
 - The raw slide text + any source material; audience, goal, `meta.language`, target seconds.
 
 ## Output — a CONTENT PLAN (JSON)
@@ -22,19 +23,19 @@ plan. You do not write final narration; you design content beats.
 { "arc": "hook → build → payoff → takeaway (one line)",
   "arc_kind": "narrative | expository — ADOPT the arc_kind passed from the interview's Purpose (Pitch/Launch/Promo→narrative; Teach/How-to/Reference/Overview→expository); override only with a one-line justification in director_note. narrative BUILDS to a payoff (a paper, a pitch, a result, a story); expository is an EVEN-WEIGHT walkthrough (a tutorial, a reference, a survey, a how-to) with no single peak",
   "viewer_question": "the ONE question the viewer wants answered — the video is the answer (drives the hook)",
-  "director_note": { "thesis": "one sentence — what this video argues", "not": ["explicit exclusions"], "tone": "one word" },
+  "director_note": { "thesis": "one sentence — what this video argues", "not": ["explicit exclusions"], "tone": "one word", "audience": "who watches, in a phrase — from the interview's Purpose answer" },
   "anti_slop": ["faithfulness bans, e.g. no stat without a source_ref", "no invented numbers/citations"],
   "rhythm": "the PACING arc, e.g. hook-fast → 3 build beats → SLOW climax → sparse hold",
   "assumed_known": ["concepts/terms the audience may start with — a dependency may rest on these without an introducing beat"],
   "beats": [
     { "id": 1,
       "learning_point": "the ONE idea this beat teaches",
-      "source_ref": "slide 2 / paper §3 / web-verified — REQUIRED, no beat without a source",
+      "source_ref": "<sid>#<a literal quote from sources/<sid>.txt>, or a list of them — the brief's own format (scripts/sources.py); REQUIRED, no beat without a source. A ground beat's everyday ANALOGY (thunder after lightning) cites the principle it illustrates, not the analogy",
       "visual_intent": "metric | contrast | sequence | list | structure | statement | section",
       "narration_intent": "what the line must convey (not final words); for a multi-point beat, name each point with a DISTINCT phrase it can be introduced by",
       "continuity": "inherits: <what the previous beat set up> · hooks: <the question/tension this beat leaves for the next>",
-      "relation": "continuation | new-topic | payoff | close — this beat's SEMANTIC relationship to the PREVIOUS beat",
-      "introduces": "the SINGLE new concept/term this beat teaches first, or null — never a list",
+      "relation": "continuation | new-topic | payoff | close — this beat's SEMANTIC relationship to the PREVIOUS beat (the first beat: new-topic)",
+      "introduces": "the SINGLE new concept/term this beat teaches first, or null — never a list. A short NAME, the same label later beats put in builds_on (pedagogy_qa matches them exactly), not a sentence; any stage may introduce one (a why beat introduces the consequence it shows)",
       "builds_on": ["already-introduced concepts (or assumed_known) this beat depends on"],
       "stage": "hook | ground | build | why | land — the beat's role in BUILDING understanding (see the learning arc)",
       "energy": "low | medium | high | peak — the beat's emotional register (feeds the design-director's rhythm map)",
@@ -106,8 +107,9 @@ plan. You do not write final narration; you design content beats.
    scaffold the KNOWLEDGE via each beat's `stage`: (1) after the `hook`, ≥1 `ground` beat anchors the topic
    in something the audience already knows BEFORE the first `build` (name the familiar anchor in
    `narration_intent`); (2) each `build` introduces exactly one new idea resting on what is now known;
-   (3) every `build` is followed within ≤1 beat by a `why` beat showing that idea's consequence before the
-   next `build`; (4) `land` consolidates and answers `viewer_question`. **Define before use:** walk the
+   (3) every `build` is followed by a `why` (or `land`) beat showing that idea's consequence — the next beat or the
+   one after it, which is what pedagogy_qa checks — and a beat that lands its own consequence says so with
+   `lands_within: true`; (4) `land` consolidates and answers `viewer_question`. **Define before use:** walk the
    beats accumulating `introduces`; a beat may only `builds_on` concepts already introduced or in
    `assumed_known`, and every technical term in `narration_intent` must already be introduced or assumed —
    else resequence or add a `ground`/`build` beat. (For `arc_kind:expository` a `why` may be a "what this

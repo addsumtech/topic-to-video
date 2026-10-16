@@ -202,6 +202,10 @@ Check, per scene:
 - **Audio↔visual match.** The narration must describe / be supported by what is ON SCREEN (the scene's
   visual). **FAIL** a mismatch — e.g. a generic photo or an unrelated visual under a specific factual
   claim (the classic "satellite photo under a government-orders line").
+- **Reveal timing on a REMOTION board** (`shot` + `shot_props`, no html page): there are no `data-cue` anchors —
+  the renderer warps each beat so a label lands when the voice says its words, matched by `scripts/sync_qa.py`'s
+  matcher. Judge that the narration SAYS each on-screen label's key term, in the order the shot reveals them; a
+  label the voice never names keeps the shot's own clock. (`text_safe_qa --sync` measures it after the render.)
 - **Reveal timing — each point must appear ~WHEN it's spoken (neither early nor late).** For an `html`
   scene with ≥2 content points, walk the narration and, for EACH point, locate the moment its content
   is introduced; then confirm the reveal fires at that moment. Check **both directions**: content that
