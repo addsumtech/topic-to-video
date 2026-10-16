@@ -129,3 +129,14 @@ def test_the_routers_printed_render_command_runs_as_printed(tmp_path):
                        capture_output=True, text=True)
     line = next(x for x in p.stdout.splitlines() if "contest_sample.py" in x)
     assert "python3 scripts/contest_sample.py --route" in line and "--audacity balanced" in line, line
+
+
+def test_the_still_is_the_hero_before_the_seam_and_a_shot_may_set_its_length():
+    # frame 67 of a 75-frame hero slot fell inside the 12-frame seam into scene 2: every still of the GPS film's
+    # second contest showed its hero half wiped. And HeldInstant refuses 2.5 s, which aborted a whole direction.
+    m = _mod()
+    p = m.build_props_conceived(_spec(shots=[["OrbitPulse", {}, 120], ["EdStat", {"figure": "3 纳秒"}]]), "GPS")
+    assert [sc["durF"] for sc in p["scenes"]] == [120, m.SCENE_F]
+    assert m.settled_frame(p) == int((120 - m.TR_F) * 0.9) < 120 - m.TR_F
+    one = m.build_props_conceived(_spec(shots=[["OrbitPulse", {}]]), "GPS")
+    assert m.settled_frame(one) == int(m.SCENE_F * 0.9), "a lone hero has no seam to avoid"

@@ -361,16 +361,19 @@ def test_validate_contest_shape_and_winner():
     r = v.evaluate(d, "/tmp")
     contest = [x for x in r["errors"] + r["warnings"] if "shot_template_contest" in x or "contest direction" in x]
     assert not contest, contest              # (the stub build_list's own entry checks are another gate's)
-    dirs["product-demo"] = dict(dirs["product-demo"], hero="SplitFlap")          # a library register as the hero
+    # a LOSING direction's hero may leave the workshop after the pick (contest_sample refused it unbuilt at render)
+    dirs["product-demo"] = dict(dirs["product-demo"], hero="RemovedAfterThePick")
+    assert not [e for e in v.evaluate(d, "/tmp")["errors"] if "contest direction" in e]
+    dirs["data-story"] = dict(dirs["data-story"], hero="SplitFlap")              # the WINNER's hero: a register
     dirs["kinetic-editorial"] = dict(dirs["kinetic-editorial"], palette_source=[])
     errs = v.evaluate(d, "/tmp")["errors"]
-    assert any("'product-demo': its hero 'SplitFlap' is not BUILT" in e for e in errs), errs
+    assert any("'data-story': the winner's hero 'SplitFlap' is not BUILT" in e for e in errs), errs
     assert any("'kinetic-editorial': no `palette_source`" in e for e in errs), errs
     # a design the USER kept from before design-first is told, not refused
     d["meta"]["design_first"] = {"legacy": True, "user_answer": "keep it", "kept": []}
     r = v.evaluate(d, "/tmp")
     assert not any("contest direction" in e for e in r["errors"]) and \
-        any("'product-demo': its hero" in w for w in r["warnings"]), r["errors"]
+        any("'data-story': the winner's hero" in w for w in r["warnings"]), r["errors"]
 
 
 def test_contest_frame_within_every_hero_duration():

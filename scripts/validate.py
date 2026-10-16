@@ -1203,10 +1203,15 @@ def _contest_design_first(meta, tc, cands, errors, warnings, out_dir):
             say("contest direction %r: no specific `ideal` — the signature picture in this direction, one line, no "
                 "register named" % key)
         hero = str(d.get("hero") or "").strip()
-        if not hero or hero not in built:
-            say("contest direction %r: its hero %s is not BUILT for this film — a direction's hero is made in the "
-                "film's workshop (workshop.py new-shot); a library register can only follow it, adapted"
-                % (key, repr(hero) if hero else "is missing and"))
+        if not hero:
+            say("contest direction %r: no `hero` — the shot BUILT in this film's workshop that the direction's sample "
+                "was led by" % key)
+        elif key == tc.get("winner") and hero not in built:
+            # only the WINNER's hero must still be in the film: contest_sample.py refused any direction whose hero
+            # was not built when its sample was rendered, and the losers' heroes may leave the workshop after the pick
+            say("contest direction %r: the winner's hero %r is not BUILT for this film — a direction's hero is made "
+                "in the film's workshop (workshop.py new-shot); a library register can only follow it, adapted"
+                % (key, hero))
         src = d.get("palette_source")
         ok = isinstance(src, list) and any(isinstance(r, dict) and str(r.get("from") or "").strip() for r in src)
         if not ok:

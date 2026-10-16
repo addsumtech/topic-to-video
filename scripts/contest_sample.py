@@ -34,6 +34,7 @@ import workshop as _ws
 REMOTION_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "remotion"))
 FPS = 30
 SCENE_F = 75          # ~2.5s per sample scene; 3 scenes + TR overlap ≈ 6.5s total
+TR_F = 12             # the Film's seam overlap (render_remotion.SEAM_FRAMES): scene N+1 starts this many frames early
 
 _STOP = {"a", "an", "the", "of", "for", "to", "and", "or", "in", "on", "with", "how", "what", "why",
          "is", "are", "it", "its", "about", "that", "this", "into", "as", "at", "by", "from"}
@@ -253,6 +254,13 @@ def direction_problems(spec, out_dir, library=None):
     return probs
 
 
+def settled_frame(props):
+    """The hero's settled frame in a sample: 90% of its slot before the seam into the next scene begins."""
+    sc = props["scenes"]
+    clear = sc[0]["durF"] - (TR_F if len(sc) > 1 else 0)
+    return max(0, int(clear * 0.9))
+
+
 def build_props_conceived(spec, topic):
     """A Film props dict for a direction the AUTHOR conceived, rendered through the same path as a seed.
 
@@ -270,7 +278,9 @@ def build_props_conceived(spec, topic):
     The seam goes the same way: `spec["seam"]` is `{type, direction}` in a real film's DNA, and passing that
     object where a `{"type": ...}` was expected made the marked seam silently anonymous.
     """
-    shots = [(s[0], s[1]) for s in (spec.get("shots") or [])]
+    # [ShotId, props] or [ShotId, props, frames]: a register with a duration FLOOR (HeldInstant refuses a step held
+    # under 1.2 s) cannot be sampled in 2.5 s, and the fixed length used to abort the whole direction's render
+    shots = [(s[0], s[1], int(s[2]) if len(s) > 2 and s[2] else SCENE_F) for s in (spec.get("shots") or [])]
     if not shots:
         raise SystemExit("[contest_sample] conceived direction %r has no `shots` — a direction that cannot be "
                          "rendered is a pitch, and the whole point of the contest is that the user SEES it."
@@ -278,8 +288,8 @@ def build_props_conceived(spec, topic):
     pitch = spec.get("pitch") or "a conceived direction"
     # the user's own language only: the key and an English tagline used to be burned into a Chinese film's samples
     caps = [pitch[:70], topic[:70]]
-    scenes = [{"shot": sid, "props": props, "durF": SCENE_F, "caption": caps[i % len(caps)]}
-              for i, (sid, props) in enumerate(shots)]
+    scenes = [{"shot": sid, "props": props, "durF": dur, "caption": caps[i % len(caps)]}
+              for i, (sid, props, dur) in enumerate(shots)]
     seam = spec.get("seam") or {"type": "dissolve"}
     if isinstance(seam, str):
         seam = {"type": seam}
@@ -355,7 +365,7 @@ def main():
         sys.exit(2)
     env = _ws.run_kwargs(out_dir)             # the film's workshop in the bundle: the heroes are built there
     first = build_props_conceived(cands[0][1], a.route)
-    total_f = sum(sc["durF"] for sc in first["scenes"]) - (len(first["scenes"]) - 1) * 12
+    total_f = sum(sc["durF"] for sc in first["scenes"]) - (len(first["scenes"]) - 1) * TR_F
     print("[contest_sample] %d direction sample(s) for %r → _contest_<key>.mp4 (~%.1fs each) + _contest_<key>.png:"
           % (len(cands), a.route, total_f / FPS))
     made = []
@@ -365,16 +375,16 @@ def main():
         with open(pjson, "w") as f:
             json.dump(props, f, ensure_ascii=False)
         mp4 = os.path.join(out_dir, "_contest_%s.mp4" % k)
-        nframes = sum(s["durF"] for s in props["scenes"]) - (len(props["scenes"]) - 1) * 12
+        nframes = sum(s["durF"] for s in props["scenes"]) - (len(props["scenes"]) - 1) * TR_F
         cmd = ["npx", "remotion", "render", "src/index.ts", "Film", mp4,
                "--props=" + pjson, "--public-dir=" + out_dir, "--frames=0-%d" % (nframes - 1),
                "--gl=" + (os.environ.get("REMOTION_GL") or "angle"), "--log=error"]
-        # THE STILL is the hero settled — 90% of its slot in this same sample — for the diversity gate and the judge.
-        # It used to be a separate `remotion still` at frame 110 that nothing printed for a conceived direction, and
-        # "110 = settled" held only for the six seed heroes.
+        # THE STILL is the hero settled — 90% of the part of its slot no seam touches — for the diversity gate and the
+        # judge. 90% of the WHOLE slot (frame 67 of 75) fell inside the seam into scene 2, which starts TR_F early:
+        # every still of the GPS film's second contest showed its hero half wiped, one shoved 640 px off frame.
         png = os.path.join(out_dir, "_contest_%s.png" % k)
         still = ["npx", "remotion", "still", "src/index.ts", "Film", png, "--props=" + pjson,
-                 "--public-dir=" + out_dir, "--frame=%d" % int(SCENE_F * 0.9),
+                 "--public-dir=" + out_dir, "--frame=%d" % settled_frame(props),
                  "--gl=" + (os.environ.get("REMOTION_GL") or "angle"), "--log=error"]
         shots = " · ".join(s["shot"] for s in props["scenes"])
         print("  %-20s [%s]" % (k, shots))
@@ -384,7 +394,11 @@ def main():
                 subprocess.run(still, cwd=REMOTION_DIR, check=True, **env)
                 made.append(mp4)
             except subprocess.CalledProcessError as e:
-                print("    render FAILED (%s) — try without --gl" % e)
+                # the render's own error is printed above it: a register refusing its props or its LENGTH is the
+                # usual cause (give that shot a third element, its frame count), --gl only a WebGL crash
+                print("    render FAILED (exit %s) — read the render's own error above; a register that refuses its "
+                      "length takes a frame count as its shot's third element: [ShotId, {props}, 120]"
+                      % e.returncode)
         else:
             print("    cd remotion && " + " ".join(cmd))
             print("    cd remotion && " + " ".join(still))
