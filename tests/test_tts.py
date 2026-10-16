@@ -73,6 +73,46 @@ def test_edge_failure_falls_back_to_language_matched_say(tmp_path, monkeypatch):
     tts.synthesize(str(out))
     assert used["voice"] == "Tingting"   # zh -> Tingting, not Samantha
 
+class NoAudioReceived(Exception):
+    """Named like edge_tts.exceptions.NoAudioReceived — the classifier reads the type's name."""
+
+
+def test_a_transient_edge_failure_is_retried_before_the_film_changes_voice(tmp_path, monkeypatch):
+    """Measured: 8 of 40 lines failed once with "No audio was received" and fell back to `say` — a mixed-voice
+    film — though every one spoke within three attempts. A transient failure is retried; a 403 is not."""
+    out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
+    data = sb.new_storyboard()
+    data["meta"]["voice"] = "edge:en-US-EmmaNeural"
+    data["meta"]["language"] = "en"
+    data["slides"] = [sb.new_slide(1, "frames/01.png", "Hello there.")]
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    calls = []
+
+    def flaky(text, dest, voice, rate="+0%"):
+        calls.append(1)
+        if len(calls) < 3:
+            raise NoAudioReceived("No audio was received.")
+        with open(dest, "wb") as f:
+            f.write(b"\x00")
+    monkeypatch.setattr(tts, "_edge", flaky)
+    monkeypatch.setattr(tts, "EDGE_BACKOFF", (0.0, 0.0))
+    said = []
+    monkeypatch.setattr(tts, "_say", lambda *a, **k: said.append(a))
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
+    monkeypatch.setattr(tts, "_master", lambda *a, **k: None, raising=False)
+    tts.synthesize(str(out))
+    assert len(calls) == 3 and not said, (calls, said)
+
+    calls.clear()
+    def forbidden(*a, **k):
+        calls.append(1)
+        raise RuntimeError("Invalid response status 403")
+    monkeypatch.setattr(tts, "_edge", forbidden)
+    with pytest.raises(RuntimeError):
+        tts.speak_retrying("x", str(out / "a.mp3"), data["meta"], "edge", "en-US-EmmaNeural", sleep=lambda s: None)
+    assert len(calls) == 1, "a 403 names its own cause and must not be retried"
+
+
 def test_resolve_voice_auto_prefers_edge(monkeypatch):
     monkeypatch.setattr(tts, "_have_edge", lambda: True)
     assert tts._resolve_voice({"voice": "auto", "language": "en"}) == (

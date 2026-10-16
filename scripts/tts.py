@@ -846,6 +846,38 @@ def failure_hint(prov, exc):
     return ""
 
 
+# A TRANSIENT EDGE FAILURE IS RETRIED BEFORE THE FILM CHANGES VOICE. The service intermittently answers "No audio
+# was received" for a line it speaks fine a second later. Measured 2026-10-17 on a 40-line English board: 8 lines
+# failed on the first pass and fell back to macOS `say` (a mixed-voice film), 6 of them spoke on the next attempt,
+# and every line spoke within three. A failure that names its own cause (a 403 = an outdated edge-tts,
+# `failure_hint`) is not retried: the next attempt fails the same way.
+EDGE_TRIES = 3
+EDGE_BACKOFF = (1.5, 3.0)
+
+
+def _transient(prov, exc):
+    if prov != "edge" or failure_hint(prov, exc):
+        return False
+    name = type(exc).__name__
+    return name in ("NoAudioReceived", "WebSocketError", "TimeoutError", "ClientConnectorError",
+                    "ServerDisconnectedError", "ClientOSError", "ConnectionResetError", "ConnectionError")
+
+
+def speak_retrying(text, dest, meta, prov, name, sleep=None, log=print):
+    """`speak`, with up to EDGE_TRIES attempts on a transient edge failure; anything else raises at once."""
+    import time
+    sleep = sleep or time.sleep
+    for attempt in range(EDGE_TRIES):
+        try:
+            return speak(text, dest, meta, prov, name)
+        except Exception as e:                                   # noqa: BLE001 — classified just below
+            if attempt + 1 >= EDGE_TRIES or not _transient(prov, e):
+                raise
+            wait = EDGE_BACKOFF[min(attempt, len(EDGE_BACKOFF) - 1)]
+            log(f"[tts] {prov} hiccup ({type(e).__name__}); retrying in {wait:.1f}s")
+            sleep(wait)
+
+
 def speak(text, dest, meta, prov, name):
     """One clip the way the film says it: the ear's text (`spoken_text`), then the engine.
 
@@ -906,7 +938,7 @@ def synthesize(out_dir, only=None):
             continue
         ok_primary = False
         try:
-            speak(text, dest, data["meta"], prov, name)
+            speak_retrying(text, dest, data["meta"], prov, name)
             ok_primary = prov != "say"
         except Exception as e:
             # Fall back to the LANGUAGE-MATCHED say voice — not a hardcoded English one,
