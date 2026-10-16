@@ -348,10 +348,29 @@ def test_validate_contest_shape_and_winner():
     # well-formed contest -> no CONTEST-shape complaint. (Scope the grep to contest warnings: a non-DNA template
     # like "data-story" also draws the orthogonal "NO Design DNA" warning — which legitimately contains the word
     # shot_template — and that's a separate gate this test isn't about.)
-    d["meta"]["shot_template_contest"] = {"candidates": ["data-story", "product-demo", "kinetic-editorial"],
-                                          "winner": "data-story", "user_pick": True}
+    keys = ["data-story", "product-demo", "kinetic-editorial"]
+    d["meta"]["shot_template_contest"] = {"candidates": keys, "winner": "data-story", "user_pick": True}
+    # a contest of library registers is no longer a contest: each direction is designed first (validate
+    # _contest_design_first) — its ideal, its hero BUILT for this film, and where its colours come from
+    assert any("records no `directions`" in e for e in v.evaluate(d, "/tmp")["errors"])
+    d["meta"]["build_list"] = [{"kind": "shot", "id": "Hero%d" % i} for i in range(3)]
+    dirs = {k: {"ideal": "four light-speed pulses converge on one phone while its clock is corrected",
+                "hero": "Hero%d" % i, "palette_source": [{"colour": "#0b1d3a", "from": "the orbit's night sky"}]}
+            for i, k in enumerate(keys)}
+    d["meta"]["shot_template_contest"]["directions"] = dirs
     r = v.evaluate(d, "/tmp")
-    assert _ok(r) and not any("shot_template_contest" in w for w in r["warnings"]), r["warnings"]
+    contest = [x for x in r["errors"] + r["warnings"] if "shot_template_contest" in x or "contest direction" in x]
+    assert not contest, contest              # (the stub build_list's own entry checks are another gate's)
+    dirs["product-demo"] = dict(dirs["product-demo"], hero="SplitFlap")          # a library register as the hero
+    dirs["kinetic-editorial"] = dict(dirs["kinetic-editorial"], palette_source=[])
+    errs = v.evaluate(d, "/tmp")["errors"]
+    assert any("'product-demo': its hero 'SplitFlap' is not BUILT" in e for e in errs), errs
+    assert any("'kinetic-editorial': no `palette_source`" in e for e in errs), errs
+    # a design the USER kept from before design-first is told, not refused
+    d["meta"]["design_first"] = {"legacy": True, "user_answer": "keep it", "kept": []}
+    r = v.evaluate(d, "/tmp")
+    assert not any("contest direction" in e for e in r["errors"]) and \
+        any("'product-demo': its hero" in w for w in r["warnings"]), r["errors"]
 
 
 def test_contest_frame_within_every_hero_duration():

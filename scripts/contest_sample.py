@@ -9,13 +9,27 @@ copy) and renders it through the REAL `Film` composition — real transitions, c
 pick becomes `meta.shot_template` (see shot-director Step 0 + references/remotion-shot-authoring.md §D).
 
 Usage:
-  python scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out_dir>          # print render commands
-  python scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out_dir> --render  # also run them
+  python scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out_dir> --conceived <file.json> --render
+
+A DIRECTION IS DESIGNED, NOT PICKED FROM THE CATALOGUE. This used to sample "its HERO register + a couple of
+representative registers", so every direction a user was shown was the library's — on a film about how GPS works,
+a split-flap departure board, a map plate and a HUD reticle, in a signal red nobody could connect to satellites.
+The user's verdict: three existing templates, none of them suited to the subject. The per-beat design-first rules
+(shot-director Step 0.55) came AFTER this choice, so the direction that sets the whole film's look was the one
+decision still made from templates. A conceived direction now carries, and is refused without:
+  ideal           the film's SIGNATURE picture in this direction — one line, no register named
+  palette_source  [{colour, from}] — every colour traced to something in the SUBJECT's own world (the orbit's night
+                  sky, a satellite's gold foil), never to a mood
+  shots           [[ShotId, {props}], ...] whose FIRST (the hero) is BUILT in this film's workshop
+                  (`workshop.py <out_dir> new-shot`); library registers may follow it, adapted, as supporting frames
+It renders with the film's workshop in the bundle, and writes `_contest_<key>.png`, the hero settled at 90% of its
+slot, beside the video. A catalogue SEED is material for a direction, and is no longer rendered as one.
 """
-import argparse, json, os, subprocess, sys
+import argparse, glob, json, os, re, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import shot_templates as stpl
+import workshop as _ws
 
 REMOTION_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "remotion"))
 FPS = 30
@@ -201,6 +215,44 @@ def build_props(key, topic):
     return {"camera": 0, "template": key, "scenes": scenes}
 
 
+def library_shots():
+    """The library's register ids (remotion/src/shots/*.tsx)."""
+    return {os.path.basename(f)[:-4] for f in glob.glob(os.path.join(REMOTION_DIR, "src", "shots", "*.tsx"))}
+
+
+def direction_problems(spec, out_dir, library=None):
+    """[problem] for a conceived direction that is not designed first — no ideal, no palette provenance, or a hero
+    that is not BUILT in this film's workshop. [] means it may be rendered and put to the user."""
+    lib = library_shots() if library is None else library
+    key, probs = spec.get("key", "?"), []
+    ideal = str(spec.get("ideal") or "").strip()
+    if len(ideal) < 8:
+        probs.append("%s: no `ideal` — write the film's signature picture in this direction, one line, before any "
+                     "shot is chosen" % key)
+    else:
+        named = sorted(r for r in lib if re.search(r"\b%s\b" % re.escape(r), ideal))
+        if named:
+            probs.append("%s: the ideal names a library register (%s) — the ideal is the picture the idea needs, "
+                         "written before any register is in view" % (key, ", ".join(named)))
+    src = spec.get("palette_source")
+    rows = [r for r in src if isinstance(r, dict) and str(r.get("colour") or r.get("color") or "").strip()
+            and len(str(r.get("from") or "").strip()) >= 4] if isinstance(src, list) else []
+    if not rows:
+        probs.append("%s: no `palette_source` — [{colour, from}] tracing each colour to something in the SUBJECT's "
+                     "own world; a palette chosen for a mood is how a film about satellites got signal red" % key)
+    shots = spec.get("shots") or []
+    hero = shots[0][0] if shots and isinstance(shots[0], (list, tuple)) and shots[0] else None
+    built = set(_ws.shot_names(out_dir)) if out_dir else set()
+    if hero is None:
+        probs.append("%s: no shots" % key)
+    elif hero not in built:
+        probs.append("%s: the hero %r is %s — the hero is BUILT in this film's workshop "
+                     "(python3 scripts/workshop.py <out_dir> new-shot <Name> --means \"…\"); a library register "
+                     "may only follow it, adapted, as a supporting frame"
+                     % (key, hero, "a library register" if hero in lib else "not a shot in this film's workshop"))
+    return probs
+
+
 def build_props_conceived(spec, topic):
     """A Film props dict for a direction the AUTHOR conceived, rendered through the same path as a seed.
 
@@ -224,7 +276,8 @@ def build_props_conceived(spec, topic):
                          "rendered is a pitch, and the whole point of the contest is that the user SEES it."
                          % spec.get("key"))
     pitch = spec.get("pitch") or "a conceived direction"
-    caps = ["%s — %s" % (topic, spec.get("key", "conceived")), pitch[:70], "one film, this look"]
+    # the user's own language only: the key and an English tagline used to be burned into a Chinese film's samples
+    caps = [pitch[:70], topic[:70]]
     scenes = [{"shot": sid, "props": props, "durF": SCENE_F, "caption": caps[i % len(caps)]}
               for i, (sid, props) in enumerate(shots)]
     seam = spec.get("seam") or {"type": "dissolve"}
@@ -249,10 +302,10 @@ def main():
     ap.add_argument("--out", metavar="OUT_DIR", required=True)
     ap.add_argument("--render", action="store_true", help="actually run the renders (else just print the commands)")
     ap.add_argument("--conceived", metavar="FILE", default=None,
-                    help="JSON list of directions YOU conceived for this subject: "
-                         "[{key, pitch, dna, shots:[[ShotId, {props}], ...]}]. The seed catalogue can only "
-                         "match what it has keywords for; everything else is authored, and this is how an "
-                         "authored direction reaches the same render path as a seed.")
+                    help="JSON list of the directions YOU designed for this subject: "
+                         "[{key, pitch, ideal, palette_source:[{colour, from}], dna, seam, "
+                         "shots:[[BuiltHero, {props}], [ShotId, {props}], ...]}] — the hero BUILT in this film's "
+                         "workshop. A catalogue seed is material for a direction, never one.")
     a = ap.parse_args()
     width = a.n if a.n is not None else stpl.contest_width(a.audacity)
     if width <= 0:
@@ -282,13 +335,32 @@ def main():
     if not seeds and not conceived:
         return
 
-    cands = [(k, None) for k in seeds] + [(c.get("key", "conceived-%d" % i), c) for i, c in enumerate(conceived, 1)]
-    total_f = max(1, len((cands[0][1] or {}).get("shots") or _sample_shots(cands[0][0], a.route)) * SCENE_F)
-    print("[contest_sample] %d direction sample(s) for %r → _contest_<key>.mp4 (~%.1fs each):"
+    if seeds:
+        print("[contest_sample] seed(s) matched: %s — MATERIAL for a direction (its families, its motion), not a "
+              "direction: a seed's sample is the library's registers, which is what a user called three existing "
+              "templates, none suited to the subject. Design the direction and BUILD its hero."
+              % ", ".join(seeds))
+    lib = library_shots()
+    bad = []
+    for i, c in enumerate(conceived, 1):
+        bad += direction_problems(dict(c, key=c.get("key", "conceived-%d" % i)), out_dir, lib)
+    if bad:
+        print("[contest_sample] REFUSED — a direction is designed first, and these are not:")
+        for b in bad:
+            print("    ✗ " + b)
+        sys.exit(2)
+    cands = [(c.get("key", "conceived-%d" % i), c) for i, c in enumerate(conceived, 1)]
+    if not cands:
+        print("[contest_sample] no designed direction to render — pass --conceived <file.json>")
+        sys.exit(2)
+    env = _ws.run_kwargs(out_dir)             # the film's workshop in the bundle: the heroes are built there
+    first = build_props_conceived(cands[0][1], a.route)
+    total_f = sum(sc["durF"] for sc in first["scenes"]) - (len(first["scenes"]) - 1) * 12
+    print("[contest_sample] %d direction sample(s) for %r → _contest_<key>.mp4 (~%.1fs each) + _contest_<key>.png:"
           % (len(cands), a.route, total_f / FPS))
     made = []
     for k, spec in cands:
-        props = build_props_conceived(spec, a.route) if spec else build_props(k, a.route)
+        props = build_props_conceived(spec, a.route)
         pjson = os.path.join(out_dir, "_contest_%s.props.json" % k)
         with open(pjson, "w") as f:
             json.dump(props, f, ensure_ascii=False)
@@ -297,16 +369,25 @@ def main():
         cmd = ["npx", "remotion", "render", "src/index.ts", "Film", mp4,
                "--props=" + pjson, "--public-dir=" + out_dir, "--frames=0-%d" % (nframes - 1),
                "--gl=" + (os.environ.get("REMOTION_GL") or "angle"), "--log=error"]
+        # THE STILL is the hero settled — 90% of its slot in this same sample — for the diversity gate and the judge.
+        # It used to be a separate `remotion still` at frame 110 that nothing printed for a conceived direction, and
+        # "110 = settled" held only for the six seed heroes.
+        png = os.path.join(out_dir, "_contest_%s.png" % k)
+        still = ["npx", "remotion", "still", "src/index.ts", "Film", png, "--props=" + pjson,
+                 "--public-dir=" + out_dir, "--frame=%d" % int(SCENE_F * 0.9),
+                 "--gl=" + (os.environ.get("REMOTION_GL") or "angle"), "--log=error"]
         shots = " · ".join(s["shot"] for s in props["scenes"])
         print("  %-20s [%s]" % (k, shots))
         if a.render:
             try:
-                subprocess.run(cmd, cwd=REMOTION_DIR, check=True)
+                subprocess.run(cmd, cwd=REMOTION_DIR, check=True, **env)
+                subprocess.run(still, cwd=REMOTION_DIR, check=True, **env)
                 made.append(mp4)
             except subprocess.CalledProcessError as e:
-                print("    render FAILED (%s) — try without --gl, or render this direction's still instead" % e)
+                print("    render FAILED (%s) — try without --gl" % e)
         else:
             print("    cd remotion && " + " ".join(cmd))
+            print("    cd remotion && " + " ".join(still))
     if a.render:
         print("[contest_sample] wrote %d sample(s): %s" % (len(made), ", ".join(os.path.basename(m) for m in made)))
         print("  → montage / present via AskUserQuestion; the user PICKS the direction (winner first).")

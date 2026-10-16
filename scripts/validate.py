@@ -1121,7 +1121,7 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
             _camera_lurch(camera3d, [("yaw", 55, 28, False), ("radius", 0.55, 0.30, True), ("height", 0.6, 0.35, True)], tag, "camera3d", warnings)
 
 
-def _check_shot_template(meta, errors, warnings):
+def _check_shot_template(meta, errors, warnings, out_dir=None):
     """The remotion analogue of the html register-contest gate (mirrors the `template_contest` checks): a whole-
     film `meta.shot_template` DIRECTION (one of the 6 seed keys OR a bespoke topic-conceived slug) with a
     `meta.shot_template_contest` that is a real divergence — >=2 candidates, the winner among them and == the
@@ -1166,6 +1166,52 @@ def _check_shot_template(meta, errors, warnings):
     if not tc.get("user_pick"):
         warnings.append("meta.shot_template_contest has no `user_pick:true` — record that the USER chose the "
                         "direction (the contest exists so a human picks, not the model)")
+    _contest_design_first(meta, tc, cands if isinstance(cands, list) else [], errors, warnings, out_dir)
+
+
+def _contest_design_first(meta, tc, cands, errors, warnings, out_dir):
+    """THE DIRECTION IS DESIGNED FIRST, TOO. The per-beat floor (`_design_share`) came after the one decision that sets
+    a whole film's look — the contest — and that decision was still made from library registers: on a film about GPS
+    a user was offered a split-flap board, a map plate and a HUD reticle in signal red, and said all three were
+    existing templates suited to nothing in the subject. Each candidate now records, in `directions[<key>]`, its
+    `ideal` (the signature picture, no register named), its `hero` (a shot BUILT in this film's workshop, or a
+    `kind: "shot"` build-list entry) and its `palette_source` ([{colour, from}] — every colour traced to the
+    subject's own world). contest_sample.py refuses to render a direction without them; this refuses to record one.
+    A film whose design the USER kept from before design-first (meta.design_first.legacy) is warned, not refused."""
+    dirs = tc.get("directions")
+    legacy = isinstance(meta.get("design_first"), dict) and meta["design_first"].get("legacy")
+    say = warnings.append if legacy else errors.append
+    if not isinstance(dirs, dict) or not dirs:
+        say("meta.shot_template_contest records no `directions` — each candidate's {ideal, hero, palette_source}: "
+            "the signature picture, the hero BUILT in this film's workshop, and where each colour comes from in the "
+            "subject. A contest without them was a choice between library registers (contest_sample.py --conceived)")
+        return
+    try:
+        import workshop as _w
+        built = set(_w.shot_names(out_dir)) if out_dir else set()
+    except Exception:                                     # noqa: BLE001 — no workshop module, no built shots
+        built = set()
+    built |= {str(b.get("id") or b.get("name") or "") for b in (meta.get("build_list") or [])
+              if isinstance(b, dict) and b.get("kind") == "shot"}
+    for key in cands:
+        d = dirs.get(key)
+        if not isinstance(d, dict):
+            say("meta.shot_template_contest.directions has no entry for candidate %r — record its ideal, its built "
+                "hero and its palette_source" % key)
+            continue
+        if not _specific(d.get("ideal")):
+            say("contest direction %r: no specific `ideal` — the signature picture in this direction, one line, no "
+                "register named" % key)
+        hero = str(d.get("hero") or "").strip()
+        if not hero or hero not in built:
+            say("contest direction %r: its hero %s is not BUILT for this film — a direction's hero is made in the "
+                "film's workshop (workshop.py new-shot); a library register can only follow it, adapted"
+                % (key, repr(hero) if hero else "is missing and"))
+        src = d.get("palette_source")
+        ok = isinstance(src, list) and any(isinstance(r, dict) and str(r.get("from") or "").strip() for r in src)
+        if not ok:
+            say("contest direction %r: no `palette_source` — trace each colour to something in the subject's own "
+                "world ({colour, from}); a palette picked for a mood is how satellites got signal red" % key)
 
 
 def _DNA_PRESETS_FOR_TEST():
@@ -2180,7 +2226,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
     the design language). Ids auto-derived from remotion/src/shots so this never drifts from the library.
     The adapt lint is a PROXY (a script sees empty props + a missing note, never whether the components were
     truly redesigned) — the SEMANTIC verdict is shot-critic S10 (the note vs the rendered pixels)."""
-    _check_shot_template(meta, errors, warnings)
+    _check_shot_template(meta, errors, warnings, out_dir)
     _spoken_spellings(slides, warnings)
     # DESIGN DNA — the GLOBAL visual system every shot inherits (runtime/dna.tsx). A themed film should carry an
     # explicit meta.design_dna artifact (the reviewable "Design DNA", docx Artifact A) OR a shot_template that maps

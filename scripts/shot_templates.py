@@ -176,8 +176,9 @@ def main():
         print("[shot_templates] %d direction(s) asked for at audacity=%s and NO seed template matched %r.\n"
               "                 The contest is NOT skipped — CONCEIVE all %d directions for this subject "
               "(shot-director Step 0),\n                 then render them: "
-              "contest_sample.py --conceived <file.json> --out %s --render"
-              % (width, a.audacity, a.route, conceive_gap(a.route, a.n, a.audacity), outdir))
+              "python3 scripts/contest_sample.py --route %s --audacity %s --conceived <file.json> --out %s --render"
+              % (width, a.audacity, a.route, conceive_gap(a.route, a.n, a.audacity), json.dumps(a.route,
+                 ensure_ascii=False), a.audacity, outdir))
         return
     if width > len(TEMPLATES):
         print("[shot_templates] width %d > %d seed templates — CONCEIVE %d more bespoke topic-directions (Step 0)."

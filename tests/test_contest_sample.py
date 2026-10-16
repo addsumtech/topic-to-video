@@ -67,3 +67,65 @@ def test_a_direction_with_no_frames_is_refused():
     import pytest
     with pytest.raises(SystemExit):
         m.build_props_conceived(_spec(shots=[]), "介绍飞书")
+
+
+# ── a direction is DESIGNED first: its ideal, its palette's provenance, and a hero BUILT for this film ─────────
+
+def _film_with_hero(tmp_path, name="OrbitPulse"):
+    out = tmp_path / "film"
+    (out / "workshop" / "shots").mkdir(parents=True)
+    (out / "workshop" / "shots" / ("%s.tsx" % name)).write_text("export const %s = () => null;\n" % name)
+    return str(out)
+
+
+def test_a_library_register_cannot_be_a_directions_hero(tmp_path):
+    # the GPS film's first contest: SplitFlap / MapPlate / HudReticle as heroes, in signal red — the user rejected all
+    # three as existing templates suited to nothing in the subject
+    m = _mod()
+    out = _film_with_hero(tmp_path)
+    good = _spec(ideal="four light-speed pulses converge on one phone while its clock is corrected",
+                 palette_source=[{"colour": "#0b1d3a", "from": "the night sky the orbits sit in"}],
+                 shots=[["OrbitPulse", {}], ["EdStat", {"figure": "3 纳秒"}]])
+    assert m.direction_problems(good, out) == []
+    bad = dict(good, shots=[["SplitFlap", {}], ["OrbitPulse", {}]])
+    probs = m.direction_problems(bad, out)
+    assert any("'SplitFlap' is a library register" in p and "new-shot" in p for p in probs), probs
+    probs = m.direction_problems(dict(good, shots=[["NotBuiltYet", {}]]), out)
+    assert any("not a shot in this film's workshop" in p for p in probs), probs
+
+
+def test_a_direction_needs_an_ideal_and_a_palette_traced_to_the_subject(tmp_path):
+    m = _mod()
+    out = _film_with_hero(tmp_path)
+    base = _spec(shots=[["OrbitPulse", {}]])
+    probs = m.direction_problems(base, out)
+    assert any("no `ideal`" in p for p in probs) and any("no `palette_source`" in p for p in probs), probs
+    named = dict(base, ideal="a SplitFlap board of satellites announcing their send times",
+                 palette_source=[{"colour": "#c62828", "from": "x"}])
+    probs = m.direction_problems(named, out)
+    assert any("names a library register (SplitFlap)" in p for p in probs), probs
+    assert any("no `palette_source`" in p for p in probs), "a `from` too thin to name a source is no provenance"
+
+
+def test_the_cli_refuses_an_undesigned_direction_and_renders_nothing(tmp_path):
+    import json
+    import subprocess
+    import sys
+    out = _film_with_hero(tmp_path)
+    spec = tmp_path / "dirs.json"
+    spec.write_text(json.dumps([_spec(shots=[["MapPlate", {}]])], ensure_ascii=False))
+    p = subprocess.run([sys.executable, os.path.join(_SCRIPTS, "contest_sample.py"), "--route", "GPS 怎么定位",
+                        "--out", out, "--conceived", str(spec), "--render"], capture_output=True, text=True)
+    assert p.returncode == 2 and "REFUSED" in p.stdout and "'MapPlate' is a library register" in p.stdout, p.stdout
+    assert not [f for f in os.listdir(out) if f.startswith("_contest_") and f.endswith(".mp4")]
+
+
+def test_the_routers_printed_render_command_runs_as_printed(tmp_path):
+    # it printed `contest_sample.py --conceived <file.json> --out <dir> --render`, which exits 2: --route is required
+    import subprocess
+    import sys
+    p = subprocess.run([sys.executable, os.path.join(_SCRIPTS, "shot_templates.py"), "--route",
+                        "一支关于宋代茶盏釉色的短片", "--audacity", "balanced", "--out", str(tmp_path)],
+                       capture_output=True, text=True)
+    line = next(x for x in p.stdout.splitlines() if "contest_sample.py" in x)
+    assert "python3 scripts/contest_sample.py --route" in line and "--audacity balanced" in line, line

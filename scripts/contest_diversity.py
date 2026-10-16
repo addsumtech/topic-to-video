@@ -17,6 +17,7 @@ Exit: 0 = all pairs diverge · 2 = >=1 too-similar pair (printed) · 1 = unreada
 import argparse
 import itertools
 import json
+import re
 import sys
 
 PALETTE_T = 60.0      # mean-colour euclidean distance under which palettes read "the same family"
@@ -171,7 +172,12 @@ def main():
         for p in r["pairs"]:
             mark = "✗ TOO SIMILAR" if p["too_similar"] else "✓"
             import os
-            an, bn = os.path.basename(os.path.dirname(p["a"]) or p["a"]), os.path.basename(os.path.dirname(p["b"]) or p["b"])
+            # the FILE's name: contest stills sit side by side in one out_dir as _contest_<key>.png, and naming each
+            # by its parent folder printed every pair as "gps vs gps" (an HTML contest's <key>/frame.png still reads)
+            def _nm(f):
+                b = os.path.splitext(os.path.basename(f))[0]
+                return os.path.basename(os.path.dirname(f)) if b == "frame" else re.sub(r"^_contest_", "", b)
+            an, bn = _nm(p["a"]), _nm(p["b"])
             print(f"  {mark}  {an} vs {bn}: palette {p['palette']} · silhouette {p['silhouette']} · "
                   f"structure {p['structure']} · "
                   f"{'same' if p['same_mode'] else 'diff'} mode")

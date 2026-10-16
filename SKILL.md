@@ -645,18 +645,21 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      whole-film ATMOSPHERE (a named look + a lean toward certain register FAMILIES + a hero; each beat is still
      its own language). Width by `meta.audacity` (`conservative` skips · `balanced` 3 · `bold` 5 · `experimental`
      7): `python scripts/shot_templates.py --route "<topic>" --audacity <a> --out <out>`. The 6 templates are
-     SEEDS: the router returns only genuine keyword matches and PRINTS the shortfall, and the shot-director
-     **CONCEIVES bold, topic-specific directions** to reach the width (why: case-law W6). A conceived direction
-     reaches the same render path via `contest_sample.py --conceived <file.json>` —
-     `[{key, pitch, dna, seam, shots: [[ShotId, {props}], ...]}]`, a direction stated as FRAMES. **Render a short
-     SAMPLE VIDEO per direction so the user can SEE its look + MOTION** (motion IS the language; a pitch or a
-     still cannot show it): `python scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out>
-     --render` → `_contest_<key>.mp4` (~6s each, hero + 2 representative registers through the real Film). Render
-     one still per direction at **`--frame=110`** for the **diversity gate** `scripts/contest_diversity.py
-     <out>/_contest_*.png` (rediverge a clustered pair); **JUDGE** with `agents/shot-critic.md` in judge mode
+     SEEDS — material, never a direction (why: case-law W6). **Each direction is DESIGNED FIRST**, like every beat:
+     its `ideal` (the film's signature picture, no register named), its `palette_source` (`[{colour, from}]`, every
+     colour traced to the subject's own world — a GPS film's first contest put satellites on signal red and the
+     user rejected all three directions as existing templates) and its HERO BUILT in the film's workshop
+     (`workshop.py new-shot`); library registers may only follow the hero, adapted. **Render a short SAMPLE VIDEO
+     per direction so the user can SEE its look + MOTION**: `python scripts/contest_sample.py --route "<topic>"
+     --audacity <a> --out <out> --conceived <file.json> --render` — `[{key, pitch, ideal, palette_source, dna, seam,
+     shots: [[BuiltHero, {props}], ...]}]`; it refuses a direction missing any of the three, and writes
+     `_contest_<key>.mp4` + `_contest_<key>.png` (the hero settled) for the **diversity gate**
+     `scripts/contest_diversity.py <out>/_contest_*.png` (rediverge a clustered pair); **JUDGE** with `agents/shot-critic.md` in judge mode
      (floor-break + rank → winner+runner-up); surface the finalists' **sample videos** to the USER via
      `AskUserQuestion`; record `meta.shot_template` + `meta.shot_template_contest {candidates, winner,
-     user_pick, width, audacity, judge_ranked}`. `validate.py` ERRORS a bold/experimental film with NO contest
+     user_pick, width, audacity, judge_ranked, directions: {<key>: {ideal, hero, palette_source}}}` — validate
+     refuses a contest without them. The judge ranks FIT (palette and picture true to the subject) before meaning
+     and craft, and boldness last. `validate.py` ERRORS a bold/experimental film with NO contest
      and checks width-vs-audacity.
      **② Per beat — DESIGN FIRST; the library is material, not a menu** (the one flow, defined in shot-director
      Step 0.55). **Read `references/remotion-shot-authoring.md` FIRST** (the frame-craft floor, the meaning

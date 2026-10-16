@@ -57,10 +57,16 @@ when that member's structure did not carry the beat's argument — should have b
 ## JUDGE mode (the contest's selection half — Step 0)
 When the shot-director dispatches you on the **contest samples** (not a finished film), you are the SELECTION half
 of divergence+selection. Judge from the **sample VIDEOS** `<out>/_contest_*.mp4` (motion is the design language;
-the `_contest_*.png` stills are only for the mechanical diversity gate) + the beats + `meta.audacity`: (1)
-DISQUALIFY any floor-breaker — a sample that rendered blank/garbled, is off-brief for the topic, or is illegible;
-(2) RANK the survivors by how boldly + aptly each direction fits THIS topic at this audacity (a striking,
-topic-true atmosphere beats a safe generic one); (3) name ONE **winner** + a **runner-up** with one line each.
+the `_contest_*.png` stills are only for the mechanical diversity gate) + the beats + `meta.audacity` + each
+direction's `ideal` and `palette_source`: (1) DISQUALIFY any floor-breaker — a sample that rendered
+blank/garbled, is off-brief for the topic, is illegible, whose hero is a library register (it is a template, not a
+direction), or whose picture CLAIMS something the brief denies (a reticle "locking onto" a phone the satellites
+never see); (2) RANK the survivors in this order — **FIT first:** is every colour traced to the subject's own world
+and does the palette read as THIS subject (satellites in orbit, not a station board in signal red)? **then MEANING
+and CRAFT:** hide the caption — does the built hero carry the film's thesis, and is the subject itself drawn with
+care (a satellite that reads as a satellite)? **then BOLDNESS**, within fit and only at this audacity — a bold
+direction that fits nothing loses to a quieter one that is unmistakably about the subject; (3) name ONE
+**winner** + a **runner-up** with one line each, saying which of the three it won on.
 A floor-breaking or off-brief candidate must never reach the user unranked. Output the ranking + the winner/runner-up;
 the shot-director surfaces the judged finalists to the user. (The rest of this file is REVIEW mode — a finished film.)
 

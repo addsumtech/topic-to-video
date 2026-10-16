@@ -49,22 +49,33 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
       `python scripts/contest_sample.py --route "<topic>" --out <out> --conceived <file.json> --render`,
       where the file is `[{key, pitch, dna, seam, shots: [[ShotId, {props}], ...]}]` — a direction stated as
       FRAMES, because the contest exists so the user can SEE it, and a pitch cannot be seen.
-1. **CONCEIVE topic-specific directions — do NOT just route the 6 seeds.** The 6 templates (product-demo /
-   kinetic-editorial / cinematic-craft / data-story / retro-playful / terminal-technical) are a SEED PALETTE, not
-   the answer. Read the comprehension brief + `content_plan.json` and **invent bold, divergent, topic-conceived
-   atmospheres** for THIS subject (name each; pick its hero register + family lean + topic-bearing props). Reach
-   the audacity width by mixing fitting seeds with bespoke directions. Force DIVERGENCE — the candidates must
-   differ on look/motion/palette/silhouette, not be three flavours of the same. (A bespoke direction key is a
-   slug like `molten-ledger` — `validate` allows non-seed keys, warns so you confirm it's intentional.)
-2. **Render a short SAMPLE VIDEO per direction** — the user must SEE each direction MOVE (a text pitch or a lone
-   still can't convey a design language; motion IS the language). `python scripts/contest_sample.py --route
-   "<topic>" --audacity <a> --out <out_dir> --render` builds a ~6s mini-film per direction (its hero + 2
-   representative registers, topic copy, through the real Film) → `<out>/_contest_<k>.mp4`. For a BESPOKE
-   direction not in the seed set, hand the script the direction's own shot list (or build the mini-storyboard by
-   hand and render it via `render_remotion`). ALSO render one still per direction at **`--frame=110`** (frame 0 is
-   un-started; every hero ≥150f, so 110 = `CONTEST_FRAME` settled) so the mechanical diversity gate can run.
-   Without `--render` the script only prints each sample's render command. A still in place of the sample video
-   is the cheap fallback only when the Node render budget is tight; default to samples.
+1. **DESIGN each direction first — a seed is material, never a direction.** The contest is the first design the
+   user sees and it sets the whole film's look, so it follows the same order as every beat (Step 0.55): **ideal
+   picture → material → build.** For each direction, from the comprehension brief + `content_plan.json`:
+   - **`ideal`** — the film's SIGNATURE picture in this direction, one line, no register named (the beat the
+     whole film is remembered by: for a GPS film, perhaps "four light-speed pulses converge on one phone while
+     its cheap clock is visibly corrected").
+   - **`palette_source`** — `[{colour, from}]`, every colour traced to something in the SUBJECT's own world — the
+     orbit's night sky, a satellite's gold foil and blue solar cells, the Earth's limb at dusk — never to a mood
+     or a genre. **Precedent:** a GPS film's contest put satellites on signal red because the direction was "a
+     station timetable"; the user asked why satellites were red, and rejected all three directions.
+   - **the HERO, BUILT** — `python3 scripts/workshop.py <out_dir> new-shot <Name> --means "…"`, drawn per
+     `references/building-blocks.md` + `references/object-authoring.md` (read them now — the contest is the first
+     build), looked at with `workshop.py <out_dir> still <Name>`, and `workshop.py <out_dir> check` clean. Draw the
+     SUBJECT with craft — a satellite that reads as one (body, foil, panels, antenna), not an icon in a container.
+     Library registers may follow the hero in the sample, ADAPTED (a structure prop changed for this subject), as
+     supporting frames; they never stand for the direction.
+   - `pitch`, `dna`, `seam` as before. Force DIVERGENCE on the idea, the material and the motion — three directions
+     that differ only in colourway are one direction.
+   The catalogue's seeds (`shot_templates.py --route`) say which register FAMILIES and motions suit a subject —
+   material to adapt, not a candidate: their samples are the library's own registers, which is what the user
+   called "three existing templates, none suited to the subject".
+2. **Render a short SAMPLE VIDEO + still per direction** — the user must SEE each direction MOVE.
+   `python3 scripts/contest_sample.py --route "<topic>" --audacity <a> --out <out_dir> --conceived <file.json>
+   --render`, the file `[{key, pitch, ideal, palette_source, dna, seam, shots: [[BuiltHero, {props}], ...]}]`.
+   It REFUSES (exit 2, naming each gap) a direction with no ideal, no palette provenance, or a hero that is not
+   built in this film's workshop, renders with the workshop in the bundle, and writes `_contest_<k>.mp4` plus
+   `_contest_<k>.png` (the hero at 90% of its slot) for the diversity gate.
 3. **DIVERSITY gate (mechanical).** `python scripts/contest_diversity.py <out>/_contest_*.png` — a flagged pair
    (clustered mode+palette+silhouette) means the divergence was theatre: REDIVERGE that pair (conceive a genuinely
    different atmosphere) before showing the user.
@@ -74,8 +85,11 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
 5. **USER picks** from the judged finalists via `AskUserQuestion` (option prompt, winner first with "(Recommended)";
    point them at the **sample VIDEOS** `_contest_<k>.mp4` — text alone is not a basis to choose a look). Their pick is FINAL. Record on the storyboard:
    `meta.shot_template = <pick>` + `meta.shot_template_contest = {candidates:[all keys], winner:<pick>,
-   user_pick:true, width:<N>, audacity:"<a>", judge_ranked:true}`. `validate.py` ERRORS a bold/experimental film
-   with NO contest, checks the width matches audacity, and that the winner is the chosen direction.
+   user_pick:true, width:<N>, audacity:"<a>", judge_ranked:true, directions: {<key>: {ideal, hero,
+   palette_source}}}`, and the winner's `dna` as `meta.design_dna`. `validate.py` ERRORS a bold/experimental film
+   with NO contest, checks the width matches audacity and that the winner is the chosen direction, and refuses a
+   contest whose directions record no ideal, no built hero or no palette provenance. The winner's hero is the
+   film's first BUILT shot: route its signature beat to it.
 6. **Apply it — after the ideals, as material.** The chosen direction BIASES which registers are proposed as
    material toward its families (never two adjacent same-family). Do NOT run the skeleton yet: first derive the
    form vocabulary (Step 0.5) and write every beat's ideal picture (Step 0.55, step 1). Then
