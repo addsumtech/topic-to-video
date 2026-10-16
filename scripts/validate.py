@@ -2934,8 +2934,8 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
             # fifteen identical warnings in a row, each saying the same thing nobody could act on
             _own = [f for f in _fs if f["kind"] == "unmeasured" and f.get("shot") in _film_shots]
             if _own:
-                warnings.append("remotion: energy skeleton — %d beat(s) are this film's own shots (%s), which the "
-                                "library's energy sweep never measures: whether they MOVE is measured after the render "
+                warnings.append("remotion: energy skeleton — %d beat(s) are this film's own shots (%s), unmeasured by "
+                                "design — the library's energy sweep never sees a workshop: whether they MOVE is measured after the render "
                                 "by film_energy_qa (per beat: seconds under the motion floor, and frozen)"
                                 % (len(_own), ", ".join(sorted({f["shot"] for f in _own}))[:160]))
             for f in _hard[:6] + [f for f in _fs if f["kind"] not in _es.HARD and f not in _own]:

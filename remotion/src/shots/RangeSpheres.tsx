@@ -33,11 +33,11 @@ const SAT_ASPECT = 2.3;
 
 export const RangeSpheres: React.FC<{
   sat?: ObjectRef;         // the satellites (the film's GpsSatellite); its props carry look and base pose
-  mode?: 'two' | 'bias';
+  mode?: 'bias' | 'two';   // the default first: the library sweep measures the first mode a type lists
   title?: string;          // the claim, in the title band
   kicker?: string;         // a premise or a note, under the title
-  sats?: string[];         // the satellites' names, in order (names past the satellites drawn are not drawn)
-  points?: string[];       // 'two': the two crossings' names — the one on the ground first, then the one in space
+  sats?: string[];         // the satellites' names, in order — at most 3 ('two') or 4 ('bias'); fewer leave the rest unnamed
+  points?: [string, string]; // 'two': the two crossings' names — the one on the ground first, then the one in space
   rangeLabel?: string;     // 'bias': what a leg measures (flight time × light speed)
   biasLabel?: string;      // 'bias': what the shared bracket is (the phone's clock error)
   here?: string;           // 'bias': what is solved at the fix
@@ -47,12 +47,15 @@ export const RangeSpheres: React.FC<{
   biasLabel = '', here = '', bias: biasIn = 0.07, limb = ACC2_D0} = {}) => {
   if (mode !== 'two' && mode !== 'bias') throw new Error(`RangeSpheres: \`mode\` is 'two' or 'bias' — got ${JSON.stringify(mode)}`);
   const N = mode === 'two' ? 3 : 4;
-  // A LIBRARY REGISTER TAKES ANY LIST AND CAPS IT, as the catalogue's do: the film that built this refused a `sats`
-  // list of the wrong length, and the library's measuring sweeps feed every register a generic list — so promotion
-  // stopped at prop_reach. Names past the satellites drawn are not drawn; fewer label the first few; past two
-  // crossings are not drawn; the bracket is clamped into its drawable range.
-  const sats = Array.isArray(satsIn) ? satsIn.slice(0, N) : [];
-  const points = Array.isArray(pointsIn) ? pointsIn.slice(0, 2) : [];
+  // FEWER IS FINE, MORE IS REFUSED. The film that built this demanded exactly N names, and the library's measuring
+  // sweep feeds a generic list — so promotion stopped at prop_reach. Fewer names leave the last satellites
+  // unnamed, which drops nothing the film gave; a name past the satellites drawn would vanish in silence, so it
+  // throws with the maximum (the content contract's rule). The bracket is clamped into its drawable range.
+  const sats = Array.isArray(satsIn) ? satsIn : [];
+  const points = Array.isArray(pointsIn) ? pointsIn : [];
+  if (sats.length > N) throw new Error(`RangeSpheres draws ${N} satellites in mode '${mode}' — got ${sats.length} ` +
+    `\`sats\`; name at most ${N}`);
+  if (points.length > 2) throw new Error(`RangeSpheres marks two crossings — got ${points.length} \`points\``);
   const bias = typeof biasIn === 'number' && isFinite(biasIn) ? Math.min(0.2, Math.max(0.01, biasIn)) : 0.07;
   const dna = useDNA();
   const t = useT();

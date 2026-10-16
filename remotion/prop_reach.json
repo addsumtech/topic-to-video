@@ -211,7 +211,7 @@
     "KSpaceToPicture": "88d3dc0421382833",
     "ExtractionFlow": "262b21edd1024d6c",
     "PourSync": "a4366447bbe7b73e",
-    "RangeSpheres": "5f586b85f8ad564d",
+    "RangeSpheres": "893ee5cc19a84db8",
     "LightShellOrbit": "178b8d29477b4216",
     "OrbitClockGain": "2c9b9952a2f6c6a2"
   },
@@ -410,7 +410,7 @@
     "KSpaceToPicture": "bb2bce19caaf3cf2",
     "ExtractionFlow": "b91f8947ce5f73c6",
     "PourSync": "0162cd8065b74a14",
-    "RangeSpheres": "90477560ffa282f4",
+    "RangeSpheres": "0266185abff030d2",
     "LightShellOrbit": "6011668b45511fa3",
     "OrbitClockGain": "b3a6d1ef1d11340d"
   },
@@ -992,7 +992,7 @@
       "prop_diff": 1.0
     },
     "RangeSpheres": {
-      "reach": 0.377,
+      "reach": 0.401,
       "prop_diff": 0.89
     },
     "RansomZine": {
