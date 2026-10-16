@@ -62,6 +62,7 @@ FAMILY = {
     "PointerTour": "B",
     "CrashZoom": "B", "TerrainFly": "B",
     "OverlapSeparation": "D", "SharedBlindspot": "H",
+    "OrbitClockGain": "D",
     "Escalation": "D",
     "ShorteningHold": "C",
     "BreaksWhenAsked": "C",
@@ -92,6 +93,8 @@ FAMILY = {
     "ObjectStage": "E",
     "MorphForms": "E", "KSpaceToImage": "E", "MagnetizationTip": "E",
     "InducedFID": "U", "GFactorNoise": "M", "UndersampledKspace": "D", "ScanReconstruct": "G", "RealVersus": "H", "SpinningProton": "S", "PhaseEncodeStep": "D", "MRIPipeline": "B", "FrequencyEncode": "U", "CompressedSensingEq": "L", "KSpaceReal": "G", "SpeedLimit": "D", "LarmorPrecession": "S", "Aliasing": "M", "DiffusionDenoise": "F", "SpinsAlign": "M", "GradientTilt": "U", "KSpaceAnatomy": "H", "TensionScale": "H", "PlatformSurfaces": "A", "OpenQuestions": "C",
+    "LightShellOrbit": "F",
+    "RangeSpheres": "S",
     "KSpaceToPicture": "S",
     "AuroraFlow": "F", "LiquidMorph": "F", "LiquidFill": "F", "ParticleForm": "F",
     "RadialBurst": "F", "LightTrails": "F", "MetaballMerge": "F", "InkBloom": "F", "LiquidMetal": "F",
@@ -145,6 +148,9 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "OrbitClockGain":          'scientific',
+    "LightShellOrbit":         'scientific',
+    "RangeSpheres":            'scientific',
     "PourSync":                'product-ui',
     "ExtractionFlow":          'industrial',
     "KSpaceToPicture":         'scientific',

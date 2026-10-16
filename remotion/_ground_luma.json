@@ -193,7 +193,10 @@
   "ObjectTurntable": "bg",
   "KSpaceToPicture": "bg",
   "ExtractionFlow": "bg",
-  "PourSync": "bg"
+  "PourSync": "bg",
+  "RangeSpheres": "bg",
+  "LightShellOrbit": "bg",
+  "OrbitClockGain": "bg"
  },
  "unclassified": [
   "KineticManifesto",
@@ -201,7 +204,7 @@
   "PaperSlot"
  ],
  "failed": {},
- "universe": 194,
+ "universe": 197,
  "_source": {
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "4ba43ae79892f212",
@@ -393,6 +396,9 @@
   "ObjectTurntable": "b4d2fbc05181e626",
   "KSpaceToPicture": "88d3dc0421382833",
   "ExtractionFlow": "262b21edd1024d6c",
-  "PourSync": "a4366447bbe7b73e"
+  "PourSync": "a4366447bbe7b73e",
+  "RangeSpheres": "5f586b85f8ad564d",
+  "LightShellOrbit": "178b8d29477b4216",
+  "OrbitClockGain": "2c9b9952a2f6c6a2"
  }
 }

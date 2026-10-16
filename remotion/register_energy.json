@@ -194,7 +194,10 @@
     "ObjectTurntable": "b4d2fbc05181e626",
     "KSpaceToPicture": "88d3dc0421382833",
     "ExtractionFlow": "262b21edd1024d6c",
-    "PourSync": "a4366447bbe7b73e"
+    "PourSync": "a4366447bbe7b73e",
+    "RangeSpheres": "5f586b85f8ad564d",
+    "LightShellOrbit": "178b8d29477b4216",
+    "OrbitClockGain": "2c9b9952a2f6c6a2"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -219,11 +222,11 @@
   },
   "_floors": {
     "motion_p75": 0.0037,
-    "ink_median": 0.02,
+    "ink_median": 0.021,
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 194,
+  "_universe": 197,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -869,6 +872,13 @@
       "seconds": 5.0,
       "footprint": 1.0
     },
+    "LightShellOrbit": {
+      "motion_p75": 0.0109,
+      "ink_median": 0.075,
+      "luma_range": 0.051,
+      "seconds": 5.0,
+      "footprint": 0.991
+    },
     "LightTrails": {
       "motion_p75": 0.0031,
       "ink_median": 0.024,
@@ -1065,6 +1075,13 @@
       "seconds": 5.7,
       "footprint": 0.21
     },
+    "OrbitClockGain": {
+      "motion_p75": 0.0039,
+      "ink_median": 0.086,
+      "luma_range": 0.006,
+      "seconds": 7.0,
+      "footprint": 0.512
+    },
     "OverlapSeparation": {
       "motion_p75": 0.001,
       "ink_median": 0.061,
@@ -1218,6 +1235,13 @@
       "luma_range": 0.013,
       "seconds": 5.2,
       "footprint": 0.942
+    },
+    "RangeSpheres": {
+      "motion_p75": 0.0026,
+      "ink_median": 0.066,
+      "luma_range": 0.04,
+      "seconds": 6.0,
+      "footprint": 0.769
     },
     "RansomZine": {
       "motion_p75": 0.0046,

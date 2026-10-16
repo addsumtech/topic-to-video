@@ -1352,6 +1352,20 @@
    ]
   },
   {
+   "shot": "LightShellOrbit",
+   "bandY": {
+    "light": 0.7649337649345398,
+    "dark": 0.012719810009002686
+   },
+   "fieldY": {
+    "light": 0.8002081513404846,
+    "dark": 0.019330546259880066
+   },
+   "moved": 0.9354805871212121,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "LightTrails",
    "bandY": {
     "light": 0.0031276026275008917,
@@ -1766,6 +1780,20 @@
    "why": []
   },
   {
+   "shot": "OrbitClockGain",
+   "bandY": {
+    "light": 0.8538559675216675,
+    "dark": 0.0005644387565553188
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0009105809731408954
+   },
+   "moved": 0.9914464962121212,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "OverlapSeparation",
    "bandY": {
     "light": 0.8879231810569763,
@@ -2088,6 +2116,20 @@
     "field light reads dark",
     "only 1% of the frame moved"
    ]
+  },
+  {
+   "shot": "RangeSpheres",
+   "bandY": {
+    "light": 0.6116192936897278,
+    "dark": 0.07939708232879639
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.002731743035838008
+   },
+   "moved": 0.9578787878787879,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "RansomZine",
@@ -3029,10 +3071,13 @@
   "ObjectTurntable": "b4d2fbc05181e626",
   "KSpaceToPicture": "88d3dc0421382833",
   "ExtractionFlow": "29bbb9488fa18ae3",
-  "PourSync": "fbe7cf35487e184c"
+  "PourSync": "fbe7cf35487e184c",
+  "RangeSpheres": "5f586b85f8ad564d",
+  "LightShellOrbit": "178b8d29477b4216",
+  "OrbitClockGain": "2c9b9952a2f6c6a2"
  },
  "failed": {},
- "universe": 194,
+ "universe": 197,
  "inkRefused": {
   "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
   "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",

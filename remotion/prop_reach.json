@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 194,
+  "_universe": 197,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -210,7 +210,10 @@
     "ObjectTurntable": "b4d2fbc05181e626",
     "KSpaceToPicture": "88d3dc0421382833",
     "ExtractionFlow": "262b21edd1024d6c",
-    "PourSync": "a4366447bbe7b73e"
+    "PourSync": "a4366447bbe7b73e",
+    "RangeSpheres": "5f586b85f8ad564d",
+    "LightShellOrbit": "178b8d29477b4216",
+    "OrbitClockGain": "2c9b9952a2f6c6a2"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -406,7 +409,10 @@
     "ObjectTurntable": "1afd6f0831bd4ffe",
     "KSpaceToPicture": "bb2bce19caaf3cf2",
     "ExtractionFlow": "b91f8947ce5f73c6",
-    "PourSync": "0162cd8065b74a14"
+    "PourSync": "0162cd8065b74a14",
+    "RangeSpheres": "90477560ffa282f4",
+    "LightShellOrbit": "6011668b45511fa3",
+    "OrbitClockGain": "b3a6d1ef1d11340d"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -777,6 +783,10 @@
       "reach": 0.582,
       "prop_diff": 1.0
     },
+    "LightShellOrbit": {
+      "reach": 0.143,
+      "prop_diff": 0.91
+    },
     "LightTrails": {
       "reach": 0.095,
       "prop_diff": 1.0
@@ -889,6 +899,10 @@
       "reach": 0.744,
       "prop_diff": 1.0
     },
+    "OrbitClockGain": {
+      "reach": 0.458,
+      "prop_diff": 1.0
+    },
     "OverlapSeparation": {
       "reach": 0.043,
       "prop_diff": 0.4
@@ -976,6 +990,10 @@
     "RainGlass": {
       "reach": 0.384,
       "prop_diff": 1.0
+    },
+    "RangeSpheres": {
+      "reach": 0.377,
+      "prop_diff": 0.89
     },
     "RansomZine": {
       "reach": 0.817,

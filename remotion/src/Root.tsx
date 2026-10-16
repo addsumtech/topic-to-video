@@ -12,6 +12,9 @@ import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {CameraTypeProbe, EdgeBudgetProbe, DURATION as CTP} from './runtime/__probe_camera';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {OrbitClockGain, DURATION as D_ORBITCLOCKGAIN} from './shots/OrbitClockGain';
+import {LightShellOrbit, DURATION as D_LIGHTSHELLORBIT} from './shots/LightShellOrbit';
+import {RangeSpheres, DURATION as D_RANGESPHERES} from './shots/RangeSpheres';
 import {PourSync, DURATION as D_POURSYNC} from './shots/PourSync';
 import {ExtractionFlow, DURATION as D_EXTRACTIONFLOW} from './shots/ExtractionFlow';
 import {KSpaceToPicture, DURATION as D_KSPACETOPICTURE} from './shots/KSpaceToPicture';
@@ -656,6 +659,9 @@ export const RemotionRoot: React.FC = () => (
     {F('KSpaceToPicture', KSpaceToPicture, D_KSPACETOPICTURE)}
     {F('ExtractionFlow', ExtractionFlow, D_EXTRACTIONFLOW)}
     {F('PourSync', PourSync, D_POURSYNC)}
+    {F('RangeSpheres', RangeSpheres, D_RANGESPHERES)}
+    {F('LightShellOrbit', LightShellOrbit, D_LIGHTSHELLORBIT)}
+    {F('OrbitClockGain', OrbitClockGain, D_ORBITCLOCKGAIN)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}
