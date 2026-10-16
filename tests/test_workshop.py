@@ -853,3 +853,33 @@ def test_still_on_a_device_host_no_beat_shows_names_what_to_pass(tmp_path, monke
     with pytest.raises(ws.WorkshopError) as e:
         ws.still(out, "WsDisc", host="DeviceDemo")
     assert any("no beat" in p and "--props" in p for p in e.value.problems), e.value.problems
+
+
+def test_still_renders_in_a_contest_directions_look_before_the_board_has_one(tmp_path, monkeypatch):
+    """At the contest stage the board has no design_dna, and a hero still fell back to the stock dark ground —
+    the agent judged a hero in colours no direction had. `--dna <directions.json>#<key>` renders it in that
+    direction's own look; a wrong key names the keys there are."""
+    _stub_render(monkeypatch)
+    out = _film(tmp_path, objects=["WsDisc"])
+    dirs = tmp_path / "directions.json"
+    look = {"bg": "#0b1630", "fg": "#f2e6c8", "accent": "#d9a441"}
+    dirs.write_text(json.dumps([{"key": "orbit", "dna": look}, {"key": "plate", "dna": "editorial"}]),
+                    encoding="utf-8")
+    ws.still(out, "WsDisc", dna=ws.direction_dna(str(dirs) + "#orbit"))
+    assert _stills_payload(out, "WsDisc")["dna"] == look
+    assert ws.direction_dna(str(dirs) + "#plate") == "editorial"
+    assert ws.direction_dna("editorial") == "editorial"
+    with pytest.raises(ws.WorkshopError) as e:
+        ws.direction_dna(str(dirs) + "#nope")
+    assert "orbit, plate" in e.value.problems[0], e.value.problems
+    with pytest.raises(ws.WorkshopError):
+        ws.direction_dna(str(dirs))                     # two directions and no key: which one is ambiguous
+    with pytest.raises(ws.WorkshopError):
+        ws.direction_dna(str(tmp_path / "missing.json"))
+
+
+def test_check_points_at_the_contest_not_validate_before_there_is_a_board(tmp_path, capsys):
+    out = _film(tmp_path)
+    assert ws.main([out, "check"]) == 0
+    said = capsys.readouterr().out
+    assert "contest_sample.py" in said and "validate.py" not in said, said

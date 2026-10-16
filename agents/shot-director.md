@@ -61,7 +61,7 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
      station timetable"; the user asked why satellites were red, and rejected all three directions.
    - **the HERO, BUILT** — `python3 scripts/workshop.py <out_dir> new-shot <Name> --means "…"`, drawn per
      `references/building-blocks.md` + `references/object-authoring.md` (read them now — the contest is the first
-     build), looked at with `workshop.py <out_dir> still <Name>`, and `workshop.py <out_dir> check` clean. Draw the
+     build), looked at IN ITS DIRECTION'S LOOK with `workshop.py <out_dir> still <Name> --dna <directions.json>#<key>` (without `--dna` the board has no look yet and the still shows a stock dark ground), and `workshop.py <out_dir> check` clean. Draw the
      SUBJECT with craft — a satellite that reads as one (body, foil, panels, antenna), not an icon in a container.
      Library registers may follow the hero in the sample, ADAPTED (a structure prop changed for this subject), as
      supporting frames; they never stand for the direction.

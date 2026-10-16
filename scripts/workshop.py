@@ -1670,6 +1670,36 @@ def scaffold(out_dir, kind, name, means):
     return path
 
 
+def direction_dna(arg):
+    """`--dna` → the look a still renders in: a preset name, a DNA object file, or `<directions.json>#<key>` — one
+    direction of the contest file `contest_sample.py --conceived` reads. A hero judged in the stock fallback
+    palette is not the hero the contest will show."""
+    if not arg:
+        return None
+    path, _, key = str(arg).partition("#")
+    if not os.path.exists(path):
+        if key or os.sep in path or path.endswith(".json"):
+            raise WorkshopError(["--dna %s: no such file" % path])
+        return path                                     # a preset name; the Film resolves it or says it cannot
+    try:
+        data = json.loads(_read(path))
+    except ValueError as e:
+        raise WorkshopError(["--dna %s: not valid JSON (%s)" % (path, e)]) from None
+    if isinstance(data, dict) and not key:
+        return data.get("dna") if isinstance(data.get("dna"), (dict, str)) else data
+    dirs = [d for d in (data if isinstance(data, list) else []) if isinstance(d, dict)]
+    keys = [str(d.get("key")) for d in dirs]
+    if not key and len(dirs) == 1:
+        key = keys[0]
+    pick = [d for d in dirs if str(d.get("key")) == key]
+    if not pick:
+        raise WorkshopError(["--dna %s: name a direction as %s#<key> — its keys: %s"
+                             % (arg, path, ", ".join(keys) or "(none; expected a list of directions)")])
+    if not isinstance(pick[0].get("dna"), (dict, str)):
+        raise WorkshopError(["--dna %s: direction %r has no `dna`" % (arg, key)])
+    return pick[0]["dna"]
+
+
 def _board(out_dir):
     try:
         return json.loads(_read(os.path.join(out_dir, "storyboard.json")))
@@ -1716,7 +1746,7 @@ def _device_still_props(board, out_dir, name, host, src, props):
     return _prepared_device_beat({"shot": host, "narration": "", "shot_props": props}, out_dir, src, host)
 
 
-def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None, slot=None):
+def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None, slot=None, dna=None):
     """Render `name`'s settled frame on its own into <workshop>/_stills/<name>.png and return that path — a shot
     as its own composition (props: the given ones, else its first beat's), an object on `host`.
 
@@ -1764,7 +1794,9 @@ def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None
         dur = _required_duration(src, host)
     else:
         raise WorkshopError(["%s is not in this film's workshop or the library's objects" % name])
-    dna = meta.get("design_dna") or meta.get("shot_template")
+    # `dna` (a contest direction's look, resolved by `direction_dna`) wins over the board's: before a direction is
+    # chosen the board has none, and the still fell back to a stock dark ground the film would never have.
+    dna = dna or meta.get("design_dna") or meta.get("shot_template")
     if dna:
         payload.setdefault("dna", dna)
     if aspect or meta.get("aspect"):
@@ -1832,6 +1864,8 @@ def main(argv=None):
     p.add_argument("--slot", help="which of the host's top-level object slots to use, when it has more than one")
     p.add_argument("--attrs", help="a component's attributes, as a JSON object file (default: its static demo)")
     p.add_argument("--p", type=float, default=0.9, help="a component's progress to freeze at, 0..1 (default 0.9)")
+    p.add_argument("--dna", help="the look to render in, before the board has one: a preset name, a DNA JSON file, "
+                                  "or <directions.json>#<key> (a contest direction)")
     a = ap.parse_args(argv)
     try:
         if a.cmd == "list":
@@ -1841,7 +1875,11 @@ def main(argv=None):
             for x in probs:
                 print("  PROBLEM: " + x)
             print("[workshop] %s — %d problem(s)" % ("CLEAN" if not probs else "NOT CLEAN", len(probs)))
-            if not probs:
+            if not probs and not (_board(a.out_dir).get("slides")):
+                # the contest stage: directions are being designed and there is no board for validate to read yet
+                print("NEXT: python3 scripts/contest_sample.py --route \"<topic>\" --out %s --conceived "
+                      "<directions.json> --render" % a.out_dir)
+            elif not probs:
                 print("NEXT: python3 scripts/validate.py %s" % a.out_dir)
             return 1 if probs else 0
         if a.cmd == "new-component":
@@ -1890,7 +1928,8 @@ def main(argv=None):
                 raise WorkshopError(["--props %s: not valid JSON (%s)" % (a.props, e)]) from None
         else:
             props = None
-        png = still(a.out_dir, a.name, props, host=a.host, frame=a.frame, aspect=a.aspect, slot=a.slot)
+        png = still(a.out_dir, a.name, props, host=a.host, frame=a.frame, aspect=a.aspect, slot=a.slot,
+                    dna=direction_dna(a.dna))
         print("[workshop] %s" % png)
         print("NEXT: open it and LOOK — does it carry its build-list entry's `means` with the caption hidden?")
         return 0
