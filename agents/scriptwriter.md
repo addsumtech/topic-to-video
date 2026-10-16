@@ -31,9 +31,11 @@ a polished, connected, faithful script that sounds great read aloud.
   "flags": [ { "id": 3, "issue": "claim X in the intent has no support in the material" } ] }
 ```
 - `narration` — one final spoken line per beat (keys are the beat `id` values as strings). Required.
-- `duration_estimate` — your read of each line's spoken length (~2.5 words/sec for Latin, ~5 chars/sec
-  for CJK). Flag any beat whose estimate exceeds its `est_seconds` budget by >25% (it will rush or blow
-  the pace ceiling) — either tighten the line or give a `too_dense` fallback.
+- `duration_estimate` — each line's length IN THE FILM from `scripts/pace.py` (`pace.beat_seconds(line,
+  lang, tts_speed)`, the one model, fitted on measured beats; it counts the ~1.2 s pause after every beat that a
+  bare chars-per-second rate leaves out). Flag any beat whose estimate exceeds its `est_seconds` budget by >25%
+  — either tighten the line or give a `too_dense` fallback — and run `python3 scripts/pace.py <out_dir>` once
+  the lines are on the board: it reports the whole film against `meta.target_seconds`.
 - `pronunciation_notes` — only for terms a TTS voice will mangle: acronyms said letter-by-letter, unusual
   proper nouns, units, non-English words in an English track. Keep it short; most lines need none. Put the
   spoken form in **`say_as`** (e.g. `{"term":"INR","say_as":"I N R"}`) — the LINE/caption keeps the clean

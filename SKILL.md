@@ -182,6 +182,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   (a second is silently discarded), and use semantic vars, not raw `#hex`. UI chrome text opts out of figure
   traceability via `data-ui`; never mutate chrome text to dodge the lint. **Before you dispatch an agent to re-pick
   registers, run `validate.py` and read it**: it names the beats cast on resemblance rather than meaning.
+- `scripts/pace.py <out_dir>` | `--budget <seconds> --lang <code>`: the ONE spoken-length model (fitted on
+  measured beats; counts the ~1.2 s pause after every beat). It predicts the film's length against
+  `meta.target_seconds` before any voice is made, and says how much narration a beat holds; validate warns past
+  ±15%. The planner, scriptwriter and critics use it — a bare chars-per-second rate undercounts every beat.
 - `scripts/rhythm_qa.py <out_dir> [--json]`: pacing gate. Run after tts, before the full render. It is advisory except
   for a MEASURED static frame held past ~16 s.
 - `scripts/pedagogy_qa.py <out_dir> [--json]`: teaching-order gate over `content_plan.json`. It ERRORs on a concept used

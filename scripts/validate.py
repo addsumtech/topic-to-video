@@ -4225,9 +4225,26 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     except Exception as _e:                                  # noqa: BLE001 — advice must not break validation,
         warnings.append("tier: the tier advice could not run (%s) — the purpose/tier fit was NOT checked"
                         % type(_e).__name__)                  # ...and it must not fail SILENTLY either
+    # THE FILM'S LENGTH, BEFORE ANY VOICE IS MADE — both tiers, so it sits above the tier split. The plan, the
+    # scriptwriter and the critic each estimated pace their own way and none counted the ~1.2 s pause a film adds
+    # after every beat: the GPS test film was planned at 69 s, estimated at 85–92 s and headed for ~100 s, past
+    # every gate. scripts/pace.py is the one model (fitted on 47 measured beats; once tts.py has run it reads the
+    # real durations), and this says so the moment the narration misses meta.target_seconds by more than 15%.
+    try:
+        import pace as _pace
+        _pw = _pace.overrun_warning(data)
+        if _pw:
+            warnings.append(_pw)
+    except Exception as _e:                                  # noqa: BLE001 — a length estimate must not break
+        warnings.append("length: the pace model could not run (%s) — the film's length against "
+                        "meta.target_seconds was NOT checked" % type(_e).__name__)
     # REMOTION2 bespoke-shot tier — its own scene contract (shot id + props + family variety); the legacy
     # cinematic/HTML checks below don't apply to it, so guard and skip them.
     if (meta.get("renderer") or "") == "remotion":
+        # ...EXCEPT THE NARRATION'S, which no tier owns: the AI-tell lint used to sit below this early return, so a
+        # remotion film's narration — the one thing both tiers share outright — was never linted at all
+        for _i, _s in enumerate(slides, 1):
+            warnings.extend(_narration_tell_warnings("scene %d" % _i, _s.get("narration")))
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
         _check_build(meta, slides, errors, warnings, out_dir, skips=skips)
         _design_first(meta, slides, errors, warnings, out_dir, "remotion")
@@ -4475,14 +4492,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                         break
 
         # --- narration AI-tells (humanizer-informed): reads as machine-generated even if grammatical ---
-        seen_tells = set()
-        for phrase, label in _narration_ai_tells(s.get("narration")):
-            key = phrase.lower()
-            if key in seen_tells:
-                continue
-            seen_tells.add(key)
-            warnings.append(f"{tag}: narration AI-tell — \"{phrase}\" ({label}); say it the way a "
-                            f"person would (references/narration-writing.md)")
+        warnings.extend(_narration_tell_warnings(tag, s.get("narration")))
 
         # --- motion sanity --------------------------------------------------------------
         m = s.get("motion") or {}
@@ -5386,6 +5396,19 @@ def _other_films_asset(out_dir, local, tag, errors, warnings):
     else:
         warnings.append(f"{tag}: page reads {local}, a file of another film ({owner}) — it disappears with that "
                         f"film; copy it into {out_dir} and relink")
+
+
+def _narration_tell_warnings(tag, narration):
+    """The AI-tell lint for one beat's narration (humanizer-informed: reads as machine-generated even if grammatical)."""
+    out, seen = [], set()
+    for phrase, label in _narration_ai_tells(narration):
+        key = phrase.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(f"{tag}: narration AI-tell — \"{phrase}\" ({label}); say it the way a "
+                   f"person would (references/narration-writing.md)")
+    return out
 
 
 def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,

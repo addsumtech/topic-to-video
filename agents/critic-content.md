@@ -114,11 +114,14 @@ figure that contradicts nothing (the source simply never states it) is STILL fab
 ### R3 — Pacing within ceiling
 - Estimate length: word count in `narration` for space-delimited languages; **character count for CJK**
   (Chinese/Japanese/Korean have no word spaces).
-- Estimate duration: `slide.duration` (if set) or infer from ~2.5 words/sec (~5 chars/sec CJK).
+- Estimate duration: `slide.duration` (if set), else `python3 scripts/pace.py <out_dir>` — the one spoken-
+  length model, which counts the ~1.2 s pause after every beat (a bare ~5 chars/sec rate passed a script that ran
+  ~25% over its film's target).
 - FAIL if length > `duration * 2.8` (too fast) or < `duration * 1.5` (awkwardly sparse for a slide > 5 s).
   For CJK, use ~4–6 chars/sec as the comfortable band instead of wps.
+- FAIL the FILM when `pace.py` predicts it more than 15% off `meta.target_seconds` (validate warns on the same
+  number) — name the beats to cut, or say the target is wrong.
 - PASS if pacing is in the comfortable range for the language.
-- If `duration` is null/missing (tts.py not yet run), skip R3 for that slide and note it.
 
 ### R1d — Animated scenes show only sourced content (R0-severity for fabricated values)
 For a scene whose `type` is `title`/`chart`/`timeline` (not `slide`), the on-screen content IS the

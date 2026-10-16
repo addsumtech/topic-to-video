@@ -81,7 +81,11 @@ plan. You do not write final narration; you design content beats.
    NEW concept per beat** — REFERENCE any number of already-introduced concepts (`builds_on`), but
    INTRODUCE at most one (`introduces`, else null). `est_seconds` ~3–6 for build beats (up to ~8 for the
    climax, ~2–3 for a divider/hold) — consistent with the rhythm line below. Split a dense point into
-   two beats rather than holding one long frame. Target beat count ≈ `target_seconds / 4`. Vary
+   two beats rather than holding one long frame. **`est_seconds` is the beat's length IN THE FILM, the pause
+   after it included** — about 1.2 s of every beat is that pause, so a 4 s beat holds only ~12 Chinese characters
+   (`python3 scripts/pace.py --budget 4 --lang zh` prints it for any length and language). The sum of
+   `est_seconds` must be `target_seconds`: the GPS test film's plan summed to 69 s of beats that each needed
+   ~6 s, and the film came out ~100 s. Target beat count ≈ `target_seconds / 4`. Vary
    `est_seconds` to match your `rhythm` (quick build beats 3–4s, a longer climax 6–8s, a sparse hold) —
    a flat row of equal 5-second beats is the clearest "auto-generated" tell.
 4. **Earn its place.** Every beat must teach something. Cut filler, throat-clearing, and restatement.
