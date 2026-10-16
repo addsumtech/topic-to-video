@@ -19,9 +19,14 @@ Per-beat mean error 0.30 s (worst 1.04 s). Predicting each film's total from the
 espresso −3.1%, jev ±0.2%, launch +2.1%, mri +0.7%, gps −9.0% (its many short beats paused longer). A remotion
 film is then shortened by its seam overlaps (render_remotion.SEAM_FRAMES per cut).
 
-WHAT IT DOES NOT KNOW. Only Chinese is calibrated. Another language falls back to a stated default (Latin ~2.6
-words/s, other CJK at the Chinese rate) and SAYS it is uncalibrated; the first film in that language should add its
-measured beats to the fit. Once tts.py has run, each beat's real `duration` is used instead, and the output says so.
+ENGLISH, measured 2026-10-17: 40 explainer lines through tts.py (edge en-US-EmmaNeural), the pause terms kept from
+the Chinese fit (the pad is the tier's, not the language's) and the spoken terms fitted: 0.296 s/word (~3.4 words/s),
+0.175/digit, 0.153/comma, 0.364/colon, 0.365/full stop. Per-beat mean error 0.27 s (worst 0.74 s); each half of the
+lines predicted from the other: +1.1% and −4.5%. The default it replaced (~2.6 words/s) said +22.6%.
+
+WHAT IT DOES NOT KNOW. Chinese and English are calibrated. Another language falls back to the English rate (other
+CJK to the Chinese one) and SAYS it is uncalibrated; the first film in that language should add its measured beats
+to the fit. Once tts.py has run, each beat's real `duration` is used instead, and the output says so.
 """
 import argparse
 import json
@@ -34,9 +39,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 # least-squares fit, see the docstring; refit with the films' measured beats when a voice or language is added
 ZH = {"cjk": 0.197, "digit": 0.244, "latin_word": 0.496, "comma": 0.275, "colon": 0.259, "stop": 0.767,
       "beat": 1.243, "first": 0.554}
-# UNCALIBRATED defaults for languages no film has measured yet: ~2.6 words/s for space-separated languages
-LATIN = dict(ZH, latin_word=0.385, cjk=0.197)
-CALIBRATED = {"zh"}
+# measured on English (see the docstring); the stand-in for every space-separated language until one is measured
+EN = dict(ZH, latin_word=0.296, digit=0.175, comma=0.153, colon=0.364, stop=0.365)
+LATIN = EN
+CALIBRATED = {"zh", "en"}
 _CJK = re.compile(r"[぀-ヿ㐀-鿿가-힯]")
 _NUM = re.compile(r"\d+(?:[.,]\d+)?")
 _LATIN = re.compile(r"[A-Za-z]+(?:['’][A-Za-z]+)?")

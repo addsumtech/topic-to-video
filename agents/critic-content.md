@@ -118,7 +118,7 @@ figure that contradicts nothing (the source simply never states it) is STILL fab
   length model, which counts the ~1.2 s pause after every beat (a bare ~5 chars/sec rate passed a script that ran
   ~25% over its film's target).
 - FAIL if length > `duration * 2.8` (too fast) or < `duration * 1.5` (awkwardly sparse for a slide > 5 s).
-  For CJK, use ~4–6 chars/sec as the comfortable band instead of wps.
+  For CJK, count characters instead of words; `pace.py --budget <s> --lang zh` gives the measured ceiling.
 - FAIL the FILM when `pace.py` predicts it more than 15% off `meta.target_seconds` (validate warns on the same
   number) — name the beats to cut, or say the target is wrong.
 - PASS if pacing is in the comfortable range for the language.

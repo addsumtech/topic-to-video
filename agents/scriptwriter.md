@@ -75,8 +75,9 @@ You are not filling blanks beat-by-beat. Read every beat, then write so the line
 - Never read a slide's bullets verbatim — say what they *mean*.
 
 **3. Be concise — fit the pace.**
-Each line must fit its `est_seconds`. Rate of speech: **CJK ≈ 4–6 characters/second** (8 s ≈ 35–45
-chars); **Latin ≈ 2.5 words/second**. When in doubt, cut. A tight line beats a complete one.
+Each line must fit its `est_seconds`: `python3 scripts/pace.py --budget <est_seconds> --lang <lang>` says how much
+narration a beat holds (measured: a 4 s beat ≈ 12 Chinese characters or ≈ 8 English words, because ~1.2 s of every
+beat is the pause after it). When in doubt, cut. A tight line beats a complete one.
 
 **4. Sound human, not AI — this is what the audience feels first.**
 Write like a sharp person talking, not a model generating. The script should feel like someone who

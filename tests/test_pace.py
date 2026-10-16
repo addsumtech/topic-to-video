@@ -49,10 +49,34 @@ def test_an_overrun_is_named_before_tts_and_a_measured_film_is_read_not_guessed(
 
 
 def test_an_uncalibrated_language_says_so():
-    f = pace.film(_board(["How a phone finds itself without ever transmitting."] * 4, target=20, lang="en"))
+    f = pace.film(_board(["Comment un téléphone se situe sans jamais émettre."] * 4, target=20, lang="fr"))
     assert not f["calibrated"]
-    w = pace.overrun_warning(_board(["word " * 40] * 4, target=10, lang="en"))
+    w = pace.overrun_warning(_board(["mot " * 40] * 4, target=10, lang="fr"))
     assert w and "UNCALIBRATED" in w, w
+
+
+# measured 2026-10-17 through tts.py (edge en-US-EmmaNeural), mid-board beats: (line, clip seconds)
+EN_MEASURED = [
+    ("Bread rises because yeast eats sugar and breathes out gas.", 4.493),
+    ("The gas gets trapped in a stretchy web of gluten, like air in a balloon.", 5.534),
+    ("Knead it longer, and the web grows stronger.", 3.594),
+    ("Too warm, and the yeast races ahead; too cold, and it barely wakes.", 5.68),
+    ("Bakers learn to read the dough the way sailors read the sky.", 4.372),
+    ("Interest on interest: that is all compounding means.", 4.718),
+    ("Put 100 in, earn 5 percent, and next year you earn interest on 105.", 5.977),
+    ("After 10 years the growth no longer looks like a line.", 4.202),
+    ("It bends upward, slowly at first, then all at once.", 4.141),
+    ("Time does most of the work. Patience does the rest.", 4.514),
+]
+
+
+def test_english_is_calibrated_on_measured_clips():
+    """The old ~2.6 words/s default predicted English 22.6% long; a film planned on it would come in short."""
+    pred = sum(pace.beat_seconds(t, "en") for t, _ in EN_MEASURED)
+    real = sum(d for _, d in EN_MEASURED)
+    assert abs(pred / real - 1) < 0.06, (pred, real)
+    assert all(abs(pace.beat_seconds(t, "en") - d) < 0.9 for t, d in EN_MEASURED)
+    assert pace.film(_board([EN_MEASURED[0][0]] * 3, target=12, lang="en"))["calibrated"]
 
 
 def test_validate_warns_on_the_length_before_tts_on_the_remotion_tier(tmp_path):

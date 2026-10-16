@@ -103,25 +103,23 @@ rewrite until the honest answer is "nothing — that's how I'd say it out loud."
 
 ## Pacing Math
 
-~140–160 words per minute ≈ ~2.5 words per second (English and other space-delimited
-languages).
+Don't count by a rule of thumb; ask the model the films were measured with:
+`python3 scripts/pace.py --budget <seconds> --lang <en|zh>` for one beat, `python3 scripts/pace.py <out_dir>` for
+the whole film against `meta.target_seconds`. Every beat carries **~1.2 s of pause after it** (the film's breath
+between scenes), so a short beat holds far less than the bare speaking rate suggests. Measured on edge-tts (one
+comma per beat):
 
-| Slide duration | Target word count |
-|---|---|
-| 8 s | ~20 words |
-| 10 s | ~25 words |
-| 15 s | ~37 words |
-| 20 s | ~50 words |
-| 30 s | ~75 words |
+| Beat length | English (≈3.4 words/s spoken) | Chinese (≈5 chars/s spoken) |
+|---|---|---|
+| 4 s | ~8 words | ~12 characters |
+| 8 s | ~22 words | ~32 characters |
+| 10 s | ~29 words | ~43 characters |
+| 15 s | ~45 words | ~68 characters |
+| 20 s | ~62 words | ~93 characters |
 
-**CJK languages (Chinese / Japanese / Korean)** have no word spaces, so count **characters**,
-not words. A natural spoken rate is ~4–6 characters per second — roughly: 8 s ≈ 35–45 chars,
-15 s ≈ 70–90 chars, 30 s ≈ 140–180 chars. Treat these as a ceiling, not a target, and verify
-against the real `duration` after TTS. (The critic's R2 word-count check is calibrated for
-space-delimited text; for CJK, judge pacing by characters and by the rendered audio length.)
-
-Count your words/characters before running TTS. The rendered clip length comes directly
-from `ffprobe` timing of the audio file — there is no padding or trimming.
+Treat these as a ceiling, not a target. Other languages are UNCALIBRATED (pace.py says so and uses the English rate);
+check the real `duration` after TTS. tts.py trims each clip's dead air and adds the scene pause, so `duration` is
+what the film plays, not what the voice said.
 
 **These are a CEILING, not a target, and the duration follows the text rather than the other way round.**
 `tts.py` is the only thing that writes `duration`, and it writes what it measured from the synthesised
@@ -150,7 +148,7 @@ viewer nothing beyond what they can already read.
 **AFTER (good — spoken style):**
 > "4D flow MRI normally takes minutes — here we exploit undersampling and compressed sensing to reconstruct the same volume ten times faster. That speed-up is what makes real-time cardiac imaging practical for you."
 
-Concrete benefit, second person, one sentence per idea. ~28 words ≈ ~11 s at 2.5 wps.
+Concrete benefit, second person, one sentence per idea. ~28 words ≈ ~9.5 s with its pause (`pace.py`).
 
 ---
 
