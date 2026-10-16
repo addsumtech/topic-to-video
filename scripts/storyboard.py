@@ -63,6 +63,40 @@ def new_storyboard(meta_overrides=None):
         meta.update(meta_overrides)
     return {"meta": meta, "slides": []}
 
+# THE FIELDS A FILM'S TOOLS READ FROM ITS SLIDES THAT ONLY THE CONTENT PLAN WRITES. seam_plan derives the cuts and the
+# camera from `relation`, energy_skeleton reads `energy`, rhythm_qa reads `climax`/`hold`, the critics read `stage`.
+# On the GPS test film the board was built from the plan by hand without them, and seam_plan reported "no beat
+# declares new-topic / payoff / close — every seam stays the default cut" until they were copied over.
+PLAN_FIELDS = ("relation", "energy", "stage", "climax", "hold")
+
+
+def from_content_plan(plan, meta_overrides=None):
+    """A from-scratch film's board: one slide per content beat, in order, carrying PLAN_FIELDS (narration empty —
+    the scriptwriter writes it at step 4)."""
+    data = new_storyboard(meta_overrides)
+    for i, b in enumerate([b for b in (plan or {}).get("beats") or [] if isinstance(b, dict)], 1):
+        s = {"index": i, "narration": ""}
+        s.update({k: b[k] for k in PLAN_FIELDS if k in b})
+        data["slides"].append(s)
+    if (plan or {}).get("arc_kind"):
+        data["meta"].setdefault("arc_kind", plan["arc_kind"])
+    return data
+
+
+def plan_fields_missing(slides, plan):
+    """{field: n slides missing it} for the PLAN_FIELDS the content plan has and the board does not — matched BY
+    POSITION, and only when the two hold the same number of beats (a board edited since the plan cannot be mapped)."""
+    beats = [b for b in (plan or {}).get("beats") or [] if isinstance(b, dict)]
+    if not beats or len(beats) != len(slides):
+        return {}
+    out = {}
+    for k in PLAN_FIELDS:
+        n = sum(1 for s, b in zip(slides, beats) if k in b and k not in s)
+        if n:
+            out[k] = n
+    return out
+
+
 def load(path):
     with open(path) as f:
         return json.load(f)
@@ -225,3 +259,38 @@ def normalize_transition(slide):
         flat = "dip" if (in_on and out_on) else "in" if in_on else "out" if out_on else "none"
         return flat, (sec if sec is not None else t.get("seconds"))
     return (t if t in ("dip", "in", "out", "none") else None), sec
+
+
+def main(argv):
+    """`storyboard.py <out_dir> --from-plan [key=value ...]` — write a from-scratch film's board from content_plan.json,
+    the interview's meta given as key=value (numbers and true/false parsed). Refuses to overwrite an existing board."""
+    if len(argv) < 2 or argv[1] != "--from-plan":
+        print("usage: storyboard.py <out_dir> --from-plan [language=zh renderer=remotion aspect=16:9 target_seconds=70 ...]")
+        return 2
+    import os
+    out_dir = argv[0]
+    path = os.path.join(out_dir, "storyboard.json")
+    if os.path.exists(path):
+        print("[storyboard] %s already exists — not overwritten" % path)
+        return 2
+    meta = {}
+    for kv in argv[2:]:
+        k, _, v = kv.partition("=")
+        v = {"true": True, "false": False}.get(v.lower(), v)
+        if isinstance(v, str):
+            try:
+                v = float(v) if "." in v else int(v)
+            except ValueError:
+                pass
+        meta[k] = v
+    plan = json.load(open(os.path.join(out_dir, "content_plan.json"), encoding="utf-8"))
+    data = from_content_plan(plan, meta)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=1)
+    print("[storyboard] %d slide(s) from content_plan.json, carrying %s" % (len(data["slides"]), ", ".join(PLAN_FIELDS)))
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main(sys.argv[1:]))

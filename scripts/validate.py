@@ -1135,10 +1135,13 @@ def _check_shot_template(meta, errors, warnings, out_dir=None):
         want_w = _st.contest_width(aud)
     except Exception:
         keys, want_w = None, {"conservative": 0, "balanced": 3, "bold": 5, "experimental": 7}.get(aud, 3)
-    if tmpl is not None and keys and tmpl not in keys:
+    tc = meta.get("shot_template_contest")
+    # a DESIGNED direction is the norm now (the contest designs every candidate; seeds are material), so a non-seed
+    # key is only worth a word when no contest recorded it as one of its designed directions
+    _designed = isinstance(tc, dict) and isinstance(tc.get("directions"), dict) and tmpl in tc["directions"]
+    if tmpl is not None and keys and tmpl not in keys and not _designed:
         warnings.append("meta.shot_template %r is not one of the 6 SEED directions — assumed a bespoke topic-"
                         "conceived direction (fine); confirm it's intentional, not a typo of a seed key" % tmpl)
-    tc = meta.get("shot_template_contest")
     if tc is None:
         if aud in ("bold", "experimental"):
             errors.append("meta.audacity=%r REQUIRES a `meta.shot_template_contest` (>=%d topic-conceived "
@@ -1403,7 +1406,7 @@ def _ramp_crossings(meta, slides, warnings):
                 "`transition_in: {type: \"carry\"}`, the seam that bridges a dark<->light cut." % (pos, a, b))
 
 
-def _beat_grounds(slides, errors, warnings):
+def _beat_grounds(slides, errors, warnings, out_dir=None):
     """`slide.ground` / `slide.key` — the per-beat exposure the delivery path now forwards.
 
     Both are COMMANDS that repaint the frame (runtime/light.tsx), which is what separates them from `bgLum`,
@@ -1413,6 +1416,11 @@ def _beat_grounds(slides, errors, warnings):
     """
     presets = _ground_preset_names()
     followers = _ground_followers()
+    try:
+        import workshop as _ws
+        built = set(_ws.shot_names(out_dir)) if out_dir else set()
+    except Exception:                                     # noqa: BLE001 — no workshop module, no built shots
+        built = set()
     seen_ground = 0
     for _pos, s in enumerate(slides, start=1):
         beat = _pos
@@ -1459,6 +1467,21 @@ def _beat_grounds(slides, errors, warnings):
     # A film that declares ONE ground has an exposure change, not an arc. film_energy_qa measures the arc as
     # the fraction of adjacent seconds whose light moves, precisely because a single bright passage scored
     # 0.910 on the old range measure while nothing in the film changed.
+    # A FILM'S OWN SHOTS DRAW THEIR OWN LIGHT. A declared ground is refused on them (above: they do not follow one),
+    # so on a mostly-built film this warning asked for a lever the film cannot pull — on the GPS test film, 15 built
+    # beats with a storm flash, a lit ruler, a daylit launch sky and a daylight map, the light measured 0.817 range
+    # and a 6.6% arc, both far over film_energy_qa's floors. Only the library beats are counted here; whether a
+    # built film's light moves is measured after the render, which is where it can be.
+    lib = [s for s in slides if s.get("shot") not in built]
+    if len(lib) < len(slides) and len(lib) < 8:
+        if seen_ground == 0 and len(slides) >= 8:
+            warnings.append("remotion: %d of %d beats are this film's own shots, which draw their own light (a "
+                            "`ground` cannot be declared on them) — whether the light MOVES is measured after the "
+                            "render by film_energy_qa's LIGHT and LIGHT ARC; build the changes into the shots "
+                            "(a flash, a dawn, a daylit frame) on the beats where the argument turns"
+                            % (len(slides) - len(lib), len(slides)))
+        return
+    slides = lib
     if 0 < seen_ground < 3 and len(slides) >= 8:
         warnings.append("remotion: %d beat(s) of %d declare a `ground`. One bright passage is not a "
                         "luminance ARC — film_energy_qa measures how often the light moves, and a film that "
@@ -2905,7 +2928,15 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
                             % (f["beat"], (f.get("energy") or "medium").upper(), f["shot"]))
                 return _es.describe(f)
             _hard = [f for f in _fs if f["kind"] in _es.HARD]
-            for f in _hard[:6] + [f for f in _fs if f["kind"] not in _es.HARD]:
+            # ONE line for the film's own shots, not one per beat: on an all-built film (the GPS test film) this was
+            # fifteen identical warnings in a row, each saying the same thing nobody could act on
+            _own = [f for f in _fs if f["kind"] == "unmeasured" and f.get("shot") in _film_shots]
+            if _own:
+                warnings.append("remotion: energy skeleton — %d beat(s) are this film's own shots (%s), which the "
+                                "library's energy sweep never measures: whether they MOVE is measured after the render "
+                                "by film_energy_qa (per beat: seconds under the motion floor, and frozen)"
+                                % (len(_own), ", ".join(sorted({f["shot"] for f in _own}))[:160]))
+            for f in _hard[:6] + [f for f in _fs if f["kind"] not in _es.HARD and f not in _own]:
                 warnings.append("remotion: energy skeleton — %s" % _describe(f))
             if len(_hard) > 6:
                 warnings.append("remotion: energy skeleton — %d more beat(s) contradict their declared energy; "
@@ -4251,7 +4282,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _shot_truncation(meta, slides, errors, warnings)
         _form_vocabulary(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings, out_dir=out_dir)
-        _beat_grounds(slides, errors, warnings)
+        _beat_grounds(slides, errors, warnings, out_dir)
         _ramp_crossings(meta, slides, warnings)
         _film_language(meta, slides, errors, warnings, skips=skips)
         _image_attribution(slides, out_dir, errors, warnings)

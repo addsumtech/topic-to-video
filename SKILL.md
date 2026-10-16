@@ -695,6 +695,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      declared `design_dna.seam` makes so many cuts kinetic that the marks stop being punctuation.
      The review after the render (`agents/shot-critic.md`, its ledger, `critic_ledger.py --final`) and
      promotion of built things are steps 9d–9f.
+     **From scratch, start the board from the content plan:** `python3 scripts/storyboard.py <out_dir> --from-plan
+     language=zh renderer=remotion aspect=16:9 target_seconds=70 …` writes one slide per beat carrying `relation`,
+     `energy`, `stage`, `climax`, `hold` — the fields seam_plan, energy_skeleton and rhythm_qa read from the slides.
      **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing

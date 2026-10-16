@@ -36,9 +36,53 @@ def _load():
         return []
 
 
+def _remotion_entry(out_dir, meta):
+    """A REMOTION film's register — its chosen DIRECTION. The tier has no design_plan.json, so `record` returned None
+    for every remotion film and the next contest could never see what the last one looked like (on the GPS test
+    film: "nothing to record"). The direction, its DNA's ground and accent, and the contest's own pitch and ideal
+    are the same facts the html entry carries."""
+    key = meta.get("shot_template")
+    if not key:
+        return None
+    dna = meta.get("design_dna") if isinstance(meta.get("design_dna"), dict) else {}
+    tc = meta.get("shot_template_contest") if isinstance(meta.get("shot_template_contest"), dict) else {}
+    d = (tc.get("directions") or {}).get(key) if isinstance(tc.get("directions"), dict) else None
+    bg, accent, mode = str(dna.get("bg") or ""), str(dna.get("accent") or "").lower(), ""
+    if re.match(r"^#[0-9a-fA-F]{6}$", bg):
+        mode = "dark" if int(bg[1:3], 16) * 3 + int(bg[3:5], 16) * 6 + int(bg[5:7], 16) < 1200 else "light"
+    return {
+        "when": time.strftime("%Y-%m-%d"),
+        "deck": os.path.basename(os.path.abspath(out_dir)),
+        "register": str(key)[:80],
+        "motion": "",
+        "style": "remotion",
+        "angle": str((d or {}).get("ideal") or "")[:120],
+        "mode": mode,
+        "accent": accent if re.match(r"^#[0-9a-f]{6}$", accent) else "",
+        "language": str(meta.get("language") or ""),
+        "brand": os.path.basename(str(((meta.get("brand") or {}).get("logo")) or ""))
+                 if isinstance(meta.get("brand"), dict) else "",
+    }
+
+
+def _store(entry):
+    entries = [e for e in _load() if e.get("deck") != entry["deck"]]   # re-delivering a deck updates it
+    entries.insert(0, entry)
+    os.makedirs(_home(), exist_ok=True)
+    json.dump(entries[:_KEEP], open(_path(), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    return entry
+
+
 def record(out_dir):
-    """Append this deck's register identity; returns the entry (or None when there's nothing to record —
-    a deck without a design_plan.json has no committed register)."""
+    """Append this deck's register identity; returns the entry (or None when there's nothing to record — an html
+    deck without a design_plan.json, or a remotion film with no chosen direction)."""
+    try:
+        meta = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8")).get("meta") or {}
+    except (OSError, ValueError, AttributeError):
+        meta = {}
+    if str(meta.get("renderer") or "") in ("remotion", "remotion-bespoke"):
+        e = _remotion_entry(out_dir, meta)
+        return _store(e) if e else None
     try:
         plan = json.load(open(os.path.join(out_dir, "design_plan.json"), encoding="utf-8"))
     except (OSError, ValueError):
@@ -82,11 +126,7 @@ def record(out_dir):
         "brand": os.path.basename(str(((meta.get("brand") or {}).get("logo")) or ""))
                  if isinstance(meta.get("brand"), dict) else "",
     }
-    entries = [e for e in _load() if e.get("deck") != entry["deck"]]   # re-delivering a deck updates it
-    entries.insert(0, entry)
-    os.makedirs(_home(), exist_ok=True)
-    json.dump(entries[:_KEEP], open(_path(), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    return entry
+    return _store(entry)
 
 
 def recent(n=5):
@@ -101,7 +141,8 @@ def main():
     a = ap.parse_args()
     if a.cmd == "record":
         e = record(a.out_dir)
-        print(json.dumps(e, ensure_ascii=False) if e else "[ledger] nothing to record (no committed design_register)")
+        print(json.dumps(e, ensure_ascii=False) if e else "[ledger] nothing to record (no committed design_register, "
+              "and no remotion direction in meta.shot_template)")
     else:
         es = recent(a.n)
         if a.json:

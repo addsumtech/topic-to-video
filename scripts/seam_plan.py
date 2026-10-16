@@ -408,9 +408,9 @@ def plan_camera(slides):
 
 
 def main(argv):
-    if not argv:
-        print(__doc__.strip().splitlines()[2])
-        return 2
+    if not argv or argv[0] in ("-h", "--help"):
+        print(__doc__.strip())
+        return 0 if argv else 2
     out_dir = argv[0]
     dry = "--dry-run" in argv
     path = os.path.join(out_dir, "storyboard.json")
@@ -422,6 +422,22 @@ def main(argv):
     # FILM-SCOPED STATE, RESTORED ON THE WAY OUT. `install_workshop` sets the module-level grounds and
     # provenances this run's `plan`/`plan_camera` read; leaving them set after `main` returns (or raises)
     # would have the NEXT film planned in the same process read THIS one's workshop.
+    # A BOARD BUILT WITHOUT THE PLAN'S FIELDS plans nothing: every seam stays a default cut, and this used to say only
+    # that no beat declared a relation. When content_plan.json still maps beat-for-beat, take them from it (the plan
+    # is where `relation` is decided) and say so; a board that has diverged from the plan is left alone.
+    try:
+        import storyboard as _sb
+        _plan = json.load(open(os.path.join(out_dir, "content_plan.json"), encoding="utf-8"))
+        _miss = _sb.plan_fields_missing(board.get("slides") or [], _plan)
+        if _miss:
+            for s, b in zip(board["slides"], _plan["beats"]):
+                for k in _sb.PLAN_FIELDS:
+                    if k in b and k not in s:
+                        s[k] = b[k]
+            print("[seam_plan] took %s from content_plan.json (the board did not carry them)"
+                  % ", ".join("%s on %d beat(s)" % kv for kv in sorted(_miss.items())))
+    except (OSError, ValueError):
+        pass
     install_workshop(out_dir)
     try:
         return _plan_film(argv, out_dir, dry, path, board)
