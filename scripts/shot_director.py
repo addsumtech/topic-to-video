@@ -549,7 +549,17 @@ def main():
     # documented and reached no film, which is indistinguishable from never having written them. The
     # planner derives both from the `relation` each beat already declares, skips anything already
     # authored, and is deterministic — so running it here changes nothing for a board that has its own.
+    # ...BUT NOT ON MATERIAL. In the design-first flow this run only PROPOSES a register per beat (verdict
+    # `unjudged`); a camera written now is planned for a register the beat will probably not keep, and because it
+    # is then on the board, seam_plan treats it as AUTHORED and skips the beat (the GPS test film's beat 1). The cut
+    # and camera plan waits for the routes: SKILL.md 3.6 ③ runs seam_plan.py after them.
+    _proposed = [sl.get("index") for sl in data.get("slides", [])
+                 if isinstance(sl.get("shot_fit"), dict) and sl["shot_fit"].get("verdict") == "unjudged"]
     try:
+        if _proposed:
+            raise RuntimeError("%d beat(s) still carry proposed material (verdict unjudged) — the cuts and camera are "
+                               "planned by `python3 scripts/seam_plan.py <out_dir>` once every beat is routed"
+                               % len(_proposed))
         import seam_plan
         # THE FILM'S OWN WORKSHOP REACHES THE PLAN HERE TOO. `seam_plan.plan`/`plan_camera` read a workshop
         # shot's declared ground and a workshop object's declared provenance (scripts/workshop.py) from

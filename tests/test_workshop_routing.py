@@ -400,6 +400,11 @@ def test_shot_director_installs_the_workshop_before_planning_seams(monkeypatch, 
     import shot_director
     import seam_plan
     out = _film(tmp_path)
+    # the plan runs on ROUTED beats only (a proposal's camera would be planned for a register the beat drops)
+    b = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
+    for sl in b["slides"]:
+        sl["shot_fit"] = {"verdict": "build", "ref": "WsShotA", "ideal": "a disc the beat built for itself"}
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"), ensure_ascii=False)
     seen = {}
     real_plan = seam_plan.plan
 
@@ -453,3 +458,21 @@ def test_cjk_type_sweep_renders_against_the_film_s_own_public_dir(monkeypatch, t
     c.sweep(["WsShotA"], film_props={"WsShotA": {"fill": "#000000"}}, out_dir=out)
     assert seen and all(("--public-dir=" + os.path.abspath(out)) in cmd for cmd in seen), seen
     assert c.PUBLIC_DIR == prev_public, "the library's public dir was not restored after the sweep"
+
+
+def test_shot_director_plans_no_camera_for_beats_it_only_proposed(monkeypatch, tmp_path, capsys):
+    # the GPS test film: the material pass wrote a camera on beat 1 for a register it merely proposed, and
+    # seam_plan then skipped that beat as "authored"
+    import shot_director
+    out = _film(tmp_path)
+    b = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
+    for sl in b["slides"]:
+        sl["shot_fit"] = {"verdict": "unjudged", "material": sl["shot"]}
+        sl["relation"] = "new-topic"
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    monkeypatch.setattr(sys, "argv", ["shot_director.py", out])
+    shot_director.main()
+    said = capsys.readouterr().out
+    assert "still carry proposed material" in said and "seam_plan.py" in said, said
+    after = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
+    assert not any(sl.get("camera") or sl.get("transition_in") for sl in after["slides"])
