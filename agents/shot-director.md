@@ -212,7 +212,25 @@ floor, not the target: **a strong film is mostly adapted or built.**
 - [ ] **Restraint** — few elements, real whitespace; cut anything the claim does not need.
 - [ ] **Typography with hierarchy** — at most three sizes; the display size goes to the one word that matters.
 - [ ] **Colour that MEANS** — the accent marks the thing the beat is about, nothing else.
-- [ ] **Motion reveals the argument in sequence** — cause before effect, part before whole; it settles.
+- [ ] **Motion reveals the argument in sequence** — cause before effect, part before whole; it settles, and then
+      KEEPS LIVING (the held object's idle clock, an orbit that keeps turning, light that moves). A frame frozen for
+      seconds after its reveal reads as a slide: the old diagram films were frozen 30-74% of many beats, and
+      film_energy_qa now names each beat's frozen seconds.
+- [ ] **The film's SUBJECT, crafted once, recurring** — find the ONE thing this topic is made of and build it as an
+      object with real craft, then let it recur in different compositions. The GPS film drew one GPS satellite
+      (gold-foil body, radiator, cell wings, helix array) and used it in 11 of 15 beats — wide, cropped, engraved,
+      flat. A physical topic has its object (a puck, a cell, an engine). An ABSTRACT topic's subject is its
+      domain's own artifact: inflation → the receipt, the price tag, the basket of goods; a law → the document,
+      the seal; an algorithm → the data it moves; a historical event → the map, the letter, the instrument of the
+      time. Never an icon in a container standing in for it.
+- [ ] **Composition chosen from the idea, not repeated** — wide/establishing, close-up/cropped, off-centre with real
+      negative space, split/compare, full-bleed, macro detail, a diagram plane. Two adjacent beats must not share a
+      composition, and the title MOVES with it (bottom over the ground, right column, inside the scene) or is left
+      out where the picture speaks: the user's first review of the GPS design found nearly every title top-left.
+- [ ] **Type a viewer can read on a phone** — labels ≥ ~30 px and titles ≥ ~56 px at 1080 (≈2.8% and ≈5% of the
+      frame's short side). Cut words rather than shrink them; `text_safe_qa` reports type under the floor.
+- [ ] **Supporting frames are not a step down** — every beat after the hero is held to the hero's craft; flat blocks
+      in an off-palette grey beside a crafted hero read as two films (the GPS contest judge's finding).
 - [ ] **Signature moment** — the film builds toward one built beat designed to SURPRISE: an unexpected but RIGHT
       metaphor or encoding a viewer would remember. Bold never overrides clarity or faithfulness.
 
@@ -479,7 +497,10 @@ reflex.
    never type one from memory** (`imagefetch.attribution_line()` builds it): `validate.py` ERRORS on a beat
    showing an image whose sidecar author it does not credit, because a wrong CC-BY line credits someone else's
    photograph to a stranger.
-2. **Give the film somewhere for the LIGHT to go — `scene.ground`, on 3-6 beats.** A register holds ONE
+2. **Give the film somewhere for the LIGHT to go — `scene.ground`, on 3-6 beats** (library registers; a beat on
+   this film's OWN shot cannot take a declared ground — its shot draws its light itself: a flash, a dawn, a daylit
+   frame, built into the shot on the beats where the argument turns, and film_energy_qa's LIGHT and LIGHT ARC
+   measure either kind after the render). A register holds ONE
    ground by design; a film's light comes from moving BETWEEN beats, and if no beat re-grounds, the film runs
    on one flat exposure from first frame to last. That is what ships today: swept across the library, 142 of
    152 registers measure under the delivery gate's light floor (median luminance span 0.016 against a floor of

@@ -606,9 +606,17 @@ art-directed. Score each; redesign any beat that fails.
 - ☐ **Colour that means** — is the `color_ledger` **semantic** (no accent without meaning; problem ≠ results beat)?
 - ☐ **Motion that reveals in order** — one-per-beat, seek-frozen, whisper (no GIF), each fact on its own cue?
 - ☐ **Reasoning trace** — does each non-`title` beat carry `narrative_job`/`content_shape`/`rejected_default`?
+- ☐ **Type readable on a phone** — labels ≥ ~30 px, titles ≥ ~56 px at 1080 (≈2.8% / 5% of the short side); cut
+  words before shrinking them.
+- ☐ **Supporting pages are not a step down** — every page after the signature beat is held to its craft.
 
 **Across the deck:**
 - ☐ Does each beat differ **structurally** from its neighbour (cover-text test: told apart by SHAPE alone)?
+- ☐ **The subject, crafted once and recurring** — the ONE thing this topic is made of (an object for a physical
+  topic; the domain's own artifact for an abstract one — a receipt, a seal, the data an algorithm moves), built as a
+  workshop component with real craft and seen again across pages in different compositions (shot-director Step
+  0.55's checklist, the same rule on both tiers). Titles move with the composition; keyframe_qa reports silhouette
+  and content-band repetition.
 - ☐ **Block audit:** does every card/panel beat justify all 5 conditions? Are there ≤2 consecutive? (§3)
 - ☐ Does the `rhythm_map` **vary** (≥2 columns differ between neighbours), and does the deck clear the
   **minimum-variation floors** (≥4 protagonists, ≥3 non-card forms; §8)?
