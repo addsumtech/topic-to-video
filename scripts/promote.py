@@ -542,16 +542,62 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
     return plan
 
 
+def _promoted_from(out_dir, name, film):
+    """True when the library already holds `name` AS this film's promotion — its catalogue line says it was built for
+    this film. That is how a batch that stopped part-way resumes: what it already moved is not moved twice."""
+    in_lib = os.path.isfile(os.path.join(SHOTS, name + ".tsx")) or os.path.isfile(os.path.join(OBJECTS, name + ".tsx"))
+    if not in_lib or not os.path.isfile(LIBRARY):
+        return False
+    pat = r"\*\*%s\*\* — .*?[Bb]uilt for the film %s\b" % (re.escape(name), re.escape(film))
+    return re.search(pat, _read(LIBRARY)) is not None
+
+
+def _finish(out_dir, paths, objs, log):
+    """The film follows its promoted things: their workshop copies go, and any workshop file still importing one by
+    a relative path imports the library's (`@objects/X`, `@shots/X`)."""
+    for p in paths.values():
+        if os.path.exists(p):
+            os.remove(p)
+    relinked = []
+    targets = {os.path.splitext(p)[0] for p in paths.values()} | set(paths.values())
+    for f in ws.source_files(out_dir):
+        text = _read(f)
+        new = text
+        for spec in set(ws._IMPORT.findall(text)):
+            if not spec.startswith("."):
+                continue
+            stem = os.path.splitext(os.path.basename(spec))[0]
+            if stem in paths and os.path.normpath(os.path.join(os.path.dirname(f), spec)) in targets:
+                alias = "@objects/" if stem in objs else "@shots/"
+                new = new.replace("'%s'" % spec, "'%s%s'" % (alias, stem)).replace('"%s"' % spec, '"%s%s"' % (alias, stem))
+        if new != text:
+            _write(f, new)
+            relinked.append(os.path.relpath(f, out_dir))
+    return relinked
+
+
 def promote_batch(out_dir, specs, dry_run=False, log=print):
     """Promote several of one film's built things together — objects first, then shots — so items that import each
     other, and the helpers they share, move as one. Every item is checked before anything is written; then each is
     promoted with its workshop copy kept until the last is in; then the copies go and any workshop file that still
-    imports a promoted item is pointed at the library (`@objects/X`, `@shots/X`)."""
+    imports a promoted item is pointed at the library (`@objects/X`, `@shots/X`).
+
+    A BATCH THAT STOPS PART-WAY LEAVES THE FILM WORKING AND RESUMES. On the GPS test film the library's measuring
+    sweep refused the third item after two objects were in: the library and the film's workshop then both held them,
+    and the clash would have stopped the film rendering. Whatever reached the library is now finished for the film
+    (copies removed, imports relinked) before the error is raised, and running the same batch again skips every item
+    the library already holds as this film's promotion."""
     names = [str(sp.get("name")) for sp in specs]
-    objs, shots = ws.object_names(out_dir), ws.shot_names(out_dir)
+    objs = ws.object_names(out_dir)
+    board = json.loads(_read(os.path.join(out_dir, "storyboard.json")))
+    film = (board.get("meta") or {}).get("title") or os.path.basename(os.path.abspath(out_dir))
+    wsd = ws.workshop_dir(out_dir)
+    path_of = {n: os.path.join(wsd, ("objects" if n in objs else "shots"), n + ".tsx") for n in names}
+    already = [n for n in names if _promoted_from(out_dir, n, film)]
     order = [sp for sp in specs if sp.get("name") in objs] + [sp for sp in specs if sp.get("name") not in objs]
+    todo = [sp for sp in order if sp["name"] not in already]
     probs = []
-    for sp in order:
+    for sp in todo:
         try:
             promote(out_dir, sp["name"], sp.get("family"), sp.get("use_when"), sp.get("motion"), dry_run=True,
                     log=lambda *_a: None, batch=names)
@@ -560,32 +606,29 @@ def promote_batch(out_dir, specs, dry_run=False, log=print):
     if probs:
         raise PromoteError(probs)
     if dry_run:
-        log("[promote] would promote, in order: %s" % ", ".join(sp["name"] for sp in order))
-        return order
-    paths = {}
-    for sp in order:
-        kind = "object" if sp["name"] in objs else "shot"
-        paths[sp["name"]] = os.path.join(ws.workshop_dir(out_dir), kind + "s", sp["name"] + ".tsx")
-        promote(out_dir, sp["name"], sp.get("family"), sp.get("use_when"), sp.get("motion"), log=log, batch=names,
-                keep_workshop=True)
-    for p in paths.values():
-        if os.path.exists(p):
-            os.remove(p)
-    relinked = []
-    for f in ws.source_files(out_dir):
-        text = _read(f)
-        new = text
-        for spec in set(ws._IMPORT.findall(text)):
-            if not spec.startswith("."):
-                continue
-            stem = os.path.splitext(os.path.basename(spec))[0]
-            if stem in paths and os.path.normpath(os.path.join(os.path.dirname(f), spec)) in \
-                    {os.path.splitext(p)[0] for p in paths.values()} | set(paths.values()):
-                alias = "@objects/" if stem in objs else "@shots/"
-                new = new.replace("'%s'" % spec, "'%s%s'" % (alias, stem)).replace('"%s"' % spec, '"%s%s"' % (alias, stem))
-        if new != text:
-            _write(f, new)
-            relinked.append(os.path.relpath(f, out_dir))
+        log("[promote] would promote, in order: %s%s" % (", ".join(sp["name"] for sp in todo) or "nothing",
+            " (already in the library: %s)" % ", ".join(already) if already else ""))
+        return todo
+    done = list(already)
+    try:
+        for sp in todo:
+            try:
+                promote(out_dir, sp["name"], sp.get("family"), sp.get("use_when"), sp.get("motion"), log=log,
+                        batch=names, keep_workshop=True)
+                done.append(sp["name"])
+            except PromoteError:
+                if _promoted_from(out_dir, sp["name"], film):
+                    done.append(sp["name"])          # registered, measurement unfinished: the library holds it now
+                raise
+    except PromoteError as e:
+        relinked = _finish(out_dir, {n: path_of[n] for n in done}, objs, log)
+        left = [sp["name"] for sp in todo if sp["name"] not in done]
+        raise PromoteError(e.problems + ["the batch stopped: %s %s in the library (the film now uses %s%s); not yet "
+                                         "promoted: %s — fix the cause and run the same batch again; it resumes"
+                                         % (", ".join(done) or "nothing", "is" if len(done) == 1 else "are",
+                                            "them" if done else "nothing", "; relinked " + ", ".join(relinked)
+                                            if relinked else "", ", ".join(left) or "none")])
+    relinked = _finish(out_dir, {n: path_of[n] for n in done}, objs, log)
     log("[promote] batch done: %s in the library%s" % (", ".join(names), ("; the film's %s now import them from the "
         "library" % ", ".join(relinked)) if relinked else ""))
     return order

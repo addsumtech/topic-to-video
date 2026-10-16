@@ -368,3 +368,41 @@ def test_a_batch_promotes_items_that_import_each_other_and_their_shared_helper(t
     assert not os.path.exists(os.path.join(out, "workshop", "objects", "Sat.tsx"))
     rest = open(os.path.join(shots, "ShotB.tsx")).read()
     assert "from '@objects/Sat'" in rest and "./orbitKit" in rest, rest
+
+
+def test_a_batch_that_stops_part_way_leaves_the_film_working_and_resumes(tmp_path, sandbox, monkeypatch):
+    # the GPS film: the library's prop_reach sweep refused the third item after two objects were in — the library and
+    # the workshop then both held them, and the clash would have stopped the film rendering
+    lib, calls = sandbox
+    monkeypatch.setattr(pr, "KITS", str(lib / "kits"))
+    out = _film(tmp_path, name="Sat", kind="object")
+    shots = os.path.join(out, "workshop", "shots")
+    os.makedirs(shots, exist_ok=True)
+    src = (SHOT % {"name": "ShotA"}).replace("import {TermTable} from '@shots/TermTable';\n",
+                                            "import {Sat} from '../objects/Sat';\n")
+    open(os.path.join(shots, "ShotA.tsx"), "w").write(src.replace("title?: string;", DOCS["title?: string;"])
+                                                      .replace("flow?: number;", DOCS["flow?: number;"]))
+    open(os.path.join(shots, "ShotB.tsx"), "w").write(src.replace("ShotA", "ShotB"))
+    b = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
+    b["meta"]["build_list"].append({"id": "ShotA", "kind": "shot", "beats": [2], "slot": "own", "means": "m",
+                                    "accept": "a"})
+    json.dump(b, open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    time.sleep(0.02)
+    open(os.path.join(out, "out.mp4"), "wb").write(b"\0")
+    boom = {"n": 1}
+
+    def flaky(cmd, log=print):
+        if boom["n"]:
+            boom["n"] -= 1
+            raise pr.PromoteError(["`%s` exited 1" % " ".join(cmd[1:])])
+    monkeypatch.setattr(pr, "_run", flaky)
+    spec = [{"name": "Sat"}, {"name": "ShotA", "family": "D", "use_when": "u", "motion": "m"}]
+    with pytest.raises(pr.PromoteError) as e:
+        pr.promote_batch(out, spec)
+    assert any("run the same batch again; it resumes" in p for p in e.value.problems), e.value.problems
+    # the film works: no copy of a promoted item is left beside the library's, and its shot imports the library's
+    assert not os.path.exists(os.path.join(out, "workshop", "objects", "Sat.tsx"))
+    assert "'@objects/Sat'" in open(os.path.join(shots, "ShotB.tsx")).read()
+    # the same batch again finishes it (ShotA was registered before its measurement failed: it is not moved twice)
+    pr.promote_batch(out, spec)
+    assert os.path.isfile(str(lib / "shots" / "ShotA.tsx")) and not os.path.exists(os.path.join(shots, "ShotA.tsx"))
