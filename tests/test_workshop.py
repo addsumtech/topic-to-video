@@ -878,8 +878,16 @@ def test_still_renders_in_a_contest_directions_look_before_the_board_has_one(tmp
         ws.direction_dna(str(tmp_path / "missing.json"))
 
 
-def test_check_points_at_the_contest_not_validate_before_there_is_a_board(tmp_path, capsys):
+def test_check_points_at_the_contest_not_validate_before_any_beat_has_a_shot(tmp_path, capsys):
     out = _film(tmp_path)
+    for board in (None, {"slides": [{"index": 1, "narration": ""}]}):       # no board; a board from the plan
+        if board:
+            with open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8") as fh:
+                json.dump(board, fh)
+        assert ws.main([out, "check"]) == 0
+        said = capsys.readouterr().out
+        assert "contest_sample.py" in said and "validate.py" not in said, said
+    with open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8") as fh:
+        json.dump({"slides": [{"index": 1, "shot": "KnowledgeGraph"}]}, fh)
     assert ws.main([out, "check"]) == 0
-    said = capsys.readouterr().out
-    assert "contest_sample.py" in said and "validate.py" not in said, said
+    assert "validate.py" in capsys.readouterr().out

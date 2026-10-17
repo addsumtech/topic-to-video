@@ -404,7 +404,12 @@ def main():
             print("    cd remotion && " + " ".join(still))
     if a.render:
         print("[contest_sample] wrote %d sample(s): %s" % (len(made), ", ".join(os.path.basename(m) for m in made)))
-        print("  → montage / present via AskUserQuestion; the user PICKS the direction (winner first).")
+        # THE TWO STEPS BETWEEN THE SAMPLES AND THE USER were missing from this line, so an agent following it went
+        # straight to the pick (the compound-interest test's report): the diversity gate, then the judge.
+        print("  NEXT: python3 scripts/contest_diversity.py %s/_contest_*.png   (rediverge a clustered pair)"
+              % a.out)
+        print("  then JUDGE the samples (agents/shot-critic.md, judge mode: fit > meaning > craft > boldness), copy "
+              "the videos to the Desktop, and let the USER pick via AskUserQuestion — the judge's winner first.")
 
 
 if __name__ == "__main__":

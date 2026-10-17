@@ -77,13 +77,18 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
    built in this film's workshop, renders with the workshop in the bundle, and writes `_contest_<k>.mp4` plus
    `_contest_<k>.png` (the hero at 90% of its slot) for the diversity gate.
 3. **DIVERSITY gate (mechanical).** `python scripts/contest_diversity.py <out>/_contest_*.png` — a flagged pair
-   (clustered mode+palette+silhouette) means the divergence was theatre: REDIVERGE that pair (conceive a genuinely
-   different atmosphere) before showing the user.
-4. **JUDGE (the selection half).** Dispatch **`agents/shot-critic.md` in JUDGE mode** on the stills + the beats:
+   (clustered mode+palette+silhouette) usually means the divergence was theatre: REDIVERGE that pair (conceive a
+   genuinely different atmosphere) before showing the user — or keep both with a NAMED justification when both are
+   right for the subject (SKILL.md's rule; the gate's score is coarse and swings with cosmetic edits).
+4. **JUDGE (the selection half) — dispatched by the ORCHESTRATOR, never by you.** The director does not rank its
+   own directions; hand back the directions and their samples, and the orchestrator dispatches
+   **`agents/shot-critic.md` in JUDGE mode** on the samples + the beats:
    it disqualifies any floor-breaker (blank/garbled/off-brief/illegible), ranks the survivors, and names ONE
    winner + a runner-up. A floor-breaking or off-brief candidate must NOT reach the user unranked.
 5. **USER picks** from the judged finalists via `AskUserQuestion` (option prompt, winner first with "(Recommended)";
-   point them at the **sample VIDEOS** `_contest_<k>.mp4` — text alone is not a basis to choose a look). Their pick is FINAL. Record on the storyboard:
+   point them at the **sample VIDEOS** `_contest_<k>.mp4` — text alone is not a basis to choose a look). Their pick is FINAL.
+   An UNATTENDED run, where nobody can answer, takes the judge's winner and records `user_pick: false` with a
+   `user_answer` saying the user was not asked — validate's warning about it is the honest record. Record on the storyboard:
    `meta.shot_template = <pick>` + `meta.shot_template_contest = {candidates:[all keys], winner:<pick>,
    user_pick:true, width:<N>, audacity:"<a>", judge_ranked:true, directions: {<key>: {ideal, hero,
    palette_source}}}`, and the winner's `dna` as `meta.design_dna`. `validate.py` ERRORS a bold/experimental film
@@ -286,7 +291,11 @@ STRUCTURE (composition + motion + information hierarchy), the DNA contributes th
 `fg`/`dim`/`accent`/`accent2`/`onAccent`/`surface`/`surfaceBorder`/`line` · `radius`/`borderWidth` · `motion`
 (`type`/`execute`/`smooth`/`mechanical`) · `decoration` (`prompt`/`status`/`breadcrumb`/`cursor`/`scanline`/`grid`/
 `line-numbers`) · `uppercaseLabels`/`labelSpacing` · `atoms` (the FORM each content atom speaks — see
-`remotion/src/runtime/atoms.tsx`). A **built-in preset** exists for known templates (terminal →
+`remotion/src/runtime/atoms.tsx`). Optional, and read by the renderer when present: `motif` (`{kind, ink,
+opacity, scale}` — the subject's material, opacity kept near 0.05), `finish` (`"none"` turns the film finish off) and `seam` (the film's own cut, e.g.
+`{type:'wipe', direction:'from-bottom'}`; the contest direction's `seam` is the PITCH of it, this is what renders).
+**A CJK film names the bundled faces** — `"Noto Sans SC"` / `"Noto Serif SC"` — in every font stack; system faces
+alone may be missing where the film renders, and validate warns. A **built-in preset** exists for known templates (terminal →
 `TERMINAL_DNA`), auto-applied by `render_remotion.py` when you set `meta.shot_template` and author no `design_dna`;
 authoring the explicit block is preferred (it's the reviewable Design DNA and lets you tune tokens). **The DNA is
 provided to the Film at render (a `DesignDNAContext`) and every migrated register reads it via `useDNA()`**, so one
@@ -316,9 +325,9 @@ value, and `validate.py` will name what is missing):
 ```json
 "design_dna": {
   "id": "terminal",
-  "fontDisplay": "\"JetBrains Mono\", \"PingFang SC\", \"Hiragino Sans\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", ui-monospace, monospace",
-  "fontMono": "\"JetBrains Mono\", \"PingFang SC\", \"Hiragino Sans\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", ui-monospace, monospace",
-  "fontBody": "\"JetBrains Mono\", \"PingFang SC\", \"Hiragino Sans\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", ui-monospace, monospace",
+  "fontDisplay": "\"JetBrains Mono\", \"Noto Sans SC\", \"PingFang SC\", ui-monospace, monospace",
+  "fontMono": "\"JetBrains Mono\", \"Noto Sans SC\", \"PingFang SC\", ui-monospace, monospace",
+  "fontBody": "\"JetBrains Mono\", \"Noto Sans SC\", \"PingFang SC\", ui-monospace, monospace",
   "bg": "#080b11", "bgGrad": "radial-gradient(120% 120% at 50% 0%, #0d141c, #05070b 72%)",
   "fg": "#d7e3ef", "dim": "#5d7186", "accent": "#37d68a", "accent2": "#7ee0ff", "onAccent": "#03130c",
   "surface": "#0d1219", "surfaceBorder": "#1d2a36", "line": "#16202b",

@@ -1875,8 +1875,11 @@ def main(argv=None):
             for x in probs:
                 print("  PROBLEM: " + x)
             print("[workshop] %s — %d problem(s)" % ("CLEAN" if not probs else "NOT CLEAN", len(probs)))
-            if not probs and not (_board(a.out_dir).get("slides")):
-                # the contest stage: directions are being designed and there is no board for validate to read yet
+            if not probs and not any(isinstance(sl, dict) and sl.get("shot")
+                                     for sl in _board(a.out_dir).get("slides") or []):
+                # the contest stage: directions are being designed, and no beat has a shot for validate to read yet
+                # (a board made from the content plan exists by then — the compound test followed this line into
+                # "slide 1: remotion tier requires a `shot`")
                 print("NEXT: python3 scripts/contest_sample.py --route \"<topic>\" --out %s --conceived "
                       "<directions.json> --render" % a.out_dir)
             elif not probs:
