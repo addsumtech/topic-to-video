@@ -1237,6 +1237,12 @@ def _prove(argv, out_dir, board, ws_durs):
         unmeasured.append("the film's TONAL REGISTER: no beat yielded an ink measurement, so the "
                           "distribution check did not run at all")
 
+    sheet = None
+    if "--no-stills" not in argv and rendered:
+        try:
+            sheet = design_sheet(out_dir, board)
+        except Exception as e:                           # noqa: BLE001 — the sheet is for eyes; the checks stand
+            unmeasured.append("the design review sheet could not be tiled: %s" % e)
     for e in errors:
         print("  ERROR: " + e)
     for w in warns:
@@ -1256,7 +1262,52 @@ def _prove(argv, out_dir, board, ws_durs):
     print("[shot_proof] %s  %s · %d error(s), %d warning(s), %d not measured, %d n/a%s"
           % (state, cover, len(errors), len(warns), len(unmeasured), len(exempt),
              "  (static only — drop --no-stills for the rendered checks)" if static_only else ""))
+    if sheet:
+        print("[shot_proof] design review sheet: %s — every beat's settled frame on one page. SHOW IT at the 3.6 "
+              "checkpoint (copied to the Desktop): composition, type size and the subject's craft are judged on "
+              "the picture, never on a list of form names" % sheet)
     return 1 if (errors or unmeasured) else 0
+
+
+def design_sheet(out_dir, board, cols=3, tile_w=640):
+    """Tile `_proof/beat_NN.png` into `<out_dir>/_design_review.png`, each labelled `beat N · route · shot`.
+
+    WHY. The 3.6 checkpoint showed the user a content plan, a palette and a list of FORM NAMES; what the user
+    corrected on the GPS film — titles all top-left, labels too small, half-empty frames, satellites too small —
+    could only be seen with every beat side by side, and that page existed only because the orchestrator made it by
+    hand. The compound-interest test's sheet showed nine flat ledger pages in a row the same way. It is now the
+    proof run's own output."""
+    from PIL import Image, ImageDraw
+    slides = board.get("slides") or []
+    tiles = []
+    for pos, sl in enumerate(slides, 1):
+        png = os.path.join(out_dir, "_proof", "beat_%02d.png" % pos)
+        if not os.path.exists(png):
+            continue
+        fit = sl.get("shot_fit") if isinstance(sl.get("shot_fit"), dict) else {}
+        tiles.append(("beat %d · %s · %s" % (pos, fit.get("verdict") or "?", sl.get("shot")), png))
+    if not tiles:
+        return None
+    first = Image.open(tiles[0][1])
+    th = int(round(tile_w * first.height / float(first.width)))
+    pad, label = 16, 34
+    rows = -(-len(tiles) // cols)
+    sheet = Image.new("RGB", (cols * tile_w + (cols + 1) * pad, rows * (th + label + pad) + pad), (24, 24, 24))
+    d = ImageDraw.Draw(sheet)
+    try:
+        from PIL import ImageFont
+        font = ImageFont.truetype(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets",
+                                               "fonts", "DejaVuSans.ttf"), 20)
+    except Exception:                                    # noqa: BLE001 — a default face still labels the tile
+        font = None
+    for k, (text, png) in enumerate(tiles):
+        r, c = divmod(k, cols)
+        x, y = pad + c * (tile_w + pad), pad + r * (th + label + pad)
+        d.text((x, y + 6), text, fill=(235, 235, 235), font=font)
+        sheet.paste(Image.open(png).convert("RGB").resize((tile_w, th)), (x, y + label))
+    out = os.path.join(out_dir, "_design_review.png")
+    sheet.save(out)
+    return out
 
 
 if __name__ == "__main__":

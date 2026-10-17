@@ -119,6 +119,38 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size
     return []
 
 
+TITLE_TAG = "TITLE-PROBE "
+
+
+def title_of(shot, props, frame, tmp_png, public_dir=None, env=None):
+    """{text, ax, cy, px, align} for the settled frame's title (runtime/titleProbe.tsx), or None — no text that is not
+    a figure, or a render that measured nothing (said by the caller's coverage, never guessed)."""
+    import workshop as _ws
+    payload = dict(props or {}, titleProbe=True)
+    pf = tmp_png + ".title.json"
+    with open(pf, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, allow_nan=False)
+    cmd = ["npx", "remotion", "still", "src/index.ts", shot, tmp_png, "--frame=%d" % frame, "--gl=angle",
+           "--log=error", "--props=" + os.path.abspath(pf)]
+    if public_dir:
+        cmd.append("--public-dir=" + os.path.abspath(public_dir))
+    blob = ""
+    for _attempt in (1, 2):                              # a flaky browser is retried once, as audit_shot does
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
+        blob = (r.stdout or "") + (r.stderr or "")
+        if TITLE_TAG in blob:
+            break
+    if os.path.exists(pf):
+        os.remove(pf)
+    if TITLE_TAG not in blob:
+        return None
+    try:
+        found, _end = json.JSONDecoder().raw_decode(blob.split(TITLE_TAG, 1)[1])
+    except json.JSONDecodeError:
+        return None
+    return found if isinstance(found, dict) else None
+
+
 # the floor's two levels, as fractions of the frame's short side — the SAME constants runtime/textSafe.tsx reports
 # against (TYPE_WARN_FRAC there decides what is sent; this decides which of it is an error)
 TYPE_WARN_FRAC, TYPE_ERROR_FRAC = 0.0275, 0.022
@@ -136,8 +168,10 @@ def type_debt():
 
 
 # TITLE PLACEMENT. A user's review of the GPS design found nearly every title top-left — a repeated composition no
-# gate could see, because each frame alone is fine. The walker reports each frame's largest visible type (its title)
-# and where it sits; this asks whether one ninth of the frame holds most of the film's titles.
+# gate could see, because each frame alone is fine. `title_of` asks runtime/titleProbe.tsx for each settled frame's
+# title — its largest type that is not a figure, placed by the edge its line is set from — and this asks whether one
+# ninth of the frame holds most of the film's titles. (It first read "the largest type": on the compound-interest
+# test that was the printed figures, while the titles sat top-left on 9 of 11 beats unreported.)
 TITLE_ZONE_SHARE = 0.6
 TITLE_ZONE_MIN = 4
 
@@ -153,15 +187,29 @@ def title_repetition(titles):
     if len(titles) < TITLE_ZONE_MIN:
         return None
     import collections
-    zones = collections.Counter(_zone(t["cx"], t["cy"]) for _i, _s, t, _x in titles)
+    zones = collections.Counter(_zone(t.get("ax", t.get("cx")), t["cy"]) for _i, _s, t, _x in titles)
     zone, n = zones.most_common(1)[0]
     if n < TITLE_ZONE_MIN or n / len(titles) < TITLE_ZONE_SHARE:
         return None
-    beats = [str(i) for i, _s, t, _x in titles if _zone(t["cx"], t["cy"]) == zone]
-    return ("TITLE PLACEMENT — %d of %d beats put their title (their largest type) in the %s of the frame (beats %s): "
+    beats = [str(i) for i, _s, t, _x in titles if _zone(t.get("ax", t.get("cx")), t["cy"]) == zone]
+    return ("TITLE PLACEMENT — %d of %d beats put their title (their largest type that is not a figure) in the %s of the "
+            "frame (beats %s): "
             "a repeated composition, however different the pictures. Move the title with each composition (bottom over "
             "the ground, a side column, inside the scene) or leave it out where the picture speaks"
             % (n, len(titles), zone, ", ".join(beats)))
+
+
+def title_placement(titles, meta):
+    """('error' | 'warn', sentence) or None. A repeated title position is an ERROR unless the film declares it as its
+    system — `meta.fixed_title_position: "<why this film keeps one title position>"`, e.g. a lower-third every beat
+    shares. It was a warning, and the unattended compound-interest run triaged it as "accepted" with the rest."""
+    note = title_repetition(titles)
+    if not note:
+        return None
+    why = str((meta or {}).get("fixed_title_position") or "").strip()
+    if len(re.findall(r"[A-Za-z]+|[\u3400-\u9fff]", why)) >= 6:
+        return "warn", note + " — kept by meta.fixed_title_position: " + why[:120]
+    return "error", note + (". If one title position IS this film's system, say why in meta.fixed_title_position")
 
 
 def write_type_debt(findings, scope):
@@ -254,10 +302,12 @@ def scan_film(out_dir, warnings=None):
         frame = int(round(rr.frame_at_t(durs[shot], rr.SETTLED_T)))
         checked += 1
         debt, own = type_debt(), set(_ws.shot_names(out_dir))
+        t = title_of(shot, props, frame, tmp, public_dir=out_dir, env=env)
+        if t:
+            titles.append((i, shot, t, t.get("text", "")))
         for v in audit_shot(shot, props, frame, tmp, public_dir=out_dir, env=env, type_size=True):
             if v.get("title"):
-                titles.append((i, shot, v["title"], v.get("text", "")))
-                continue
+                continue                                 # the walk's own "largest type" record; title_of decides
             lvl = type_size_level(v)
             if lvl and not v.get("out") and not v.get("band"):
                 line = "scene %02d (%s): SMALL TYPE — %s" % (i, shot, _describe_small(v))
@@ -279,9 +329,11 @@ def scan_film(out_dir, warnings=None):
     for p in (tmp, tmp + ".props.json"):
         if os.path.exists(p):
             os.remove(p)
-    note = title_repetition(titles)
-    if note and warnings is not None:
-        warnings.append(note)
+    verdict = title_placement(titles, meta)
+    if verdict and verdict[0] == "error":
+        findings.append(verdict[1])
+    elif verdict and warnings is not None:
+        warnings.append(verdict[1])
     return findings, checked, len(slides), skipped
 
 

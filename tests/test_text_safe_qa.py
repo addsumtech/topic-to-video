@@ -503,3 +503,40 @@ def test_the_library_type_debt_is_a_warning_in_a_film_and_a_films_own_shot_is_he
     assert len(debt) >= 50 and all(set(r) == {"min_px", "under_error", "under_warn"} for r in debt.values())
     lib = g.durations()
     assert set(debt) <= set(lib), "the debt names registers the library no longer has: %s" % (set(debt) - set(lib))
+
+
+# ── TITLE PLACEMENT ─────────────────────────────────────────────────────────────────────────────────────────────
+def _t(ax, cy, text="一个标题"):
+    return {"text": text, "ax": ax, "cy": cy, "px": 64, "align": "left"}
+
+
+def test_title_placement_reads_the_edge_a_line_is_set_from():
+    """A long LEFT-aligned title reaching past a third of the frame was read by its centre, as centred. Its zone is
+    the edge it is set from (`ax`)."""
+    titles = [(i, "S", _t(0.06, 0.12), "") for i in range(1, 6)]
+    note = g.title_repetition(titles)
+    assert note and "5 of 5" in note and "top-left" in note, note
+    assert g.title_repetition([(1, "S", _t(0.06, 0.12), ""), (2, "S", _t(0.5, 0.5), ""),
+                               (3, "S", _t(0.9, 0.85), ""), (4, "S", _t(0.06, 0.5), ""),
+                               (5, "S", _t(0.5, 0.15), "")]) is None
+
+
+def test_a_repeated_title_position_is_an_error_unless_the_film_declares_it():
+    """It was a warning, and the unattended compound-interest run triaged it as accepted: 9 of 11 beats top-left."""
+    titles = [(i, "S", _t(0.06, 0.12), "") for i in range(1, 10)]
+    lvl, note = g.title_placement(titles, {})
+    assert lvl == "error" and "fixed_title_position" in note, note
+    lvl, note = g.title_placement(titles, {"fixed_title_position": "a running head every page of a ledger keeps"})
+    assert lvl == "warn" and "kept by meta.fixed_title_position" in note, note
+    assert g.title_placement(titles, {"fixed_title_position": "ok"})[0] == "error", "a reason, not a token"
+    assert g.title_placement(titles[:3], {}) is None
+
+
+@_NEEDS_RENDER
+def test_the_title_is_the_largest_type_that_is_not_a_figure(tmp_path):
+    """On the compound film the largest type was the printed figures (1,000 · 2,593.74 · 18%), so the old reading
+    never saw the titles. The fixture puts a 220 px figure under a 64 px left-aligned title that reaches past the
+    middle of the frame."""
+    t = g.title_of("TitleProbeFixture", {}, 120, str(tmp_path / "t.png"))
+    assert t and t["text"].startswith("THE SECOND YEAR") and t["align"] == "left", t
+    assert t["ax"] < 1 / 3 and t["cy"] < 1 / 3, t

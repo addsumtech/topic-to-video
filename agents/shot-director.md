@@ -230,7 +230,9 @@ ideal: read them as donors of technique, not as the beat's frame.
 - [ ] **Composition chosen from the idea, not repeated** — wide/establishing, close-up/cropped, off-centre with real
       negative space, split/compare, full-bleed, macro detail, a diagram plane. Two adjacent beats must not share a
       composition, and the title MOVES with it (bottom over the ground, right column, inside the scene) or is left
-      out where the picture speaks: the user's first review of the GPS design found nearly every title top-left.
+      out where the picture speaks: the user's first review of the GPS design found nearly every title top-left, and
+      the compound-interest test put 9 of 11 there. `text_safe_qa` ERRORS when ≥60% of the beats (≥4) set their title
+      in one ninth of the frame, unless `meta.fixed_title_position` says why one position IS this film's system.
 - [ ] **Type a viewer can read on a phone** — labels ≥ ~30 px and titles ≥ ~56 px at 1080 (≈2.8% and ≈5% of the
       frame's short side). Cut words rather than shrink them; `text_safe_qa` reports type under the floor.
 - [ ] **Supporting frames are not a step down** — every beat after the hero is held to the hero's craft; flat blocks

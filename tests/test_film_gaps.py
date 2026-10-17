@@ -114,3 +114,20 @@ def test_family_spread_counts_library_beats_not_a_films_own_shots():
     r = v.evaluate({"meta": {"renderer": "remotion"}, "slides": built + lib}, "/tmp", pre_tts=True)
     assert not any("design famil" in w and "span only" in w for w in r["warnings"]), \
         [w for w in r["warnings"] if "famil" in w]
+
+
+def test_the_proof_run_tiles_a_design_review_sheet(tmp_path):
+    """The 3.6 checkpoint showed form NAMES; what the user corrected on GPS (and the compound test's nine flat ledger
+    pages) is only visible with every beat side by side. shot_proof writes that page itself."""
+    from PIL import Image
+    import shot_proof as sp
+    (tmp_path / "_proof").mkdir()
+    for k, col in ((1, (200, 30, 30)), (2, (30, 30, 200)), (4, (30, 160, 30))):
+        Image.new("RGB", (1920, 1080), col).save(str(tmp_path / "_proof" / ("beat_%02d.png" % k)))
+    board = {"slides": [{"shot": "A", "shot_fit": {"verdict": "build"}}, {"shot": "B"},
+                        {"shot": "C"}, {"shot": "D", "shot_fit": {"verdict": "adapt"}}]}
+    out = sp.design_sheet(str(tmp_path), board, cols=2, tile_w=320)
+    img = Image.open(out)
+    assert out.endswith("_design_review.png") and img.width == 2 * 320 + 3 * 16, img.size
+    assert img.getpixel((16 + 160, 16 + 34 + 90))[0] > 150             # beat 1's tile, where it belongs
+    assert sp.design_sheet(str(tmp_path), {"slides": []}) is None

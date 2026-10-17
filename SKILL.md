@@ -698,6 +698,13 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      beats from each beat's `relation` (payoff → push, close/opener → pull, else hold). Never skip it (why:
      case-law W2). `validate.py` warns when a film of ≥12 beats carries no marked seam at all, and when a
      declared `design_dna.seam` makes so many cuts kinetic that the marks stop being punctuation.
+     **④ Look at the whole film on one page, then show it.** `python3 scripts/shot_proof.py <out_dir>` renders
+     every beat's settled frame and tiles them into `<out_dir>/_design_review.png` (beat · route · shot). Read the
+     SHEET, not the board, against the per-beat checklist (shot-director Step 0.55): does the composition change
+     with the idea (wide, close-up, the object itself, a diagram plane — not one page layout repeated), does the
+     film's subject appear as a crafted OBJECT the camera can get close to, is every label readable at phone size,
+     is every frame full? The compound-interest test passed every gate with nine flat ledger pages in a row; only
+     the sheet showed it. Fix, re-run, then copy the sheet to the Desktop and show it at the checkpoint below.
      The review after the render (`agents/shot-critic.md`, its ledger, `critic_ledger.py --final`) and
      promotion of built things are steps 9d–9f.
      **From scratch, start the board from the content plan:** `python3 scripts/storyboard.py <out_dir> --from-plan
@@ -747,7 +754,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
        `imagegen` (codex/key); keep it a generic broll. Most pages stay typographic.
      🔴 **CHECKPOINT · 🛑 STOP:** show the content plan (arc + beats + coarse visual intents + the
      continuity through-line) AND the design plan (**motif** + theme palette + per-beat forms), and get
-     the user's OK before authoring narration. If the user changes the register/style HERE (after a
+     the user's OK before authoring narration. **On the remotion tier the design plan is SHOWN as
+     `_design_review.png` (3.6 ④, on the Desktop)** — the user judges composition, type and the subject on the
+     picture; a list of form names is not a design they can approve. If the user changes the register/style HERE (after a
      contest), re-record `register_contest.winner` (`user_pick: true`) to match — the committed
      register and the recorded winner must agree.
 4. **Write the manuscript — dispatch `agents/scriptwriter.md` (the WRITE specialist).** Give it

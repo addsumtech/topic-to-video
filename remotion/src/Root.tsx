@@ -1,6 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Composition} from 'remotion';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
+import {TitleProbe, TitleProbeFixture} from './runtime/titleProbe';
 import {BaselineUnlockContext} from './runtime/glide';
 import {CJK_MIN_LEADING} from './runtime/cjkType';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
@@ -413,7 +414,10 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   // `baselineUnlock: false` switches the type unlock off (runtime/glide.ts) — for identity proofs that compare a
   // register's current source with its source at an older commit, which never asked for it. Never set by a film.
   const unlockOff = (p as {baselineUnlock?: unknown}).baselineUnlock === false;
-  const inner = <ObjectsContext.Provider value={OBJECTS}><C {...rest} />{audit}{glide}</ObjectsContext.Provider>;
+  // `titleProbe` asks where the settled frame's title sits (runtime/titleProbe.tsx) — its own pass, so the
+  // text-safety walk every register imports stays untouched
+  const titleProbe = (p as {titleProbe?: unknown}).titleProbe ? <TitleProbe /> : null;
+  const inner = <ObjectsContext.Provider value={OBJECTS}><C {...rest} />{audit}{glide}{titleProbe}</ObjectsContext.Provider>;
   const shot = unlockOff ? <BaselineUnlockContext.Provider value={false}>{inner}</BaselineUnlockContext.Provider> : inner;
   if (!active) return shot;
   return (
@@ -459,6 +463,7 @@ export const RemotionRoot: React.FC = () => (
     {F('CutOffProbe', CutOffProbe, 165)}
     {F('CutOffCleanProbe', CutOffCleanProbe, 165)}
     {F('SmallTypeProbe', SmallTypeProbe, 165)}
+    {F('TitleProbeFixture', TitleProbeFixture, 165)}
     {F('OrphanLineProbe', OrphanLineProbe, 165)}
     {F('BalancedLineProbe', BalancedLineProbe, 165)}
     {F('TightLeadingProbe', TightLeadingProbe, 165)}
