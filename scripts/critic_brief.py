@@ -91,13 +91,24 @@ _SKILL_INPUTS = (("scripts", None), (os.path.join("remotion", "src"), None), ("r
                  (os.path.join("assets", "html"), None))
 
 
+def _skipped(name, film):
+    """A FILM's `_`/`.` names are the gates' and the review's own outputs; the SKILL's `_` names are code
+    (scripts/_common.py, _cdp.py, remotion/_ground_luma.json) — skipping them there let an edit to _common.py replay a
+    gate's old PASS. The skill skips only caches."""
+    if film:
+        return name.startswith((".", "_"))
+    return name.startswith(".") or name in ("__pycache__", "node_modules")
+
+
 def _hash_tree(h, base, label, ext=None, top_skip=()):
+    film = label == "film"
     for dp, dns, fns in os.walk(base):
-        dns[:] = sorted(d for d in dns if not d.startswith((".", "_")) and not (dp == base and d in top_skip))
+        dns[:] = sorted(d for d in dns if not _skipped(d, film) and not (dp == base and d in top_skip))
         if ext and dp != base:
             continue                                   # ("remotion", ".json"): its top-level manifests only
         for f in sorted(fns):
-            if f.startswith((".", "_")) or (dp == base and f in top_skip) or (ext and not f.endswith(ext)):
+            if _skipped(f, film) or (dp == base and f in top_skip) or (ext and not f.endswith(ext)) or \
+                    f.endswith(".pyc"):
                 continue
             path = os.path.join(dp, f)
             rel = os.path.relpath(path, base)
@@ -107,11 +118,20 @@ def _hash_tree(h, base, label, ext=None, top_skip=()):
                     meta = {k: v for k, v in (b.get("meta") or {}).items() if k not in _REVIEW_ONLY_KEYS}
                     data = json.dumps(dict(b, meta=meta), sort_keys=True, ensure_ascii=False).encode("utf-8")
                 except (OSError, ValueError, AttributeError):
-                    data = open(path, "rb").read()
+                    data = _read_or_marker(path)
             else:
-                data = open(path, "rb").read()
+                data = _read_or_marker(path)
             h.update(("\n%s:%s:" % (label, rel)).encode("utf-8"))
             h.update(hashlib.sha256(data).digest())
+
+
+def _read_or_marker(path):
+    """The file's bytes — or, for one that cannot be read (a dangling link, a permission), a marker naming why, so the
+    fingerprint still changes with it and the brief does not crash before any gate runs."""
+    try:
+        return open(path, "rb").read()
+    except OSError as e:
+        return ("<unreadable: %s>" % type(e).__name__).encode()
 
 
 def gate_inputs(out_dir):
@@ -151,7 +171,9 @@ def _gate_run(script, out_dir, args=(), timeout=240):
                           g.get("exit"))
     out = _run(script, out_dir, *args, timeout=timeout)
     code = getattr(out, "code", None)
-    if cache is not None and isinstance(code, int):
+    # ONLY A PASS IS KEPT. A failure can come from the environment (a browser that flaked, a missing tool), which
+    # the fingerprint cannot see — replaying it would hold the film failed after the cause was fixed.
+    if cache is not None and code == 0:
         cache["gates"][name] = {"exit": code, "output": str(out)}
     return out
 
@@ -882,7 +904,9 @@ def main(argv):
     global _CACHE
     if sheet_ok:
         rid, inputs = _cl.render_id(out_dir), gate_inputs(out_dir)
-        _CACHE = {"render": rid, "inputs": inputs, "hit": _load_gate_runs(out_dir, rid, inputs), "gates": {}}
+        _CACHE = {"render": rid, "inputs": inputs, "gates": {},
+                  "hit": {k: g for k, g in _load_gate_runs(out_dir, rid, inputs).items()
+                          if isinstance(g, dict) and g.get("exit") == 0}}     # a recorded failure is re-run
         if _CACHE["hit"]:
             print("[critic_brief] %d gate result(s) recorded on this render with unchanged inputs — reused, not re-run"
                   % len(_CACHE["hit"]))

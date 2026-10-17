@@ -606,3 +606,46 @@ def test_a_brief_after_gates_on_the_same_render_reuses_them_and_any_input_change
     calls.clear()
     critic_brief.main([out])
     assert calls == ["check_av.py"], calls
+
+
+def test_the_gate_fingerprint_sees_the_skills_underscore_files_and_survives_a_dangling_link(tmp_path, monkeypatch):
+    """`_`-names were skipped in the SKILL tree too, so editing scripts/_common.py replayed a gate's old PASS; and a
+    dangling link in the film folder crashed the brief before any gate ran."""
+    import critic_brief
+    skill = tmp_path / "skill"
+    (skill / "scripts").mkdir(parents=True)
+    (skill / "scripts" / "_common.py").write_text("A = 1\n")
+    (skill / "scripts" / "__pycache__").mkdir()
+    (skill / "scripts" / "__pycache__" / "x.pyc").write_bytes(b"\x00")
+    film = tmp_path / "film"
+    film.mkdir()
+    (film / "storyboard.json").write_text("{}")
+    os.symlink(str(tmp_path / "gone.png"), str(film / "pic.png"))
+    monkeypatch.setattr(critic_brief, "_HERE", str(skill / "scripts"))
+    a = critic_brief.gate_inputs(str(film))
+    (skill / "scripts" / "__pycache__" / "x.pyc").write_bytes(b"\x01")
+    assert critic_brief.gate_inputs(str(film)) == a, "a bytecode cache is not an input"
+    (skill / "scripts" / "_common.py").write_text("A = 2\n")
+    assert critic_brief.gate_inputs(str(film)) != a, "an edit to _common.py must change the fingerprint"
+
+
+def test_a_failed_gate_is_run_again_not_replayed(tmp_path, monkeypatch):
+    """A failure can be the environment's (a flaky browser, a missing tool) — the fingerprint cannot see it, so only a
+    PASS is reused."""
+    import critic_brief
+    out = _html_film(tmp_path, review={"tier": "fast", "user_answer": "fast", "preselected": "fast"},
+                     fits={2: SHARES})
+    calls = []
+
+    def fake(script, out_dir, *a, **k):
+        calls.append(script)
+        if script == "keyframe_qa.py":
+            for i in (1, 2):
+                _strip(os.path.join(out_dir, "_keyframes", "scene_%02d.png" % i), colour=(200, 40, 40))
+        return critic_brief.GateOutput("(stub %s)" % script, 1 if script == "rhythm_qa.py" else 0)
+    monkeypatch.setattr(critic_brief, "_run", fake)
+    critic_brief.main([out, "--gates"])
+    assert "rhythm_qa.py" in calls
+    calls.clear()
+    critic_brief.main([out, "--gates"])
+    assert calls == ["rhythm_qa.py"], calls
