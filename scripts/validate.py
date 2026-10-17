@@ -2076,9 +2076,11 @@ COMPOSITION_SHARE, COMPOSITION_MIN, COMPOSITION_RUN = 0.6, 4, 4   # GPS ran 3 or
 
 
 def _composition_variety(meta, slides, errors, warnings):
-    """Every designed beat names its `shot_fit.composition`; one composition must not carry the film."""
-    if not meta.get("form_vocabulary"):
-        return                                           # a film from before design-first: its forms are warned above
+    """Every designed beat names its `shot_fit.composition`; one composition must not carry the film.
+
+    Keyed on the beats' own ideals, not on `meta.form_vocabulary` — a board without a vocabulary was silently
+    unchecked. A MISSING composition is a warning (a film designed before the field existed — the GPS film — must
+    still re-render); a REPEATED one is the error, and the title-placement gate and the design sheet back it up."""
     seq, missing, unknown = [], [], []
     for pos, s in enumerate(slides, 1):
         fit = s.get("shot_fit") if isinstance(s.get("shot_fit"), dict) else {}
@@ -2092,7 +2094,7 @@ def _composition_variety(meta, slides, errors, warnings):
         else:
             seq.append((pos, c))
     if missing:
-        errors.append("remotion: %d designed beat(s) name no `shot_fit.composition` (beats %s) — beside the ideal, say "
+        warnings.append("remotion: %d designed beat(s) name no `shot_fit.composition` (beats %s) — beside the ideal, say "
                       "how the frame looks at its subject: %s. A film of one composition reads as one page, however "
                       "different its contents" % (len(missing), ", ".join(map(str, missing[:12])), " · ".join(COMPOSITIONS)))
     for pos, c in unknown[:6]:

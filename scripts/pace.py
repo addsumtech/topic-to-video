@@ -51,8 +51,28 @@ _NUM = re.compile(r"\d+(?:[.,]\d+)?")
 # words and predicted only its pauses)
 
 
+def _base(lang):
+    return str(lang or "zh").lower().replace("_", "-").split("-")[0]
+
+
 def _coef(lang):
-    return ZH if str(lang or "zh").lower().split("-")[0] in ("zh", "ja", "ko") else LATIN
+    return ZH if _base(lang) in ("zh", "ja", "ko") else LATIN
+
+
+def film_language(meta, slides):
+    """The narration's language: `meta.language`, or — for "auto", the documented default, which tts.py resolves from
+    the text — read from the narration itself. "auto" used to fall to the English rate and print UNCALIBRATED on a
+    Chinese film, predicting it ~9% short."""
+    lang = _base((meta or {}).get("language") or "auto")
+    if lang not in ("auto", ""):
+        return lang
+    text = " ".join(str(s.get("narration") or "") for s in slides if isinstance(s, dict))
+    if re.search(r"[\u3040-\u30ff]", text):
+        return "ja"
+    if re.search(r"[\uac00-\ud7af]", text):
+        return "ko"
+    cjk = len(_CJK.findall(text))
+    return "zh" if cjk and cjk >= len(_c.words(text, digits=False)) else "en"
 
 
 def features(text):
@@ -96,7 +116,7 @@ def film(board):
     """{beats: [{index, predicted, measured, chars}], total, measured_total, target, calibrated, lang}."""
     meta = board.get("meta") or {}
     slides = [s for s in board.get("slides") or [] if isinstance(s, dict)]
-    lang, speed = meta.get("language") or "zh", meta.get("tts_speed") or 1.0
+    lang, speed = film_language(meta, slides), meta.get("tts_speed") or 1.0
     tier = "remotion" if meta.get("renderer") in ("remotion", "remotion-bespoke") else "html"
     rows = []
     for i, s in enumerate(slides):
@@ -110,7 +130,7 @@ def film(board):
     measured = all(r["measured"] is not None for r in rows) and bool(rows)
     tgt = meta.get("target_seconds")
     return {"beats": rows, "total": total, "measured": measured, "target": tgt, "lang": lang,
-            "calibrated": str(lang).lower().split("-")[0] in CALIBRATED, "seams": seams}
+            "calibrated": _base(lang) in CALIBRATED, "seams": seams}
 
 
 def overrun_warning(board, tolerance=0.15):
@@ -143,7 +163,7 @@ def main(argv=None):
         unit = "Chinese characters" if _coef(a.lang) is ZH else "words"
         print("[pace] a %.1f s beat holds about %d %s of narration (with one comma; ~%.1f s of it is the pause after "
               "the beat)%s" % (a.budget, n, unit, _coef(a.lang)["beat"],
-                               "" if a.lang.split("-")[0] in CALIBRATED else " — UNCALIBRATED for %r" % a.lang))
+                               "" if _base(a.lang) in CALIBRATED else " — UNCALIBRATED for %r" % a.lang))
         return 0
     if not a.out_dir:
         ap.print_help()

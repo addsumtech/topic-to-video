@@ -96,3 +96,14 @@ def test_a_remotion_films_narration_is_linted_for_ai_tells_too(tmp_path):
         s["shot"] = "CinematicTitle"
     r = v.evaluate(b, str(tmp_path), pre_tts=True)
     assert any("narration AI-tell" in w and "让我们一起" in w for w in r["warnings"]), r["warnings"][:6]
+
+
+def test_auto_and_underscored_languages_use_the_chinese_fit():
+    """"auto" is the documented default (tts.py resolves it from the text) and fell to the English rate, printing
+    UNCALIBRATED and predicting a Chinese film ~9% short; "zh_CN" did the same."""
+    beats = ["复利就是利息也会生利息，时间越长差距越大。"] * 5
+    want = pace.film(_board(beats, target=30, lang="zh"))["total"]
+    for lang in ("auto", "zh_CN", "zh-Hans"):
+        f = pace.film(_board(beats, target=30, lang=lang))
+        assert f["calibrated"] and abs(f["total"] - want) < 1e-9, (lang, f)
+    assert pace.film_language({"language": "auto"}, [{"narration": "How does a phone know where it is?"}]) == "en"

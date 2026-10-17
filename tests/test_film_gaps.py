@@ -156,10 +156,12 @@ def test_a_varied_film_passes_and_three_wides_in_a_row_are_allowed():
 
 
 def test_composition_is_declared_on_every_designed_beat_from_a_closed_vocabulary():
-    errs, _ = _comp(["wide", "", "page"])
-    assert any("name no `shot_fit.composition`" in e and "beats 2" in e for e in errs), errs
+    errs, warns = _comp(["wide", "", "page"])
+    assert any("name no `shot_fit.composition`" in w and "beats 2" in w for w in warns), warns   # an older film
     assert any("'page' is not one of" in e for e in errs), errs
-    assert v._composition_variety({}, [{"shot_fit": {"ideal": "x"}}], [], []) is None   # pre-design-first board
+    e2, _w2 = [], []
+    v._composition_variety({}, [{"shot_fit": {"ideal": "x", "composition": "plane"}}] * 6, e2, _w2)
+    assert e2, "a board with no form vocabulary is still checked"
 
 
 def test_a_declared_composition_system_turns_the_error_into_a_kept_warning():
