@@ -540,3 +540,17 @@ def test_the_title_is_the_largest_type_that_is_not_a_figure(tmp_path):
     t = g.title_of("TitleProbeFixture", {}, 120, str(tmp_path / "t.png"))
     assert t and t["text"].startswith("THE SECOND YEAR") and t["align"] == "left", t
     assert t["ax"] < 1 / 3 and t["cy"] < 1 / 3, t
+
+
+def test_title_placement_is_a_neighbourhood_not_a_ninth_and_sees_centred_titles():
+    """Fixed thirds split six titles at x 0.31-0.36 between two zones and reported nothing; a title centred by its
+    container (text-align "left") moved its left edge with its length. Same place = close height and ANY of left
+    edge / centre / right edge lined up."""
+    mk = lambda lx, cx, rx, cy: {"lx": lx, "cx": cx, "rx": rx, "ax": lx, "cy": cy, "text": "t"}
+    straddle = [(i, "S", mk(0.31 + 0.01 * i, 0.45, 0.6, 0.12), "") for i in range(1, 7)]
+    assert g.title_repetition(straddle)
+    centred = [(i, "S", mk(0.5 - w, 0.5, 0.5 + w, 0.5), "") for i, w in enumerate([0.1, 0.2, 0.3, 0.15, 0.25], 1)]
+    assert g.title_repetition(centred)
+    varied = [(1, "S", mk(.05, .2, .35, .1), ""), (2, "S", mk(.6, .75, .9, .85), ""), (3, "S", mk(.3, .5, .7, .5), ""),
+              (4, "S", mk(.05, .2, .35, .6), ""), (5, "S", mk(.6, .75, .9, .1), "")]
+    assert g.title_repetition(varied) is None

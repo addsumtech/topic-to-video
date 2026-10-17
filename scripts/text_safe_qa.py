@@ -143,11 +143,13 @@ def title_of(shot, props, frame, tmp_png, public_dir=None, env=None):
     if os.path.exists(pf):
         os.remove(pf)
     if TITLE_TAG not in blob:
-        return None
+        # a render that never reached the probe measured NOTHING — said as such, never read as "no title here"
+        from shot_proof import _stderr_reason
+        return {"failed": _stderr_reason(blob, limit=120) or "no output"}
     try:
         found, _end = json.JSONDecoder().raw_decode(blob.split(TITLE_TAG, 1)[1])
     except json.JSONDecodeError:
-        return None
+        return {"failed": "an unparseable payload"}
     return found if isinstance(found, dict) else None
 
 
@@ -182,21 +184,42 @@ def _zone(cx, cy):
     return row + "-" + col
 
 
+TITLE_NEAR_X, TITLE_NEAR_Y = 0.08, 0.12      # "the same place": an anchor within 8% of the width, 12% of the height
+
+
+def _anchors(t):
+    a = [t.get(k) for k in ("lx", "cx", "rx", "ax") if isinstance(t.get(k), (int, float))]
+    return a or [0.5]
+
+
+def _same_place(a, b):
+    return abs(a["cy"] - b["cy"]) <= TITLE_NEAR_Y and any(abs(x - y) <= TITLE_NEAR_X
+                                                          for x in _anchors(a) for y in _anchors(b))
+
+
 def title_repetition(titles):
-    """A warning when most of a film's beats put their title in the same ninth of the frame, else None."""
+    """A warning when most of a film's beats put their title in the same place, else None.
+
+    "The same place" is a NEIGHBOURHOOD, not a ninth of the frame: fixed thirds split six titles set at x 0.31-0.36
+    between "left" and "centre" and reported nothing. Two titles share a place when their heights are close and ANY of
+    their left edges, centres or right edges line up — a left-set title keeps its left edge, a centred one its centre,
+    whatever its length."""
     if len(titles) < TITLE_ZONE_MIN:
         return None
-    import collections
-    zones = collections.Counter(_zone(t.get("ax", t.get("cx")), t["cy"]) for _i, _s, t, _x in titles)
-    zone, n = zones.most_common(1)[0]
-    if n < TITLE_ZONE_MIN or n / len(titles) < TITLE_ZONE_SHARE:
+    best = []
+    for _i, _s, t, _x in titles:
+        group = [r for r in titles if _same_place(t, r[2])]
+        if len(group) > len(best):
+            best = group
+    n = len(best)
+    if n < TITLE_ZONE_MIN or n / float(len(titles)) < TITLE_ZONE_SHARE:
         return None
-    beats = [str(i) for i, _s, t, _x in titles if _zone(t.get("ax", t.get("cx")), t["cy"]) == zone]
-    return ("TITLE PLACEMENT — %d of %d beats put their title (their largest type that is not a figure) in the %s of the "
-            "frame (beats %s): "
-            "a repeated composition, however different the pictures. Move the title with each composition (bottom over "
-            "the ground, a side column, inside the scene) or leave it out where the picture speaks"
-            % (n, len(titles), zone, ", ".join(beats)))
+    t0 = best[0][2]
+    where = _zone(sorted(_anchors(t0))[len(_anchors(t0)) // 2] if "ax" not in t0 else t0["ax"], t0["cy"])
+    return ("TITLE PLACEMENT — %d of %d beats put their title (their largest type that is not a figure) in the same "
+            "place, around the %s of the frame (beats %s): a repeated composition, however different the pictures. "
+            "Move the title with each composition (bottom over the ground, a side column, inside the scene) or leave "
+            "it out where the picture speaks" % (n, len(titles), where, ", ".join(str(r[0]) for r in best)))
 
 
 def title_placement(titles, meta):
@@ -280,7 +303,7 @@ def scan_film(out_dir, warnings=None):
     # A FILM'S OWN SHOTS are registers too: measured the same way, rendered in a bundle that holds its workshop.
     durs.update(_ws.durations(out_dir))
     env = _ws.prepare(out_dir)
-    findings, checked, skipped, titles = [], 0, [], []
+    findings, checked, skipped, titles, title_failed = [], 0, [], [], []
     slides = board.get("slides") or []
     tmp = os.path.join(out_dir, "._textsafe.png")
     for i, s in enumerate(slides, 1):
@@ -303,7 +326,9 @@ def scan_film(out_dir, warnings=None):
         checked += 1
         debt, own = type_debt(), set(_ws.shot_names(out_dir))
         t = title_of(shot, props, frame, tmp, public_dir=out_dir, env=env)
-        if t:
+        if t and t.get("failed"):
+            title_failed.append("scene %02d (%s): %s" % (i, shot, t["failed"]))
+        elif t:
             titles.append((i, shot, t, t.get("text", "")))
         for v in audit_shot(shot, props, frame, tmp, public_dir=out_dir, env=env, type_size=True):
             if v.get("title"):
@@ -329,6 +354,9 @@ def scan_film(out_dir, warnings=None):
     for p in (tmp, tmp + ".props.json"):
         if os.path.exists(p):
             os.remove(p)
+    if title_failed and warnings is not None:
+        warnings.append("TITLE PLACEMENT read on %d of %d beat(s) — the title probe did not render on: %s"
+                        % (checked - len(title_failed), checked, "; ".join(title_failed[:4])))
     verdict = title_placement(titles, meta)
     if verdict and verdict[0] == "error":
         findings.append(verdict[1])

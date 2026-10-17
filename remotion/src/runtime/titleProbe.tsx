@@ -65,7 +65,10 @@ const visible = (el: Element, win: Window): boolean => {
   return true;
 };
 
-export type TitleRecord = {text: string; ax: number; cy: number; px: number; align: string};
+// `ax` is the edge the line is set from; `lx`/`cx`/`rx` are the ink box's left, centre and right, so a title centred by
+// its CONTAINER (text-align still "left", the box shrink-wrapped) is still seen at the same place whatever its length.
+export type TitleRecord = {text: string; ax: number; lx: number; cx: number; rx: number; cy: number; px: number;
+  align: string};
 
 export const pickTitle = (root: Element, frame: DOMRect): TitleRecord | null => {
   const win = root.ownerDocument?.defaultView;
@@ -92,7 +95,10 @@ export const pickTitle = (root: Element, frame: DOMRect): TitleRecord | null => 
   const x = b.align === 'left' ? b.r.left : b.align === 'right' ? b.r.right : (b.r.left + b.r.right) / 2;
   const round = (v: number) => Math.round(v * 1000) / 1000;
   return {text: b.text.length > 48 ? b.text.slice(0, 48) + '…' : b.text,
-          ax: round((x - frame.left) / frame.width), cy: round(((b.r.top + b.r.bottom) / 2 - frame.top) / frame.height),
+          ax: round((x - frame.left) / frame.width),
+          lx: round((b.r.left - frame.left) / frame.width), rx: round((b.r.right - frame.left) / frame.width),
+          cx: round(((b.r.left + b.r.right) / 2 - frame.left) / frame.width),
+          cy: round(((b.r.top + b.r.bottom) / 2 - frame.top) / frame.height),
           px: Math.round(b.px), align: b.align};
 };
 
