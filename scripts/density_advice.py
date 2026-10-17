@@ -93,7 +93,12 @@ def alternatives(shot, ink, floor, limit=3):
 
 
 def advise(out_dir):
-    """(beats, unknown, ink, floor, skipped, universe).
+    """(beats, unknown, ink, floor, skipped, universe, own).
+
+    `own` is [(beat, shot)] on this film's OWN shots: not in the library's sweep by design, and not "unmeasured"
+    either — shot_proof measures their ink on the rendered frame (its TONAL REGISTER line). They leave the
+    universe, said by name, so a mostly-built film is not reported as an advice failure over beats this gate was
+    never the instrument for (the compound-interest test: measured 0 of 11, exit 1, advice to edit the library).
 
     `beats` is what was MEASURED; `skipped` is every beat that left the measurement, each with the beat
     number and a reason a reader can act on. `universe` is `len(board["slides"])` — parsed from the board,
@@ -117,7 +122,12 @@ def advise(out_dir):
     # against a number the sweep had moved.
     floor = _sweep_cut()
     slides = board.get("slides") or []
-    beats, unknown, skipped = [], [], []
+    beats, unknown, skipped, own = [], [], [], []
+    try:
+        import workshop as _ws
+        film_shots = _ws.shot_names(out_dir)
+    except Exception:                                    # noqa: BLE001 — no workshop module, no built shots
+        film_shots = set()
     # by POSITION, not the 1-based `index` field this used to add one to — see critic_brief.
     for _pos, s in enumerate(slides, start=1):
         if not isinstance(s, dict):
@@ -129,6 +139,9 @@ def advise(out_dir):
         if not shot:
             skipped.append((_pos, None, "no register assigned yet — run the shot-director, then re-run this"))
             continue
+        if shot in film_shots:
+            own.append((_pos, shot))
+            continue
         if shot not in ink:
             # An unmeasured register would silently read as "fine" in the median below — the absence-is-a-pass
             # failure this repo keeps finding. Name it instead.
@@ -137,13 +150,13 @@ def advise(out_dir):
                                         "fine — run `python3 scripts/register_energy.py`" % shot))
             continue
         beats.append((_pos, shot, ink[shot]))
-    if len(beats) + len(skipped) != len(slides):
+    if len(beats) + len(skipped) + len(own) != len(slides):
         raise RuntimeError(
             "density_advice lost %d of %d beat(s) on a path that recorded no reason — a beat that leaves "
             "the measurement without a line is the hole this coverage report exists to close; find the "
             "`continue` that does not append to `skipped`."
-            % (len(slides) - len(beats) - len(skipped), len(slides)))
-    return beats, unknown, ink, floor, skipped, len(slides)
+            % (len(slides) - len(beats) - len(skipped) - len(own), len(slides)))
+    return beats, unknown, ink, floor, skipped, len(slides) - len(own), own
 
 
 def main(argv):
@@ -152,12 +165,19 @@ def main(argv):
         print("usage: density_advice.py <out_dir>")
         return 2
     out_dir = os.path.abspath(argv[0])
-    beats, unknown, ink, floor, skipped, universe = advise(out_dir)
+    beats, unknown, ink, floor, skipped, universe, own = advise(out_dir)
+    if own:
+        print("[density] n/a on %d beat(s) on this film's own shots (%s) — their ink is measured on the rendered "
+              "frame by `python3 scripts/shot_proof.py <out_dir>` (TONAL REGISTER)"
+              % (len(own), ", ".join("%d %s" % (b, s) for b, s in own)[:200]))
     # COVERAGE FIRST, through the shared printer, so this line has the same shape as every other gate's.
     # `len(beats)` alone described the beats that survived the loop above and read as the film.
     missed = _c.coverage("density", len(beats), universe,
                          {"beat %3d %s" % (b, s or "(no register)"): why for b, s, why in skipped})
     if not beats:
+        if own and not skipped:
+            print("[density] every beat is this film's own shot — nothing for the library's sweep to advise on")
+            return 0
         print("[density] nothing here sits on a register the sweep has measured, so there is no advice to "
               "give — this is not a clean density report")
         return 1 if skipped else 0

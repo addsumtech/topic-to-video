@@ -262,3 +262,18 @@ def test_a_superseded_props_default_is_not_reported_because_it_never_draws():
     src = open(os.path.join(os.path.dirname(here), "scripts", "demo_copy_qa.py"), encoding="utf-8").read()
     assert src.index('if __name__ == "__main__":') > src.index("def supersedes"), \
         "`supersedes()` is defined after the entry point again — as a script it will not be bound"
+
+
+def test_a_films_own_shot_is_n_a_not_an_unchecked_register(tmp_path, capsys):
+    """A built shot has no demo copy (its words come from props, which workshop.py check and shot_proof ask). It
+    used to read as "not a register, nothing checked" and exit 2 on every mostly-built film."""
+    out = tmp_path / "film"
+    (out / "workshop" / "shots").mkdir(parents=True)
+    (out / "workshop" / "shots" / "FilmPage.tsx").write_text("export const DURATION = 90;\n", encoding="utf-8")
+    (out / "storyboard.json").write_text(json.dumps({"slides": [{"index": 1, "shot": "FilmPage"},
+                                                                {"index": 2, "shot": "NoSuchRegister"}]}),
+                                         encoding="utf-8")
+    found, cov = q.audit_board_covered(json.loads((out / "storyboard.json").read_text()), out_dir=str(out))
+    assert cov["own"] == [(1, "FilmPage")] and [s for _i, s, _w in cov["skipped"]] == ["NoSuchRegister"], cov
+    assert q.main([str(out)]) == 2, "a typo'd register is still a hole"
+    assert "n/a on 1 beat" in capsys.readouterr().out

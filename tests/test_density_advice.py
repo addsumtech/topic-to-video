@@ -51,7 +51,7 @@ def test_it_advises_from_the_measured_sweep_and_says_so_when_there_is_none(tmp_p
 def test_an_unmeasured_register_is_named_not_counted_as_fine(tmp_path):
     """Absence from the sweep reading as a pass is the failure this repo keeps finding."""
     out = _board(tmp_path, ["LastLeg", "NotARegisterAtAll"])
-    beats, unknown, _ink, _floor, skipped, universe = da.advise(out)
+    beats, unknown, _ink, _floor, skipped, universe, _own = da.advise(out)
     assert universe == 2, "M is the board's own length, not a count of what survived the loop"
     assert [b[1] for b in beats] == ["LastLeg"]
     assert unknown == ["NotARegisterAtAll"]
@@ -167,3 +167,17 @@ def test_the_mutation_that_drops_a_beat_is_caught(tmp_path, capsys):
     # beat it had just lost, so the coverage line read 100% while a beat had vanished. That is why M is
     # parsed from the board and why the invariant above refuses rather than rounds.
     assert "measured 5 of 7" not in capsys.readouterr().out
+
+
+def test_a_films_own_shot_is_not_this_gates_to_measure(tmp_path, capsys):
+    """The compound-interest test (11 of 11 built) measured 0 of 11 here, exited 1 and advised running the
+    library sweep — a library edit. Its own shots leave the universe by name; shot_proof measures their ink."""
+    out = _board(tmp_path, ["LastLeg", "FilmPage"])
+    d = os.path.join(out, "workshop", "shots")
+    os.makedirs(d)
+    open(os.path.join(d, "FilmPage.tsx"), "w", encoding="utf-8").write("export const DURATION = 90;\n")
+    beats, _u, _i, _f, skipped, universe, own = da.advise(out)
+    assert own == [(2, "FilmPage")] and universe == 1 and not skipped, (own, universe, skipped)
+    assert da.main([out]) == 0
+    said = capsys.readouterr().out
+    assert "n/a on 1 beat" in said and "shot_proof.py" in said and "register_energy.py" not in said, said

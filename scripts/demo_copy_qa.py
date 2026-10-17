@@ -355,7 +355,7 @@ def audit_board(board, lib=None):
     return audit_board_covered(board, lib)[0]
 
 
-def audit_board_covered(board, lib=None, shots_dir=None):
+def audit_board_covered(board, lib=None, shots_dir=None, out_dir=None):
     """(findings, coverage) — WHICH BEATS THIS RUN ACTUALLY JUDGED.
 
     `if not shot or shot not in lib: continue` skipped three different things in one silent branch, and the
@@ -373,14 +373,25 @@ def audit_board_covered(board, lib=None, shots_dir=None):
     lib = library(shots_dir) if lib is None else lib
     known = set(lib) | {os.path.basename(f)[:-4]
                         for f in glob.glob(os.path.join(shots_dir or SHOTS, "*.tsx"))}
-    found, judged, skipped = [], [], []
+    found, judged, skipped, own = [], [], [], []
     slides = board.get("slides") or []
+    try:
+        import workshop as _ws
+        film_shots = _ws.shot_names(out_dir) if out_dir else set()
+    except Exception:                                    # noqa: BLE001 — no workshop, no built shots
+        film_shots = set()
     for pos, s in enumerate(slides, 1):
         idx = s.get("index", pos)
         shot = s.get("shot")
         if not shot:
             skipped.append((idx, None, "the beat selects no register (a still or image beat) — this gate "
                                        "has nothing to judge on it"))
+            continue
+        if shot in film_shots and shot not in known:
+            # A FILM'S OWN SHOT HAS NO DEMO COPY TO LEAVE IN: every word it draws must come from its props, and
+            # `workshop.py check` + shot_proof's words-from-props ask exactly that. Reporting it as "not a register,
+            # nothing checked" (exit 2) made a mostly-built film fail this gate over beats it was never for.
+            own.append((idx, shot))
             continue
         if shot not in known:
             skipped.append((idx, shot, "%r is not a register in shots/ — nothing on this beat was checked"
@@ -402,7 +413,7 @@ def audit_board_covered(board, lib=None, shots_dir=None):
         for prop, copy in sorted(lib.get(shot, {}).items()):
             if prop not in props and prop not in dead:
                 found.append((idx, shot, prop, copy))
-    return found, {"beats": len(slides), "judged": len(judged), "skipped": skipped}
+    return found, {"beats": len(slides), "judged": len(judged), "skipped": skipped, "own": own}
 
 
 def main(argv):
@@ -431,9 +442,13 @@ def main(argv):
                     print("    %-22s %s" % (n, whynot))
         return 2 if (cov["unreadable"] or cov["no_signature"]) else 0
     board = json.load(open(os.path.join(argv[0], "storyboard.json"), encoding="utf-8"))
-    found, cov = audit_board_covered(board)
+    found, cov = audit_board_covered(board, out_dir=argv[0])
     print("[demo_copy_qa] judged %d of %d beat(s) · %d beat/prop pair(s) will print the register's DEMO "
-          "COPY as content" % (cov["judged"], cov["beats"], len(found)))
+          "COPY as content" % (cov["judged"], cov["beats"] - len(cov["own"]), len(found)))
+    if cov["own"]:
+        print("  n/a on %d beat(s) on this film's own shots (%s): no demo copy exists; their words-from-props are "
+              "checked by `workshop.py check` and shot_proof" % (len(cov["own"]),
+                                                                 ", ".join("%s %s" % x for x in cov["own"])[:200]))
     for i, shot, prop, copy in found:
         print("    scene %s · %s.%s → %r" % (i, shot, prop, copy))
     if cov["skipped"]:
