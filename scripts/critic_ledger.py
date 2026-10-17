@@ -231,7 +231,7 @@ DELIVERY_GATES = {
         # 4-error FAIL, checked all four against the pixels, and found every one was the inverted measure (a
         # full-bleed diagonal read as 63% caption-band ink, a display word its own source documents as "cropped by
         # the frame on purpose"). It then had to run the right gate itself.
-        ("TYPE cut off (authoritative)", "text_safe_qa.py", (), 240, True, None),
+        ("TYPE cut off (authoritative)", "text_safe_qa.py", (), 600, True, None),   # 2 stills a beat (title_of)
         # type that MOVES and steps a whole pixel at a time against its own drawing — no still can show it, so the
         # census reads every frame (runtime/glide.ts)
         ("TYPE steps while it moves (every frame, census)", "text_safe_qa.py", ("--glide",), 240, True, None),

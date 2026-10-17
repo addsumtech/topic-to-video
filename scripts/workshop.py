@@ -1875,8 +1875,12 @@ def main(argv=None):
             for x in probs:
                 print("  PROBLEM: " + x)
             print("[workshop] %s — %d problem(s)" % ("CLEAN" if not probs else "NOT CLEAN", len(probs)))
-            if not probs and not any(isinstance(sl, dict) and sl.get("shot")
-                                     for sl in _board(a.out_dir).get("slides") or []):
+            _b = _board(a.out_dir)
+            _rend = str((_b.get("meta") or {}).get("renderer") or "")
+            # the contest is the REMOTION tier's; an html film (or a board that says so) goes on to validate
+            if not probs and not _rend.startswith(("local", "html")) and not component_names(a.out_dir) and \
+                    not any(isinstance(sl, dict) and (sl.get("shot") or sl.get("type") == "html")
+                            for sl in _b.get("slides") or []):
                 # the contest stage: directions are being designed, and no beat has a shot for validate to read yet
                 # (a board made from the content plan exists by then — the compound test followed this line into
                 # "slide 1: remotion tier requires a `shot`")

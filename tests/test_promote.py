@@ -409,3 +409,24 @@ def test_a_batch_that_stops_part_way_leaves_the_film_working_and_resumes(tmp_pat
     assert os.path.isfile(str(lib / "cards" / "ShotA.md")), "the card its interrupted promotion never reached"
     entries = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))["meta"]["build_list"]
     assert all(e.get("promoted") for e in entries if e["id"] in ("Sat", "ShotA")), entries
+
+
+def test_a_resumed_batch_finds_its_own_promotion_whatever_the_title_ends_in(tmp_path, monkeypatch):
+    """`\\b` after the title never matched "Why GPS works?" or "100%", and "GPS" matched another film's "GPS 2"."""
+    import promote as pr
+    (tmp_path / "shots").mkdir()
+    (tmp_path / "objects").mkdir()
+    for n in ("RangeSpheres", "Foo"):
+        (tmp_path / "shots" / (n + ".tsx")).write_text("x")
+    (tmp_path / "objects" / "Obj.tsx").write_text("x")
+    lib = tmp_path / "LIBRARY.md"
+    lib.write_text("3. **RangeSpheres** — x *Use: y.* `z` · built for the film Why GPS works?.\n"
+                   "4. **Foo** — x · built for the film GPS 2.\n"
+                   "- **Obj** — thing *Built for the film 100%.*\n", encoding="utf-8")
+    monkeypatch.setattr(pr, "LIBRARY", str(lib))
+    monkeypatch.setattr(pr, "SHOTS", str(tmp_path / "shots"))
+    monkeypatch.setattr(pr, "OBJECTS", str(tmp_path / "objects"))
+    assert pr._promoted_from(str(tmp_path), "RangeSpheres", "Why GPS works?")
+    assert pr._promoted_from(str(tmp_path), "Obj", "100%")
+    assert not pr._promoted_from(str(tmp_path), "Foo", "GPS")
+    assert pr._promoted_from(str(tmp_path), "Foo", "GPS 2")

@@ -1209,7 +1209,7 @@ def _contest_design_first(meta, tc, cands, errors, warnings, out_dir):
         if not hero:
             say("contest direction %r: no `hero` — the shot BUILT in this film's workshop that the direction's sample "
                 "was led by" % key)
-        elif key == tc.get("winner") and hero not in built:
+        elif key == (tc.get("winner") or meta.get("shot_template")) and hero not in built:   # winner unrecorded: the pick
             # only the WINNER's hero must still be in the film: contest_sample.py refused any direction whose hero
             # was not built when its sample was rendered, and the losers' heroes may leave the workshop after the pick
             say("contest direction %r: the winner's hero %r is not BUILT for this film — a direction's hero is made "

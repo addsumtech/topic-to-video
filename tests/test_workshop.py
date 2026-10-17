@@ -891,3 +891,12 @@ def test_check_points_at_the_contest_not_validate_before_any_beat_has_a_shot(tmp
         json.dump({"slides": [{"index": 1, "shot": "KnowledgeGraph"}]}, fh)
     assert ws.main([out, "check"]) == 0
     assert "validate.py" in capsys.readouterr().out
+
+
+def test_an_html_film_is_not_sent_to_the_remotion_contest(tmp_path, capsys):
+    out = _film(tmp_path)
+    with open(os.path.join(out, "storyboard.json"), "w", encoding="utf-8") as fh:
+        json.dump({"meta": {"renderer": "local"}, "slides": [{"index": 1, "type": "html"}]}, fh)
+    assert ws.main([out, "check"]) == 0
+    said = capsys.readouterr().out
+    assert "contest_sample.py" not in said and "validate.py" in said, said

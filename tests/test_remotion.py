@@ -369,6 +369,11 @@ def test_validate_contest_shape_and_winner():
     errs = v.evaluate(d, "/tmp")["errors"]
     assert any("'data-story': the winner's hero 'SplitFlap' is not BUILT" in e for e in errs), errs
     assert any("'kinetic-editorial': no `palette_source`" in e for e in errs), errs
+    # a contest with no recorded winner still holds the PICK's hero (meta.shot_template) to being built
+    _nw = {k: x for k, x in d["meta"]["shot_template_contest"].items() if k != "winner"}
+    _d2 = dict(d, meta=dict(d["meta"], shot_template_contest=_nw))
+    assert any("'data-story': the winner's hero 'SplitFlap' is not BUILT" in e
+               for e in v.evaluate(_d2, "/tmp")["errors"])
     # a design the USER kept from before design-first is told, not refused
     d["meta"]["design_first"] = {"legacy": True, "user_answer": "keep it", "kept": []}
     r = v.evaluate(d, "/tmp")

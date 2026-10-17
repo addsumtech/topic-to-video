@@ -572,8 +572,10 @@ def _promoted_from(out_dir, name, film):
     in_lib = os.path.isfile(os.path.join(SHOTS, name + ".tsx")) or os.path.isfile(os.path.join(OBJECTS, name + ".tsx"))
     if not in_lib or not os.path.isfile(LIBRARY):
         return False
-    pat = r"\*\*%s\*\* — .*?[Bb]uilt for the film %s\b" % (re.escape(name), re.escape(film))
-    return re.search(pat, _read(LIBRARY)) is not None
+    # anchored at the END of the title, as validate._promoted_for is: `\b` never matched a title ending in "?" or
+    # "%", and "GPS" matched another film's "GPS 2"
+    pat = r"\*\*%s\*\* — .*?[Bb]uilt for the film %s(?:\.?\*|\.?\s*$)" % (re.escape(name), re.escape(film))
+    return re.search(pat, _read(LIBRARY), re.M) is not None
 
 
 def _finish(out_dir, paths, objs, log):
