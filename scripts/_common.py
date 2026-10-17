@@ -324,3 +324,26 @@ def clamp_cues_to_end(ordered, times, need, dur, out_edge, max_lead=CUE_LEAD_MAX
         else:
             out.append(t)
     return out, led
+
+
+# WORDS AND SUBSTANCE IN ANY SCRIPT. A word is a run between spaces and punctuation that holds a letter — so a
+# Devanagari word keeps its vowel signs (Python's \w does not count combining marks, and splitting on it counted one
+# Hindi word as two or three), an apostrophe stays inside "don't", and a CJK character is counted on its own (half a
+# word each). A run of 12+ letters with no spaces (Thai, Lao, Khmer...) counts one word per 6 more. The first
+# versions counted Latin words and CJK only, so a Russian, Greek, Arabic or Hindi line measured zero words: an ideal
+# or a waiver reason in those languages was refused as "not specific", and pace.py predicted only a line's pauses.
+_CJK_CHARS = re.compile(r"[぀-ヿ㐀-鿿가-힯豈-﫿]")
+_WORD_SPLIT = re.compile(r"[\s,.;:!?()\[\]{}<>\"`“”«»—–\-/\\|…·、，。！？；：（）【】《》「」『』]+")
+_HAS_LETTER = re.compile(r"[^\W\d_]")
+
+
+def words(text, digits=True):
+    """The words of `text` outside CJK, in any script; `digits=False` drops tokens that hold no letter."""
+    toks = [w for w in _WORD_SPLIT.split(_CJK_CHARS.sub(" ", str(text or ""))) if w.strip("'’‘")]
+    return [w for w in toks if (_HAS_LETTER.search(w) or (digits and re.search(r"\d", w)))]
+
+
+def substance(text):
+    """How much a justification says: words (any script) + CJK characters / 2."""
+    t = str(text or "")
+    return sum(1 + (len(w) // 6 if len(w) >= 12 else 0) for w in words(t)) + len(_CJK_CHARS.findall(t)) / 2.0

@@ -19,7 +19,9 @@ import {cancelRender, continueRender, delayRender} from 'remotion';
 import {renderedPx} from './textSafe';
 
 export const TITLE_PROBE_TAG = 'TITLE-PROBE ';
-const LETTER = /[A-Za-zÀ-ɏ぀-ヿ㐀-鿿가-힯]/g;
+// ANY script's letters. A Latin+CJK class read every Cyrillic, Greek, Arabic, Devanagari and Thai title as a
+// "readout" (fewer than two letters), so on those films the title check found no titles and never fired.
+const LETTER = /\p{L}/gu;
 
 export const isReadout = (text: string): boolean => {
   const letters = (text.match(LETTER) || []).length;

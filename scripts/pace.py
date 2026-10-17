@@ -35,6 +35,8 @@ import re
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
+import _common as _c  # noqa: E402
 
 # least-squares fit, see the docstring; refit with the films' measured beats when a voice or language is added
 ZH = {"cjk": 0.197, "digit": 0.244, "latin_word": 0.496, "comma": 0.275, "colon": 0.259, "stop": 0.767,
@@ -45,7 +47,8 @@ LATIN = EN
 CALIBRATED = {"zh", "en"}
 _CJK = re.compile(r"[぀-ヿ㐀-鿿가-힯]")
 _NUM = re.compile(r"\d+(?:[.,]\d+)?")
-_LATIN = re.compile(r"[A-Za-z]+(?:['’][A-Za-z]+)?")
+# words in any space-separated script come from _common.words (a Latin-only class counted a Russian line as zero
+# words and predicted only its pauses)
 
 
 def _coef(lang):
@@ -57,7 +60,7 @@ def features(text):
     nums = _NUM.findall(t)
     body = t.rstrip(" 。.!！?？")
     return {"cjk": len(_CJK.findall(t)), "digit": sum(len(re.sub(r"\D", "", n)) for n in nums),
-            "latin_word": len(_LATIN.findall(_NUM.sub(" ", t))),
+            "latin_word": len(_c.words(_NUM.sub(" ", t), digits=False)),
             "comma": len(re.findall(r"[，、,]", body)), "colon": len(re.findall(r"[：；:;]", body)),
             "stop": len(re.findall(r"[。！？.!?]", body))}
 

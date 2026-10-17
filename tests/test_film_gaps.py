@@ -180,3 +180,22 @@ def test_a_sparse_film_is_named_between_a_line_of_type_and_a_full_frame():
     compound = [8.9, 18.3, 19.0, 14.1, 19.3, 10.5, 20.9, 28.6, 19.8, 11.6, 7.2]
     assert sp.tonal_warnings(list(enumerate(compound, 1)), 11) == []
     assert "TONAL REGISTER is thin" in sp.tonal_warnings([(1, 2.0), (2, 5.0), (3, 4.0)], 3)[0]
+
+
+def test_words_and_substance_are_measured_in_any_script():
+    """Latin+CJK-only counting measured a Russian, Greek, Arabic or Hindi justification at zero words — refused as
+    "not specific" — and pace.py predicted a Russian line as its pauses alone. The title probe had the same blind
+    spot: its letter class read every non-Latin, non-CJK title as a figure."""
+    import _common as c
+    import pace
+    assert len(c.words("Три источника подключены к одному центру", digits=False)) == 6
+    assert len(c.words("तीन स्रोत एक केंद्र से जुड़े हैं और दो आपस में", digits=False)) == 11   # vowel signs stay in the word
+    assert len(c.words("don't stop here, it's fine", digits=False)) == 5
+    assert v._specific("Три источника подключены к одному центру, два связаны")
+    assert v._specific("كل المصادر الثلاثة متصلة بمركز واحد واثنان منها متصلان")
+    assert not v._specific("it fits") and not v._specific("适合")
+    assert c.substance("三个来源连到同一个中心") == 5.5                          # CJK unchanged: half a word each
+    assert pace.features("Как работает GPS в вашем телефоне")["latin_word"] == 6
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src",
+                            "runtime", "titleProbe.tsx"), encoding="utf-8").read()
+    assert "/\\p{L}/gu" in src, "the title probe's letters must be any script's"

@@ -207,7 +207,7 @@ def title_placement(titles, meta):
     if not note:
         return None
     why = str((meta or {}).get("fixed_title_position") or "").strip()
-    if len(re.findall(r"[A-Za-z]+|[\u3400-\u9fff]", why)) >= 6:
+    if _c.substance(why) >= 6:
         return "warn", note + " — kept by meta.fixed_title_position: " + why[:120]
     return "error", note + (". If one title position IS this film's system, say why in meta.fixed_title_position")
 
