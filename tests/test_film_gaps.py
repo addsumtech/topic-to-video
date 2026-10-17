@@ -166,3 +166,17 @@ def test_a_declared_composition_system_turns_the_error_into_a_kept_warning():
     errs, warns = _comp(["plane"] * 6, {"composition_system": "a ledger film where every beat is the printed page"})
     assert not errs and warns and "kept by meta.composition_system" in warns[0], (errs, warns)
     assert _comp(["plane"] * 6, {"composition_system": "on purpose"})[0], "a reason, not a token"
+
+
+def test_a_sparse_film_is_named_between_a_line_of_type_and_a_full_frame():
+    """HTTPS test: median 7.0% ink, clean line drawings in a mostly empty frame; the GPS film the user approved
+    after asking for fuller beats measured 28.8%. Under 6% stays the old "line of type" warning."""
+    import shot_proof as sp
+    https = [4.0, 22.8, 9.8, 44.9, 7.0, 4.9, 3.7, 6.2, 5.4, 7.8, 7.6, 3.9, 7.8, 4.6]
+    w = sp.tonal_warnings(list(enumerate(https, 1)), 14)
+    assert len(w) == 1 and "SPARSE" in w[0] and "beat 7 3.7%" in w[0], w
+    gps = [92.2, 85.0, 28.8, 5.6, 64.7, 18.4, 35.4, 13.0, 33.1, 82.8, 28.4, 21.2, 61.3, 24.7, 7.4]
+    assert not any("SPARSE" in x for x in sp.tonal_warnings(list(enumerate(gps, 1)), 15))
+    compound = [8.9, 18.3, 19.0, 14.1, 19.3, 10.5, 20.9, 28.6, 19.8, 11.6, 7.2]
+    assert sp.tonal_warnings(list(enumerate(compound, 1)), 11) == []
+    assert "TONAL REGISTER is thin" in sp.tonal_warnings([(1, 2.0), (2, 5.0), (3, 4.0)], 3)[0]

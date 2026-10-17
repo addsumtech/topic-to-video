@@ -869,6 +869,43 @@ def _content_box(png, thresh=26):
     return (x0, x1, (x1 - x0) / float(w)) if x1 > x0 else (0, 0, 0.0)
 
 
+# A second tier above the "a line of type per beat" film (median < 6%): the HTTPS test (2026-10-17) measured 7.0% —
+# clean line drawings in a mostly empty dark frame — against 28.8% on the GPS film the user approved after asking for
+# fuller beats, and 18.3% on the compound test. Half the approved film's median is the line; a WARN, since emptiness
+# can be the design, and the design sheet is where it is judged.
+SPARSE_MEDIAN = 14.0
+
+
+def tonal_warnings(ink_by_beat, n_beats):
+    """The film-wide ink distribution's warnings, from [(beat, ink %)] over `n_beats` beats."""
+    out = []
+    inks_sorted = sorted(v for _b, v in ink_by_beat)
+    med = inks_sorted[len(inks_sorted) // 2]
+    lo, hi = inks_sorted[0], inks_sorted[-1]
+    thin = [b for b, v in ink_by_beat if v < 3.0]
+    # "across every beat" is a claim, so it states the count it is actually over. A distribution over
+    # 5 of 8 beats reads exactly like one over 8 unless it says which.
+    _over = "%d of %d beat(s)" % (len(ink_by_beat), n_beats)
+    if med < 6.0:
+        out.append("the film's TONAL REGISTER is thin (measured over %s): median %.1f%% of the content "
+                   "zone carries ink (range %.1f-%.1f%%), and %d beat(s) are under 3%%. A film of "
+                   "near-empty frames has no register — the caption carries it and the design is a "
+                   "garnish. Give the sparsest beats something the sentence does not already say."
+                   % (_over, med, lo, hi, len(thin)))
+    elif med < SPARSE_MEDIAN:
+        sparse = sorted(ink_by_beat, key=lambda bv: bv[1])[:4]
+        out.append("the film's frames are SPARSE (measured over %s): median %.1f%% of the content zone carries "
+                   "ink, under half the GPS film the user approved after asking for fuller frames (28.8%%; the "
+                   "compound-interest test 18.3%%). Sparsest: %s. Unless emptiness IS the design, give those "
+                   "beats more of the subject — larger, closer, or a second read the sentence does not carry."
+                   % (_over, med, ", ".join("beat %d %.1f%%" % bv for bv in sparse)))
+    elif hi > 12 * max(0.5, med):
+        out.append("the film's ink ranges %.1f-%.1f%% of the content zone around a %.1f%% median "
+                   "(measured over %s) — the dense beats read as a different film from the sparse "
+                   "ones. Vary within a band, not by an order of magnitude." % (lo, hi, med, _over))
+    return out
+
+
 def _content_ink(png):
     """(ink % of the CONTENT ZONE, None) — the beat's visual density — or (None, reason).
 
@@ -1216,23 +1253,7 @@ def _prove(argv, out_dir, board, ws_durs):
     # page. No per-beat check can see that; only the distribution can, so it is computed here where every
     # beat's still already exists.
     if inks:
-        inks_sorted = sorted(inks)
-        med = inks_sorted[len(inks_sorted) // 2]
-        lo, hi = inks_sorted[0], inks_sorted[-1]
-        thin = [b for b, v in ink_by_beat if v < 3.0]
-        # "across every beat" is a claim, so it states the count it is actually over. A distribution over
-        # 5 of 8 beats reads exactly like one over 8 unless it says which.
-        _over = "%d of %d beat(s)" % (len(inks), len(beats))
-        if med < 6.0:
-            warns.append("the film's TONAL REGISTER is thin (measured over %s): median %.1f%% of the content "
-                         "zone carries ink (range %.1f-%.1f%%), and %d beat(s) are under 3%%. A film of "
-                         "near-empty frames has no register — the caption carries it and the design is a "
-                         "garnish. Give the sparsest beats something the sentence does not already say."
-                         % (_over, med, lo, hi, len(thin)))
-        elif hi > 12 * max(0.5, med):
-            warns.append("the film's ink ranges %.1f-%.1f%% of the content zone around a %.1f%% median "
-                         "(measured over %s) — the dense beats read as a different film from the sparse "
-                         "ones. Vary within a band, not by an order of magnitude." % (lo, hi, med, _over))
+        warns.extend(tonal_warnings(ink_by_beat, len(beats)))
     elif "--no-stills" not in argv and beats:
         unmeasured.append("the film's TONAL REGISTER: no beat yielded an ink measurement, so the "
                           "distribution check did not run at all")
