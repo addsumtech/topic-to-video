@@ -87,6 +87,11 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: FlapRow[]}> = ({
   const span = (COLS - 1) * 0.05 + (ROWS.length - 1) * 0.14 + 0.05;
   const cascade = Math.min(1, (SETTLE_BY - SETTLE_BY_START) / Math.max(1e-6, span));
 
+  // A CHINESE TILE FLIPS THROUGH CHINESE. The flip stream was the Latin pool CH for every tile, so a board of Chinese
+  // rows flashed A-Z and digits before landing — English flickering on a Chinese board. A CJK tile now cycles through
+  // the board's OWN CJK characters, which the bundled font is guaranteed to hold; a Latin tile keeps CH.
+  const isCjk = (str: string) => /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(str);
+  const CJK_POOL = Array.from(new Set(ROWS.join('').split('').filter(isCjk)));
   const tiles: React.ReactNode[] = [];
   ROWS.forEach((label, r) => {
     const pad = Math.floor((COLS - label.length) / 2);
@@ -103,7 +108,9 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: FlapRow[]}> = ({
       const settle = SETTLE_BY_START
         + (c * 0.05 + r * 0.14 + hash01(r * 40 + c) * 0.05) * cascade;
       const settled = t >= settle;
-      const shown = settled ? ch : CH[Math.floor(hash01(r * 97 + c * 13 + Math.floor(frame / 2)) * CH.length)];
+      // by ROW, not by tile: a Chinese row's padding blanks and punctuation flipped A-Z before (a space is not CJK)
+      const pool = isCjk(label) && CJK_POOL.length > 1 ? CJK_POOL : CH;
+      const shown = settled ? ch : pool[Math.floor(hash01(r * 97 + c * 13 + Math.floor(frame / 2)) * pool.length)];
       const justLanded = clamp01((t - settle) / 0.05);
       const flapScale = settled ? 1 : 0.96;
       const tx = x0 + c * (tw + gap), ty = y0 + r * (th + gap);
@@ -134,7 +141,7 @@ export const SplitFlap: React.FC<{kicker?: string; rows?: FlapRow[]}> = ({
       {tiles}
       {/* header label */}
       <div style={{position: 'absolute', left: 0, right: 0, top: y0 - 100, textAlign: 'center',
-        color: dna?.dim ?? '#6f7078', font: '700 26px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', paddingLeft: '0.5em'}}>{kicker}</div>
+        color: dna?.dim ?? '#6f7078', font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.4em', paddingLeft: '0.4em'}}>{kicker}</div>
     </AbsoluteFill>
   );
 };

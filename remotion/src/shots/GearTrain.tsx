@@ -65,6 +65,12 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
   const STEP_INK = dna ? mix(POLE_INK, BODY, 0.10) : '#e7ebf7';
   const LOCKED_INK = POLE_INK;
   const IDX_INK = dna?.dim ?? '#7f879c';
+  // THE PAYOFF PILL IS THE FILM'S ACCENT, not a fixed green: on a passbook film (red accent, paper ground) it was the one
+  // green thing on the frame. No DNA keeps the original green.
+  const PILL = dna?.accent ?? '#22c197';
+  const PILL_DEEP = dna ? mix(PILL, '#000000', 0.22) : '#12916e';
+  const PILL_INK = dna ? readableOn(PILL, '#ffffff', '#05070c') : '#04120d';
+  const PILL_GLOW = dna ? mix(PILL, GROUND, 0.55) : '#22c19755';
   const TITLE_INK = dna?.dim ?? '#aeb6ca';
   const t = useT();
   const glide = useGlide();
@@ -89,6 +95,9 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
   // Now that four is the stated maximum, four must be seen: the train scales down about its own centre when
   // it would not fit, and is untouched (k = 1) wherever it already did — every 16:9 frame.
   const fit = Math.min(1, (W * 0.92) / (totalW + 2 * (R + 24)));
+  // THE STEP INDEX IS COPY — 30 px as RENDERED (it was a 20 px literal). The whole train is scaled by `fit` on a
+  // narrow frame, so its CSS size is raised by the same factor to land on the floor after the scale.
+  const idxPx = Math.ceil(Math.round(Math.min(W, H) * 0.0278) / fit);
   return (
     // ...and the ground's lift followed nothing: only its outer stop read the DNA, so a paper film got a navy
     // pool behind the train with its own paper around it.
@@ -118,13 +127,20 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
         const cx = x0 + i * SPACING;
         const on = clamp01(seg(t, 0.16 + i * 0.12, 0.36 + i * 0.12));
         const isLast = i === n - 1;
+        // A NAME STAYS ON ITS OWN GEAR. The box was R*1.7 (265 px) with centres 278 px apart, so two long names sat
+        // 13 px apart and read as one line (the CJK fixture's 「规划执行步骤并调用工具」 ran into its neighbour).
+        // The box is the hub's face now; the size is the largest of 40..30 px that fits in two lines, else 30 in three.
+        const boxW = R * 1.3;
+        const units = Array.from(String(g)).reduce((u, ch) => u + (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(ch) ? 1 : 0.56), 0);
+        const stepPx = [40, 36, 33, 30].find((px) => Math.ceil((units * px) / boxW) <= 2) ?? 30;
         return (
           <div key={i} style={{position: 'absolute', left: cx, top: cy, transform: 'translate(-50%,-50%)',
-            textAlign: 'center', opacity: on, width: R * 1.7}}>
-            <div style={{color: IDX_INK, font: '600 20px/1 var(--f-mono, "JetBrains Mono", monospace)',
+            textAlign: 'center', opacity: on, width: boxW}}>
+            <div style={{color: IDX_INK, font: `600 ${idxPx}px/1 var(--f-mono, "JetBrains Mono", monospace)`,
               letterSpacing: '0.14em', marginBottom: 8}}>{String(i + 1).padStart(2, '0')}</div>
             <div style={{color: isLast && locked ? LOCKED_INK : STEP_INK,
-              font: `800 40px/${leading(g, 1)} var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em'}}>{g}</div>
+              font: `800 ${stepPx}px/${leading(g, 1)} var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em',
+              textWrap: 'balance'}}>{g}</div>
           </div>
         );
       })}
@@ -133,9 +149,9 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
       {String(LABEL ?? '').trim() ? (
       <div style={{position: 'absolute', left: x0 + (n - 1) * SPACING, top: cy - R - 96,
         transform: glide(`translate(-50%,0) scale(${payoff})`, payoff !== 1), opacity: clamp01(payoff * 1.4),
-        padding: '16px 34px', borderRadius: 999, background: 'linear-gradient(150deg, #22c197, #12916e)',
-        color: '#04120d', font: '800 40px/1 var(--f-body, Inter, system-ui, sans-serif)',
-        boxShadow: '0 18px 50px #22c19755', whiteSpace: 'nowrap'}}>{LABEL}</div>
+        padding: '16px 34px', borderRadius: 999, background: `linear-gradient(150deg, ${PILL}, ${PILL_DEEP})`,
+        color: PILL_INK, font: '800 40px/1 var(--f-body, Inter, system-ui, sans-serif)',
+        boxShadow: `0 18px 50px ${PILL_GLOW}`, whiteSpace: 'nowrap'}}>{LABEL}</div>
       ) : null}
       </div>
     </AbsoluteFill>
