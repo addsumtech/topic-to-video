@@ -131,3 +131,38 @@ def test_the_proof_run_tiles_a_design_review_sheet(tmp_path):
     assert out.endswith("_design_review.png") and img.width == 2 * 320 + 3 * 16, img.size
     assert img.getpixel((16 + 160, 16 + 34 + 90))[0] > 150             # beat 1's tile, where it belongs
     assert sp.design_sheet(str(tmp_path), {"slides": []}) is None
+
+
+def _comp(seq, meta=None):
+    slides = [{"shot_fit": {"ideal": "x", "composition": c}} if c else {"shot_fit": {"ideal": "x"}} for c in seq]
+    errs, warns = [], []
+    v._composition_variety(dict({"form_vocabulary": [{"form": "a"}]}, **(meta or {})), slides, errs, warns)
+    return errs, warns
+
+
+def test_one_composition_carrying_the_film_is_an_error():
+    """The compound-interest test: every beat built, every gate green, nine flat ledger pages in a row."""
+    errs, _ = _comp(["plane"] * 9 + ["object", "wide"])
+    assert errs and "9 of 11" in errs[0] and "'plane'" in errs[0] and "composition_system" in errs[0], errs
+    errs, _ = _comp(["wide", "close", "plane", "plane", "plane", "plane", "object"])
+    assert errs and "beats 3-6" in errs[0], errs
+
+
+def test_a_varied_film_passes_and_three_wides_in_a_row_are_allowed():
+    """GPS ran three orbital wides (beats 5-7) and read well; four of one in a row is the line."""
+    gps = ["object", "wide", "wide", "plane", "wide", "wide", "wide", "split", "wide", "plane", "sequence",
+           "object", "close", "plane", "full-bleed"]
+    assert _comp(gps) == ([], [])
+
+
+def test_composition_is_declared_on_every_designed_beat_from_a_closed_vocabulary():
+    errs, _ = _comp(["wide", "", "page"])
+    assert any("name no `shot_fit.composition`" in e and "beats 2" in e for e in errs), errs
+    assert any("'page' is not one of" in e for e in errs), errs
+    assert v._composition_variety({}, [{"shot_fit": {"ideal": "x"}}], [], []) is None   # pre-design-first board
+
+
+def test_a_declared_composition_system_turns_the_error_into_a_kept_warning():
+    errs, warns = _comp(["plane"] * 6, {"composition_system": "a ledger film where every beat is the printed page"})
+    assert not errs and warns and "kept by meta.composition_system" in warns[0], (errs, warns)
+    assert _comp(["plane"] * 6, {"composition_system": "on purpose"})[0], "a reason, not a token"

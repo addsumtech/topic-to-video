@@ -2066,6 +2066,65 @@ def _form_vocabulary(meta, slides, errors, warnings):
         errors.append("remotion: beat %d names form %r, which is not in meta.form_vocabulary — either add it "
                       "to the derivation or pick a form the film actually derived" % (beat, form))
 
+# COMPOSITION — the camera's relation to the subject, declared per beat beside its ideal. The compound-interest test
+# built all 11 beats in one world, passed every gate, and showed nine flat ledger pages in a row; the GPS film it was
+# held against moved from a wide orbit to a cropped satellite to a ruler plane to a full-bleed word. Pixels could not
+# separate the two (contest_diversity and a centroid measure were both tried), so the choice is DECLARED, from a
+# closed vocabulary, and its repetition is what is checked. The design sheet (shot_proof) is where it is verified.
+COMPOSITIONS = ("wide", "medium", "close", "macro", "object", "split", "plane", "full-bleed", "sequence")
+COMPOSITION_SHARE, COMPOSITION_MIN, COMPOSITION_RUN = 0.6, 4, 4   # GPS ran 3 orbital wides (beats 5-7) and read well
+
+
+def _composition_variety(meta, slides, errors, warnings):
+    """Every designed beat names its `shot_fit.composition`; one composition must not carry the film."""
+    if not meta.get("form_vocabulary"):
+        return                                           # a film from before design-first: its forms are warned above
+    seq, missing, unknown = [], [], []
+    for pos, s in enumerate(slides, 1):
+        fit = s.get("shot_fit") if isinstance(s.get("shot_fit"), dict) else {}
+        if not fit.get("ideal"):
+            continue
+        c = str(fit.get("composition") or "").strip().lower()
+        if not c:
+            missing.append(pos)
+        elif c not in COMPOSITIONS:
+            unknown.append((pos, c))
+        else:
+            seq.append((pos, c))
+    if missing:
+        errors.append("remotion: %d designed beat(s) name no `shot_fit.composition` (beats %s) — beside the ideal, say "
+                      "how the frame looks at its subject: %s. A film of one composition reads as one page, however "
+                      "different its contents" % (len(missing), ", ".join(map(str, missing[:12])), " · ".join(COMPOSITIONS)))
+    for pos, c in unknown[:6]:
+        errors.append("remotion: beat %d composition %r is not one of %s" % (pos, c, ", ".join(COMPOSITIONS)))
+    if len(seq) < COMPOSITION_MIN:
+        return
+    import collections
+    top, n = collections.Counter(c for _p, c in seq).most_common(1)[0]
+    runs, run = [], [seq[0]]
+    for prev, cur in zip(seq, seq[1:]):
+        run = run + [cur] if cur[1] == prev[1] and cur[0] == prev[0] + 1 else [cur]
+        if len(run) >= COMPOSITION_RUN and (not runs or runs[-1][0] != run[0]):
+            runs.append(run)
+        elif len(run) > COMPOSITION_RUN and runs and runs[-1][0] == run[0]:
+            runs[-1] = run
+    probs = []
+    if n >= COMPOSITION_MIN and n / float(len(seq)) >= COMPOSITION_SHARE:
+        probs.append("%d of %d designed beats are composed as %r" % (n, len(seq), top))
+    for r in runs:
+        probs.append("beats %d-%d are %d %r frames in a row" % (r[0][0], r[-1][0], len(r), r[0][1]))
+    if not probs:
+        return
+    msg = ("remotion: composition — %s. Change how the frame meets the subject with the idea (the object itself "
+           "close, a detail in macro, the subject small in its world, a split, a full-bleed word); the design sheet "
+           "(`python3 scripts/shot_proof.py <out_dir>` → _design_review.png) shows it" % "; ".join(probs))
+    why = str(meta.get("composition_system") or "").strip()
+    if len(re.findall(r"[A-Za-z]+|[\u3400-\u9fff]", why)) >= 6:
+        warnings.append(msg + " — kept by meta.composition_system: " + why[:120])
+    else:
+        errors.append(msg + ". If one composition IS this film's system, say why in meta.composition_system")
+
+
 def _shot_truncation(meta, slides, errors, warnings):
     """A shot whose clip is far shorter than its natural pace plays RUSHED.
 
@@ -4310,6 +4369,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _design_first(meta, slides, errors, warnings, out_dir, "remotion")
         _shot_truncation(meta, slides, errors, warnings)
         _form_vocabulary(meta, slides, errors, warnings)
+        _composition_variety(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings, out_dir=out_dir)
         _beat_grounds(slides, errors, warnings, out_dir)
         _ramp_crossings(meta, slides, warnings)

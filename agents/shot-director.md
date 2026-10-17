@@ -176,7 +176,11 @@ museum label) came to exist, one film too late.
 The library cannot cover the scenes a topic throws at it. Every beat therefore starts from an OPEN design, and a
 register used unchanged is the exception that has to earn it. Per beat, in this order:
 
-1. **Ideal picture — `shot_fit.ideal`, one line, no register named — for EVERY beat, before the skeleton runs.**
+1. **Ideal picture — `shot_fit.ideal`, one line, no register named — for EVERY beat, before the skeleton runs** —
+   and beside it **`shot_fit.composition`**, how the frame meets the subject: `wide` · `medium` · `close` · `macro` ·
+   `object` · `split` · `plane` · `full-bleed` · `sequence`. `validate.py` ERRORS when one composition carries ≥60%
+   of the designed beats or four in a row (the compound-interest test: nine `plane` ledger pages), unless
+   `meta.composition_system` says why one composition IS this film's system.
    What must the viewer SEE for this beat to land: an object (a coffee puck under pressure), a mechanism (water
    forced through it), a relation (loose against packed). Design it with the checklist below. Only after every
    beat has one does `scripts/shot_director.py` propose library registers as MATERIAL (Step 0, item 6); a
