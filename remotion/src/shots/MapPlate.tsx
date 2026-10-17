@@ -107,11 +107,37 @@ export const MapPlate: React.FC<{
 
   const GRAT_N = 5;
 
+  // THE CHANNEL'S GEOMETRY, computed once: the drawing below and the mark labels (which must not land on the
+  // channel's own label) both read it
+  const chan = channel ? (() => {
+    // the two ends the film names — no demo ends to fall back on (see the header)
+    const a = unitPair(channel.from, 'channel.from'), b = unitPair(channel.to, 'channel.to');
+    const x1 = fx(a[0]), y1 = fy(a[1]), x2 = fx(b[0]), y2 = fy(b[1]);
+    const cw = Math.max(hair * 4, (channel.width ?? 0.02) * PW);
+    // A QUARTER ALONG, ON WHICHEVER SIDE IS FURTHER FROM THE SUBJECT — and measured, not assumed. The
+    // centre of a plate is where the subject's own mark lives by construction, and a FIXED fraction only
+    // clears it for a channel that crosses the whole plate, which is what the default happens to be. A
+    // short corridor between two nearby places — a thing a film authors, and what the CJK sweep fed —
+    // put the label straight back onto the place name at 0.26 exactly as it had at 0.50.
+    const nameTop = cy + dot * 2.4, nameH = W * 0.036, labH = W * 0.018;
+    const far = (f: number) =>
+      Math.hypot(x1 + (x2 - x1) * f - cx, y1 + (y2 - y1) * f - (nameTop + nameH / 2));
+    const f = far(0.26) >= far(0.74) ? 0.26 : 0.74;
+    const mx = x1 + (x2 - x1) * f, my = y1 + (y2 - y1) * f;
+    // ...and when the channel runs so near the mark that NEITHER quarter clears it, the label sits above
+    // its own bank instead of dropping into the name. A plate may draw a channel through its subject.
+    const clash = Math.abs(mx - cx) < W * 0.22
+      && my + cw < nameTop + nameH && my + cw + labH > nameTop;
+    const labTop = clash ? my - cw - labH * 1.4 : my + cw;
+    const labPx = Math.round(W * 0.0156);
+    return {x1, y1, x2, y2, cw, mx, labTop, labPx, labBox: {l: mx - W * 0.09, t: labTop, r: mx + W * 0.09,
+      b: labTop + labPx * 1.3 * 2}};
+  })() : null;
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
       {title ? (
         <div style={{position: 'absolute', left: px0, top: CONTENT_TOP - H * 0.055, opacity: frame,
-          font: `600 ${Math.round(W * 0.0125)}px/1.2 ${mono}`, color: ACC,
+          font: `600 ${Math.round(W * 0.0156)}px/1.2 ${mono}`, color: ACC,
           letterSpacing: dna?.labelSpacing ?? '0.14em',
           textTransform: (dna?.uppercaseLabels ?? true) ? 'uppercase' : 'none'}}>{title}</div>
       ) : null}
@@ -139,29 +165,11 @@ export const MapPlate: React.FC<{
 
       {/* a CHANNEL driven through the plate — a cut, a river, a corridor. Drawn under the marks, with the
           double bank a survey draws a waterway with, so it reads as a route and not as a highlight bar. */}
-      {channel ? (() => {
-        // the two ends the film names — no demo ends to fall back on (see the header)
-        const a = unitPair(channel.from, 'channel.from'), b = unitPair(channel.to, 'channel.to');
-        const x1 = fx(a[0]), y1 = fy(a[1]), x2 = fx(b[0]), y2 = fy(b[1]);
+      {chan ? (() => {
+        const {x1, y1, x2, y2, cw, mx, labTop, labPx} = chan;
         const on = easeOutCubic(clamp01(seg(t, 0.30, 0.62)));
         const len = Math.hypot(x2 - x1, y2 - y1) * on;
         const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-        const cw = Math.max(hair * 4, (channel.width ?? 0.02) * PW);
-        // A QUARTER ALONG, ON WHICHEVER SIDE IS FURTHER FROM THE SUBJECT — and measured, not assumed. The
-        // centre of a plate is where the subject's own mark lives by construction, and a FIXED fraction only
-        // clears it for a channel that crosses the whole plate, which is what the default happens to be. A
-        // short corridor between two nearby places — a thing a film authors, and what the CJK sweep fed —
-        // put the label straight back onto the place name at 0.26 exactly as it had at 0.50.
-        const nameTop = cy + dot * 2.4, nameH = W * 0.036, labH = W * 0.018;
-        const far = (f: number) =>
-          Math.hypot(x1 + (x2 - x1) * f - cx, y1 + (y2 - y1) * f - (nameTop + nameH / 2));
-        const f = far(0.26) >= far(0.74) ? 0.26 : 0.74;
-        const mx = x1 + (x2 - x1) * f, my = y1 + (y2 - y1) * f;
-        // ...and when the channel runs so near the mark that NEITHER quarter clears it, the label sits above
-        // its own bank instead of dropping into the name. A plate may draw a channel through its subject.
-        const clash = Math.abs(mx - cx) < W * 0.22
-          && my + cw < nameTop + nameH && my + cw + labH > nameTop;
-        const labTop = clash ? my - cw - labH * 1.4 : my + cw;
         return (
           <React.Fragment>
             <div style={{position: 'absolute', left: x1, top: y1 - cw / 2, width: len, height: cw,
@@ -174,7 +182,7 @@ export const MapPlate: React.FC<{
             {channel.label ? (
               <div style={{position: 'absolute', left: mx - W * 0.09, top: labTop, width: W * 0.18,
                 textAlign: 'center', opacity: on,
-                font: `500 ${Math.round(W * 0.0135)}px/1.3 ${mono}`, color: ACC2,
+                font: `500 ${labPx}px/1.3 ${mono}`, color: ACC2,
                 letterSpacing: '0.06em'}}>{channel.label}</div>
             ) : null}
           </React.Fragment>
@@ -197,52 +205,67 @@ export const MapPlate: React.FC<{
       })}
 
       {/* outer marks */}
-      {marks.map((m, i) => {
-        const st = 0.44 + i * 0.045;
-        const on = easeOutCubic(clamp01(seg(t, st, st + 0.14)));
-        const x = fx(m.x), y = fy(m.y);
-        // The side is chosen by WHERE THERE IS ROOM, not by which half of the plate the mark sits in. Keyed
-        // on the half, a mark near the right edge got a right-hand label that ran straight out of the plate
-        // — Groningen and Maastricht both crossed the border in a delivered film. A label is clamped inside
-        // the plate as well, so no combination of positions can push one out.
-        // A LABEL IS SHOWN, NOT GUILLOTINED. The box was a flat min(W*0.15, PW*0.30) with `nowrap` and
-        // `text-overflow: ellipsis`, so anything past about fifteen characters was silently cut — a
-        // delivered film shipped "a university since 1636" and "and everyone passing through" as stubs.
-        // A place name is short; a NOTE about a place is not, and both arrive through the same prop.
-        // The box is measured from the text now (CJK sets one glyph per em, Latin about half), capped at a
-        // third of the plate, and wraps to two lines rather than losing words.
-        const lab = String(m.label ?? '');
-        const labCjk = lab.length
-          ? lab.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / lab.length : 0;
-        const labFont = Math.round(W * 0.0135);
-        const labW = Math.max(W * 0.09,
-          Math.min(PW * 0.34, lab.length * labFont * (0.52 + 0.48 * labCjk) * 0.62 + labFont));
-        const gap = dot + Math.round(W * 0.006);
-        const {left, align} = placeLabel(x, px0 + hair * 2, px1 - hair * 2, labW, gap);
-        const rightSide = align === 'left';
-        // AND IT MUST NOT LAND ON THE SUBJECT'S OWN NAME. The centre name is the one thing on the plate
-        // that is always there and always in the same place, and nothing stopped a mark's label from
-        // sitting on top of it — the label side is chosen by room at the plate's edges, which knows
-        // nothing about the middle. Where the two boxes would meet, the label steps clear vertically,
-        // away from the centre, which is always the shorter move.
+      {(() => {
+        // LABELS ARE PLACED TOGETHER, NOT ONE AT A TIME. Each label used to choose its side alone, avoiding only
+        // the centre name, so two marks a few percent apart set their labels into one run — with the library's
+        // CJK fixture, 「自主循环持续运转」 and 「自主循环运转」 read as one line on a light plate (2026-10-17). Each
+        // label now takes the first of four places (the roomy side, the other side, above, below) that touches
+        // neither the centre name nor a label already placed; if none does, it keeps the roomy side.
+        // Labels are set at ~30 px at 1080 (they were 26: under the readable floor text_safe_qa measures).
+        const labFont = Math.round(W * 0.0156);
         const nameH = Math.round(W * 0.030) * 1.2, nameTop = cy + dot * 2.4;
-        const labTop0 = y - Math.round(W * 0.012);
-        const labH = labFont * 2.6;
-        const hits = left < cx + W * 0.13 && left + labW > cx - W * 0.13
-          && labTop0 < nameTop + nameH && labTop0 + labH > nameTop;
-        const labTop = hits ? (y < cy ? nameTop - nameH * 0.35 - labH : nameTop + nameH + nameH * 0.25) : labTop0;
-        return (
-          <React.Fragment key={'m' + i}>
-            <div style={{position: 'absolute', left: x - dot / 2, top: y - dot / 2, width: dot, height: dot,
-              borderRadius: dot, background: FG, opacity: on}} />
-            <div style={{position: 'absolute', top: labTop, left, width: labW,
-              textAlign: rightSide ? 'left' : 'right', opacity: on,
-              font: `500 ${labFont}px/1.25 ${mono}`, color: DIM,
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'}}>{m.label}</div>
-          </React.Fragment>
-        );
-      })}
+        type Box = {l: number; t: number; r: number; b: number};
+        const overlap = (a: Box, b: Box) =>
+          Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l)) * Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t));
+        // what a label must not cover: the centre name, the centre ring, and EVERY mark's own dot
+        const placed: Box[] = [{l: cx - W * 0.13, t: nameTop, r: cx + W * 0.13, b: nameTop + nameH},
+          {l: cx - dot * 1.8, t: cy - dot * 1.8, r: cx + dot * 1.8, b: cy + dot * 1.8},
+          ...marks.map((mm) => ({l: fx(mm.x) - dot, t: fy(mm.y) - dot, r: fx(mm.x) + dot, b: fy(mm.y) + dot})),
+          ...(chan && channel?.label ? [chan.labBox] : [])];
+        const lo = px0 + hair * 2, hi = px1 - hair * 2;
+        return marks.map((m, i) => {
+          const st = 0.44 + i * 0.045;
+          const on = easeOutCubic(clamp01(seg(t, st, st + 0.14)));
+          const x = fx(m.x), y = fy(m.y);
+          // A LABEL IS SHOWN, NOT GUILLOTINED: measured from the text (CJK one glyph per em, Latin about half),
+          // capped at a third of the plate, two lines at most rather than losing words.
+          const lab = String(m.label ?? '');
+          const labCjk = lab.length
+            ? lab.replace(/[^\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/g, '').length / lab.length : 0;
+          const labW = Math.max(W * 0.09,
+            Math.min(PW * 0.34, lab.length * labFont * (0.52 + 0.48 * labCjk) * 0.62 + labFont));
+          const lines = Math.min(2, Math.max(1, Math.ceil(lab.length * labFont * (0.52 + 0.48 * labCjk) / labW)));
+          const labH = labFont * 1.3 * lines;
+          const gap = dot + Math.round(W * 0.006);
+          // the side with ROOM first (placeLabel), then the other side, then above, then below — each tried where it
+          // falls, never pushed back over its own dot; one that leaves the plate is not a candidate
+          const {align} = placeLabel(x, lo, hi, labW, gap);
+          type Cand = {l: number; t: number; a: 'left' | 'right' | 'center'};
+          const right: Cand = {l: x + gap, t: y - labH / 2, a: 'left'};
+          const left: Cand = {l: x - gap - labW, t: y - labH / 2, a: 'right'};
+          const above: Cand = {l: x - labW / 2, t: y - gap - labH, a: 'center'};
+          const below: Cand = {l: x - labW / 2, t: y + gap, a: 'center'};
+          const cands: Cand[] = (align === 'left' ? [right, left] : [left, right]).concat([above, below])
+            .filter((c) => c.l >= lo && c.l + labW <= hi && c.t >= top && c.t + labH <= bottom);
+          const box = (c: {l: number; t: number}): Box => ({l: c.l, t: c.t, r: c.l + labW, b: c.t + labH});
+          const cost = (c: {l: number; t: number}) => placed.reduce((s2, p) => s2 + overlap(box(c), p), 0);
+          // the first clear place; if none is clear, the least covered one; if none fits the plate, the roomy side
+          const pick = cands.find((c) => cost(c) === 0)
+            ?? (cands.length ? cands.reduce((a2, b2) => (cost(b2) < cost(a2) ? b2 : a2)) : (align === 'left' ? right : left));
+          placed.push(box(pick));
+          return (
+            <React.Fragment key={'m' + i}>
+              <div style={{position: 'absolute', left: x - dot / 2, top: y - dot / 2, width: dot, height: dot,
+                borderRadius: dot, background: FG, opacity: on}} />
+              <div style={{position: 'absolute', top: pick.t, left: Math.min(Math.max(pick.l, lo), hi - labW), width: labW,
+                textAlign: pick.a, opacity: on, textWrap: 'balance',
+                font: `500 ${labFont}px/1.25 ${mono}`, color: DIM,
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'}}>{m.label}</div>
+            </React.Fragment>
+          );
+        });
+      })()}
 
       {/* the subject: a ringed mark and its name, set in the display face */}
       <div style={{position: 'absolute', left: cx - dot * 1.6, top: cy - dot * 1.6,
@@ -263,14 +286,14 @@ export const MapPlate: React.FC<{
                 background: k % 2 ? 'transparent' : FG, border: `${hair}px solid ${FG}`}} />
             ))}
           </div>
-          <div style={{font: `500 ${Math.round(W * 0.0115)}px/1 ${mono}`, color: DIM}}>{scaleLabel}</div>
+          <div style={{font: `500 ${Math.round(W * 0.0156)}px/1 ${mono}`, color: DIM}}>{scaleLabel}</div>
         </div>
       ) : null}
 
       {note ? (
         <div style={{position: 'absolute', left: px0, right: W - px1, top: bottom + H * 0.018,
           opacity: easeOutCubic(clamp01(seg(t, 0.80, 0.94))),
-          font: `400 ${Math.round(W * 0.0125)}px/1.4 ${mono}`, color: DIM,
+          font: `400 ${Math.round(W * 0.0156)}px/1.4 ${mono}`, color: DIM, textWrap: 'balance',
           letterSpacing: '0.05em'}}>{note}</div>
       ) : null}
     </AbsoluteFill>
