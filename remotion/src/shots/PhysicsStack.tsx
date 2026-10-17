@@ -18,6 +18,11 @@ import {useDNA, dnaPalette, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, inkBlockH, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 
+// THE CLOSING MARK FITS THE SENTENCE: a CJK line takes 。, a Latin one ., and a line that already ends in its own
+// punctuation takes none — a Latin "." after a Chinese headline read as a typo, and "Done!." as two marks.
+const closingMark = (s: string): string => /[.!?。！？…:：;；]\s*$/.test(s) ? ''
+  : /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(s) ? '。' : '.';
+
 export const DURATION = 165; // 5.5s
 
 export type PhysicsBar = {
@@ -75,7 +80,8 @@ export const PhysicsStack: React.FC<{bars?: PhysicsBar[]; items?: string[]; labe
   const GRID = dna ? mix(dna.bg, dna.line ?? '#161d29', 0.5) : '#161d29';
 
   // LAYOUT, top to bottom: headline · value text · the tallest bar · ground · labels, all in the content zone.
-  const headPx = fitTextPx(label + '.', W * 0.84, Math.round(U * 0.052));
+  const mark = closingMark(String(label));
+  const headPx = fitTextPx(label + mark, W * 0.84, Math.round(U * 0.052));
   const headTop = CONTENT_TOP - Math.round(U * 0.04);
   const valuePx = Math.round(U * 0.026);
   const zoneW = W * 0.84;
@@ -157,7 +163,7 @@ export const PhysicsStack: React.FC<{bars?: PhysicsBar[]; items?: string[]; labe
       <div style={{position: 'absolute', left: W * 0.08, right: W * 0.08, top: headTop, textAlign: 'center',
         opacity: clamp01(seg(t, 0.7, 0.9)), color: FG, whiteSpace: 'nowrap',
         font: `800 ${headPx}px/${leading(label, 1)} var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.01em'}}>
-        {label}<span style={{color: ACC}}>.</span>
+        {label}<span style={{color: ACC}}>{mark}</span>
       </div>
     </AbsoluteFill>
   );

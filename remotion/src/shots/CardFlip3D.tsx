@@ -51,9 +51,10 @@ const Face: React.FC<{children: React.ReactNode; back?: boolean; tone: string;
     boxShadow: shadow}}>{children}</div>
 );
 
-export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: string}> = ({
+// `numbered: false` drops the 01/02/03 on each face — for items with no order, where a number would claim one
+export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: string; numbered?: boolean}> = ({
   items: ITEMS = [{front: 'Manual', back: 'Automated'}, {front: 'Hours', back: 'Seconds'}, {front: 'Guesswork', back: 'Grounded'}],
-  title: TITLE = 'What changes', backLabel: BACKLABEL = '实际'
+  title: TITLE = 'What changes', backLabel: BACKLABEL = '实际', numbered = true
   } = {}) => {
   const t = useT();
   const glide = useGlide();
@@ -145,8 +146,8 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
               transformStyle: 'preserve-3d', opacity: rise,
               transform: `translateY(${(1 - rise) * 60}px) rotateY(${rot}deg)`}}>
               <Face tone={tone} shadow={CARD_SHADOW} faceBg={FACE_BG} faceEdge={FACE_EDGE}>
-                <div style={{color: DIM, font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)',
-                  letterSpacing: '0.14em', marginBottom: 22}}>{String(i + 1).padStart(2, '0')}</div>
+                {numbered ? <div style={{color: DIM, font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)',
+                  letterSpacing: '0.14em', marginBottom: 22}}>{String(i + 1).padStart(2, '0')}</div> : null}
                 <div style={{color: INK, font: `800 ${faceSize}px/1.18 ${dispFace}`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.front}</div>
               </Face>

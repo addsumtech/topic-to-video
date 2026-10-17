@@ -9,6 +9,11 @@ import {drawOn} from '../runtime/draw';
 import {useDNA} from '../runtime/dna';
 import {bottomInset} from '../runtime/layout';
 
+// THE CLOSING MARK FITS THE SENTENCE: a CJK line takes 。, a Latin one ., and a line that already ends in its own
+// punctuation takes none — a Latin "." after a Chinese headline read as a typo, and "Done!." as two marks.
+const closingMark = (s: string): string => /[.!?。！？…:：;；]\s*$/.test(s) ? ''
+  : /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/.test(s) ? '。' : '.';
+
 export const DURATION = 165; // 5.5s
 const CY_D0 = '#3fe0ff';
 const D2R = Math.PI / 180;
@@ -89,7 +94,7 @@ export const WireGlobe: React.FC<{tagline?: string}> = ({tagline = 'connected to
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, H * 0.12), textAlign: 'center',
         opacity: clamp01(seg(t, 0.55, 0.8)), color: TAG_INK, font: '800 44px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em'}}>
-        {tagline}<span style={{color: CY}}>.</span>
+        {tagline}<span style={{color: CY}}>{closingMark(String(tagline))}</span>
       </div>
     </AbsoluteFill>
   );

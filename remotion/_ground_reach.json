@@ -1909,7 +1909,7 @@
     "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9335392992424243,
+   "moved": 0.932315340909091,
    "ok": true,
    "why": []
   },
@@ -2844,7 +2844,7 @@
     "light": 1.0,
     "dark": 0.0012141079641878605
    },
-   "moved": 0.9982220643939393,
+   "moved": 0.9996401515151515,
    "ok": true,
    "why": []
   },
@@ -2894,7 +2894,7 @@
   "BokehPull": "40f40f560b8cebeb",
   "BreaksWhenAsked": "15c581f6f189eba4",
   "BrutalistType": "312571546ea92508",
-  "CardFlip3D": "731cb6eea040efc7",
+  "CardFlip3D": "dcad163f4dc289cc",
   "CardStack3D": "d85d08b43210eba1",
   "CarryOver": "1309f9a0e27b4218",
   "CartoonPop": "28b177db4b1a1a9a",
@@ -2997,7 +2997,7 @@
   "ParticleForm": "fca578a38371fab2",
   "PhaseEncodeStep": "c6cd903b075a2d0d",
   "PhotoPlate": "0455e6f362f881e7",
-  "PhysicsStack": "b3168176cdcab369",
+  "PhysicsStack": "57ca1b0a8783c9f8",
   "PixelBuild": "d75119d90ab5f8f2",
   "PlanPalimpsest": "ff86752b3d4d8a80",
   "PlaneStack": "b3a8c98d2caf5ddd",
@@ -3060,7 +3060,7 @@
   "ViewSwitch": "91333f6c882597ef",
   "VoiceSignal": "519711eed3953b17",
   "VoxelBuild": "3ae03a5d4c40ecf2",
-  "WireGlobe": "682228cf46421f58",
+  "WireGlobe": "35cefda9d7f78392",
   "WordTunnel": "97828b1ec1d3c8d7",
   "WorksThrough": "e2ad62366962a853",
   "DeviceDemo": "83123a4dd924f1c3",
