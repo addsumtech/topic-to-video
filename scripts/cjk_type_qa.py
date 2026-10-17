@@ -2124,7 +2124,11 @@ def main(argv):
                 h = max(lead[n], key=lambda x: x["depth"])
                 print("    %-22s %3dpx deep  %s  «%s»" % (n, h["depth"], h["font"], h["text"]))
         if over:
-            print("\nTYPE OVERLAPPING OTHER TYPE (a candidate — some registers stack type on purpose):")
+            # KNOWN BLIND SPOT: the DOM audit (runtime/textSafe.tsx) honours overflow clipping but not `clip-path` or
+            # masks, so type a mask hides still counts as visible here. Fixing it in textSafe.tsx would re-key every
+            # register's measurements (a multi-hour re-sweep), so it is said instead of fixed.
+            print("\nTYPE OVERLAPPING OTHER TYPE (a candidate — some registers stack type on purpose, and type hidden "
+                  "by a clip-path or mask is still counted: look at the frame):")
             for n in sorted(over, key=lambda k: -len(over[k]))[:14]:
                 h = over[n][0]
                 # A TILTED PAIR IS NOW MEASURED AS THE SHAPES IT IS. This used to warn that the

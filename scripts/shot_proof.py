@@ -1188,9 +1188,11 @@ def _prove(argv, out_dir, board, ws_durs):
                                       "captures, so the film ships an unsourced number"
                                       % (beat, shot, d, FIGURE_SETTLE_BLOCK))
             m = shot_still_qa.measure(png)
-            if m["edge"] > shot_still_qa.EDGE_FRAC_ERR:
-                errors.append("beat %d (%s): %.1f%% of the action-safe border is content — something is "
-                              "OFF-FRAME" % (beat, shot, 100 * m["edge"]))
+            # NO OFF-FRAME ERROR FROM BORDER INK. Coverage of the action-safe border runs OPPOSITE to the defect: a cut
+            # word leaves a thin band (low), a deliberate full-bleed plane a solid field (high) — measured zero true
+            # positives and four false ones (references/launch-film-study.md "The gate that was measuring backwards"),
+            # and the compound test's full-bleed passbook cloth was called OFF-FRAME here. Cut TYPE is asked of the
+            # DOM by text_safe_qa; a cut graphic is judged on the design sheet.
             if m["caption"] > shot_still_qa.CAPTION_FRAC_ERR:
                 errors.append("beat %d (%s): %.1f%% ink in the caption band — the burned subtitle will sit "
                               "on the shot's own content" % (beat, shot, 100 * m["caption"]))
