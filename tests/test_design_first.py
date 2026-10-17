@@ -232,3 +232,16 @@ def test_validate_cites_the_section_that_holds_the_aspect_rule_and_the_doc_state
     import _caption_band as cb
     assert "**%dpx at 1080p landscape" % cb.caption_band_px(1920, 1080) in doc
     assert "%dpx at 9:16**" % cb.caption_band_px(1080, 1920) in doc
+
+
+def test_a_device_beat_on_the_products_own_screens_is_exempt_and_a_drawn_screen_is_not(tmp_path):
+    """A launch film's device beats show the product's real screens — its real picture, as a photograph is a place's.
+    Held to the built half, they would have to be redrawn. A screen the film drew stays counted (built)."""
+    meta, slides = _film(tmp_path, "b")
+    slides += [{"index": 2, "shot": "DeviceDemo", "shot_props": {"steps": [{"screen": {"image": "shots/home.png"}},
+                                                                           {"tap": [0.5, 0.5]}]}},
+               {"index": 3, "shot": "DeviceHero", "shot_props": {"screen": {"video": "rec.mp4", "to": 4}}},
+               {"index": 4, "shot": "DeviceHero", "shot_props": {"screen": {"object": {"id": "Drawn"}}}}]
+    routes = dict((n, r) for n, r, _w in v.design_routes(meta, slides, str(tmp_path)))
+    assert routes[2] == "exempt" and routes[3] == "exempt", routes
+    assert routes[4] != "exempt", routes

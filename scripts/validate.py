@@ -2119,7 +2119,7 @@ def _composition_variety(meta, slides, errors, warnings):
            "close, a detail in macro, the subject small in its world, a split, a full-bleed word); the design sheet "
            "(`python3 scripts/shot_proof.py <out_dir>` → _design_review.png) shows it" % "; ".join(probs))
     why = str(meta.get("composition_system") or "").strip()
-    if len(re.findall(r"[A-Za-z]+|[\u3400-\u9fff]", why)) >= 6:
+    if _common.substance(why) >= 6:
         warnings.append(msg + " — kept by meta.composition_system: " + why[:120])
     else:
         errors.append(msg + ". If one composition IS this film's system, say why in meta.composition_system")
@@ -3252,12 +3252,9 @@ _NON_STRUCTURAL_PROPS = {"accent", "accent2", "imageAspect", "aspect", "dna", "p
 
 
 def _substance(text):
-    """A language-neutral size for a justification: Latin words + CJK characters / 2. "it fits" is 2; a clause
+    """A language-neutral size for a justification: words in any script + CJK characters / 2. "it fits" is 2; a clause
     that names an encoding and a reason is well over 6 in any script."""
-    t = str(text or "")
-    cjk = len(re.findall(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]", t))
-    words = len(re.findall(r"[A-Za-z0-9\u00c0-\u024f]+", t))
-    return words + cjk / 2.0
+    return _common.substance(text)                      # any script — see _common.substance
 
 
 def _specific(text, floor=6):
@@ -3371,6 +3368,19 @@ def _promoted_for(eid, kind, meta, out_dir):
     return bool(m) and m.group(1).strip() in names
 
 
+def _product_screens(shot, sp):
+    """True when a device beat shows only the product's OWN captured screens — `{"image": file}` / `{"video": file}` —
+    and no screen the film drew (`{"object": …}`): DeviceDemo's `steps[].screen`, DeviceHero's `screen`."""
+    def captured(scr):
+        return isinstance(scr, dict) and bool(scr.get("image") or scr.get("video")) and not scr.get("object")
+    if shot == "DeviceDemo":
+        screens = [st.get("screen") for st in (sp.get("steps") or []) if isinstance(st, dict) and "screen" in st]
+        return bool(screens) and all(captured(x) for x in screens)
+    if shot == "DeviceHero":
+        return captured(sp.get("screen"))
+    return False
+
+
 def design_routes(meta, slides, out_dir):
     """[(beat number, route, reason)] with route in built | adapted | exempt | as-is — see the block above."""
     import workshop as _ws
@@ -3398,6 +3408,11 @@ def design_routes(meta, slides, out_dir):
         ev = evidence.get(shot)
         if ev and all(sp.get(k) for k in ev):
             out.append((num, "exempt", "a real picture on %s" % shot)); continue
+        if _product_screens(shot, sp):
+            # THE PRODUCT'S OWN SCREENS ARE ITS REAL PICTURE, as a photograph is a place's: a launch film's device
+            # beats were held to the built half and would have to redraw what the product already shows. A screen
+            # the FILM drew ({"object": …}) is not exempt — it is built, and counted as built below.
+            out.append((num, "exempt", "the product's own screens on %s" % shot)); continue
         if shot in built_shots:
             out.append((num, "built", "its shot %s is this film's own" % shot)); continue
         src = _ws.shot_source(out_dir, shot) if shot else None

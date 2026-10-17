@@ -211,7 +211,8 @@ the film's own crafted subject held in a frame's object slot does — at least O
 beat**, even on a film
 whose every other beat is exempt — and a `shot_fit.ideal` on every adapted or built beat. Exemptions are decided
 FIRST, and an adaptation note on an exempt beat credits nothing: a `CinematicTitle` used as the first/last beat,
-and an evidence register (`PhotoPlate`, `RealVersus`, …) holding its real picture. A build-list entry marked
+an evidence register (`PhotoPlate`, `RealVersus`, …) holding its real picture, and a device beat (`DeviceDemo`,
+`DeviceHero`) showing only the product's own captured screens (a screen the film drew counts as built). A build-list entry marked
 `promoted` counts as built only when the library's catalogue line says it was built for THIS film. Half is the
 floor, not the target: **a strong film is mostly built** (GPS: 15 of 15; the compound-interest test composed every
 beat from one passbook kit). The proposals `shot_director.py` writes are chosen by an intent keyword, never by your
