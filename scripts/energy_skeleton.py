@@ -55,6 +55,7 @@ as warnings; `shot_director.py` uses `band_for()` to prefer an in-band register 
 """
 import json
 import os
+import subprocess
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -190,9 +191,9 @@ def unmeasured_reason(shot, stale_rows, film_shots=()):
     if not shot:
         return "no register assigned yet — run the shot-director, then re-run this"
     if shot in (film_shots or ()):
-        return ("%s is this film's own workshop shot — the library sweep never measures a workshop, so its "
-                "motion is not known before the render; read it on the rendered film "
-                "(`python3 scripts/film_energy_qa.py <out_dir>`), or promote the shot to have it measured" % shot)
+        return ("%s is this film's own workshop shot and has not been measured yet — "
+                "`python3 scripts/energy_skeleton.py <out_dir>` renders the film's own shots with their props and "
+                "measures them (cached in .energy_own.json)" % shot)
     if shot in (stale_rows or {}):
         return ("%s's row in the sweep is STALE (%s), so it was dropped rather than trusted — run "
                 "`python3 scripts/register_energy.py`" % (shot, stale_rows[shot]))
@@ -201,7 +202,7 @@ def unmeasured_reason(shot, stale_rows, film_shots=()):
 
 
 def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_rows=None, malformed=None,
-             film_shots=()):
+             film_shots=(), beat_motion=None):
     """The list of dicts described in the module docstring. Empty when the film follows its skeleton.
 
     A beat with no motion number is emitted as kind `unmeasured` rather than skipped: it is the one thing
@@ -218,7 +219,8 @@ def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_row
     rows = []
     for i, s in enumerate(slides):
         shot = s.get("shot")
-        m = motion.get(shot)
+        # a film's own shot is measured per BEAT (its props change the picture), the library's per register
+        m = (beat_motion or {}).get(i + 1, motion.get(shot))
         rows.append({"beat": i + 1, "shot": shot, "energy": declared(s, beats[i]), "motion": m})
     out = []
     for i, r in enumerate(rows):
@@ -234,6 +236,11 @@ def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_row
             kind = "peak-under-floor"                                # the stronger claim wins the line
         if e == "low" and m >= kinetic_cut:
             kind = "low-on-kinetic"
+        if not kind and r["shot"] in (film_shots or ()) and e != "low" and m < floor:
+            # a BUILT shot has no library alternative to swap in — its fix is in its own source, so it is said
+            # (advisory: the render's film_energy_qa separates "under the floor" from "frozen")
+            out.append(dict(r, kind="own-under-floor", floor=floor, alternatives=[]))
+            continue
         if kind:
             lo, hi = band_for(e, quiet_cut, kinetic_cut, floor)
             near = {fam.get(rows[j]["shot"]) for j in (i - 1, i + 1) if 0 <= j < len(rows)}
@@ -266,15 +273,15 @@ def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_row
     return out
 
 
-def curve(slides, motion, quiet_cut, kinetic_cut, plan=None):
+def curve(slides, motion, quiet_cut, kinetic_cut, plan=None, beat_motion=None):
     """Two aligned strings: the declared skeleton (L/m/H/P per beat) and the measured register motion as a
     sparkline. Reading them together is the whole check."""
     beats = _beats_by_position(plan, slides)
     dec, meas = [], []
-    for s, b in zip(slides, beats):
+    for k, (s, b) in enumerate(zip(slides, beats), 1):
         e = declared(s, b)
         dec.append({"low": "L", "medium": "m", "high": "H", "peak": "P"}[e])
-        m = motion.get(s.get("shot"))
+        m = (beat_motion or {}).get(k, motion.get(s.get("shot")))
         if m is None:
             meas.append("?")
         else:
@@ -302,7 +309,7 @@ def coverage(fs, slides, curve_pair=None):
     return len(slides) - len(miss), len(slides), miss
 
 
-def check_slides(slides, plan=None, film_shots=()):
+def check_slides(slides, plan=None, film_shots=(), beat_motion=None):
     """(findings, curve_pair, why_none) for a storyboard's slides — what validate.py calls on the board it
     holds. Beats the sweep cannot measure arrive as `unmeasured` findings, so a caller that reports findings
     reports the coverage hole too without needing a second channel for it."""
@@ -310,8 +317,86 @@ def check_slides(slides, plan=None, film_shots=()):
     slides, malformed = _normalise(slides)
     if why:
         return [], None, why
-    return (findings(slides, motion, floor, qc, kc, plan, stale_rows, malformed, film_shots),
-            curve(slides, motion, qc, kc, plan), None)
+    return (findings(slides, motion, floor, qc, kc, plan, stale_rows, malformed, film_shots, beat_motion),
+            curve(slides, motion, qc, kc, plan, beat_motion), None)
+
+
+# ── A FILM'S OWN SHOTS, MEASURED BEFORE THE RENDER ──────────────────────────────────────────────────────────────
+# The library sweep never sees a workshop, so on a mostly-built film this check measured 0 of N and exited non-zero
+# (the compound-interest test: 0/11, and 8 of its 11 beats later measured under the motion floor by hand). Each built
+# beat is rendered here with its own props and the film's DNA — at half size, since the instrument reads a 192 px
+# long side — and measured with the delivery gate's own `film_energy_qa.measure`. Results are cached per beat on the
+# workshop's bytes, the props, the DNA and the aspect, in `<out_dir>/.energy_own.json`; validate reads only the cache.
+OWN_CACHE = ".energy_own.json"
+
+
+def _own_key(out_dir, slide, meta):
+    import hashlib
+    h = hashlib.sha256()
+    wdir = os.path.join(out_dir, "workshop")
+    for root, _d, files in sorted(os.walk(wdir)):
+        for f in sorted(files):
+            if f.endswith((".tsx", ".ts", ".css")):
+                h.update(f.encode())
+                h.update(open(os.path.join(root, f), "rb").read())
+    h.update(json.dumps([slide.get("shot"), slide.get("shot_props"), meta.get("design_dna") or
+                         meta.get("shot_template"), meta.get("aspect")], sort_keys=True, default=str).encode())
+    return h.hexdigest()[:16]
+
+
+def own_motion(out_dir, slides, meta, render=False, log=print):
+    """{beat: motion_p75} for the beats on this film's own shots — from the cache, and (render=True) by rendering
+    and measuring every one the cache does not hold."""
+    import workshop as _ws
+    own = _ws.shot_names(out_dir)
+    path = os.path.join(out_dir, OWN_CACHE)
+    try:
+        cache = json.load(open(path, encoding="utf-8"))
+    except (OSError, ValueError):
+        cache = {}
+    out, dirty = {}, False
+    todo = [(i, s) for i, s in enumerate(slides, 1) if isinstance(s, dict) and s.get("shot") in own]
+    if render and todo:
+        import render_remotion as rr
+        import film_energy_qa as fe
+        env = _ws.prepare(out_dir)
+        durs = _ws.durations(out_dir)
+    for i, s in todo:
+        key = _own_key(out_dir, s, meta)
+        if key in cache:
+            out[i] = cache[key]
+            continue
+        if not render:
+            continue
+        props = rr.film_shot_props(s, out_dir)
+        dna = meta.get("design_dna") or meta.get("shot_template")
+        if dna is not None:
+            props.setdefault("dna", dna)
+        if meta.get("aspect"):
+            props.setdefault("aspect", meta["aspect"])
+        tmpd = os.path.abspath(os.path.join(out_dir, "._energy_own"))   # the render runs from remotion/, not here
+        os.makedirs(tmpd, exist_ok=True)
+        pf, mp4 = os.path.join(tmpd, "beat_%02d.json" % i), os.path.join(tmpd, "beat_%02d.mp4" % i)
+        json.dump(props, open(pf, "w", encoding="utf-8"), ensure_ascii=False)
+        r = subprocess.run(["npx", "remotion", "render", "src/index.ts", s["shot"], mp4, "--gl=angle", "--log=error",
+                            "--scale=0.5", "--props=" + os.path.abspath(pf), "--public-dir=" + os.path.abspath(out_dir)],
+                           cwd=os.path.join(_HERE, "..", "remotion"), capture_output=True, text=True,
+                           **_ws.env_kwargs(env))
+        if r.returncode != 0 or not os.path.exists(mp4):
+            log("[energy_skeleton] beat %d (%s): render failed — %s" % (i, s["shot"], _c.render_error(r.stdout, r.stderr,
+                                                                                                   limit=120)))
+            continue
+        m = fe.measure(mp4)
+        if isinstance(m, dict) and m.get("motion_p75") is not None:
+            out[i] = cache[key] = round(float(m["motion_p75"]), 4)
+            dirty = True
+            log("[energy_skeleton] beat %d (%s): measured motion %.4f" % (i, s["shot"], out[i]))
+        for f in (pf, mp4):
+            if os.path.exists(f):
+                os.remove(f)
+    if dirty:
+        json.dump(cache, open(path, "w", encoding="utf-8"), indent=1)
+    return out
 
 
 def load_plan(out_dir):
@@ -324,7 +409,7 @@ def load_plan(out_dir):
     return None
 
 
-def check(out_dir):
+def check(out_dir, render_own=False):
     """(findings, curve_pair, why_none) for an out_dir — the CLI entry point."""
     data = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     try:
@@ -332,7 +417,13 @@ def check(out_dir):
         film_shots = workshop.shot_names(out_dir)
     except Exception:                                               # noqa: BLE001 — a reason, never a crash
         film_shots = set()
-    return check_slides(data.get("slides") or [], load_plan(out_dir), film_shots)
+    beat_motion = {}
+    if film_shots:
+        try:
+            beat_motion = own_motion(out_dir, data.get("slides") or [], data.get("meta") or {}, render=render_own)
+        except Exception as e:                                      # noqa: BLE001 — unmeasured says why
+            print("[energy_skeleton] the film's own shots could not be measured: %s" % e)
+    return check_slides(data.get("slides") or [], load_plan(out_dir), film_shots, beat_motion)
 
 
 def describe(f):
@@ -346,6 +437,11 @@ def describe(f):
                 "(%s, %.4f) — the visual summit is somewhere the argument does not peak; swap them or give "
                 "the peak a livelier register"
                 % (f["shot"], f["beat"], f["energy"], f["motion"], f["peak_beat"], f["peak_shot"], f["peak_motion"]))
+    if f["kind"] == "own-under-floor":
+        return ("beat %d (%s, this film's own shot) motion %.4f is under the delivery floor %.4f — it settles and "
+                "stops, which reads as a slide. Give it an idle that keeps the subject alive after its reveal (the "
+                "runtime's life()/idle clock, light that moves, the object turning) or a motivated camera move"
+                % (f["beat"], f["shot"], f["motion"], f.get("floor", 0.0)))
     if f["kind"] == "unmeasured":
         return ("beat %d declared %s was NOT checked — %s"
                 % (f["beat"], (f.get("energy") or "medium").upper(), f.get("why") or "no motion number"))
@@ -361,7 +457,7 @@ def describe(f):
 def main(argv):
     if not argv or argv[0].startswith("-"):
         print(__doc__.split("\n\n")[0]); return 2
-    fs, cv, why = check(argv[0])
+    fs, cv, why = check(argv[0], render_own="--no-render" not in argv)
     data = json.load(open(os.path.join(argv[0], "storyboard.json"), encoding="utf-8"))
     slides = data.get("slides") or []
     seen, universe, missing = coverage(fs, slides, None if why else cv)

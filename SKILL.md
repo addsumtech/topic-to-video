@@ -704,7 +704,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      with the idea (wide, close-up, the object itself, a diagram plane — not one page layout repeated), does the
      film's subject appear as a crafted OBJECT the camera can get close to, is every label readable at phone size,
      is every frame full? The compound-interest test passed every gate with nine flat ledger pages in a row; only
-     the sheet showed it. Fix, re-run, then copy the sheet to the Desktop and show it at the checkpoint below.
+     the sheet showed it. And does it MOVE: `python3 scripts/energy_skeleton.py <out_dir>` renders each built
+     beat with its props (~5 s a beat, cached) and names the ones that settle and stop under the motion floor —
+     6 of that film's 11. Fix, re-run, then copy the sheet to the Desktop and show it at the checkpoint below.
      The review after the render (`agents/shot-critic.md`, its ledger, `critic_ledger.py --final`) and
      promotion of built things are steps 9d–9f.
      **From scratch, start the board from the content plan:** `python3 scripts/storyboard.py <out_dir> --from-plan

@@ -2914,7 +2914,9 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
     if slides and any(s.get("shot") for s in slides):
         try:
             import energy_skeleton as _es
-            _fs, _cv, _why = _es.check_slides(slides, _es.load_plan(out_dir) if out_dir else None)
+            # the film's own shots, as energy_skeleton.py last MEASURED them (cache only — validate never renders)
+            _bm = _es.own_motion(out_dir, slides, meta, render=False) if out_dir and _film_shots else {}
+            _fs, _cv, _why = _es.check_slides(slides, _es.load_plan(out_dir) if out_dir else None, _film_shots, _bm)
         except Exception as e:                                       # noqa: BLE001 — never let a diagnostic block
             _es, _fs, _cv, _why = None, [], None, "energy_skeleton failed: %s" % e
         if _why:
@@ -2925,8 +2927,8 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
                 # workshop, so `f["kind"] == "unmeasured"` here is not a gap to close, and telling the author to
                 # run it is telling them to run something that cannot help.
                 if f["kind"] == "unmeasured" and f.get("shot") in _film_shots:
-                    return ("beat %d declared %s is unmeasured BY DESIGN — %s is this film's own workshop shot, "
-                            "never in the library's energy sweep"
+                    return ("beat %d declared %s is not measured yet — %s is this film's own workshop shot; "
+                            "`python3 scripts/energy_skeleton.py <out_dir>` renders and measures it"
                             % (f["beat"], (f.get("energy") or "medium").upper(), f["shot"]))
                 return _es.describe(f)
             _hard = [f for f in _fs if f["kind"] in _es.HARD]
@@ -2934,9 +2936,10 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
             # fifteen identical warnings in a row, each saying the same thing nobody could act on
             _own = [f for f in _fs if f["kind"] == "unmeasured" and f.get("shot") in _film_shots]
             if _own:
-                warnings.append("remotion: energy skeleton — %d beat(s) are this film's own shots (%s), unmeasured by "
-                                "design — the library's energy sweep never sees a workshop: whether they MOVE is measured after the render "
-                                "by film_energy_qa (per beat: seconds under the motion floor, and frozen)"
+                warnings.append("remotion: energy skeleton — %d beat(s) on this film's own shots (%s) are not measured "
+                                "yet, unmeasured by the library's sweep by design: `python3 scripts/energy_skeleton.py "
+                                "<out_dir>` renders each with its props and measures whether it MOVES (~5 s a beat, "
+                                "cached), before narration and the render"
                                 % (len(_own), ", ".join(sorted({f["shot"] for f in _own}))[:160]))
             for f in _hard[:6] + [f for f in _fs if f["kind"] not in _es.HARD and f not in _own]:
                 warnings.append("remotion: energy skeleton — %s" % _describe(f))

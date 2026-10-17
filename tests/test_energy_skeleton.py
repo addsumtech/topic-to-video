@@ -222,11 +222,12 @@ def test_a_film_s_own_workshop_shot_is_unmeasured_with_advice_that_can_help(tmp_
     shots = os.path.join(out, "workshop", "shots")
     os.makedirs(shots)
     open(os.path.join(shots, "FilmBuiltFlow.tsx"), "w", encoding="utf-8").write("export const DURATION = 150;\n")
-    rc = es.main([out])
+    rc = es.main([out, "--no-render"])
     text = capsys.readouterr().out
     assert rc == 1, text                                            # still not measured — never a silent pass
     assert "FilmBuiltFlow is this film's own workshop shot" in text, text
-    assert "film_energy_qa.py" in text and "register_energy.py" not in text, text
+    # the advice is the command that CAN measure it now — this one, rendering the film's own shots
+    assert "energy_skeleton.py <out_dir>" in text and "register_energy.py" not in text, text
     # the same name as a LIBRARY register that lacks a row keeps the old advice
     rc2 = es.main([_board(tmp_path, [calm, "FilmBuiltFlow"], name="lib")])
     assert rc2 == 1 and "register_energy.py" in capsys.readouterr().out
@@ -272,3 +273,49 @@ def test_the_light_cut_is_the_librarys_own_and_not_a_whole_films_threshold():
         "the light axis still decides the whole test on its own: %d clear light, %d clear all three"
         % (len(lum), len(all3)))
     assert len(all3) > len(man.get("_failed") or []), "nothing clears all three; the cut cannot be right"
+
+
+def test_a_measured_built_shot_under_the_floor_is_named_with_its_own_fix(tmp_path):
+    """The compound-interest test built 11 of 11 beats and measured 0 of them here; 8 were under the motion floor.
+    A built beat's motion comes from the cache own_motion() writes; under the floor it is named, with the fix that
+    lives in its own source (no library alternative exists for it)."""
+    motion, floor = _sweep()[0], _sweep()[1]
+    calm = min(motion, key=motion.get)
+    out = _board(tmp_path, [calm, "FilmBuiltFlow"], name="cached")
+    shots = os.path.join(out, "workshop", "shots")
+    os.makedirs(shots)
+    open(os.path.join(shots, "FilmBuiltFlow.tsx"), "w", encoding="utf-8").write("export const DURATION = 150;\n")
+    board = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
+    key = es._own_key(out, board["slides"][1], board["meta"])
+    json.dump({key: round(floor / 4, 5)}, open(os.path.join(out, es.OWN_CACHE), "w"))
+    fs, _cv, why = es.check(out)
+    assert not why, why
+    own = [f for f in fs if f["kind"] == "own-under-floor"]
+    assert own and own[0]["beat"] == 2, fs
+    assert "keeps the subject alive" in es.describe(own[0])
+    assert not [f for f in fs if f["kind"] == "unmeasured" and f["beat"] == 2], fs
+    # the cache is keyed on the workshop's bytes: an edit to the shot drops the old number
+    open(os.path.join(shots, "FilmBuiltFlow.tsx"), "a", encoding="utf-8").write("// edited\n")
+    fs, _cv, _w = es.check(out)
+    assert [f for f in fs if f["kind"] == "unmeasured" and f["beat"] == 2], fs
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(_HERE, "..", "remotion", "node_modules")),
+                    reason="needs the remotion toolchain")
+def test_the_films_own_shots_are_rendered_measured_and_cached(tmp_path, monkeypatch):
+    """A static built shot (a solid frame) is rendered with its props, measured by the delivery gate's instrument,
+    and cached; the second run reads the cache and renders nothing."""
+    sys.path.insert(0, _HERE)
+    from test_workshop_bundle import SHOT
+    out = _board(tmp_path, ["StillPage"], name="own")
+    shots = os.path.join(out, "workshop", "shots")
+    os.makedirs(shots)
+    open(os.path.join(shots, "StillPage.tsx"), "w", encoding="utf-8").write(SHOT % {"name": "StillPage"})
+    board = json.load(open(os.path.join(out, "storyboard.json"), encoding="utf-8"))
+    rel = os.path.relpath(out)                          # a relative out_dir, as a user types it — the render runs
+    got = es.own_motion(rel, board["slides"], board["meta"], render=True)   # from remotion/, not from here
+    assert set(got) == {1} and got[1] < 0.001, got
+    assert os.path.exists(os.path.join(out, es.OWN_CACHE))
+    import subprocess as _sp
+    monkeypatch.setattr(_sp, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("rendered again")))
+    assert es.own_motion(out, board["slides"], board["meta"], render=True) == got
