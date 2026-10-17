@@ -40,11 +40,15 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
   // a full em, so a Chinese source title wraps where the English one did not, the card grows downward from
   // a top that never moves, and the row reaches 101px into the caption band at 1:1. The row's top yields by
   // the height its tallest card actually needs. Latin is one line and the row stays at 600.
-  const SRC_PX = 36, SRC_D_PX = 26;
+  // The index badge and the source's folder name are COPY, so they are set at the label floor (30 px at 1080;
+  // they were 16 px and 26 px): the badge is a 42 px square now, and the folder name wraps in what the badge
+  // and the dot leave of the card's width — the reserve below counts it in that same measure.
+  const SRC_PX = 36, SRC_D_PX = 30, BADGE = 42;
   const colW = Math.max(80, (CW - 26 * Math.max(0, SRC.length - 1)) / Math.max(1, SRC.length) - 56);
-  const srcCardH = 52 + 26 + 14
+  const dW = Math.max(60, colW - BADGE - 10 - 24);
+  const srcCardH = 52 + BADGE + 14
     + Math.max(1, ...SRC.map((s2) => wrapLines(String(s2.t ?? ''), SRC_PX, colW))) * SRC_PX * 1.2
-    + Math.max(0, ...SRC.map((s2) => wrapLines(String(s2.d ?? ''), SRC_D_PX, colW) - 1)) * SRC_D_PX;
+    + Math.max(0, ...SRC.map((s2) => wrapLines(String(s2.d ?? ''), SRC_D_PX, dW) - 1)) * SRC_D_PX;
   const srcTop = Math.min(600, contentBottom(W, H) - srcCardH);
 
   return (
@@ -72,9 +76,9 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
           return <div key={i} style={{flex: 1, opacity: clamp01(r), transform: glide(`translateY(${lerp(24, 0, clamp01(r))}px)`, clamp01(r) !== 1),
             background: PANEL, border: `1px solid ${EDGE}`, borderRadius: dna?.radius ?? 14, padding: '26px 28px'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14}}>
-              <div style={{width: 26, height: 26, borderRadius: 7, background: TEAL, color: ON_TEAL, font: '700 16px/26px var(--f-body, Inter)', textAlign: 'center'}}>{i + 1}</div>
-              <div style={{width: 10, height: 10, borderRadius: 5, background: DOT}} />
-              <div style={{font: `600 26px/${leading(s.d, 1)} var(--f-body, Inter)`, color: DIM}}>{s.d}</div>
+              <div style={{flex: 'none', width: BADGE, height: BADGE, borderRadius: 9, background: TEAL, color: ON_TEAL, font: `700 ${SRC_D_PX}px/${BADGE}px var(--f-body, Inter)`, textAlign: 'center'}}>{i + 1}</div>
+              <div style={{flex: 'none', width: 10, height: 10, borderRadius: 5, background: DOT}} />
+              <div style={{minWidth: 0, overflowWrap: 'anywhere', font: `600 ${SRC_D_PX}px/${leading(s.d, 1)} var(--f-body, Inter)`, color: DIM}}>{s.d}</div>
             </div>
             <div style={{font: '700 36px/1.2 var(--f-body, Inter,system-ui,sans-serif)', color: INK}}>{s.t}</div>
           </div>;

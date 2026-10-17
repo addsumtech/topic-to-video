@@ -16,7 +16,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01, useAnimSpan, ENTRY_T, ReducedMotionContext} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {contentBottom, fitTextPx} from '../runtime/layout';
+import {contentBottom, fitTextPx, wrapLines} from '../runtime/layout';
 import {caretOn, framesBetween} from '../runtime/gesture';
 import {useGlide} from '../runtime/glide';
 
@@ -38,9 +38,24 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   const glide = useGlide();
   const dna = useDNA(); const ACCENT = dna?.accent ?? ACCENT0;
   const {width: W, height: H} = useVideoConfig();
-  // palette top 210 + input row (34px padding x2 + 46px type) + list padding 36, then 78px a row (34px box
-  // with its 2px border each side, 20px padding above and below)
-  const ROW_H = 78, PAL_HEAD = 210 + 114 + 36;
+  // A PALETTE WIDER THAN THE FRAME. 1180 was the width of a comfortable command palette on a 1920 frame;
+  // every other aspect this renderer offers is 1080 wide, so `PX` came out NEGATIVE and the palette hung
+  // off both edges before a single character was typed into it. Clamped to the frame, and the copy inside
+  // is then fitted to the width the palette really has.
+  //
+  // THE FIT HAS A FLOOR. The command (46 px) and the rows (38 px) were fitted DOWN to whatever the palette's
+  // width allowed, with no lower bound. Both are copy: they stop at the label floor (30 px at 1080) and WRAP from
+  // there — the command line is `pre-wrap` with its height reserved up front (so typing never moves the rows
+  // below it), and `PAL_HEAD` below counts the extra lines against the caption band.
+  const PW = Math.min(1180, Math.round(W * 0.92)), PX = Math.round((W - PW) / 2);
+  const CMD_PADX = 40, ROW_PADX = 24, ICON = 34 + 22;
+  const FLOOR = Math.round(Math.min(W, H) * 0.0278);
+  const cmdPx = Math.max(FLOOR, fitTextPx(command, PW - CMD_PADX * 2 - ICON, 46, {usable: 1}));
+  const cmdLines = wrapLines(command, cmdPx, PW - CMD_PADX * 2 - ICON);
+  const cmdH = cmdLines > 1 ? Math.ceil(cmdLines * cmdPx * 1.12) : 46;
+  // palette top 210 + input row (34px padding x2 + the command's own height, 46px for one line) + list padding 36,
+  // then 78px a row (the 44px tick box with its 2px border each side, 17px padding above and below)
+  const ROW_H = 78, TICK_BOX = 44, PAL_HEAD = 210 + 68 + cmdH + 36;
   const maxRows = Math.floor((contentBottom(W, H) - PAL_HEAD) / ROW_H);
   if (!Array.isArray(ROWS) || ROWS.length < 1) {
     throw new Error('CommandSummon needs at least one row in `items` — the command has to spawn something to run.');
@@ -66,15 +81,8 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   const caretShown = t < 0.46 && caretOn(t < TYPED_BY ? null : framesBetween(TYPED_BY, t, span, ENTRY_T), reduced);
   const palY = lerp(60, 0, inP) + (fired ? -lerp(0, 40, easeOutCubic(seg(t, 0.46, 0.6))) : 0);
   const palScale = fired ? lerp(1, 0.94, easeOutCubic(seg(t, 0.46, 0.62))) : 1;
-  // A PALETTE WIDER THAN THE FRAME. 1180 was the width of a comfortable command palette on a 1920 frame;
-  // every other aspect this renderer offers is 1080 wide, so `PX` came out NEGATIVE and the palette hung
-  // off both edges before a single character was typed into it. Clamped to the frame, and the copy inside
-  // is then fitted to the width the palette really has — the command line is `white-space: pre`, so it
-  // cannot wrap out of an overflow, and a Chinese command ran 89px past the edge.
-  const PW = Math.min(1180, Math.round(W * 0.92)), PX = Math.round((W - PW) / 2);
-  const CMD_PADX = 40, ROW_PADX = 24, ICON = 34 + 22;
-  const cmdPx = fitTextPx(command, PW - CMD_PADX * 2 - ICON, 46, {usable: 1});
-  const rowPx = ROWS.reduce((px, r) => Math.min(px, fitTextPx(r, PW - 40 - ROW_PADX * 2 - 54 - 120, 38, {usable: 1})), 38);
+  const rowPx = ROWS.reduce((px, r) => Math.min(px, fitTextPx(r, PW - 40 - ROW_PADX * 2 - (TICK_BOX + 20) - 130, 38, {usable: 1})), 38);
+  const rowFit = Math.max(FLOOR, rowPx);
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 100% at 50% 22%, #141a26, #090c12 60%)'}}>
       {/* soft accent glow behind the palette */}
@@ -91,7 +99,8 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
         {/* input row */}
         <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: `34px ${CMD_PADX}px`, borderBottom: '1px solid #232c3d'}}>
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></svg>
-          <div style={{font: `500 ${cmdPx}px/1 var(--f-body, Inter,system-ui,sans-serif)`, color: '#eef2f8', whiteSpace: 'pre'}}>
+          <div style={{font: `500 ${cmdPx}px/${cmdLines > 1 ? 1.12 : 1} var(--f-body, Inter,system-ui,sans-serif)`, color: '#eef2f8', whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere', minWidth: 0, minHeight: cmdH}}>
             {command.slice(0, typed)}<span style={{opacity: caretShown ? 1 : 0, color: ACCENT}}>|</span>
           </div>
         </div>
@@ -101,14 +110,16 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
             const rev = fired ? easeOutBack(seg(t, 0.5 + i * stepR, 0.5 + i * stepR + 0.18)) : (i === 0 ? 1 : 0.0);
             const tick = fired && t > 0.66 + i * stepT;
             return (
-              <div key={i} style={{display: 'flex', alignItems: 'center', gap: 20, padding: `20px ${ROW_PADX}px`, borderRadius: 12,
+              <div key={i} style={{display: 'flex', alignItems: 'center', gap: 20, padding: `17px ${ROW_PADX}px`, borderRadius: 12,
                 opacity: clamp01(rev), transform: glide(`translateX(${lerp(-20, 0, clamp01(rev))}px)`, rev !== 1),
                 background: (!fired && i === 0) ? `${ACCENT}1e` : 'transparent'}}>
-                <div style={{width: 34, height: 34, borderRadius: 9, border: `2px solid ${tick ? '#59d98b' : '#3a475e'}`,
-                  background: tick ? '#59d98b' : 'transparent', color: '#0b0f17', font: '700 22px/30px var(--f-body, Inter)', textAlign: 'center'}}>{tick ? '✓' : ''}</div>
-                <div style={{font: `500 ${rowPx}px/1 var(--f-body, Inter,system-ui,sans-serif)`, color: tick ? '#8f9bb0' : '#dfe6f0'}}>{r}</div>
+                {/* the tick is COPY-weight type: 34 px in a 44 px box, so it is ~32 px once the palette has scaled to 0.94 */}
+                <div style={{flex: 'none', boxSizing: 'border-box', width: TICK_BOX, height: TICK_BOX, borderRadius: 11, border: `2px solid ${tick ? '#59d98b' : '#3a475e'}`,
+                  background: tick ? '#59d98b' : 'transparent', color: '#0b0f17', font: '700 34px/1 var(--f-body, Inter)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'}}>{tick ? '✓' : ''}</div>
+                <div style={{minWidth: 0, font: `500 ${rowFit}px/1 var(--f-body, Inter,system-ui,sans-serif)`, color: tick ? '#8f9bb0' : '#dfe6f0'}}>{r}</div>
                 {i === 0 && !fired && <div style={{marginLeft: 'auto', padding: '8px 16px', borderRadius: 8, background: '#2a3346',
-                  font: '700 26px/1 var(--f-body, Inter)', color: ACCENT}}>↵ run</div>}
+                  font: '700 30px/1 var(--f-body, Inter)', color: ACCENT, whiteSpace: 'nowrap', flex: 'none'}}>↵ run</div>}
               </div>
             );
           })}

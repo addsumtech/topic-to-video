@@ -62,7 +62,7 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
 
       {/* title block */}
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: clamp01(seg(t, 0.24, 0.5)), color: kickCol, font: '600 26px/1 var(--f-mono, "JetBrains Mono", monospace)',
+        <div style={{opacity: clamp01(seg(t, 0.24, 0.5)), color: kickCol, font: `600 ${Math.round(Math.min(W, H) * 0.0278)}px/1 var(--f-mono, "JetBrains Mono", monospace)`,   // the label floor (was 26 px)
           letterSpacing: '0.5em', textTransform: 'uppercase', paddingLeft: '0.5em', marginBottom: 34,
           transform: glide(`translateY(${(1 - titleUp) * 18}px)`, titleUp !== 1)}}>{dnaHas(dna, 'prompt') ? '▸ ' : ''}{KICKER}</div>
         <div style={{opacity: titleUp, transform: glide(`translateY(${(1 - titleUp) * 46}px)`, titleUp !== 1), maxWidth: W * 0.9,

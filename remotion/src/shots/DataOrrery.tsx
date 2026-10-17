@@ -125,7 +125,11 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
           the library uses, at its default curve, so a node on the far side reads as far rather than as gone. */}
       {RINGS.map((r, i) => {
         const n = nodeAt(r); const on = clamp01(seg(t, 0.3 + i * 0.08, 0.46 + i * 0.08));
-        const f = focusAt(n.depth, U);
+        // THE LABEL IS COPY: it was `U * 0.022` (22 px) at the lens's default recession (down to 0.62 of that), so the
+        // nearest label read 22 px and the others smaller still. It is `U * 0.0315` (34 px at 1080) and recedes by
+        // opacity + blur like everything else but only to 0.9 of its size — so even the far side of the orbit
+        // is drawn at ≥ 30 px, which is the one number a label may not fall under.
+        const f = focusAt(n.depth, U, {minScale: 0.9});
         // The node orbits for the whole beat, so its label is placed by a TRANSLATE (a label moved by left/top steps
         // a whole pixel at a time whatever unlocks it) and carries the baseline unlock on its WORDS, inside the
         // lens's blur — a blur keeps only the scale of the matrix above it (runtime/glide.ts).
@@ -135,7 +139,7 @@ export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
           zIndex: n.front ? 2 : 1,
           padding: `${Math.round(U * 0.004)}px ${Math.round(U * 0.013)}px`, borderRadius: 999,
           background: '#0b122acc', border: `1px solid ${r.c}66`, color: '#dbe5f5',
-          font: `600 ${Math.round(U * 0.022)}px/1 var(--f-body, Inter, system-ui, sans-serif)`,
+          font: `600 ${Math.round(U * 0.0315)}px/1 var(--f-body, Inter, system-ui, sans-serif)`,
           whiteSpace: 'nowrap'}}><span style={{display: 'inline-block', transform: glide(undefined, true)}}>{r.label}</span></div>;
       })}
       <div style={{position: 'absolute', left: 0, right: 0, top: cy + 150, textAlign: 'center',

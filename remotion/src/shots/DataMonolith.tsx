@@ -22,7 +22,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {contentBottom, inkBlockH, wrapLines, fitTextPx} from '../runtime/layout';
+import {contentBottom, inkBlockH, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {parseFigure, figureText} from '../runtime/figure';
 import {useGlide} from '../runtime/glide';
@@ -119,15 +119,19 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
   // it, so the reserve is one line of type — in Chinese each band's label wraps in a column only
   // `min(150, (W-320)/n)` wide and the second line lands in the caption band (24px of it at 1:1). Counted by
   // breaking the copy in the band's own measure, so Latin is one line and the floor does not move.
+  // LABELS AND VALUES ARE COPY, SO THEY ARE SET AT THE LABEL FLOOR (30 px at 1080, scaled with the short side) —
+  // both were 22 px fixed sizes. A label may now use the tower's band plus most of its gap (`LABEL_W`), and
+  // wraps in it; the floor's reserve below counts the lines at the size actually drawn.
+  const LABEL_PX = Math.round(Math.min(W, H) * 0.0278);
   const bandW0 = Math.min(150, (W - 320) / Math.max(1, n));
-  const labelBlock = 22 + inkBlockH(22, Math.max(1, ...towers.map((b) =>
-    wrapLines(b.label, 22, bandW0))));
+  const labelBlock = 22 + inkBlockH(LABEL_PX, Math.max(1, ...towers.map((b) =>
+    wrapLines(b.label, LABEL_PX, bandW0 + 30 * 0.8))));
   const floorY = Math.min(H * 0.72, contentBottom(W, H) - labelBlock);
   const bandW = Math.min(150, (W - 320) / n), gap = 30;
   const rowW = n * bandW + (n - 1) * gap;
   const x0 = (W - rowW) / 2;
   const titleIn = easeOutCubic(seg(t, 0.04, 0.2));
-  const VALUE_PX = 22, VALUE_ROOM = valued ? VALUE_PX + 14 : 0;
+  const VALUE_PX = LABEL_PX, VALUE_ROOM = valued ? VALUE_PX + 14 : 0;
   const maxH = floorY - 150 - VALUE_ROOM;
   // the passing light: a soft band that crosses the row of caps left to right, the same for every tower
   const sweepOn = heroIdx == null ? clamp01(seg(t, 0.62, 0.72)) : 0;
@@ -192,14 +196,16 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
                 top: 0, opacity: clamp01(seg(t, 0.4 + i * 0.06, 0.56 + i * 0.06)),
                 transform: glide(`translateY(${floorY - th * pulse - VALUE_ROOM}px)`, grow !== 1 || (isHero && t > 0.6)),
                 color: VALUE_INK, whiteSpace: 'nowrap',
-                font: `700 ${Math.max(12, Math.min(VALUE_PX, fitTextPx(tw.text, bandW + gap * 0.8, VALUE_PX, {usable: 1})))}px/1 ` +
+                // a value is never set under the label floor — it no longer shrinks to fit the tower's band
+                font: `700 ${VALUE_PX}px/1 ` +
                   'var(--f-mono, "JetBrains Mono", monospace)'}}>{tw.text}</div>
             ) : null}
             {/* label */}
-            <div style={{position: 'absolute', left: x, top: floorY + 22, width: bandW, textAlign: 'center',
+            <div style={{position: 'absolute', left: x - gap * 0.4, top: floorY + 22, width: bandW + gap * 0.8, textAlign: 'center',
+              textWrap: 'balance', overflowWrap: 'anywhere',
               opacity: clamp01(seg(t, 0.3 + i * 0.05, 0.5 + i * 0.05)),
               color: isHero ? HERO_INK : heroIdx == null ? LABEL_INK : MUTED_INK,
-              font: `${isHero ? 800 : 600} 22px/${leading(tw.label, 1)} var(--f-body, Inter, system-ui, sans-serif)`}}>{tw.label}</div>
+              font: `${isHero ? 800 : 600} ${LABEL_PX}px/${leading(tw.label, 1)} var(--f-body, Inter, system-ui, sans-serif)`}}>{tw.label}</div>
           </div>
         );
       })}

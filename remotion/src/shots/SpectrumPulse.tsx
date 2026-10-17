@@ -74,8 +74,12 @@ export const SpectrumPulse: React.FC<{title?: string; tagline?: string; accent?:
   const tagIn = easeOutCubic(seg(t, 0.6, 0.82));
   const titlePx = fitTextPx(String(TITLE ?? ''), Math.min(W * 0.7, R0 * 1.55),
     Math.round(U * 0.104), {usable: 1.0});
-  const tagPx = fitTextPx(String(TAG ?? ''), Math.min(W * 0.7, R0 * 1.6),
-    Math.round(U * 0.028), {usable: 1.0});
+  // THE TAGLINE IS COPY, SO IT HAS A FLOOR. Fitted to ONE line across the ring's inner width (~1.6 R0) it
+  // shrank to 20 px (error: unreadable on a phone). It may now wrap onto a second line inside the ring
+  // (`tagBox` + textWrap below), so it is fitted to two lines' worth of width and never set under the label floor.
+  const tagBox = Math.min(W * 0.7, R0 * 1.7);
+  const tagPx = Math.max(Math.round(U * 0.0278), fitTextPx(String(TAG ?? ''), tagBox * 2,
+    Math.round(U * 0.028), {usable: 1.0}));
 
   return (
     // @dark-world: the subject IS emitted light — a spectrum radiating out of a wordmark, every bar a
@@ -125,9 +129,10 @@ export const SpectrumPulse: React.FC<{title?: string; tagline?: string; accent?:
                 <div style={{opacity: titleIn, transform: glide(`scale(${1 + beat * 0.03})`, true), color: '#fff',
                   font: `800 ${titlePx}px/${leading(String(TITLE), 1.05)} var(--f-display, Inter, system-ui, sans-serif)`,
                   letterSpacing: '-0.03em', textShadow: `0 0 ${U * 0.037}px ${A1}66`}}>{TITLE}</div>
-                <div style={{opacity: tagIn, marginTop: U * 0.017, color: '#c9b6e6',
+                <div style={{opacity: tagIn, marginTop: U * 0.017, color: '#c9b6e6', maxWidth: tagBox,
+                  textWrap: 'balance', overflowWrap: 'anywhere',
                   font: `600 ${tagPx}px/${leading(String(TAG), 1.2)} var(--f-mono, "JetBrains Mono", monospace)`,
-                  letterSpacing: '0.18em'}}>{TAG}</div>
+                  letterSpacing: '0.12em'}}>{TAG}</div>
               </AbsoluteFill>
             </>
           );

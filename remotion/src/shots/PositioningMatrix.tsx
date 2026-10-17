@@ -17,7 +17,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom, monoFit, textWidthPx} from '../runtime/layout';
 import {useGlide} from '../runtime/glide';
 
 type Item = {label?: string; x?: number; y?: number; hero?: boolean};
@@ -74,8 +74,14 @@ export const PositioningMatrix: React.FC<{
   // drew on top of each other. Deriving both from the zone also makes the layout right at aspects the fixed
   // radius was never checked against.
   const zTop = CONTENT_TOP, zBot = contentBottom(W, H);
-  const AXIS_ROOM = 52;                                      // the axis end label under the plot
-  const PLOT = Math.min(760, (zBot - zTop) - AXIS_ROOM * 2);
+  const AXIS_ROOM = 58;                                      // the axis end label under the plot
+  // AXIS ENDS AND DOT NAMES ARE COPY — set at the label floor (30 px at 1080; both were 24 / 22 px). The two
+  // x-axis end labels sit OUTSIDE the plot, so a bigger label needs side room: the plot narrows (never the
+  // type) until the widest end label clears the frame edge — a no-op at 16:9, where the plot is height-bound.
+  const LABEL_PX = Math.round(Math.min(W, H) * 0.0278);
+  const axisW = (txt: unknown) => textWidthPx(String(txt ?? ''), LABEL_PX, {...monoFit(), track: 0.1});
+  const sideRoom = Math.max(axisW(XA[0]), axisW(XA[1])) + 6 + 32;
+  const PLOT = Math.min(760, (zBot - zTop) - AXIS_ROOM * 2, W - 2 * sideRoom);
   const cx = W / 2, cy = (zTop + zBot) / 2;
   const x0 = cx - PLOT / 2, y0 = cy - PLOT / 2;
   const px = (x: number) => x0 + clamp01(x) * PLOT;
@@ -104,10 +110,10 @@ export const PositioningMatrix: React.FC<{
       </svg>
 
       {/* axis end labels */}
-      {([[XA[1], px(1) + 6, cy - 12, 'left'], [XA[0], x0 - 6, cy - 12, 'right'],
+      {([[XA[1], px(1) + 6, cy - LABEL_PX / 2, 'left'], [XA[0], x0 - 6, cy - LABEL_PX / 2, 'right'],
          [YA[1], cx + 16, y0 - 4, 'left'], [YA[0], cx + 16, y0 + PLOT + 6, 'left']] as const).map((L, i) => (
         <div key={i} style={{position: 'absolute', left: L[1], top: L[2], transform: L[3] === 'right' ? 'translateX(-100%)' : undefined,
-          opacity: clamp01(seg(t, 0.3, 0.5)), color: AXIS_INK, font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)',
+          opacity: clamp01(seg(t, 0.3, 0.5)), color: AXIS_INK, font: `600 ${LABEL_PX}px/1 var(--f-mono, "JetBrains Mono", monospace)`,
           letterSpacing: '0.1em'}}>{L[0]}</div>
       ))}
 
@@ -127,8 +133,8 @@ export const PositioningMatrix: React.FC<{
             <div style={{width: size, height: size, borderRadius: '50%', background: col,
               boxShadow: hero ? `0 0 30px ${col}` : 'none', border: hero ? `3px solid ${HERO_RING}` : 'none'}} />
             {it.label ? (
-              <div style={{position: 'absolute', left: size / 2 + 14, top: -4, whiteSpace: 'nowrap',
-                color: hero ? HERO_INK : REST_INK, font: `${hero ? '800' : '600'} ${hero ? 32 : 22}px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>{it.label}</div>
+              <div style={{position: 'absolute', left: size + 12, top: hero ? -4 : -5, whiteSpace: 'nowrap',
+                color: hero ? HERO_INK : REST_INK, font: `${hero ? '800' : '600'} ${hero ? 32 : LABEL_PX}px/1 var(--f-body, Inter, system-ui, sans-serif)`}}>{it.label}</div>
             ) : null}
           </div>
         );

@@ -14,7 +14,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {contentBottom, fitTextPx, inkBlockH, monoFit, textWidthPx} from '../runtime/layout';
+import {contentBottom, fitTextPx, monoFit, textWidthPx, wrapLines} from '../runtime/layout';
 import {parseFigure, figureAt, figureText} from '../runtime/figure';
 
 export const DURATION = 165; // 5.5s
@@ -52,7 +52,10 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   const INK = dna?.fg ?? INK0, FAINT = dna?.line ?? FAINT0, ACC = dna?.accent ?? ACC0, BG = dna?.bg ?? '#f6f8fb';
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const SPEC_MIN_PX = 16;   // below this a drafting note stops being readable as one
+  // A DRAFTING NOTE IS COPY, SO IT IS SET AT THE LABEL FLOOR (30 px at 1080) — it was a 22 px fixed size that a
+  // Chinese spec then fitted down to 16. Fitted-down is gone: a note that does not fit on one line WRAPS.
+  const SPEC = Math.round(Math.min(W, H) * 0.0278);
+  const SPEC_LH = 1.15;
   const cx = W / 2;
   // module box
   const mw = 720, mh = 380;
@@ -61,9 +64,15 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   // parts move together: the whole plate slides up by exactly what did not fit, which is zero at 16:9 and
   // 9:16. The second spec row only exists in the stacked branch below, so the depth is asked of that same
   // condition rather than assumed.
-  const SPEC = 22;                                                   // `600 22px/1`
-  const stacked = W - (cx - mw / 2 + mw + 76) <= 240;
-  const deepest = (stacked ? 112 : 70) + inkBlockH(SPEC);
+  const mx0 = cx - mw / 2;
+  // "beside the machine" is asked of THIS spec at the size it is drawn at — when it does not fit there it goes
+  // under, where the whole width is available (and it wraps rather than shrinks if even that is too narrow)
+  const beside = textWidthPx(String(spec2 ?? ''), SPEC, monoFit()) <= W - (mx0 + mw + 76) - 48;
+  const stacked = !beside;
+  const fullRoom = Math.max(80, W - 48);
+  const noteH = (txt: unknown) => Math.ceil(SPEC * (SPEC_LH * (wrapLines(String(txt ?? ''), SPEC, fullRoom, monoFit()) - 1) + 1.31));
+  const spec2Y = 70 + Math.ceil(SPEC * SPEC_LH * wrapLines(String(spec1 ?? ''), SPEC, fullRoom, monoFit())) + 12;
+  const deepest = stacked ? spec2Y + noteH(spec2) : 70 + noteH(spec1);
   const over = Math.max(0, H / 2 + mh / 2 + deepest - contentBottom(W, H));
   const cy = H / 2 - over;
   const mx = cx - mw / 2, my = cy - mh / 2;
@@ -71,7 +80,7 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   // the supplied figure, counted UP to its own value — the motion is the register's, the number is the film's
   const metricText = metric == null ? '' : figureText(metric);
   const specN = metricText ? figureAt(parseFigure(metricText), easeOutCubic(seg(t, 0.55, 0.72))) : null;
-  const metricPx = metricText ? Math.max(28, fitTextPx(metricText + (metricUnit ?? ''), W * 0.4, 80, {usable: 1, ...monoFit()})) : 0;
+  const metricPx = metricText ? Math.max(30, fitTextPx(metricText + (metricUnit ?? ''), W * 0.4, 80, {usable: 1, ...monoFit()})) : 0;
 
   return (
     <AbsoluteFill style={{background: BG}}>
@@ -128,8 +137,7 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
       </svg>
 
       {/* mono labels (HTML for crisp type) */}
-      {/* SPEC_MIN_PX is the floor for a drafting note, used by BOTH the placement test and the fit below. */}
-      <div style={{position: 'absolute', left: mx, top: my - 44, color: INK, font: `600 24px/1 ${MONO}`, letterSpacing: '0.04em', opacity: clamp01(seg(t, 0.12, 0.3))}}>
+      <div style={{position: 'absolute', left: mx, top: my - SPEC - 22, maxWidth: Math.max(80, W - mx - 48), color: INK, font: `600 ${SPEC}px/1 ${MONO}`, letterSpacing: '0.04em', opacity: clamp01(seg(t, 0.12, 0.3))}}>
         <span style={{color: ACC}}>◇</span> {unit} · <span style={{color: '#5b6675'}}>{tag}</span>
       </div>
       {[
@@ -142,23 +150,21 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
         // below ground it down to the 12px floor, still 28px over. A drafting note under 16px is not a
         // note. Ask whether it fits beside at a legible size; if it does not, it goes under, where the
         // whole width is available and it can be drawn at full size.
-        (textWidthPx(String(spec2 ?? ''), SPEC_MIN_PX, monoFit()) <= W - (mx + mw + 76) - 48
+        (beside
           ? {x: mx + mw + 76, y: cy, txt: spec2, anchor: 'left'}
-          : {x: cx, y: my + mh + 112, txt: spec2, anchor: 'center'}),
+          : {x: cx, y: my + mh + spec2Y, txt: spec2, anchor: 'center'}),
         // Was the literal x:960 y:540 — the centre of a 1920x1080 frame, printed beside the subject as
         // though it measured it. It measured nothing, it was wrong at any other resolution, and it
         // appeared on every film that reached for this register. A readout is real or it is absent.
         ...(readout ? [{x: cx + 34, y: cy + 6, txt: readout, anchor: 'left' as const}] : []),
       ].map((l, i) => {
-        // A `nowrap` SPEC IS FITTED TO THE ROOM ITS ANCHOR LEAVES. 22px is a drafting note's size on a 1920
-        // frame with an English spec; a Chinese one ran 288px past the right edge, and `nowrap` means it
-        // cannot wrap out of it. A centred label's room is twice its distance to the nearer edge; a
-        // left-anchored one's is what lies to its right. This can only ever shrink the note.
+        // A SPEC WRAPS IN THE ROOM ITS ANCHOR LEAVES (it never shrinks below the label floor). A centred label's
+        // room is twice its distance to the nearer edge; a left-anchored one's is what lies to its right.
         const room = (l.anchor === 'center' ? 2 * Math.min(l.x, W - l.x) : W - l.x) - 48;
-        const fs = Math.max(SPEC_MIN_PX, fitTextPx(String(l.txt ?? ''), Math.max(80, room), 22, {usable: 1, ...monoFit()}));
         return (
         <div key={i} style={{position: 'absolute', left: l.x, top: l.y, transform: l.anchor === 'center' ? 'translateX(-50%)' : 'none',
-          color: '#48566a', font: `600 ${fs}px/1 ${MONO}`, opacity: easeOutCubic(seg(t, 0.6, 0.86)), whiteSpace: 'nowrap'}}>{l.txt}</div>
+          width: 'max-content', maxWidth: Math.max(80, room), textAlign: l.anchor === 'center' ? 'center' : 'left', textWrap: 'balance', overflowWrap: 'anywhere',
+          color: '#48566a', font: `600 ${SPEC}px/${SPEC_LH} ${MONO}`, opacity: easeOutCubic(seg(t, 0.6, 0.86))}}>{l.txt}</div>
         );
       })}
       {/* a counting spec readout, top-right — drawn only when the film supplied a figure */}
@@ -166,7 +172,7 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
         <div style={{position: 'absolute', right: 120, top: 120, textAlign: 'right', opacity: clamp01(seg(t, 0.55, 0.78))}}>
           <div style={{color: INK, font: `800 ${metricPx}px/1 ${MONO}`, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap'}}>{specN}{metricUnit ? <span style={{color: ACC}}>{metricUnit}</span> : null}</div>
           {metricLabel ? (
-            <div style={{color: '#5b6675', font: `600 22px/1 ${MONO}`, marginTop: 6}}>{metricLabel}</div>
+            <div style={{color: '#5b6675', font: `600 ${SPEC}px/1.15 ${MONO}`, marginTop: 10}}>{metricLabel}</div>
           ) : null}
         </div>
       )}

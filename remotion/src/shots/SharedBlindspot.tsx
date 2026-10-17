@@ -90,6 +90,12 @@ export const SharedBlindspot: React.FC<{
   const sL = SHARED?.label ?? '', sA = SHARED?.a ?? '', sB = SHARED?.b ?? '', sN = SHARED?.note ?? '';
   const iL = INDEP?.label ?? '', iA = INDEP?.a ?? '', iB = INDEP?.b ?? '', iN = INDEP?.note ?? '';
 
+  // THE LABEL FLOOR — 30 px at 1080 (the short side). Every piece of copy this register sets (kicker, title, group
+  // label, producer names, note) is drawn at or above it: the kicker was 20 px (13 px at 1:1), the producer
+  // names 23 px, the notes 22 px, and the fits below used to SHRINK them with the panel. A string that does not
+  // fit its box at the floor now WRAPS (or, for the two producer names, stacks) instead of getting smaller.
+  const FLOOR = Math.round(Math.min(W, H) * 0.0278);
+
   // ── title band: fit the REAL string, and reserve only the lines it actually needs ───────────────────────
   const titleBox = W * 0.84;
   const type = React.useMemo(() => {
@@ -104,14 +110,15 @@ export const SharedBlindspot: React.FC<{
       const w = measureText({text: txt, fontFamily: family, fontSize: size, fontWeight: weight}).width;
       return Math.max(1, Math.min(cap, Math.ceil(w / Math.max(24, box))));
     };
-    const tSize = fit1(TITLE, titleBox, 2, 40, disp, 700);
-    const tLines = linesOf(TITLE, tSize, disp, 700, titleBox, 2);
+    let tSize = fit1(TITLE, titleBox, 2, 40, disp, 700);
+    let tLines = linesOf(TITLE, tSize, disp, 700, titleBox, 2);
+    if (tSize < FLOOR) { tSize = FLOOR; tLines = linesOf(TITLE, tSize, disp, 700, titleBox, 3); }   // wrap, never shrink
     return {tSize, tLines, fit1, linesOf};
-  }, [TITLE, titleBox, disp]);
+  }, [TITLE, titleBox, disp, FLOOR]);
 
   const titleH = type.tSize * 1.16 * type.tLines;
-  const kickSize = Math.round(Math.max(13, Math.min(20, W * 0.011)));
-  const kickTop = Math.max(44, Math.round(TITLE_Y - kickSize * 1.35 - 12));
+  const kickSize = FLOOR;
+  const kickTop = Math.max(44, Math.round(TITLE_Y - kickSize * 1.2 - 8));
 
   // ── the two panels ─────────────────────────────────────────────────────────────────────────────────────
   const zoneTop = Math.max(CONTENT_TOP, Math.round(TITLE_Y + titleH + H * 0.024));
@@ -131,34 +138,39 @@ export const SharedBlindspot: React.FC<{
   const sizes = React.useMemo(() => {
     const {fit1, linesOf} = type;
     const labelBox = pw - 2 * P - 22;
-    let labelSize = Math.min(fit1(sL, labelBox, 1, Math.min(32, pw * 0.05), disp, 700),
-      fit1(iL, labelBox, 1, Math.min(32, pw * 0.05), disp, 700));
+    const labelCap = Math.max(FLOOR, Math.min(32, pw * 0.05));
+    let labelSize = Math.min(fit1(sL, labelBox, 1, labelCap, disp, 700),
+      fit1(iL, labelBox, 1, labelCap, disp, 700));
     let labelLines = 1;
-    if (labelSize < 16) {
+    if (labelSize < FLOOR) {
       labelLines = 2;
-      labelSize = Math.min(fit1(sL, labelBox, 2, Math.min(32, pw * 0.05), disp, 700),
-        fit1(iL, labelBox, 2, Math.min(32, pw * 0.05), disp, 700));
+      labelSize = Math.max(FLOOR, Math.min(fit1(sL, labelBox, 2, labelCap, disp, 700),
+        fit1(iL, labelBox, 2, labelCap, disp, 700)));
     }
     const swW = Math.round(Math.min(36, Math.max(18, pw * 0.045)));
-    const chipBox = (pw - 2 * P - 18) / 2 - swW - 12;
-    const chipCap = Math.min(23, pw * 0.032);
+    // THE TWO PRODUCER NAMES sit side by side while the widest of the four fits its half of the panel at the
+    // floor, and STACK (one per row, the whole panel width) when it does not — they used to be fitted down to
+    // whatever the half allowed (23 px, 13 px on a narrow panel). A name that still does not fit one row wraps.
+    const chipSize = FLOOR;
     const names = [sA, sB, iA, iB];
-    let chipSize = Math.min(...names.map((n) => fit1(n, chipBox, 1, chipCap, mono, 600)));
-    let chipLines = 1;
-    if (chipSize < 13) {
-      chipLines = 2;
-      chipSize = Math.min(...names.map((n) => fit1(n, chipBox, 2, chipCap, mono, 600)));
-    }
+    const boxSide = (pw - 2 * P - 18) / 2 - swW - 12;
+    const boxCol = pw - 2 * P - swW - 12;
+    const widest = Math.max(0, ...names.map((n) => (n ? measureText({text: n, fontFamily: mono, fontSize: chipSize,
+      fontWeight: 600}).width : 0)));
+    const chipCols = widest * 1.04 <= boxSide ? 2 : 1;
+    const chipBox = chipCols === 2 ? boxSide : boxCol;
+    const chipLines = Math.max(1, ...names.map((n) => linesOf(n, chipSize, mono, 600, chipBox * 0.94, 2)));
+    const chipRows = chipCols === 2 ? 1 : 2;
     const noteBox = pw - 2 * P - 16;
-    const noteCap = Math.min(22, pw * 0.030);
-    const noteSize = Math.min(fit1(sN, noteBox, 2, noteCap, mono, 500), fit1(iN, noteBox, 2, noteCap, mono, 500));
-    const noteLines = Math.max(linesOf(sN, noteSize, mono, 500, noteBox, 2),
-      linesOf(iN, noteSize, mono, 500, noteBox, 2));
-    return {labelSize, labelLines, chipSize, chipLines, swW, noteSize, noteLines};
-  }, [type, pw, P, sL, iL, sA, sB, iA, iB, sN, iN, disp, mono]);
+    const noteSize = FLOOR;
+    const noteLines = Math.max(linesOf(sN, noteSize, mono, 500, noteBox * 0.94, 3),
+      linesOf(iN, noteSize, mono, 500, noteBox * 0.94, 3));
+    return {labelSize, labelLines, chipSize, chipLines, chipCols, chipRows, swW, noteSize, noteLines};
+  }, [type, pw, P, sL, iL, sA, sB, iA, iB, sN, iN, disp, mono, FLOOR]);
 
   const labelH = Math.round(sizes.labelSize * 1.3 * sizes.labelLines);
-  const chipH = Math.round(sizes.chipSize * 1.32 * sizes.chipLines + 6);
+  const CHIP_ROW_GAP = 8;
+  const chipH = Math.round(sizes.chipSize * 1.32 * sizes.chipLines * sizes.chipRows + 6 + (sizes.chipRows - 1) * CHIP_ROW_GAP);
   const noteH = Math.round(sizes.noteSize * 1.42 * sizes.noteLines);
   const headGap = Math.round(P * 0.36);
   const headH = labelH + headGap + chipH;
@@ -298,7 +310,9 @@ export const SharedBlindspot: React.FC<{
             textTransform: upper ? 'uppercase' : 'none', minWidth: 0}}>{g.label}</div>
         </div>
         <div style={{height: headGap}} />
-        <div style={{height: chipH, display: 'flex', gap: 18, alignItems: 'center', opacity: headIn}}>
+        <div style={{height: chipH, display: 'flex', flexDirection: sizes.chipCols === 2 ? 'row' : 'column',
+          gap: sizes.chipCols === 2 ? 18 : CHIP_ROW_GAP, alignItems: sizes.chipCols === 2 ? 'center' : 'stretch',
+          justifyContent: 'center', opacity: headIn}}>
           {[g.a, g.b].map((nm, j) => (
             <div key={j} style={{flex: '1 1 0', display: 'flex', alignItems: 'center', gap: 12, minWidth: 0}}>
               {nm ? <svg width={sizes.swW} height={Math.max(10, sw * 3)} style={{flex: '0 0 auto', overflow: 'visible'}}>
@@ -330,7 +344,8 @@ export const SharedBlindspot: React.FC<{
       </svg>
       {KICKER ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: kickTop, textAlign: 'center',
-          color: OK, opacity: tIn * 0.9, font: `600 ${kickSize}px/1.35 ${mono}`, letterSpacing: track,
+          padding: `0 ${mx}px`, boxSizing: 'border-box',
+          color: OK, opacity: tIn * 0.9, font: `600 ${kickSize}px/1.2 ${mono}`, letterSpacing: track,
           textTransform: upper ? 'uppercase' : 'none'}}>{KICKER}</div>
       ) : null}
       <div style={{position: 'absolute', left: 0, right: 0, top: TITLE_Y, height: titleH,

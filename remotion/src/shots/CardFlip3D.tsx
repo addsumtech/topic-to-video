@@ -146,15 +146,15 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
               transformStyle: 'preserve-3d', opacity: rise,
               transform: `translateY(${(1 - rise) * 60}px) rotateY(${rot}deg)`}}>
               <Face tone={tone} shadow={CARD_SHADOW} faceBg={FACE_BG} faceEdge={FACE_EDGE}>
-                {numbered ? <div style={{color: DIM, font: '600 22px/1 var(--f-mono, "JetBrains Mono", monospace)',
-                  letterSpacing: '0.14em', marginBottom: 22}}>{String(i + 1).padStart(2, '0')}</div> : null}
+                {numbered ? <div style={{color: DIM, font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)',
+                  letterSpacing: '0.14em', marginBottom: 24}}>{String(i + 1).padStart(2, '0')}</div> : null}
                 <div style={{color: INK, font: `800 ${faceSize}px/1.18 ${dispFace}`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.front}</div>
               </Face>
               <Face back tone={tone} shadow={CARD_SHADOW}>
                 {/* was a bare ↓ pointing at nothing — undecodable furniture. A short label says what the back IS. */}
-                <div style={{color: backInk(tone), opacity: .72, font: `700 20px/${leading(BACKLABEL, 1)} var(--f-mono, "JetBrains Mono", monospace)`,
-                  letterSpacing: '.18em', marginBottom: 16}}>{BACKLABEL}</div>
+                <div style={{color: backInk(tone), opacity: .72, font: `700 30px/${leading(BACKLABEL, 1)} var(--f-mono, "JetBrains Mono", monospace)`,
+                  letterSpacing: '.18em', marginBottom: 20, textAlign: 'center', textWrap: 'balance'}}>{BACKLABEL}</div>
                 <div style={{color: backInk(tone), font: `800 ${faceSize}px/1.18 ${dispFace}`,
                   textAlign: 'center', letterSpacing: '-0.02em'}}>{c.back}</div>
               </Face>
