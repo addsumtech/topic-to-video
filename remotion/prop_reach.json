@@ -20,7 +20,7 @@
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
     "AnalogTape": "d18292ce4248875f",
-    "AnswerStream": "333c96d4965aff9c",
+    "AnswerStream": "b4fba3a175ebaddf",
     "AntiDesignChaos": "d7eec2b4a7da1c1d",
     "AsciiField": "cf337e758792d4e5",
     "AtomOrbital": "c8491edbf598bd6f",
@@ -28,19 +28,19 @@
     "AverageHides": "f5ace595e836139b",
     "BeforeAfterSlider": "d2ede4a45333e49c",
     "BentoReveal": "85ffeb7e580ac571",
-    "BlockAssembly": "a6141207240b90c3",
-    "BlueprintGrid": "a3d1bee8130eff2d",
+    "BlockAssembly": "44e4ab6cc0643892",
+    "BlueprintGrid": "6ff8ba4027244596",
     "BokehPull": "a273634cd022a89b",
     "BreaksWhenAsked": "15c581f6f189eba4",
     "BrutalistType": "312571546ea92508",
-    "CardFlip3D": "08086ca422cd3942",
+    "CardFlip3D": "8f61a46fc245e0e9",
     "CardStack3D": "d85d08b43210eba1",
     "CarryOver": "1309f9a0e27b4218",
     "CartoonPop": "aba82707fa7ef796",
     "ChartLive": "8cd146bf43370f69",
     "ChartRace": "7ec15a3f7485d47a",
     "ChatThread": "f1d279a35cfd1a16",
-    "CinematicTitle": "619e79e2643e5253",
+    "CinematicTitle": "a700fde4de00ef33",
     "CircuitTrace": "82bdb296e2231310",
     "ClayStack": "8d259af5eb7223d7",
     "ClothWave": "037be8997469071e",
@@ -48,7 +48,7 @@
     "CodeRain": "1ee1ebf7bf47a456",
     "CollaborativeCursors": "97ca7b39850d3d36",
     "ComicPanels": "7bd3fb72ac55c742",
-    "CommandSummon": "0457e64517d914a7",
+    "CommandSummon": "2d4ec2d98b2f07c0",
     "CompanionCard": "59cc1b8135f56f8c",
     "CompressedSensingEq": "802878ab61ea4364",
     "ConveyorBelt": "851fa970be9e86e6",
@@ -57,8 +57,8 @@
     "CubeRotate": "0db1129b0b4fd388",
     "CursorStory": "f837b08fa2d17e62",
     "DNAHelix": "b63011104bbc9419",
-    "DataMonolith": "b68f9be79ad9f024",
-    "DataOrrery": "f6976bcb5b05eef6",
+    "DataMonolith": "48fc8b0f7350c551",
+    "DataOrrery": "90ad3cbf869cc539",
     "DiffusionDenoise": "23d3b1eb7bd34fe1",
     "DollyZoom": "3dfe8f413947b0bb",
     "EdCompare": "9ccb76b5e7ccbc70",
@@ -78,7 +78,7 @@
     "GameOfLife": "28940f52688aa102",
     "GaugeCluster": "322cebd072360798",
     "GazetteerEntry": "53080a50357d611a",
-    "GearTrain": "06a87df7dabb380d",
+    "GearTrain": "1ab7e2c43256743d",
     "GlitchDatamosh": "c6492c245862561d",
     "GlowPick": "bb9b38efccde56e7",
     "GradientTilt": "93dc579f25a937fc",
@@ -143,7 +143,7 @@
     "PlatformSurfaces": "75d49a965e51834a",
     "PointerTour": "f62e6cad1ba88a72",
     "PortRail": "9f5c8156ee6ffb78",
-    "PositioningMatrix": "1600fa99aabba30d",
+    "PositioningMatrix": "8c1830ee14d23c9e",
     "ProfileGrowth": "f88d69463cee8ab3",
     "PulledThread": "c9af9d28c14edace",
     "QuadSplit": "78921afa8df2de7e",
@@ -159,15 +159,15 @@
     "ScreenBubble": "aa5dcc77b45ec2b2",
     "SeamBetween": "8f9f04df9339bf5c",
     "SectionRoute": "c79ea8395d3e2694",
-    "SharedBlindspot": "dd6cf89d24a4735d",
+    "SharedBlindspot": "c3935afe5b243e17",
     "ShorteningHold": "30bb2b3a3002f713",
     "SourceDeal": "f6c9b7deb5b86d99",
     "SpatialSlides": "dbda14c8d2acff43",
-    "SpectrumPulse": "6d9d6d42f04ae004",
+    "SpectrumPulse": "083c9aa6f3a9db31",
     "SpeedLimit": "1062149416473552",
     "SpinningProton": "8173db1aa50dfbbb",
     "SpinsAlign": "109bccdd737c713b",
-    "SplitFlap": "032eaea17701525a",
+    "SplitFlap": "131b8b82f17a43e1",
     "SpotlightStage": "ff07b2beb320b9b4",
     "StarfieldWarp": "6a222efafc84c645",
     "StateSheet": "9ebfa3303acc3b06",
@@ -428,7 +428,7 @@
       "prop_diff": 1.0
     },
     "AnswerStream": {
-      "reach": 0.695,
+      "reach": 0.68,
       "prop_diff": 1.0
     },
     "AntiDesignChaos": {
@@ -460,11 +460,11 @@
       "prop_diff": 1.0
     },
     "BlockAssembly": {
-      "reach": 0.528,
+      "reach": 0.571,
       "prop_diff": 1.0
     },
     "BlueprintGrid": {
-      "reach": 0.438,
+      "reach": 0.536,
       "prop_diff": 1.0
     },
     "BokehPull": {
@@ -480,7 +480,7 @@
       "prop_diff": 1.0
     },
     "CardFlip3D": {
-      "reach": 0.033,
+      "reach": 0.043,
       "prop_diff": 1.0
     },
     "CardStack3D": {
@@ -508,7 +508,7 @@
       "prop_diff": 1.0
     },
     "CinematicTitle": {
-      "reach": 0.633,
+      "reach": 0.634,
       "prop_diff": 1.0
     },
     "CircuitTrace": {
@@ -540,7 +540,7 @@
       "prop_diff": 1.0
     },
     "CommandSummon": {
-      "reach": 0.768,
+      "reach": 0.677,
       "prop_diff": 1.0
     },
     "CompanionCard": {
@@ -576,11 +576,11 @@
       "prop_diff": 1.0
     },
     "DataMonolith": {
-      "reach": 0.051,
+      "reach": 0.078,
       "prop_diff": 1.0
     },
     "DataOrrery": {
-      "reach": 0.175,
+      "reach": 0.281,
       "prop_diff": 1.0
     },
     "DeviceDemo": {
@@ -672,7 +672,7 @@
       "prop_diff": 1.0
     },
     "GearTrain": {
-      "reach": 0.344,
+      "reach": 0.295,
       "prop_diff": 1.0
     },
     "GlitchDatamosh": {
@@ -960,7 +960,7 @@
       "prop_diff": 1.0
     },
     "PositioningMatrix": {
-      "reach": 0.912,
+      "reach": 0.902,
       "prop_diff": 1.0
     },
     "PourSync": {
@@ -1036,7 +1036,7 @@
       "prop_diff": 1.0
     },
     "SharedBlindspot": {
-      "reach": 0.048,
+      "reach": 0.055,
       "prop_diff": 0.5
     },
     "ShorteningHold": {
@@ -1052,7 +1052,7 @@
       "prop_diff": 1.0
     },
     "SpectrumPulse": {
-      "reach": 0.088,
+      "reach": 0.273,
       "prop_diff": 1.0
     },
     "SpeedLimit": {
@@ -1068,7 +1068,7 @@
       "prop_diff": 1.0
     },
     "SplitFlap": {
-      "reach": 0.407,
+      "reach": 0.41,
       "prop_diff": 1.0
     },
     "SpotlightStage": {

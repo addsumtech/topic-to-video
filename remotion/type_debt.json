@@ -1,16 +1,11 @@
 {
  "_why": "Registers that set some visible type under the size floor (runtime/textSafe.tsx TYPE_ERROR_FRAC / TYPE_WARN_FRAC of the frame's short side: ~24 px / ~30 px at 1080). Nothing measured type SIZE before 2026-10-16, and the first sweep found 53 of 194 registers under 24 px and 70 more under 30 px — the library-wide cause of a user's review that the labels were too small to read. In a film, small type on ANY library register is a WARNING (the debt is the library's; a register fed a film's copy can show more than this default-props sweep saw), small type on a film's OWN shot is an ERROR, and the list may only shrink: raise a register's type and re-run the sweep to take it off.",
- "_measured": "python3 scripts/text_safe_qa.py --library --type-size --write-debt · 194 of 194 registers at default props · dna=product",
+ "_measured": "python3 scripts/text_safe_qa.py --library --type-size --write-debt · 197 of 197 registers at default props · dna=product",
  "registers": {
   "Aliasing": {
    "min_px": 15.0,
    "under_error": 3,
    "under_warn": 1
-  },
-  "AnswerStream": {
-   "min_px": 16.0,
-   "under_error": 3,
-   "under_warn": 3
   },
   "AverageHides": {
    "min_px": 18.0,
@@ -22,23 +17,8 @@
    "under_error": 0,
    "under_warn": 1
   },
-  "BlockAssembly": {
-   "min_px": 17.0,
-   "under_error": 2,
-   "under_warn": 6
-  },
-  "BlueprintGrid": {
-   "min_px": 22.0,
-   "under_error": 2,
-   "under_warn": 3
-  },
   "BreaksWhenAsked": {
    "min_px": 22.0,
-   "under_error": 6,
-   "under_warn": 0
-  },
-  "CardFlip3D": {
-   "min_px": 20.0,
    "under_error": 6,
    "under_warn": 0
   },
@@ -46,11 +26,6 @@
    "min_px": 16.0,
    "under_error": 5,
    "under_warn": 6
-  },
-  "CinematicTitle": {
-   "min_px": 26.0,
-   "under_error": 0,
-   "under_warn": 1
   },
   "CircuitTrace": {
    "min_px": 26.0,
@@ -66,11 +41,6 @@
    "min_px": 26.0,
    "under_error": 0,
    "under_warn": 3
-  },
-  "CommandSummon": {
-   "min_px": 21.0,
-   "under_error": 4,
-   "under_warn": 0
   },
   "CompanionCard": {
    "min_px": 26.0,
@@ -91,16 +61,6 @@
    "min_px": 26.0,
    "under_error": 0,
    "under_warn": 1
-  },
-  "DataMonolith": {
-   "min_px": 22.0,
-   "under_error": 12,
-   "under_warn": 0
-  },
-  "DataOrrery": {
-   "min_px": 22.0,
-   "under_error": 1,
-   "under_warn": 0
   },
   "DiffusionDenoise": {
    "min_px": 18.0,
@@ -124,7 +84,7 @@
   },
   "Escalation": {
    "min_px": 16.0,
-   "under_error": 8,
+   "under_error": 7,
    "under_warn": 4
   },
   "ExplodedSchematic": {
@@ -151,11 +111,6 @@
    "min_px": 24.0,
    "under_error": 0,
    "under_warn": 3
-  },
-  "GearTrain": {
-   "min_px": 20.0,
-   "under_error": 3,
-   "under_warn": 0
   },
   "GlowPick": {
    "min_px": 21.0,
@@ -242,11 +197,6 @@
    "under_error": 2,
    "under_warn": 3
   },
-  "MapPlate": {
-   "min_px": 26.0,
-   "under_error": 0,
-   "under_warn": 4
-  },
   "MapRoutes": {
    "min_px": 26.0,
    "under_error": 0,
@@ -274,7 +224,7 @@
   },
   "OverlapSeparation": {
    "min_px": 19.0,
-   "under_error": 10,
+   "under_error": 9,
    "under_warn": 2
   },
   "PhaseEncodeStep": {
@@ -301,11 +251,6 @@
    "min_px": 20.0,
    "under_error": 5,
    "under_warn": 1
-  },
-  "PositioningMatrix": {
-   "min_px": 22.0,
-   "under_error": 3,
-   "under_warn": 4
   },
   "ProfileGrowth": {
    "min_px": 24.0,
@@ -352,20 +297,10 @@
    "under_error": 4,
    "under_warn": 4
   },
-  "SharedBlindspot": {
-   "min_px": 20.0,
-   "under_error": 7,
-   "under_warn": 0
-  },
   "ShorteningHold": {
    "min_px": 18.0,
    "under_error": 2,
    "under_warn": 2
-  },
-  "SpectrumPulse": {
-   "min_px": 20.0,
-   "under_error": 1,
-   "under_warn": 0
   },
   "SpeedLimit": {
    "min_px": 24.0,
@@ -382,14 +317,9 @@
    "under_error": 1,
    "under_warn": 2
   },
-  "SplitFlap": {
-   "min_px": 26.0,
-   "under_error": 0,
-   "under_warn": 1
-  },
   "StateSheet": {
    "min_px": 15.0,
-   "under_error": 12,
+   "under_error": 11,
    "under_warn": 0
   },
   "StatedBy": {
@@ -420,7 +350,7 @@
   "TaskFold": {
    "min_px": 25.0,
    "under_error": 0,
-   "under_warn": 12
+   "under_warn": 11
   },
   "TechnicalPlate": {
    "min_px": 24.0,

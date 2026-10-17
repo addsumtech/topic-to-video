@@ -95,7 +95,9 @@ def test_a_board_of_real_chinese_rows_is_fully_settled_at_the_frame_the_gates_sa
 # ── MapPlate: the channel label is placed by DISTANCE, not by a fraction that suits the default ─────
 def test_the_channel_label_is_placed_by_distance_from_the_subject():
     src = _src("MapPlate")
-    block = src.split("{channel ?", 1)[1].split("})() : null}", 1)[0]
+    # the channel's geometry is computed once, before the JSX (`const chan = channel ? …`), so the mark labels can
+    # treat the channel label as an obstacle — the rule lives there now
+    block = src.split("const chan = channel ?", 1)[1].split("})() : null;", 1)[0]
     assert "const far = (" in block, "the label is back on a fixed fraction of the channel"
     assert "far(0.26) >= far(0.74)" in block, "it no longer chooses the end further from the mark"
     assert "const clash =" in block and "labTop" in block, (

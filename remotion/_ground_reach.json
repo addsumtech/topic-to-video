@@ -56,7 +56,7 @@
     "light": 1.0,
     "dark": 0.0006070539820939302
    },
-   "moved": 0.994921875,
+   "moved": 0.9929640151515151,
    "ok": true,
    "why": []
   },
@@ -176,7 +176,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9972064393939394,
+   "moved": 0.996233428030303,
    "ok": true,
    "why": []
   },
@@ -190,7 +190,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.9945028409090909,
+   "moved": 0.9938257575757575,
    "ok": true,
    "why": []
   },
@@ -250,7 +250,7 @@
     "light": 0.9559735059738159,
     "dark": 0.002428215928375721
    },
-   "moved": 0.7563494318181818,
+   "moved": 0.7563139204545455,
    "ok": true,
    "why": []
   },
@@ -348,7 +348,7 @@
     "light": 0.8855713605880737,
     "dark": 0.006135653704404831
    },
-   "moved": 0.9961079545454545,
+   "moved": 0.9955350378787878,
    "ok": true,
    "why": []
   },
@@ -468,10 +468,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.830769956111908,
-    "dark": 0.002428215928375721
+    "light": 0.8227858543395996,
+    "dark": 0.0024501304142177105
    },
-   "moved": 0.6364914772727273,
+   "moved": 0.6311576704545454,
    "ok": true,
    "why": []
   },
@@ -602,7 +602,7 @@
     "light": 1.0,
     "dark": 0.002124688820913434
    },
-   "moved": 0.9746614583333333,
+   "moved": 0.9751349431818181,
    "ok": true,
    "why": []
   },
@@ -616,7 +616,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9921448863636364,
+   "moved": 0.9921212121212121,
    "ok": true,
    "why": []
   },
@@ -944,7 +944,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.9843986742424242,
+   "moved": 0.9843513257575758,
    "ok": true,
    "why": []
   },
@@ -2011,7 +2011,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9987239583333334,
+   "moved": 0.9985724431818181,
    "ok": true,
    "why": []
   },
@@ -2283,7 +2283,7 @@
     "light": 0.9046613574028015,
     "dark": 0.003346535377204418
    },
-   "moved": 0.9775426136363636,
+   "moved": 0.9792660984848485,
    "ok": true,
    "why": []
   },
@@ -2399,7 +2399,7 @@
     "light": 0.8719632625579834,
     "dark": 0.0018211619462817907
    },
-   "moved": 0.9693110795454546,
+   "moved": 0.9696306818181818,
    "ok": true,
    "why": []
   },
@@ -2881,7 +2881,7 @@
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "f85145ec3ec3ae79",
   "AnalogTape": "d17e97da8a919acf",
-  "AnswerStream": "333c96d4965aff9c",
+  "AnswerStream": "b4fba3a175ebaddf",
   "AntiDesignChaos": "d7eec2b4a7da1c1d",
   "AsciiField": "104b17f55852d882",
   "AtomOrbital": "ef6836b9a6c4e6f5",
@@ -2889,19 +2889,19 @@
   "AverageHides": "f5ace595e836139b",
   "BeforeAfterSlider": "d2ede4a45333e49c",
   "BentoReveal": "85ffeb7e580ac571",
-  "BlockAssembly": "a6141207240b90c3",
-  "BlueprintGrid": "a3d1bee8130eff2d",
+  "BlockAssembly": "44e4ab6cc0643892",
+  "BlueprintGrid": "6ff8ba4027244596",
   "BokehPull": "40f40f560b8cebeb",
   "BreaksWhenAsked": "15c581f6f189eba4",
   "BrutalistType": "312571546ea92508",
-  "CardFlip3D": "dcad163f4dc289cc",
+  "CardFlip3D": "4aa522669831e559",
   "CardStack3D": "d85d08b43210eba1",
   "CarryOver": "1309f9a0e27b4218",
   "CartoonPop": "28b177db4b1a1a9a",
   "ChartLive": "8cd146bf43370f69",
   "ChartRace": "7ec15a3f7485d47a",
   "ChatThread": "f1d279a35cfd1a16",
-  "CinematicTitle": "619e79e2643e5253",
+  "CinematicTitle": "a700fde4de00ef33",
   "CircuitTrace": "a9916440d7437b04",
   "ClayStack": "8d259af5eb7223d7",
   "ClothWave": "11786ef85b1da28d",
@@ -2909,7 +2909,7 @@
   "CodeRain": "8010e04f8ac433b8",
   "CollaborativeCursors": "97ca7b39850d3d36",
   "ComicPanels": "7bd3fb72ac55c742",
-  "CommandSummon": "fa3a2badd4a00c3f",
+  "CommandSummon": "1ed40be542c48b2d",
   "CompanionCard": "59cc1b8135f56f8c",
   "CompressedSensingEq": "802878ab61ea4364",
   "ConveyorBelt": "851fa970be9e86e6",
@@ -2918,8 +2918,8 @@
   "CubeRotate": "0db1129b0b4fd388",
   "CursorStory": "3817b69e5992d9f4",
   "DNAHelix": "b63011104bbc9419",
-  "DataMonolith": "b68f9be79ad9f024",
-  "DataOrrery": "f6976bcb5b05eef6",
+  "DataMonolith": "48fc8b0f7350c551",
+  "DataOrrery": "90ad3cbf869cc539",
   "DiffusionDenoise": "415e2f8473771964",
   "DollyZoom": "3dfe8f413947b0bb",
   "EdCompare": "9ccb76b5e7ccbc70",
@@ -2939,7 +2939,7 @@
   "GameOfLife": "8e3b3b98a9df9b03",
   "GaugeCluster": "322cebd072360798",
   "GazetteerEntry": "53080a50357d611a",
-  "GearTrain": "06a87df7dabb380d",
+  "GearTrain": "1ab7e2c43256743d",
   "GlitchDatamosh": "5daca1e9a672222f",
   "GlowPick": "bb9b38efccde56e7",
   "GradientTilt": "93dc579f25a937fc",
@@ -3004,7 +3004,7 @@
   "PlatformSurfaces": "8eb8a569b67c23eb",
   "PointerTour": "f62e6cad1ba88a72",
   "PortRail": "9f5c8156ee6ffb78",
-  "PositioningMatrix": "1600fa99aabba30d",
+  "PositioningMatrix": "8c1830ee14d23c9e",
   "ProfileGrowth": "f88d69463cee8ab3",
   "PulledThread": "c9af9d28c14edace",
   "QuadSplit": "78921afa8df2de7e",
@@ -3021,15 +3021,15 @@
   "ScreenBubble": "aa5dcc77b45ec2b2",
   "SeamBetween": "8f9f04df9339bf5c",
   "SectionRoute": "c79ea8395d3e2694",
-  "SharedBlindspot": "dd6cf89d24a4735d",
+  "SharedBlindspot": "c3935afe5b243e17",
   "ShorteningHold": "30bb2b3a3002f713",
   "SourceDeal": "f6c9b7deb5b86d99",
   "SpatialSlides": "dbda14c8d2acff43",
-  "SpectrumPulse": "7c96d0a3e9eab44a",
+  "SpectrumPulse": "34e2d07f50d73237",
   "SpeedLimit": "1062149416473552",
   "SpinningProton": "8173db1aa50dfbbb",
   "SpinsAlign": "109bccdd737c713b",
-  "SplitFlap": "032eaea17701525a",
+  "SplitFlap": "131b8b82f17a43e1",
   "SpotlightStage": "79d9de2b4c1fcce6",
   "StarfieldWarp": "20556a7cb89c2362",
   "StateSheet": "9ebfa3303acc3b06",
