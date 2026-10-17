@@ -201,3 +201,14 @@ def test_words_and_substance_are_measured_in_any_script():
     src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src",
                             "runtime", "titleProbe.tsx"), encoding="utf-8").read()
     assert "/\\p{L}/gu" in src, "the title probe's letters must be any script's"
+
+
+def test_minor_review_fixes_hold():
+    """Sparsest lists only sparse beats; the spread check still runs on a sparse film; a malformed narration or board
+    entry is a contract error elsewhere, never a crash here; the design sheet shows only this run's frames."""
+    import shot_proof as sp
+    import storyboard as sbd
+    w = sp.tonal_warnings([(1, 60.0), (2, 7.0), (3, 8.0), (4, 9.0)], 4)
+    assert w and "beat 1 60.0%" not in w[0], w
+    assert v._narration_tell_warnings("scene 1", ["a", "b"]) == []
+    assert sbd.plan_fields_missing(["not a slide"], {"beats": [{"relation": "x"}]}) == {"relation": 1}

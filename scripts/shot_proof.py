@@ -893,13 +893,13 @@ def tonal_warnings(ink_by_beat, n_beats):
                    "garnish. Give the sparsest beats something the sentence does not already say."
                    % (_over, med, lo, hi, len(thin)))
     elif med < SPARSE_MEDIAN:
-        sparse = sorted(ink_by_beat, key=lambda bv: bv[1])[:4]
+        sparse = sorted((bv for bv in ink_by_beat if bv[1] < SPARSE_MEDIAN), key=lambda bv: bv[1])[:4]
         out.append("the film's frames are SPARSE (measured over %s): median %.1f%% of the content zone carries "
                    "ink, under half the GPS film the user approved after asking for fuller frames (28.8%%; the "
                    "compound-interest test 18.3%%). Sparsest: %s. Unless emptiness IS the design, give those "
                    "beats more of the subject — larger, closer, or a second read the sentence does not carry."
                    % (_over, med, ", ".join("beat %d %.1f%%" % bv for bv in sparse)))
-    elif hi > 12 * max(0.5, med):
+    if med >= 6.0 and hi > 12 * max(0.5, med):           # the spread is its own question, sparse film or not
         out.append("the film's ink ranges %.1f-%.1f%% of the content zone around a %.1f%% median "
                    "(measured over %s) — the dense beats read as a different film from the sparse "
                    "ones. Vary within a band, not by an order of magnitude." % (lo, hi, med, _over))
@@ -1022,7 +1022,7 @@ def _prove(argv, out_dir, board, ws_durs):
     # defining them only when stills are rendered made `--no-stills` — the fast path this file's own usage
     # line recommends while authoring — die with an UnboundLocalError.
     inks, ink_by_beat = [], []
-    rendered = 0
+    rendered, fresh = 0, set()          # `fresh`: the beats rendered THIS run — the design sheet shows only those
 
     # THE RENDERED CHECKS RUN BY DEFAULT.
     #
@@ -1125,6 +1125,7 @@ def _prove(argv, out_dir, board, ws_durs):
                                   "empty-frame / ink were not measured — %s" % (beat, shot, why))
                 continue
             rendered += 1
+            fresh.add(beat)
             # BUILT THINGS TAKE EVERY WORD FROM THE FILM — asked of the frame. On a film-local register every run
             # is asked; on a library register holding an object, only what is inside the object's slot. One more
             # render, only on beats that show a built thing.
@@ -1261,7 +1262,7 @@ def _prove(argv, out_dir, board, ws_durs):
     sheet = None
     if "--no-stills" not in argv and rendered:
         try:
-            sheet = design_sheet(out_dir, board)
+            sheet = design_sheet(out_dir, board, only=fresh)
         except Exception as e:                           # noqa: BLE001 — the sheet is for eyes; the checks stand
             unmeasured.append("the design review sheet could not be tiled: %s" % e)
     for e in errors:
@@ -1285,12 +1286,12 @@ def _prove(argv, out_dir, board, ws_durs):
              "  (static only — drop --no-stills for the rendered checks)" if static_only else ""))
     if sheet:
         print("[shot_proof] design review sheet: %s — every beat's settled frame on one page. SHOW IT at the 3.6 "
-              "checkpoint (copied to the Desktop): composition, type size and the subject's craft are judged on "
+              "checkpoint (copy it to the Desktop): composition, type size and the subject's craft are judged on "
               "the picture, never on a list of form names" % sheet)
     return 1 if (errors or unmeasured) else 0
 
 
-def design_sheet(out_dir, board, cols=3, tile_w=640):
+def design_sheet(out_dir, board, cols=3, tile_w=640, only=None):
     """Tile `_proof/beat_NN.png` into `<out_dir>/_design_review.png`, each labelled `beat N · route · shot`.
 
     WHY. The 3.6 checkpoint showed the user a content plan, a palette and a list of FORM NAMES; what the user
@@ -1303,8 +1304,8 @@ def design_sheet(out_dir, board, cols=3, tile_w=640):
     tiles = []
     for pos, sl in enumerate(slides, 1):
         png = os.path.join(out_dir, "_proof", "beat_%02d.png" % pos)
-        if not os.path.exists(png):
-            continue
+        if not os.path.exists(png) or (only is not None and pos not in only):
+            continue                                     # a beat that did not render THIS run shows no old frame
         fit = sl.get("shot_fit") if isinstance(sl.get("shot_fit"), dict) else {}
         tiles.append(("beat %d · %s · %s" % (pos, fit.get("verdict") or "?", sl.get("shot")), png))
     if not tiles:

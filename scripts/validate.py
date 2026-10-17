@@ -5537,6 +5537,8 @@ def _other_films_asset(out_dir, local, tag, errors, warnings):
 
 def _narration_tell_warnings(tag, narration):
     """The AI-tell lint for one beat's narration (humanizer-informed: reads as machine-generated even if grammatical)."""
+    if not isinstance(narration, str):
+        return []                                        # a malformed narration is the storyboard contract's error
     out, seen = [], set()
     for phrase, label in _narration_ai_tells(narration):
         key = phrase.lower()

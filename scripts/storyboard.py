@@ -87,6 +87,7 @@ def plan_fields_missing(slides, plan):
     """{field: n slides missing it} for the PLAN_FIELDS the content plan has and the board does not — matched BY
     POSITION, and only when the two hold the same number of beats (a board edited since the plan cannot be mapped)."""
     beats = [b for b in (plan or {}).get("beats") or [] if isinstance(b, dict)]
+    slides = [s if isinstance(s, dict) else {} for s in (slides or [])]      # a malformed entry is validate's to name
     if not beats or len(beats) != len(slides):
         return {}
     out = {}

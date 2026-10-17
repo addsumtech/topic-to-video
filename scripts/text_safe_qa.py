@@ -1072,6 +1072,10 @@ def main(argv):
                       % (len(_missing), ", ".join(_missing)))
                 return 2
         cjk = "--cjk" in argv
+        # refused BEFORE the sweep, not after ten minutes of it (only/limit narrow the universe, so they refuse too)
+        if "--write-debt" in argv and not ("--type-size" in argv and not only and not limit and not cjk and not aspect):
+            print("[text_safe] --write-debt needs the WHOLE library, at default props and aspect, with --type-size")
+            return 2
         if dna in ("", "none"):
             dna = None
         findings, n, universe, notmeasured = scan_library(limit, aspect, dna, only, cjk, type_size="--type-size" in argv)
