@@ -254,6 +254,14 @@ copy that never arrived — and words on the frame no prop supplied.
 **Smallest real use:** (rendered with `textSafe: true` by `scripts/text_safe_qa.py`)
 **Exports:** `TextSafeAudit`, `auditTextSafety`, `auditTypeCollisions`, `auditFedText`, `auditUnfedText`, `UNFED_TEXT_TAG`.
 
+### `titleProbe`
+Where a settled frame's title sits: its largest type that is not a figure, placed by the edge the line is set from, so
+a film's titles can be compared beat to beat (a repeated position is a `text_safe_qa` error).
+**Reach for it:** never in a register; know that a big printed figure is not your title and a left-aligned title is
+read by its left edge.
+**Smallest real use:** (rendered with `titleProbe: true` by `scripts/text_safe_qa.py` `title_of`)
+**Exports:** `TitleProbe`, `pickTitle`, `isReadout`, `TITLE_PROBE_TAG`.
+
 ## Recipes
 
 ### A mechanism in cutaway

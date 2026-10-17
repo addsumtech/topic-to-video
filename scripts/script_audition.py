@@ -110,7 +110,8 @@ def audition(out_dir, beats=None, out_name="audition.mp3", allow_paid=False):
     for n, (idx, text) in enumerate(picked):
         p = os.path.join(work, "%02d.%s" % (n, "aiff" if prov == "say" else "mp3"))
         try:
-            _tts.speak(text, p, spoken_meta, prov, name)
+            # the same transient-failure retry the film gets — never a different voice, only a second ask
+            _tts.speak_retrying(text, p, spoken_meta, prov, name)
         except Exception as exc:                                             # noqa: BLE001 — name the beat
             raise RuntimeError("%s could not speak beat %s (%s)%s — nothing was auditioned"
                                % (voice, idx, exc, _tts.failure_hint(prov, exc))) from exc

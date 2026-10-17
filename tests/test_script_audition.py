@@ -201,7 +201,8 @@ def test_there_is_one_voice_path_not_two():
     for private in ("_resolve_voice(", "_tts._edge(", "_tts._say(", "_tts._minimax(", "_tts._openai("):
         assert private not in aud, "script_audition calls %s directly — a second voice path" % private
     body = syn[syn.index("def synthesize("):]
-    assert "film_voice(" in body and "speak(" in body, "synthesize no longer uses the shared path"
+    assert "film_voice(" in body and "speak_retrying(" in body, "synthesize no longer uses the shared path"
+    assert "speak_retrying(" in aud, "the audition and the film reach the engine through different paths"
 
 
 def test_a_malformed_lexicon_still_fails_loudly(tmp_path):
