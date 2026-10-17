@@ -319,3 +319,36 @@ def test_the_films_own_shots_are_rendered_measured_and_cached(tmp_path, monkeypa
     import subprocess as _sp
     monkeypatch.setattr(_sp, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("rendered again")))
     assert es.own_motion(out, board["slides"], board["meta"], render=True) == got
+
+
+def test_a_built_peak_beat_is_never_told_to_become_a_template(tmp_path):
+    """A built shot on a PEAK beat under the floor got `peak-under-floor` (HARD) and three library registers to swap
+    in — design-first's opposite. A built shot's mismatch is advisory and about the shot itself."""
+    motion, floor, qc, kc = _sweep()
+    slides = [{"shot": "FilmHero", "energy": "peak"}, {"shot": "FilmCalm", "energy": "high"},
+              {"shot": "FilmBusy", "energy": "low"}]
+    fs = es.findings(slides, motion, floor, qc, kc, film_shots={"FilmHero", "FilmCalm", "FilmBusy"},
+                     beat_motion={1: floor / 3, 2: (floor + qc) / 2 if qc > floor else floor * 1.01, 3: kc * 2})
+    kinds = {}
+    for f in fs:
+        kinds.setdefault(f.get("beat"), set()).add(f["kind"])
+    assert "own-under-floor" in kinds[1] and "own-off-energy" in kinds[3], fs
+    assert not [f for f in fs if f["kind"] in es.HARD or f.get("alternatives")], fs
+    assert "liveliest" in es.describe([f for f in fs if f["beat"] == 3][0])
+
+
+def test_the_own_shot_cache_key_sees_assets_and_library_code_but_not_generated_stills(tmp_path):
+    out = tmp_path / "film"
+    (out / "workshop" / "shots").mkdir(parents=True)
+    (out / "workshop" / "shots" / "A.tsx").write_text("export const DURATION = 30;\n")
+    (out / "workshop" / "assets").mkdir()
+    (out / "workshop" / "assets" / "foil.png").write_bytes(b"\x00")
+    slide, meta = {"shot": "A", "shot_props": {}}, {}
+    k = es._own_key(str(out), slide, meta, lib="L1")
+    (out / "workshop" / "_stills").mkdir()
+    (out / "workshop" / "_stills" / "A.png").write_bytes(b"\x01")
+    assert es._own_key(str(out), slide, meta, lib="L1") == k, "a preview still is an output, not an input"
+    (out / "workshop" / "assets" / "foil.png").write_bytes(b"\x02")
+    k2 = es._own_key(str(out), slide, meta, lib="L1")
+    assert k2 != k, "an asset the shot draws changes its motion"
+    assert es._own_key(str(out), slide, meta, lib="L2") != k2, "library code a built shot imports changes it too"

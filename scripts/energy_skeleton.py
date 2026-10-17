@@ -236,10 +236,14 @@ def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_row
             kind = "peak-under-floor"                                # the stronger claim wins the line
         if e == "low" and m >= kinetic_cut:
             kind = "low-on-kinetic"
-        if not kind and r["shot"] in (film_shots or ()) and e != "low" and m < floor:
-            # a BUILT shot has no library alternative to swap in — its fix is in its own source, so it is said
-            # (advisory: the render's film_energy_qa separates "under the floor" from "frozen")
-            out.append(dict(r, kind="own-under-floor", floor=floor, alternatives=[]))
+        if r["shot"] in (film_shots or ()):
+            # A BUILT SHOT IS NEVER TOLD TO BECOME A TEMPLATE. Its fix is in its own source, so a mismatch is said about
+            # the shot, advisory (the render's film_energy_qa separates "under the floor" from "frozen"), with no
+            # library swap — a built PEAK beat used to get `peak-under-floor` (HARD) and three registers to replace it.
+            if e != "low" and m < floor:
+                out.append(dict(r, kind="own-under-floor", floor=floor, alternatives=[]))
+            elif kind:
+                out.append(dict(r, kind="own-off-energy", mismatch=kind, alternatives=[]))
             continue
         if kind:
             lo, hi = band_for(e, quiet_cut, kinetic_cut, floor)
@@ -330,15 +334,48 @@ def check_slides(slides, plan=None, film_shots=(), beat_motion=None):
 OWN_CACHE = ".energy_own.json"
 
 
-def _own_key(out_dir, slide, meta):
+# The cache key sees what the picture is made of: every workshop file (code AND assets), the library code a built shot
+# can import (runtime/, objects/, kits/ — hashed once per run), the beat's props, the DNA, the aspect, and this
+# measurement's own version. It does NOT see the beat's spoken length: before narration that length does not exist,
+# so a shot is measured at its own DURATION — an estimate of how much it moves; the render's film_energy_qa measures
+# each beat at its real length.
+OWN_MEASURE_VERSION = 1
+
+
+def _library_hash():
     import hashlib
     h = hashlib.sha256()
+    src = os.path.join(_HERE, "..", "remotion", "src")
+    for sub in ("runtime", "objects", "kits"):
+        for root, dns, files in os.walk(os.path.join(src, sub)):
+            dns[:] = sorted(d for d in dns if not d.startswith("."))
+            for f in sorted(files):
+                if f.endswith((".ts", ".tsx")):
+                    h.update(os.path.relpath(os.path.join(root, f), src).encode())
+                    h.update(open(os.path.join(root, f), "rb").read())
+    return h.hexdigest()
+
+
+def _own_key(out_dir, slide, meta, lib=None):
+    import hashlib
+    h = hashlib.sha256()
+    h.update(("v%d:%s" % (OWN_MEASURE_VERSION, lib if lib is not None else _library_hash())).encode())
     wdir = os.path.join(out_dir, "workshop")
-    for root, _d, files in sorted(os.walk(wdir)):
+    try:
+        import workshop as _ws
+        generated = set(_ws.GENERATED)                   # index.ts, _stills/ … — outputs, not what a shot is made of
+    except Exception:                                    # noqa: BLE001
+        generated = {"index.ts", ".tsconfig.json", "_stills"}
+    for root, dns, files in os.walk(wdir):
+        dns[:] = sorted(d for d in dns if not d.startswith(".") and not (root == wdir and d in generated))
         for f in sorted(files):
-            if f.endswith((".tsx", ".ts", ".css")):
-                h.update(f.encode())
+            if f.startswith(".") or (root == wdir and f in generated):
+                continue
+            h.update(os.path.relpath(os.path.join(root, f), wdir).encode())
+            try:
                 h.update(open(os.path.join(root, f), "rb").read())
+            except OSError as e:
+                h.update(("<unreadable: %s>" % type(e).__name__).encode())
     h.update(json.dumps([slide.get("shot"), slide.get("shot_props"), meta.get("design_dna") or
                          meta.get("shot_template"), meta.get("aspect")], sort_keys=True, default=str).encode())
     return h.hexdigest()[:16]
@@ -360,9 +397,9 @@ def own_motion(out_dir, slides, meta, render=False, log=print):
         import render_remotion as rr
         import film_energy_qa as fe
         env = _ws.prepare(out_dir)
-        durs = _ws.durations(out_dir)
+    lib = _library_hash() if todo else ""
     for i, s in todo:
-        key = _own_key(out_dir, s, meta)
+        key = _own_key(out_dir, s, meta, lib)
         if key in cache:
             out[i] = cache[key]
             continue
@@ -442,6 +479,11 @@ def describe(f):
                 "stops, which reads as a slide. Give it an idle that keeps the subject alive after its reveal (the "
                 "runtime's life()/idle clock, light that moves, the object turning) or a motivated camera move"
                 % (f["beat"], f["shot"], f["motion"], f.get("floor", 0.0)))
+    if f["kind"] == "own-off-energy":
+        return ("beat %d (%s, this film's own shot) motion %.4f: declared %s, and it moves like the library's %s third — "
+                "tune the shot's own motion to the beat, or re-declare the beat's energy"
+                % (f["beat"], f["shot"], f["motion"], f["energy"].upper(),
+                   "liveliest" if f.get("mismatch") == "low-on-kinetic" else "stillest"))
     if f["kind"] == "unmeasured":
         return ("beat %d declared %s was NOT checked — %s"
                 % (f["beat"], (f.get("energy") or "medium").upper(), f.get("why") or "no motion number"))
