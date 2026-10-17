@@ -64,7 +64,12 @@ direction), or whose picture CLAIMS something the brief denies (a reticle "locki
 never see); (2) RANK the survivors in this order — **FIT first:** is every colour traced to the subject's own world
 and does the palette read as THIS subject (satellites in orbit, not a station board in signal red)? **then MEANING
 and CRAFT:** hide the caption — does the built hero carry the film's thesis, and is the subject itself drawn with
-care (a satellite that reads as a satellite)? **then BOLDNESS**, within fit and only at this audacity — a bold
+care (a satellite that reads as a satellite)? **Craft has a test you can answer:** name at least THREE parts of the
+subject that are DRAWN in the hero — the GPS satellite's gold-foil body, radiator, solar wings, helix antenna; the
+passbook's cloth cover, stitched spine, printed rows, stamp. If you cannot, the subject is a PICTOGRAM (the HTTPS test's
+phone as a rounded rectangle, its router as an outline with two antennae — clean, and nothing in it said "this
+phone" rather than "a phone"): that direction's craft fails, it ranks below every direction whose subject is drawn,
+and you name the parts it is missing. **then BOLDNESS**, within fit and only at this audacity — a bold
 direction that fits nothing loses to a quieter one that is unmistakably about the subject; (3) name ONE
 **winner** + a **runner-up** with one line each, saying which of the three it won on.
 A floor-breaking or off-brief candidate must never reach the user unranked. Output the ranking + the winner/runner-up;

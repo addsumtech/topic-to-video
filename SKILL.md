@@ -702,7 +702,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      every beat's settled frame and tiles them into `<out_dir>/_design_review.png` (beat · route · shot). Read the
      SHEET, not the board, against the per-beat checklist (shot-director Step 0.55): does the composition change
      with the idea (wide, close-up, the object itself, a diagram plane — not one page layout repeated), does the
-     film's subject appear as a crafted OBJECT the camera can get close to, is every label readable at phone size,
+     film's subject appear as a crafted OBJECT the camera can get close to (name three of its parts that are drawn — a
+     shape you cannot is a pictogram), is every label readable at phone size,
      is every frame full? The compound-interest test passed every gate with nine flat ledger pages in a row; only
      the sheet showed it. And does it MOVE: `python3 scripts/energy_skeleton.py <out_dir>` renders each built
      beat with its props (~5 s a beat, cached) and names the ones that settle and stop under the motion floor —

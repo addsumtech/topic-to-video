@@ -233,7 +233,9 @@ ideal: read them as donors of technique, not as the beat's frame.
 - [ ] **The film's SUBJECT, crafted once, recurring** — find the ONE thing this topic is made of and build it as an
       object with real craft, then let it recur in different compositions. The GPS film drew one GPS satellite
       (gold-foil body, radiator, cell wings, helix array) and used it in 11 of 15 beats — wide, cropped, engraved,
-      flat. A physical topic has its object (a puck, a cell, an engine). An ABSTRACT topic's subject is its
+      flat. The test: name three parts of the subject that are DRAWN (body, material, a working part, light on it); a
+      shape you cannot name three parts of is a pictogram — the HTTPS test's phone and router were clean line icons and
+      the judge now ranks such a hero below a drawn one. A physical topic has its object (a puck, a cell, an engine). An ABSTRACT topic's subject is its
       domain's own artifact: inflation → the receipt, the price tag, the basket of goods; a law → the document,
       the seal; an algorithm → the data it moves; a historical event → the map, the letter, the instrument of the
       time. Never an icon in a container standing in for it.
