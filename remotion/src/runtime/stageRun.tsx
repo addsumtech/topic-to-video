@@ -80,19 +80,22 @@ export const lerpState = (a: unknown, b: unknown, p: number): unknown => {
   return p < 0.5 ? a : b;
 };
 
-/** The state of one actor right now: the value `pick` reads from each beat's props, carried forward from the last
- *  beat that set it (a beat that says nothing about an actor leaves it where it was), and moved into the current
- *  beat's value over the beat's morph window. */
+/** What beat `upTo` holds for one actor: the value `pick` reads from the last beat at or before it that set one (a beat
+ *  that says nothing about an actor leaves it where it was), or `fallback` when none has. */
+export const heldAt = <T,>(beats: StageBeat[], upTo: number,
+  pick: (props: Record<string, unknown>) => T | undefined, fallback: T): T => {
+  for (let i = Math.min(upTo, beats.length - 1); i >= 0; i--) {
+    const v = pick(beats[i].props);
+    if (v !== undefined) return v;
+  }
+  return fallback;
+};
+
+/** The state of one actor right now: what the current beat holds (`heldAt`), moved into from what the beat before
+ *  held over the beat's morph window. */
 export const useActorState = <T,>(pick: (props: Record<string, unknown>) => T | undefined, fallback: T): T => {
   const now = useStageRun();
-  const held = (upTo: number): T => {
-    for (let i = upTo; i >= 0; i--) {
-      const v = pick(now.beats[i].props);
-      if (v !== undefined) return v;
-    }
-    return fallback;
-  };
-  const target = held(now.k);
+  const target = heldAt(now.beats, now.k, pick, fallback);
   if (now.k === 0 || now.morph >= 1) return target;
-  return lerpState(held(now.k - 1), target, now.morph) as T;
+  return lerpState(heldAt(now.beats, now.k - 1, pick, fallback), target, now.morph) as T;
 };

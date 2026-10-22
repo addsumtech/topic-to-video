@@ -61,6 +61,38 @@ def stage_names():
         return []
 
 
+_EXIF_TURNED = (5, 6, 7, 8)   # EXIF orientations a browser draws a quarter turn from the stored pixels
+
+
+def image_aspect(path):
+    """width / height of an image AS A BROWSER DRAWS IT — <img> honours EXIF orientation, so a phone photo stored
+    landscape and tagged "rotate 90" is a portrait face."""
+    from PIL import Image
+    with Image.open(path) as im:
+        w, h = im.size
+        try:
+            turned = im.getexif().get(0x0112) in _EXIF_TURNED
+        except Exception:
+            turned = False
+    if turned:
+        w, h = h, w
+    if w <= 0 or h <= 0:
+        raise ValueError("%s has no size (%dx%d)" % (path, w, h))
+    return round(w / h, 4)
+
+
+def stamp_faces(props, public_dir):
+    """`props` with its face's shape added as `imageAspect` — a stage beat's `image` names a file the film serves,
+    and the stage gives the card that file's shape, which a frame cannot measure before it draws the image. `props`
+    comes back as it was when it names no image; a missing file is an error here rather than a blank card in the film."""
+    if not isinstance(props, dict) or not isinstance(props.get("image"), str) or not props["image"].strip():
+        return props
+    path = os.path.join(public_dir, props["image"].lstrip("/"))
+    if not os.path.isfile(path):
+        raise FileNotFoundError("stage image %r is not a file in %s" % (props["image"], public_dir))
+    return dict(props, imageAspect=image_aspect(path))    # a copy: the board's own shot_props are never written
+
+
 def check(slides):
     """The problems that make a board's stage runs unrenderable or misleading — [] when there are none."""
     probs = []

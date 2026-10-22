@@ -627,6 +627,7 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         import stage_runs as _sr
         if _sr.run_id(s):
             scene["stage"] = {"run": _sr.run_id(s)}
+            scene["props"] = _sr.stamp_faces(scene.get("props"), out_dir)
         scenes.append(scene)
     import stage_runs as _sr
     probs = _sr.check(slides)

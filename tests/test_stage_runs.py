@@ -87,3 +87,22 @@ def test_a_runs_last_beat_re_renders_when_the_runs_face_is_remade(tmp_path):
     k2 = [s["key"] for s in rs.plan({"scenes": sc}, str(tmp_path), [], tr=12, code="c")[0]]
     assert k1[0] == k2[0]
     assert all(x != y for x, y in zip(k1[1:], k2[1:])), "every beat of the run draws the card"
+
+
+def test_a_stage_face_carries_the_shape_a_browser_draws(tmp_path):
+    """`imageAspect` is the image as <img> draws it: EXIF orientation 6 turns a stored-landscape photo portrait. The
+    board's own props are never written, and a missing face is an error rather than a blank card."""
+    import pytest
+    from PIL import Image
+    Image.new("RGB", (400, 300)).save(tmp_path / "wide.png")
+    im = Image.new("RGB", (400, 300))
+    exif = im.getexif()
+    exif[0x0112] = 6
+    im.save(tmp_path / "turned.jpg", exif=exif)
+    board_props = {"image": "wide.png", "title": "t"}
+    out = sr.stamp_faces(board_props, str(tmp_path))
+    assert out["imageAspect"] == round(400 / 300, 4) and "imageAspect" not in board_props
+    assert sr.stamp_faces({"image": "turned.jpg"}, str(tmp_path))["imageAspect"] == 0.75
+    assert sr.stamp_faces({"title": "no face"}, str(tmp_path)) == {"title": "no face"}
+    with pytest.raises(FileNotFoundError):
+        sr.stamp_faces({"image": "missing.png"}, str(tmp_path))
