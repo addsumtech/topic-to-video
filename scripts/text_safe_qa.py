@@ -96,7 +96,7 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size
                "--props=" + os.path.abspath(pf)]
         if public_dir:
             cmd.append("--public-dir=" + os.path.abspath(public_dir))
-        r = _c.run_render(cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
+        r = _c.run_render(subprocess.run, cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
         blob = (r.stdout or "") + (r.stderr or "")
         if TAG in blob or r.returncode == 0:
             break
@@ -136,7 +136,7 @@ def title_of(shot, props, frame, tmp_png, public_dir=None, env=None):
         cmd.append("--public-dir=" + os.path.abspath(public_dir))
     blob = ""
     for _attempt in (1, 2):                              # a flaky browser is retried once, as audit_shot does
-        r = _c.run_render(cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
+        r = _c.run_render(subprocess.run, cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
         blob = (r.stdout or "") + (r.stderr or "")
         if TITLE_TAG in blob:
             break

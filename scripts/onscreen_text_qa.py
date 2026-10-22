@@ -322,7 +322,9 @@ def unsourced_numbers(path):
                 clock.add(n)
         if len(clock) == before:
             break
-    for expr in (set(re.findall(r">\s*\{([^{}<>]{3,90})\}", body))
+    # `(?<!=)`: the `>` of an arrow `=> { … }` opens a function BODY, not a JSX child. ForkingAnswers' layout loop
+    # (`trees.forEach((_, ti) => { treeTop.push(yy); yy += … })`) was reported as a number printed on screen.
+    for expr in (set(re.findall(r"(?<!=)>\s*\{([^{}<>]{3,90})\}", body))
                  | set(re.findall(r"\{([^{}<>]{3,90})\}\s*<", body))):
         expr = expr.strip()
         if re.fullmatch(r"[A-Za-z_$][\w$]*", expr):

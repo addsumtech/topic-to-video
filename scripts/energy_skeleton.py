@@ -398,7 +398,7 @@ def own_motion(out_dir, slides, meta, render=False, log=print):
         os.makedirs(tmpd, exist_ok=True)
         pf, mp4 = os.path.join(tmpd, "beat_%02d.json" % i), os.path.join(tmpd, "beat_%02d.mp4" % i)
         json.dump(props, open(pf, "w", encoding="utf-8"), ensure_ascii=False)
-        r = _c.run_render(["npx", "remotion", "render", "src/index.ts", s["shot"], mp4, "--gl=angle", "--log=error",
+        r = _c.run_render(subprocess.run, ["npx", "remotion", "render", "src/index.ts", s["shot"], mp4, "--gl=angle", "--log=error",
                             "--scale=0.5", "--props=" + os.path.abspath(pf), "--public-dir=" + os.path.abspath(out_dir)],
                            cwd=os.path.join(_HERE, "..", "remotion"), capture_output=True, text=True,
                            **_ws.env_kwargs(env))

@@ -21,9 +21,9 @@ import {useT, seg, clamp01, easeOutCubic, easeInOutCubic, hash01, life, ReducedM
 import {useDNA, mix} from '../runtime/dna';
 import {useCues, REACH_CUBIC} from '../runtime/cue';
 import {rows} from '../runtime/rows';
-import {useGlide, unlockSkewFor, BaselineUnlockContext} from '../runtime/glide';
+import {useGlide, BaselineUnlockContext} from '../runtime/glide';
 import {textWidthPx} from '../runtime/layout';
-import {Stage3D, Surface, projectLocal, matrixOf, faceShade, PERSP_FRAC, type Pose} from '../runtime/stage3d';
+import {Stage3D, Surface, OnSurface, projectLocal, matrixOf, faceShade, PERSP_FRAC, type Pose} from '../runtime/stage3d';
 import {inkOf, frameOf, groundOf, flow, tileW, tileH, tintAt, Tile, TileRow, Caret, Title, Source, Spray, Cross, Tick,
   BODY, DISPLAY, MONO, TitleAt, Ink} from '../kits/Kit';
 import {Fan, Cand} from '../kits/Fan';
@@ -269,17 +269,29 @@ const Pane: React.FC<{x: number; y: number; w: number; h: number; ink: Ink; U: n
     const b = pts.reduce((acc, q) => acc + q.p.y * q.u, 0) / (4 * hw * hw);
     const d = pts.reduce((acc, q) => acc + q.p.y * q.v, 0) / (4 * hh * hh);
     const tx = e - a * hw - c * hh, ty = fy - b * hw - d * hh;
-    const k = unlockOn ? unlockSkewFor(Math.max(0.1, Math.sqrt(Math.abs(a * d - b * c)))) : 0;
+    // the four-corner fit handed to the stage's own <OnSurface>, which lays the words on the face and carries the
+    // baseline unlock while the slab sways (its three-corner `planeAffine` is what made the lines read italic)
+    const affine = {m11: a, m12: b, m21: c, m22: d, tx, ty, scale: Math.sqrt(Math.abs(a * d - b * c))};
     return (
-      <div key={key} style={{position: 'absolute', left: 0, top: 0, width, height, overflow: 'visible', transformOrigin: '0 0',
-        transform: `matrix(${a},${b},${c},${d},${tx},${ty})${k ? ` matrix(1, ${k}, 0, 1, 0, 0)` : ''}`, opacity: on}}>
+      <OnSurface key={key} pose={pz} cam={{}} persp={persp} W={W} H={H} left={left - w / 2} top={top - h / 2}
+        width={width} height={height} affine={affine} glide={unlockOn} style={{height, overflow: 'visible', opacity: on}}>
         {/* clipped to the face: nothing the window holds may hang off its edge */}
         <div style={{position: 'absolute', left: -left, top: -top, width: w, height: h, overflow: 'hidden',
           borderRadius: r}}>{node}</div>
-      </div>
+      </OnSurface>
     );
   };
   const lz = (part: keyof typeof LAYER_Z) => (look === 'layers' ? U * LAYER_Z[part] : 0);
+  // the window's words, block by block, each laid on the face (lifted off it in `layers`)
+  const faceType: React.ReactNode[] = look === 'layers' ? [
+    upright(along(pose, lz('reply')), 0, regTop, w, regH, <>{replyBlock}{children}</>, 'reply'),
+    question ? upright(along(pose, lz('question')), 0, pad, w, bubbleH, bubble, 'q') : null,
+    upright(along(pose, lz('box')), 0, h - pad - boxH, w, boxH, msgBox, 'box'),
+  ] : [
+    upright(pose, 0, 0, w, regTop, bubble, 'q'),
+    upright(pose, 0, regTop, w, regH, <>{replyBlock}{children}</>, 'reply'),
+    upright(pose, 0, h - pad - boxH, w, boxH, msgBox, 'box'),
+  ];
   return (
     <div style={{position: 'absolute', left: dx, top: dy, width: W, height: H, pointerEvents: 'none'}}>
       <Stage3D persp={persp}>
@@ -309,19 +321,7 @@ const Pane: React.FC<{x: number; y: number; w: number; h: number; ink: Ink; U: n
           ) : null}
         </Surface>
       </Stage3D>
-      {look === 'layers' ? (
-        <>
-          {upright(along(pose, lz('reply')), 0, regTop, w, regH, <>{replyBlock}{children}</>, 'reply')}
-          {question ? upright(along(pose, lz('question')), 0, pad, w, bubbleH, bubble, 'q') : null}
-          {upright(along(pose, lz('box')), 0, h - pad - boxH, w, boxH, msgBox, 'box')}
-        </>
-      ) : (
-        <>
-          {upright(pose, 0, 0, w, regTop, bubble, 'q')}
-          {upright(pose, 0, regTop, w, regH, <>{replyBlock}{children}</>, 'reply')}
-          {upright(pose, 0, h - pad - boxH, w, boxH, msgBox, 'box')}
-        </>
-      )}
+      {faceType}
     </div>
   );
 };
@@ -593,13 +593,14 @@ export const ReplyWindow: React.FC<{
     const lift = 0.5 - 0.5 * Math.cos(Math.PI * clamp01(seg(t, ...cue.win('coverLabel', 0.12, 0.5, REACH_CUBIC))));
     const blank = easeOutCubic(clamp01(seg(t, 0.4, 0.5)));
     const grow = clamp01(seg(t, 0.5, 0.6));
-    const r = roll ? clamp01(seg(t, 0.6, 0.76)) : null;
-    const pickOn = easeOutCubic(clamp01(seg(t, roll ? 0.76 : 0.61, roll ? 0.8 : 0.65)));
-    const travel = clamp01(seg(t, roll ? 0.8 : 0.65, roll ? 0.87 : 0.72));
-    const wither = easeOutCubic(clamp01(seg(t, 0.83, 0.92)));
+    const r = roll ? clamp01(seg(t, 0.58, 0.72)) : null;
+    const pickOn = easeOutCubic(clamp01(seg(t, roll ? 0.72 : 0.61, roll ? 0.76 : 0.65)));
+    const travel = clamp01(seg(t, roll ? 0.76 : 0.65, roll ? 0.82 : 0.72));
+    const wither = easeOutCubic(clamp01(seg(t, 0.8, 0.88)));
     const addW = cands[pick] ? tileW(cands[pick].token, px) : 0;
     const caretNow = caret.x + addW * easeOutCubic(travel);
-    const nextOn = easeOutCubic(clamp01(seg(t, 0.88, 0.95)));
+    // the next slot opens as the picked piece lands — before the settled frame every still gate measures
+    const nextOn = easeOutCubic(clamp01(seg(t, 0.8, 0.85)));
     const cover = {l: caret.x + px * 0.4, t: f.zTop - U * 0.02, b: f.zBot - U * 0.01};
     const coverX = cover.l + (W - cover.l + U * 0.05) * lift;      // the cover slides off to the right
     const lpx = Math.round(U * 0.05);

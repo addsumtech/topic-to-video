@@ -388,7 +388,8 @@ class render_lock:
         return False
 
 
-def run_render(cmd, **kw):
-    """`subprocess.run` for one `npx remotion …` render, under the machine-wide render lock."""
+def run_render(run, *args, **kw):
+    """`run(*args, **kw)` — one `npx remotion …` render — under the machine-wide render lock. `run` is the CALLER's
+    own `subprocess.run`, looked up at the call, so a test that replaces a module's subprocess still intercepts it."""
     with render_lock():
-        return subprocess.run(cmd, **kw)
+        return run(*args, **kw)

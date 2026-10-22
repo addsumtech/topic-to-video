@@ -105,7 +105,7 @@ def _unfed_text(shot, payload, frame, proof, beat, out_dir, scope, declared):
     with open(pj, "w", encoding="utf-8") as fh:
         json.dump(dict(payload, unfedText=fed, unfedScope=scope), fh, ensure_ascii=False)
     png = os.path.join(proof, "beat_%02d.unfed.png" % beat)
-    r = _c.run_render(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame, "--gl=angle",
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame, "--gl=angle",
                         "--props=" + pj, "--log=error", "--public-dir=" + os.path.abspath(out_dir)],
                        cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
     for f in (pj, png):
@@ -1163,7 +1163,7 @@ def _prove(argv, out_dir, board, ws_durs):
                 shutil.copyfile(hit, png)
                 r = subprocess.CompletedProcess([], 0, "", "")
             else:
-                r = _c.run_render(["npx", "remotion", "still", "src/index.ts", shot, png,
+                r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png,
                                     "--frame=%d" % frame, "--gl=angle", "--props=" + pj, "--log=error",
                                     "--public-dir=" + os.path.abspath(out_dir)],
                                    cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
@@ -1232,7 +1232,7 @@ def _prove(argv, out_dir, board, ws_durs):
                     shutil.copyfile(_mk, mid_png)
                     rm = subprocess.CompletedProcess([], 0, "", "")
                 else:
-                    rm = _c.run_render(["npx", "remotion", "still", "src/index.ts", shot, mid_png,
+                    rm = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, mid_png,
                                          "--frame=%d" % int(int(dm.group(1)) * 0.5), "--gl=angle",
                                          "--props=" + pj, "--log=error",
                                          "--public-dir=" + os.path.abspath(out_dir)],

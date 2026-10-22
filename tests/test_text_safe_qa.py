@@ -425,6 +425,8 @@ def _film(tmp_path, slides):
 
 def test_a_film_run_says_how_many_of_its_beats_it_measured(monkeypatch, capsys, tmp_path):
     seen = []
+    # this counts RENDERS; two identical beats would otherwise share one (see the reuse test below)
+    monkeypatch.setattr(g, "NO_CACHE", True)
     monkeypatch.setattr(g, "audit_shot", lambda *a, **k: seen.append(a[0]) or [])
     out_dir = _film(tmp_path, [
         {"index": 1, "shot": "CinematicTitle", "shot_props": {}},
@@ -554,3 +556,30 @@ def test_title_placement_is_a_neighbourhood_not_a_ninth_and_sees_centred_titles(
     varied = [(1, "S", mk(.05, .2, .35, .1), ""), (2, "S", mk(.6, .75, .9, .85), ""), (3, "S", mk(.3, .5, .7, .5), ""),
               (4, "S", mk(.05, .2, .35, .6), ""), (5, "S", mk(.6, .75, .9, .1), "")]
     assert g.title_repetition(varied) is None
+
+
+def test_an_unchanged_beat_is_measured_once_and_its_answer_reused(monkeypatch, capsys, tmp_path):
+    """Two beats with the same shot, props and frame are the same picture: the second reuses the first's answer, and a
+    second RUN renders nothing at all. A failed render is never kept."""
+    out = tmp_path / "film"
+    out.mkdir()
+    board = {"meta": {"renderer": "remotion"}, "slides": [
+        {"shot": "CinematicTitle", "shot_props": {"title": "A"}},
+        {"shot": "CinematicTitle", "shot_props": {"title": "A"}},
+        {"shot": "CinematicTitle", "shot_props": {"title": "B"}}]}
+    (out / "storyboard.json").write_text(json.dumps(board), encoding="utf-8")
+    seen = []
+    monkeypatch.setattr(g, "NO_CACHE", False)
+    monkeypatch.setattr(g, "title_of", lambda *a, **k: None)
+    monkeypatch.setattr(g, "audit_shot", lambda *a, **k: seen.append(a[1].get("title")) or [])
+    g.scan_film(str(out))
+    assert seen == ["A", "B"], seen
+    g.scan_film(str(out))
+    assert seen == ["A", "B"], "a second run re-rendered beats nothing had touched: %r" % seen
+    (out / g.BEAT_CACHE).unlink()
+    monkeypatch.setattr(g, "audit_shot", lambda *a, **k: seen.append("x") or
+                        [{"text": "(render FAILED twice — nothing was measured on this frame: boom)", "out": {}}])
+    g.scan_film(str(out))
+    g.scan_film(str(out))
+    # three beats, two runs, every one rendered: a failure is kept neither across runs nor within one
+    assert seen.count("x") == 6, "a failed render was kept and replayed"

@@ -1809,7 +1809,7 @@ def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None
     with open(pf, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False)
     png = os.path.join(outd, name + ".png")
-    r = _c.run_render(["npx", "remotion", "still", "src/index.ts", comp, png, "--frame=%d" % frame, "--gl=angle",
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", comp, png, "--frame=%d" % frame, "--gl=angle",
                         "--log=error", "--props=" + pf, "--public-dir=" + os.path.abspath(out_dir)],
                        cwd=REMOTION, capture_output=True, text=True, **run_kwargs(out_dir))
     if r.returncode != 0 or not os.path.exists(png):

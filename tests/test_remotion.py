@@ -3074,6 +3074,14 @@ def test_a_clock_derived_number_is_caught_inline_too():
                     "  const cfg = {t: 0.5};\n"
                     "  return (<div>{Math.round(cfg.t * 100)}</div>);\n};\n"), (
         "a field named `t` was read as the clock — the checker reported a register's own data")
+    # AN ARROW'S BODY IS NOT A JSX CHILD: `=> { … }` matched `>\s*\{` and ForkingAnswers' layout loop was reported as
+    # a number printed on screen. The same clock-derived number inside a real element is still caught.
+    assert not scan(head + "  let yy = 0; const tops: number[] = [];\n"
+                           "  [1, 2].forEach((_, ti) => { tops.push(yy); yy += t * 3 + ti; });\n"
+                           "  return (<div>{label}</div>);\n};\n"), (
+        "an arrow function's body was read as a number on screen")
+    assert scan(head + "  return (<div>{[1].map((i) => (<b>{Math.round(t * 100)}</b>))}</div>);\n};\n"), (
+        "a clock-derived number inside an element was missed")
 
 
 def test_no_register_prints_a_number_the_film_never_supplied():
