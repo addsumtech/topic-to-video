@@ -226,7 +226,16 @@ more** shots, split the BUILDING and keep the DESIGNING:
    `composition`, the DNA, every beat's route, and the **kit** — the shared pieces every shot draws from (the film's
    token, its frame, its title/source placement, its palette tokens). Build ONE reference shot yourself on the kit, and
    look at it at 30/60/90% of its beat: it fixes the kit's API and the quality bar every builder matches.
-2. **Assign:** 3–4 builders, each owning whole shots with the beats they render (`b1: NextSlot → 6, 7, 11, 21`).
+   **Two film-wide decisions are yours, never a builder's**, because builders working apart cannot see each other's
+   frames. Measured on the first parallel trial (two builders, twelve beats): each placed its titles alone and 15 of
+   25 landed top-left (a text_safe ERROR), and each chose its own type size, so five of the twelve beats came out
+   smaller and emptier than the beats around them.
+   - **Where each beat's title goes** — write `titleAt` (or `none`) per beat into the assignment, spread across the
+     film's compositions the way text_safe's TITLE PLACEMENT expects.
+   - **The film's scale** — export it from the kit as constants (the main line's type size, the secondary readout's,
+     the label floor, and how much of the content zone the subject fills) so a builder sizes from the kit, not by eye.
+2. **Assign:** 3–4 builders, each owning whole shots with the beats they render (`b1: NextSlot → 6, 7, 11, 21`),
+   with each beat's `titleAt` and the kit's scale named in the brief.
    Balance by work, not count, and keep shots that share a sub-component with one builder. Draft each shot's
    `meta.build_list` `means` / `accept` so a builder knows what "done" is.
 3. **Dispatch every builder in ONE message** (one Agent call each), each with `agents/shot-builder.md`, its name,

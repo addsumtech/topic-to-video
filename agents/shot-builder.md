@@ -19,6 +19,13 @@ description: "Builds an assigned set of a Remotion film's own shots, in parallel
   report; if only you need it, write it inside your own shot file.
 - `meta.build_list` entries the lead drafted for your shots (`means`, `accept`).
 
+## Two things you do not choose
+- **Each beat's title position** — the lead gives you `titleAt` per beat; use it. Builders who placed titles alone
+  put 15 of 25 in the same corner.
+- **The film's scale** — size type and the subject from the kit's scale constants and match the lead's reference
+  shot; never by eye. A beat smaller or emptier than its neighbours reads as a different film. If the kit has no scale
+  constants, ask the lead before you build, instead of guessing.
+
 ## What you may write — and nothing else
 - `workshop/shots/<Name>.tsx` for each shot you own (`python3 scripts/workshop.py <out_dir> new-shot <Name> --means "…"`
   to start one).
