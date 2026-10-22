@@ -240,7 +240,12 @@ def t_at_seconds(sec, dur_frames, fps):
     return round(entry + (1 - entry) * p, 4)
 
 
-def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps):
+def _stage_run_id(slide):
+    import stage_runs as _sr
+    return _sr.run_id(slide)
+
+
+def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps, seconds=False):
     """A prop written `{"cue": "<words the narration says>"}` becomes the `t` at which the voice says them.
 
     WHY. A register that changes state at a fixed fraction of its clip changes it at a moment that has nothing
@@ -255,7 +260,10 @@ def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps):
     LISTS OF TIMED ITEMS resolve IN ORDER. A prop that is a list of objects carrying `at: {"cue": ...}` — a
     device script's steps, a chat thread's messages — is ONE ordered search: each cue is looked for after the
     previous one's match, so a phrase the narration says twice lands on two successive items, and a cue the
-    narration reaches only BEFORE the previous item's is an error rather than a silent swap."""
+    narration reaches only BEFORE the previous item's is an error rather than a silent swap.
+
+    `seconds=True` writes SECONDS into the beat instead of a register `t` — a stage run's steps, whose beat has no
+    seam pad and no warp (scripts/stage_runs.py `resolve_steps`)."""
     def is_cue(v):
         return isinstance(v, dict) and "cue" in v and set(v) <= {"cue", "offset"}
 
@@ -286,7 +294,7 @@ def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps):
             else:
                 sec = _cues.estimate_cues_from_text([phrase], narration or "", dur_s)[0]
             sec += float(v.get("offset") or 0.0)
-            out[k] = t_at_seconds(sec, dur_frames, fps)
+            out[k] = round(sec, 4) if seconds else t_at_seconds(sec, dur_frames, fps)
         elif timed_list(v):
             items = [dict(x) if isinstance(x, dict) else x for x in v]
             idx = [i for i, x in enumerate(items) if isinstance(x, dict) and is_cue(x.get("at"))]
@@ -309,7 +317,7 @@ def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps):
                 secs = _cues.estimate_cues_from_text(phrases, narration or "", dur_s)
             for i, sec in zip(idx, secs):
                 sec += float(items[i]["at"].get("offset") or 0.0)
-                items[i]["at"] = t_at_seconds(sec, dur_frames, fps)
+                items[i]["at"] = round(sec, 4) if seconds else t_at_seconds(sec, dur_frames, fps)
             out[k] = items
     return out
 
@@ -575,6 +583,10 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         # `A G P L 三点零`. A slide may now carry an explicit `caption` for the eye; without one, a run of
         # spaced single capitals is rejoined, which is the safe half of the transform and needs no author.
         caption = (s.get("caption") or _caption_for_eye(s.get("narration") or s.get("script") or "")).strip()
+        if _stage_run_id(s):
+            import stage_runs as _sr
+            props = _sr.resolve_steps(props, lambda pr: resolve_cue_props(
+                pr, out_dir, audio, s.get("narration") or s.get("script") or "", dur, fps, seconds=True), dur, idx)
         props = resolve_cue_props(props, out_dir, audio, s.get("narration") or s.get("script") or "", dur, fps)
         if shot in ("DeviceDemo", "DeviceHero"):
             import device_script as _ds
@@ -774,20 +786,24 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         except Exception as e:
             print("[render_remotion] deliverables (srt/keyframes) skipped: %s" % e)
         meta = data.get("meta") or {}
-        if meta.get("sound_design"):                   # opt-in SFX(+BGM) bed, post-render
+        import stage_runs as _sr
+        _events = _sr.sound_events(scenes)          # a stage's clicks, on the words that name them
+        _clicks = any(_events) and meta.get("stage_sounds", True) is not False
+        if meta.get("sound_design") or _clicks:     # opt-in SFX(+BGM) bed, post-render — or just the stage's clicks
             try:
                 import sfx
                 tr = _REMOTION2_TR                      # feed durationInFrames = durF-TR so cue times land on the
                 # carry transitionIn per scene so the SFX marks the SAME seams the eye does (fades stay quiet)
-                import stage_runs as _sr
                 _jn = _sr.joined_flags(scenes)          # no seam inside a stage run
                 sfx_scenes = [{"durationInFrames": max(1, sc["durF"] - (0 if k + 1 < len(scenes) and _jn[k + 1]
                                                                          else tr)),
-                               "transitionIn": sc.get("transitionIn")}
+                               "transitionIn": sc.get("transitionIn"),
+                               "events": _events[k] if _clicks else []}
                               for k, sc in enumerate(scenes)]   # overlap-compressed timeline
                 if sfx_scenes:                          # the closing sentence lands on the last beat's arrival
                     sfx_scenes[-1]["shots"] = [{"startFrame": 0}]
-                sfx.mix(out_dir, out_mp4, sfx_scenes, meta, fps)   # whooshes + riser/impact/sparkle + meta.bgm
+                sfx.mix(out_dir, out_mp4, sfx_scenes, meta, fps,     # whooshes + riser/impact/sparkle + meta.bgm
+                        events_only=not meta.get("sound_design"))
             except Exception as e:
                 print("[render_remotion] sound_design skipped: %s" % e)
         _not_delivered(out_dir)

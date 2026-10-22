@@ -167,6 +167,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     checked by `scripts/device_script.py` (format: `remotion/cards/DeviceDemo.md` "Step script").
   - **Sync.** `render_remotion` warps each beat so register entrances land on their words (`sync_warp.json`). A board or slide
     can set `"sync": "off"` or `{"anchors": [[voice_s, register_s], …]}`.
+  - **Continuous stage.** Consecutive beats with the same `stage.run` and a stage shot (`CardStage`) are ONE scene with no
+    cut: one card acted on across them (turned, lifted apart, clicked with a sound, marked, zoomed into, counted beside).
+    Each beat and each of its `steps` (timed by `at`: a cue phrase or 0..1) says what changes. Read
+    **`references/stage-runs.md`** before declaring a run; the pre-render gates do not measure runs yet, so look at them.
 - **Before authoring or critiquing a remotion beat — and ALWAYS when a film measures as inert, when a gate blocks a
   full-bleed / cropped-type frame, or when you are about to argue about what "cinematic" means — read
   `references/launch-film-study.md`.**

@@ -56,6 +56,9 @@ def _norm(x):
 
 # ── the synthesized cue library (deterministic) ──────────────────────────────────────────────────────
 # every cue is a short mono float array in [-1,1]; the ffmpeg highpass 800 shapes it into the SFX band.
+# gains for the sounds a board's own events ask for (plan_cues `events`)
+EVENT_GAIN = {"click": 0.6}
+
 def cue(name):
     if np is None:
         return None
@@ -146,7 +149,7 @@ SPARKLE_MIN_TAIL_S = 0.6     # the sparkle must have this much film left to ring
 
 
 # ── cue planning: pin cues to the video's BEATS (frame-exact), with restraint ─────────────────────────
-def plan_cues(scenes, fps):
+def plan_cues(scenes, fps, events_only=False):
     """Given a scene list (each with durationInFrames; optional shots[].startFrame), return a cue list
     [(t_seconds, cue_name, gain)] aligned to beats: a whoosh at each MARKED scene transition (anticipatory,
     −2 frames; a plain cross-fade seam stays QUIET so the ear marks the same ~2-3 seams the eye does — the
@@ -155,6 +158,10 @@ def plan_cues(scenes, fps):
     restraint — caps density at ~4 cues / 10s, dropping the lowest-priority (ticks/pops) first so the film
     breathes; the sentence is one landing and costs the cap ONE slot."""
     cues = []                                       # (t, name, gain, priority) — lower priority dropped first
+    # AUTHORED EVENTS — a stage run's click lands on the word that names it (scenes[k]["events"], seconds into the
+    # scene: scripts/stage_runs.py `sound_events`). They are the film's own actions, not decoration, so the density
+    # cap never drops them; with `events_only` they are the whole track (a film without the SFX bed still clicks).
+    authored = []
     t0 = 0.0
     n = len(scenes)
     land = None                                     # the closing landing, in seconds — set by the last scene
@@ -186,6 +193,12 @@ def plan_cues(scenes, fps):
             sf = float(sh.get("startFrame") or 0)
             if k > 0:                               # camera arrives on a new subject — focus
                 cues.append((t0 + sf / fps, "focus", 0.42, 2))
+        for ev in (sc.get("events") or []):
+            if isinstance(ev, dict) and isinstance(ev.get("t"), (int, float)) and ev.get("name") in EVENT_GAIN:
+                authored.append((t0 + float(ev["t"]), ev["name"], EVENT_GAIN[ev["name"]], -1))
+        if events_only:
+            t0 += dur
+            continue
         for el in ((sc.get("stage") or {}).get("elements") or []):
             en = el.get("enterAtFrame")
             if isinstance(en, (int, float)) and en > 0 and el.get("kind") not in ("grid", "floor", "fill"):
@@ -193,6 +206,8 @@ def plan_cues(scenes, fps):
         t0 += dur
     total = t0 or 1.0
     sentence = []
+    if events_only:
+        return [(t, name, g) for (t, name, g, _p) in sorted(authored, key=lambda c: c[0])]
     if land is not None:
         # THE CLOSING SENTENCE — riser → impact → sparkle, the film's one big landing. The peer library's
         # template pins it at f945 → f980 → f1005 (a 35f build, a 25f afterglow) and records it as the one
@@ -219,7 +234,7 @@ def plan_cues(scenes, fps):
     if len(cues) > cap:                             # restraint: drop lowest-priority (highest number) first
         cues.sort(key=lambda c: (c[3], c[0]))
         cues = cues[:cap]
-    cues = sorted(cues + sentence, key=lambda c: c[0])
+    cues = sorted(cues + sentence + authored, key=lambda c: c[0])
     return [(t, name, g) for (t, name, g, _p) in cues]
 
 
@@ -344,7 +359,7 @@ def _stream_skew(mp4):
 
 
 # ── the mix: frequency-isolated two-track under the voiceover, muxed back into the video ──────────────
-def mix(out_dir, mp4, scenes, meta, fps):
+def mix(out_dir, mp4, scenes, meta, fps, events_only=False):
     """Post-render: overlay the SFX track (+ optional BGM) onto out.mp4's baked voiceover using huashu's
     frequency-isolation filtergraph, then mux back. Returns True if it re-wrote the video. Best-effort:
     no numpy / no ffmpeg / no cues -> leaves the video untouched."""
@@ -353,7 +368,7 @@ def mix(out_dir, mp4, scenes, meta, fps):
     dur = _probe_duration(mp4)
     if not dur:
         print("[sfx] skipped (could not probe video duration)"); return False
-    cues = plan_cues(scenes, fps)
+    cues = plan_cues(scenes, fps, events_only=events_only)
     sdir = os.path.join(out_dir, ".sfx"); os.makedirs(sdir, exist_ok=True)
     sfx_wav = os.path.join(sdir, "_sfx.wav")
     if not cues:
@@ -361,7 +376,7 @@ def mix(out_dir, mp4, scenes, meta, fps):
 
     # optional BGM: an author track (meta.bgm=path) or a synthesized pad (meta.bgm='auto')
     bgm_wav = None
-    bgm = meta.get("bgm")
+    bgm = None if events_only else meta.get("bgm")   # the score belongs to the SFX bed, not to a stage's clicks
     if bgm == "auto":
         bgm_wav = os.path.join(sdir, "_bgm.wav"); _write_wav(bgm_wav, synth_pad(dur))
     elif isinstance(bgm, str) and bgm and os.path.exists(os.path.join(out_dir, bgm)):

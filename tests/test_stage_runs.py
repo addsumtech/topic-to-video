@@ -106,3 +106,46 @@ def test_a_stage_face_carries_the_shape_a_browser_draws(tmp_path):
     assert sr.stamp_faces({"title": "no face"}, str(tmp_path)) == {"title": "no face"}
     with pytest.raises(FileNotFoundError):
         sr.stamp_faces({"image": "missing.png"}, str(tmp_path))
+
+
+def test_steps_resolve_to_seconds_in_order_and_refuse_what_cannot_play():
+    """`at` 0..1 is a share of the beat; a cue goes through the renderer's ordered search (here a stand-in that answers
+    seconds); steps out of time order, or that name nothing to change, are errors."""
+    import pytest
+    said = {"文本框": 0.4, "点开": 2.4}
+
+    def resolve(pr):
+        return {"steps": [dict(st, at=said[st["at"]["cue"]]) if isinstance(st.get("at"), dict) else st
+                          for st in pr["steps"]]}
+
+    props = {"title": "t", "steps": [{"at": {"cue": "文本框"}, "lift": [{"rect": [0, 0, 1, 1]}]},
+                                     {"at": 0.5, "marks": []}, {"at": {"cue": "点开"}, "cursor": {"u": 0.2, "v": 0.4}}]}
+    out = sr.resolve_steps(props, resolve, 4.0, 3)
+    assert [st["t"] for st in out["steps"]] == [0.4, 2.0, 2.4] and all("at" not in st for st in out["steps"])
+    assert props["steps"][1]["at"] == 0.5, "the board's own steps are never written"
+    with pytest.raises(SystemExit, match="out of order"):
+        sr.resolve_steps({"steps": [{"at": 0.9, "marks": []}, {"at": {"cue": "文本框"}, "marks": []}]}, resolve, 4.0, 3)
+    with pytest.raises(SystemExit, match="changes nothing"):
+        sr.resolve_steps({"steps": [{"at": 0.2}]}, resolve, 4.0, 3)
+    narr = "每个文本框，点开就能改"
+    assert sr.step_problems([{"at": {"cue": "点开"}, "cursor": {"u": 0.1, "v": 0.9, "click": True}}], narr) == []
+    probs = sr.step_problems([{"at": {"cue": "拖动"}, "cursor": {"u": 1.4, "v": 0.2}}, {"at": 3, "count": {"value": 1}}], narr)
+    assert any("does not say" in p for p in probs) and any("0..1" in p for p in probs) and any("got 3" in p for p in probs)
+    board = [_s("CardStage", "deck", narration=narr, shot_props={"steps": [{"cursor": {"u": 0.1, "v": 0.1}}]}),
+             _s("CardStage", "deck")]
+    assert any("needs `at`" in p for p in sr.check(board))
+
+
+def test_a_stage_click_is_a_sound_on_its_word_and_survives_the_density_cap():
+    import sfx
+    scenes = [{"shot": "CinematicTitle", "props": {}},
+              {"shot": "CardStage", "stage": {"run": "r"}, "props": {"steps": [
+                  {"t": 1.25, "cursor": {"u": 0.2, "v": 0.3, "click": True}}, {"t": 2.0, "cursor": {"u": 0.5, "v": 0.5}}]}}]
+    events = sr.sound_events(scenes)
+    assert events == [[], [{"t": 1.25, "name": "click"}]]
+    fps = 30
+    sfx_scenes = [{"durationInFrames": 90, "transitionIn": None, "events": events[0]},
+                  {"durationInFrames": 120, "transitionIn": {"type": "wipe"}, "events": events[1]}]
+    assert sfx.plan_cues(sfx_scenes, fps, events_only=True) == [(3.0 + 1.25, "click", sfx.EVENT_GAIN["click"])]
+    full = sfx.plan_cues([dict(sc, shots=[{"startFrame": 0}]) if i == 1 else sc for i, sc in enumerate(sfx_scenes)], fps)
+    assert any(name == "click" and abs(t - 4.25) < 1e-9 for t, name, _g in full), full

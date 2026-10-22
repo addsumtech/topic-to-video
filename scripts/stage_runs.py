@@ -93,6 +93,90 @@ def stamp_faces(props, public_dir):
     return dict(props, imageAspect=image_aspect(path))    # a copy: the board's own shot_props are never written
 
 
+def resolve_steps(props, resolve, dur_s, beat_no):
+    """A stage beat's `steps`, each with `t`: SECONDS into the beat at which it ARRIVES (runtime/stageRun.tsx). A step
+    is timed by `at`: {"cue": "<words the narration says>"} (resolved on the voice's own word times by `resolve`,
+    render_remotion.resolve_cue_props in seconds mode — the same ordered search a device script uses) or a 0..1
+    fraction of the beat. Steps must come in time order; one that does not is an error, never a silent reorder."""
+    steps = (props or {}).get("steps")
+    if steps is None:
+        return props
+    probs = step_problems(steps)
+    if probs:
+        raise SystemExit("[render_remotion] beat %s: %s" % (beat_no, "; ".join(probs)))
+    items = []
+    for st in steps:
+        st = dict(st)
+        if _is_fraction(st.get("at")):
+            st["t"] = round(float(st.pop("at")) * float(dur_s), 4)
+        items.append(st)
+    items = resolve({"steps": items})["steps"]
+    out = []
+    for st in items:
+        st = dict(st)
+        if "at" in st:                                  # resolved from a cue: seconds
+            st["t"] = round(float(st.pop("at")), 4)
+        out.append(st)
+    ts = [st["t"] for st in out]
+    if any(b < a for a, b in zip(ts, ts[1:])):
+        raise SystemExit("[render_remotion] beat %s: its steps land at %s s — out of order. A step is a moment of the "
+                         "narration; list them in the order the voice reaches them" % (beat_no, ts))
+    return dict(props, steps=out)
+
+
+def _is_fraction(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1
+
+
+def _is_cue(v):
+    return isinstance(v, dict) and isinstance(v.get("cue"), str) and v["cue"].strip() and set(v) <= {"cue", "offset"}
+
+
+def step_problems(steps, narration=None):
+    """What is wrong with a stage beat's `steps` list, as sentences ([] when nothing is)."""
+    if not isinstance(steps, list):
+        return ["`steps` must be a list of keyframes, each `{\"at\": {\"cue\": \"<words>\"} | 0..1, …what changes}`"]
+    probs = []
+    for j, st in enumerate(steps):
+        if not isinstance(st, dict):
+            probs.append("step %d is not an object" % (j + 1))
+            continue
+        at = st.get("at")
+        if not (_is_cue(at) or _is_fraction(at)):
+            probs.append("step %d needs `at`: {\"cue\": \"<words the narration says>\"} or a 0..1 fraction of the "
+                         "beat (got %r)" % (j + 1, at))
+        elif _is_cue(at) and narration is not None and _cue_pos(narration, at["cue"]) < 0:
+            probs.append("step %d cues %r, which the beat's narration does not say" % (j + 1, at["cue"]))
+        if len(set(st) - {"at", "move"}) == 0:
+            probs.append("step %d changes nothing — say what it moves (cursor, marks, lift, camera, count, card…)"
+                         % (j + 1))
+        cur = st.get("cursor")
+        if isinstance(cur, dict) and not all(isinstance(cur.get(k), (int, float)) and 0 <= cur[k] <= 1 for k in "uv"):
+            probs.append("step %d's cursor needs `u` and `v`, a place on the face, 0..1" % (j + 1))
+    return probs
+
+
+def _cue_pos(narration, phrase):
+    import cues as _cues
+    return _cues._anchor_pos(narration or "", phrase.strip())
+
+
+def sound_events(scenes):
+    """[[{"t", "name"}…] per Film scene]: the sounds a stage run's own actions make — a click where a step's cursor
+    clicks, at the step's resolved `t` (seconds into its scene). scripts/sfx.py plays them; the stage draws the click
+    on the same frame (runtime/stageRun.tsx: a step ARRIVES at `t`)."""
+    out = []
+    for sc in scenes:
+        evs = []
+        if run_id(sc):
+            for st in ((sc.get("props") or {}).get("steps") or []):
+                cur = st.get("cursor") if isinstance(st, dict) else None
+                if isinstance(cur, dict) and cur.get("click") and isinstance(st.get("t"), (int, float)):
+                    evs.append({"t": float(st["t"]), "name": "click"})
+        out.append(evs)
+    return out
+
+
 def check(slides):
     """The problems that make a board's stage runs unrenderable or misleading — [] when there are none."""
     probs = []
@@ -121,6 +205,12 @@ def check(slides):
                 if slides[k].get(f) is not None:
                     probs.append("beat %d declares a `%s`, but it continues stage run %r, which is lit from its first beat "
                                  "— move the %s to beat %d" % (k + 1, f, r, f, first + 1))
+        for k in range(first, last + 1):
+            sp = slides[k].get("shot_props") if isinstance(slides[k].get("shot_props"), dict) else \
+                slides[k].get("props") if isinstance(slides[k].get("props"), dict) else {}
+            if "steps" in sp:
+                for pr in step_problems(sp["steps"], slides[k].get("narration") if "narration" in slides[k] else None):
+                    probs.append("beat %d (stage run %r): %s" % (k + 1, r, pr))
         for k in range(first, last + 1):
             if slides[k].get("camera") not in (None, "", {}):
                 probs.append("beat %d is on stage run %r, whose stage moves its own camera — drop its `camera` (put "
