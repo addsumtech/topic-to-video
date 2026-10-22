@@ -7,8 +7,11 @@ when the Desktop cannot be written — macOS can withdraw a process's access to 
 is a real probe write, not `os.access`. It never writes under this skill's folder or `~/.claude`, and it never
 overwrites a file already there: a second delivery of the same film lands as "<name> (2).mp4".
 
-CLI:  deliver.py <out_dir> [--to <folder>]   prints each delivered path and the `open` line to hand the user
-API:  deliver(out_dir, to=None, home=None) -> [paths], destination(to=None, home=None) -> folder
+The sign-off renders go the same way (`--what sample` for step 8's sample.mp4, `--what preview` for the html tier's
+preview.mp4), named "<film> - sample.mp4" so they are never mistaken for the film.
+
+CLI:  deliver.py <out_dir> [--to <folder>] [--what out|sample|preview]   prints each delivered path and the `open` line
+API:  deliver(out_dir, to=None, home=None, what="out") -> [paths], destination(to=None, home=None) -> folder
 """
 import argparse
 import json
@@ -89,16 +92,23 @@ def _free(path):
     return path
 
 
-def deliver(out_dir, to=None, home=None):
-    """Copy out.mp4 (and out.srt) to the user's folder; return the delivered paths, the video first."""
-    src = os.path.join(out_dir, "out.mp4")
+WHAT = ("out", "sample", "preview")
+
+
+def deliver(out_dir, to=None, home=None, what="out"):
+    """Copy <what>.mp4 (and its .srt) to the user's folder; return the delivered paths, the video first."""
+    if what not in WHAT:
+        raise SystemExit("deliver: --what must be one of %s, got %r" % (", ".join(WHAT), what))
+    src = os.path.join(out_dir, what + ".mp4")
     if not os.path.isfile(src):
-        raise SystemExit("deliver: %s has no out.mp4 — render the film first" % out_dir)
+        hint = "render the film first" if what == "out" else "render the %s first" % what
+        raise SystemExit("deliver: %s has no %s.mp4 — %s" % (out_dir, what, hint))
     folder = destination(to, home)
-    video = _free(os.path.join(folder, film_name(out_dir) + ".mp4"))
+    name = film_name(out_dir) + ("" if what == "out" else " - " + what)
+    video = _free(os.path.join(folder, name + ".mp4"))
     shutil.copy2(src, video)
     delivered = [video]
-    srt = os.path.join(out_dir, "out.srt")
+    srt = os.path.join(out_dir, what + ".srt")
     if os.path.isfile(srt):
         captions = os.path.splitext(video)[0] + ".srt"
         shutil.copy2(srt, captions)
@@ -110,8 +120,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("out_dir")
     ap.add_argument("--to", help="a folder the user browses (default: ~/Desktop, else ~/Downloads)")
+    ap.add_argument("--what", default="out", choices=WHAT,
+                    help="which render: the film (out, default), the step-8 sample, or the html preview")
     a = ap.parse_args(argv)
-    paths = deliver(a.out_dir, a.to)
+    paths = deliver(a.out_dir, a.to, what=a.what)
     for p in paths:
         print("[deliver] %s" % p)
     print("[deliver] hand the user this path; to open it: open %s" % _quote(paths[0]))

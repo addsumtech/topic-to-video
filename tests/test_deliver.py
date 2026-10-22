@@ -96,3 +96,15 @@ def test_a_title_cannot_escape_the_folder(tmp_path):
     home = _home(tmp_path)
     path = dv.deliver(out, home=home)[0]
     assert os.path.dirname(path) == os.path.join(home, "Desktop")
+
+
+def test_the_sample_is_delivered_under_its_own_name(tmp_path):
+    import deliver as _d
+    film = tmp_path / "film"; film.mkdir()
+    (film / "sample.mp4").write_bytes(b"sample")
+    desk = tmp_path / "Desktop"; desk.mkdir()
+    paths = _d.deliver(str(film), to=str(desk), home=str(tmp_path), what="sample")
+    assert [os.path.basename(p) for p in paths] == ["film - sample.mp4"]
+    import pytest
+    with pytest.raises(SystemExit, match="no preview.mp4"):
+        _d.deliver(str(film), to=str(desk), home=str(tmp_path), what="preview")

@@ -224,6 +224,10 @@ def _words_from_boundaries(chunks):
             out.append({"w": c.get("text", ""), "t": round(c.get("offset", 0) / 1e7, 3)})
     return out
 
+_EDGE_ATTEMPTS = 3
+_EDGE_DEADLINE_S = 30.0          # per attempt, plus a little per character: a 200-character beat gets 60 s
+_EDGE_DEADLINE_PER_CHAR = 0.15
+
 def _edge(text, out_path, voice, rate="+0%"):
     # edge-tts neural voice via its Python API: streams audio + per-word boundaries in one pass.
     # asyncio.run at this leaf keeps the rest of the pipeline synchronous. `rate` (e.g. '+25%') speeds
@@ -238,7 +242,25 @@ def _edge(text, out_path, voice, rate="+0%"):
             elif ch["type"] == "WordBoundary":
                 chunks.append(ch)
         return bytes(audio), chunks
-    audio, chunks = asyncio.run(_go())
+    # A WALL-CLOCK DEADLINE PER ATTEMPT, then a retry. edge-tts's own receive_timeout bounds one read, not the
+    # call: an audition once sat 7 minutes on an established socket that never delivered a byte (a 5-beat
+    # audition normally takes seconds; one beat ~2-5 s). An empty stream is a failure too, not a silent mp3.
+    deadline = _EDGE_DEADLINE_S + len(text) * _EDGE_DEADLINE_PER_CHAR
+    last = None
+    for attempt in range(1, _EDGE_ATTEMPTS + 1):
+        try:
+            audio, chunks = asyncio.run(asyncio.wait_for(_go(), deadline))
+            if not audio:
+                raise RuntimeError("the voice service returned no audio")
+            break
+        except Exception as e:                                     # noqa: BLE001 - retried, then re-raised below
+            last = e
+            print(f"[tts] edge-tts attempt {attempt}/{_EDGE_ATTEMPTS} for {os.path.basename(out_path)} failed "
+                  f"({type(e).__name__}: {str(e) or 'no reply within %.0f s' % deadline})")
+    else:
+        raise RuntimeError(f"edge-tts gave no audio for {out_path} after {_EDGE_ATTEMPTS} attempts "
+                           f"(last: {type(last).__name__}: {last}) — the network or the voice service; run it "
+                           "again, or choose another voice engine") from last
     with open(out_path, "wb") as f:
         f.write(audio)
     try:

@@ -246,8 +246,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   because jitter is the cheapest way to clear the motion floor. A frame it cannot lock onto is UNJUDGED.
 - `scripts/critic_ledger.py <out_dir> --final`: the independent-review gate on both tiers (workflow step 9);
   `--render-id` prints the id every review pin uses.
-- `scripts/deliver.py <out_dir>` is the hand-off, for EVERY render the user is asked to watch (sample, preview, final
-  cut). It copies `out.mp4` + `out.srt` to `~/Desktop` (else `~/Downloads`) and prints the path. Give the user THAT
+- `scripts/deliver.py <out_dir> [--what sample|preview]` is the hand-off, for EVERY render the user is asked to watch
+  (sample, preview, final cut). It copies `out.mp4` + `out.srt` (or `sample.mp4` / `preview.mp4` with `--what`) to
+  `~/Desktop` (else `~/Downloads`) and prints the path. Give the user THAT
   path, never one inside this skill, `~/.claude`, or a temp folder.
 
 **Library maintenance** (not part of a film run; full entries in the reference)
@@ -918,7 +919,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    `meta.voice` to a `say:` fallback and continue. Then run `tts.py` (use `--only N` while
    iterating on one slide). edge-tts emits `.mp3`; `say` emits `.wav` — both fine.
 8. **Sample sign-off** — `render.py <out_dir> --sample N`, then show `sample.mp4` to the user
-   (`deliver.py`). No critic runs on the sample: the A/V review (`agents/critic-av.md`) moved to the review
+   (`deliver.py <out_dir> --what sample`). No critic runs on the sample: the A/V review (`agents/critic-av.md`) moved to the review
    depth the user picks after the first clean full render (step 9). Look at the sample frames yourself first
    — caption legibility, glyphs, nothing cut off — before you hand it over.
    🔴 **CHECKPOINT · 🛑 STOP:** get explicit approval of the style (voice/pace/motion/
