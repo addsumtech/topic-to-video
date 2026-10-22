@@ -838,9 +838,11 @@ def test_the_probe_fraction_is_named_once_so_the_alternate_probes_cannot_drift()
     src = open(c.__file__, encoding="utf-8").read()
     assert "PROBE_FRAC = 0.88" in src
     assert "* 0.88)" not in src, "the probe fraction is written twice — two copies of a number always drift"
-    fn = src.split("def audit(", 1)[1].split("\ndef ", 1)[0]
+    # the alternate probes live in the helper `audit` (and the per-mode sweep) ask the question through
+    fn = src.split("def _missing_over_time(", 1)[1].split("\ndef ", 1)[0]
     assert "PROBE_FRAC" in fn, (
         "the alternate probes no longer derive from the same fraction the close is taken at")
+    assert "_missing_over_time(" in src.split("def audit(", 1)[1].split("\ndef ", 1)[0]
 
 
 def test_a_sequential_register_is_probed_more_than_once_before_it_is_called_unfed():
@@ -854,7 +856,9 @@ def test_a_sequential_register_is_probed_more_than_once_before_it_is_called_unfe
     union across probes is measured, and a string that appears at NO probe is still reported — which is the
     WordTunnel case this branch was built for."""
     src = open(c.__file__, encoding="utf-8").read()
-    fn = src.split("def audit(", 1)[1].split("\ndef ", 1)[0]
+    assert "_missing_over_time(" in src.split("def audit(", 1)[1].split("\ndef ", 1)[0], (
+        "audit no longer asks over time which fed strings reached the screen")
+    fn = src.split("def _missing_over_time(", 1)[1].split("\ndef ", 1)[0]
     assert "for frac_t in (0.45, 0.65)" in fn, "the alternate probes are gone"
     assert "missing = [x for x in missing if x in seen_there]" in fn, (
         "the probes no longer INTERSECT — a string found at any frame was drawn, and keeping the close's "

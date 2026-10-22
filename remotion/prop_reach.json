@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 197,
+  "_universe": 200,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -213,7 +213,10 @@
     "PourSync": "a4366447bbe7b73e",
     "RangeSpheres": "893ee5cc19a84db8",
     "LightShellOrbit": "178b8d29477b4216",
-    "OrbitClockGain": "2c9b9952a2f6c6a2"
+    "OrbitClockGain": "2c9b9952a2f6c6a2",
+    "ReplyWindow": "81e897374259fa0e",
+    "WeightedWheel": "4573018ced610633",
+    "ForkingAnswers": "031e14d03e9face9"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -412,7 +415,10 @@
     "PourSync": "0162cd8065b74a14",
     "RangeSpheres": "0266185abff030d2",
     "LightShellOrbit": "6011668b45511fa3",
-    "OrbitClockGain": "b3a6d1ef1d11340d"
+    "OrbitClockGain": "b3a6d1ef1d11340d",
+    "ReplyWindow": "5d7e38e1d872478c",
+    "WeightedWheel": "e8b07c6de983fde6",
+    "ForkingAnswers": "c1809a812c8ce6a8"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -642,6 +648,10 @@
     "FocalIsolation": {
       "reach": 0.253,
       "prop_diff": 0.67
+    },
+    "ForkingAnswers": {
+      "reach": 0.772,
+      "prop_diff": 0.71
     },
     "FractalTree": {
       "reach": 0.323,
@@ -1003,6 +1013,10 @@
       "reach": 0.023,
       "prop_diff": 0.67
     },
+    "ReplyWindow": {
+      "reach": 0.724,
+      "prop_diff": 0.8
+    },
     "RestsOn": {
       "reach": 0.131,
       "prop_diff": 1.0
@@ -1190,6 +1204,10 @@
     "VoxelBuild": {
       "reach": 0.27,
       "prop_diff": 1.0
+    },
+    "WeightedWheel": {
+      "reach": 0.246,
+      "prop_diff": 0.77
     },
     "WireGlobe": {
       "reach": 0.371,

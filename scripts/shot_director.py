@@ -40,6 +40,7 @@ FAMILY = {
     "StrataColumn": "J",
     "MapPlate": "J",
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
+    "ReplyWindow": "A",
     "PourSync": "A",
     "DeviceHero": "A",
     "DeviceDemo": "A",
@@ -62,6 +63,7 @@ FAMILY = {
     "PointerTour": "B",
     "CrashZoom": "B", "TerrainFly": "B",
     "OverlapSeparation": "D", "SharedBlindspot": "H",
+    "WeightedWheel": "D",
     "OrbitClockGain": "D",
     "Escalation": "D",
     "ShorteningHold": "C",
@@ -69,6 +71,7 @@ FAMILY = {
     "HeldInstant": "D",
     "CraneUp": "B",
     "NearTheLine": "R",
+    "ForkingAnswers": "D",
     "PulledThread": "Z",
     "AverageHides": "D",
     "ViewSwitch": "D",
@@ -148,6 +151,9 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "ForkingAnswers":          'data-viz',
+    "WeightedWheel":           'data-viz',
+    "ReplyWindow":             'product-ui',
     "OrbitClockGain":          'scientific',
     "LightShellOrbit":         'scientific',
     "RangeSpheres":            'scientific',

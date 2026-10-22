@@ -197,7 +197,10 @@
     "PourSync": "a4366447bbe7b73e",
     "RangeSpheres": "893ee5cc19a84db8",
     "LightShellOrbit": "178b8d29477b4216",
-    "OrbitClockGain": "2c9b9952a2f6c6a2"
+    "OrbitClockGain": "2c9b9952a2f6c6a2",
+    "ReplyWindow": "81e897374259fa0e",
+    "WeightedWheel": "4573018ced610633",
+    "ForkingAnswers": "031e14d03e9face9"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -222,11 +225,11 @@
   },
   "_floors": {
     "motion_p75": 0.0037,
-    "ink_median": 0.021,
+    "ink_median": 0.02,
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 197,
+  "_universe": 200,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -626,6 +629,13 @@
       "luma_range": 0.022,
       "seconds": 4.5,
       "footprint": 0.258
+    },
+    "ForkingAnswers": {
+      "motion_p75": 0.0,
+      "ink_median": 0.0,
+      "luma_range": 0.0,
+      "seconds": 6.0,
+      "footprint": 0.0
     },
     "FractalTree": {
       "motion_p75": 0.0019,
@@ -1257,6 +1267,13 @@
       "seconds": 5.5,
       "footprint": 0.313
     },
+    "ReplyWindow": {
+      "motion_p75": 0.0,
+      "ink_median": 0.011,
+      "luma_range": 0.008,
+      "seconds": 6.0,
+      "footprint": 0.475
+    },
     "RestsOn": {
       "motion_p75": 0.0063,
       "ink_median": 0.079,
@@ -1585,6 +1602,13 @@
       "luma_range": 0.024,
       "seconds": 5.2,
       "footprint": 0.216
+    },
+    "WeightedWheel": {
+      "motion_p75": 0.0,
+      "ink_median": 0.013,
+      "luma_range": 0.017,
+      "seconds": 6.0,
+      "footprint": 0.173
     },
     "WireGlobe": {
       "motion_p75": 0.0009,

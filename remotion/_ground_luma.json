@@ -196,7 +196,10 @@
   "PourSync": "bg",
   "RangeSpheres": "bg",
   "LightShellOrbit": "bg",
-  "OrbitClockGain": "bg"
+  "OrbitClockGain": "bg",
+  "ReplyWindow": "bg",
+  "WeightedWheel": "bg",
+  "ForkingAnswers": "bg"
  },
  "unclassified": [
   "KineticManifesto",
@@ -204,7 +207,7 @@
   "PaperSlot"
  ],
  "failed": {},
- "universe": 197,
+ "universe": 200,
  "_source": {
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "4ba43ae79892f212",
@@ -399,6 +402,9 @@
   "PourSync": "a4366447bbe7b73e",
   "RangeSpheres": "893ee5cc19a84db8",
   "LightShellOrbit": "178b8d29477b4216",
-  "OrbitClockGain": "2c9b9952a2f6c6a2"
+  "OrbitClockGain": "2c9b9952a2f6c6a2",
+  "ReplyWindow": "81e897374259fa0e",
+  "WeightedWheel": "4573018ced610633",
+  "ForkingAnswers": "031e14d03e9face9"
  }
 }

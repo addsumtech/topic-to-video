@@ -13,6 +13,9 @@ import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {CameraTypeProbe, EdgeBudgetProbe, DURATION as CTP} from './runtime/__probe_camera';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {ForkingAnswers, DURATION as D_FORKINGANSWERS} from './shots/ForkingAnswers';
+import {WeightedWheel, DURATION as D_WEIGHTEDWHEEL} from './shots/WeightedWheel';
+import {ReplyWindow, DURATION as D_REPLYWINDOW} from './shots/ReplyWindow';
 import {OrbitClockGain, DURATION as D_ORBITCLOCKGAIN} from './shots/OrbitClockGain';
 import {LightShellOrbit, DURATION as D_LIGHTSHELLORBIT} from './shots/LightShellOrbit';
 import {RangeSpheres, DURATION as D_RANGESPHERES} from './shots/RangeSpheres';
@@ -667,6 +670,9 @@ export const RemotionRoot: React.FC = () => (
     {F('RangeSpheres', RangeSpheres, D_RANGESPHERES)}
     {F('LightShellOrbit', LightShellOrbit, D_LIGHTSHELLORBIT)}
     {F('OrbitClockGain', OrbitClockGain, D_ORBITCLOCKGAIN)}
+    {F('ReplyWindow', ReplyWindow, D_REPLYWINDOW)}
+    {F('WeightedWheel', WeightedWheel, D_WEIGHTEDWHEEL)}
+    {F('ForkingAnswers', ForkingAnswers, D_FORKINGANSWERS)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}

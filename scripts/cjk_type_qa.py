@@ -506,12 +506,31 @@ def _declared_numbers(prop, src):
     return _top_numbers(_obj_body(src, m.end() - 1))
 
 
+def _with_kits(src):
+    """The register's source, followed by the source of every kit it imports (`../kits/<Name>`).
+
+    A promoted register's types live in its kit: `ReplyWindow` declares `cands?: Cand[]` and `titleAt?: TitleAt`,
+    both exported from `src/kits/`. Read alone, the register named two aliases this shaper could not resolve and
+    both props were filed as copy it could not shape — "NOT MEASURED" for a register whose every word it could
+    have fed. Only kits are followed: they are the register's own code, moved beside it when it was promoted."""
+    extra = []
+    for k in sorted(set(re.findall(r"from\s+['\"]\.\./kits/(\w+)['\"]", src or ""))):
+        for ext in (".tsx", ".ts"):
+            fp = os.path.join(_REMOTION, "src", "kits", k + ext)
+            if os.path.exists(fp):
+                with open(fp, encoding="utf-8") as fh:
+                    extra.append(fh.read())
+                break
+    return src + ("\n" + "\n".join(extra) if extra else "")
+
+
 def prop_signature(name):
     """{prop: type-text} straight from the register's own React.FC<{…}> declaration."""
     try:
         src = open(os.path.join(_SHOTS, name + ".tsx"), encoding="utf-8").read()
     except OSError:
         return {}, ""
+    src = _with_kits(src)
     # TWO MORE WAYS TO BE INVISIBLE, both found by asking which registers this gate feeds NOTHING. The old
     # pattern demanded the props be written inline AND `}>` to be adjacent, so:
     #   AcceptanceStamp  `React.FC<Props>`   — its four props live in a named alias above the component
@@ -808,7 +827,40 @@ def cjk_props(name, offset=0):
     # second list of names here.
     for provider in _supersedes().get(name, {}):
         props.pop(provider, None)
+    _couple_contained(props, src)
+    _cap_rows(props, src)
     return props, untestable
+
+
+def _cap_rows(props, src):
+    """A list the register refuses past a count is fed no more than that count.
+
+    `ForkingAnswers` draws one or two trees and says so — `if (trees.length > 2) throw` — and the fixture's three rows
+    made it refuse to render, so neither sweep measured it at all. The limit is READ from the register's own guard (a
+    `rows<…>(…, '<prop>', …)` binding, or the prop's own name), never listed here by register."""
+    binds = dict(re.findall(r"const\s+(\w+)\s*=\s*rows<[^>]*>\(\s*[^,]+,\s*'(\w+)'", src or ""))
+    for local, op, n in re.findall(r"if\s*\(\s*(\w+)\.length\s*(>=|>)\s*(\d+)\s*\)\s*throw", src or ""):
+        prop = binds.get(local, local)
+        cap = int(n) - (1 if op == ">=" else 0)
+        v = props.get(prop)
+        if isinstance(v, list) and cap >= 1 and len(v) > cap:
+            props[prop] = v[:cap]
+
+
+def _couple_contained(props, src):
+    """A prop the register only draws when it is FOUND INSIDE another is fed a piece of that other one.
+
+    `ReplyWindow` rings one fact in its reply, and draws the ring only when `reply.includes(ring)`: fed two
+    unrelated sentences, the ring never appeared and the gate counted it as copy the register dropped. The
+    coupling is read from the register's own source — `<container>.includes(<part>)` between two string props
+    — so no register is named here; the part becomes a few glyphs from the middle of the container's fixture."""
+    for whole, part in re.findall(r"\b(\w+)\.includes\((\w+)\)", src or ""):
+        w, pt = props.get(whole), props.get(part)
+        if isinstance(w, str) and isinstance(pt, str) and w and whole != part:
+            chars = list(w)
+            n = min(4, max(2, len(chars) // 5))
+            at = max(0, len(chars) // 3)
+            props[part] = "".join(chars[at:at + n])
 
 
 _SUPERSEDES_CACHE = {}
@@ -1075,6 +1127,12 @@ def _synth_field(name, ty, src="", i=0, rowIdx=0, depth=0):
         # Spread across the clip's middle so no row sits at an endpoint, where a `seg` window is degenerate.
         if re.search(r"^(at|delay|start|end|progress)$", name, re.I):
             return round(0.18 + (i % 5) * 0.16, 3)
+        # A CHANCE IS A SHARE OF ONE WHOLE. A row's `p` (or `prob`, `chance`) is a percentage, and the rows of one list
+        # are parts of the same 100: handed 62 / 79 / 96, WeightedWheel refused to draw ("the slices add up to 237%") —
+        # the refusal a film's own wrong numbers must meet, so the fixture is what changes. Rows step down from 12, so
+        # even ten rows stay inside the whole.
+        if re.search(r"^(p|prob|chance)$", name, re.I):
+            return round(12 - (i % 6) * 1.5, 1)
         # Registers in this library author in W/H FRACTIONS so they reflow at every aspect (SKILL.md), so a
         # geometry field is 0..1 unless its name says otherwise. `width` was not on this list and MapPlate's
         # channel — `(channel.width ?? 0.02) * PW` — was handed 62, which is sixty-two plate widths.
@@ -1690,6 +1748,36 @@ def _fed_missing(shot, props, frame, tmp, dna, aspect, fed):
         return None
 
 
+def _missing_over_time(shot, props, frame, tmp, dna, aspect, fed):
+    """Which of `fed` reached the screen at NO probe frame — the settled one and two earlier ones. None when the
+    question could not be put (the render failed)."""
+    missing = _fed_missing(shot, props, frame, tmp, dna, aspect, fed)
+    # A SEQUENTIAL REGISTER CANNOT HOLD EVERYTHING AT ONE FRAME, and asking it to is a question with a
+    # wrong answer built in. `VoiceSignal` is a timeline that shows ONE phase at a time — that is what a
+    # timeline IS — so at the close it draws the last label and two of three are legitimately absent.
+    # The gate reported "2 of 3 strings never reached the screen" for as long as this fixture existed;
+    # the fix applied last time varied the phases' timestamps, which changed WHICH label shows and not
+    # that only one can, so the finding survived its own repair wearing a different label.
+    #
+    # The distinction is measurable, so it is measured rather than declared: probe two earlier frames
+    # and take the UNION. A string that appears at some point was drawn — nothing was dropped. A string
+    # that appears at NO probe is the WordTunnel case this branch exists for, and still reported. No
+    # register is exempted by name, and the extra renders happen only on a frame that already looked
+    # empty — three registers in the last full sweep.
+    if missing:
+        for frac_t in (0.45, 0.65):
+            alt = int(round(frame / PROBE_FRAC * frac_t))
+            if alt <= 0 or alt == frame:
+                continue
+            seen_there = _fed_missing(shot, props, alt, tmp, dna, aspect, fed)
+            if seen_there is None:
+                continue
+            missing = [x for x in missing if x in seen_there]
+            if not missing:
+                break
+    return missing
+
+
 def _why_it_refused(blob):
     """The register's OWN message, not the last line of the stack.
 
@@ -1764,30 +1852,7 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None, why=None):
     # the DOM which of the strings we fed actually reached the screen — that is the question, exactly.
     fed = [x for x in _string_leaves(props) if _HAS_CJK.search(x)]
     if fed:
-        missing = _fed_missing(shot, props, frame, tmp, dna, aspect, fed)
-        # A SEQUENTIAL REGISTER CANNOT HOLD EVERYTHING AT ONE FRAME, and asking it to is a question with a
-        # wrong answer built in. `VoiceSignal` is a timeline that shows ONE phase at a time — that is what a
-        # timeline IS — so at the close it draws the last label and two of three are legitimately absent.
-        # The gate reported "2 of 3 strings never reached the screen" for as long as this fixture existed;
-        # the fix applied last time varied the phases' timestamps, which changed WHICH label shows and not
-        # that only one can, so the finding survived its own repair wearing a different label.
-        #
-        # The distinction is measurable, so it is measured rather than declared: probe two earlier frames
-        # and take the UNION. A string that appears at some point was drawn — nothing was dropped. A string
-        # that appears at NO probe is the WordTunnel case this branch exists for, and still reported. No
-        # register is exempted by name, and the extra renders happen only on a frame that already looked
-        # empty — three registers in the last full sweep.
-        if missing:
-            for frac_t in (0.45, 0.65):
-                alt = int(round(frame / PROBE_FRAC * frac_t))
-                if alt <= 0 or alt == frame:
-                    continue
-                seen_there = _fed_missing(shot, props, alt, tmp, dna, aspect, fed)
-                if seen_there is None:
-                    continue
-                missing = [x for x in missing if x in seen_there]
-                if not missing:
-                    break
+        missing = _missing_over_time(shot, props, frame, tmp, dna, aspect, fed)
         if missing is None:
             return [{"kind": "unfed", "depth": 0, "font": "", "cls": "",
                      "text": "(drew %.2f%% ink and the re-render that would say whether its copy reached "
@@ -1835,6 +1900,62 @@ def evidence_props():
         return {}
 
 
+def register_modes(name):
+    """The values a register's `mode` prop takes, when it is declared as a union of string literals — [] otherwise.
+
+    A MULTI-MODE REGISTER DRAWS ONE MODE'S COPY AT A TIME. `ReplyWindow` (a chat window that streams, compares two
+    windows, uncovers a page, checks a fact) was swept once, in its default mode: of the fifteen strings it was fed,
+    the ones only another mode draws never reached the screen, and the gate called the whole register UNFED — the
+    fixture's fault, reported as the register's. A mode is a different picture, so each is swept as one."""
+    sig, _src = prop_signature(name)
+    ty = sig.get("mode") or ""
+    vals = [a or b for a, b in re.findall(r"'([^']+)'|\"([^\"]+)\"", ty)]
+    rest = re.sub(r"'[^']*'|\"[^\"]*\"|\||undefined|null|\s", "", ty)
+    return vals if len(vals) >= 2 and not rest else []
+
+
+def audit_modes(shot, props, frame, tmp, dna, aspect, modes, why=None):
+    """`audit` once per mode. A typesetting finding names the mode it was found in; whether the copy REACHED the
+    screen is asked of all the modes together — a string some mode draws was not dropped. None when any mode's
+    render failed (`why` says which)."""
+    fed = [x for x in _string_leaves(props) if _HAS_CJK.search(x)]
+    out, never = [], None
+    for m in modes:
+        pm = dict(props, mode=m)
+        w = []
+        hits = audit(shot, pm, frame, tmp, dna, aspect, why=w)
+        # A MODE MAY HOLD FEWER ROWS THAN ANOTHER: RangeSpheres seats 4 satellites in one mode and 3 in the
+        # other, and refuses the fixture's 4 there. Its lists are shortened and the mode asked again, so the
+        # mode is measured rather than lost; a mode that refuses even two rows is a real refusal.
+        for cap in (3, 2):
+            if hits is not None:
+                break
+            short = {k: (v[:cap] if isinstance(v, list) and len(v) > cap else v) for k, v in pm.items()}
+            if short != pm:
+                pm, w = short, []
+                hits = audit(shot, pm, frame, tmp, dna, aspect, why=w)
+        if hits is None:
+            if why is not None:
+                why.append("mode %r: %s" % (m, w[0] if w else "the render failed"))
+            return None
+        out += [dict(h, text="[mode %s] %s" % (m, h.get("text", ""))) for h in hits
+                if h.get("kind") not in ("unfed", "dropped")]
+        if fed:
+            miss = _missing_over_time(shot, pm, frame, tmp, dna, aspect, fed)
+            if miss is None:
+                if why is not None:
+                    why.append("mode %r: the render that asks which copy reached the screen failed" % m)
+                return None
+            never = set(miss) if never is None else never & set(miss)
+    missing = sorted(never or [])
+    if missing:
+        frac = len(missing) / float(len(fed))
+        out.append({"kind": "unfed" if frac >= UNFED_MISSING_FRAC else "dropped", "depth": 0, "font": "", "cls": "",
+                    "text": "(across its %d modes, %d of %d strings it was given never reached the screen: %s)"
+                            % (len(modes), len(missing), len(fed), " / ".join(missing[:3]))})
+    return out
+
+
 def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None, out_dir=None):
     """{shot: {'hits': [...], 'untestable': [...], 'failed': bool, 'why': str|None, 'cjk_fed': int}}
 
@@ -1869,7 +1990,11 @@ def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None, out_dir=None):
                 props = dict(ev[n], **props) if given else dict(props, **ev[n])
             frame = int(durs.get(n, 150) * PROBE_FRAC)
             why = []
-            hits = audit(n, props, frame, tmp, dna, aspect, why=why)
+            # a FILM's own props pick their mode; the library fixture only takes the union's first literal, so
+            # a multi-mode register is swept once per mode
+            modes = [] if (film_props and film_props.get(n) is not None) else register_modes(n)
+            hits = (audit_modes(n, props, frame, tmp, dna, aspect, modes, why=why) if modes
+                    else audit(n, props, frame, tmp, dna, aspect, why=why))
             out[n] = {"hits": hits or [], "untestable": untestable, "failed": hits is None,
                       "why": (why[0] if why else None),
                       "cjk_fed": len([x for x in _string_leaves(props) if _HAS_CJK.search(x)])}

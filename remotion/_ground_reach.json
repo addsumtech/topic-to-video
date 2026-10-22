@@ -835,6 +835,20 @@
    ]
   },
   {
+   "shot": "ForkingAnswers",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 1.0,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "FractalTree",
    "bandY": {
     "light": 0.8069523572921753,
@@ -2160,6 +2174,20 @@
    "why": []
   },
   {
+   "shot": "ReplyWindow",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 0.9046613574028015,
+    "dark": 0.003346535377204418
+   },
+   "moved": 0.9998177083333334,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "RestsOn",
    "bandY": {
     "light": 0.8879231810569763,
@@ -2835,6 +2863,20 @@
    ]
   },
   {
+   "shot": "WeightedWheel",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9988944128787879,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "WireGlobe",
    "bandY": {
     "light": 0.8879231810569763,
@@ -3074,10 +3116,13 @@
   "PourSync": "fbe7cf35487e184c",
   "RangeSpheres": "893ee5cc19a84db8",
   "LightShellOrbit": "178b8d29477b4216",
-  "OrbitClockGain": "2c9b9952a2f6c6a2"
+  "OrbitClockGain": "2c9b9952a2f6c6a2",
+  "ReplyWindow": "81e897374259fa0e",
+  "WeightedWheel": "4573018ced610633",
+  "ForkingAnswers": "031e14d03e9face9"
  },
  "failed": {},
- "universe": 197,
+ "universe": 200,
  "inkRefused": {
   "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
   "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",
