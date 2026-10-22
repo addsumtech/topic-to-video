@@ -34,6 +34,7 @@ import {REGISTRY} from './registry';
 import {STAGES} from './stage';
 import {StageRunContext, type StageBeat} from './runtime/stageRun';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
+import {TitleProbe} from './runtime/titleProbe';
 import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
 import {FilmFinishLayer} from './runtime/finish';
@@ -998,9 +999,9 @@ const StageBeatMark: React.FC<{first: number; beats: StageBeat[]; children: Reac
 };
 
 export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
-  typeGlide?: boolean}> =
+  typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
-    typeGlide = false}) => {
+    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -1149,7 +1150,11 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
     <AbsoluteFill style={{backgroundColor: rootBg}}>
       {/* Opt-in DOM audit — inert without the prop. Mounted on the FILM as well as on each shot preview so
           the caption HUD and the film's own furniture are audited too, not only the registers. */}
-      <TextSafeAudit enabled={Boolean(textSafe)} />
+      {/* The same questions a register's preview can be asked (Root.tsx DnaPreview) — a stage run cannot render alone,
+          so the per-beat gates ask them of the FILM's frames of it (scripts/stage_frames.py). */}
+      <TextSafeAudit enabled={Boolean(textSafe || typeCollisions)} mode={typeCollisions ? 'collisions' : 'safe'}
+                     typeSize={Boolean(typeSize)} />
+      {titleProbe ? <TitleProbe /> : null}
       {/* The type-glide census (runtime/textSafe.tsx): per frame, every line of type that can snap, with its true
           position — read across frames by scripts/text_safe_qa.py --glide. Absent unless asked for. */}
       {typeGlide ? <TypeGlideAudit /> : null}

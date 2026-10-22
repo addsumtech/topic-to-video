@@ -149,3 +149,37 @@ def test_a_stage_click_is_a_sound_on_its_word_and_survives_the_density_cap():
     assert sfx.plan_cues(sfx_scenes, fps, events_only=True) == [(3.0 + 1.25, "click", sfx.EVENT_GAIN["click"])]
     full = sfx.plan_cues([dict(sc, shots=[{"startFrame": 0}]) if i == 1 else sc for i, sc in enumerate(sfx_scenes)], fps)
     assert any(name == "click" and abs(t - 4.25) < 1e-9 for t, name, _g in full), full
+
+
+def test_the_gates_take_the_frames_the_stage_holds_and_the_middles_of_its_moves():
+    """stage_frames mirrors runtime/stageRun.tsx buildKeys frame for frame. Worked by hand: a cut into the run at
+    frame 88; its first beat arrives at once; step 1 (t=0.4 s) arrives on frame 12 of the run and may only start
+    when the beat did (a 12-frame move, not 14); step 2 (t=2 s, move 1 s) runs 30-60; the joined beat morphs 120-144;
+    the film's closing veil keeps the last held frame 16 frames off the end."""
+    import stage_frames as sf
+    scenes = [{"durF": 100},
+              {"durF": 120, "stage": {"run": "r"}, "props": {"steps": [{"t": 0.4}, {"t": 2.0, "move": 1.0}]}},
+              {"durF": 90, "stage": {"run": "r"}, "props": {}}]
+    keys = sf.keyframes(scenes, 1, 2, 30)
+    assert [(k["from"], k["to"]) for k in keys] == [(0, 0), (0, 12), (30, 60), (120, 144)]
+    got = sf.sample_frames(scenes, 12, 30)
+    assert got == {1: {"held": [88, 117, 207], "moving": [94, 133]}, 2: {"held": [281], "moving": [220]}}
+    import pytest
+    with pytest.raises(ValueError):
+        sf.keyframes([{"durF": 90, "stage": {"run": "r"}, "props": {"steps": [{"cursor": {}}]}}], 0, 0, 30)
+
+
+def test_the_board_gates_see_a_stage_for_what_it_is():
+    import dna_audit
+    import energy_skeleton
+    import beat_key
+    import validate
+    assert "CardStage" in dna_audit.dna_aware_shots(), "it reads useDNA on its first line"
+    assert "film_energy_qa" in energy_skeleton.unmeasured_reason("CardStage", {})
+    assert beat_key.shot_file(None, "CardStage").endswith(os.path.join("stage", "CardStage.tsx"))
+    slides = [_s("CinematicTitle", index=1),
+              _s("CardStage", "a", index=2, shot_props={"image": "card.png"}), _s("CardStage", "a", index=3),
+              _s("CardStage", "b", index=4, shot_props={"page": {"title": "t"}, "steps": [{"at": 0.5, "marks": []}]}),
+              _s("CardStage", "c", index=5, shot_props={"page": {"title": "t"}, "title": "only a title"})]
+    routes = {n: r for n, r, _why in validate.design_routes({}, slides, None)}
+    assert routes[2] == routes[3] == "exempt" and routes[4] == "adapted" and routes[5] == "as-is"

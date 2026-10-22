@@ -29,6 +29,7 @@ import {hex6} from '../runtime/hexColor';
 import {measureText} from '@remotion/layout-utils';
 import {TITLE_Y, contentBottom, CONTENT_TOP} from '../runtime/layout';
 import {CursorArrow, TapRipple} from '../runtime/gesture';
+import {usePlaceGlide} from '../runtime/glide';
 import {useStageRun, lerpState, actor, sinceEvent, State, Normalize} from '../runtime/stageRun';
 
 /** The card's pose. x/y: offset of its centre from the content zone's centre, as fractions of the frame's width/height;
@@ -114,6 +115,7 @@ export const CardStage: React.FC<{
 }> = () => {
   const dna = useDNA();
   const now = useStageRun(normalize);
+  const place = usePlaceGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   const ink = {bg: hex6(dna?.bg ?? '#F4F5F8'), fg: dna?.fg ?? '#15161A', dim: dna?.dim ?? '#6B6E78',
@@ -331,7 +333,7 @@ export const CardStage: React.FC<{
   };
 
   // ── a name beside a place: a pill on the side of the card with more room, joined to the place by a short line ──
-  const labelPx = Math.round(U * 0.03);
+  const labelPx = Math.round(U * 0.034);
   /** A name for a part of the face: a pill beside the part's box on screen — right or left of it (the side its centre
    *  leans to first), else above or below it — the first place that stays in the frame and off the part, joined to the
    *  part by a short line. In a portrait frame the card is nearly as wide as the frame, so beside it there is no room
@@ -364,8 +366,11 @@ export const CardStage: React.FC<{
       <React.Fragment key={key}>
         <div style={{position: 'absolute', left: at.ax, top: at.ay - stroke / 2, width: len, height: stroke,
           background: ink.acc, opacity: on, transformOrigin: '0 50%', transform: `rotate(${ang}rad) scaleX(${on})`}} />
-        <div style={{position: 'absolute', left: at.x, top: at.y, width: pw, height: ph, boxSizing: 'border-box',
-          transform: `scale(${0.85 + 0.15 * on})`, transformOrigin: `${at.bx - at.x}px ${at.by - at.y}px`,
+        {/* placed by a translate that carries the baseline unlock (runtime/glide): the card floats while it holds,
+            so a name on it crawls under a pixel a frame, and type moved by left/top stepped a whole pixel at a time
+            (text_safe_qa --glide: '可编辑' stepped 4px over 43 frames) */}
+        <div style={{position: 'absolute', ...place(!now.reduced, at.x, at.y, `scale(${0.85 + 0.15 * on})`),
+          width: pw, height: ph, boxSizing: 'border-box', transformOrigin: `${at.bx - at.x}px ${at.by - at.y}px`,
           opacity: on, background: ink.acc, color: ink.on, borderRadius: labelPx * 0.4, padding: `${padY}px ${padX}px`,
           whiteSpace: 'nowrap', boxShadow: `0 ${U * 0.006}px ${U * 0.02}px ${dark ? 'rgba(0,0,0,0.5)' : mix(ink.fg, ink.bg, 0.8)}`}}>
           {big !== undefined ? <div style={{font: `800 ${bigPx}px/1.05 var(--f-display, system-ui)`,

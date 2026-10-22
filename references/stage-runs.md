@@ -79,8 +79,23 @@ A step's `cursor.click` is a click in the film's sound, on the frame the picture
 `meta.sound_design` (no score, no other cues); `meta.stage_sounds: false` turns them off. The pipeline cannot hear:
 audition it.
 
-## What the gates do not see yet
+## How the gates measure a run
 
-The pre-render gates (`shot_proof`, `text_safe_qa`, `energy_skeleton`, the DNA audit) measure a register on its own;
-a stage component cannot render alone, so they do not measure stage runs yet. Until they do, look at the rendered
-frames of every run: the settled frame of each beat AND the middle of each move.
+A stage component cannot render alone, so the per-beat gates measure a run on the FILM's frames of it
+(`scripts/stage_frames.py`): the frame of each keyframe's HELD state (just before the next move) and the MIDDLE of
+each move, with the captions off as a register still has none, the same audit switches armed (`Film.tsx` forwards
+`textSafe`, `typeSize`, `typeCollisions`, `titleProbe`), and one bundle for all of them.
+
+- `text_safe_qa`: type cut off / in the caption band / too small, on every held and moving frame; ONE title per run
+  in the title-placement census (a run is one composition, its title in one place by design).
+- `cjk_type_qa`: CJK collisions on every held frame of the stage's beats.
+- `shot_proof`: each beat's last held frame is its proof still (caption band, palette, empty or dead frame, ink, the
+  design sheet). The source checks (wrong props, demo copy, icons, welded copy) are n/a — a stage has no demo content.
+- `text_safe_qa --glide/--sync`, `film_energy_qa`, `shake_qa`, `check_av` already read the whole Film.
+- `validate`: a run carrying the film's own image is exempt from the design-first floor (the product's real
+  picture, like a device's screens); one drawing a page is adapted when its beats pose or act on the card, as-is when
+  they only re-title it. The energy skeleton leaves run beats to `film_energy_qa` (no motion of their own outside the
+  film).
+
+Look at the rendered frames anyway — the settled frame of each beat AND the middle of each move: gates measure type,
+not whether the move means what the beat says.

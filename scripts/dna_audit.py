@@ -75,19 +75,21 @@ def dna_aware_shots(remotion_dir=None):
     """Ids of shots that read the Design DNA and therefore unify on a themed film. Requires BOTH an actual call
     `useDNA(` AND the matching import — a call without the import is not 'migrated', it is BROKEN (see
     broken_shots), and a dangling import without a call changes nothing."""
-    d = _shots_dir(remotion_dir)
-    if not os.path.isdir(d):
-        return set()
     out = set()
-    for f in os.listdir(d):
-        if not f.endswith(".tsx"):
+    # the stage components too (remotion/src/stage/): a beat on a stage run selects one, and it unifies on a themed
+    # film exactly as a register does — it was warned "never reads useDNA" while it read it on its first line
+    for d in (_shots_dir(remotion_dir), os.path.join(remotion_dir or _REMOTION, "src", "stage")):
+        if not os.path.isdir(d):
             continue
-        try:
-            src = open(os.path.join(d, f), encoding="utf-8").read()
-        except (OSError, UnicodeDecodeError):
-            continue                       # named by unreadable_shots(), never scored here
-        if _USE_CALL.search(src) and _USE_IMPORT.search(src):
-            out.add(f[:-4])
+        for f in os.listdir(d):
+            if not f.endswith(".tsx"):
+                continue
+            try:
+                src = open(os.path.join(d, f), encoding="utf-8").read()
+            except (OSError, UnicodeDecodeError):
+                continue                       # named by unreadable_shots(), never scored here
+            if _USE_CALL.search(src) and _USE_IMPORT.search(src):
+                out.add(f[:-4])
     return out
 
 

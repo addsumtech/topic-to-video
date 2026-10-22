@@ -1956,6 +1956,55 @@ def audit_modes(shot, props, frame, tmp, dna, aspect, modes, why=None):
     return out
 
 
+def stage_sweep(out_dir, board, shots):
+    """`sweep`'s answer for the stage shots of a film: every held frame of every beat on a run of theirs, rendered as
+    the FILM with the collision audit armed and the captions off (scripts/stage_frames.py)."""
+    import remotion_segments as _rs
+    import stage_frames as _sf
+    import stage_runs as _sr
+    _refuse_if_instrument_is_mutated()
+    slides = board.get("slides") or []
+    payload = _sf.film_payload(out_dir, board, typeCollisions=True)
+    frames = _sf.sample_frames(payload["scenes"], _rs.seam_frames(), 30)
+    out = {}
+    stills = None
+    try:
+        for shot in shots:
+            beats = [k for k, s in enumerate(slides) if s.get("shot") == shot and _sr.run_id(s)]
+            todo = sorted({f for k in beats for f in (frames.get(k) or {}).get("held", [])})
+            fed = sum(_cjk_leaves(slides[k].get("shot_props") or {}) for k in beats)
+            hits, why, measured = [], [], 0
+            for f in todo:
+                tmp = os.path.join(out_dir, "._cjk_stage_%d.png" % f)
+                if stills is None:
+                    stills = _sf.Stills(out_dir, payload)
+                err = ""
+                for _attempt in (1, 2):
+                    rc, err = stills.still(f, payload, tmp)
+                    if TAG in err or rc == 0:
+                        break
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+                if TAG in err:
+                    try:
+                        found, _ = json.JSONDecoder().raw_decode(err.split(TAG, 1)[1])
+                    except json.JSONDecodeError:
+                        found = [{"kind": "leading", "depth": 0, "text": "(unparseable payload)", "font": "", "cls": ""}]
+                    hits.extend(dict(h, frame=f) for h in found)
+                    measured += 1
+                elif rc == 0:
+                    measured += 1
+                else:
+                    why.append("film frame %d: %s" % (f, _why_it_refused(err)))
+            out[shot] = {"hits": hits, "untestable": [], "failed": not measured,
+                         "why": "; ".join(why) or ("no held frame of its stage runs could be found" if not todo
+                                                   else None), "cjk_fed": fed}
+    finally:
+        if stills is not None:
+            stills.close()
+    return out
+
+
 def sweep(names, dna=DEFAULT_DNA, aspect=None, film_props=None, out_dir=None):
     """{shot: {'hits': [...], 'untestable': [...], 'failed': bool, 'why': str|None, 'cjk_fed': int}}
 
@@ -2172,8 +2221,18 @@ def main(argv):
     else:
         names = library
     import workshop as _ws
+    # A STAGE RUN'S SHOT cannot be rendered alone (runtime/stageRun.tsx): it is asked the same question on the FILM's
+    # frames of its beats (scripts/stage_frames.py), and answers in the sweep's own shape
+    staged = {}
+    if a.out_dir and film_props is not None:
+        import stage_runs as _sr
+        on_run = {s.get("shot") for s in (board.get("slides") or []) if _sr.run_id(s)}
+        staged = {n: film_props.pop(n) for n in list(film_props) if n in on_run}
+        names = [n for n in names if n not in staged]
     try:
         res = sweep(names, a.dna, a.aspect, film_props, out_dir=a.out_dir if film_props is not None else None)
+        if staged:
+            res.update(stage_sweep(a.out_dir, board, sorted(staged)))
     except _ws.WorkshopError as e:
         for x in e.problems:
             print("[cjk_type] PROBLEM: " + x)

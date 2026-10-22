@@ -62,11 +62,14 @@ def durations():
     return out
 
 
-def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size=False):
+def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size=False, render=None):
     """Render one shot with the audit armed. Returns [] (clean) or the violation list it reported.
 
     Props travel by FILE, never on the command line: a beat's real copy is routinely CJK, and a multibyte
     character in a --props argument breaks the arg before remotion ever sees it.
+
+    `render(payload, png) -> (returncode, output)` renders the frame some other way — a stage run's frame of the FILM
+    (scripts/stage_frames.py), which a stage cannot be rendered alone to give.
     """
     payload = dict(props or {})
     payload["textSafe"] = True
@@ -83,7 +86,7 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size
     # RETRIED once. What survives a retry is reported, and reported as a FAILURE — a frame nobody measured —
     # rather than as a finding about the copy on it.
     import workshop as _ws
-    blob, r = "", None
+    blob, rc = "", 0
     for _attempt in (1, 2):
         # THE FILM'S OWN ASSETS HAVE TO BE SERVED, and this never served them. `render_remotion.py` runs the
         # film with `--public-dir=<out_dir>`, so a register that draws a file the FILM supplies — every
@@ -91,14 +94,18 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size
         # resolves its `staticFile()` against a directory this gate did not mount. The image 404s, the render
         # dies, and the beat is reported as a FAILURE: one beat of eight with no machine type reading at all,
         # which is the "a check that cannot run must say it did not run" hole from the inside.
-        cmd = ["npx", "remotion", "still", "src/index.ts", shot, tmp_png,
-               "--frame=%d" % frame, "--gl=angle", "--log=error",
-               "--props=" + os.path.abspath(pf)]
-        if public_dir:
-            cmd.append("--public-dir=" + os.path.abspath(public_dir))
-        r = _c.run_render(subprocess.run, cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
-        blob = (r.stdout or "") + (r.stderr or "")
-        if TAG in blob or r.returncode == 0:
+        if render is not None:
+            rc, blob = render(payload, tmp_png)
+        else:
+            cmd = ["npx", "remotion", "still", "src/index.ts", shot, tmp_png,
+                   "--frame=%d" % frame, "--gl=angle", "--log=error",
+                   "--props=" + os.path.abspath(pf)]
+            if public_dir:
+                cmd.append("--public-dir=" + os.path.abspath(public_dir))
+            r = _c.run_render(subprocess.run, cmd, capture_output=True, text=True, cwd=_REMOTION,
+                              **_ws.env_kwargs(env))
+            rc, blob = r.returncode, (r.stdout or "") + (r.stderr or "")
+        if TAG in blob or rc == 0:
             break
     if TAG in blob:
         # The payload arrives inside a render-cancelling error, wrapped in a stack trace. Let the JSON parser
@@ -110,7 +117,7 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size
             return found
         except json.JSONDecodeError:
             return [{"text": "(unparseable payload)", "out": {}}]
-    if r.returncode != 0:
+    if rc != 0:
         # A render that failed measured NOTHING. Reporting it as clean is how a gate quietly stops gating —
         # so it still surfaces, but as a RENDER FAILURE after a retry, not as a finding about the type.
         from shot_proof import _stderr_reason        # the MESSAGE, never the last line of a stack
@@ -122,7 +129,7 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size
 TITLE_TAG = "TITLE-PROBE "
 
 
-def title_of(shot, props, frame, tmp_png, public_dir=None, env=None):
+def title_of(shot, props, frame, tmp_png, public_dir=None, env=None, render=None):
     """{text, ax, cy, px, align} for the settled frame's title (runtime/titleProbe.tsx), or None — no text that is not
     a figure, or a render that measured nothing (said by the caller's coverage, never guessed)."""
     import workshop as _ws
@@ -136,8 +143,12 @@ def title_of(shot, props, frame, tmp_png, public_dir=None, env=None):
         cmd.append("--public-dir=" + os.path.abspath(public_dir))
     blob = ""
     for _attempt in (1, 2):                              # a flaky browser is retried once, as audit_shot does
-        r = _c.run_render(subprocess.run, cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
-        blob = (r.stdout or "") + (r.stderr or "")
+        if render is not None:                           # a stage run's frame of the FILM (see audit_shot)
+            blob = render(payload, tmp_png)[1]
+        else:
+            r = _c.run_render(subprocess.run, cmd, capture_output=True, text=True, cwd=_REMOTION,
+                              **_ws.env_kwargs(env))
+            blob = (r.stdout or "") + (r.stderr or "")
         if TITLE_TAG in blob:
             break
     if os.path.exists(pf):
@@ -322,6 +333,76 @@ def _save_beat_cache(out_dir, cache):
         pass
 
 
+class _StageBeats:
+    """The beats of a film's stage runs, audited on the FILM's frames (scripts/stage_frames.py). Built lazily: a film
+    with no stage run never bundles anything here."""
+
+    def __init__(self, out_dir, board):
+        import stage_runs as _sr
+        self.out_dir, self.board = out_dir, board
+        slides = board.get("slides") or []
+        self.idx = {k for a, b, _r in _sr.runs(slides) for k in range(a, b + 1)}
+        self._frames = self._payload = self._stills = None
+        # ONE TITLE A RUN: a run is one composition whose title stays in one place by design, so it is one entry in
+        # the title-placement census — three beats of it were three "repeated" titles of a single picture
+        self.firsts = {a for a, _b, _r in _sr.runs(slides)}
+
+    def on(self, k):
+        return k in self.idx
+
+    def _ready(self):
+        if self._payload is None:
+            import remotion_segments as _rs
+            import stage_frames as _sf
+            self._payload = _sf.film_payload(self.out_dir, self.board)
+            self._frames = _sf.sample_frames(self._payload["scenes"], _rs.seam_frames(), 30)
+        return self._payload
+
+    def _render(self, frame):
+        def go(payload, png):
+            if self._stills is None:
+                import stage_frames as _sf
+                self._stills = _sf.Stills(self.out_dir, self._payload)
+            return self._stills.still(frame, payload, png)
+        return go
+
+    def audit(self, k, slide, meta, cache):
+        """{"audit": [(film frame, violation)], "title": probe | None, "title_failed": str | None, "fresh": bool}"""
+        import stage_frames as _sf
+        payload = self._ready()
+        frames = self._frames.get(k) or {"held": [], "moving": []}
+        todo = frames["held"] + frames["moving"]
+        tmp = os.path.join(self.out_dir, "._textsafe_stage.png")
+        key = _beat_cache_key(self.out_dir, slide, meta, todo, {"run": _sf.run_slides(self.board.get("slides") or [], k),
+                                                                 "scenes": payload["scenes"], "stage": True})
+        hit = cache.get(key) if key else None
+        if hit:
+            return dict(hit, fresh=False)
+        out, failed = [], False
+        for f in todo:
+            got = audit_shot("Film", payload, f, tmp, type_size=True, render=self._render(f))
+            failed = failed or _audit_failed(got)
+            out.extend((f, v) for v in got)
+        title = title_failed = None
+        if k in self.firsts and frames["held"]:
+            t = title_of("Film", payload, frames["held"][-1], tmp, render=self._render(frames["held"][-1]))
+            if t and t.get("failed"):
+                title_failed = t["failed"]
+            else:
+                title = t
+        res = {"audit": out, "title": title, "title_failed": title_failed}
+        if key and not failed and not title_failed:
+            cache[key] = res
+        for p in (tmp, tmp + ".props.json", tmp + ".title.json"):
+            if os.path.exists(p):
+                os.remove(p)
+        return dict(res, fresh=bool(key and not failed and not title_failed))
+
+    def close(self):
+        if self._stills is not None:
+            self._stills.close()
+
+
 def scan_film(out_dir, warnings=None):
     """(findings, checked, universe, skipped) — the last two are the point.
 
@@ -341,11 +422,35 @@ def scan_film(out_dir, warnings=None):
     slides = board.get("slides") or []
     tmp = os.path.join(out_dir, "._textsafe.png")
     cache, dirty = _load_beat_cache(out_dir), False
+    stage = _StageBeats(out_dir, board)
     for i, s in enumerate(slides, 1):
         shot = s.get("shot")
         if not shot:
             skipped.append("scene %02d: selects no register (a still or image beat) — this audit reads a "
                            "register's DOM and has none to read" % i)
+            continue
+        if stage.on(i - 1):
+            # A STAGE RUN'S BEAT cannot be rendered alone: its frames are the FILM's — the held state of each of its
+            # keyframes and the middle of each move (scripts/stage_frames.py) — audited the same way
+            checked += 1
+            got = stage.audit(i - 1, s, meta, cache)
+            dirty = dirty or got["fresh"]
+            if got.get("title"):
+                titles.append((i, shot, got["title"], got["title"].get("text", "")))
+            elif got.get("title_failed"):
+                title_failed.append("scene %02d (%s): %s" % (i, shot, got["title_failed"]))
+            for frame, v in got["audit"]:
+                if v.get("title"):
+                    continue
+                lvl = type_size_level(v)
+                if lvl and not v.get("out") and not v.get("band"):
+                    line = "scene %02d (%s, film frame %d): SMALL TYPE — %s" % (i, shot, frame, _describe_small(v))
+                    if lvl == "error":
+                        findings.append(line)
+                    elif warnings is not None:
+                        warnings.append(line)
+                    continue
+                findings.append("scene %02d (%s, film frame %d): %s" % (i, shot, frame, _describe(v)))
             continue
         if shot not in durs:
             skipped.append("scene %02d: %r is not a register in shots/ (no DURATION could be read for it), "
@@ -398,6 +503,7 @@ def scan_film(out_dir, warnings=None):
                     warnings.append(line)
                 continue
             findings.append("scene %02d (%s): %s" % (i, shot, _describe(v)))
+    stage.close()
     for p in (tmp, tmp + ".props.json"):
         if os.path.exists(p):
             os.remove(p)

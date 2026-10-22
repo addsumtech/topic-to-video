@@ -660,7 +660,7 @@ def _flat(v, prefix=""):
     return out
 
 
-def static_checks(board, skips=None):
+def static_checks(board, skips=None, exempt=None):
     """(errors, warnings). `skips` collects every beat/register that LEFT the measurement, with a reason.
 
     Three paths can drop an item in silence unless routed here: a beat with no `shot`, a register whose
@@ -670,15 +670,28 @@ def static_checks(board, skips=None):
     same line as a run that cleared it.
     """
     skips = skips if skips is not None else []
+    exempt = exempt if exempt is not None else []
     errors, warns = [], []
     slides = board.get("slides", [])
     seen = {}
+    # A STAGE RUN'S BEATS are asked none of this: every one of these checks reads a REGISTER's source — its prop
+    # list, its demo defaults, its icons, its welded copy — and a stage (remotion/src/stage/) has no demo content to
+    # leave behind; all it draws is the run's props (references/stage-runs.md). Named, never silently skipped.
+    import stage_runs as _sr
+    staged = {k for a, b, _r in _sr.runs(slides) for k in range(a, b + 1)}
+    for k in sorted(staged):
+        exempt.append("beat %d (%s): source checks (props, demo copy, icons, welded copy) — a stage draws only its "
+                      "run's props" % (k + 1, slides[k].get("shot")))
+    stage_only = {slides[k].get("shot") for k in staged} - {sl.get("shot") for k, sl in enumerate(slides)
+                                                            if k not in staged}
     # by POSITION — boards write `index` 1-based, so `index + 1` names the FOLLOWING beat (see
     # tests/test_beat_numbering.py; the same arithmetic mislabelled the critic's contact sheet).
     for _pos, s in enumerate(slides, start=1):
         beat = _pos
         shot = s.get("shot")
         props = s.get("shot_props") or {}
+        if _pos - 1 in staged:
+            continue
         if not shot:
             skips.append("beat %d: no `shot` — every per-register check below (unknown props, demo copy, "
                          "demo content, icons, duplicate composition) is skipped for this beat. "
@@ -790,7 +803,7 @@ def static_checks(board, skips=None):
             for phrase in re.findall(r"[A-Za-z][A-Za-z0-9'\-]+(?: [A-Za-z][A-Za-z0-9'\-]+){1,4}", str(t)):
                 if len(phrase) >= 10:
                     topic.add(phrase)          # a PHRASE, never a lone token: one word is never proof
-    for shot in sorted({s.get("shot") for s in slides if s.get("shot")}):
+    for shot in sorted({s.get("shot") for s in slides if s.get("shot")} - stage_only):
         try:
             src = open(_src_path(shot), encoding="utf-8").read()
         except OSError as e:
@@ -1057,7 +1070,7 @@ def _prove(argv, out_dir, board, ws_durs):
     # deliberately does not judge, said out loud so an exemption cannot be mistaken for a clean result.
     beats = board.get("slides", []) or []
     unmeasured, exempt = [], []
-    errors, warns = static_checks(board, skips=unmeasured)
+    errors, warns = static_checks(board, skips=unmeasured, exempt=exempt)
     # Hoisted out of the rendered-checks branch below: the tonal summary reads them unconditionally, so
     # defining them only when stills are rendered made `--no-stills` — the fast path this file's own usage
     # line recommends while authoring — die with an UnboundLocalError.
@@ -1098,7 +1111,11 @@ def _prove(argv, out_dir, board, ws_durs):
         os.makedirs(proof, exist_ok=True)
         dna_ref = board.get("meta", {}).get("design_dna") or board.get("meta", {}).get("shot_template")
         aspect = board.get("meta", {}).get("aspect")
-        for _pos, s in enumerate(board.get("slides", []), start=1):
+        import stage_runs as _sr
+        _slides = board.get("slides", [])
+        _on_stage = {k: (a, b) for a, b, _r in _sr.runs(_slides) for k in range(a, b + 1)}
+        _stage = {"payload": None, "frames": None, "stills": None}
+        for _pos, s in enumerate(_slides, start=1):
             beat = _pos
             shot = s.get("shot")
             if not shot:
@@ -1106,84 +1123,129 @@ def _prove(argv, out_dir, board, ws_durs):
                                   "(off-frame, caption band, palette, empty/dead frame, ink) is skipped "
                                   "for this beat" % beat)
                 continue
-            src, src_err = "", None
-            try:
-                src = open(_src_path(shot), encoding="utf-8").read()
-            except OSError as e:
-                src_err = str(e)
-            # A WORKSHOP SHOT'S DURATION comes from workshop.durations() (scripts/workshop.py) — the same
-            # comment-stripped, typed-declaration-aware reader text_safe_qa and cjk_type_qa use, so a
-            # workshop beat settles at the same frame in every gate. The regex below stays the library's
-            # own reader, so a library register's frame does not move.
-            dm = None if shot in ws_durs else re.search(r"export const DURATION\s*=\s*(\d+)", src)
-            dur = ws_durs.get(shot) if shot in ws_durs else (int(dm.group(1)) if dm else None)
-            # THE FRAME IS THE REGISTER'S OWN, never a house constant. `remotion still` REFUSES a frame past
-            # the end of a composition rather than clamping, so a fixed frame silently excludes every
-            # register shorter than it — the ink gate lost seven registers that way, three of which were
-            # genuinely broken. The fallback below is still a constant, so when it is used the beat is
-            # reported as proofed at a frame the register may never reach, instead of passing as if it were
-            # measured at its settled point.
-            # ...AND IT IS THE SAME SETTLED FRAME EVERY OTHER INSTRUMENT USES. `int(DURATION * 0.88)` was a
-            # third answer: `useT()` holds each shot still for SEAM_FRAMES at both edges and runs its span
-            # between them, so the settled point is the INVERSE of that mapping, not a fraction of the clip.
-            # Measured across the library, this literal sat up to 15 frames from it on all 170 registers —
-            # every proof sheet in this repo's history was read at a frame no other gate measured.
-            frame = int(round(_rr.frame_at_t(dur, _rr.SETTLED_T))) if dur is not None else 120
-            if dur is None:
-                unmeasured.append("beat %d (%s): the settled frame cannot be derived — %s. Proofed at the "
-                                  "fallback frame %d, which this register may never reach (if it is "
-                                  "shorter, the still below simply fails)."
-                                  % (beat, shot,
-                                     "%s could not be opened (%s)" % (_src_path(shot), src_err) if src_err
-                                     else "%s exports no `DURATION` — export it" % _src_path(shot),
-                                     frame))
-            pj = os.path.join(proof, "beat_%02d.json" % beat)
-            payload = _rr.film_shot_props(s, out_dir)
-            if dna_ref:
-                payload["dna"] = dna_ref
-            # The proof sheet must render at the FILM'S aspect. Without this it rendered every shot at
-            # 1920x1080 and then measured the caption band (150px, the 16:9 value) and the content width
-            # against a frame the film will never show — a portrait film's proof sheet was checking
-            # geometry that does not exist.
-            if aspect:
-                payload["aspect"] = aspect
-            json.dump(payload, open(pj, "w", encoding="utf-8"), ensure_ascii=False)
-            png = os.path.join(proof, "beat_%02d.png" % beat)
-            key = _cache_key(out_dir, s, board.get("meta", {}),
-                             {"frame": frame, "payload": payload, "film_shot": shot in film_shots,
-                              "declared": sorted(map(str, declared or [])), "broken": bool(declared_broken)})
-            hit = _cached(proof, key, ".png")
-            # --public-dir is NOT optional here. Every register in the real-image tier resolves its
-            # picture through staticFile(), which without a public dir points at a path that does not
-            # exist — so those shots ALWAYS failed to render and this gate reported a hard error for a
-            # beat that is fine in the film. Worse, it meant the proof sheet was blind to exactly the
-            # class most likely to carry a wrong or broken image. The film render passes the out_dir;
-            # so does this.
-            if hit:
-                shutil.copyfile(hit, png)
-                r = subprocess.CompletedProcess([], 0, "", "")
-            else:
-                r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png,
-                                    "--frame=%d" % frame, "--gl=angle", "--props=" + pj, "--log=error",
-                                    "--public-dir=" + os.path.abspath(out_dir)],
-                                   cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
-                if r.returncode == 0 and os.path.exists(png):
-                    _keep(proof, key, ".png", src=png)
-            if r.returncode != 0 or not os.path.exists(png):
-                why = _stderr_reason(r.stderr)
-                errors.append("beat %d (%s): the shot FAILED to render standalone at frame %d — %s"
-                              % (beat, shot, frame, why))
-                unmeasured.append("beat %d (%s): no still, so off-frame / caption-band / palette / "
-                                  "empty-frame / ink were not measured — %s" % (beat, shot, why))
-                continue
-            rendered += 1
-            fresh.add(beat)
+            stage_beat = (_pos - 1) in _on_stage
+            if stage_beat:
+                # A STAGE RUN'S BEAT cannot be rendered alone (runtime/stageRun.tsx): its still is the FILM's frame of
+                # the beat's last held state, captions off (scripts/stage_frames.py). What is asked of a register's
+                # source (demo copy, wrong props, words from props, its ground claim) has no register to ask; what
+                # is asked of the picture — caption band, palette, an empty or dead frame, ink — is asked below.
+                import stage_frames as _sf
+                if _stage["payload"] is None:
+                    import remotion_segments as _rs
+                    _stage["payload"] = _sf.film_payload(out_dir, board)
+                    _stage["frames"] = _sf.sample_frames(_stage["payload"]["scenes"], _rs.seam_frames(), 30)
+                held = (_stage["frames"].get(_pos - 1) or {}).get("held") or []
+                png = os.path.join(proof, "beat_%02d.png" % beat)
+                if not held:
+                    unmeasured.append("beat %d (%s): no held frame of this stage beat could be found" % (beat, shot))
+                    continue
+                frame = held[-1]
+                a, b = _on_stage[_pos - 1]
+                key = _cache_key(out_dir, s, board.get("meta", {}),
+                                 {"frame": frame, "stage": _slides[a:b + 1], "scenes": _stage["payload"]["scenes"]})
+                hit = _cached(proof, key, ".png")
+                if hit:
+                    shutil.copyfile(hit, png)
+                    rc, out = 0, ""
+                else:
+                    try:
+                        if _stage["stills"] is None:
+                            _stage["stills"] = _sf.Stills(out_dir, _stage["payload"])
+                        rc, out = _stage["stills"].still(frame, _stage["payload"], png)
+                    except RuntimeError as e:
+                        rc, out = 1, str(e)
+                    if rc == 0 and os.path.exists(png):
+                        _keep(proof, key, ".png", src=png)
+                if rc != 0 or not os.path.exists(png):
+                    why = _stderr_reason(out)
+                    errors.append("beat %d (%s): the FILM's frame %d of this stage beat FAILED to render — %s"
+                                  % (beat, shot, frame, why))
+                    unmeasured.append("beat %d (%s): no still, so caption-band / palette / empty-frame / ink were "
+                                      "not measured — %s" % (beat, shot, why))
+                    continue
+                rendered += 1
+                fresh.add(beat)
+                src, src_err, dm, dur = "", None, None, None
+            if not stage_beat:
+                src, src_err = "", None
+                try:
+                    src = open(_src_path(shot), encoding="utf-8").read()
+                except OSError as e:
+                    src_err = str(e)
+                # A WORKSHOP SHOT'S DURATION comes from workshop.durations() (scripts/workshop.py) — the same
+                # comment-stripped, typed-declaration-aware reader text_safe_qa and cjk_type_qa use, so a
+                # workshop beat settles at the same frame in every gate. The regex below stays the library's
+                # own reader, so a library register's frame does not move.
+                dm = None if shot in ws_durs else re.search(r"export const DURATION\s*=\s*(\d+)", src)
+                dur = ws_durs.get(shot) if shot in ws_durs else (int(dm.group(1)) if dm else None)
+                # THE FRAME IS THE REGISTER'S OWN, never a house constant. `remotion still` REFUSES a frame past
+                # the end of a composition rather than clamping, so a fixed frame silently excludes every
+                # register shorter than it — the ink gate lost seven registers that way, three of which were
+                # genuinely broken. The fallback below is still a constant, so when it is used the beat is
+                # reported as proofed at a frame the register may never reach, instead of passing as if it were
+                # measured at its settled point.
+                # ...AND IT IS THE SAME SETTLED FRAME EVERY OTHER INSTRUMENT USES. `int(DURATION * 0.88)` was a
+                # third answer: `useT()` holds each shot still for SEAM_FRAMES at both edges and runs its span
+                # between them, so the settled point is the INVERSE of that mapping, not a fraction of the clip.
+                # Measured across the library, this literal sat up to 15 frames from it on all 170 registers —
+                # every proof sheet in this repo's history was read at a frame no other gate measured.
+                frame = int(round(_rr.frame_at_t(dur, _rr.SETTLED_T))) if dur is not None else 120
+                if dur is None:
+                    unmeasured.append("beat %d (%s): the settled frame cannot be derived — %s. Proofed at the "
+                                      "fallback frame %d, which this register may never reach (if it is "
+                                      "shorter, the still below simply fails)."
+                                      % (beat, shot,
+                                         "%s could not be opened (%s)" % (_src_path(shot), src_err) if src_err
+                                         else "%s exports no `DURATION` — export it" % _src_path(shot),
+                                         frame))
+                pj = os.path.join(proof, "beat_%02d.json" % beat)
+                payload = _rr.film_shot_props(s, out_dir)
+                if dna_ref:
+                    payload["dna"] = dna_ref
+                # The proof sheet must render at the FILM'S aspect. Without this it rendered every shot at
+                # 1920x1080 and then measured the caption band (150px, the 16:9 value) and the content width
+                # against a frame the film will never show — a portrait film's proof sheet was checking
+                # geometry that does not exist.
+                if aspect:
+                    payload["aspect"] = aspect
+                json.dump(payload, open(pj, "w", encoding="utf-8"), ensure_ascii=False)
+                png = os.path.join(proof, "beat_%02d.png" % beat)
+                key = _cache_key(out_dir, s, board.get("meta", {}),
+                                 {"frame": frame, "payload": payload, "film_shot": shot in film_shots,
+                                  "declared": sorted(map(str, declared or [])), "broken": bool(declared_broken)})
+                hit = _cached(proof, key, ".png")
+                # --public-dir is NOT optional here. Every register in the real-image tier resolves its
+                # picture through staticFile(), which without a public dir points at a path that does not
+                # exist — so those shots ALWAYS failed to render and this gate reported a hard error for a
+                # beat that is fine in the film. Worse, it meant the proof sheet was blind to exactly the
+                # class most likely to carry a wrong or broken image. The film render passes the out_dir;
+                # so does this.
+                if hit:
+                    shutil.copyfile(hit, png)
+                    r = subprocess.CompletedProcess([], 0, "", "")
+                else:
+                    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png,
+                                        "--frame=%d" % frame, "--gl=angle", "--props=" + pj, "--log=error",
+                                        "--public-dir=" + os.path.abspath(out_dir)],
+                                       cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
+                    if r.returncode == 0 and os.path.exists(png):
+                        _keep(proof, key, ".png", src=png)
+                if r.returncode != 0 or not os.path.exists(png):
+                    why = _stderr_reason(r.stderr)
+                    errors.append("beat %d (%s): the shot FAILED to render standalone at frame %d — %s"
+                                  % (beat, shot, frame, why))
+                    unmeasured.append("beat %d (%s): no still, so off-frame / caption-band / palette / "
+                                      "empty-frame / ink were not measured — %s" % (beat, shot, why))
+                    continue
+                rendered += 1
+                fresh.add(beat)
             # BUILT THINGS TAKE EVERY WORD FROM THE FILM — asked of the frame. On a film-local register every run
             # is asked; on a library register holding an object, only what is inside the object's slot. One more
             # render, only on beats that show a built thing.
-            _held = [ref for _p, ref in _ws.object_refs(_ws.shot_source(out_dir, shot), s.get("shot_props") or {}, shot)
-                     if isinstance(ref, dict)]
-            if shot in film_shots or _held:
+            _held = [] if stage_beat else [ref for _p, ref in _ws.object_refs(_ws.shot_source(out_dir, shot),
+                                                                              s.get("shot_props") or {}, shot)
+                                           if isinstance(ref, dict)]
+            if not stage_beat and (shot in film_shots or _held):
                 if declared_broken:
                     # The declared-word scan itself is broken (node/tsc missing, jsx_words.cjs failed) — an
                     # EMPTY declared list here is not "nothing is declared", it is "the question could not be
@@ -1209,7 +1271,9 @@ def _prove(argv, out_dir, board, ws_durs):
                                       "that is part of the form is declared `// @fixed-text: <why>` in the "
                                       "workshop code)"
                                       % (beat, shot, total, more, " / ".join(repr(w) for w in words)))
-            if shot in film_shots:
+            if stage_beat:
+                pass                                     # a stage draws its own lit ground (no register row to read)
+            elif shot in film_shots:
                 _gc = _ground_claim(png, shot, out_dir, dna_ref)
                 if _gc:
                     kind, msg = _gc
@@ -1269,6 +1333,11 @@ def _prove(argv, out_dir, board, ws_durs):
             # image is exempt: what is left to police there is its drawn ink, and the frame cannot separate
             # the two without knowing where the image sits.
             beat_props = (beat_by_index.get(beat) or {})
+            if stage_beat:                               # a run shows the face its beats hold, set on any of them
+                a, b = _on_stage[_pos - 1]
+                beat_props = {}
+                for _sl in _slides[a:b + 1]:
+                    beat_props.update(_sl.get("shot_props") or {})
             shows_image = any(isinstance(v, str) and re.search(r"\.(jpe?g|png|webp|avif)$", v, re.I)
                               for v in beat_props.values())
             if not dna_hues:
@@ -1313,6 +1382,9 @@ def _prove(argv, out_dir, board, ws_durs):
                 if off > OFFSET_FRAC:
                     warns.append("beat %d (%s): content spans %.0f%% of the width and sits %.0f%% off centre "
                                  "— one side of the frame is dead" % (beat, shot, 100 * frac, 100 * off))
+
+        if _stage["stills"] is not None:
+            _stage["stills"].close()
 
     # THE FILM'S TONAL REGISTER, measured across every beat rather than judged one frame at a time. A
     # film whose frames are all nearly empty and whose few dense ones are outliers has no register — it

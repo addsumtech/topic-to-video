@@ -194,6 +194,14 @@ def unmeasured_reason(shot, stale_rows, film_shots=()):
         return ("%s is this film's own workshop shot and has not been measured yet — "
                 "`python3 scripts/energy_skeleton.py <out_dir>` renders the film's own shots with their props and "
                 "measures them (cached in .energy_own.json)" % shot)
+    try:
+        import stage_runs as _sr
+        staged = shot in set(_sr.stage_names())
+    except Exception:                                               # noqa: BLE001
+        staged = False
+    if staged:
+        return ("%s draws a stage run, which has no motion of its own outside the film — it is measured on the render "
+                "(film_energy_qa), not planned here" % shot)
     if shot in (stale_rows or {}):
         return ("%s's row in the sweep is STALE (%s), so it was dropped rather than trusted — run "
                 "`python3 scripts/register_energy.py`" % (shot, stale_rows[shot]))

@@ -2654,7 +2654,11 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         # ADAPT-DON'T-TEXT-SWAP IS ABOUT ADAPTING A LIBRARY REGISTER — "keep its style, redesign its content."
         # A shot this film BUILT has no prior register's style to keep; the discipline that applies to it
         # instead is workshop.check's own (a scaffold still in place, baked words, no content contract escape).
-        if shot not in _film_shots:
+        # A STAGE RUN'S BEAT has no register style to keep and no demo scaffold to leave in place: everything on it is
+        # the film's own (its face, its choreography — references/stage-runs.md), and a beat of a run that changes
+        # nothing but its title is a legitimate keyframe, not a text swap
+        import stage_runs as _sr_adapt
+        if shot not in _film_shots and not _sr_adapt.run_id(s):
             if props_empty:
                 warnings.append(f"{tag}: {shot} carries EMPTY shot_props — a raw text-swap keeps the register's demo "
                                 f"scaffolding (a mannequin), shipping a generic beat. Redesign its modules/components + "
@@ -3388,6 +3392,18 @@ def _product_screens(shot, sp):
     return False
 
 
+def _stage_run(slides, k):
+    """(shows a real image, acts on it) for the stage run beat k is on, or None when it is on none."""
+    import stage_runs as _sr
+    for a, b, _r in _sr.runs(slides):
+        if a <= k <= b:
+            sps = [sl.get("shot_props") if isinstance(sl.get("shot_props"), dict) else {} for sl in slides[a:b + 1]]
+            image = any(isinstance(sp.get("image"), str) and sp["image"].strip() for sp in sps)
+            acted = any(sp.get(x) for sp in sps for x in ("card", "steps", "cursor", "marks", "lift", "camera", "count"))
+            return image, acted
+    return None
+
+
 def design_routes(meta, slides, out_dir):
     """[(beat number, route, reason)] with route in built | adapted | exempt | as-is — see the block above."""
     import workshop as _ws
@@ -3422,6 +3438,17 @@ def design_routes(meta, slides, out_dir):
             out.append((num, "exempt", "the product's own screens on %s" % shot)); continue
         if shot in built_shots:
             out.append((num, "built", "its shot %s is this film's own" % shot)); continue
+        if _stage_run(slides, pos - 1):
+            # A STAGE RUN carries the film's OWN picture (its face) acted on by the film's own choreography, the shape
+            # a product's real screens have on a device register: a run holding a real image is exempt as they are;
+            # one that draws its page is adapted when its beats move or act on it, and as-is when they only re-title
+            face_image, acted = _stage_run(slides, pos - 1)
+            if face_image:
+                out.append((num, "exempt", "the film's own picture on a stage run (%s)" % shot)); continue
+            if acted:
+                out.append((num, "adapted", "")); continue
+            out.append((num, "as-is", "a stage run whose beats only change the title — pose the card or act on it "
+                                      "(steps), or choose a register")); continue
         src = _ws.shot_source(out_dir, shot) if shot else None
         held = []
         if src and built_objects:

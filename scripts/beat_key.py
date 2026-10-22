@@ -116,12 +116,15 @@ def shared_hash():
 
 
 def shot_file(out_dir, shot):
-    """The source a beat's shot renders from: the film's workshop copy when it has one, else the library's."""
+    """The source a beat's shot renders from: the film's workshop copy when it has one, else the library's — or a
+    stage component's (remotion/src/stage/, which draws a stage run's beats inside the Film)."""
     if out_dir:
         w = os.path.join(out_dir, "workshop", "shots", shot + ".tsx")
         if os.path.isfile(w):
             return w
-    return os.path.join(SRC, "shots", "%s.tsx" % shot)
+    lib = os.path.join(SRC, "shots", "%s.tsx" % shot)
+    stage = os.path.join(SRC, "stage", "%s.tsx" % shot)
+    return stage if not os.path.isfile(lib) and os.path.isfile(stage) else lib
 
 
 def _workshop_assets(h, out_dir):
