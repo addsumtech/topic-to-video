@@ -11,6 +11,7 @@
 | `items` | one card each: `front` and `back`, both required | cards narrow as the count rises, and one shared face size is the smallest two-line fit across every front and back (capped at 64px). A single long string shrinks every card's type, so peers stay equal |
 | `title` | the spaced mono kicker above the row | fixed 32px, uppercased, with wide tracking, not fitted |
 | `backLabel` | the small label above every back's word | the same on every card; says what the back IS (e.g. `NOW`, `实际`) |
+| `numbered` | whether each face carries its 01/02/03 (on by default) | `false` drops the numbers, for items with no order, where a number would claim one |
 
 **Known traps:**
 - `backLabel` defaults to the Chinese `实际`, which prints on English films unless it's passed.
