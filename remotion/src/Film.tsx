@@ -7,7 +7,7 @@
 // render_remotion.py drives this via --props; the WorkBuddy film is just the default. Deterministic.
 
 import React from 'react';
-import {AbsoluteFill, Audio, Freeze, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing} from 'remotion';
+import {AbsoluteFill, Audio, Freeze, Img, Sequence, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing} from 'remotion';
 import {TransitionSeries, linearTiming} from '@remotion/transitions';
 import type {TransitionPresentation} from '@remotion/transitions';
 import {fade} from '@remotion/transitions/fade';
@@ -31,6 +31,8 @@ import {SceneCamera, bedPan, type CameraMove} from './runtime/depth';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
+import {STAGES} from './stage';
+import {StageRunContext, type StageBeat} from './runtime/stageRun';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
 import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
@@ -76,7 +78,10 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   cues?: Record<string, number>;
   // THE HELD OBJECT'S IDLE CLOCK (runtime/objectSlot): on unless the storyboard sets `"object_idle": false` on
   // this beat — for a beat where a held object's own cycle would say something the narration does not.
-  objectIdle?: boolean};
+  objectIdle?: boolean;
+  // A CONTINUOUS STAGE RUN (runtime/stageRun.tsx): consecutive beats naming the same run are ONE Sequence with no seam
+  // between them, drawn by ONE stage component (remotion/src/stage/) that carries its actors from beat to beat.
+  stage?: {run: string}};
 
 // warpFrame lives in runtime/cue (a register's per-element cues convert through the same map); re-exported here.
 export {warpFrame};
@@ -113,8 +118,27 @@ const BeatClock: React.FC<{warp?: [number, number][]; children: React.ReactNode}
 const TR = SEAM_FRAMES; // cross-dissolve length (frames) — rides the ~0.42s narration breath so speech barely
 // overlaps. Shared with runtime/motion's useT, which holds each shot STILL for exactly these frames at both
 // edges so a dissolve never runs over a moving shot.
-export const filmDuration = (scenes: SceneSpec[]) =>
-  Math.max(1, scenes.reduce((a, s) => a + Math.max(1, Math.round(s.durF)), 0) - Math.max(0, scenes.length - 1) * TR);
+/** The stage run a scene is on, or null. */
+export const runOf = (sc?: SceneSpec): string | null =>
+  sc && sc.stage && typeof sc.stage.run === 'string' && sc.stage.run.trim() ? sc.stage.run : null;
+/** Scene i continues the stage run of scene i-1: the boundary between them is NOT a cut, so there is no seam. */
+export const joinedAt = (scenes: SceneSpec[], i: number) =>
+  i > 0 && runOf(scenes[i]) !== null && runOf(scenes[i]) === runOf(scenes[i - 1]);
+/** ONE definition of where each beat starts on the film's timeline: the next beat mounts TR frames before this one
+ *  ends at a cut (the seam overlaps them), and on the frame after it ends inside a stage run. scripts/stage_runs.py
+ *  and scripts/remotion_segments.py mirror it, and a test holds them to it. */
+export const sceneStarts = (scenes: SceneSpec[]) => {
+  let acc = 0;
+  return scenes.map((sc, i) => {
+    const s = acc;
+    acc += Math.max(1, Math.round(sc.durF)) - (i + 1 < scenes.length && !joinedAt(scenes, i + 1) ? TR : 0);
+    return s;
+  });
+};
+export const filmDuration = (scenes: SceneSpec[]) => {
+  const cuts = scenes.reduce((n, _s, i) => n + (i > 0 && !joinedAt(scenes, i) ? 1 : 0), 0);
+  return Math.max(1, scenes.reduce((a, s) => a + Math.max(1, Math.round(s.durF)), 0) - cuts * TR);
+};
 
 // The WorkBuddy film as DATA (the default) — 14 beats, families varied per LIBRARY.md; ChartLive shows the
 // FAITHFUL sourced 68× Hy3 surge (never the shot's demo number).
@@ -246,8 +270,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // phone-sized window. The gap is paid for out of the reserved BAND now instead of out of the type.
   const capSize = Math.round(Math.min(width, height) * CAPTION_SIZE_FRAC);
   const capMargin = Math.round(Math.min(width, height) * CAPTION_MARGIN_FRAC);
-  let acc = 0;
-  const starts = scenes.map((sc) => { const s = acc; acc += Math.max(1, Math.round(sc.durF)) - TR; return s; });
+  const starts = sceneStarts(scenes);
   let active = -1, ws = 0, we = 0;
   for (let i = 0; i < scenes.length; i++) {
     const dur = Math.max(1, Math.round(scenes[i].durF));
@@ -258,8 +281,9 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
     // dissolve's midpoint keeps the windows DISJOINT (the original reason for the guard: two captions must
     // never coexist) while making them GAPLESS — caption i ends on exactly the frame caption i+1 begins.
     const half = Math.floor(TR / 2);
-    const a = starts[i] + (i > 0 ? half : 14);
-    const b = starts[i] + dur - (i < scenes.length - 1 ? TR - half : 16);
+    // inside a stage run there is no dissolve: a caption ends on the frame before the next beat starts
+    const a = starts[i] + (i > 0 ? (joinedAt(scenes, i) ? 0 : half) : 14);
+    const b = starts[i] + dur - (i < scenes.length - 1 ? (joinedAt(scenes, i + 1) ? 1 : TR - half) : 16);
     if (frame >= a && frame <= b) { active = i; ws = a; we = b; break; }
   }
   const sc = active >= 0 ? scenes[active] : undefined;
@@ -964,6 +988,15 @@ const BrandMark: React.FC<{brand?: any}> = ({brand}) => {
   );
 };
 
+/** Marks a stage run's frame with the beat on screen (`data-beat`), as each single beat's wrapper does, so the sync
+ *  audit can still attribute what it reads to a beat. */
+const StageBeatMark: React.FC<{first: number; beats: StageBeat[]; children: React.ReactNode}> = ({first, beats, children}) => {
+  const frame = useCurrentFrame();
+  let k = beats.findIndex((b) => frame < b.start + b.durF);
+  if (k < 0) k = beats.length - 1;
+  return <AbsoluteFill data-beat={String(first + k)} data-stage-run="1">{children}</AbsoluteFill>;
+};
+
 export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
   typeGlide?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
@@ -1029,6 +1062,89 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   const rootBg = theme?.bg ?? firstBg ?? bg;
   const veilBg = outro > intro ? (theme?.bg ?? lastBg ?? bg) : rootBg;
 
+  const beatSeq = (sc: SceneSpec, i: number) => {
+    const C = REGISTRY[sc.shot];
+    const durF = Math.max(1, Math.round(sc.durF));
+    const seq = (
+      <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
+        <SceneDurationContext.Provider value={durF}>
+          {/* THE BEAT'S OWN VOICE, offered to whatever wants to draw it. `<Audio>` below plays this same
+              file; providing the path here is what lets an audio-reactive register analyse exactly what
+              the viewer is hearing, with no prop the shot-director has to know about. A beat with no
+              narration provides null and those registers fall back to their synthetic voice, which is
+              also what a standalone still gets — see runtime/voice.tsx. */}
+          <NarrationContext.Provider value={sc.mp3 ?? null}>
+          {/* THE GROUND IS RESOLVED HERE, PER BEAT. This provider is the whole mechanism: the design
+              DNA used to be provided once OUTSIDE the TransitionSeries, so `bg` was a film-wide
+              constant and no beat could change the light. Providing it inside the Sequence — with
+              this beat's ground over the film's system — re-grounds every register that reads those
+              tokens, measured at 148 of 149, with no per-register edit. The outer provider is kept
+              for the film-level furniture that sits outside every Sequence (caption HUD, motif,
+              brand); this one shadows it for the beat. A beat that declares no ground provides the
+              film DNA object itself, so this is a no-op and the frame is bit-for-bit unchanged. */}
+          <BeatGround dna={activeDna} scene={sc} durF={durF} shot={sc.shot}>
+            {/* the camera BED: a beat nobody authored a camera for drifts gently instead of sitting
+                dead — see bedPan's header for the measurements and the guarantees. An authored camera
+                (even 'hold') wins outright; un-themed films and drifting films get none. */}
+            <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
+              pan={sc.camera?.pan ?? bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)?.pan}
+              bed={!sc.camera && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
+                         driftExtra={driftExtraFor(ambient, width, height, unlockAllowed)}
+                         driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
+              {/* `data-beat` marks THIS beat's register for the sync audit (scripts/sync_qa.py reads it from the
+                  type census): the caption, the chrome and the other beat of a seam carry none of it. */}
+              <AbsoluteFill data-beat={String(i)}>
+                <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
+                  <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
+                    <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                  </ObjectIdleContext.Provider>
+                </CueContext.Provider>
+              </AbsoluteFill>
+            </SceneCamera>
+            <BeatChrome chrome={sc.chrome} W={width} H={height} />
+          </BeatGround>
+          </NarrationContext.Provider>
+        </SceneDurationContext.Provider>
+        {sc.mp3 ? <Audio src={staticFile(sc.mp3)} /> : null}
+      </TransitionSeries.Sequence>
+    );
+    return seq;
+  };
+  // A STAGE RUN: one Sequence over all its beats (no seam inside), one stage component drawing them, each beat's voice
+  // placed at the beat's own start. The run takes its ground from its first beat (scripts/stage_runs.py refuses a
+  // ground declared later in the run) and moves its own camera, so no per-beat camera wraps it.
+  const runSeq = (first: number, last: number) => {
+    const runScenes = scenes.slice(first, last + 1);
+    const durs = runScenes.map((x) => Math.max(1, Math.round(x.durF)));
+    const offs: number[] = [];
+    durs.reduce((acc, d) => { offs.push(acc); return acc + d; }, 0);
+    const runDur = durs.reduce((a, d) => a + d, 0);
+    const head = runScenes[0];
+    const S = STAGES[head.shot];
+    const beats: StageBeat[] = runScenes.map((x, k) => ({index: first + k, start: offs[k], durF: durs[k],
+      props: (x.props ?? {}) as Record<string, unknown>, cues: x.cues, caption: x.caption}));
+    return (
+      <TransitionSeries.Sequence key={`r${first}`} durationInFrames={runDur}>
+        <SceneDurationContext.Provider value={runDur}>
+          <BeatGround dna={activeDna} scene={head} durF={runDur} shot={head.shot}>
+            <StageBeatMark first={first} beats={beats}>
+              <StageRunContext.Provider value={{run: runOf(head) ?? '', beats, runDur}}>
+                {S ? <S {...(head.props ?? {})} /> : <Missing id={head.shot} />}
+              </StageRunContext.Provider>
+            </StageBeatMark>
+          </BeatGround>
+        </SceneDurationContext.Provider>
+        {runScenes.map((x, k) => (x.mp3 ? (
+          <Sequence key={`a${k}`} from={offs[k]} durationInFrames={durs[k]}><Audio src={staticFile(x.mp3)} /></Sequence>
+        ) : null))}
+      </TransitionSeries.Sequence>
+    );
+  };
+  const units: {first: number; last: number; run: boolean}[] = [];
+  scenes.forEach((sc, i) => {
+    if (joinedAt(scenes, i)) units[units.length - 1].last = i;
+    else units.push({first: i, last: i, run: runOf(sc) !== null});
+  });
   return (
     <AbsoluteFill style={{backgroundColor: rootBg}}>
       {/* Opt-in DOM audit — inert without the prop. Mounted on the FILM as well as on each shot preview so
@@ -1064,57 +1180,15 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
       {activeDna?.uniformType ? <style>{`.dna-film, .dna-film * { font-family: ${activeDna.fontMono} !important; }`}</style> : null}
       <AbsoluteFill className="dna-film" style={cam === 'none' ? undefined : {transform: cam}}>
       <TransitionSeries>
-        {scenes.flatMap((sc, i) => {
-          const C = REGISTRY[sc.shot];
-          const durF = Math.max(1, Math.round(sc.durF));
-          const seq = (
-            <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
-              <SceneDurationContext.Provider value={durF}>
-                {/* THE BEAT'S OWN VOICE, offered to whatever wants to draw it. `<Audio>` below plays this same
-                    file; providing the path here is what lets an audio-reactive register analyse exactly what
-                    the viewer is hearing, with no prop the shot-director has to know about. A beat with no
-                    narration provides null and those registers fall back to their synthetic voice, which is
-                    also what a standalone still gets — see runtime/voice.tsx. */}
-                <NarrationContext.Provider value={sc.mp3 ?? null}>
-                {/* THE GROUND IS RESOLVED HERE, PER BEAT. This provider is the whole mechanism: the design
-                    DNA used to be provided once OUTSIDE the TransitionSeries, so `bg` was a film-wide
-                    constant and no beat could change the light. Providing it inside the Sequence — with
-                    this beat's ground over the film's system — re-grounds every register that reads those
-                    tokens, measured at 148 of 149, with no per-register edit. The outer provider is kept
-                    for the film-level furniture that sits outside every Sequence (caption HUD, motif,
-                    brand); this one shadows it for the beat. A beat that declares no ground provides the
-                    film DNA object itself, so this is a no-op and the frame is bit-for-bit unchanged. */}
-                <BeatGround dna={activeDna} scene={sc} durF={durF} shot={sc.shot}>
-                  {/* the camera BED: a beat nobody authored a camera for drifts gently instead of sitting
-                      dead — see bedPan's header for the measurements and the guarantees. An authored camera
-                      (even 'hold') wins outright; un-themed films and drifting films get none. */}
-                  <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
-                    pan={sc.camera?.pan ?? bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)?.pan}
-                    bed={!sc.camera && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
-                               driftExtra={driftExtraFor(ambient, width, height, unlockAllowed)}
-                               driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
-                    {/* `data-beat` marks THIS beat's register for the sync audit (scripts/sync_qa.py reads it from the
-                        type census): the caption, the chrome and the other beat of a seam carry none of it. */}
-                    <AbsoluteFill data-beat={String(i)}>
-                      <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
-                        <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
-                          <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
-                        </ObjectIdleContext.Provider>
-                      </CueContext.Provider>
-                    </AbsoluteFill>
-                  </SceneCamera>
-                  <BeatChrome chrome={sc.chrome} W={width} H={height} />
-                </BeatGround>
-                </NarrationContext.Provider>
-              </SceneDurationContext.Provider>
-              {sc.mp3 ? <Audio src={staticFile(sc.mp3)} /> : null}
-            </TransitionSeries.Sequence>
-          );
-          if (i === scenes.length - 1) return [seq];
+        {units.flatMap((u, ui) => {
+          // ONE UNIT is a single beat — rendered exactly as before stage runs existed — or a whole stage run
+          const seq = u.run ? runSeq(u.first, u.last) : beatSeq(scenes[u.first], u.first);
+          if (ui === units.length - 1) return [seq];
+          const sc = scenes[u.last], next = scenes[units[ui + 1].first];
           return [seq, (
-            <TransitionSeries.Transition key={`t${i}`}
-              presentation={pickPresentation(sc, scenes[i + 1], width, height, activeDna,
-                edgeGround(sc, 'out') ?? activeDna, edgeGround(scenes[i + 1], 'in') ?? activeDna,
+            <TransitionSeries.Transition key={`t${u.last}`}
+              presentation={pickPresentation(sc, next, width, height, activeDna,
+                edgeGround(sc, 'out') ?? activeDna, edgeGround(next, 'in') ?? activeDna,
                 reducedMotion)}
               timing={linearTiming({durationInFrames: TR})} />
           )];

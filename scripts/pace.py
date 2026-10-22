@@ -125,7 +125,9 @@ def film(board):
         rows.append({"index": s.get("index", i + 1), "predicted": beat_seconds(text, lang, speed, first=(i == 0)),
                      "measured": float(d) if isinstance(d, (int, float)) and d > 0 else None,
                      "chars": features(text)["cjk"] or features(text)["latin_word"]})
-    seams = _seam_seconds(meta, tier) * max(0, len(rows) - 1)
+    import stage_runs as _sr                    # a beat continuing a stage run has no seam before it
+    cuts = max(0, len(rows) - 1) - sum(_sr.joined_flags(slides)[1:]) if len(rows) == len(slides) else max(0, len(rows) - 1)
+    seams = _seam_seconds(meta, tier) * cuts
     total = sum(r["measured"] if r["measured"] is not None else r["predicted"] for r in rows) - seams
     measured = all(r["measured"] is not None for r in rows) and bool(rows)
     tgt = meta.get("target_seconds")

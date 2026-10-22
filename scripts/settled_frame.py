@@ -66,12 +66,14 @@ def beat_window(out_dir, beat):
     import render_remotion as rr                                   # for the seam length, so the two cannot drift
     fps = float((board.get("meta") or {}).get("fps") or 30)
     seam = rr._REMOTION2_TR / fps
+    import stage_runs as _sr
+    joined = _sr.joined_flags(slides)                              # no seam inside a stage run
     t = 0.0
     for i, s in enumerate(slides):
         d = float(s.get("duration") or 0)
         if i + 1 == beat:
             return t, t + d
-        t += d - seam
+        t += d - (seam if i + 1 < len(slides) and not joined[i + 1] else 0)
     raise SystemExit("[settled_frame] unreachable")
 
 

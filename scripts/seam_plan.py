@@ -453,6 +453,11 @@ def _plan_film(argv, out_dir, dry, path, board):
               % (len(already), ", ".join(str(i + 1) for i in already)))
 
     marks = plan(slides, board.get("meta", {}).get("design_dna"))
+    # A BEAT THAT CONTINUES A STAGE RUN has no cut before it (scripts/stage_runs.py): nothing to mark there
+    import stage_runs as _sr
+    for i in [i for i in marks if i > 0 and _sr.joined(slides[i - 1], slides[i])]:
+        print("  beat %-3d skip (continues stage run %r — no cut)" % (i + 1, _sr.run_id(slides[i])))
+        del marks[i]
     if not marks:
         print("[seam_plan] no beat declares new-topic / payoff / close — every seam stays the default cut. "
               "That is a legitimate film (one unbroken argument), but check the `relation` field is set.")
@@ -469,6 +474,8 @@ def _plan_film(argv, out_dir, dry, path, board):
             s["transition_in"] = {"type": m["type"]}
 
     cams = {} if "--no-camera" in argv else plan_camera(slides)
+    for i in [i for i in cams if _sr.run_id(slides[i])]:
+        del cams[i]                                    # a stage moves its own camera
     for i, c in sorted(cams.items()):
         sl = slides[i]
         if sl.get("camera"):

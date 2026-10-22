@@ -434,10 +434,12 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
     beat's seam, which is the next segment. A whole render (segments=None) re-extracts everything and drops
     the record, because its frames are not the segments' bits."""
     tr = _REMOTION2_TR
-    starts, acc = [], 0                                # output-timeline start of each scene (each cut removes tr frames)
+    import stage_runs as _sr
+    joined = _sr.joined_flags(scenes)                  # inside a stage run there is no seam (Film.tsx sceneStarts)
+    starts, acc = [], 0                                # output-timeline start of each scene (each CUT removes tr frames)
     for i, sc in enumerate(scenes):
-        starts.append((acc - i * tr) / fps)
-        acc += sc["durF"]
+        starts.append(acc / fps)
+        acc += sc["durF"] - (tr if i + 1 < len(scenes) and not joined[i + 1] else 0)
     # SRT must MIRROR THE BURN, not summarise it. It used to emit one scene-long cue carrying the whole
     # narration while Film.tsx burns one chunk PER SENTENCE, each timed by its share of the characters — so
     # the sidecar shipped cues up to 3x too long and mistimed against what a viewer actually saw. Reproduce
@@ -451,8 +453,8 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
         chunks = _split_caption(cap)
         if not chunks:
             continue
-        a = (starts[i] * fps) + (half if i > 0 else 14)         # window in FRAMES on the output timeline
-        b = (starts[i] * fps) + sc["durF"] - ((tr - half) if i + 1 < len(scenes) else 16)
+        a = (starts[i] * fps) + ((0 if joined[i] else half) if i > 0 else 14)   # window in FRAMES on the output timeline
+        b = (starts[i] * fps) + sc["durF"] - (((1 if joined[i + 1] else tr - half)) if i + 1 < len(scenes) else 16)
         span = max(1.0, b - a)
         lens = [max(1, len(c)) for c in chunks]
         tot = float(sum(lens))
@@ -621,7 +623,15 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         for _f in ("ground", "key"):
             if s.get(_f) is not None:
                 scene[_f] = s[_f]
+        # A CONTINUOUS STAGE RUN (scripts/stage_runs.py): consecutive beats naming one run render as one scene
+        import stage_runs as _sr
+        if _sr.run_id(s):
+            scene["stage"] = {"run": _sr.run_id(s)}
         scenes.append(scene)
+    import stage_runs as _sr
+    probs = _sr.check(slides)
+    if probs:
+        raise RuntimeError("the board's stage runs cannot render: " + "; ".join(probs))
     return scenes
 
 
@@ -635,7 +645,8 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     import workshop as _ws
     # A FILM'S OWN SHOTS ARE SHOTS. The library's ids are the component files in remotion/src/shots; a film's
     # workshop (scripts/workshop.py) adds its own, which exist only in a render scoped to this film.
-    valid = set(_remotion_shot_ids()) | _ws.shot_names(out_dir)
+    import stage_runs as _sr
+    valid = set(_remotion_shot_ids()) | _ws.shot_names(out_dir) | set(_sr.stage_names())
     slides = data.get("slides", [])
     if sample is not None:
         slides = [s for s in slides if s.get("index") == sample]
@@ -767,8 +778,12 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
                 import sfx
                 tr = _REMOTION2_TR                      # feed durationInFrames = durF-TR so cue times land on the
                 # carry transitionIn per scene so the SFX marks the SAME seams the eye does (fades stay quiet)
-                sfx_scenes = [{"durationInFrames": max(1, sc["durF"] - tr), "transitionIn": sc.get("transitionIn")}
-                              for sc in scenes]         # overlap-compressed timeline
+                import stage_runs as _sr
+                _jn = _sr.joined_flags(scenes)          # no seam inside a stage run
+                sfx_scenes = [{"durationInFrames": max(1, sc["durF"] - (0 if k + 1 < len(scenes) and _jn[k + 1]
+                                                                         else tr)),
+                               "transitionIn": sc.get("transitionIn")}
+                              for k, sc in enumerate(scenes)]   # overlap-compressed timeline
                 if sfx_scenes:                          # the closing sentence lands on the last beat's arrival
                     sfx_scenes[-1]["shots"] = [{"startFrame": 0}]
                 sfx.mix(out_dir, out_mp4, sfx_scenes, meta, fps)   # whooshes + riser/impact/sparkle + meta.bgm

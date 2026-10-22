@@ -753,7 +753,7 @@ def _apply_holds(out_dir, data, only=None):
     return tuple(added)
 
 
-def _master(path, meta=None, ref=None, lead=0.0):
+def _master(path, meta=None, ref=None, lead=0.0, joined_next=False):
     """Loudness-normalise + trim TRAILING dead-air of a SPEECH clip, in place. Two problems at once:
     (1) raw TTS ships at wildly different loudness across providers/scenes with no master, so a
     carefully-placed climax has no consistent sonic level; (2) the trailing tail (esp. say/openai/
@@ -771,6 +771,10 @@ def _master(path, meta=None, ref=None, lead=0.0):
         return
     tmp = path + ".master" + os.path.splitext(path)[1]
     breath = _tail_pad(meta, ref=ref, lead=lead)
+    if joined_next:
+        # the next beat continues this one's stage run (scripts/stage_runs.py): no seam overlaps them, so the pad does
+        # not have to cover one — left in, every pause inside a run would be a seam's length too long
+        breath = round(max(0.15, breath - _seam_seconds(meta)), 3)
     # THE TAIL IS A DECAY, NOT A CLIFF — and the trim threshold is what decides whether one survives.
     #
     # -45dB removed the whole natural decay and apad spliced absolute silence onto the cut: a clip went
@@ -994,8 +998,13 @@ def synthesize(out_dir, only=None):
                                 if s.get("audio") and os.path.exists(os.path.join(out_dir, s["audio"]))])
     lead = _film_lead_silence([os.path.join(out_dir, s["audio"]) for s in data["slides"]
                                if s.get("audio") and os.path.exists(os.path.join(out_dir, s["audio"]))])
+    import stage_runs as _sr
+    order = data["slides"]
+    pos = {id(x): k for k, x in enumerate(order)}
     for s, dest in pending:
-        _master(dest, data["meta"], ref=ref, lead=lead)
+        k = pos.get(id(s), -1)
+        nxt = order[k + 1] if 0 <= k < len(order) - 1 else None
+        _master(dest, data["meta"], ref=ref, lead=lead, joined_next=_sr.joined(s, nxt))
         s["duration"] = round(_common.audio_duration(dest), 3)
     held = _apply_holds(out_dir, data, only) if pending else (0.0, 0.0)
     if any(held):

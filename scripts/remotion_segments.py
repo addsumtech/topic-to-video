@@ -22,6 +22,8 @@ tests/test_remotion_segments.py so a new cross-scene read fails a test instead o
   * scene k, all of it, and its INDEX — the camera bed's direction alternates by index (bedPan);
   * scene k-1, all of it — its tail plays under the seam into k, and pickPresentation reads both beats;
   * whether k is the LAST scene — the outro veil and the caption's closing window;
+  * on a STAGE RUN (scripts/stage_runs.py), every beat of the run and the files they name — one stage
+    component draws the run, each frame a move between two beats' states, its face from the run's first beat;
   * the ABSOLUTE frames [a, b] — the Atmosphere's glow and the whole-film drift read the absolute frame;
   * every prop that is not `scenes` — DNA, theme, captions, brand, aspect, reduced motion, camera;
   * the CONTENT of every file any of those names — a re-synthesised mp3 at the same path is a new beat;
@@ -100,11 +102,15 @@ def timeline(scenes, tr):
     if not scenes:
         raise ModelMismatch("a film with no scenes has no timeline")
     durs = [max(1, js_round(s.get("durF", 0))) for s in scenes]
+    # a beat that CONTINUES a stage run (scripts/stage_runs.py) has no seam before it: it starts on the frame the run's
+    # previous beat ends, where a beat after a cut mounts `tr` frames early — Film.tsx `sceneStarts`, exactly
+    import stage_runs as _sr
+    joined = _sr.joined_flags(scenes)
     starts, acc = [], 0
-    for d in durs:
+    for k, d in enumerate(durs):
         starts.append(acc)
-        acc += d - tr
-    total = max(1, sum(durs) - max(0, len(durs) - 1) * tr)
+        acc += d - (tr if k + 1 < len(durs) and not joined[k + 1] else 0)
+    total = max(1, sum(durs) - sum(1 for k in range(1, len(durs)) if not joined[k]) * tr)
     out = []
     for k in range(len(scenes)):
         a = starts[k]
@@ -282,13 +288,25 @@ def plan(props, public_dir, flags, tr=None, code=None):
         root["durF"] = s0.get("durF")
     g = _sha(_canon({"v": CACHE_VERSION, "film": film, "files": referenced_files(film, public_dir), "root": root,
                      "code": code, "flags": flags, "tr": tr, "fps": FPS, "sr": SAMPLE_RATE}))
+    # A STAGE RUN's frames depend on every beat of the run (a frame is a move from one beat's state to the next), so
+    # each of its segments keys on the whole run, not on itself and the beat before
+    import stage_runs as _sr
+    run_of = {}
+    for first, last, _r in _sr.runs(scenes):
+        for k in range(first, last + 1):
+            run_of[k] = scenes[first:last + 1]
     segs = []
     for k, (a, b) in enumerate(ranges):
         prev = scenes[k - 1] if k else None
+        # the files too: a run draws its FIRST beat's face (CardStage's `image`) in every one of its beats, so a
+        # re-made card.png at the same path must re-render the run's last beat, whose prev never names it
+        around = [prev, scenes[k]] + list(run_of.get(k, []))
         body = {"g": g, "k": k, "a": a, "b": b, "last": k == len(scenes) - 1, "prev": prev, "cur": scenes[k],
-                "files": referenced_files([prev, scenes[k]], public_dir)}
+                "files": referenced_files(around, public_dir)}
+        if k in run_of:
+            body["run"] = run_of[k]
         if per_beat:
-            body["ws"] = beat_code_hash(public_dir, [prev, scenes[k]])
+            body["ws"] = beat_code_hash(public_dir, around)
         segs.append({"k": k, "a": a, "b": b, "key": _sha(_canon(body))})
     return segs, total
 

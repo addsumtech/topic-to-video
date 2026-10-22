@@ -178,11 +178,13 @@ def beat_spans(board, n, fps):
     import render_remotion as _rr
     slides = board.get("slides") or []
     seam = _rr._REMOTION2_TR / float((board.get("meta") or {}).get("fps") or 30)
+    import stage_runs as _sr
+    joined = _sr.joined_flags(slides)                 # no seam inside a stage run (Film.tsx sceneStarts)
     out, t = [], 0.0
     for i, sl in enumerate(slides):
         a = t
         b = a + float(sl.get("duration") or 0)
-        t = b - (seam if i + 1 < len(slides) else 0)
+        t = b - (seam if i + 1 < len(slides) and not joined[i + 1] else 0)
         f0, f1 = int(a * fps) + 1, min(n, int(b * fps) - 1)
         if f1 > f0:
             out.append((i + 1, sl.get("shot"), f0, f1))

@@ -830,8 +830,13 @@ def plan_warps(out_dir, data, props, slides):
     side = _load_sidecar(out_dir)
     code = None
     out = []
+    import stage_runs as _sr
     for k, (sc, sl) in enumerate(zip(props["scenes"], slides)):
         setting = _sync_setting(meta, sl)
+        if _sr.run_id(sl):
+            # a stage run keeps its own clock across its beats (runtime/stageRun); a per-beat warp has nothing to warp
+            out.append(("exempt", None, "on stage run %r — the stage times its own beats" % _sr.run_id(sl)))
+            continue
         if setting == "off":
             out.append(("off", None, "sync: off on the board"))
             continue

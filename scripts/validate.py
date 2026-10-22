@@ -2512,6 +2512,11 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
     # A FILM'S OWN SHOTS are valid ids for THIS film (scripts/workshop.py); _check_build judges them.
     _film_shots = _wsv.shot_names(out_dir)
     valid |= _film_shots
+    # A CONTINUOUS STAGE (remotion/src/stage/) draws a whole run of beats; its runs are checked here, before a render
+    import stage_runs as _sr
+    valid |= set(_sr.stage_names())
+    for _stage_prob in _sr.check(slides):
+        errors.append("stage run: " + _stage_prob)
     try:                          # which shots READ the Design DNA (self-updating grep of the source) — the rest
         import dna_audit as _da   # wear a hardcoded palette and won't unify on a THEMED film (lint below)
         _dna_aware = _da.dna_aware_shots()

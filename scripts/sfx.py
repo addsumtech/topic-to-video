@@ -452,8 +452,12 @@ if __name__ == "__main__":                          # CLI: preview the cue plan 
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
     fps = int((data.get("meta") or {}).get("fps", 30))
     _TR = 12   # remotion cross-dissolve overlap (frames); the -TR keeps whooshes on the real transitions
-    scenes = [{"durationInFrames": max(1, int(round(float(s.get("duration") or 0) * fps)) - _TR)}
-              for s in data.get("slides", [])]
+    import stage_runs as _sr                   # no seam inside a stage run, so no overlap to remove there
+    _sl = data.get("slides", [])
+    _jn = _sr.joined_flags(_sl)
+    scenes = [{"durationInFrames": max(1, int(round(float(s.get("duration") or 0) * fps))
+                                   - (0 if k + 1 < len(_sl) and _jn[k + 1] else _TR))}
+              for k, s in enumerate(_sl)]
     if scenes:
         scenes[-1]["shots"] = [{"startFrame": 0}]   # the closing sentence lands on the last beat's arrival
     cs = plan_cues(scenes, fps)

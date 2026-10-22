@@ -140,19 +140,27 @@ def test_the_code_hash_reaches_the_fonts_outside_src():
 # scenes[i + 2], a film-wide pass that feeds pixels) must be decided — does the key need it? — and then
 # added here. A removal is harmless but still has to be acknowledged.
 _KNOWN_READS = Counter({
-    "scenes.reduce": 1,            # filmDuration -> the outro, last segment only (its frames are in the key)
-    "scenes.length": 4,            # filmDuration, the caption loop's bound and closing window, the last-beat check
-    "scenes.map": 1,               # caption starts: relative offsets, translation-invariant
-    "scenes[i]": 1,                # caption window of the active beat (k-1 or k)
+    "scenes.reduce": 2,            # filmDuration (cuts, then frames) -> the outro, last segment only (its frames
+                                   # are in the key)
+    "scenes.length": 3,            # sceneStarts' bound, the caption loop's bound and closing window
+    "scenes.map": 1,               # sceneStarts: relative offsets, translation-invariant
+    "scenes[i]": 3,                # joinedAt (twice): beat i's own run; the caption loop: the active beat's length
+    "scenes[i-1]": 1,              # joinedAt: the run of the beat before -> `prev`, and the whole run when joined
     "scenes[active]": 1,
     "(scenes||[]).some": 1,        # refuses drift+pan: throws, draws nothing
-    "scenes.forEach": 2,           # refuses bgLum/ground disagreement, and a non-monotone `warp`: throws, draws
-                                   # nothing (each beat's warp is in its own key; a bad one fails every render)
+    "scenes.forEach": 3,           # refuses bgLum/ground disagreement, and a non-monotone `warp`: throws, draws
+                                   # nothing (each beat's warp is in its own key; a bad one fails every render);
+                                   # groups beats into units — a unit is one beat or one stage run (`run` in the key)
     "scenes[0]": 1,                # the root fill -> the film-wide key's `root`
     "scenes[scenes.length-1]": 1,  # the outro veil -> the last segment's own scene
-    "scenes.flatMap": 1,           # one Sequence per beat
-    "scenes[i+1]": 2,              # the seam into the NEXT beat -> that segment's `prev`
+    "scenes.slice": 1,             # a stage run's beats, all drawn by one component -> every run segment's `run`
+    "scenes[u.first]": 1,          # one Sequence per lone beat
+    "scenes[u.last]": 1,           # the seam out of a unit -> the next segment's `prev`
+    "scenes[units[ui+1].first]": 1,  # the seam into the NEXT unit -> that segment's `prev`
 })
+# joinedAt(scenes, i + 1) — the caption window and sceneStarts look one beat AHEAD at its run. That is true only
+# when both beats are on the same run, and then both segments key on the whole run (`run`), so the look-ahead
+# is covered; a beat on no run is never joined to the next, whatever the next says.
 
 
 def _reads(src):
@@ -176,7 +184,7 @@ def test_the_key_knows_every_place_the_film_reads_the_scene_list():
 def test_the_pin_catches_a_look_ahead():
     """The pin itself, mutated: a register-feeding read of the beat after next must be noticed."""
     src = open(os.path.join(_REM, "src", "Film.tsx"), encoding="utf-8").read()
-    mutated = src.replace("pickPresentation(sc, scenes[i + 1]", "pickPresentation(sc, scenes[i + 2]", 1)
+    mutated = src.replace("next = scenes[units[ui + 1].first]", "next = scenes[units[ui + 1].first + 1]", 1)
     assert mutated != src and _reads(mutated) != _KNOWN_READS
 
 
