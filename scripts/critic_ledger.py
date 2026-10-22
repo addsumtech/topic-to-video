@@ -245,7 +245,9 @@ DELIVERY_GATES = {
         ("rhythm", "rhythm_qa.py", (), 240, True, None),
         ("teaching order", "pedagogy_qa.py", (), 240, True, None),
         ("frame-safe (ADVISORY — border ink; known inverted, see above)", "frame_safe_qa.py", (), 240, False, None),
-        ("proof sheet", "shot_proof.py", (), 240, True, None),
+        # 600 s like text_safe_qa: a cold proof of a 25-beat film is two renders a beat (3-11 min measured on a busy
+        # machine), and a timeout says nothing about the film. A warm run reuses every unchanged beat (49 s).
+        ("proof sheet", "shot_proof.py", (), 600, True, None),
         ("voice (ADVISORY — always exits 0)", "voice_qa.py", (), 240, False, None),
     ],
     # keyframe_qa is first because critic_brief.main() runs it BEFORE the sheet is built — the filmstrips the sheet is

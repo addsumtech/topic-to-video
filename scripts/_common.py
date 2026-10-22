@@ -347,3 +347,48 @@ def substance(text):
     """How much a justification says: words (any script) + CJK characters / 2."""
     t = str(text or "")
     return sum(1 + (len(w) // 6 if len(w) >= 12 else 0) for w in words(t)) + len(_CJK_CHARS.findall(t)) / 2.0
+
+
+# ── ONE RENDER AT A TIME, MACHINE-WIDE ────────────────────────────────────────────────────────────────────────────
+# Renders that overlap starve each other: four concurrent cjk shards reported registers as render failures that
+# render fine alone, and a delivery run that overlapped another render timed two gates out. A PARALLEL design pass
+# (several builders at once) is only safe because their renders take turns. Every `npx remotion` call a builder or the
+# lead's design gates make holds this lock for the length of ONE render, so builders interleave while they think and
+# write in parallel. It is an OS lock on a file: a process that dies releases it, and the same process may re-enter it.
+RENDER_LOCK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", ".render.lock")
+_LOCK_DEPTH = [0, None]
+
+
+class render_lock:
+    """`with render_lock(): subprocess.run([...remotion...])` — waits for any other render on this machine to finish.
+    Off with TOPIC_VIDEO_RENDER_LOCK=0 (a sweep that manages its own concurrency)."""
+
+    def __enter__(self):
+        if os.environ.get("TOPIC_VIDEO_RENDER_LOCK") == "0":
+            return self
+        if _LOCK_DEPTH[0] == 0:
+            import fcntl
+            fh = open(RENDER_LOCK, "a+")
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+            _LOCK_DEPTH[1] = fh
+        _LOCK_DEPTH[0] += 1
+        return self
+
+    def __exit__(self, *exc):
+        if os.environ.get("TOPIC_VIDEO_RENDER_LOCK") == "0" or _LOCK_DEPTH[0] == 0:
+            return False
+        _LOCK_DEPTH[0] -= 1
+        if _LOCK_DEPTH[0] == 0 and _LOCK_DEPTH[1] is not None:
+            import fcntl
+            try:
+                fcntl.flock(_LOCK_DEPTH[1].fileno(), fcntl.LOCK_UN)
+            finally:
+                _LOCK_DEPTH[1].close()
+                _LOCK_DEPTH[1] = None
+        return False
+
+
+def run_render(cmd, **kw):
+    """`subprocess.run` for one `npx remotion …` render, under the machine-wide render lock."""
+    with render_lock():
+        return subprocess.run(cmd, **kw)

@@ -24,10 +24,12 @@ instead of re-finding the mechanical ones, and so a FIRST draft arrives with the
 It is a floor, not a verdict: passing here says nothing about whether the film is any good.
 """
 import json
+import shutil
 import os
 import re
 from onscreen_text_qa import _strip_comments   # the ONE comment stripper
 import subprocess
+import _common as _c   # run_render: one render at a time, machine-wide
 
 import render_remotion as _rr   # the renderer's own reading of a beat: its props, and the frame useT calls settled
 import sys
@@ -103,7 +105,7 @@ def _unfed_text(shot, payload, frame, proof, beat, out_dir, scope, declared):
     with open(pj, "w", encoding="utf-8") as fh:
         json.dump(dict(payload, unfedText=fed, unfedScope=scope), fh, ensure_ascii=False)
     png = os.path.join(proof, "beat_%02d.unfed.png" % beat)
-    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame, "--gl=angle",
+    r = _c.run_render(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame, "--gl=angle",
                         "--props=" + pj, "--log=error", "--public-dir=" + os.path.abspath(out_dir)],
                        cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
     for f in (pj, png):
@@ -343,6 +345,44 @@ def _stderr_reason(stderr, limit=220):
     pick = [pick[0]] if len(pick) == 1 else [pick[0], pick[-1]]
     out = " / ".join(pick)
     return out[:limit] + ("…" if len(out) > limit else "")
+
+
+# A BEAT NOTHING TOUCHED IS NOT RENDERED AGAIN. The design pass on a 25-beat film ran this script eight times
+# (18.6 min of its 58 tool minutes), each time re-rendering every beat although one shot had changed. A render is
+# keyed on everything its picture is made of (scripts/beat_key.py: the shot's import closure, the runtime, every
+# asset, the props, the DNA, the aspect, the frame, THIS script's own bytes) and a hit reuses that render's PNG and
+# the words-from-props answer. Only RENDERS are reused: every measurement below still runs on the pixels, so a hit
+# reports exactly what a fresh render would. `--no-cache` renders everything, as before.
+_CACHE_DIR = ".cache"
+_NO_CACHE = False
+
+
+def _cache_key(out_dir, slide, meta, extra):
+    try:
+        import beat_key as _bk
+        return _bk.beat_key(out_dir, slide, meta, os.path.abspath(__file__), extra=extra)
+    except Exception:                                     # noqa: BLE001 - no key, no reuse: render as before
+        return None
+
+
+def _cached(proof, key, suffix):
+    if _NO_CACHE or not key:
+        return None
+    f = os.path.join(proof, _CACHE_DIR, key + suffix)
+    return f if os.path.exists(f) else None
+
+
+def _keep(proof, key, suffix, src=None, data=None):
+    if not key:
+        return
+    d = os.path.join(proof, _CACHE_DIR)
+    os.makedirs(d, exist_ok=True)
+    dest = os.path.join(d, key + suffix)
+    if src is not None:
+        shutil.copyfile(src, dest)
+    else:
+        with open(dest, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False)
 
 
 def switch_props(shot):
@@ -1034,6 +1074,8 @@ def _prove(argv, out_dir, board, ws_durs):
     #
     # The static checks read source; only a RENDER can see what the frame actually looks like, which is the
     # half that matters. `--no-stills` still exists for a fast source-only pass while authoring.
+    global _NO_CACHE
+    _NO_CACHE = "--no-cache" in argv
     if "--no-stills" not in argv:
         import shot_still_qa
         import workshop as _ws
@@ -1107,16 +1149,26 @@ def _prove(argv, out_dir, board, ws_durs):
                 payload["aspect"] = aspect
             json.dump(payload, open(pj, "w", encoding="utf-8"), ensure_ascii=False)
             png = os.path.join(proof, "beat_%02d.png" % beat)
+            key = _cache_key(out_dir, s, board.get("meta", {}),
+                             {"frame": frame, "payload": payload, "film_shot": shot in film_shots,
+                              "declared": sorted(map(str, declared or [])), "broken": bool(declared_broken)})
+            hit = _cached(proof, key, ".png")
             # --public-dir is NOT optional here. Every register in the real-image tier resolves its
             # picture through staticFile(), which without a public dir points at a path that does not
             # exist — so those shots ALWAYS failed to render and this gate reported a hard error for a
             # beat that is fine in the film. Worse, it meant the proof sheet was blind to exactly the
             # class most likely to carry a wrong or broken image. The film render passes the out_dir;
             # so does this.
-            r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
-                                "--frame=%d" % frame, "--gl=angle", "--props=" + pj, "--log=error",
-                                "--public-dir=" + os.path.abspath(out_dir)],
-                               cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
+            if hit:
+                shutil.copyfile(hit, png)
+                r = subprocess.CompletedProcess([], 0, "", "")
+            else:
+                r = _c.run_render(["npx", "remotion", "still", "src/index.ts", shot, png,
+                                    "--frame=%d" % frame, "--gl=angle", "--props=" + pj, "--log=error",
+                                    "--public-dir=" + os.path.abspath(out_dir)],
+                                   cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
+                if r.returncode == 0 and os.path.exists(png):
+                    _keep(proof, key, ".png", src=png)
             if r.returncode != 0 or not os.path.exists(png):
                 why = _stderr_reason(r.stderr)
                 errors.append("beat %d (%s): the shot FAILED to render standalone at frame %d — %s"
@@ -1139,8 +1191,14 @@ def _prove(argv, out_dir, board, ws_durs):
                     unmeasured.append("beat %d (%s): the words-from-props check did not run — the workshop's "
                                       "declared-word scan could not run (%s)" % (beat, shot, declared_broken[0]))
                 else:
-                    words, total, reason = _unfed_text(shot, payload, frame, proof, beat, out_dir,
-                                                        "all" if shot in film_shots else "slots", declared)
+                    _uk = _cached(proof, key, ".unfed.json")
+                    if _uk:
+                        words, total, reason = json.load(open(_uk, encoding="utf-8"))
+                    else:
+                        words, total, reason = _unfed_text(shot, payload, frame, proof, beat, out_dir,
+                                                            "all" if shot in film_shots else "slots", declared)
+                        if words is not None:
+                            _keep(proof, key, ".unfed.json", data=[words, total, reason])
                     if words is None:
                         unmeasured.append("beat %d (%s): the words-from-props check gave no answer — %s"
                                           % (beat, shot, reason))
@@ -1169,11 +1227,18 @@ def _prove(argv, out_dir, board, ws_durs):
                                   "number was not checked for being caught mid-roll" % (beat, shot, shot))
             if shot in FIGURE_SHOTS and dm:
                 mid_png = os.path.join(proof, "beat_%02d_mid.png" % beat)
-                rm = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, mid_png,
-                                     "--frame=%d" % int(int(dm.group(1)) * 0.5), "--gl=angle",
-                                     "--props=" + pj, "--log=error",
-                                     "--public-dir=" + os.path.abspath(out_dir)],
-                                    cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
+                _mk = _cached(proof, key, ".mid.png")
+                if _mk:
+                    shutil.copyfile(_mk, mid_png)
+                    rm = subprocess.CompletedProcess([], 0, "", "")
+                else:
+                    rm = _c.run_render(["npx", "remotion", "still", "src/index.ts", shot, mid_png,
+                                         "--frame=%d" % int(int(dm.group(1)) * 0.5), "--gl=angle",
+                                         "--props=" + pj, "--log=error",
+                                         "--public-dir=" + os.path.abspath(out_dir)],
+                                        cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
+                    if rm.returncode == 0 and os.path.exists(mid_png):
+                        _keep(proof, key, ".mid.png", src=mid_png)
                 if rm.returncode != 0 or not os.path.exists(mid_png):
                     # The one ERROR that guards an on-screen NUMBER. Dropping it in silence when the
                     # second still fails is how a film ships a digit caught mid-flight with a green gate.

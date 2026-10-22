@@ -218,6 +218,27 @@ floor, not the target: **a strong film is mostly built** (GPS: 15 of 15; the com
 beat from one passbook kit). The proposals `shot_director.py` writes are chosen by an intent keyword, never by your
 ideal: read them as donors of technique, not as the beat's frame.
 
+### Parallel build — the lead's part (when the film builds four or more shots)
+One agent building every shot in turn is the slow part of a film: on a 25-beat film with nine built shots, 58 of the
+design pass's 116 minutes were the model writing code, one shot after another. When the build list holds **four or
+more** shots, split the BUILDING and keep the DESIGNING:
+1. **You decide, before anyone builds:** the form vocabulary, every beat's `shot_fit.ideal` / `form` /
+   `composition`, the DNA, every beat's route, and the **kit** — the shared pieces every shot draws from (the film's
+   token, its frame, its title/source placement, its palette tokens). Build ONE reference shot yourself on the kit, and
+   look at it at 30/60/90% of its beat: it fixes the kit's API and the quality bar every builder matches.
+2. **Assign:** 3–4 builders, each owning whole shots with the beats they render (`b1: NextSlot → 6, 7, 11, 21`).
+   Balance by work, not count, and keep shots that share a sub-component with one builder. Draft each shot's
+   `meta.build_list` `means` / `accept` so a builder knows what "done" is.
+3. **Dispatch every builder in ONE message** (one Agent call each), each with `agents/shot-builder.md`, its name,
+   its shots and beats, and the out_dir. Builders write only their own shot files and one part file; renders take
+   turns behind the machine-wide render lock while builders think and write at the same time.
+4. **Join:** `python3 scripts/design_merge.py <out_dir>` (it refuses a conflict and writes nothing), then
+   `workshop.py check` → `seam_plan.py` → `shot_proof.py` (the sheet) → `energy_skeleton.py` → `text_safe_qa.py` →
+   `validate.py --pre-tts`, all once, by you. Those gates reuse every beat a builder already rendered, so this costs
+   little. Read the SHEET for the film as one world — the same token, the same light, titles that move — and fix
+   small drift yourself; send a larger miss back to its builder. A kit change is yours, after the join.
+Under four built shots, build them yourself: the split costs more than it saves.
+
 ### Designing a shot from nothing — the per-beat checklist (premium, not merely new)
 - [ ] **What the viewer must see** — the one claim, as a picture; one strong visual idea per beat.
 - [ ] **Encoding** — which quantity/relation rides on position, size, colour, motion or sequence (each channel

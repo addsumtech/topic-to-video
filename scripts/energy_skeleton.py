@@ -357,28 +357,11 @@ def _library_hash():
 
 
 def _own_key(out_dir, slide, meta, lib=None):
-    import hashlib
-    h = hashlib.sha256()
-    h.update(("v%d:%s" % (OWN_MEASURE_VERSION, lib if lib is not None else _library_hash())).encode())
-    wdir = os.path.join(out_dir, "workshop")
-    try:
-        import workshop as _ws
-        generated = set(_ws.GENERATED)                   # index.ts, _stills/ … — outputs, not what a shot is made of
-    except Exception:                                    # noqa: BLE001
-        generated = {"index.ts", ".tsconfig.json", "_stills"}
-    for root, dns, files in os.walk(wdir):
-        dns[:] = sorted(d for d in dns if not d.startswith(".") and not (root == wdir and d in generated))
-        for f in sorted(files):
-            if f.startswith(".") or (root == wdir and f in generated):
-                continue
-            h.update(os.path.relpath(os.path.join(root, f), wdir).encode())
-            try:
-                h.update(open(os.path.join(root, f), "rb").read())
-            except OSError as e:
-                h.update(("<unreadable: %s>" % type(e).__name__).encode())
-    h.update(json.dumps([slide.get("shot"), slide.get("shot_props"), meta.get("design_dna") or
-                         meta.get("shot_template"), meta.get("aspect")], sort_keys=True, default=str).encode())
-    return h.hexdigest()[:16]
+    """The beat's fingerprint (scripts/beat_key.py): the shot's own import closure rather than every workshop file —
+    the old key hashed the whole workshop, so an edit to ONE shot re-measured every built beat (9 runs, 27.5 min of
+    one design pass). `lib` is kept for callers; the runtime, kits and objects are inside the fingerprint."""
+    import beat_key as _bk
+    return _bk.beat_key(out_dir, slide, meta, os.path.abspath(__file__), extra={"v": OWN_MEASURE_VERSION})
 
 
 def own_motion(out_dir, slides, meta, render=False, log=print):
@@ -397,7 +380,7 @@ def own_motion(out_dir, slides, meta, render=False, log=print):
         import render_remotion as rr
         import film_energy_qa as fe
         env = _ws.prepare(out_dir)
-    lib = _library_hash() if todo else ""
+    lib = None                                           # inside the fingerprint now (beat_key)
     for i, s in todo:
         key = _own_key(out_dir, s, meta, lib)
         if key in cache:
@@ -415,7 +398,7 @@ def own_motion(out_dir, slides, meta, render=False, log=print):
         os.makedirs(tmpd, exist_ok=True)
         pf, mp4 = os.path.join(tmpd, "beat_%02d.json" % i), os.path.join(tmpd, "beat_%02d.mp4" % i)
         json.dump(props, open(pf, "w", encoding="utf-8"), ensure_ascii=False)
-        r = subprocess.run(["npx", "remotion", "render", "src/index.ts", s["shot"], mp4, "--gl=angle", "--log=error",
+        r = _c.run_render(["npx", "remotion", "render", "src/index.ts", s["shot"], mp4, "--gl=angle", "--log=error",
                             "--scale=0.5", "--props=" + os.path.abspath(pf), "--public-dir=" + os.path.abspath(out_dir)],
                            cwd=os.path.join(_HERE, "..", "remotion"), capture_output=True, text=True,
                            **_ws.env_kwargs(env))

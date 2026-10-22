@@ -692,6 +692,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      `references/building-blocks.md`; how to make it mean something: `references/object-authoring.md`) and never
      touches the library. Real imagery where the topic is concrete stays the documentary tier's. A `shot`-based
      scene on the local renderer is a validate ERROR.
+     **Parallel build (four or more built shots):** the lead designs every beat, the DNA and the kit and builds one
+     reference shot; 3–4 `agents/shot-builder.md` builders, dispatched in ONE message, each build the shots they own
+     and write a part file (never the board); `python3 scripts/design_merge.py <out_dir>` joins them (refusing any
+     conflict), and the lead runs the gates once. Renders queue behind one machine-wide lock, so builders never
+     starve each other's frames (shot-director "Parallel build — the lead's part").
      **③ Then run `python scripts/seam_plan.py <out_dir>` — the film's CUTS and CAMERA.** A verify-and-fill pass,
      not a competitor: it SKIPS every beat the shot-director already marked, so authored intent always wins. It
      adds what an author cannot do by reading — it mirrors the renderer's luminance guard (a kinetic mark across a

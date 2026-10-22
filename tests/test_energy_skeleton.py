@@ -337,18 +337,24 @@ def test_a_built_peak_beat_is_never_told_to_become_a_template(tmp_path):
     assert "liveliest" in es.describe([f for f in fs if f["beat"] == 3][0])
 
 
-def test_the_own_shot_cache_key_sees_assets_and_library_code_but_not_generated_stills(tmp_path):
+def test_the_own_shot_cache_key_sees_assets_and_library_code_but_not_generated_stills(tmp_path, monkeypatch):
+    import beat_key as bk
     out = tmp_path / "film"
     (out / "workshop" / "shots").mkdir(parents=True)
     (out / "workshop" / "shots" / "A.tsx").write_text("export const DURATION = 30;\n")
+    (out / "workshop" / "shots" / "B.tsx").write_text("export const DURATION = 30;\n")
     (out / "workshop" / "assets").mkdir()
     (out / "workshop" / "assets" / "foil.png").write_bytes(b"\x00")
     slide, meta = {"shot": "A", "shot_props": {}}, {}
-    k = es._own_key(str(out), slide, meta, lib="L1")
+    monkeypatch.setattr(bk, "shared_hash", lambda: "L1")
+    k = es._own_key(str(out), slide, meta)
     (out / "workshop" / "_stills").mkdir()
     (out / "workshop" / "_stills" / "A.png").write_bytes(b"\x01")
-    assert es._own_key(str(out), slide, meta, lib="L1") == k, "a preview still is an output, not an input"
+    assert es._own_key(str(out), slide, meta) == k, "a preview still is an output, not an input"
+    (out / "workshop" / "shots" / "B.tsx").write_text("export const DURATION = 31;\n")
+    assert es._own_key(str(out), slide, meta) == k, "another shot's edit does not re-measure this one"
     (out / "workshop" / "assets" / "foil.png").write_bytes(b"\x02")
-    k2 = es._own_key(str(out), slide, meta, lib="L1")
+    k2 = es._own_key(str(out), slide, meta)
     assert k2 != k, "an asset the shot draws changes its motion"
-    assert es._own_key(str(out), slide, meta, lib="L2") != k2, "library code a built shot imports changes it too"
+    monkeypatch.setattr(bk, "shared_hash", lambda: "L2")
+    assert es._own_key(str(out), slide, meta) != k2, "library code a built shot imports changes it too"

@@ -96,7 +96,7 @@ def audit_shot(shot, props, frame, tmp_png, public_dir=None, env=None, type_size
                "--props=" + os.path.abspath(pf)]
         if public_dir:
             cmd.append("--public-dir=" + os.path.abspath(public_dir))
-        r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
+        r = _c.run_render(cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
         blob = (r.stdout or "") + (r.stderr or "")
         if TAG in blob or r.returncode == 0:
             break
@@ -136,7 +136,7 @@ def title_of(shot, props, frame, tmp_png, public_dir=None, env=None):
         cmd.append("--public-dir=" + os.path.abspath(public_dir))
     blob = ""
     for _attempt in (1, 2):                              # a flaky browser is retried once, as audit_shot does
-        r = subprocess.run(cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
+        r = _c.run_render(cmd, capture_output=True, text=True, cwd=_REMOTION, **_ws.env_kwargs(env))
         blob = (r.stdout or "") + (r.stderr or "")
         if TITLE_TAG in blob:
             break
@@ -288,6 +288,40 @@ def _describe(v):
                         "  [%s]" % v["font"] if v.get("font") else "")
 
 
+BEAT_CACHE = "._textsafe_cache.json"
+NO_CACHE = os.environ.get("TEXT_SAFE_NO_CACHE") == "1"
+
+
+def _beat_cache_key(out_dir, slide, meta, frame, props):
+    if NO_CACHE:
+        return None
+    try:
+        import beat_key as _bk
+        return _bk.beat_key(out_dir, slide, meta, os.path.abspath(__file__), extra={"frame": frame, "props": props})
+    except Exception:                                    # noqa: BLE001 - no key, no reuse: measured as before
+        return None
+
+
+def _audit_failed(audit):
+    """A render that measured nothing (see audit_shot): never kept, so it is asked again."""
+    return any(str(v.get("text", "")).startswith(("(render FAILED", "(unparseable")) for v in (audit or []))
+
+
+def _load_beat_cache(out_dir):
+    try:
+        c = json.load(open(os.path.join(out_dir, BEAT_CACHE), encoding="utf-8"))
+        return c if isinstance(c, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_beat_cache(out_dir, cache):
+    try:
+        json.dump(cache, open(os.path.join(out_dir, BEAT_CACHE), "w", encoding="utf-8"), ensure_ascii=False)
+    except OSError:
+        pass
+
+
 def scan_film(out_dir, warnings=None):
     """(findings, checked, universe, skipped) — the last two are the point.
 
@@ -306,6 +340,7 @@ def scan_film(out_dir, warnings=None):
     findings, checked, skipped, titles, title_failed = [], 0, [], [], []
     slides = board.get("slides") or []
     tmp = os.path.join(out_dir, "._textsafe.png")
+    cache, dirty = _load_beat_cache(out_dir), False
     for i, s in enumerate(slides, 1):
         shot = s.get("shot")
         if not shot:
@@ -325,12 +360,24 @@ def scan_film(out_dir, warnings=None):
         frame = int(round(rr.frame_at_t(durs[shot], rr.SETTLED_T)))
         checked += 1
         debt, own = type_debt(), set(_ws.shot_names(out_dir))
-        t = title_of(shot, props, frame, tmp, public_dir=out_dir, env=env)
+        # A BEAT NOTHING TOUCHED IS NOT RENDERED AGAIN (scripts/beat_key.py): its title reading and its audit are
+        # what two renders of the same picture would answer. Only an answer is kept — a render that FAILED, or a
+        # payload that would not parse, is asked again next time.
+        key = _beat_cache_key(out_dir, s, meta, frame, props)
+        hit = cache.get(key) if key else None
+        if hit:
+            t, audit = hit["title"], hit["audit"]
+        else:
+            t = title_of(shot, props, frame, tmp, public_dir=out_dir, env=env)
+            audit = audit_shot(shot, props, frame, tmp, public_dir=out_dir, env=env, type_size=True)
+            if key and not (t and t.get("failed")) and not _audit_failed(audit):
+                cache[key] = {"title": t, "audit": audit}
+                dirty = True
         if t and t.get("failed"):
             title_failed.append("scene %02d (%s): %s" % (i, shot, t["failed"]))
         elif t:
             titles.append((i, shot, t, t.get("text", "")))
-        for v in audit_shot(shot, props, frame, tmp, public_dir=out_dir, env=env, type_size=True):
+        for v in audit:
             if v.get("title"):
                 continue                                 # the walk's own "largest type" record; title_of decides
             lvl = type_size_level(v)
@@ -354,6 +401,8 @@ def scan_film(out_dir, warnings=None):
     for p in (tmp, tmp + ".props.json"):
         if os.path.exists(p):
             os.remove(p)
+    if dirty:
+        _save_beat_cache(out_dir, cache)
     if title_failed and warnings is not None:
         warnings.append("TITLE PLACEMENT read on %d of %d beat(s) — the title probe did not render on: %s"
                         % (checked - len(title_failed), checked, "; ".join(title_failed[:4])))
