@@ -183,14 +183,28 @@ SPARKLE_MIN_TAIL_S = 0.6     # the sparkle must have this much film left to ring
 
 
 # ── cue planning: pin cues to the video's BEATS (frame-exact), with restraint ─────────────────────────
-def plan_cues(scenes, fps, events_only=False, seam_frames=12):
+def _on_the_beat(t_cue, t_cut, grid, fps):
+    """A seam cue's peak, given a beat grid: still ON the cut — the cut's own frame or the one before it, the one-frame
+    tolerance a seam cue always had (EBU R37: sound early by at most 40 ms) — but whichever of the two sits nearer a
+    beat, so a whoosh does not flam a frame against the score's kick. Without a grid: `t_cue`, exactly as before."""
+    if grid is None:
+        return t_cue
+    best = min((t_cut, t_cut - 1.0 / fps), key=lambda t: (abs(t - grid.t(grid.nearest_beat(t))), -t))
+    return max(0.0, best)
+
+
+def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
     """Given a scene list (each with durationInFrames; optional shots[].startFrame), return a cue list
     [(t_seconds, cue_name, gain)] aligned to beats: a whoosh at each MARKED scene transition (anticipatory,
     −2 frames; a plain cross-fade seam stays QUIET so the ear marks the same ~2-3 seams the eye does — the
     carry match-cut gets a softer swell), a focus tick at each interior shot arrival, a pop at each element's
     enter, and the CLOSING SENTENCE (riser → impact → sparkle) at the LAST scene's final shot. Then applies
     restraint — caps density at ~4 cues / 10s, dropping the lowest-priority (ticks/pops) first so the film
-    breathes; the sentence is one landing and costs the cap ONE slot."""
+    breathes; the sentence is one landing and costs the cap ONE slot.
+
+    `grid` (scripts/beatgrid.BeatGrid, a scored film only): each marked seam's whoosh is quantised to the grid
+    inside its one-frame tolerance (`_on_the_beat`). The tts stage has already snapped the cuts to the beat, so
+    the peak lands on the cut AND the beat; an unsnapped cut keeps its whoosh on the cut."""
     cues = []                                       # (t, name, gain, priority) — lower priority dropped first
     # AUTHORED EVENTS — a stage run's click lands on the word that names it (scenes[k]["events"], seconds into the
     # scene: scripts/stage_runs.py `sound_events`). They are the film's own actions, not decoration, so the density
@@ -208,6 +222,7 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12):
             # lands (build_sfx_track aligns by it). "Two frames before the seam's first frame" put a whoosh's start
             # 67 ms early — past EBU R37's 40 ms — and its peak a fifth of a second later, after the motion's peak.
             tt = max(0.0, t0 + (seam_frames / 2.0 - 1.0) / fps)
+            tt = _on_the_beat(tt, t0 + (seam_frames // 2) / float(fps), grid, fps)
             if "transitionIn" in sc:                # the seam grammar is DECLARED (remotion tier)
                 ti = sc.get("transitionIn")
                 if ti and ti.get("type") == "carry":
@@ -337,7 +352,18 @@ def _loudnorm(measured=None, print_json=False):
     return ln
 
 
-def filtergraph(dur, has_bgm, measured=None, print_json=False):
+# THE GENERATED SCORE IN THE MIX (scripts/score.py): two stems. The BED (pad, pluck, bass, clap) takes the old pad's
+# place — lowpassed, faded and ducked under the voice exactly as it was. The PULSE (kick, shaker, hat, riser) is NOT
+# ducked: a quiet kick and hat keep the time while the voice speaks (motion-research §3 "under a voice"), and it is
+# lowpassed at 12 kHz rather than 4, because a shaker under 4 kHz is a thud. Levels set by measuring a copy of the
+# slidemaker-promo film through this chain (`music_under_voice`): 15.5 LU under the voice while it speaks (≥10 wanted,
+# craft-research §3) and 9.8 LU under its speaking level in the pauses; the old pad measured 21.9 / 11.9 there.
+_SCORE_BED_VOL = 0.85
+_SCORE_PULSE_VOL = 0.50
+_PULSE_LP = 12000
+
+
+def filtergraph(dur, has_bgm, measured=None, print_json=False, stems=False, bgm_skip=0.0, solo=None):
     """The one filtergraph. `mix()` renders through it and `measure_offset()` measures through it.
 
     Written twice, the probe would certify a chain the film does not use — which is the whole failure this
@@ -347,6 +373,12 @@ def filtergraph(dur, has_bgm, measured=None, print_json=False):
     `measured` is the first pass's loudness reading (`_measure_loudness`): the second pass then normalises LINEARLY
     to it. One dynamic pass landed a film 1.5-1.7 LU under its -14 target (the sum peaked over full scale before the
     limiter); `print_json` is that first pass.
+
+    `stems` (the generated score): input 2 is the score's bed and input 3 its pulse. `bgm_skip` (an author track):
+    seconds of the track's head skipped so its beat grid slides under the cuts — a shift, never a stretch. `solo`
+    ("voice" / "music"): the same graph with the other inputs weighted to zero and no loudness pass, so the voice and
+    the music can be measured apart exactly as they sit in the mix (`music_under_voice`). With none of the three the
+    graph is the one this module always rendered, character for character.
     """
     # TWO BANDS FROM ONE INPUT. The SFX bus has always been highpassed at 800Hz so it sits above the voice —
     # and an impact's body is a 35-60Hz thump, which that highpass deletes entirely: a landing would ship
@@ -362,22 +394,36 @@ def filtergraph(dur, has_bgm, measured=None, print_json=False):
         # THE MUSIC MAKES ROOM FOR THE VOICE. A static bed sat 4.2 LU under the voice (measured) where commentary
         # wants ≥10: the voice keys a compressor on the music. The key is padded to the film's length, or the music
         # falls silent where the voice ends.
+        skip = ("atrim=start=%.6f,asetpts=PTS-STARTPTS," % bgm_skip) if bgm_skip and bgm_skip > 0 else ""
         fc += ["[0:a]asplit=2[vo][sc0]",
                "[sc0]apad=whole_dur=%.3f[sc]" % dur,
-               "[2:a]lowpass=f=%d,afade=in:st=0:d=0.3,afade=out:st=%.2f:d=1.5,volume=%.2f[bgm0]"
-               % (_BGM_LP, max(0.0, dur - 1.5), _BGM_VOL),
+               "[2:a]%slowpass=f=%d,afade=in:st=0:d=0.3,afade=out:st=%.2f:d=1.5,volume=%.2f[bgm0]"
+               % (skip, _BGM_LP, max(0.0, dur - 1.5), _SCORE_BED_VOL if stems else _BGM_VOL),
                "[bgm0][sc]sidechaincompress=threshold=%g:ratio=%g:attack=%g:release=%g:makeup=1[bgm]"
                % (DUCK["threshold"], DUCK["ratio"], DUCK["attack"], DUCK["release"])]
         mix_ins, n_in = "[vo][bgm][sfxhi][sfxlo]", 4
-    fc.append("%samix=inputs=%d:duration=first:normalize=0,%s,aresample=%d[a]"
-              % (mix_ins, n_in, _loudnorm(measured, print_json), OUT_RATE))
+        if stems:
+            fc.append("[3:a]lowpass=f=%d,afade=in:st=0:d=0.3,afade=out:st=%.2f:d=1.5,volume=%.2f[pulse]"
+                      % (_PULSE_LP, max(0.0, dur - 1.5), _SCORE_PULSE_VOL))
+            mix_ins, n_in = "[vo][bgm][pulse][sfxhi][sfxlo]", 5
+    weights, tail = "", ",%s,aresample=%d" % (_loudnorm(measured, print_json), OUT_RATE)
+    if solo:
+        if solo not in ("voice", "music"):
+            raise ValueError("solo is 'voice' or 'music', got %r" % (solo,))
+        names = re.findall(r"\[(\w+)\]", mix_ins)
+        music = ("bgm", "pulse")
+        weights = ":weights=" + " ".join(("1" if (n in music) == (solo == "music") and n not in ("sfxhi", "sfxlo")
+                                          else "0") for n in names)
+        tail = ",aresample=%d" % OUT_RATE
+    fc.append("%samix=inputs=%d:duration=first:normalize=0%s%s[a]" % (mix_ins, n_in, weights, tail))
     return ";".join(fc)
 
 
-def _measure_loudness(inputs, dur, has_bgm):
+def _measure_loudness(inputs, dur, has_bgm, stems=False, bgm_skip=0.0):
     """The first pass: the chain's own loudness reading, or None (then the second pass is a dynamic one)."""
     r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats"] + inputs +
-                       ["-filter_complex", filtergraph(dur, has_bgm, print_json=True), "-map", "[a]", "-f", "null", "-"],
+                       ["-filter_complex", filtergraph(dur, has_bgm, print_json=True, stems=stems, bgm_skip=bgm_skip),
+                        "-map", "[a]", "-f", "null", "-"],
                        capture_output=True, text=True)
     m = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", r.stderr or "", re.S)
     try:
@@ -390,11 +436,42 @@ def _measure_loudness(inputs, dur, has_bgm):
     return {k: j[k] for k in ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")}
 
 
-def _through_chain(inputs, dur, has_bgm, out, maps):
+def _through_chain(inputs, dur, has_bgm, out, maps, stems=False, bgm_skip=0.0):
     """Render through the chain in two passes (measure, then normalise linearly to the measurement)."""
-    meas = _measure_loudness(inputs, dur, has_bgm)
-    subprocess.run(["ffmpeg", "-y", "-v", "error"] + inputs + ["-filter_complex", filtergraph(dur, has_bgm, meas)]
-                   + maps + ["-c:a", "aac", "-b:a", "192k", out], check=True)
+    meas = _measure_loudness(inputs, dur, has_bgm, stems, bgm_skip)
+    subprocess.run(["ffmpeg", "-y", "-v", "error"] + inputs + ["-filter_complex", filtergraph(
+        dur, has_bgm, meas, stems=stems, bgm_skip=bgm_skip)] + maps + ["-c:a", "aac", "-b:a", "192k", out], check=True)
+
+
+def music_under_voice(inputs, dur, stems=False, bgm_skip=0.0, speech_lufs=-35.0):
+    """How far the music sits under the voice IN THIS MIX, in LU, measured on the chain itself: the graph rendered
+    twice with `solo` (the other inputs weighted to zero, ducking intact — the voice still keys it), each solo's
+    momentary loudness (400 ms, every 100 ms) compared frame by frame. 'speech' frames are those where the voice solo
+    is above `speech_lufs`; the rest are the pauses. Returns medians: 'speech_lu' = voice - music while it speaks
+    (frame by frame), 'pause_lu' = the voice's speaking level - the music's level in the pauses (how far under the
+    voice the music sits when it swells back), the three levels themselves, and the frame counts; or None when ffmpeg
+    cannot measure it. Craft-research §3: ≥10 LU under commentary (Torcoli et al. 2019)."""
+    def momentary(solo):
+        r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats"] + inputs + [
+            "-filter_complex", filtergraph(dur, True, stems=stems, bgm_skip=bgm_skip, solo=solo) + ";[a]ebur128=framelog=info[o]",
+            "-map", "[o]", "-f", "null", "-"], capture_output=True, text=True)
+        return [float(m) for m in re.findall(r"\bM:\s*(-?[\d.]+|-inf)", r.stderr or "") if m != "-inf"]
+    try:
+        v, m = momentary("voice"), momentary("music")
+    except Exception:                                     # noqa: BLE001 — a measurement, never a reason to fail a mix
+        return None
+    n = min(len(v), len(m))
+    if n < 10:
+        return None
+    v, m = v[:n], m[:n]
+    med = lambda xs: round(sorted(xs)[len(xs) // 2], 1) if xs else None          # noqa: E731
+    spk = [k for k in range(n) if v[k] > speech_lufs]
+    pau = [k for k in range(n) if v[k] <= speech_lufs and m[k] > -70]
+    v_sp, m_sp, m_pa = med([v[k] for k in spk]), med([m[k] for k in spk]), med([m[k] for k in pau])
+    return {"speech_lu": med([v[k] - m[k] for k in spk]),
+            "pause_lu": round(v_sp - m_pa, 1) if v_sp is not None and m_pa is not None else None,
+            "voice_lufs": v_sp, "music_speech_lufs": m_sp, "music_pause_lufs": m_pa,
+            "speech_frames": len(spk), "pause_frames": len(pau)}
 
 
 def sfx_peak_cap(vo_peak):
@@ -419,7 +496,7 @@ PROBE_SECONDS = 5.0
 MAX_SANE_SHIFT = 2.0            # frames — beyond this the measurement is not believed, and says so
 
 
-def measure_offset(fps=30, has_bgm=False, workdir=None):
+def measure_offset(fps=30, has_bgm=False, workdir=None, stems=False, bgm_skip=0.0):
     """Send a click through the REAL chain and report how far it moved, in seconds. None if unmeasurable.
 
     WHY THIS IS MEASURED AND NOT ASSUMED. The obvious move was to copy a compensation constant: the
@@ -448,8 +525,11 @@ def measure_offset(fps=30, has_bgm=False, workdir=None):
         if has_bgm:
             _write_wav(os.path.join(tmp, "bgm.wav"), np.zeros(n, dtype=np.float32))
             ins += ["-i", os.path.join(tmp, "bgm.wav")]
+            if stems:
+                ins += ["-i", os.path.join(tmp, "bgm.wav")]
         mixed = os.path.join(tmp, "mixed.mp4")
-        _through_chain(ins, PROBE_SECONDS, has_bgm, mixed, ["-map", "0:v", "-map", "[a]", "-c:v", "copy"])
+        _through_chain(ins, PROBE_SECONDS, has_bgm, mixed, ["-map", "0:v", "-map", "[a]", "-c:v", "copy"],
+                       stems=stems and has_bgm, bgm_skip=bgm_skip if has_bgm else 0.0)
         back = os.path.join(tmp, "back.wav")
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", mixed, "-ac", "1", "-ar", str(SR),
                         "-f", "wav", back], check=True)
@@ -487,34 +567,114 @@ def _stream_skew(mp4):
 
 
 # ── the mix: frequency-isolated two-track under the voiceover, muxed back into the video ──────────────
-def mix(out_dir, mp4, scenes, meta, fps, events_only=False):
+def _legacy_cut_times(scenes, fps, seam_frames=12):
+    """Cut moments from an sfx scene list alone (durationInFrames on the overlap-compressed timeline): a seam's middle,
+    and the last scene's arrival — beatgrid.boundaries' rule, for a caller that hands mix() no grid."""
+    t0, out = 0.0, []
+    for si, sc in enumerate(scenes):
+        if si > 0:
+            out.append(t0 + (0 if si == len(scenes) - 1 else (seam_frames // 2)) / float(fps))
+        t0 += float(sc.get("durationInFrames") or 0) / fps
+    return out
+
+
+QA_MIN_SECONDS = 12.0    # the shortest render the bed's beat check runs on (a few bars at the slowest score tempo)
+
+
+def _score_stems(sdir, dur, music, cues, meta, fps, lat):
+    """Render the generated score on its grid, hold it to the grid (beatgrid.verify_bed), write its two stems.
+    Returns (bed_wav, pulse_wav, info) or None — said aloud — when the score cannot be trusted."""
+    import beatgrid
+    import score
+    grid = music["grid"]
+    climax = music.get("climax_s")
+    land = [t for (t, name, _g) in cues if name == "impact"]
+    # the SFX closing sentence already builds into the close (riser -> impact): a score riser on the same landing
+    # would be a second build on one hit, so the score only rises into a payoff that is NOT the close
+    rise = climax is not None and not any(abs(climax - t) <= 2.0 / fps for t in land)
+    mu = meta.get("music") if isinstance(meta.get("music"), dict) else {}
+    st = score.render(grid, dur, climax_s=climax, riser_into_climax=rise, seed=beatgrid.score_seed(meta),
+                      key=mu.get("key"))
+    bed, pulse, sr = st["bed"], st["pulse"], st["sr"]
+    qa_x = bed + pulse
+    if dur < QA_MIN_SECONDS:
+        # a tempo needs a few bars to be measured (beatgrid.MIN_SECONDS): a short film's score is checked on a longer
+        # render of the SAME grid and synthesis — the beats are what is checked, and they do not depend on the length
+        qa_st = score.render(grid, QA_MIN_SECONDS, climax_s=climax, riser_into_climax=rise,
+                             seed=beatgrid.score_seed(meta), key=mu.get("key"))
+        qa_x = qa_st["bed"] + qa_st["pulse"]
+    try:
+        qa = beatgrid.verify_bed(qa_x, sr, grid, log=lambda m: print("[sfx] " + m))
+    except beatgrid.BedOffGrid as e:
+        print("[sfx] ERROR: the generated score failed its own beat check — %s. The score is NOT mixed; the film "
+              "falls back to the untimed pad. This is a bug in scripts/score.py, not in the board." % e)
+        return None
+    if lat:
+        # the chain moved a click by `lat`: the bed is part of the picture's timing too, so it moves with the cues
+        k = int(round(abs(lat) * sr))
+        if lat > 0:
+            bed, pulse = bed[k:], pulse[k:]
+        else:
+            bed = np.concatenate([np.zeros(k, np.float32), bed])
+            pulse = np.concatenate([np.zeros(k, np.float32), pulse])
+    bw, pw = os.path.join(sdir, "_bgm.wav"), os.path.join(sdir, "_pulse.wav")
+    score.write_wav(bw, bed, sr)
+    score.write_wav(pw, pulse, sr)
+    inf = st["info"]
+    print("[sfx] score: %s %s at %.2f BPM (%s), %s; beats re-detected %.1f ms (median) off the grid"
+          % (inf["key"], "-".join(inf["progression"]), inf["bpm"], grid.source,
+             ("rising into the payoff at %.2fs" % climax) if rise else
+             ("landing with the close at %.2fs" % climax) if climax is not None else "peak at ~60%",
+             qa["median_ms"]))
+    return bw, pw, dict(inf, verify=qa)
+
+
+def mix(out_dir, mp4, scenes, meta, fps, events_only=False, music=None):
     """Post-render: overlay the SFX track (+ optional BGM) onto out.mp4's baked voiceover using huashu's
     frequency-isolation filtergraph, then mux back. Returns True if it re-wrote the video. Best-effort:
-    no numpy / no ffmpeg / no cues -> leaves the video untouched."""
+    no numpy / no ffmpeg / no cues -> leaves the video untouched.
+
+    `music` (beatgrid.music_for_render; a scored film only): {'grid', 'climax_s', 'bgm_skip_s'}. With it the whooshes
+    quantise to the grid, `bgm: "auto"` is the GENERATED SCORE on that grid (scripts/score.py, two stems) instead of
+    the pad, and an author track is started `bgm_skip_s` into itself so its beats sit under the cuts. Without it —
+    every film that does not ask for music — the mix is the one this module always made."""
     if np is None or not shutil.which("ffmpeg"):
         print("[sfx] skipped (numpy/ffmpeg unavailable)"); return False
     dur = _probe_duration(mp4)
     if not dur:
         print("[sfx] skipped (could not probe video duration)"); return False
-    cues = plan_cues(scenes, fps, events_only=events_only)
+    bgm = None if events_only else meta.get("bgm")   # the score belongs to the SFX bed, not to a stage's clicks
+    if bgm == "auto" and music is None and not events_only:
+        # a caller that asked for the score but handed no grid (an older caller, a test): fit one to the cuts as they
+        # are — tier 1 — rather than fall back to a bed with no tempo at all
+        import beatgrid
+        cuts = _legacy_cut_times(scenes, fps)
+        music = {"grid": beatgrid.fit_to_cuts(cuts), "climax_s": cuts[-1] if cuts else None, "bgm_skip_s": 0.0}
+        print("[sfx] no beat grid handed in — the score is fitted to the cuts as they are (%s)" % music["grid"])
+    grid = (music or {}).get("grid") if not events_only else None
+    cues = plan_cues(scenes, fps, events_only=events_only, grid=grid)
     sdir = os.path.join(out_dir, ".sfx"); os.makedirs(sdir, exist_ok=True)
     sfx_wav = os.path.join(sdir, "_sfx.wav")
     if not cues:
         print("[sfx] no cues planned — video unchanged"); return False
 
-    # optional BGM: an author track (meta.bgm=path) or a synthesized pad (meta.bgm='auto')
+    # optional BGM: an author track (meta.bgm=path) or the generated score (meta.bgm='auto')
     bgm_wav = None
-    bgm = None if events_only else meta.get("bgm")   # the score belongs to the SFX bed, not to a stage's clicks
+    pulse_wav = None
+    skip = 0.0
+    score_info = None
     if bgm == "auto":
-        bgm_wav = os.path.join(sdir, "_bgm.wav"); _write_wav(bgm_wav, synth_pad(dur))
+        pass                                         # rendered below, once the chain's offset is known
     elif isinstance(bgm, str) and bgm and os.path.exists(os.path.join(out_dir, bgm)):
         bgm_wav = os.path.join(out_dir, bgm)
+        skip = float((music or {}).get("bgm_skip_s") or 0.0)
 
     # SELF-CALIBRATING, never a borrowed constant. The chain is measured as it is about to be used, so a
     # different ffmpeg, a codec change or an added filter is corrected for instead of silently shifting every
     # cue. Measured 0.00 frames here; a measurement beyond MAX_SANE_SHIFT is not trusted and says so out loud
     # rather than dragging the cues somewhere arbitrary.
-    lat = measure_offset(fps, has_bgm=bool(bgm_wav))
+    stems = bgm == "auto" and grid is not None
+    lat = measure_offset(fps, has_bgm=bool(bgm_wav) or bgm == "auto", stems=stems, bgm_skip=skip)
     if lat is None:
         print("[sfx] WARNING: could not measure the audio chain's offset — cues placed uncompensated")
         lat = 0.0
@@ -526,16 +686,34 @@ def mix(out_dir, mp4, scenes, meta, fps, events_only=False):
         print("[sfx] audio chain offset %+.2f frames%s" % (lat * fps, " (compensated)" if lat else ""))
     if lat:
         cues = [(max(0.0, t - lat), name, g) for (t, name, g) in cues]
+        if skip:
+            skip = max(0.0, skip + lat)               # an author track's beats move with the picture's cues
+    if bgm == "auto":
+        made = _score_stems(sdir, dur, music, cues, meta, fps, lat) if stems else None
+        if made:
+            bgm_wav, pulse_wav, score_info = made
+        else:
+            stems = False
+            bgm_wav = os.path.join(sdir, "_bgm.wav"); _write_wav(bgm_wav, synth_pad(dur))
     # GAIN-STAGED UNDER THE VOICE: the SFX bus peaks ≥6 dB under the voice's own peak. A riser and an impact at
     # -2.4 dBFS stacked on voice peaks put the sum over full scale before the limiter, and the film landed under its
     # loudness target (references/craft-research.md §3)
     if not build_sfx_track(cues, dur, sfx_wav, peak_cap=sfx_peak_cap(_audio_peak(mp4))):
         print("[sfx] could not build the cue track — video unchanged"); return False
 
-    inputs = ["-i", mp4, "-i", sfx_wav] + (["-i", bgm_wav] if bgm_wav else [])
+    inputs = ["-i", mp4, "-i", sfx_wav] + (["-i", bgm_wav] if bgm_wav else []) + (["-i", pulse_wav] if stems else [])
     out2 = os.path.join(out_dir, "_snd.mp4")
     try:
-        _through_chain(inputs, dur, bool(bgm_wav), out2, ["-map", "0:v", "-map", "[a]", "-c:v", "copy"])
+        if score_info is not None:
+            lu = music_under_voice(inputs, dur, stems=True)
+            if lu:
+                print("[sfx] music under the voice: %s LU while it speaks, %s LU in its pauses (craft-research §3: "
+                      ">=10 under commentary)" % (lu["speech_lu"], lu["pause_lu"]))
+                if lu["speech_lu"] is not None and lu["speech_lu"] < 10.0:
+                    print("[sfx] WARNING: the score sits only %.1f LU under the voice while it speaks — it will "
+                          "compete with the words; AUDITION it" % lu["speech_lu"])
+        _through_chain(inputs, dur, bool(bgm_wav), out2, ["-map", "0:v", "-map", "[a]", "-c:v", "copy"],
+                       stems=stems, bgm_skip=skip)
         if bgm_wav:
             # TWO DELIVERIES FROM ONE TIMELINE. A film with a BGM also ships a `.nobgm.mp4` twin — same cues,
             # same frames, no music — so the user can score it themselves without a re-render. Borrowed from

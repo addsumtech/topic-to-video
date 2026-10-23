@@ -254,3 +254,110 @@ def test_the_mix_is_delivered_at_48k_and_on_its_loudness_target(tmp_path):
                           "-"], capture_output=True, text=True).stderr
     integ = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", out)[-1])
     assert abs(integ - sfx._TARGET_LUFS) <= 1.0, integ
+
+
+# ── the music layer (scripts/beatgrid.py + scripts/score.py) ─────────────────────────────────────────────────────
+def _seamed(n=4, dur=150, mark=True):
+    sc = [{"durationInFrames": dur, "transitionIn": ({"type": "wipe"} if (mark and i) else None)} for i in range(n)]
+    sc[-1]["shots"] = [{"startFrame": 0}]
+    return sc
+
+
+def test_whooshes_quantise_to_the_grid_inside_their_frame():
+    """A marked seam's whoosh peaks a frame before the seam's middle (today's rule). With a grid it may take the seam's
+    middle frame instead — never further — when that is where the beat is: the cut and the kick in one hit."""
+    import beatgrid
+    sc = _seamed()
+    plain = [t for t, n, _g in sfx.plan_cues(sc, 30) if n == "whoosh"]
+    assert plain == [pytest.approx(150 / 30 + 5 / 30), pytest.approx(300 / 30 + 5 / 30)]
+    on_mid = beatgrid.BeatGrid(100, (156 / 30.0) % 0.6)            # a beat exactly on the first seam's middle frame
+    q = [t for t, n, _g in sfx.plan_cues(sc, 30, grid=on_mid) if n == "whoosh"]
+    assert q[0] == pytest.approx(156 / 30), "the peak moves onto the seam's middle frame — the beat"
+    before = beatgrid.BeatGrid(100, (155 / 30.0) % 0.6)            # the beat a frame earlier: today's frame is right
+    assert [t for t, n, _g in sfx.plan_cues(sc, 30, grid=before) if n == "whoosh"][0] == pytest.approx(155 / 30)
+    for t, tc in zip(q, (156 / 30, 306 / 30)):
+        assert tc - 1 / 30 - 1e-9 <= t <= tc + 1e-9, "a quantised whoosh never leaves its cut's one-frame window"
+
+
+def test_a_film_without_music_keeps_its_graph():
+    """No stems, no skip, no solo: the graph a music-free film renders through has none of the new parts."""
+    for has_bgm in (False, True):
+        g = sfx.filtergraph(12.0, has_bgm)
+        assert "[pulse]" not in g and "atrim" not in g and "weights=" not in g
+        assert "amix=inputs=%d" % (4 if has_bgm else 3) in g
+    g = sfx.filtergraph(12.0, True, stems=True, bgm_skip=0.5)
+    assert "[3:a]lowpass=f=%d" % sfx._PULSE_LP in g and "amix=inputs=5" in g and "atrim=start=0.500000" in g
+    assert "atempo" not in g and "rubberband" not in g, "an author track is shifted, never stretched"
+
+
+def _voice_film(path, seconds, sr=48000):
+    """A stand-in narrated film: speech-band tone bursts with pauses between, under black video."""
+    t = np.arange(int(seconds * sr)) / sr
+    env = ((t % 3.0) < 2.2).astype(float) * (0.6 + 0.4 * np.sin(2 * np.pi * 4.0 * t) ** 2)
+    v = (0.25 * env * (np.sin(2 * np.pi * 180 * t) + 0.5 * np.sin(2 * np.pi * 720 * t))).astype(np.float32)
+    wav = path + ".wav"
+    import score
+    score.write_wav(wav, v, sr)
+    import subprocess
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=64x36:r=30:d=%g" % seconds,
+                    "-i", wav, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", path], check=True)
+
+
+def test_a_scored_film_mixes_the_score_on_its_grid(tmp_path, capsys):
+    """bgm 'auto' with a grid: the GENERATED score, written as two stems on that grid (re-detected < 10 ms), mixed
+    under the voice by >= 10 LU while it speaks, delivered at 48 kHz on the loudness target, with a no-BGM twin."""
+    import subprocess
+    import beatgrid
+    import score
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        pytest.skip("ffmpeg")
+    d = str(tmp_path)
+    mp4 = d + "/out.mp4"
+    _voice_film(mp4, 14.0)
+    scenes = _seamed(n=3, dur=165)
+    g = beatgrid.BeatGrid(112.5, 0.2)
+    music = {"grid": g, "climax_s": 330 / 30.0, "bgm_skip_s": 0.0}
+    assert sfx.mix(d, mp4, scenes, {"sound_design": True, "bgm": "auto", "title": "x"}, 30, music=music)
+    log = capsys.readouterr().out
+    assert "[sfx] score:" in log and "music under the voice" in log, log
+    bed = beatgrid.load_audio(d + "/.sfx/_bgm.wav", 48000)
+    pulse = beatgrid.load_audio(d + "/.sfx/_pulse.wav", 48000)
+    assert beatgrid.verify_bed(bed + pulse, 48000, g, log=lambda m: None)["median_ms"] < beatgrid.BED_LIMIT_MS
+    inputs = ["-i", d + "/out.nobgm.mp4", "-i", d + "/.sfx/_sfx.wav", "-i", d + "/.sfx/_bgm.wav", "-i",
+              d + "/.sfx/_pulse.wav"]
+    lu = sfx.music_under_voice(inputs, 14.0, stems=True)
+    assert lu and lu["speech_lu"] >= 10.0, lu
+    rate = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate",
+                           "-of", "csv=p=0", mp4], capture_output=True, text=True).stdout.strip()
+    assert rate == "48000"
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", mp4, "-af", "ebur128", "-f", "null", "-"],
+                         capture_output=True, text=True).stderr
+    assert abs(float(re.findall(r"I:\s+(-?[\d.]+) LUFS", out)[-1]) - sfx._TARGET_LUFS) <= 1.0
+    assert os.path.exists(d + "/out.nobgm.mp4")
+
+
+def test_an_author_track_starts_where_its_grid_says(tmp_path):
+    """An author's track is never stretched: its head is skipped by `bgm_skip_s` so its beats slide under the cuts.
+    Measured on the chain's own music solo: the first kick lands `skip` earlier than in the track."""
+    import subprocess
+    import beatgrid
+    import score
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg")
+    d = str(tmp_path)
+    sr = 48000
+    track = np.zeros(int(8 * sr), np.float32)
+    k = score.kick(sr).astype(np.float32)
+    track[int(1.0 * sr): int(1.0 * sr) + len(k)] += k * 0.8
+    score.write_wav(d + "/song.wav", track, sr)
+    _voice_film(d + "/v.mp4", 6.0)
+    score.write_wav(d + "/sfx.wav", np.zeros(int(6 * sr), np.float32), sr)
+    for skip in (0.0, 0.25):
+        g = sfx.filtergraph(6.0, True, bgm_skip=skip, solo="music")
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", d + "/v.mp4", "-i", d + "/sfx.wav", "-i", d + "/song.wav",
+                        "-filter_complex", g, "-map", "[a]", "-ac", "1", d + "/m%d.wav" % int(skip * 100)], check=True)
+    a = beatgrid.load_audio(d + "/m0.wav", sr)
+    b = beatgrid.load_audio(d + "/m25.wav", sr)
+    onset = lambda x: int(np.argmax(np.abs(x) > 0.05 * np.max(np.abs(x))))   # noqa: E731
+    assert abs((onset(a) - onset(b)) / sr - 0.25) < 0.002, (onset(a), onset(b))
+    assert abs(len(a) - len(b)) < 0.01 * sr, "the same length out: shifted, not stretched"

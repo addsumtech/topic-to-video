@@ -20,7 +20,7 @@ music. The remotion tier is for ANY video — creativity, craft and design, neve
 - **Camera**: per-beat push/pull/hold (runtime/depth SceneCamera, edge-budgeted), `Plane` depth planes, stage3d
   (CSS 3D, type flat), pageCam2D. No camera continuity across cuts.
 - **Music**: `bgm: 'auto'` is a drone with no tempo or key; nothing reads tempo; nothing aligns picture to music.
-  focus/pop/tick/reveal cues are never planned on the remotion path.
+  focus/pop/tick/reveal cues are never planned on the remotion path. (The first three are answered since: §3 "Built".)
 
 ## 1. Kinetic typography
 
@@ -96,3 +96,12 @@ music. The remotion tier is for ANY video — creativity, craft and design, neve
   a pad keeps words.json valid. Tier 1 — fit BPM/offset to the cuts (mean cut-to-beat 146 → 60 ms); tier 2 — stretch
   pads to the nearest beat (+0.16 s a scene at the fitted tempo; a bar costs 0.7 s — too much); tier 3 — a tempo map
   with ≤4% steps, generated bed only. Must run at the tts/pad stage, before render.
+- **Built (2026-10-23; `scripts/beatgrid.py`, `scripts/score.py`, references/pipeline-scripts.md)**: tiers 1 and 2;
+  tier 3 not built. Tier 2's window is +0.30 s / −0.10 s a pad (U), never under the `scene_pause` floor; a cut's
+  picture moment is its seam's middle frame (a stage run: the beat's first frame; a scored film's close: its arrival,
+  where the closing impact lands). Detection as above, plus a confidence gate the prototype lacked (measured): beats
+  steady ≤20 ms, robust phase contrast ≥3, onset level ≥2.5 σ — synthetic beds and swing kept (2.3–3.2 ms early),
+  noise/drone/speech-like refused; on the 254 loops it keeps 139 of 198 right grids and 9 of 56 wrong ones. A
+  generated bed re-detects 4.3 ms worst median (48 beds), 3.7–5.3 ms through the real mix chain. Promo copy (7
+  boundaries): tier 1 alone 81 ms mean cut-to-beat; tier 2 105 → 24 ms, 6/7 on the beat, +0.43 s; the score sits
+  15.5 LU under the voice while it speaks, 9.8 LU in its pauses. Whether it sounds acceptable is unmeasured: listen.

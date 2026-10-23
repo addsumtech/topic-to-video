@@ -753,6 +753,111 @@ def _apply_holds(out_dir, data, only=None):
     return tuple(added)
 
 
+def _set_clip_length(path, seconds):
+    """Make a clip exactly `seconds` long by appending or removing TRAILING silence only — the head and every word
+    stay where they are, so `NN.words.json` stays valid. Measured: ffmpeg writes these lengths to the sample (mp3 via
+    its gapless header), so the board's duration is the length the plan asked for."""
+    tmp = path + ".grid" + os.path.splitext(path)[1]
+    try:
+        _common.run(["ffmpeg", "-y", "-i", path, "-af", "apad=whole_dur=%.6f,atrim=end=%.6f" % (seconds, seconds),
+                     "-map_metadata", "-1", tmp])
+        if os.path.getsize(tmp) > 0:
+            os.replace(tmp, path)
+            return True
+    except Exception:                                       # noqa: BLE001 — reported by the caller's re-measure
+        pass
+    if os.path.exists(tmp):
+        os.remove(tmp)
+    return False
+
+
+def _music_stage(out_dir, data, ref, lead, only=None, log=print):
+    """THE CUTS ONTO THE MUSIC (scripts/beatgrid.py). A board that asks for music (beatgrid.music_requested) gets a
+    beat grid chosen for its cuts, and each scene's trailing pad stretched — or, by a few frames, trimmed, never
+    under the scene_pause floor — so the cut after it lands on a beat. It runs HERE because this is the only stage
+    that can lengthen a beat without moving a word: a clip only ever gains or loses silence at its tail.
+
+    Writes `beats.json` (the grid, every cut before and after, what it cost); render_remotion reads it and hands it
+    to sfx.mix. A board without music returns at the first check below, having touched nothing (proved byte-identical
+    against the previous tts.py on boards without music)."""
+    import beatgrid
+    meta = data["meta"]
+    path = os.path.join(out_dir, beatgrid.BEATS_FILE)
+    slides = data["slides"]
+    if not beatgrid.music_requested(meta):
+        return None
+    prev = beatgrid.read(out_dir) if only is not None else None
+    base = []
+    for k, s in enumerate(slides):
+        d = float(s.get("duration") or 0.0)
+        # A --only re-voice leaves every other clip as the last run made it, snap pad included. Its base is what it
+        # was before that pad — known only when beats.json recorded it AND the clip is still the length it left.
+        if prev and s["index"] != only and k < len(prev.get("base_s") or []) and k < len(prev.get("durations") or []) \
+                and abs(prev["durations"][k] - d) < 0.002:
+            d = float(prev["base_s"][k])
+        base.append(d)
+    # SLACK: how far a pad may SHRINK — its own breath above the scene_pause floor, and never into sound. Zero for a
+    # silent beat, an unmastered clip (its tail is whatever the engine left), or an explicit audio_breath.
+    import stage_runs as _sr
+    slack = []
+    for k, s in enumerate(slides):
+        if (meta.get("audio_master") is False or meta.get("audio_breath") is not None
+                or not (s.get("narration") or "").strip() or not s.get("audio") or k == len(slides) - 1):
+            slack.append(0.0)
+            continue
+        nxt = slides[k + 1]
+        joined = _sr.joined(s, nxt)
+        breath = _tail_pad(meta, ref=ref, lead=lead)
+        floor = _tail_pad(meta, ref=None, lead=lead)
+        if joined:
+            breath = max(0.15, breath - _seam_seconds(meta))
+            floor = max(0.15, floor - _seam_seconds(meta))
+        # the silence actually at the clip's tail, less any snap pad an earlier run left there (it is not the base's)
+        tail = _tail_silence(os.path.join(out_dir, s["audio"])) - (float(s.get("duration") or 0.0) - base[k])
+        slack.append(max(0.0, min(breath - floor, tail - 0.05)))
+    bgm = meta.get("bgm")
+    bgm_path = None if bgm == "auto" else os.path.join(out_dir, bgm)
+    if bgm_path and not os.path.exists(bgm_path):
+        log("[tts] music: meta.bgm %r does not exist — no grid; the cuts are not snapped" % bgm)
+        bgm_path = False
+    planned = [dict(s, duration=b) for s, b in zip(slides, base)]
+    doc = None if bgm_path is False else beatgrid.plan_film(planned, meta, bgm_path=bgm_path or None, slack=slack,
+                                                             log=log)
+    if doc is None:
+        if os.path.exists(path):
+            os.remove(path)                                   # a stale grid must not outlive the board it was for
+        return None
+    bad = []
+    for k, s in enumerate(slides):
+        want = doc["durations"][k]
+        cur = float(s.get("duration") or 0.0)
+        if abs(want - cur) < 0.0005:
+            continue
+        p = os.path.join(out_dir, s["audio"])
+        _set_clip_length(p, want)
+        s["duration"] = round(_common.audio_duration(p), 3)
+        if beatgrid.dur_frames(s["duration"]) != doc["durF"][k]:
+            bad.append((s["index"], s["duration"], doc["durF"][k]))
+    doc["base_s"] = [round(b, 6) for b in base]
+    doc["durations"] = [float(s.get("duration") or 0.0) for s in slides]
+    doc["durF"] = [beatgrid.dur_frames(d) for d in doc["durations"]]
+    beatgrid.write(out_dir, doc)
+    sm = doc["summary"]
+    g = doc["grid"]
+    log("[tts] music grid: %.2f BPM (%s%s), %d cut(s): mean %.0f ms off the beat -> %.0f ms; %d snapped, +%.2fs "
+        "added / -%.2fs trimmed in all%s"
+        % (g["bpm"], g["source"], ", frame-locked" if g["frame_locked"] else "", sm["cuts"],
+           sm.get("mean_abs_err_ms_before", 0.0), sm.get("mean_abs_err_ms_after", 0.0), sm.get("snapped", 0),
+           sm.get("added_total_s", 0.0), sm.get("trimmed_total_s", 0.0),
+           ((" — snap is OFF (meta.music.snap): boundaries %s left where they are" if doc.get("snap") == "off" else
+             " — UNSNAPPED (no beat within the pad's window): boundaries %s") % sm["unsnappable"])
+           if sm.get("unsnappable") else ""))
+    if bad:
+        log("[tts] WARNING: %d clip(s) did not take the length the grid planned %s — those cuts are off their beat; "
+            "re-run tts.py" % (len(bad), bad))
+    return doc
+
+
 def _master(path, meta=None, ref=None, lead=0.0, joined_next=False):
     """Loudness-normalise + trim TRAILING dead-air of a SPEECH clip, in place. Two problems at once:
     (1) raw TTS ships at wildly different loudness across providers/scenes with no master, so a
@@ -941,6 +1046,13 @@ def synthesize(out_dir, only=None):
     # A malformed `meta.tts_lexicon` is an authoring error, not an engine failure: check it HERE, before the
     # loop, or the per-clip fallback below would catch it and quietly voice every beat with `say`.
     spoken_text("", data["meta"], prov, name)
+    # ...and so is a malformed `meta.music`, found before any voice is made rather than after the whole film is
+    import beatgrid as _bg
+    _merr, _mwarn = _bg.music_problems(data["meta"])
+    if _merr:
+        raise ValueError("; ".join(_merr))
+    for _w in _mwarn:
+        print("[tts] " + _w)
 
     fell_back = []        # indices that dropped to the say fallback (a cloud/edge failure)
     used_primary = []     # indices that actually used the requested non-say provider
@@ -1009,6 +1121,8 @@ def synthesize(out_dir, only=None):
     held = _apply_holds(out_dir, data, only) if pending else (0.0, 0.0)
     if any(held):
         print("[tts] held the open %.2fs and the close %.2fs longer (open_hold / close_hold)" % held)
+    if pending:
+        _music_stage(out_dir, data, ref, lead, only)
     if pending:
         print("[tts] scene pause %.2fs audible (film full-stop %s + %.2fs breath, floor %.2f; "
               "next clip's own lead %.2fs subtracted)"

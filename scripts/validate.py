@@ -4391,6 +4391,13 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if "dither" in meta and not isinstance(meta.get("dither"), bool):
         errors.append("meta.dither must be true or false (the remotion tier's delivery dither, on by default), got %r"
                       % (meta.get("dither"),))
+    # MUSIC (scripts/beatgrid.py owns the rule; tts.py refuses the same board before it voices anything): meta.music's
+    # fields, and a music request the pipeline would not actually mix
+    if "music" in meta:
+        import beatgrid as _bg
+        _me, _mw = _bg.music_problems(meta)
+        errors.extend(_me)
+        warnings.extend(_mw)
     # MIXED-VOICE (both tiers): tts.py records `meta._tts_mixed_voice` when a cloud/edge engine fell back to `say`
     # on SOME scenes — a systemic failure that split the deck between two voices. It was written and read by
     # nothing; surface it so a half-say/half-cloud deck can't ship silently (SKILL.md's ⚠️ MIXED-VOICE guidance).
