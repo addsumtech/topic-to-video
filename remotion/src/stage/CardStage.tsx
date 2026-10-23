@@ -33,10 +33,12 @@ import {clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
 import {useDNA, mix, relLum} from '../runtime/dna';
 import {hex6} from '../runtime/hexColor';
 import {measureText} from '@remotion/layout-utils';
-import {TITLE_Y, contentBottom, CONTENT_TOP} from '../runtime/layout';
+import {TITLE_Y, contentBottom, CONTENT_TOP, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LEAD_CJK,
+  CAPTION_LINES} from '../runtime/layout';
+import {SafeZoneContext, captionBottomY, SAFE_CAPTION_SCALE} from '../runtime/safeZone';
 import {CursorArrow, TapRipple} from '../runtime/gesture';
 import {usePlaceGlide, useGlide} from '../runtime/glide';
-import {useStageRun, lerpState, actor, sinceEvent, State, Normalize} from '../runtime/stageRun';
+import {useStageRun, lerpState, actor, sinceEvent, springSum, moveShare, State, Normalize} from '../runtime/stageRun';
 
 /** The card's pose. x/y: offset of its centre from the content zone's centre, as fractions of the frame's width/height;
  *  s: scale (1 = as large as the zone allows); rx/ry/rz: degrees; aspect: width over height. */
@@ -134,6 +136,9 @@ export const CardStage: React.FC<{
   const dna = useDNA();
   const now = useStageRun(normalize);
   const place = usePlaceGlide();
+  // a 9:16 film for the platforms (runtime/safeZone): the title starts below the platform's tabs, the zone ends
+  // above the caption (which sits above the platform's description), labels keep out of the button column
+  const safeP = React.useContext(SafeZoneContext);
   const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
@@ -168,8 +173,9 @@ export const CardStage: React.FC<{
   const titleBase = Math.round(U * (portrait ? 0.085 : 0.066));
   const lineW = W - 2 * sx;
   const family = dna?.uniformType ? dna.fontMono : (dna?.fontDisplay ?? 'system-ui');
-  const per = (t: string) => measureText({text: t, fontFamily: family, fontSize: 100, fontWeight: '800',
-    letterSpacing: '-0.01em'}).width / 100;
+  // launch-film display type: line-height ~1.05-1.1, negative tracking (Apple 1.05 / -0.015em, Linear -0.022em)
+  const per = (t: string) => measureText({text: t, fontFamily: family, fontSize: 100, fontWeight: '700',
+    letterSpacing: '-0.02em'}).width / 100;
   const titles = [...new Set(keys.map((kf) => String(kf.state.title ?? '')).filter(Boolean))];
   const titlePx = Math.max(12, Math.floor(titles.reduce((px, t) => {
     const longestWord = Math.max(...t.split(/\s+/).filter(Boolean).map((w) => (CJK_CH.test(w) ? 0 : per(w))), 0);
@@ -178,13 +184,19 @@ export const CardStage: React.FC<{
   const titleLines = titles.reduce((n, t) => Math.max(n, per(t) * titlePx > lineW * 0.99 ? 2 : 1), 1);
 
   // ── the card's zone: below the title, above the caption band ──
-  const zoneTop = Math.max(CONTENT_TOP, TITLE_Y + titleLines * titlePx * 1.15 + U * 0.04);
-  const zoneBot = contentBottom(W, H) - U * 0.02;
+  const titleY = safeP ? Math.max(TITLE_Y, Math.round(safeP.top * H)) : TITLE_Y;
+  const zoneTop = Math.max(CONTENT_TOP, titleY + titleLines * titlePx * 1.08 + U * 0.04);
+  // the caption's top on a platform-safe film: its bottom edge (Film.tsx, the same function) less a two-line CJK block
+  const safeCapTop = safeP ? captionBottomY(H, safeP, Math.round(U * CAPTION_MARGIN_FRAC))
+    - CAPTION_LINES * Math.round(U * CAPTION_SIZE_FRAC * SAFE_CAPTION_SCALE) * CAPTION_LEAD_CJK : null;
+  const zoneBot = (safeCapTop ?? contentBottom(W, H)) - U * 0.02;
   const zoneMid = {x: W / 2, y: (zoneTop + zoneBot) / 2};
-  const side = W * (portrait ? 0.07 : 0.19);
+  const side = W * (portrait ? (safeP ? Math.max(0.07, safeP.right * 0.75) : 0.07) : 0.19);
 
   // ── the card: one object, posed in 3D, alive while it holds ──
-  const pose = (p >= 1 ? poseOf(state) : lerpState(poseOf(before), poseOf(state), p)) as Pose;
+  // the card moves on springs that ADD UP across keyframes (runtime/stageRun springSum): front-loaded, a touch of
+  // settle, and no stall when the next move begins before this one has landed
+  const pose = (springSum<Pose>(now, (st) => poseOf(st), {feel: 'settle'}) ?? poseOf(state)) as Pose;
   const sec = now.frame / now.fps;
   const idle = now.reduced ? 0 : 1;
   // ALIVE WHILE IT HOLDS: three quarters of a run is held states, so the hold's own motion is most of the film's —
@@ -207,8 +219,8 @@ export const CardStage: React.FC<{
   };
   // during a move the SIZE travels between the two states' sizes: sizing each in-between shape to the zone swelled the
   // card mid-move (a squarish in-between fills the zone both ways) and shrank it back as it arrived
-  const size = (p >= 1 ? sizeIn(poseOf(state))
-    : lerpState(sizeIn(poseOf(before)), sizeIn(poseOf(state)), p)) as {w: number; h: number; hy: number};
+  const size = (springSum(now, (st) => sizeIn(poseOf(st)), {feel: 'glide'}) ?? sizeIn(poseOf(state))) as
+    {w: number; h: number; hy: number};
   const {cx, cy} = centre(pose);
   const cw = size.w, ch = size.h;
   const heroW = cw;
@@ -240,10 +252,10 @@ export const CardStage: React.FC<{
   // ── the camera: lean in on a place of the face. At zoom 1 nothing moves; by zoom 2 that place sits at the middle of
   // the zone ──
   // a camera that comes in leans from where it would be at zoom 1, and one that goes away settles back to it
-  const camA = before.camera as Camera | undefined, camB = state.camera as Camera | undefined;
-  const camFrom = {zoom: 1, u: 0.5, v: 0.5, ...(camA ?? {zoom: 1, u: camB?.u, v: camB?.v})};
-  const camTo = {zoom: 1, u: 0.5, v: 0.5, ...(camB ?? {zoom: 1, u: camA?.u, v: camA?.v})};
-  const cam = (p >= 1 ? camTo : lerpState(camFrom, camTo, p)) as Required<Camera>;
+  // it leans in on springs that add up, and lands 0.2 s before its keyframe (a click lands on a camera that is already
+  // there — the open screen-demo tools all start the zoom before the click; references/craft-research.md §1)
+  const cam = (springSum<Camera>(now, (st) => (st.camera ? {zoom: 1, u: 0.5, v: 0.5, ...(st.camera as Camera)} : {zoom: 1}),
+    {feel: 'glide', lead: Math.round(now.fps * 0.2)}) ?? {zoom: 1}) as Camera;
   const zoom = Math.max(1, cam.zoom ?? 1);
   const focus = onScreen(cam.u ?? 0.5, cam.v ?? 0.5);
   const pull = clamp01(zoom - 1);
@@ -293,7 +305,8 @@ export const CardStage: React.FC<{
     if (!wall || !Array.isArray(wall.images) || !wall.images.length || wallOn <= 0) return [];
     const n = wall.images.length, cols = Math.max(1, Math.min(n, Math.round(wall.cols ?? (portrait ? 3 : 4))));
     const rows = Math.ceil(n / cols), asp = Math.max(0.3, wall.aspect ?? 16 / 9);
-    const gap = U * 0.018, availW = W * (portrait ? 0.88 : 0.76), availH = zoneBot - zoneTop;
+    // a wall of pages is type: on a platform-safe film it keeps out of the button column (both sides, to stay centred)
+    const gap = U * 0.018, availW = W * (portrait ? (safeP ? 1 - 2 * safeP.right : 0.88) : 0.76), availH = zoneBot - zoneTop;
     let w = (availW - gap * (cols - 1)) / cols, h = w / asp;
     if (rows * h + gap * (rows - 1) > availH) { h = (availH - gap * (rows - 1)) / rows; w = h * asp; }
     const x0 = W / 2 - (cols * w + gap * (cols - 1)) / 2, y0 = zoneMid.y - (rows * h + gap * (rows - 1)) / 2;
@@ -354,7 +367,14 @@ export const CardStage: React.FC<{
 
   // ── the cursor: on a place of the face; it comes in from below-right, and a click lands as it arrives ──
   const cb = before.cursor as Cursor | undefined, cs = state.cursor as Cursor | undefined;
-  const cursorNow = actor<Cursor>(now, 'cursor');
+  // a pointer is spring-chased and settles 0.15 s before its click; it leans into its travel (up to 12 degrees)
+  const cursorAt = (frame?: number) => springSum<Cursor>(now, (st) => (st.cursor && typeof (st.cursor as Cursor).u === 'number'
+    ? {u: (st.cursor as Cursor).u, v: (st.cursor as Cursor).v} as Cursor : undefined),
+    {feel: 'glide', lead: Math.round(now.fps * 0.15), frame});
+  const cursorNow = cursorAt();
+  const cursorPrev = cursorAt(now.frame - 1);
+  const tilt = cursorNow && cursorPrev && !now.reduced
+    ? Math.max(-12, Math.min(12, (cursorNow.u - cursorPrev.u) * cw * 0.9)) : 0;
   let cursor: {x: number; y: number; o: number} | null = null;
   if (cursorNow && typeof cursorNow.u === 'number' && typeof cursorNow.v === 'number') {
     const at = onView(cursorNow.u, cursorNow.v);
@@ -422,10 +442,10 @@ export const CardStage: React.FC<{
     flush();
     return (
       // a leaving line rises by a TRANSFORM with the unlock — moved by `top` it stepped whole pixels (text_safe --glide)
-      <div style={{position: 'absolute', left: sx, top: TITLE_Y, width: lineW,
+      <div style={{position: 'absolute', left: sx, top: titleY, width: lineW,
         transform: leaving ? glide(`translateY(${-(1 - q) * U * 0.03}px)`, true) : undefined,
-        opacity: leaving ? q : 1, color: titleInk, font: `800 ${titlePx}px/1.15 var(--f-display, system-ui)`,
-        letterSpacing: '-0.01em'}}>
+        opacity: leaving ? q : 1, color: titleInk, font: `700 ${titlePx}px/1.08 var(--f-display, system-ui)`,
+        letterSpacing: '-0.02em'}}>
         {tokens}
       </div>
     );
@@ -439,19 +459,24 @@ export const CardStage: React.FC<{
   const spotNear = (box: {x0: number; y0: number; x1: number; y1: number}, pw: number, ph: number) => {
     const gap = U * 0.045, margin = W * 0.03, top = zoneTop - U * 0.02, bottom = zoneBot;
     const midX = (box.x0 + box.x1) / 2, midY = (box.y0 + box.y1) / 2;
-    const clampX = (x: number) => Math.min(Math.max(x, margin), W - margin - pw);
+    // the right edge a thing may reach at height y: the frame's margin, or — on a platform-safe film, beside the
+    // button column — the column's left edge
+    const rightAt = (y: number) => (safeP && y + ph > H * safeP.rightFrom ? W * (1 - safeP.right) : W - margin);
+    const clampX = (x: number, y: number) => Math.min(Math.max(x, margin), rightAt(y) - pw);
     const clampY = (y: number) => Math.min(Math.max(y, top), bottom - ph);
     type Spot = {x: number; y: number; ax: number; ay: number; bx: number; by: number; ok: boolean};
-    const right: Spot = {x: box.x1 + gap, y: clampY(midY - ph / 2), ax: box.x1, ay: midY, bx: box.x1 + gap, by: midY,
-      ok: box.x1 + gap + pw <= W - margin};
+    const ry = clampY(midY - ph / 2);
+    const right: Spot = {x: box.x1 + gap, y: ry, ax: box.x1, ay: midY, bx: box.x1 + gap, by: midY,
+      ok: box.x1 + gap + pw <= rightAt(ry)};
     const left: Spot = {x: box.x0 - gap - pw, y: clampY(midY - ph / 2), ax: box.x0, ay: midY, bx: box.x0 - gap, by: midY,
       ok: box.x0 - gap - pw >= margin};
-    const above: Spot = {x: clampX(midX - pw / 2), y: box.y0 - gap * 0.6 - ph, ax: midX, ay: box.y0, bx: midX,
-      by: box.y0 - gap * 0.6, ok: box.y0 - gap * 0.6 - ph >= top};
-    const below: Spot = {x: clampX(midX - pw / 2), y: box.y1 + gap * 0.6, ax: midX, ay: box.y1, bx: midX,
-      by: box.y1 + gap * 0.6, ok: box.y1 + gap * 0.6 + ph <= bottom};
+    const ay = box.y0 - gap * 0.6 - ph, by = box.y1 + gap * 0.6;
+    const above: Spot = {x: clampX(midX - pw / 2, ay), y: ay, ax: midX, ay: box.y0, bx: midX,
+      by: box.y0 - gap * 0.6, ok: ay >= top};
+    const below: Spot = {x: clampX(midX - pw / 2, by), y: by, ax: midX, ay: box.y1, bx: midX,
+      by: box.y1 + gap * 0.6, ok: by + ph <= bottom};
     const order = midX >= viewCx ? [right, left, above, below] : [left, right, above, below];
-    return order.find((o) => o.ok) ?? {...right, x: clampX(right.x)};
+    return order.find((o) => o.ok) ?? {...right, x: clampX(right.x, right.y)};
   };
   /** A name for a part of the face: a pill beside the part's box on screen — right or left of it (the side its centre
    *  leans to first), else above or below it — the first place that stays in the frame and off the part, joined to the
@@ -469,7 +494,7 @@ export const CardStage: React.FC<{
     const padY = labelPx * 0.3, padX = labelPx * 0.55;
     const pw = Math.max(wText, wBig) + 2 * padX, ph = (text ? labelPx * 1.2 : 0) + (big !== undefined ? bigPx * 1.05 : 0) + 2 * padY;
     // a BADGE has no place on the hero to point at (the hero has left the stage): it stands at the title's right end
-    const at = badge ? {x: W - W * 0.065 - pw, y: TITLE_Y, ax: 0, ay: 0, bx: 0, by: 0} : spotNear(box, pw, ph);
+    const at = badge ? {x: W - W * 0.065 - pw, y: titleY, ax: 0, ay: 0, bx: 0, by: 0} : spotNear(box, pw, ph);
     const len = badge ? 0 : Math.hypot(at.bx - at.ax, at.by - at.ay), ang = Math.atan2(at.by - at.ay, at.bx - at.ax);
     return (
       <React.Fragment key={key}>
@@ -478,7 +503,7 @@ export const CardStage: React.FC<{
         {/* placed by a translate that carries the baseline unlock (runtime/glide): the card floats while it holds,
             so a name on it crawls under a pixel a frame, and type moved by left/top stepped a whole pixel at a time
             (text_safe_qa --glide: '可编辑' stepped 4px over 43 frames) */}
-        <div style={{position: 'absolute', ...place(!now.reduced, at.x, at.y, `scale(${0.85 + 0.15 * on})`),
+        <div style={{position: 'absolute', ...place(!now.reduced, at.x, at.y, `scale(${0.94 + 0.06 * on})`),
           width: pw, height: ph, boxSizing: 'border-box', transformOrigin: `${at.bx - at.x}px ${at.by - at.y}px`,
           opacity: on, background: ink.acc, color: ink.on, borderRadius: labelPx * 0.4, padding: `${padY}px ${padX}px`,
           whiteSpace: 'nowrap', boxShadow: `0 ${U * 0.006}px ${U * 0.02}px ${dark ? 'rgba(0,0,0,0.5)' : mix(ink.fg, ink.bg, 0.8)}`}}>
@@ -514,7 +539,11 @@ export const CardStage: React.FC<{
   // ── panel: a panel opening at a place of the hero's face — its title and rows are the film's own data ──
   const panelA = before.panel as Panel | undefined, panelB = state.panel as Panel | undefined;
   const panel = panelB ?? panelA;
-  const panelOn = panelA && panelB ? 1 : panelB ? p : panelA ? 1 - p : 0;
+  // a panel is what a click OPENS: it comes in after its keyframe has landed (the click), never on the way to it — it
+  // used to fade in with the move toward the click and was open before the cursor had pressed
+  const opened = sinceEvent(now, (q) => !!q.panel);
+  const panelOn = panelB ? (panelA && (!opened || opened.f > Math.round(now.fps * 0.35)) ? 1
+    : opened ? moveShare(opened.f, Math.round(now.fps * 0.3), now.fps) : 0) : panelA ? 1 - p : 0;
   const panelArt = (() => {
     if (!panel || !Array.isArray(panel.rows) || !panel.rows.length || panelOn <= 0 ||
         typeof panel.u !== 'number' || typeof panel.v !== 'number') return null;
@@ -540,7 +569,7 @@ export const CardStage: React.FC<{
   const sideCard = (g: SideG) => {
     const e = easeOutCubic(g.on);
     const t = `translate(${g.cx - g.w / 2}px, ${g.cy + floatY - g.h / 2 + (1 - e) * U * 0.04}px) perspective(${persp}px) ` +
-      `rotateX(${g.pose.rx}deg) rotateY(${g.pose.ry}deg) rotateZ(${g.pose.rz}deg) scale(${0.92 + 0.08 * e})`;
+      `rotateX(${g.pose.rx}deg) rotateY(${g.pose.ry}deg) rotateZ(${g.pose.rz}deg) scale(${0.96 + 0.04 * e})`;
     return <div key={`c${g.c.id}`} style={{position: 'absolute', left: 0, top: 0, width: g.w, height: g.h, transform: t,
       transformOrigin: 'center center', opacity: g.on, borderRadius: r, overflow: 'hidden', background: ink.surface,
       boxShadow: `0 ${U * 0.02}px ${U * 0.06}px ${cardShadow}, 0 0 0 1px ${mix(ink.fg, ink.bg, 0.88)}`}}>
@@ -560,7 +589,7 @@ export const CardStage: React.FC<{
           <div key={`w${c.i}`} style={{position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h, overflow: 'hidden',
             borderRadius: r * 0.6, background: ink.surface, opacity: c.a * (c.dim ? 0.5 : 1), zIndex: c.picked ? 2 : 1,
             transform: `translateY(${(1 - c.a) * U * 0.05 + idle * Math.sin((2 * Math.PI * sec) / 5.5 + c.i * 0.9) * U * 0.006}px) ` +
-              `scale(${(0.9 + 0.1 * c.a) * (c.picked ? 1.1 : 1)})`,
+              `scale(${(0.96 + 0.04 * c.a) * (c.picked ? 1.1 : 1)})`,
             boxShadow: c.picked ? `0 0 0 ${stroke * 1.5}px ${ink.acc}, 0 ${U * 0.02}px ${U * 0.05}px ${cardShadow}`
               : `0 ${U * 0.008}px ${U * 0.02}px ${cardShadow}`}}>
             <Img src={staticFile(c.img)} style={{width: '100%', height: '100%', objectFit: 'cover', display: 'block'}} />
@@ -626,7 +655,7 @@ export const CardStage: React.FC<{
             <React.Fragment>
               <div style={{position: 'absolute', left: sp.ax, top: sp.ay - stroke / 2, width: len, height: stroke,
                 background: ink.acc, opacity: panelOn, transformOrigin: '0 50%', transform: `rotate(${ang}rad) scaleX(${panelOn})`}} />
-              <div style={{position: 'absolute', ...place(!now.reduced, sp.x, sp.y, `scale(${0.9 + 0.1 * panelOn})`),
+              <div style={{position: 'absolute', ...place(!now.reduced, sp.x, sp.y, `scale(${0.96 + 0.04 * panelOn})`),
                 width: pw, height: ph, boxSizing: 'border-box', transformOrigin: `${sp.bx - sp.x}px ${sp.by - sp.y}px`,
                 opacity: panelOn, background: ink.surface, color: ink.fg, borderRadius: rowPx * 0.5, padding: pad,
                 boxShadow: `0 ${U * 0.012}px ${U * 0.04}px ${dark ? 'rgba(0,0,0,0.5)' : mix(ink.fg, ink.bg, 0.75)}, ` +
@@ -658,7 +687,8 @@ export const CardStage: React.FC<{
         })() : null}
         {clickAt && rippleU > 0 && rippleU < 1 ? <TapRipple x={clickAt.x} y={clickAt.y} u={rippleU} color={ink.acc}
           size={U * 0.06} /> : null}
-        {cursor ? <div style={{opacity: cursor.o}}><CursorArrow x={cursor.x} y={cursor.y} size={U * 0.056} press={press} /></div>
+        {cursor ? <div style={{position: 'absolute', left: 0, top: 0, opacity: cursor.o, transformOrigin: `${cursor.x}px ${cursor.y}px`,
+          transform: tilt ? `rotate(${tilt}deg)` : undefined}}><CursorArrow x={cursor.x} y={cursor.y} size={U * 0.056} press={press} /></div>
           : null}
       {outP > 0 ? titleLine(prevTitle, before.highlight as string | undefined, outP, true) : null}
       {titleLine(curTitle, state.highlight as string | undefined, inP, false)}

@@ -3,6 +3,7 @@ numpy — no API, no external assets); cues pin to beats with restraint; the mix
 isolation (SFX highpass 800 / BGM lowpass 4k / amix normalize=0) and is OPT-IN (meta.sound_design). The mix
 itself is proven by a real render (peak -2.2dB, no clip); audio QUALITY must be auditioned by a human."""
 import inspect
+import re
 import os
 import shutil
 import wave
@@ -70,9 +71,11 @@ def test_closing_sentence_is_pinned_to_the_landing():
     cs = {n: t for t, n, g in sfx.plan_cues(_film(3), 30)}
     land = 2 * 150 / 30.0
     assert cs["impact"] == pytest.approx(land), "the impact IS the landing"
-    assert cs["riser"] == pytest.approx(land - sfx.SENTENCE_RISER_LEAD / 30.0), "the build leads by 35f"
+    # every planned time is where a cue PEAKS (build_sfx_track aligns by it): the riser's top is the landing, and the
+    # build in front of it is the cue's own length
+    assert cs["riser"] == pytest.approx(land), "the riser's peak is the landing"
+    assert sfx._peak_seconds(sfx.cue("riser")) > 1.0, "the build climbs for over a second into the hit"
     assert cs["sparkle"] == pytest.approx(land + sfx.SENTENCE_SPARKLE_LAG / 30.0), "the glow follows by 25f"
-    assert cs["riser"] < 2 * 150 / 30.0 < cs["impact"] + 1e-9, "the riser crosses the cut into the close"
 
 
 def test_no_bell_closes_the_film():
@@ -84,9 +87,11 @@ def test_impact_on_the_seam_replaces_that_seam_whoosh():
     cs = sfx.plan_cues(_film(3), 30)
     seam2 = 2 * 150 / 30.0
     whooshes = [t for t, n, g in cs if n == "whoosh"]
-    assert any(abs(t - (150 / 30.0 - 2 / 30.0)) < 1e-6 for t in whooshes), "the interior seam keeps its whoosh"
-    assert not any(abs(t - (seam2 - 2 / 30.0)) < 1e-6 for t in whooshes), \
-        "the seam the impact lands on is voiced by the riser, not a whoosh two frames before the hit"
+    # a seam whoosh PEAKS on the seam's fastest frame, a frame early at most (EBU R37: audio ≤40 ms early)
+    mid = 12 / 2.0 - 1.0
+    assert any(abs(t - (150 / 30.0 + mid / 30.0)) < 1e-6 for t in whooshes), "the interior seam keeps its whoosh"
+    assert not any(abs(t - (seam2 + mid / 30.0)) < 1e-6 for t in whooshes), \
+        "the seam the impact lands on is voiced by the riser, not a whoosh over the hit"
 
 
 def test_impact_is_the_loudest_cue():
@@ -218,7 +223,34 @@ def test_the_probe_measures_the_chain_the_film_actually_uses():
     """
     src = inspect.getsource(sfx)
     assert src.count("amix=inputs=") == 1, "the mix graph is written more than once"
-    assert "filtergraph(dur, bool(bgm_wav))" in src, "mix() no longer renders through the shared graph"
-    assert "filtergraph(PROBE_SECONDS, has_bgm)" in src, "the probe no longer measures the shared graph"
+    assert "_through_chain(inputs, dur, bool(bgm_wav)" in src, "mix() no longer renders through the shared chain"
+    assert "_through_chain(ins, PROBE_SECONDS, has_bgm" in src, "the probe no longer measures the shared chain"
     # and the offset must actually be SUBTRACTED, not merely printed
     assert "t - lat" in src, "the measured offset is reported but never applied to the cue times"
+
+
+def test_the_mix_is_delivered_at_48k_and_on_its_loudness_target(tmp_path):
+    """Measured on the encoded file: the loudness pass used to upsample to 96 kHz and land 1.5 LU low."""
+    import shutil
+    import subprocess
+    if sfx.np is None or not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        pytest.skip("needs numpy + ffmpeg")
+    np = sfx.np
+    sr = sfx.SR
+    t = np.arange(int(6 * sr)) / sr
+    voice = (0.3 * np.sin(2 * np.pi * 220 * t) * (1 + np.sin(2 * np.pi * 3 * t)) / 2).astype(np.float32)
+    sfx._write_wav(str(tmp_path / "v.wav"), voice)
+    base = str(tmp_path / "base.mp4")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=160x90:r=30:d=6",
+                    "-i", str(tmp_path / "v.wav"), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                    "-shortest", base], check=True)
+    scenes = [{"durationInFrames": 90, "events": [{"t": 1.0, "name": "click"}]},
+              {"durationInFrames": 90, "events": [{"t": 1.0, "name": "click"}]}]
+    assert sfx.mix(str(tmp_path), base, scenes, {}, 30, events_only=True)
+    rate = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate",
+                           "-of", "csv=p=0", base], capture_output=True, text=True).stdout.strip()
+    assert rate == "48000", rate
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", base, "-af", "ebur128=peak=true", "-f", "null",
+                          "-"], capture_output=True, text=True).stderr
+    integ = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", out)[-1])
+    assert abs(integ - sfx._TARGET_LUFS) <= 1.0, integ

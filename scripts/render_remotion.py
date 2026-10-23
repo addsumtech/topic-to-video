@@ -649,6 +649,19 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
     return scenes
 
 
+def safe_zone(meta, aspect):
+    """The platform-safe profile a film renders with: "social" for a portrait film unless `meta.safe_zone` is "none",
+    else None. A landscape or square film has no platform UI over it."""
+    want = (meta or {}).get("safe_zone", "social")
+    if want in (None, "", "none", False):
+        return None
+    if want != "social":
+        raise SystemExit("[render_remotion] meta.safe_zone must be \"social\" or \"none\", got %r" % (want,))
+    from _caption_band import aspect_table
+    w, h = aspect_table().get(str(aspect), (1920, 1080))
+    return "social" if h > w else None
+
+
 def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False):
     """(props, slides): the Film's input props for this board, and the slides they were built from.
 
@@ -690,6 +703,12 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
              "cameraBed": meta.get("camera_bed") is True,
              "reducedMotion": reduced, "aspect": aspect,
              "captions": bool(meta.get("captions", True))}
+    # THE PLATFORM'S OWN UI: a portrait film is posted where a description, an author line and a button column sit
+    # over its bottom and right edges — its caption and labels are kept clear of them (runtime/safeZone.ts). The
+    # default for a portrait film; `meta.safe_zone: "none"` for a portrait film shown somewhere without that UI.
+    zone = safe_zone(meta, aspect)
+    if zone:
+        props["safe"] = zone
     if isinstance(meta.get("brand"), dict) and meta["brand"].get("logo"):
         props["brand"] = meta["brand"]     # served from out_dir via --public-dir; drawn as a persistent corner bug
     theme = meta.get("theme")                 # the per-topic atmosphere WORLD (motif + palette) behind every shot
@@ -807,6 +826,13 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
                         events_only=not meta.get("sound_design"))
             except Exception as e:
                 print("[render_remotion] sound_design skipped: %s" % e)
+        # a portrait film posted to a platform also needs its feed card (scripts/cover.py): best-effort, said aloud
+        if (props.get("safe") or "") == "social":
+            try:
+                import cover as _cover
+                print("[render_remotion] cover -> %s" % os.path.basename(_cover.cover(out_dir)))
+            except (SystemExit, Exception) as e:          # noqa: BLE001 — a film without a cover still renders
+                print("[render_remotion] no cover: %s" % e)
         _not_delivered(out_dir)
     return out_mp4
 

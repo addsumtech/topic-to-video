@@ -245,6 +245,15 @@ META, and the slot that finds it by id and draws it at its box's size.
 **Smallest real use:** `<ObjectSlot object={props.object} box={{x, y, w, h}} t={objT} />`
 **Exports:** `ObjectSlot`, `ObjectRef`, `ObjectProps`, `ObjectMeta`, `ObjectEntry`, `fitAspect`, `useObjectEntry`, `resolveObject`, `ObjectsContext`, `SLOT_KEYS`.
 
+### `safeZone`
+Where a portrait film posted to Xiaohongshu / Douyin / TikTok / Reels / Shorts is covered by the platform's own UI,
+and the `social` profile that keeps what must be read out of it: the caption above the bottom 19%, a register drawn
+in a frame scaled so its own caption band lands on the caption, a stage laid out in the safe area directly
+(references/craft-research.md §2).
+**Reach for it:** only in Film.tsx and a stage component — a register never reads it (it is drawn in the frame).
+**Smallest real use:** `const safeP = React.useContext(SafeZoneContext);`
+**Exports:** `SafeZoneContext`, `SafeProfile`, `SOCIAL`, `safeProfile`, `registerFrame`, `captionBottomY`, `SAFE_CAPTION_SCALE`.
+
 ### `stageRun`
 The continuous stage: consecutive beats naming one `stage.run` are ONE scene drawn by one stage component. Each beat's
 props and each of its `steps` is a keyframe that says what changes (objects merge, `null` removes); a step arrives on

@@ -160,8 +160,14 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     MUST still-render each chosen shot at that aspect and fix or swap what does not reflow. About one register in six is
     unsafe in portrait, so run `python3 scripts/text_safe_qa.py --library --aspect=9:16` (or `--all-aspects`, `--only=Id,Id`)
     BEFORE promising a vertical or square film.
+  - **Platform-safe portrait.** A 9:16 / 4:5 film keeps its caption, title and labels out of the platform's own UI
+    (bottom 19%, the right button column, the top tabs) by default — `meta.safe_zone: "none"` opts out; registers are
+    drawn in a scaled frame, stages lay out in the safe area, and `text_safe_qa --glide` ERRORS on type in those zones.
+    The render also writes a 3:4 feed cover, `out.cover.png` (`scripts/cover.py`; `meta.cover: {"beat": N}`).
   - **Sound.** `meta.sound_design:true` is an opt-in SFX bed. `meta.bgm` (a path or `"auto"`) scores the film, and a scored
-    film also ships `out.nobgm.mp4`. The pipeline cannot hear, so **audition it before delivery**.
+    film also ships `out.nobgm.mp4`; the music ducks under the voice (sidechain, ≥10 LU under speech). The mix is two-pass
+    loudness-normalised to -14 LUFS / -2 dBTP at 48 kHz, every cue aligned by its PEAK (≤1 frame early), and `check_av`
+    refuses a delivery over 48 kHz. The pipeline cannot hear, so **audition it before delivery**.
     `python3 scripts/sfx.py --calibrate` measures the cue offset through the real filtergraph and exits non-zero past half a frame.
   - **Devices.** `DeviceDemo`/`DeviceHero` show the product's own screens. The step script goes in `shot_props.steps` and is
     checked by `scripts/device_script.py` (format: `remotion/cards/DeviceDemo.md` "Step script").

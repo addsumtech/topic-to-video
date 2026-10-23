@@ -113,6 +113,12 @@ def deliver(out_dir, to=None, home=None, what="out"):
         captions = os.path.splitext(video)[0] + ".srt"
         shutil.copy2(srt, captions)
         delivered.append(captions)
+    # a portrait film's 3:4 feed card (scripts/cover.py), beside the film under the same name
+    cover = os.path.join(out_dir, "out.cover.png")
+    if what == "out" and os.path.isfile(cover):
+        card = os.path.splitext(video)[0] + " - cover.png"
+        shutil.copy2(cover, card)
+        delivered.append(card)
     return delivered
 
 

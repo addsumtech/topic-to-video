@@ -13,8 +13,10 @@ fabricated sources); BGM is an author track (meta.bgm=<path>) or a subtle synthe
 (meta.bgm='auto'). Opt-in via meta.sound_design — the mix is a post-render step on out.mp4's baked
 voiceover. Cannot be auditioned by the pipeline; the operator should listen before delivery.
 """
+import json
 import math
 import os
+import re
 import shutil
 import tempfile
 import struct
@@ -35,7 +37,7 @@ SR = 44100
 _SEED = 20260802
 
 # huashu golden ratios
-_BGM_VOL = 0.45
+_BGM_VOL = 0.30        # under a sidechain duck: ≥10 LU under the voice while it speaks (references/craft-research.md §3)
 _SFX_HP = 800          # SFX highpass (Hz) — push to the presence band
 _SFX_LP = 110          # SFX LOW band (Hz) — an impact's body, kept under the voice's fundamentals
 _BGM_LP = 4000         # BGM lowpass (Hz) — keep it under the SFX
@@ -93,9 +95,23 @@ def cue(name):
         n = int(0.16 * SR); t = np.arange(n) / SR
         return _norm(np.sin(2 * np.pi * 1500 * t) * _env(n, 0.004, 0.06)) * 0.5
     if name == "whoosh":                           # a scene transition / camera move
-        n = int(0.40 * SR); t = np.arange(n) / SR
-        swell = np.sin(np.pi * np.clip(t / 0.40, 0, 1))
-        return _norm(rng.standard_normal(n) * swell) * 0.5
+        # AIR MOVING PAST, NOT HISS. Flat noise under a swell has the same flat spectrum the old click had — a
+        # "tsss". A whoosh is noise through a band that SWEEPS (here 300 Hz -> 5 kHz) as it swells and falls away
+        # (references/craft-research.md §3); the swell peaks 60% in, and the mix lands that peak on the seam.
+        n = int(0.50 * SR); t = np.arange(n) / SR
+        fc = 300.0 * (5000.0 / 300.0) ** np.clip(t / 0.50, 0, 1)
+        x = rng.standard_normal(n)
+        out = np.empty(n, dtype=np.float64)
+        low = band = 0.0
+        q = 1.0 / 1.4
+        for i in range(n):                          # a Chamberlin state-variable band-pass, its centre moving
+            fk = 2.0 * np.sin(np.pi * fc[i] / SR)
+            low += fk * band
+            high = x[i] - low - q * band
+            band += fk * high
+            out[i] = band
+        swell = np.where(t < 0.30, (t / 0.30) ** 1.5, np.exp(-(t - 0.30) / 0.07))
+        return _norm(out * swell) * 0.5
     if name == "pop":                              # an element enters
         n = int(0.12 * SR); t = np.arange(n) / SR
         f = np.linspace(880, 320, n); ph = 2 * np.pi * np.cumsum(f) / SR
@@ -167,7 +183,7 @@ SPARKLE_MIN_TAIL_S = 0.6     # the sparkle must have this much film left to ring
 
 
 # ── cue planning: pin cues to the video's BEATS (frame-exact), with restraint ─────────────────────────
-def plan_cues(scenes, fps, events_only=False):
+def plan_cues(scenes, fps, events_only=False, seam_frames=12):
     """Given a scene list (each with durationInFrames; optional shots[].startFrame), return a cue list
     [(t_seconds, cue_name, gain)] aligned to beats: a whoosh at each MARKED scene transition (anticipatory,
     −2 frames; a plain cross-fade seam stays QUIET so the ear marks the same ~2-3 seams the eye does — the
@@ -188,7 +204,10 @@ def plan_cues(scenes, fps, events_only=False):
         shots = sc.get("shots") or []
         seam_cue = None
         if si > 0:                                  # scene transition — sound only the MARKED seams
-            tt = max(0.0, t0 - 2.0 / fps)           # 2 frames early (anticipation)
+            # THE PEAK ON THE SEAM'S FASTEST FRAME, a frame early at most: every time here is where a cue's PEAK
+            # lands (build_sfx_track aligns by it). "Two frames before the seam's first frame" put a whoosh's start
+            # 67 ms early — past EBU R37's 40 ms — and its peak a fifth of a second later, after the motion's peak.
+            tt = max(0.0, t0 + (seam_frames / 2.0 - 1.0) / fps)
             if "transitionIn" in sc:                # the seam grammar is DECLARED (remotion tier)
                 ti = sc.get("transitionIn")
                 if ti and ti.get("type") == "carry":
@@ -236,7 +255,7 @@ def plan_cues(scenes, fps, events_only=False):
         # sparkle is the sentence's full stop and needs room to ring; a film that ends within its lag pulls it
         # in, and a film with no room at all drops it and says so — a sparkle cut off by the end is a glitch,
         # not a shorter sparkle.
-        sentence.append((max(0.0, land - SENTENCE_RISER_LEAD / fps), "riser", 0.5, 0))
+        sentence.append((land, "riser", 0.5, 0))   # its peak — the top of the climb — on the landing
         sentence.append((land, "impact", 0.95, 0))
         sp = min(land + SENTENCE_SPARKLE_LAG / fps, total - SPARKLE_MIN_TAIL_S)
         if sp > land:
@@ -256,19 +275,42 @@ def plan_cues(scenes, fps, events_only=False):
     return [(t, name, g) for (t, name, g, _p) in cues]
 
 
-def build_sfx_track(cues, total_seconds, out_wav):
+def _peak_seconds(c):
+    """Where a cue's envelope peaks, in seconds — its 5 ms RMS maximum, so a riser's peak is the top of its climb and
+    not whichever noise sample happens to be largest."""
+    w = max(1, int(0.005 * SR))
+    e = np.sqrt(np.convolve(np.asarray(c, dtype=np.float64) ** 2, np.ones(w) / w, mode="same"))
+    return float(np.argmax(e)) / SR
+
+
+def build_sfx_track(cues, total_seconds, out_wav, peak_cap=None):
     """Render the planned cues into ONE full-length SFX WAV (each cue placed at its sample offset), so the
     ffmpeg mix is a clean 2–3 input graph. Deterministic."""
     if np is None:
         return False
     buf = np.zeros(int((total_seconds + 1.0) * SR), dtype=np.float32)
+    seen = {}
     for (t, name, g) in cues:
         c = cue(name)
         if c is None or not len(c):
             continue
-        i = int(t * SR)
-        j = min(len(buf), i + len(c))
-        buf[i:j] += c[: j - i] * float(g)
+        # A CUE REPEATED IS NOT THE SAME SOUND TWICE: the n-th click of a film is pitched and levelled a hair off the
+        # first (deterministically), so a run of them does not machine-gun. The first of each is untouched.
+        k = seen.get(name, 0)
+        seen[name] = k + 1
+        if k:
+            r = 1.0 + 0.03 * np.sin(k * 2.3)
+            c = np.interp(np.arange(0, len(c) - 1, r), np.arange(len(c)), c).astype(np.float32)
+            g = float(g) * 10 ** (np.cos(k * 1.7) / 20.0)
+        # `t` is where the cue's PEAK lands (its envelope's maximum), not where it starts: a whoosh swells for
+        # 0.3 s, a riser climbs for 1.2 s — aligned by their starts, each one peaked after the moment it marks
+        i = int(round((t - _peak_seconds(c)) * SR))
+        a0 = max(0, -i)
+        i = max(0, i)
+        j = min(len(buf), i + len(c) - a0)
+        buf[i:j] += c[a0: a0 + (j - i)] * float(g)
+    if peak_cap is not None and float(np.max(np.abs(buf))) > peak_cap > 0:
+        buf *= peak_cap / float(np.max(np.abs(buf)))   # gain-staged under the voice (see mix)
     buf = np.tanh(buf * 0.9)                         # soft-clip guard (never hard-clip the sum)
     _write_wav(out_wav, buf)
     return True
@@ -276,12 +318,34 @@ def build_sfx_track(cues, total_seconds, out_wav):
 
 # ── the audio chain, and how far it actually MOVES a sound ────────────────────────────────────────────
 
-def filtergraph(dur, has_bgm):
+OUT_RATE = 48000      # AAC delivery rate: loudnorm upsamples internally (the output came out 96 kHz) — resample back
+TARGET_TP = -2.0       # true-peak ceiling BEFORE the AAC encode: a -1.5 request measured -1.3 dBTP after it
+# the duck: music under the voice ≥10 LU while it speaks (Torcoli et al. 2019), 6 dB in a breath; measured with this
+# pad level: 12.8 LU under speech, 6.8 in pauses (references/craft-research.md §3)
+DUCK = {"threshold": 0.02, "ratio": 3, "attack": 15, "release": 450}
+
+
+def _loudnorm(measured=None, print_json=False):
+    ln = "loudnorm=I=%.1f:TP=%.1f:LRA=11" % (_TARGET_LUFS, TARGET_TP)
+    if measured:
+        ln += (":measured_I=%s:measured_TP=%s:measured_LRA=%s:measured_thresh=%s:offset=%s:linear=true"
+               % (measured["input_i"], measured["input_tp"], measured["input_lra"], measured["input_thresh"],
+                  measured["target_offset"]))
+    if print_json:
+        ln += ":print_format=json"
+    return ln
+
+
+def filtergraph(dur, has_bgm, measured=None, print_json=False):
     """The one filtergraph. `mix()` renders through it and `measure_offset()` measures through it.
 
     Written twice, the probe would certify a chain the film does not use — which is the whole failure this
-    module was audited for. A cue's time is computed frame-exactly (a seam whoosh lands 2 frames early, on
-    purpose) and then handed to an encoder nobody had ever measured.
+    module was audited for. A cue's time is computed frame-exactly and then handed to an encoder nobody had ever
+    measured.
+
+    `measured` is the first pass's loudness reading (`_measure_loudness`): the second pass then normalises LINEARLY
+    to it. One dynamic pass landed a film 1.5-1.7 LU under its -14 target (the sum peaked over full scale before the
+    limiter); `print_json` is that first pass.
     """
     # TWO BANDS FROM ONE INPUT. The SFX bus has always been highpassed at 800Hz so it sits above the voice —
     # and an impact's body is a 35-60Hz thump, which that highpass deletes entirely: a landing would ship
@@ -294,12 +358,53 @@ def filtergraph(dur, has_bgm):
           "[sl]lowpass=f=%d,volume=1.0[sfxlo]" % _SFX_LP]
     mix_ins, n_in = "[0:a][sfxhi][sfxlo]", 3
     if has_bgm:
-        fc.append("[2:a]lowpass=f=%d,afade=in:st=0:d=0.3,afade=out:st=%.2f:d=1.5,volume=%.2f[bgm]"
-                  % (_BGM_LP, max(0.0, dur - 1.5), _BGM_VOL))
-        mix_ins, n_in = "[0:a][bgm][sfxhi][sfxlo]", 4
-    fc.append("%samix=inputs=%d:duration=first:normalize=0,loudnorm=I=%.1f:TP=-1.5:LRA=11[a]"
-              % (mix_ins, n_in, _TARGET_LUFS))
+        # THE MUSIC MAKES ROOM FOR THE VOICE. A static bed sat 4.2 LU under the voice (measured) where commentary
+        # wants ≥10: the voice keys a compressor on the music. The key is padded to the film's length, or the music
+        # falls silent where the voice ends.
+        fc += ["[0:a]asplit=2[vo][sc0]",
+               "[sc0]apad=whole_dur=%.3f[sc]" % dur,
+               "[2:a]lowpass=f=%d,afade=in:st=0:d=0.3,afade=out:st=%.2f:d=1.5,volume=%.2f[bgm0]"
+               % (_BGM_LP, max(0.0, dur - 1.5), _BGM_VOL),
+               "[bgm0][sc]sidechaincompress=threshold=%g:ratio=%g:attack=%g:release=%g:makeup=1[bgm]"
+               % (DUCK["threshold"], DUCK["ratio"], DUCK["attack"], DUCK["release"])]
+        mix_ins, n_in = "[vo][bgm][sfxhi][sfxlo]", 4
+    fc.append("%samix=inputs=%d:duration=first:normalize=0,%s,aresample=%d[a]"
+              % (mix_ins, n_in, _loudnorm(measured, print_json), OUT_RATE))
     return ";".join(fc)
+
+
+def _measure_loudness(inputs, dur, has_bgm):
+    """The first pass: the chain's own loudness reading, or None (then the second pass is a dynamic one)."""
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats"] + inputs +
+                       ["-filter_complex", filtergraph(dur, has_bgm, print_json=True), "-map", "[a]", "-f", "null", "-"],
+                       capture_output=True, text=True)
+    m = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", r.stderr or "", re.S)
+    try:
+        j = json.loads(m.group(0)) if m else None
+    except ValueError:
+        j = None
+    if not j or any(str(j.get(k, "")).lstrip("-").replace(".", "", 1).isdigit() is False
+                    for k in ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")):
+        return None
+    return {k: j[k] for k in ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")}
+
+
+def _through_chain(inputs, dur, has_bgm, out, maps):
+    """Render through the chain in two passes (measure, then normalise linearly to the measurement)."""
+    meas = _measure_loudness(inputs, dur, has_bgm)
+    subprocess.run(["ffmpeg", "-y", "-v", "error"] + inputs + ["-filter_complex", filtergraph(dur, has_bgm, meas)]
+                   + maps + ["-c:a", "aac", "-b:a", "192k", out], check=True)
+
+
+def _audio_peak(mp4):
+    """The largest sample magnitude of a file's audio, every channel as it is (a mono fold reads +3 dB high)."""
+    try:
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", mp4, "-vn", "-f", "f32le", "-"], capture_output=True,
+                             check=True).stdout
+        a = np.frombuffer(raw, dtype=np.float32)
+        return float(np.max(np.abs(a))) if len(a) else None
+    except Exception:
+        return None
 
 
 PROBE_AT = 2.0                  # where the probe click is placed, in seconds
@@ -337,9 +442,7 @@ def measure_offset(fps=30, has_bgm=False, workdir=None):
             _write_wav(os.path.join(tmp, "bgm.wav"), np.zeros(n, dtype=np.float32))
             ins += ["-i", os.path.join(tmp, "bgm.wav")]
         mixed = os.path.join(tmp, "mixed.mp4")
-        subprocess.run(["ffmpeg", "-y", "-v", "error"] + ins +
-                       ["-filter_complex", filtergraph(PROBE_SECONDS, has_bgm), "-map", "0:v", "-map", "[a]",
-                        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", mixed], check=True)
+        _through_chain(ins, PROBE_SECONDS, has_bgm, mixed, ["-map", "0:v", "-map", "[a]", "-c:v", "copy"])
         back = os.path.join(tmp, "back.wav")
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", mixed, "-ac", "1", "-ar", str(SR),
                         "-f", "wav", back], check=True)
@@ -416,26 +519,24 @@ def mix(out_dir, mp4, scenes, meta, fps, events_only=False):
         print("[sfx] audio chain offset %+.2f frames%s" % (lat * fps, " (compensated)" if lat else ""))
     if lat:
         cues = [(max(0.0, t - lat), name, g) for (t, name, g) in cues]
-    if not build_sfx_track(cues, dur, sfx_wav):
+    # GAIN-STAGED UNDER THE VOICE: the SFX bus peaks ≥6 dB under the voice's own peak. A riser and an impact at
+    # -2.4 dBFS stacked on voice peaks put the sum over full scale before the limiter, and the film landed under its
+    # loudness target (references/craft-research.md §3)
+    vo_peak = _audio_peak(mp4)
+    if not build_sfx_track(cues, dur, sfx_wav, peak_cap=(vo_peak * 10 ** (-6 / 20.0)) if vo_peak else None):
         print("[sfx] could not build the cue track — video unchanged"); return False
 
     inputs = ["-i", mp4, "-i", sfx_wav] + (["-i", bgm_wav] if bgm_wav else [])
-    fc = [filtergraph(dur, bool(bgm_wav))]
     out2 = os.path.join(out_dir, "_snd.mp4")
-    cmd = ["ffmpeg", "-y", "-v", "error"] + inputs + ["-filter_complex", ";".join(fc),
-           "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", out2]
     try:
-        subprocess.run(cmd, check=True)
+        _through_chain(inputs, dur, bool(bgm_wav), out2, ["-map", "0:v", "-map", "[a]", "-c:v", "copy"])
         if bgm_wav:
             # TWO DELIVERIES FROM ONE TIMELINE. A film with a BGM also ships a `.nobgm.mp4` twin — same cues,
             # same frames, no music — so the user can score it themselves without a re-render. Borrowed from
             # the peer library's delivery rule for scored films; the twin is a second pass through the same
             # graph with the BGM input absent, never a separate timeline.
             twin = os.path.splitext(mp4)[0] + ".nobgm.mp4"
-            cmd2 = ["ffmpeg", "-y", "-v", "error", "-i", mp4, "-i", sfx_wav, "-filter_complex",
-                    filtergraph(dur, False), "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac",
-                    "-b:a", "192k", twin]
-            subprocess.run(cmd2, check=True)
+            _through_chain(["-i", mp4, "-i", sfx_wav], dur, False, twin, ["-map", "0:v", "-map", "[a]", "-c:v", "copy"])
             print("[sfx] no-BGM twin -> %s" % os.path.basename(twin))
         shutil.move(out2, mp4)
         print("[sfx] mixed %d cue(s)%s -> %s" % (len(cues), " + BGM" if bgm_wav else "", os.path.basename(mp4)))

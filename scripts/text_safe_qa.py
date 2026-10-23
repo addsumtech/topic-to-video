@@ -828,6 +828,40 @@ def _glide_measured(slot, want_frames):
     return None
 
 
+def safe_profile():
+    """runtime/safeZone.ts SOCIAL, READ from the file — the shares a platform's UI covers, never restated here."""
+    src = open(os.path.join(_REMOTION, "src", "runtime", "safeZone.ts"), encoding="utf-8").read()
+    m = re.search(r"export const SOCIAL: SafeProfile = \{([^}]*)\}", src)
+    if not m:
+        raise RuntimeError("runtime/safeZone.ts has no SOCIAL profile to read")
+    return {k: float(v) for k, v in re.findall(r"(\w+):\s*(-?[\d.]+)", m.group(1))}
+
+
+PLATFORM_TABS = 0.05          # the top share every platform's tabs cover (references/craft-research.md §2)
+
+
+def platform_zone_findings(frames, W, H, prof):
+    """[(level, text, frame, zone)] — type a viewer must read, drawn where the platform's own UI covers a portrait
+    film: the bottom (description, author, music), the button column down the right, the tabs along the top. A line
+    counts when it is readable (opacity ≥ 0.5) on at least three frames there; first frame reported, once a line."""
+    hits = {}
+    for f in sorted(frames):
+        for ln in frames[f].get("lines") or []:
+            if float(ln.get("o") or 0) < 0.5:
+                continue
+            x, y, w, h = (float(ln.get(k) or 0) for k in ("x", "y", "w", "h"))
+            # 8 px of tolerance: the caption's own bottom edge is set ON the line (runtime/safeZone captionBottomY)
+            zone = ("the platform's bottom (description and author line)" if y + h > H * (1 - prof["bottom"]) + 8
+                    else "the platform's button column" if x + w > W * (1 - prof["right"]) and y + h > H * prof["rightFrom"]
+                    else "the platform's top tabs" if y < H * PLATFORM_TABS else None)
+            if zone:
+                key = (ln.get("k"), zone)
+                hit = hits.setdefault(key, {"t": ln.get("t") or "", "f": f, "n": 0, "zone": zone})
+                hit["n"] += 1
+    return [("warn" if "tabs" in v["zone"] else "error", v["t"], v["f"], v["zone"])
+            for v in hits.values() if v["n"] >= 3]
+
+
 def scan_film_glide(out_dir, concurrency=None):
     """(errors, warns, excused, notes, checked, universe, unmeasured, seconds) for one film: every frame of the Film
     composition exactly as render_remotion renders it — its seams, its cameras and its whole-film drift included,
@@ -874,6 +908,15 @@ def scan_film_glide(out_dir, concurrency=None):
             errors.extend("%s: STAIRCASE — %s" % (head, _describe_run(r)) for r in worst)
         elif level == "warn":
             warns.extend("%s: %s" % (head, _describe_run(r)) for r in worst)
+    # A PORTRAIT FILM FOR THE PLATFORMS keeps what must be read out of their UI (runtime/safeZone.ts): measured on
+    # every frame the census read, the same lines the staircase is judged on
+    if props.get("safe"):
+        from _caption_band import aspect_table
+        W, H = aspect_table().get(str(props.get("aspect")), (1080, 1920))
+        for level, text, f, zone in platform_zone_findings(res["frames"], W, H, safe_profile()):
+            line = "scene %02d (%s): %r sits in %s from frame %d — the platform draws over it; keep it inside the " \
+                   "safe area (runtime/safeZone.ts)" % (labels[beat_of(f)], shots[beat_of(f)], text[:40], zone, f)
+            (errors if level == "error" else warns).append(line)
     return {"errors": errors, "warns": warns, "excused": excused, "frames": total,
             "logged": len(res["frames"]), "unmeasured": [why] if why else [], "beats": len(slides),
             "composited": _composited(res["frames"]), "seconds": time.time() - t0}

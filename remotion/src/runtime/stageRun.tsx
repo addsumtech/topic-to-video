@@ -19,8 +19,8 @@
 // Imported only by Film.tsx and the stage components (remotion/src/stage/), never by a library register, so no
 // register's measured manifest re-keys when this file changes.
 import React from 'react';
-import {useCurrentFrame, useVideoConfig} from 'remotion';
-import {clamp01, easeInOutCubic, ReducedMotionContext} from './motion';
+import {spring, useCurrentFrame, useVideoConfig} from 'remotion';
+import {clamp01, ReducedMotionContext} from './motion';
 
 export type StageBeat = {
   index: number;                       // the beat's position in the film (0-based)
@@ -65,8 +65,14 @@ export type StageKey = {
                        // has not arrived yet, that move part-way (so a step can start mid-move without a jump)
 };
 
-const progress = (kf: {from: number; to: number}, f: number) =>
-  kf.to <= kf.from ? 1 : easeInOutCubic(clamp01((f - kf.from) / (kf.to - kf.from)));
+/** THE FEEL OF A MOVE (references/craft-research.md §1). Premium UI motion is FRONT-LOADED: Stripe's, Raycast's and
+ *  Linear's curves are half way at 13-16% of a move; `easeInOutCubic`, which every move here used, is half way at 49% —
+ *  slow out of the blocks, slow into the stop, the "robotic" read. A move's share at frame f of a d-frame move is a
+ *  critically damped spring stretched to land on d: fast off the mark, no overshoot. */
+export const moveShare = (f: number, d: number, fps: number): number =>
+  d <= 0 || f >= d ? 1 : f <= 0 ? 0 : clamp01(spring({frame: f, fps, durationInFrames: d, config: {damping: 200}}));
+
+const progress = (kf: {from: number; to: number}, f: number, fps: number) => moveShare(f - kf.from, kf.to - kf.from, fps);
 
 /** Every keyframe of the run, in time order. A step arrives on its phrase even while the move before it is still
  *  under way: its own move then starts from where that move has got to and carries the rest of it along — pushing the
@@ -105,7 +111,7 @@ export const buildKeys = (beats: StageBeat[], fps: number, normalize?: Normalize
   });
   for (let i = 1; i < keys.length; i++) {
     const pr = keys[i - 1];
-    keys[i].begin = partWay(pr.begin, pr.state, progress(pr, keys[i].from));
+    keys[i].begin = partWay(pr.begin, pr.state, progress(pr, keys[i].from, fps));
   }
   return keys;
 };
@@ -157,7 +163,7 @@ export const useStageRun = (normalize?: Normalize): StageNow => {
   let ki = 0;
   for (let i = 0; i < keys.length; i++) if (keys[i].from <= frame) ki = i;
   const key = keys[ki];
-  const p = reduced ? 1 : progress(key, frame);
+  const p = reduced ? 1 : progress(key, frame, fps);
   return {frame, fps, runDur: ctx.runDur, beats: ctx.beats, k, beat, local,
     t: clamp01(local / Math.max(1, beat.durF - 1)), keys, ki, before: key.begin, state: key.state, p, reduced};
 };
@@ -185,6 +191,58 @@ export const lerpState = (a: unknown, b: unknown, p: number): unknown => {
 /** One actor right now: its value before the current move, carried into its value after it. */
 export const actor = <T,>(now: StageNow, name: string): T | undefined =>
   (now.p >= 1 ? now.state[name] : lerpState(now.before[name], now.state[name], now.p)) as T | undefined;
+
+/** The two spring feels a stage's SPATIAL actors move with. `settle`: a card coming to rest, ζ≈0.8, ~1.5% overshoot.
+ *  `glide`: a camera, a cursor, a size — ζ≈1, no overshoot (Cap's camera spring is ζ≈0.94). */
+const FEEL = {settle: {mass: 1, stiffness: 158, damping: 20}, glide: {mass: 1, stiffness: 158, damping: 26}};
+export type Feel = keyof typeof FEEL;
+
+type Num = number | {[k: string]: unknown};
+/** acc moved by (b - a) * k, field by field; a field only `b` has is taken from `b` (it appears), a field that is not a
+ *  number switches at the halfway point */
+const addMove = (acc: unknown, a: unknown, b: unknown, k: number): unknown => {
+  if (typeof acc === 'number' && typeof a === 'number' && typeof b === 'number') return acc + (b - a) * k;
+  if (acc && a && b && typeof acc === 'object' && typeof a === 'object' && typeof b === 'object' && !Array.isArray(b)) {
+    const out: Record<string, unknown> = {...(acc as Record<string, unknown>)};
+    for (const key of Object.keys(b as object)) {
+      const av = (a as Record<string, unknown>)[key], bv = (b as Record<string, unknown>)[key];
+      out[key] = key in (acc as object) && av !== undefined ? addMove(out[key], av, bv, k) : bv;
+    }
+    return out;
+  }
+  return k >= 0.5 ? b : acc;
+};
+
+/** A SPATIAL actor right now, moved by springs that ADD UP: every keyframe adds its own change, sprung from its own
+ *  start — x(t) = x0 + Σ (x_k − x_{k−1}) · s(t − t_k). A move that begins before the last one has landed carries its
+ *  speed on instead of starting again from rest (a fresh ease per key dropped a 53 px/frame move to 1 px/frame at the
+ *  retarget — the stall the eye reads as robotic). An actor that appears snaps to its first value (its entrance is
+ *  the stage's to draw); one that leaves holds its last. `lead` frames: a step's change lands that much before the
+ *  step does (a cursor settles before its click, a camera has leaned in by the time the click lands). Pure in the
+ *  frame, so a segment renders the pixels a whole render does. */
+export const springSum = <T extends Num>(now: StageNow, get: (s: State) => T | undefined,
+  opts: {feel?: Feel; lead?: number; frame?: number} = {}): T | undefined => {
+  const f = opts.frame ?? now.frame;
+  const cfg = FEEL[opts.feel ?? 'glide'];
+  let acc: unknown = undefined, prev: unknown = undefined;
+  now.keys.forEach((kf, i) => {
+    const v = get(kf.state);
+    const lead = kf.step >= 0 ? Math.max(0, opts.lead ?? 0) : 0;
+    const start = i === 0 ? -Infinity : kf.from - lead;
+    if (v === undefined) { prev = undefined; return; }
+    if (prev === undefined || acc === undefined) {
+      if (f >= start) acc = JSON.parse(JSON.stringify(v));
+      prev = v;
+      return;
+    }
+    const d = Math.max(1, kf.to - kf.from);
+    const k = now.reduced || f - start >= d ? 1 : f <= start ? 0
+      : spring({frame: f - start, fps: now.fps, durationInFrames: d, config: cfg});
+    if (k !== 0) acc = addMove(acc, prev, v, k);
+    prev = v;
+  });
+  return acc as T | undefined;
+};
 
 /** Frames since the latest keyframe that has ARRIVED and whose own change satisfies `test` — the clock a one-off
  *  event (a click) plays on — with that keyframe's change; null when none has. */

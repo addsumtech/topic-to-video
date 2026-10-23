@@ -94,6 +94,34 @@ def _count_cues(srt):
     except OSError:
         return 0
 
+DELIVERY_RATE_MAX = 48000     # AAC delivery (platform guides): the loudness pass once shipped 96 kHz
+LOUDNESS_TARGET, LOUDNESS_WARN_LU, TRUE_PEAK_WARN = -14.0, 1.5, -1.0   # convention, not a platform spec (warned)
+
+
+def delivery_audio(mp4):
+    """(sample rate, integrated LUFS, true peak dBTP) of the DELIVERED file — measured on the encoded audio, where a
+    request to the mix (a target, a ceiling) has been through the AAC encoder; None for what could not be read."""
+    import re
+    rate = None
+    try:
+        rate = int(_ffprobe(["-select_streams", "a:0", "-show_entries", "stream=sample_rate",
+                             "-of", "default=nw=1:nk=1", mp4]).splitlines()[0])
+    except (ValueError, IndexError):
+        pass
+    integ = tp = None
+    try:
+        err = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", mp4, "-vn", "-af", "ebur128=peak=true",
+                              "-f", "null", "-"], capture_output=True, text=True).stderr
+        tail = err[err.rfind("Summary:"):] if "Summary:" in err else ""
+        m = re.search(r"I:\s+(-?[\d.]+) LUFS", tail)
+        integ = float(m.group(1)) if m else None
+        m = re.search(r"True peak:\s+Peak:\s+(-?[\d.]+|-inf) dBFS", tail)
+        tp = float(m.group(1)) if m and m.group(1) != "-inf" else None
+    except Exception:                               # noqa: BLE001 — unmeasured, said by the caller
+        pass
+    return rate, integ, tp
+
+
 def check(out_dir):
     v, a = probe_durations(os.path.join(out_dir, "out.mp4"))
     rates, unreadable, clips_present = clip_probe(os.path.join(out_dir, ".clips"))
@@ -114,6 +142,25 @@ def check(out_dir):
                  clips_present=clips_present, srt_present=os.path.exists(srt), board_note=board_note)
     r.update({"video_dur": round(v, 3), "audio_dur": round(a, 3),
               "rates": sorted(set(rates)), "cues": n_cues, "scenes": n_scenes})
+    # THE DELIVERED AUDIO ITSELF: its rate is a format defect (refused), its loudness a convention (warned)
+    mp4 = os.path.join(out_dir, "out.mp4")
+    if os.path.exists(mp4) and a > 0:
+        rate, integ, tp = delivery_audio(mp4)
+        r.update({"delivery_rate": rate, "integrated_lufs": integ, "true_peak_dbtp": tp})
+        if rate is None or integ is None:
+            r["not_measured"].append("the delivered audio's %s could not be read"
+                                     % ("sample rate" if rate is None else "loudness"))
+            r["complete"] = False
+        if rate is not None and rate > DELIVERY_RATE_MAX:
+            r["issues"].append("out.mp4 audio is %d Hz — AAC delivery wants ≤%d Hz (a loudness pass upsamples; "
+                               "resample after it)" % (rate, DELIVERY_RATE_MAX))
+            r["ok"] = False
+        if integ is not None and abs(integ - LOUDNESS_TARGET) > LOUDNESS_WARN_LU:
+            r["warnings"].append("out.mp4 measures %.1f LUFS integrated — %.1f LU off the %.0f LUFS convention"
+                                 % (integ, integ - LOUDNESS_TARGET, LOUDNESS_TARGET))
+        if tp is not None and tp > TRUE_PEAK_WARN:
+            r["warnings"].append("out.mp4 peaks at %.1f dBTP after encoding — over the %.0f dBTP ceiling"
+                                 % (tp, TRUE_PEAK_WARN))
     return r
 
 def main():

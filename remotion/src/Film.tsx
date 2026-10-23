@@ -35,6 +35,7 @@ import {STAGES, STAGE_GROUND} from './stage';
 import {StageRunContext, type StageBeat} from './runtime/stageRun';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
 import {TitleProbe} from './runtime/titleProbe';
+import {safeProfile, SafeZoneContext, SafeProfile, registerFrame, captionBottomY, SAFE_CAPTION_SCALE} from './runtime/safeZone';
 import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
 import {FilmFinishLayer} from './runtime/finish';
@@ -127,6 +128,9 @@ export const joinedAt = (scenes: SceneSpec[], i: number) =>
   i > 0 && runOf(scenes[i]) !== null && runOf(scenes[i]) === runOf(scenes[i - 1]);
 /** The luminance of the ground a STAGE beat paints (stage/index.ts STAGE_GROUND), or null for any other beat — a stage
  *  has no measured row, so asking the register table about it answered "dark" for a light studio. */
+/** The scaled register frame's edges, faded over 7% across and 5% down (both masks intersected). */
+const SAFE_FRAME_MASK = 'linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%), ' +
+  'linear-gradient(180deg, transparent 0%, #000 5%, #000 95%, transparent 100%)';
 const stageGroundY = (sc: SceneSpec, dna?: unknown): number | null => {
   // `stageGround` is the backdrop this beat of the run holds (render_remotion works it out from the run's beats)
   const tok = runOf(sc) ? (sc.stageGround ?? STAGE_GROUND[sc.shot]) : undefined;
@@ -267,7 +271,9 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   dnaUniform?: boolean;
   // the caption HUD is a sibling of the ReducedMotionContext provider (it must stay top-level so two
   // captions cannot coexist across a dissolve), so the flag is handed to it rather than read from context
-  reduced?: boolean}> = ({scenes, groundBg, dna, dnaFontBody, dnaUniform, reduced}) => {
+  reduced?: boolean;
+  // a 9:16 film for the platforms (runtime/safeZone): the caption sits above the platform's own UI, a size larger
+  safe?: SafeProfile | null}> = ({scenes, groundBg, dna, dnaFontBody, dnaUniform, reduced, safe}) => {
   const frame = useCurrentFrame();
   const {width, height, fps} = useVideoConfig();
   // The caption used to be a flat 44px whatever the frame was: at 9:16 — where the frame is only 1080 wide —
@@ -277,7 +283,9 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // bottom-anchored block starts lower) but bought the gap with legibility: measured on a delivered frame the
   // caption was 37px of ink, 3.4% of frame height, against a 5.2% floor for a 1080p film watched in a
   // phone-sized window. The gap is paid for out of the reserved BAND now instead of out of the type.
-  const capSize = Math.round(Math.min(width, height) * CAPTION_SIZE_FRAC);
+  // on a platform-safe film a size larger: vertical-video guidance starts captions around 55-65px at 1080 wide
+  // (references/craft-research.md §2), and the caption no longer competes with the bottom of the picture
+  const capSize = Math.round(Math.min(width, height) * CAPTION_SIZE_FRAC * (safe ? SAFE_CAPTION_SCALE : 1));
   const capMargin = Math.round(Math.min(width, height) * CAPTION_MARGIN_FRAC);
   const starts = sceneStarts(scenes);
   let active = -1, ws = 0, we = 0;
@@ -397,13 +405,15 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // take that space from every Latin film instead, so the CAPTION yields — its size is capped at whatever
   // fits, which is a guarantee rather than an estimate and holds for any language, length and aspect. In the
   // ordinary Latin two-line case the cap is well above the ideal size and nothing changes.
-  const capBand = captionBand(width, height);
+  // on a platform-safe film the band is the register frame's own band, scaled with it (runtime/safeZone)
+  const capBand = safe ? Math.round(safe.k * captionBand(width, height)) : captionBand(width, height);
+  const capBottom = safe ? Math.round(height - captionBottomY(height, safe, capMargin)) : capMargin;
   const perLine = Math.max(8, Math.floor(capTextW / (capSize * advanceFor(capText, dnaFontBody, dnaUniform))));
   const capLines = Math.max(1, Math.ceil(capText.length / perLine));
   const fitSize = Math.max(12, Math.min(capSize, Math.floor((capBand - capMargin) / (capLead * capLines))));
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
-      <div style={{position: 'relative', maxWidth: capMeasure, boxSizing: 'border-box', margin: `0 auto ${capMargin}px`,
+      <div style={{position: 'relative', maxWidth: capMeasure, boxSizing: 'border-box', margin: `0 auto ${capBottom}px`,
         padding: `0 ${CAP_PAD_X}px`, textAlign: 'center',
         // WEIGHT 600, NOT 700. The caption is already in the DNA's body face, but at 700 it was the
         // heaviest thing on screen — heavier than the display headlines it sits under — so the frame's own
@@ -1012,12 +1022,14 @@ const StageBeatMark: React.FC<{first: number; beats: StageBeat[]; children: Reac
 };
 
 export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
-  typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean}> =
+  typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
-    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false}) => {
+    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
+  const safeP = safeProfile(safe, width, height);
+  const regFrame = safeP ? registerFrame(width, height, safeP) : null;
   // NO SHAKE, structurally. `cameraTransform` is three sines with different periods on scale, x and y —
   // an OSCILLATION, which is why it was made opt-in and defaults to still after repeated complaints. A
   // beat's `pan` is monotone by construction (runtime/depth.tsx panAt: a ramp that only ever advances), so
@@ -1107,7 +1119,14 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                          driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
               {/* `data-beat` marks THIS beat's register for the sync audit (scripts/sync_qa.py reads it from the
                   type census): the caption, the chrome and the other beat of a seam carry none of it. */}
-              <AbsoluteFill data-beat={String(i)}>
+              {/* on a platform-safe film the register is drawn in its scaled frame (runtime/safeZone): its own caption
+                  band lands where the caption is, above the platform's UI, and nothing in it is re-laid-out */}
+              {/* …and its edges dissolve into the beat's ground: a register that paints its own atmosphere showed the
+                  scaled frame as a hard-edged panel */}
+              <AbsoluteFill data-beat={String(i)} style={regFrame ? {transformOrigin: '0 0',
+                transform: `translate(${regFrame.x0}px, ${regFrame.y0}px) scale(${regFrame.k})`,
+                WebkitMaskImage: SAFE_FRAME_MASK, maskImage: SAFE_FRAME_MASK,
+                WebkitMaskComposite: 'source-in', maskComposite: 'intersect'} : undefined}>
                 <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
                   <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
                     <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
@@ -1143,7 +1162,10 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           <BeatGround dna={activeDna} scene={head} durF={runDur} shot={head.shot}>
             <StageBeatMark first={first} beats={beats}>
               <StageRunContext.Provider value={{run: runOf(head) ?? '', beats, runDur}}>
-                {S ? <S {...(head.props ?? {})} /> : <Missing id={head.shot} />}
+                {/* a stage lays itself out in the platform-safe area directly (runtime/safeZone) */}
+                <SafeZoneContext.Provider value={safeP}>
+                  {S ? <S {...(head.props ?? {})} /> : <Missing id={head.shot} />}
+                </SafeZoneContext.Provider>
               </StageRunContext.Provider>
             </StageBeatMark>
           </BeatGround>
@@ -1222,7 +1244,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           measured. Static by construction (runtime/finish.tsx), so nothing here can pump or drift. */}
       <FilmFinishLayer dna={activeDna} />
       <AbsoluteFill style={{backgroundColor: veilBg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
-      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dna={activeDna} dnaFontBody={activeDna?.fontBody} dnaUniform={activeDna?.uniformType} reduced={reducedMotion} /> : null}
+      {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dna={activeDna} dnaFontBody={activeDna?.fontBody} dnaUniform={activeDna?.uniformType} reduced={reducedMotion} safe={safeP} /> : null}
       <BrandMark brand={brand} />
       </DesignDNAContext.Provider>
     </AbsoluteFill>
