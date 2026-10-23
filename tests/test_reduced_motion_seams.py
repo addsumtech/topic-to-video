@@ -55,14 +55,22 @@ def _still(tmp_path, name, transition_in, reduced, frame=102):
     return png
 
 
+# The boundary is a BLURRED step now: a push carries the motion blur its speed earns (Film.tsx WhipPresentation —
+# at mid-seam a 1920 frame moves ~250 px a frame, a standard deviation of ~36 px, ~18 px in this half-scale still).
+# A one-column difference finds no edge in a blurred step; the step's full height is there across a window wider
+# than the blur.
+_EDGE_WINDOW = 48
+
+
 def _tile_edge(png):
-    """(column, strength) of the strongest vertical edge — where two tiling beats meet, if they do."""
+    """(column, strength) of the strongest vertical step — where two tiling beats meet, if they do — measured across
+    a window wide enough to hold the step whole after the push's motion blur."""
     np = pytest.importorskip("numpy")
     Image = pytest.importorskip("PIL.Image", reason="needs Pillow")
     import numpy as _np
-    a = _np.asarray(Image.open(png).convert("L"), dtype=float)
-    g = _np.abs(_np.diff(a.mean(axis=0)))
-    return int(_np.argmax(g)), float(g.max())
+    a = _np.asarray(Image.open(png).convert("L"), dtype=float).mean(axis=0)
+    g = _np.abs(a[_EDGE_WINDOW:] - a[:-_EDGE_WINDOW])
+    return int(_np.argmax(g)) + _EDGE_WINDOW // 2, float(g.max())
 
 
 @needs_toolchain

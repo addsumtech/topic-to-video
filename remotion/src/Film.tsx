@@ -11,7 +11,6 @@ import {AbsoluteFill, Audio, Freeze, Img, Sequence, staticFile, useCurrentFrame,
 import {TransitionSeries, linearTiming} from '@remotion/transitions';
 import type {TransitionPresentation} from '@remotion/transitions';
 import {fade} from '@remotion/transitions/fade';
-import {slide} from '@remotion/transitions/slide';
 import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
 import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
@@ -33,6 +32,7 @@ import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalCh
 import {REGISTRY} from './registry';
 import {STAGES, STAGE_GROUND} from './stage';
 import {StageRunContext, type StageBeat} from './runtime/stageRun';
+import {BlurFilter, blurOf} from './stage/surface';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
 import {TitleProbe} from './runtime/titleProbe';
 import {safeProfile, SafeZoneContext, SafeProfile, registerFrame, captionBottomY, SAFE_CAPTION_SCALE} from './runtime/safeZone';
@@ -636,32 +636,51 @@ const DRIFT_FRAC = 0.022;              // of the frame's long side — ~24px at 
 // strength 91 flat against 56 under `perspective(1200px) translateZ(50px)`, a 38% loss — so a "space" built
 // that way would soften every word in the film. A pure 2D translate has no such cost, and at both ends of
 // the seam the transform is exactly identity, so no beat is ever READ through a transform at all.
-const ReturnPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
-  const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
-  const isEnter = presentationDirection === 'entering';
-  // EACH AXIS SCALES BY ITS OWN DIMENSION, so the two halves tile at every aspect. Against the long side
-  // they tile only at 16:9; at 9:16 a horizontal return would overshoot by the whole difference and open
-  // the band this seam was rebuilt to close.
-  const vx = (passedProps?.dx ?? 0) * (passedProps?.W ?? 1920);
-  const vy = (passedProps?.dy ?? 0) * (passedProps?.H ?? 1080);
-  // both halves move by the SAME vector in the same direction; the arriving beat simply starts a whole
-  // vector behind, which is where it sits on the board relative to the one being left
-  // ONE ramp, shared: the leaving half runs 0 -> 1 of the vector and the arriving half -1 -> 0, so at every
-  // instant they are exactly one vector apart and travelling together. Linear, like every other seam here —
-  // the timing curve belongs to `linearTiming`, not to each presentation.
-  const kk = isEnter ? interpolate(p, [0, 1], [-1, 0], c) : interpolate(p, [0, 1], [0, 1], c);
-  // AND NO CROSS-FADE. A pan does not dissolve; it moves. Measured on the first build, which faded both
-  // halves over [0.18, 0.82] the way `drift` does: at a quarter through the seam the arriving beat was at
-  // 10% opacity, so the strip it occupied showed bare ground and the frame read left-edge 9.5 against a
-  // centre of 74.6 — a hard dark band sweeping across, which is a curtain and not a camera. Both halves
-  // stay fully opaque and the offsets tile, exactly as `slide` does, so every pixel is always covered by
-  // one beat or the other.
-  const t = `translate(${(vx * kk).toFixed(2)}px, ${(vy * kk).toFixed(2)}px)`;
-  const glide = useGlide();
-  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{transform: glide(t, true)}}>{children}</SeamGround>;
-};
+// (Drawn by WhipPresentation below — the return is a push along its own vector.)
+// the return is geometrically a push along its own vector, so it is drawn by the push's presentation (below): the
+// same ease, the same shutter, and — tests/test_film_board.py — the same picture as a push in the matching direction
 const travelBack = (dx: number, dy: number, W: number, H: number, bg?: string): TransitionPresentation<any> =>
-  ({component: ReturnPresentation, props: {dx, dy, W, H, bg}});
+  ({component: WhipPresentation, props: {dx, dy, W, H, n: TR, bg}});
+
+// THE PUSH MOVES LIKE A CAMERA. `push`/`slide`/`lift` were Remotion's own slide on a linear timing: a whole frame
+// crossed the screen at a constant 160 px a frame (1920 wide, 12 frames), starting and stopping dead, and every frame
+// of it was razor sharp — the largest movement in a film, and the one that strobed. A camera that pans that far
+// eases in and out of it, and its shutter smears what passes it. Here both halves travel together on a sine ease (the
+// fastest frame is the middle one, where sfx.py lands the whoosh's peak) and each is blurred along the travel by what
+// a 180-degree shutter would smear at that frame's speed (stage/surface blurOf), so the blur grows from nothing and
+// returns to nothing. The halves still tile at every instant, so no ground ever shows between them.
+const WhipPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
+  const isEnter = presentationDirection === 'entering';
+  const {dx = 0, dy = 0, W = 1920, H = 1080, n = TR, reduced = false} = passedProps ?? {};
+  const q = clamp01(p);
+  const e = (1 - Math.cos(Math.PI * q)) / 2;
+  const kk = isEnter ? e - 1 : e;
+  const vx = dx * W, vy = dy * H;
+  // the travel this frame: the ease's slope times the whole vector, over the seam's frames
+  const per = (Math.PI / 2) * Math.sin(Math.PI * q) / Math.max(1, n);
+  const blur = reduced ? null : blurOf(vx * per, vy * per);
+  const id = `whip-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const glide = useGlide();
+  const t = `translate(${(vx * kk).toFixed(2)}px, ${(vy * kk).toFixed(2)}px)`;
+  return (
+    <>
+      {blur ? <BlurFilter id={id} blur={{sx: Math.min(blur.sx, WHIP_BLUR_MAX), sy: Math.min(blur.sy, WHIP_BLUR_MAX)}}
+        edge="duplicate" /> : null}
+      {/* the filter on the still OUTER layer, the move (with its type unlock) inside it: a blur on the moving element
+          itself rasterised it whole-pixel, and a slow-drifting film's type stepped under it (text_safe --glide) */}
+      <SeamGround bg={passedProps?.bg} show={!isEnter} style={{filter: blur ? `url(#${id})` : undefined}}>
+        <AbsoluteFill style={{transform: glide(t, true)}}>{children}</AbsoluteFill>
+      </SeamGround>
+    </>
+  );
+};
+const WHIP_BLUR_MAX = 40;
+/** A push in a direction ('from-right': the new beat comes in from the right, the old one leaves to the left). */
+const whip = (direction: string | undefined, W: number, H: number, bg?: string): TransitionPresentation<any> => {
+  const d = direction ?? 'from-right';
+  const [dx, dy] = d === 'from-left' ? [1, 0] : d === 'from-bottom' ? [0, -1] : d === 'from-top' ? [0, 1] : [-1, 0];
+  return {component: WhipPresentation, props: {dx, dy, W, H, n: TR, bg}};
+};
 
 const DriftPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
   const c = {extrapolateLeft: 'clamp' as const, extrapolateRight: 'clamp' as const};
@@ -817,7 +836,7 @@ const dnaDefaultSeam = (dna: DesignDNA | null, W: number, H: number): Transition
   if (d && d !== 'fade') {
     const dir = dna.seam?.direction;
     if (d === 'screen-clear') return screenClear(dna.bg, dna.accent);
-    if (d === 'slide') return slide({direction: (dir as any) ?? 'from-right'});
+    if (d === 'slide') return whip(dir, W, H, dna.bg);
     if (d === 'wipe') return wipe({direction: (dir as any) ?? 'from-bottom'});
     if (d === 'clock') return clockWipe({width: W, height: H});
     if (d === 'dissolve') return fade();
@@ -825,10 +844,10 @@ const dnaDefaultSeam = (dna: DesignDNA | null, W: number, H: number): Transition
   if (dna.seam?.type === 'fade') return null;      // an explicit, deliberate plain cut
   switch (dna.id) {
     case 'terminal': return screenClear(dna.bg, dna.accent);
-    case 'product': case 'apple': return slide({direction: 'from-right'});
+    case 'product': case 'apple': return whip('from-right', W, H, dna.bg);
     case 'editorial': case 'blueprint': return wipe({direction: 'from-bottom'});
     case 'data': return wipe({direction: 'from-left'});             // a measured sweep, like a chart redrawing
-    case 'retro': return slide({direction: 'from-bottom'});         // an arcade screen push
+    case 'retro': return whip('from-bottom', W, H, dna.bg);         // an arcade screen push
     // 'cinematic' (and any unknown id) keep the gentle cross-fade — the filmic seam IS a dissolve.
     default: return null;
   }
@@ -913,8 +932,8 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
   switch (t) {
     // One relation, one word, on both tiers: `push` is Remotion's own slide (the incoming page pushes the
     // outgoing one off), and `lift` is that move turned through 90° — a reading-flow progression down a page.
-    case 'slide': case 'push': return slide({direction: (dir as any) ?? 'from-right'});
-    case 'lift': return slide({direction: (dir as any) ?? 'from-bottom'});
+    case 'slide': case 'push': return whip(dir ?? 'from-right', W, H, seamBg);
+    case 'lift': return whip(dir ?? 'from-bottom', W, H, seamBg);
     // the ground the seam dips THROUGH is the film's own, never the black behind the sequences
     case 'fadethrough': return fadeThrough(seamBg);
     case 'drift': return drift(dir, W, H, seamBg);

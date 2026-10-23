@@ -55,10 +55,11 @@ export const blurOf = (dx: number, dy: number, scale = 1): {sx: number; sy: numb
 };
 
 /** The SVG filter that draws `blurOf`'s smear (an invisible element; reference it as `url(#id)`). */
-export const BlurFilter: React.FC<{id: string; blur: {sx: number; sy: number}}> = ({id, blur}) => (
+export const BlurFilter: React.FC<{id: string; blur: {sx: number; sy: number}; edge?: 'none' | 'duplicate'}> =
+  ({id, blur, edge = 'none'}) => (
   <svg width={0} height={0} style={{position: 'absolute'}} aria-hidden>
     <filter id={id} x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
-      <feGaussianBlur stdDeviation={`${blur.sx.toFixed(2)} ${blur.sy.toFixed(2)}`} edgeMode="none" />
+      <feGaussianBlur stdDeviation={`${blur.sx.toFixed(2)} ${blur.sy.toFixed(2)}`} edgeMode={edge} />
     </filter>
   </svg>
 );
