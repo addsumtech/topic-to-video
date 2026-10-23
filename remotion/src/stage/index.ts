@@ -5,3 +5,8 @@ import React from 'react';
 import {CardStage} from './CardStage';
 
 export const STAGES: Record<string, React.FC<any>> = {CardStage};
+
+/** The DNA colour each stage paints its ground with — what the caption ink and the seam guard judge a stage beat's
+ *  ground by. A register's comes from its measured row (runtime/shotLuma DNA_GROUND_TOKEN); a stage has none, and the
+ *  fallback called CardStage's light studio "dark" and burned WHITE captions onto it. */
+export const STAGE_GROUND: Record<string, string> = {CardStage: 'bg'};

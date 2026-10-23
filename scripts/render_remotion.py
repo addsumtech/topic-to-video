@@ -645,6 +645,7 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
     probs = _sr.check(slides)
     if probs:
         raise RuntimeError("the board's stage runs cannot render: " + "; ".join(probs))
+    _sr.mark_backdrops(scenes)
     return scenes
 
 

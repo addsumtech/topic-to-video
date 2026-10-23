@@ -21,6 +21,7 @@
 //   lift [{rect, z?}]           parts of the face lifted off it in depth (z: 1 = the default height)
 //   camera {zoom, u, v}         lean in on a place of the face (zoom 1 = no camera move)
 //   count {value, from?, label?, u?, v?}  a figure counting to `value` beside a place of the face — a SOURCED figure
+//   backdrop                    the DNA colour the stage is lit in (bg by default; fg, accent…) — set on a beat
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
@@ -29,7 +30,7 @@ import {hex6} from '../runtime/hexColor';
 import {measureText} from '@remotion/layout-utils';
 import {TITLE_Y, contentBottom, CONTENT_TOP} from '../runtime/layout';
 import {CursorArrow, TapRipple} from '../runtime/gesture';
-import {usePlaceGlide} from '../runtime/glide';
+import {usePlaceGlide, useGlide} from '../runtime/glide';
 import {useStageRun, lerpState, actor, sinceEvent, State, Normalize} from '../runtime/stageRun';
 
 /** The card's pose. x/y: offset of its centre from the content zone's centre, as fractions of the frame's width/height;
@@ -37,7 +38,7 @@ import {useStageRun, lerpState, actor, sinceEvent, State, Normalize} from '../ru
 export type CardPose = {x?: number; y?: number; s?: number; rx?: number; ry?: number; rz?: number; aspect?: number};
 type Pose = Required<CardPose>;
 const POSE: Pose = {x: 0, y: 0, s: 1, rx: 0, ry: 0, rz: 0, aspect: 16 / 9};
-type Page = {kicker?: string; title?: string; lines?: string[]};
+type Page = {kicker?: string; title?: string; lines?: string[]; code?: string; tone?: 'paper' | 'accent'};
 type Face = {image?: string; page?: Page; aspect?: number};
 type Rect = [number, number, number, number];
 type Mark = {rect: Rect; label?: string};
@@ -111,18 +112,36 @@ const fmtNumber = (v: number, like: number) => {
 export const CardStage: React.FC<{
   image?: string; imageAspect?: number; page?: Page; fit?: 'cover' | 'contain'; title?: string; highlight?: string;
   card?: CardPose; cursor?: Cursor | null; marks?: Mark[] | null; lift?: Lift[] | null; camera?: Camera | null;
+  backdrop?: string | null;
   count?: Count | null; steps?: unknown[];
 }> = () => {
   const dna = useDNA();
   const now = useStageRun(normalize);
   const place = usePlaceGlide();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   const ink = {bg: hex6(dna?.bg ?? '#F4F5F8'), fg: dna?.fg ?? '#15161A', dim: dna?.dim ?? '#6B6E78',
     acc: dna?.accent ?? '#2B5BFF', surface: dna?.surface ?? '#FFFFFF', on: dna?.onAccent ?? '#FFFFFF'};
   const portrait = W < H;
   const {before, state, p, keys} = now;
-  const dark = relLum(ink.bg) < 0.18;
+  // ── the backdrop: the DNA colour the stage is lit in (`backdrop`: a token — bg, fg, accent, surface…), carried across a
+  // move. A light studio can go dark for a showroom beat and close on the brand's accent: one continuous scene still
+  // needs its exposure to MOVE (film_energy_qa's light arc), and the title, its marked word and the captions
+  // (render_remotion `stageGround`) are inked for the backdrop that is actually there ──
+  const backdropOf = (st: State) => {
+    const tok = typeof st.backdrop === 'string' ? st.backdrop : 'bg';
+    const c = (dna as unknown as Record<string, unknown> | null)?.[tok];
+    return hex6(typeof c === 'string' && /^#/.test(c) ? c : ink.bg);
+  };
+  const ground = p >= 1 ? backdropOf(state) : hex6(mix(backdropOf(before), backdropOf(state), p));
+  const dark = relLum(ground) < 0.18;
+  const lightInk = relLum(ink.fg) > relLum(ink.bg) ? ink.fg : ink.bg, darkInk = lightInk === ink.fg ? ink.bg : ink.fg;
+  const titleInk = relLum(ground) < 0.3 ? lightInk : darkInk;
+  // the marked word's block is the accent — unless the stage itself is lit in the accent, where it takes accent2
+  const onAccentGround = Math.abs(relLum(ground) - relLum(hex6(ink.acc))) < 0.02;
+  const hiBg = onAccentGround ? hex6(dna?.accent2 ?? ink.on) : ink.acc;
+  const hiInk = relLum(hiBg) > 0.4 ? darkInk : ink.on;
 
   // ── the title: one size for the whole run, at most TWO lines — the largest size at which every title fits in two and
   // its longest word in one. Widths are MEASURED in the face that draws them: forcing one line shrank every title of a
@@ -229,13 +248,25 @@ export const CardStage: React.FC<{
     <Img src={staticFile(f.image)} style={{position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: fit,
       display: 'block'}} />
   ) : f.page ? (
-    <div style={{position: 'absolute', inset: 0, padding: cw * 0.06, boxSizing: 'border-box'}}>
-      {f.page.kicker ? <div style={{color: ink.acc, font: `600 ${Math.round(cw * 0.022)}px/1.2 var(--f-body, system-ui)`,
-        letterSpacing: '0.08em', textTransform: 'uppercase'}}>{f.page.kicker}</div> : null}
-      {f.page.title ? <div style={{color: ink.fg, marginTop: cw * 0.012,
-        font: `700 ${Math.round(cw * 0.05)}px/1.15 var(--f-display, system-ui)`}}>{f.page.title}</div> : null}
-      {(f.page.lines ?? []).map((l, i) => <div key={i} style={{color: ink.dim, marginTop: cw * 0.02,
-        font: `400 ${Math.round(cw * 0.028)}px/1.35 var(--f-body, system-ui)`}}>{l}</div>)}
+    // a page the card draws reads at the card's own size — its type was 2.8% of the card's width, under the floor on a
+    // portrait film's card — and keeps its words exactly as given: no case is forced (a command or a name is copy)
+    // `tone: accent` floods the card with the film's accent (a closing card); `code` is a command set in the mono face
+    // on its own plate, exactly as written — copied off the screen it has to work
+    <div style={{position: 'absolute', inset: 0, padding: cw * 0.07, boxSizing: 'border-box', overflowWrap: 'anywhere',
+      display: 'flex', flexDirection: 'column', justifyContent: f.page.tone === 'accent' ? 'center' : 'flex-start',
+      background: f.page.tone === 'accent' ? ink.acc : undefined}}>
+      {f.page.kicker ? <div style={{color: f.page.tone === 'accent' ? (dna?.accent2 ?? ink.on) : ink.acc,
+        font: `700 ${Math.round(cw * 0.034)}px/1.25 var(--f-body, system-ui)`, letterSpacing: '0.04em'}}>{f.page.kicker}</div> : null}
+      {f.page.title ? <div style={{color: f.page.tone === 'accent' ? ink.on : ink.fg, marginTop: cw * 0.02,
+        font: `800 ${Math.round(cw * 0.075)}px/1.12 var(--f-display, system-ui)`}}>{f.page.title}</div> : null}
+      {(f.page.lines ?? []).map((l, i) => <div key={i} style={{color: f.page.tone === 'accent' ? ink.on : ink.dim,
+        marginTop: cw * 0.03, opacity: f.page.tone === 'accent' ? 0.85 : 1,
+        font: `500 ${Math.round(cw * 0.042)}px/1.35 var(--f-body, system-ui)`}}>{l}</div>)}
+      {f.page.code ? <div style={{marginTop: cw * 0.05, alignSelf: 'flex-start', maxWidth: '100%', boxSizing: 'border-box',
+        padding: `${cw * 0.022}px ${cw * 0.03}px`, borderRadius: cw * 0.018,
+        background: f.page.tone === 'accent' ? 'rgba(0,0,0,0.28)' : mix(ink.fg, ink.surface, 0.92),
+        color: f.page.tone === 'accent' ? ink.on : ink.fg, overflowWrap: 'anywhere',
+        font: `600 ${Math.round(cw * 0.038)}px/1.3 var(--f-mono, ui-monospace, monospace)`}}>{f.page.code}</div> : null}
     </div>
   ) : null;
   const faceLayer = (f: Face, opacity: number) => (
@@ -306,10 +337,12 @@ export const CardStage: React.FC<{
     const glyph = (c: string, i: number) => {
       const a = leaving ? 1 : easeOutCubic(clamp01(q * 1.6 - (i / Math.max(1, chars.length)) * 0.6));
       const fill = i >= hiFrom && i < hiTo ? clamp01(sweep - (i - hiFrom)) : -1;
+      // the rise carries the baseline unlock over the arrival (runtime/glide): its slow tail stepped whole pixels
       return <span key={i} style={{position: 'relative', zIndex: 0, display: 'inline-block', whiteSpace: 'pre', opacity: a,
-        transform: `translateY(${(1 - a) * titlePx * 0.3}px)`, color: fill > 0.5 ? ink.on : ink.fg}}>
+        transform: glide(`translateY(${(1 - a) * titlePx * 0.3}px)`, !leaving && q < 1),
+        color: fill > 0.5 ? hiInk : titleInk}}>
         {fill > 0 ? <span style={{position: 'absolute', left: -titlePx * 0.03, right: -titlePx * 0.03, top: '8%', bottom: '2%',
-          background: ink.acc, zIndex: -1, transformOrigin: 'left center', transform: `scaleX(${fill})`}} /> : null}
+          background: hiBg, zIndex: -1, transformOrigin: 'left center', transform: `scaleX(${fill})`}} /> : null}
         {c}
       </span>;
     };
@@ -324,8 +357,10 @@ export const CardStage: React.FC<{
     });
     flush();
     return (
-      <div style={{position: 'absolute', left: sx, top: TITLE_Y + (leaving ? -(1 - q) * U * 0.03 : 0), width: lineW,
-        opacity: leaving ? q : 1, color: ink.fg, font: `800 ${titlePx}px/1.15 var(--f-display, system-ui)`,
+      // a leaving line rises by a TRANSFORM with the unlock — moved by `top` it stepped whole pixels (text_safe --glide)
+      <div style={{position: 'absolute', left: sx, top: TITLE_Y, width: lineW,
+        transform: leaving ? glide(`translateY(${-(1 - q) * U * 0.03}px)`, true) : undefined,
+        opacity: leaving ? q : 1, color: titleInk, font: `800 ${titlePx}px/1.15 var(--f-display, system-ui)`,
         letterSpacing: '-0.01em'}}>
         {tokens}
       </div>
@@ -339,11 +374,14 @@ export const CardStage: React.FC<{
    *  part by a short line. In a portrait frame the card is nearly as wide as the frame, so beside it there is no room
    *  and a pill set there covered the very part it named. */
   const pill = (key: string, box: {x0: number; y0: number; x1: number; y1: number}, text: string, on: number,
-    big?: string) => {
+    big?: string, bigRange?: string[]) => {
     const bodyFamily = dna?.uniformType ? dna.fontMono : (dna?.fontBody ?? 'system-ui');
     const bigPx = Math.round(labelPx * 1.9);
     const wText = text ? measureText({text, fontFamily: bodyFamily, fontSize: labelPx, fontWeight: '700'}).width : 0;
-    const wBig = big !== undefined ? measureText({text: big, fontFamily: family, fontSize: bigPx, fontWeight: '800'}).width : 0;
+    // a counting figure is measured at its WIDEST, so the plate holds one size while it counts — re-measured each
+    // frame, the plate (and the name under the figure) re-laid itself as the digits changed
+    const wBig = Math.max(0, ...(bigRange ?? (big !== undefined ? [big] : [])).map((b) => measureText({text: b,
+      fontFamily: family, fontSize: bigPx, fontWeight: '800'}).width));
     const padY = labelPx * 0.3, padX = labelPx * 0.55;
     const pw = Math.max(wText, wBig) + 2 * padX, ph = (text ? labelPx * 1.2 : 0) + (big !== undefined ? bigPx * 1.05 : 0) + 2 * padY;
     const gap = U * 0.045, margin = W * 0.03, top = zoneTop - U * 0.02, bottom = zoneBot;
@@ -389,13 +427,13 @@ export const CardStage: React.FC<{
 
   // ── the stage: the film's own ground, lit where the card stands (lighter on a light ground, a soft lift on a dark
   // one — a mix toward white on a dark ground turned the whole top of the frame grey) ──
-  const glow = dark ? mix(ink.bg, ink.fg, 0.1) : mix(ink.bg, '#ffffff', 0.6);
-  const rim = dark ? ink.bg : mix(ink.bg, ink.fg, 0.035);
+  const glow = dark ? mix(ground, '#ffffff', 0.08) : mix(ground, '#ffffff', 0.6);
+  const rim = dark ? ground : mix(ground, '#000000', 0.035);
   const shadowTop = Math.min(cy + size.hy * 0.96, zoneBot - U * 0.03);
   const cardShadow = dark ? 'rgba(0,0,0,0.55)' : mix(ink.fg, ink.bg, 0.75);
   return (
     <AbsoluteFill style={{background: `radial-gradient(ellipse 70% 55% at 50% ${(zoneMid.y / H) * 100}%, ` +
-      `${glow} 0%, ${ink.bg} 72%, ${rim} 100%)`}}>
+      `${glow} 0%, ${ground} 72%, ${rim} 100%)`}}>
       {/* while the camera leans in, what it shows stays inside the content zone, its edges faded: the caption is inked
           for the stage's ground, not for a card pushed under it, and the title likewise */}
       <div style={{position: 'absolute', inset: 0, ...(zoom > 1.001 ? {
@@ -441,8 +479,9 @@ export const CardStage: React.FC<{
         {marks.filter(({item}) => item.label).map(({item, on}) => pill(`p${rid(item)}`, boxOf(item.rect), item.label!, on))}
         {countNow && countShown !== null ? (() => {
           const at = onView(countNow.u ?? 0.92, countNow.v ?? 0.1);
+          const lo = countNow.from ?? 0;
           return pill('count', {x0: at.x, y0: at.y, x1: at.x, y1: at.y}, countNow.label ?? '', countIn,
-            fmtNumber(countShown, countNow.value));
+            fmtNumber(countShown, countNow.value), [fmtNumber(lo, countNow.value), fmtNumber(countNow.value, countNow.value)]);
         })() : null}
         {clickAt && rippleU > 0 && rippleU < 1 ? <TapRipple x={clickAt.x} y={clickAt.y} u={rippleU} color={ink.acc}
           size={U * 0.06} /> : null}

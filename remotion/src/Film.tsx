@@ -31,7 +31,7 @@ import {SceneCamera, bedPan, type CameraMove} from './runtime/depth';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
-import {STAGES} from './stage';
+import {STAGES, STAGE_GROUND} from './stage';
 import {StageRunContext, type StageBeat} from './runtime/stageRun';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
 import {TitleProbe} from './runtime/titleProbe';
@@ -47,7 +47,7 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // `ground` / `key` fields it now sits beside COMMAND one (they repaint the frame — runtime/light.tsx).
   // Both are kept and the Film refuses a beat that declares two disagreeing answers, because a hint that
   // silently becomes a command is how `bgLum:'light'` came to mean "a still-dark frame".
-  caption?: string; bgLum?: Lum;
+  caption?: string; bgLum?: Lum; stageGround?: string;
   // THE VOICE'S OWN WORD TIMES, as character ranges into `caption` (scripts/cues.word_spans). Ranges rather
   // than word indices because this tier re-chunks the caption to fit its band, and an index into "word 3 of
   // chunk 2" means something different after every re-wrap while an offset into the string does not.
@@ -125,6 +125,14 @@ export const runOf = (sc?: SceneSpec): string | null =>
 /** Scene i continues the stage run of scene i-1: the boundary between them is NOT a cut, so there is no seam. */
 export const joinedAt = (scenes: SceneSpec[], i: number) =>
   i > 0 && runOf(scenes[i]) !== null && runOf(scenes[i]) === runOf(scenes[i - 1]);
+/** The luminance of the ground a STAGE beat paints (stage/index.ts STAGE_GROUND), or null for any other beat — a stage
+ *  has no measured row, so asking the register table about it answered "dark" for a light studio. */
+const stageGroundY = (sc: SceneSpec, dna?: unknown): number | null => {
+  // `stageGround` is the backdrop this beat of the run holds (render_remotion works it out from the run's beats)
+  const tok = runOf(sc) ? (sc.stageGround ?? STAGE_GROUND[sc.shot]) : undefined;
+  const c = tok && dna ? (dna as Record<string, unknown>)[tok] : undefined;
+  return typeof c === 'string' ? lumValue(c) : null;
+};
 /** ONE definition of where each beat starts on the film's timeline: the next beat mounts TR frames before this one
  *  ends at a cut (the seam overlaps them), and on the frame after it ends inside a stage run. scripts/stage_runs.py
  *  and scripts/remotion_segments.py mirror it, and a test holds them to it. */
@@ -356,8 +364,9 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // and the bucket is the last resort it was meant to be. Measured on `KineticManifesto` under `product`
   // (its accent->accent2 flood resolves to Y=0.267): the bucket said `mid`, drew WHITE at 3.3:1, where the
   // dark ink measures 5.9:1 on the same pixels.
-  const beatY = beatG ? (dnaGroundY(sc.shot, beatG) ?? beatG.y) : dnaGroundY(sc.shot, dna);
-  const lum = dnaGroundLum(sc.shot, sc.bgLum, dna);
+  const stY = stageGroundY(sc, dna);
+  const beatY = stY ?? (beatG ? (dnaGroundY(sc.shot, beatG) ?? beatG.y) : dnaGroundY(sc.shot, dna));
+  const lum = stY !== null ? lumFromY(stY) : dnaGroundLum(sc.shot, sc.bgLum, dna);
   const ink = beatY === null ? (lum === 'light' ? CAPTION_INK_DARK : CAPTION_INK_LIGHT) : captionInk(beatY);
   // The subtitle sits DIRECTLY on the frame's own background — there is NO scrim/bar rectangle behind it.
   // The shots reserve the bottom CAPTION_BAND (content never reaches it), so the caption's ground is the
@@ -845,7 +854,11 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
   // cross-fades"), it is what this function's own luminance guard already falls back to, and it carries no
   // movement at all. One rule, both tiers.
   if (reducedMotion) return fade();
-  const dLum = Math.abs(LUM_RANK[dnaGroundLum(next.shot, next.bgLum, nextG)] - LUM_RANK[dnaGroundLum(prev.shot, prev.bgLum, prevG)]);
+  const lumOf = (sc: SceneSpec, g: typeof nextG) => {
+    const y = stageGroundY(sc, g);
+    return y !== null ? lumFromY(y) : dnaGroundLum(sc.shot, sc.bgLum, g);
+  };
+  const dLum = Math.abs(LUM_RANK[lumOf(next, nextG)] - LUM_RANK[lumOf(prev, prevG)]);
   const want = next.transitionIn?.type ?? 'fade';
   // luminance guard: a dark↔light gap forces the gentle fade — EXCEPT the two seams that cannot flash.
   // `carry`'s neutral bridge line IS the dip. `focus` cannot flash at all: racking focus redistributes light

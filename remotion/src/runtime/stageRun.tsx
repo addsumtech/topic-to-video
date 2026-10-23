@@ -105,9 +105,24 @@ export const buildKeys = (beats: StageBeat[], fps: number, normalize?: Normalize
   });
   for (let i = 1; i < keys.length; i++) {
     const pr = keys[i - 1];
-    keys[i].begin = lerpState(pr.begin, pr.state, progress(pr, keys[i].from)) as State;
+    keys[i].begin = partWay(pr.begin, pr.state, progress(pr, keys[i].from));
   }
   return keys;
+};
+
+/** What is on screen part-way through a move from `a` to `b`: shared values in between, what only `b` has already in,
+ *  what only `a` has (an actor the move REMOVES) still there before the halfway point and gone after it — and `b`
+ *  itself once the move is over. Interpolating with `lerpState`, which keeps a key only one side has, brought every
+ *  removed actor back: the camera a beat had settled with `camera: null` returned at full zoom on each later step. */
+const partWay = (a: State, b: State, q: number): State => {
+  if (q >= 1) return b;
+  const out: State = {};
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (!(k in b)) {
+      if (q < 0.5) out[k] = a[k];
+    } else out[k] = k in a ? lerpState(a[k], b[k], q) : b[k];
+  }
+  return out;
 };
 
 export type StageNow = {

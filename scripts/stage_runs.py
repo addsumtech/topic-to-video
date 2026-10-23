@@ -85,12 +85,22 @@ def stamp_faces(props, public_dir):
     """`props` with its face's shape added as `imageAspect` — a stage beat's `image` names a file the film serves,
     and the stage gives the card that file's shape, which a frame cannot measure before it draws the image. `props`
     comes back as it was when it names no image; a missing file is an error here rather than a blank card in the film."""
-    if not isinstance(props, dict) or not isinstance(props.get("image"), str) or not props["image"].strip():
+    if not isinstance(props, dict):
         return props
-    path = os.path.join(public_dir, props["image"].lstrip("/"))
-    if not os.path.isfile(path):
-        raise FileNotFoundError("stage image %r is not a file in %s" % (props["image"], public_dir))
-    return dict(props, imageAspect=image_aspect(path))    # a copy: the board's own shot_props are never written
+
+    def one(d):
+        if not isinstance(d, dict) or not isinstance(d.get("image"), str) or not d["image"].strip():
+            return d
+        path = os.path.join(public_dir, d["image"].lstrip("/"))
+        if not os.path.isfile(path):
+            raise FileNotFoundError("stage image %r is not a file in %s" % (d["image"], public_dir))
+        return dict(d, imageAspect=image_aspect(path))     # a copy: the board's own shot_props are never written
+
+    out = one(props)
+    # a STEP may change the face too (a run of looks flicked through on one card): each gets its own shape
+    if isinstance(out.get("steps"), list):
+        out = dict(out, steps=[one(st) for st in out["steps"]])
+    return out
 
 
 def resolve_steps(props, resolve, dur_s, beat_no):
@@ -175,6 +185,24 @@ def sound_events(scenes):
                     evs.append({"t": float(st["t"]), "name": "click"})
         out.append(evs)
     return out
+
+
+def mark_backdrops(scenes):
+    """Write `stageGround` — the DNA token of the backdrop each beat of a run is lit in — onto every scene of a run whose
+    beats set a `backdrop` (a beat that says nothing keeps the one before; `null` returns to the stage's own). Film.tsx
+    inks the captions and guards the seams by it: a stage has no measured ground row, and a run that goes dark for a
+    beat would otherwise keep the light studio's dark captions on a dark stage."""
+    for first, last, _r in runs(scenes):
+        held = None
+        for k in range(first, last + 1):
+            props = scenes[k].get("props") or {}
+            if "backdrop" in props:
+                held = props["backdrop"] if isinstance(props["backdrop"], str) and props["backdrop"] else None
+            if held:
+                scenes[k]["stageGround"] = held
+            else:
+                scenes[k].pop("stageGround", None)
+    return scenes
 
 
 def check(slides):

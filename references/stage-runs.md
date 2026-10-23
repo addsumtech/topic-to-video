@@ -60,7 +60,8 @@ while the card turns. To author the places, look at the face image and read the 
 
 | state | what it does |
 |---|---|
-| `image` / `page`, `fit` | the face: a file the film serves, or a page the card draws (`kicker`, `title`, `lines`). Set `image: null` to switch to a page. `fit: contain` letterboxes. |
+| `image` / `page`, `fit` | the face: a file the film serves, or a page the card draws (`kicker`, `title`, `lines`, `code` — a command set in the mono face exactly as written, `tone: accent` to flood it in the accent). Set `image: null` to switch to a page. `fit: contain` letterboxes. A STEP may change the face too: a run of looks flicked through on one card (each swap lands at the middle of its move). |
+| `backdrop` | the DNA colour the stage is lit in (`bg` by default; `fg`, `accent`, `surface`…), set on a beat, carried across its move. A run that never changes it has no light arc (`film_energy_qa` fails a one-exposure film): darken it for a showroom beat, close on the accent. The title, its marked word and the captions are inked for it (`render_remotion` writes each beat's `stageGround`). |
 | `title`, `highlight` | the title line and the word of it to mark |
 | `card {x, y, s, rx, ry, rz, aspect}` | the pose. The card is sized to the content zone after projecting its turned corners, so it never runs into the title or the caption band. With no `aspect`, the card takes its face's shape; a keyframe that changes the face without saying `aspect` drops the old shape. |
 | `cursor {u, v, click}` | a pointer on the face. It comes in from below-right. `click: true` presses as it arrives, with a ripple, and a click SOUND at the same moment. |

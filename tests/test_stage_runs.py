@@ -104,6 +104,8 @@ def test_a_stage_face_carries_the_shape_a_browser_draws(tmp_path):
     assert out["imageAspect"] == round(400 / 300, 4) and "imageAspect" not in board_props
     assert sr.stamp_faces({"image": "turned.jpg"}, str(tmp_path))["imageAspect"] == 0.75
     assert sr.stamp_faces({"title": "no face"}, str(tmp_path)) == {"title": "no face"}
+    stepped = sr.stamp_faces({"steps": [{"at": 0.5, "image": "turned.jpg"}, {"at": 0.9, "marks": []}]}, str(tmp_path))
+    assert stepped["steps"][0]["imageAspect"] == 0.75 and "imageAspect" not in stepped["steps"][1]
     with pytest.raises(FileNotFoundError):
         sr.stamp_faces({"image": "missing.png"}, str(tmp_path))
 
@@ -183,3 +185,16 @@ def test_the_board_gates_see_a_stage_for_what_it_is():
               _s("CardStage", "c", index=5, shot_props={"page": {"title": "t"}, "title": "only a title"})]
     routes = {n: r for n, r, _why in validate.design_routes({}, slides, None)}
     assert routes[2] == routes[3] == "exempt" and routes[4] == "adapted" and routes[5] == "as-is"
+
+
+def test_a_run_tells_the_captions_which_backdrop_each_beat_is_lit_in():
+    """A beat keeps the backdrop the beat before it set, `null` returns to the stage's own, and a beat off any run is
+    never marked — the Film inks its captions by `stageGround` (a dark showroom beat on a light studio)."""
+    sc = [{"shot": "CinematicTitle", "props": {"backdrop": "fg"}},
+          {"shot": "CardStage", "stage": {"run": "r"}, "props": {}},
+          {"shot": "CardStage", "stage": {"run": "r"}, "props": {"backdrop": "fg"}},
+          {"shot": "CardStage", "stage": {"run": "r"}, "props": {"title": "still dark"}},
+          {"shot": "CardStage", "stage": {"run": "r"}, "props": {"backdrop": None}},
+          {"shot": "CardStage", "stage": {"run": "r"}, "props": {"backdrop": "accent"}}]
+    sr.mark_backdrops(sc)
+    assert [s.get("stageGround") for s in sc] == [None, None, "fg", "fg", None, "accent"]
