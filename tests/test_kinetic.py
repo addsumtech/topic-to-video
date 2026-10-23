@@ -130,6 +130,16 @@ def test_a_hold_under_reading_time_is_an_error_and_under_must_read_a_warning():
     assert len(warns) == 1 and "a line that is read once" in warns[0]
 
 
+def test_the_reading_table_is_the_caption_rule_s_numbers():
+    """runtime/readingSpec.json paces kinetic type (TS) and judges it (shot_proof); validate.py's caption rule holds
+    the same three published figures as constants. Two homes for one number is how they drift — so they are equal."""
+    import validate as _v
+    spec = json.load(open(os.path.join(_REM, "src", "runtime", "readingSpec.json"), encoding="utf-8"))
+    assert spec["cps"]["zh"] == _v.CPS_CJK and spec["cps"]["latin"] == _v.CPS_LATIN
+    assert spec["minSeconds"] == _v.MIN_CAPTION_SECONDS
+    assert set(spec["sources"]) >= {"cps.zh", "cps.ja", "cps.latin", "cps.ko", "minSeconds", "mustReadSecondsPerWord"}
+
+
 def test_the_report_tag_is_one_string_in_both_languages():
     dom = open(os.path.join(_REM, "src", "runtime", "kineticDom.ts"), encoding="utf-8").read()
     assert "KINETIC_HOLDS_TAG = '%s'" % sp.KINETIC_HOLDS_TAG in dom
