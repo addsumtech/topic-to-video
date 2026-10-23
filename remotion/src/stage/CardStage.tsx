@@ -37,6 +37,7 @@ import {TITLE_Y, contentBottom, CONTENT_TOP, CAPTION_SIZE_FRAC, CAPTION_MARGIN_F
   CAPTION_LINES} from '../runtime/layout';
 import {SafeZoneContext, captionBottomY, SAFE_CAPTION_SCALE} from '../runtime/safeZone';
 import {CursorArrow, TapRipple} from '../runtime/gesture';
+import {ACTION_SAFE_FRAC} from '../runtime/depth';
 import {usePlaceGlide, useGlide} from '../runtime/glide';
 import {useStageRun, lerpState, actor, sinceEvent, springSum, moveShare, State, Normalize} from '../runtime/stageRun';
 import {elevation, topLight, sheen, blurOf, BlurFilter, rimLight, surfaceIsDark} from './surface';
@@ -287,9 +288,21 @@ export const CardStage: React.FC<{
     const c = (a && b && p < 1 ? lerpState(a, b, p) : item) as SideCard;
     const asp = Math.max(0.3, c.aspect ?? (c.image && c.imageAspect ? c.imageAspect : 16 / 9));
     let w = (c.w ?? 0.45) * W, h = w / asp;
-    if (h > (zoneBot - zoneTop) * 0.96) { h = (zoneBot - zoneTop) * 0.96; w = h * asp; }
     const pose: Pose = {x: c.x ?? 0, y: c.y ?? 0, s: 1, rx: c.rx ?? 0, ry: (c.ry ?? 0) + sway, rz: c.rz ?? 0, aspect: asp};
-    return {c, on, w, h, cx: W / 2 + pose.x * W, cy: zoneMid.y + pose.y * H, pose};
+    // KEPT IN THE ZONE, AS THE HERO IS: a side card was placed by its author's fractions alone, and a paper at y -0.17
+    // lay across the title for a whole beat ("数字都对得回原文"). The card as it is drawn — turned (sway included),
+    // floating and rising in on its entrance — stays between the title and the caption, and inside the frame's
+    // action-safe border across; shrunk when it cannot fit, moved when it merely sits too high or too low
+    const travel = U * 0.011 + U * 0.04 * (1 - easeOutCubic(on));
+    const e0 = extent(w, h, {...pose, ry: Math.abs(c.ry ?? 0) + SWAY}, persp);
+    const fit = Math.min(1, Math.max(1, zoneBot - zoneTop - 2 * travel) / (2 * e0.hy), (W * (1 - 2 * ACTION_SAFE_FRAC)) / (2 * e0.hx));
+    w *= fit; h *= fit;
+    // measured again at the fitted size: under perspective a turned card's extent is not exactly proportional to it
+    const e1 = fit < 1 ? extent(w, h, {...pose, ry: Math.abs(c.ry ?? 0) + SWAY}, persp) : e0;
+    const hx = e1.hx, hy = e1.hy, mx = W * ACTION_SAFE_FRAC;
+    const cx = Math.min(Math.max(W / 2 + pose.x * W, mx + hx), W - mx - hx);
+    const cy = Math.min(Math.max(zoneMid.y + pose.y * H, zoneTop + hy + travel), zoneBot - hy - travel);
+    return {c, on, w, h, cx, cy, pose};
   });
   type SideG = (typeof sides)[number];
   /** a place on a side card's face → where it is in the frame */

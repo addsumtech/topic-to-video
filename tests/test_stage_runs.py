@@ -1,10 +1,16 @@
 """Continuous stage runs: which boundaries are cuts, where every beat starts, and what a board may not ask of a run."""
+import json
 import os
+import subprocess
 import sys
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 import stage_runs as sr  # noqa: E402
 import remotion_segments as rs  # noqa: E402
+
+_REM = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion")
 
 
 def _s(shot, run=None, **kw):
@@ -206,3 +212,39 @@ def test_a_run_tells_the_captions_which_backdrop_each_beat_is_lit_in():
           {"shot": "CardStage", "stage": {"run": "r"}, "props": {"backdrop": "accent"}}]
     sr.mark_backdrops(sc)
     assert [s.get("stageGround") for s in sc] == [None, None, "fg", "fg", None, "accent"]
+
+
+def _stage_still(tmp_path, name, title, cards, aspect):
+    scene = {"shot": "CardStage", "durF": 90, "stage": {"run": "r"},
+             "props": {"title": title, "hero": False, "cards": cards}}
+    pf = str(tmp_path / (name + ".json"))
+    json.dump({"scenes": [scene], "dna": "product", "captions": False, "camera": 0, "cameraBed": False,
+               "aspect": aspect}, open(pf, "w", encoding="utf-8"), ensure_ascii=False)
+    png = str(tmp_path / (name + ".png"))
+    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "Film", png, "--frame=70", "--gl=angle",
+                        "--log=error", "--props=" + pf], cwd=_REM, capture_output=True, text=True, timeout=900)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-600:]
+    return png
+
+
+@pytest.mark.skipif(not os.path.isdir(os.path.join(_REM, "node_modules")), reason="needs the remotion toolchain")
+@pytest.mark.parametrize("aspect,y", [("9:16", -0.2), ("16:9", -0.2), ("9:16", -0.45)])
+def test_a_side_card_placed_high_never_lies_across_the_title(tmp_path, aspect, y):
+    # "数字都对得回原文": a paper at y -0.17 lay across the stage title for a whole beat — a side card was placed by its
+    # author's fractions alone (and at y -0.45 it left the frame altogether). Placed high and wide here, it must sit
+    # below the title, in frame: the title's ink rows (with the card vs without the title) and the card's rows (with vs
+    # without the card) must both exist and must not meet.
+    np = pytest.importorskip("numpy")
+    Image = pytest.importorskip("PIL.Image")
+    card = [{"id": "p", "page": {"kicker": "K", "title": "A page", "lines": ["one", "two"], "tone": "paper"},
+             "x": 0, "y": y, "w": 0.8, "aspect": 0.75, "rz": -2}]
+    load = lambda p: np.asarray(Image.open(p).convert("L"), dtype=float)
+    both = load(_stage_still(tmp_path, "both", "数字都对得回原文", card, aspect))
+    no_title = load(_stage_still(tmp_path, "notitle", " ", card, aspect))
+    no_card = load(_stage_still(tmp_path, "nocard", "数字都对得回原文", [], aspect))
+    title_rows = np.where((np.abs(both - no_title) > 40).any(axis=1))[0]
+    card_rows = np.where((np.abs(both - no_card) > 24).any(axis=1))[0]
+    assert len(title_rows) and len(card_rows), (len(title_rows), len(card_rows))
+    # the card's own rows below the title: its shadow may soften toward it, its face may not reach it
+    assert card_rows.min() > title_rows.max(), (
+        "the side card reaches row %d, the title ends at row %d" % (card_rows.min(), title_rows.max()))

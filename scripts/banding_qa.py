@@ -95,16 +95,15 @@ def check(out_dir, every=1.0, mp4=None):
 
 
 def main(argv):
-    args = [a for a in argv if not a.startswith("--")]
-    if not args:
-        print(__doc__.strip())
-        return 2
-    every = 1.0
-    for a in argv:
-        if a.startswith("--every="):
-            every = float(a.split("=", 1)[1])
-    r = check(os.path.abspath(args[0]), every)
-    if "--json" in argv:
+    import argparse
+    ap = argparse.ArgumentParser(description="CAMBI banding on a film's delivered out.mp4")
+    ap.add_argument("out_dir")
+    ap.add_argument("--every", type=float, default=1.0, help="seconds between sampled frames (default 1)")
+    ap.add_argument("--json", action="store_true")
+    a = ap.parse_args(argv)
+    every = a.every
+    r = check(os.path.abspath(a.out_dir), every)
+    if a.json:
         print(json.dumps(r, ensure_ascii=False))
     elif not r["measured"]:
         print("[banding_qa] NOT MEASURED: %s" % r["why"])
