@@ -1120,3 +1120,46 @@ def test_mpl_title_family_follows_font_kind(tmp_path):
     zh = tmp_path / "zh"; zh.mkdir()
     (zh / "theme.css").write_text(":root{--font-kind:comic; --bg:#fff; --fg:#111; --accent:#e00;}")
     assert scenes._mpl_title_family({"_out": str(zh), "language": "zh"}, "SomeCJK") == "SomeCJK"
+
+
+# --- keypoints headline fits its width (it overran the 9:16 frame) -------------------------------------------
+_LONG_TITLES = {"en": "Platform-safe portrait films keep every caption above the description",
+                "zh": "竖屏视频要把字幕和标题都放在平台界面碰不到的安全区里面"}
+
+
+def test_wrap_pil_char_wrap_keeps_every_character():
+    from PIL import ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    font = scenes._font(META_ZH, _LONG_TITLES["zh"], 64, role="serif")
+    for w in (200, 333, 500, 900):
+        lines = scenes._wrap_pil(d, _LONG_TITLES["zh"], font, w)
+        assert "".join(lines) == _LONG_TITLES["zh"], (w, lines)   # the last line was dropped
+
+
+def _ink(im, bg, x0=0):
+    W, H = im.size
+    px = im.load()
+    rows = [y for y in range(H) if any(sum(abs(a - b) for a, b in zip(px[x, y], bg)) > 120 for x in range(x0, W, 2))]
+    cols = [x for x in range(x0, W) if any(sum(abs(a - b) for a, b in zip(px[x, y], bg)) > 120 for y in rows[::3])]
+    return rows, cols
+
+
+@pytest.mark.parametrize("wh", [(1920, 1080), (1080, 1920)])
+@pytest.mark.parametrize("lang", ["en", "zh"])
+def test_keypoints_long_title_fits_and_clears_the_points(tmp_path, wh, lang):
+    W, H = wh
+    meta = META_ZH if lang == "zh" else META
+    title = _LONG_TITLES[lang]
+    pts = [{"label": "Caption above the description", "sub": "bottom 19% left to the platform"},
+           {"label": "Lines end before the buttons"}]
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
+    only = Image.open(scenes.render_keypoints({"title": title, "points": []}, meta, W, H, 1, str(tmp_path / "a"), 1) % 0)
+    full = Image.open(scenes.render_keypoints({"title": title, "points": pts}, meta, W, H, 1, str(tmp_path / "b"), 1) % 0)
+    only, full = only.convert("RGB"), full.convert("RGB")
+    bg = only.getpixel((2, 2))
+    rows, cols = _ink(only, bg)
+    assert cols and max(cols) <= W - int(W * 0.10), "the title runs to x %d of %d" % (max(cols), W)
+    # the points (full minus title-only) start below the title's last row of ink
+    px_f, px_o = full.load(), only.load()
+    pt_rows = [y for y in range(0, H, 2) if any(px_f[x, y] != px_o[x, y] for x in range(0, W, 4))]
+    assert pt_rows and min(pt_rows) > max(rows), "points start at y %d, inside the title (ends %d)" % (min(pt_rows), max(rows))
