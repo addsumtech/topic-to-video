@@ -264,6 +264,26 @@ clock.
 **Smallest real use:** `const now = useStageRun(); const cursor = actor<Cursor>(now, 'cursor');`
 **Exports:** `useStageRun`, `actor`, `springSum`, `moveShare`, `sinceEvent`, `lerpState`, `mergeState`, `buildKeys`, `morphFrames`, `STEP_MOVE_S`, `StageRunContext`, `StageBeat`, `StageKey`, `StageNow`, `Normalize`. Spatial actors move on `springSum` (springs that add up across keyframes, landing exactly on target); `stage/surface.tsx` lights a stage's surfaces (layered key-light shadow, turn sheen, rim) and blurs what moves fast.
 
+### `carry`
+The elements a seam can take hold of: `data-carry="<id>"` on the element (no pixel changes), or `<CarryAnchor>` when the
+thing is drawn in pieces (`data-carry-part` on the siblings); `data-carry-glyph` makes a text anchor a window of
+letterforms. Shared ids: `screen`, `window`, `hero`, `figure`, `card:<id>`, `word`. The `container`, `grow` and
+`through-window` seams (seams.tsx) refuse an anchor they cannot find; `scripts/carry_anchors.py` reads them from source
+for the planner and validate.
+**Reach for it:** in a register whose main element should be carried across a cut; an anchor with its own entrance
+reads `useCarried(id)` and draws itself in place when a container brings it in.
+**Smallest real use:** `<div data-carry="screen" style={...}>…</div>`
+**Exports:** `CarryContext`, `useCarried`, `CarryAnchor`.
+
+### `handoff`
+The camera hand-off: on a `continuation` cut a push or pull runs into the cut at velocity v and the next beat (no camera
+of its own) inherits v and lets it decay — the move survives the edit. Pure curves; Film's HandoffCamera drives
+SceneCamera with them; one camera channel per beat (Film and validate refuse a pan beside it).
+**Reach for it:** never directly — `slide.camera: {move, handoff: true}`, set by seam_plan on a planned push/pull before
+a continuation.
+**Smallest real use:** `const {extra, v} = handoffOut(f, durF, amp, 'push');`
+**Exports:** `handoffOut`, `handoffIn`, `HANDOFF_SETTLE`.
+
 ### `dither`
 The film's delivery dither: a static, seeded triangular dither of ±2 code values over the whole frame, painted last so x264 cannot keep a dark gradient's 8-bit steps as rings (CAMBI 12-22 on this tier's own films without it, 0.0 with it; `scripts/banding_qa.py` measures the delivered file).
 **Reach for it:** never — Film.tsx draws it when render_remotion asks (`dither`, on unless `meta.dither: false`); a gate's still and a register's own still go without it.
