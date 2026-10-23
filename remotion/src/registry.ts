@@ -206,6 +206,10 @@ import {OrbitClockGain} from './shots/OrbitClockGain';
 import {ReplyWindow} from './shots/ReplyWindow';
 import {WeightedWheel} from './shots/WeightedWheel';
 import {ForkingAnswers} from './shots/ForkingAnswers';
+import {HeadlineReveal} from './shots/HeadlineReveal';
+import {WordRoll} from './shots/WordRoll';
+import {TypeOnPath} from './shots/TypeOnPath';
+import {CroppedType} from './shots/CroppedType';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -289,6 +293,10 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   ReplyWindow,
   WeightedWheel,
   ForkingAnswers,
+  HeadlineReveal,
+  WordRoll,
+  TypeOnPath,
+  CroppedType,
 };
 
 // A FILM'S OWN SHOTS AND OBJECTS — its workshop (scripts/workshop.py) — join the library here, for a render scoped

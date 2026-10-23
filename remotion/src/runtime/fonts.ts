@@ -35,6 +35,8 @@ export type Face = {
   url: string;         // bundler-emitted asset URL
   weight: string;      // a VF's full range, or a single weight for a static face
   variable: boolean;   // true = weight is a range; the weight-ladder gate only applies to these
+  // the WIDTH range the file's `wdth` axis really covers, as a font-stretch range. Absent = 100% only.
+  stretch?: string;
 };
 
 export const FACES: Face[] = [
@@ -44,7 +46,13 @@ export const FACES: Face[] = [
   {family: 'Bangers', file: 'Bangers-Regular.ttf', url: bangersUrl, weight: '400', variable: false},
   {family: 'Inter', file: 'Inter-VF.ttf', url: interUrl, weight: '100 900', variable: true},
   {family: 'Source Serif 4', file: 'SourceSerif4-VF.ttf', url: sourceSerif4Url, weight: '200 900', variable: true},
-  {family: 'IBM Plex Sans', file: 'IBMPlexSans-VF.ttf', url: ibmPlexSansUrl, weight: '100 700', variable: true},
+  // THE ONE BUNDLED FACE WITH A WIDTH AXIS, and it was declared without it. The file's `wdth` runs 75-100
+  // (fontTools, fvar); with no `stretch` descriptor the browser treats the face as 100% only and clamps any
+  // `font-stretch` to it, so a width morph (runtime/kinetic) asked for 80% and drew 100% — measured on the
+  // research probe, "Variable Type AVATAR" at 100px is 886px at wdth 75 and 983px at 100, a morph that existed
+  // in the file and could not be reached through the property that composes with everything else.
+  // `stretch` sits BEFORE `weight` because tests/test_remotion.py reads each row up to `variable: …}`.
+  {family: 'IBM Plex Sans', file: 'IBMPlexSans-VF.ttf', url: ibmPlexSansUrl, stretch: '75% 100%', weight: '100 700', variable: true},
   {family: 'IBM Plex Mono', file: 'IBMPlexMono-Regular.ttf', url: ibmPlexMonoUrl, weight: '400', variable: false},
   {family: 'Bodoni Moda', file: 'BodoniModa-VF.ttf', url: bodoniModaUrl, weight: '400 900', variable: true},
   {family: 'Baloo 2', file: 'Baloo2-VF.ttf', url: baloo2Url, weight: '400 800', variable: true},
@@ -104,12 +112,26 @@ if (typeof document !== 'undefined' && !document.getElementById('lining-figures'
 }
 
 const handle = delayRender('loading DNA typefaces', {timeoutInMilliseconds: 300000});
-Promise.all(
+/**
+ * Resolves once every face above is in `document.fonts`.
+ *
+ * Exported for code that MEASURES type (runtime/kinetic). `document.fonts.ready` is not this: the faces are added
+ * only after their own `load()` resolves, so before that the set holds nothing matching and `ready` resolves at
+ * once — a measurement taken then is a measurement of the system fallback, with its own advances and line breaks,
+ * and every glyph placed from it lands in the wrong place once the real face arrives.
+ */
+export const FACES_READY: Promise<void> = Promise.all(
   FACES.map(async (f) => {
-    const face = new FontFace(f.family, `url(${f.url}) format('truetype')`, {weight: f.weight});
+    const face = new FontFace(f.family, `url(${f.url}) format('truetype')`,
+      f.stretch ? {weight: f.weight, stretch: f.stretch} : {weight: f.weight});
     await face.load();
     document.fonts.add(face);
   }),
-)
+).then(() => undefined);
+// ...and PUBLISHED on a global, so code that measures (runtime/kineticDom `facesReady`) can wait for it without
+// importing this module: importing it would make every register drawn with kinetic type depend on the font FILES,
+// which the library's measurement hashes (scripts/register_energy.py) read as source.
+(globalThis as unknown as {__dnaFacesReady?: Promise<void>}).__dnaFacesReady = FACES_READY;
+FACES_READY
   .then(() => continueRender(handle))
   .catch((err) => cancelRender(err));

@@ -122,6 +122,91 @@ def _unfed_text(shot, payload, frame, proof, beat, out_dir, scope, declared):
     return words, data.get("total", len(words)), None
 
 
+# ── A MUST-READ LINE HELD SHORTER THAN ITS READING TIME (runtime/kinetic.tsx) ─────────────────────────────────
+#
+# WHY HERE, and not in validate.py. The hold is a property of the register's CLOCK at the beat's real length: when a
+# word-roll's alternatives arrive, how long a headline's last line stands once it has risen through its mask. A
+# static check would have to restate every register's timing in Python — a second definition of the same quantity,
+# the shape `references/engineering-case-law.md` E1/E8 keeps finding drifted. This gate already renders each beat
+# with its real props; one more still, at the beat's own length (`holdFrames`), asks the KineticText to walk every
+# frame through the SAME state function that draws it and say how long each must-read line, alternative and block is
+# readable (opacity and visible share at least a half — the sync audit's own "appeared"). The verdict is here, beside
+# the caption rule, from the same published reading rates (validate.CPS_*, references/motion-research.md §1).
+# What it does not see: the film's per-beat time warp and narration cues (a cue only moves an entrance EARLIER, so it
+# can only lengthen a hold; a warp's slope is held to 0.4-2.5x and can shorten one) — the sync audit measures those.
+KINETIC_HOLDS_TAG = "KINETIC-HOLDS "   # runtime/kineticDom.ts KINETIC_HOLDS_TAG — tests/test_kinetic.py holds them equal
+# THE READING RATES ARE ONE TABLE, read by the TypeScript that paces kinetic type and by this verdict alike, each
+# figure with its source inside it; tests/test_kinetic.py pins the numbers it shares with validate.py's caption rule.
+_READING = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "runtime",
+                                       "readingSpec.json"), encoding="utf-8"))
+MUST_READ_S_PER_WORD = _READING["mustReadSecondsPerWord"]
+
+
+def kinetic_capable(shot, out_dir=None):
+    """True when the register draws through runtime/kinetic — read from its source, never a list."""
+    import workshop as _ws
+    src = _ws.shot_source(out_dir, shot) or ""
+    return bool(re.search(r"""from\s+['"](?:\.\./runtime|@runtime)/kinetic['"]""", src))
+
+
+def reading_seconds(rec):
+    """(read once, read to be understood) in seconds for one hold record: the published rate per script for the
+    first, ~0.6 s a word for the second (never below the first)."""
+    lang = str(rec.get("lang") or "")
+    c = _READING["cps"]
+    cps = c["ja"] if lang.startswith("ja") else c["zh"] if lang.startswith("zh") else c["ko"] if lang.startswith("ko") \
+        else c["latin"]
+    once = max(_READING["minSeconds"], float(rec.get("chars") or 0) / cps)
+    return once, max(once, float(rec.get("words") or 0) * MUST_READ_S_PER_WORD)
+
+
+def kinetic_hold_findings(report):
+    """(errors, warnings) for one KINETIC-HOLDS payload: a hold under the read-once time is an ERROR (the line
+    cannot be read at all); under the must-read time a WARN (it can be read once, not understood)."""
+    errors, warns = [], []
+    for rep in (report or {}).get("reports") or []:
+        for rec in rep.get("texts") or []:
+            hold = float(rec.get("hold") or 0)
+            once, must = reading_seconds(rec)
+            what = {"line": "line", "alt": "alternative", "block": "whole block"}.get(rec.get("kind"), "text")
+            text = str(rec.get("text") or "")
+            short = text if len(text) <= 40 else text[:40] + "…"
+            if hold + 1e-6 < once:
+                errors.append("the %s %r is readable for %.2fs and needs %.2fs just to be read once (%d chars) — "
+                              "give the beat more time, or fewer lines / alternatives" % (what, short, hold, once,
+                                                                                          rec.get("chars") or 0))
+            elif hold + 1e-6 < must:
+                warns.append("the %s %r is readable for %.2fs; must-read copy wants %.2fs (%d words at %.1fs) — "
+                             "it can be read once, not taken in" % (what, short, hold, must, rec.get("words") or 0,
+                                                                    MUST_READ_S_PER_WORD))
+    return errors, warns
+
+
+def _kinetic_holds(shot, payload, slide, proof, beat, out_dir):
+    """(report, None) or (None, why): the beat's KineticTexts' hold report, at the beat's own length."""
+    dur = slide.get("duration")
+    if not isinstance(dur, (int, float)) or dur <= 0:
+        return None, "the beat has no `duration` yet (it is set by tts), so its hold cannot be measured"
+    pj = os.path.join(proof, "beat_%02d.holds.json" % beat)
+    with open(pj, "w", encoding="utf-8") as fh:
+        json.dump(dict(payload, kineticHolds=True, holdFrames=int(round(dur * 30))), fh, ensure_ascii=False)
+    png = os.path.join(proof, "beat_%02d.holds.png" % beat)
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=0",
+                                       "--gl=angle", "--props=" + pj, "--log=error",
+                                       "--public-dir=" + os.path.abspath(out_dir)],
+                      cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
+    for f in (pj, png):
+        if os.path.exists(f):
+            os.remove(f)
+    blob = (r.stdout or "") + (r.stderr or "")
+    if KINETIC_HOLDS_TAG not in blob:
+        return None, _stderr_reason(blob)
+    try:
+        return json.JSONDecoder().raw_decode(blob.split(KINETIC_HOLDS_TAG, 1)[1])[0], None
+    except json.JSONDecodeError:
+        return None, _stderr_reason(blob)
+
+
 def _band_luminance(png):
     """Median relative luminance of the caption band — the ground the burned caption is inked for."""
     try:
@@ -1271,6 +1356,21 @@ def _prove(argv, out_dir, board, ws_durs):
                                       "that is part of the form is declared `// @fixed-text: <why>` in the "
                                       "workshop code)"
                                       % (beat, shot, total, more, " / ".join(repr(w) for w in words)))
+            if not stage_beat and kinetic_capable(shot, out_dir):
+                _hk = _cached(proof, key, ".holds.json")
+                if _hk:
+                    _rep, _why = json.load(open(_hk, encoding="utf-8"))
+                else:
+                    _rep, _why = _kinetic_holds(shot, payload, s, proof, beat, out_dir)
+                    if _rep is not None:
+                        _keep(proof, key, ".holds.json", data=[_rep, _why])
+                if _rep is None:
+                    unmeasured.append("beat %d (%s): the reading-time check on its kinetic type gave no answer — %s"
+                                      % (beat, shot, _why))
+                else:
+                    _he, _hw = kinetic_hold_findings(_rep)
+                    errors.extend("beat %d (%s): %s" % (beat, shot, x) for x in _he)
+                    warns.extend("beat %d (%s): %s" % (beat, shot, x) for x in _hw)
             if stage_beat:
                 pass                                     # a stage draws its own lit ground (no register row to read)
             elif shot in film_shots:

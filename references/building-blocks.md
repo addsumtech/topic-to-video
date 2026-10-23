@@ -163,7 +163,8 @@ Loads the DNA's typefaces for the Film and for every standalone still — the re
 faces that render.
 **Reach for it:** never directly; `var(--f-display)`, `var(--f-body)`, `var(--f-mono)` are what you write.
 **Smallest real use:** `font: \`700 ${px}px/1.1 var(--f-display, Inter, sans-serif)\``
-**Exports:** `FACES`, `Face`.
+**Exports:** `FACES`, `Face`, `FACES_READY` (the load, for code that measures type — `kinetic` waits on it through
+`kineticDom`). IBM Plex Sans declares its real width range, 75-100%, so a width morph reaches the `wdth` axis.
 
 ### `cjkType`
 The leading a line of Chinese needs, derived from the copy — a Latin leading makes wrapped CJK collide with itself.
@@ -269,6 +270,57 @@ The film's delivery dither: a static, seeded triangular dither of ±2 code value
 **Smallest real use:** `{dither ? <FilmDither /> : null}`
 **Exports:** `FilmDither`, `ditherTile`, `DITHER_TILE`, `DITHER_AMP`.
 
+## Type that moves
+
+### `kinetic`
+Type animated by the letter, word or line that is still the text it animates: the copy is laid out ONCE by the browser
+in a reference node (same face, size, axes, tracking, ligatures off), each grapheme's box is read with
+`Range.getClientRects()`, and every glyph is drawn on its own exactly there — so kerning, a Chinese line's punctuation
+compression and its kinsoku line breaks are the browser's (measured 0 px against one text node, both scripts). The face
+is resolved off an in-tree anchor (a DNA's variables, a terminal DNA's monospace) and measured in an untransformed node,
+so a camera or the platform-safe frame cannot move a measurement. Lines are fitted by MEASURING (`fit: 'box'`, with
+`fitTiers` to keep the film's lines whole before allowing a wrap); a weight or width morph is measured at five anchors
+and re-flowed. Motion is a pure function of the shot's clock in the After Effects model (one coverage per unit drives every
+property): staggers, an AE range selector, line/word/glyph masks, swaps (roll / scramble / flip), text on an SVG path
+(placed by arc length, turned to the tangent), a continuous drift, an emphasised `*run*` that takes colour and weight
+as it lands. Moving glyphs carry the baseline unlock inside any blur. Every type gate reads a KineticText as its LINES.
+**Reach for it:** any type that enters, swaps, travels or morphs by the unit — and never hand-roll a per-character
+split again (`display: inline-block` per letter measured 8.1% wider than the text it splits, 11% for Chinese).
+**Smallest real use:** `const h = useKinetic({text: lines, font: {family: DISPLAY, size: U * 0.12, minSize: U * 0.05}, w, h: room, fit: 'box'}); <KineticText k={h} x={x} y={y} color={ink} motion={{mask: 'line', from: {ymask: 1.02}, enter: {by: 'line', at: 0.1, stagger: 0.16, dur: 0.9, ease: 'expo', cueKeys: lines.map((_, i) => 'lines.' + i)}}} />`
+**Exports:** `useKinetic`, `KineticText`, `KSpec`, `KFont`, `KMotion`, `KState`, `KTiming`, `KSwap`, `KPath`, `KLayout`, `KineticHandle`, `emphBoxes`, `kineticPathLength`, `KineticHoldContext`, `KineticHoldAudit`, `HoldReport`, `HoldRecord`.
+The register must render the handle's KineticText (or `handle.anchor`) in the same commit as the hook — the face is
+read off it; without it the render cancels at once, naming the hook. Two KineticTexts take two handles (a cache hit).
+`read={false}` marks type that is texture (a ring of repeated words, cropped big type) rather than copy that must be
+read: everything else is held to its reading time by `scripts/shot_proof.py` (see `KineticHoldAudit`).
+
+### `kineticCore`
+The pure half of `kinetic`, with no DOM and no React, runnable in node: the AE range selector (`rangeCoverage`, shapes
+square / ramp / triangle / round / smooth, ease high/low, amount, seeded `permutation`), stagger order (`orderRank`),
+the measured eases (`EASES`: CSS `ease` as linear.app runs it, stripe's roller, GSAP's expo/power), Intl.Segmenter
+graphemes and words (zh/ja segmented), the `*…*` emphasis markup (`parseRuns`), the swap schedule (`swapTimes`), and
+`readingSeconds` from the shared reading table.
+**Reach for it:** a register that must reason about the same schedule its KineticText runs (WordRoll's underline
+follows `swapTimes`), or needs a reading time.
+**Smallest real use:** `const T = swapTimes(options.length, 0.3, 0.74, cued, times);`
+**Exports:** `rangeCoverage`, `RangeSelector`, `orderRank`, `permutation`, `EASES`, `cubicBezier`, `easeOf`, `graphemes`, `wordIds`, `wordCount`, `langOf`, `parseRuns`, `plainText`, `swapTimes`, `scrambleChar`, `readingSeconds`, `secToT`, `tToSec`, `tAtFrame`, `longestRun`.
+
+### `kineticDom`
+The attributes a KineticText writes and the census reads, in one module both import — so a writer and a reader
+cannot spell one two ways — plus `kineticIdle()`, which every DOM audit awaits so it never walks a frame whose glyphs
+are still being measured (the first cut-off probe came back clean for exactly that reason), and `facesReady()`, the
+bundled faces' load published by `fonts` without importing it.
+**Reach for it:** never in a register; know it is how `textSafe` and `titleProbe` find kinetic lines.
+**Smallest real use:** (written by `kinetic`, read by the census)
+**Exports:** `KIN_ROOT`, `KIN_LINE`, `KIN_GLYPH`, `KIN_ALT`, `KIN_READ`, `KIN_ALIGN`, `KINETIC_HOLDS_TAG`, `kineticBusy`, `kineticIdle`, `facesReady`.
+
+### `readingSpec.json`
+How long words take to read, each figure with its source inside it: characters per second per script (zh 9, ja 4,
+Latin 20 — the Netflix timed-text guides), the 5/6 s floor, and ~0.6 s a word for copy that must be taken in. ONE
+table, read by the TypeScript that paces kinetic type and by the Python that judges it.
+**Reach for it:** pacing anything that must be read (through `kineticCore`); never restate a number.
+**Smallest real use:** `const need = READING.cps.zh;` (`import READING from '@runtime/readingSpec.json'`)
+**Exports:** `cps`, `minSeconds`, `mustReadSecondsPerWord`, `sources`.
+
 ## The gates' own eyes
 
 ### `textSafe`
@@ -276,7 +328,10 @@ The audit a standalone render runs when a gate asks: type off the canvas, type i
 copy that never arrived — and words on the frame no prop supplied.
 **Reach for it:** never in a register; know it is what `text_safe_qa.py`, `cjk_type_qa.py` and `shot_proof.py` see.
 **Smallest real use:** (rendered with `textSafe: true` by `scripts/text_safe_qa.py`)
-**Exports:** `TextSafeAudit`, `auditTextSafety`, `auditTypeCollisions`, `auditFedText`, `auditUnfedText`, `UNFED_TEXT_TAG`.
+**Exports:** `TextSafeAudit`, `auditTextSafety`, `auditTypeCollisions`, `auditFedText`, `auditUnfedText`, `UNFED_TEXT_TAG`, `kineticGroups`, `isKineticGlyph`.
+A KineticText draws one element per grapheme; every walk here skips those (`isKineticGlyph`) and reads each line once
+(`kineticGroups`), so a cut line is one finding named by its text, a block set into itself is one leading finding,
+and the type-glide census lists the line with each glyph's own track for the judge to fold back into one run.
 
 ### `titleProbe`
 Where a settled frame's title sits: its largest type that is not a figure, placed by the edge the line is set from, so

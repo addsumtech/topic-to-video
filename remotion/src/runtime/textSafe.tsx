@@ -26,6 +26,7 @@ import React from 'react';
 import {cancelRender, continueRender, delayRender, useCurrentFrame} from 'remotion';
 import {captionBand} from './layout';
 import {CJK_MIN_LEADING, hasCJK} from './cjkType';
+import {KIN_ALT, KIN_GLYPH, KIN_LINE, KIN_ROOT, kineticIdle} from './kineticDom';
 
 /** Prefix on the render-cancelling error, so a caller can find the JSON payload in the CLI's stderr. */
 export const TEXT_SAFE_TAG = 'TEXT-SAFE-VIOLATIONS ';
@@ -574,18 +575,77 @@ const metricLeading = (
  */
 const isEcho = (el: Element): boolean => !!el.closest?.('[data-echo]');
 
+// ── KINETIC TYPE IS READ AS ITS LINES ───────────────────────────────────────────────────────────────────────
+//
+// runtime/kinetic.tsx draws each grapheme in its own element (that is how it keeps kerning while moving letters),
+// and every walk in this file goes element by element. Read that way a kinetic headline is forty one-letter
+// "lines": a cut word is reported forty times or not at all (each letter is shaved by less than a third of
+// itself), the title is the letter "S", a two-line Chinese headline set below the leading floor is never two lines
+// of anything, and the sync audit cannot match a single letter to a word the narration says. So a glyph holder
+// (marked by runtime/kineticDom) is skipped by the per-element walks, and its KineticText is read here, once per
+// LINE: the union of its glyphs' visible boxes, its text in reading order. A swap's slot reads as whichever
+// alternative is most visible on this frame.
+export type KineticLine = {root: Element; line: number; alt: number | null; holders: Element[]; text: string};
+export const isKineticGlyph = (el: Element): boolean => el.hasAttribute?.(KIN_LINE) ?? false;
+
+const lineText = (hs: Element[]): string => hs
+  .slice().sort((a, b) => Number(a.getAttribute(KIN_GLYPH)) - Number(b.getAttribute(KIN_GLYPH)))
+  .map((h) => h.textContent ?? '').join('').replace(/\s+/g, ' ').trim();
+
+/**
+ * Every line of every KineticText under `root`. `pick` keeps, for a swap, only the alternative a viewer sees most of
+ * on this frame (its glyphs' visible area times their opacity); without it every alternative is its own line.
+ */
+export const kineticGroups = (root: Element, frame: DOMRect, pick = true): KineticLine[] => {
+  const out: KineticLine[] = [];
+  root.querySelectorAll(`[${KIN_ROOT}]`).forEach((kr) => {
+    if (isEcho(kr)) return;
+    const groups = new Map<string, {line: number; alt: number | null; holders: Element[]}>();
+    kr.querySelectorAll(`[${KIN_LINE}]`).forEach((h) => {
+      const line = Number(h.getAttribute(KIN_LINE));
+      const a = h.getAttribute(KIN_ALT);
+      const alt = a === null ? null : Number(a);
+      const key = `${line}|${alt ?? ''}`;
+      const g = groups.get(key) ?? {line, alt, holders: []};
+      g.holders.push(h);
+      groups.set(key, g);
+    });
+    const byLine = new Map<number, {line: number; alt: number | null; holders: Element[]}[]>();
+    groups.forEach((g) => byLine.set(g.line, [...(byLine.get(g.line) ?? []), g]));
+    Array.from(byLine.keys()).sort((a, b) => a - b).forEach((line) => {
+      const cands = byLine.get(line) ?? [];
+      const chosen = !pick || cands.length < 2 ? cands : [cands.reduce((best, c) => {
+        const w = (g: {holders: Element[]}) => g.holders.reduce((acc, h) => {
+          if (!(h.textContent ?? '').trim()) return acc;
+          const r = visibleRect(h, frame);
+          return acc + (r ? r.width * r.height * composedOpacity(h) : 0);
+        }, 0);
+        return w(c) > w(best) ? c : best;
+      })];
+      chosen.forEach((g) => out.push({root: kr, line, alt: g.alt, holders: g.holders, text: lineText(g.holders)}));
+    });
+  });
+  return out;
+};
+
+const unionRect = (rs: DOMRect[]): DOMRect => {
+  const l = Math.min(...rs.map((r) => r.left)), t = Math.min(...rs.map((r) => r.top));
+  return new DOMRect(l, t, Math.max(...rs.map((r) => r.right)) - l, Math.max(...rs.map((r) => r.bottom)) - t);
+};
+
 export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] => {
   const win = root.ownerDocument?.defaultView;
   if (!win) return [];
   const out: Collision[] = [];
   const boxes: {el: Element; r: DOMRect; text: string; font: string; cls: string; rot: boolean;
-                mat: [number, number, number, number] | null}[] = [];
+                mat: [number, number, number, number] | null; rects?: DOMRect[]; kin?: Element}[] = [];
   const rotMemo = new Map<Element, boolean>();
   const matMemo = new Map<Element, [number, number, number, number] | null>();
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text) return;
     if (isEcho(el)) return;                           // already measured on its sharp original
+    if (isKineticGlyph(el)) return;                   // read below, as the line it belongs to
     const cs = win.getComputedStyle(el);
     if (parseFloat(cs.opacity || '1') < MIN_OPACITY || cs.visibility === 'hidden') return;
     const r = visibleRect(el, frame);
@@ -658,12 +718,78 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
     }
     boxes.push({el, r, text: short, font, cls, rot, mat});
   });
+  // 1b. KINETIC TYPE, line by line: its lines against EACH OTHER are this element's leading (the same three
+  //     findings an ordinary block gets), and each line joins the pair test below as the set of its glyphs' boxes —
+  //     not as their bounding box, which for a line set on a curve covers half the frame.
+  const kin = new Map<Element, {line: number; r: DOMRect; text: string; cs: CSSStyleDeclaration; rot: boolean}[]>();
+  kineticGroups(root, frame).forEach((kl) => {
+    const vis = kl.holders.filter((h) => (h.textContent ?? '').trim() &&
+      parseFloat(win.getComputedStyle(h).opacity || '1') >= MIN_OPACITY)
+      .map((h) => ({h, r: visibleRect(h, frame)}))
+      .filter((x): x is {h: Element; r: DOMRect} => !!x.r && x.r.width > 0 && x.r.height > 0);
+    if (!vis.length) return;
+    const rects = vis.map((x) => x.r);
+    const r = unionRect(rects);
+    const cs = win.getComputedStyle(vis[0].h);
+    const rot = vis.some((x) => rotatedUnder(x.h, win, rotMemo));
+    const font = `${cs.fontSize} ${(cs.fontFamily || '').split(',')[0]}`;
+    const short = kl.text.length > 40 ? kl.text.slice(0, 40) + '…' : kl.text;
+    kin.set(kl.root, [...(kin.get(kl.root) ?? []), {line: kl.line, r, text: kl.text, cs, rot}]);
+    boxes.push({el: kl.root, r, text: short, font, cls: 'kinetic', rot, mat: null, rects, kin: kl.root});
+  });
+  kin.forEach((lines) => {
+    lines.sort((a, b) => a.line - b.line);
+    const whole = lines.map((l) => l.text).join('');
+    const short = whole.length > 40 ? whole.slice(0, 40) + '…' : whole;
+    const cs = lines[0].cs;
+    const font = `${cs.fontSize} ${(cs.fontFamily || '').split(',')[0]}`;
+    const rot = lines.some((l) => l.rot);
+    let worst = 0, box = 0;
+    if (!rot) {
+      for (let i = 1; i < lines.length; i++) {
+        const gap = lines[i - 1].r.bottom - lines[i].r.top;
+        if (gap > worst) { worst = gap; box = Math.min(lines[i - 1].r.height, lines[i].r.height); }
+      }
+    }
+    const wraps = lines.length > 1;
+    if (box > 0 && worst > box * LEADING_OVERLAP_FRAC) {
+      out.push({kind: 'leading', depth: Math.round(worst), text: short, font, cls: 'kinetic'});
+    } else if (wraps && hasCJK(whole)) {
+      const fs = parseFloat(cs.fontSize || ''), lh = parseFloat(cs.lineHeight || '');
+      const shortPx = isFinite(fs) && fs > 0 && isFinite(lh) ? (CJK_MIN_LEADING - lh / fs) * fs : 0;
+      if (shortPx > TIGHT_MIN_PX) out.push({kind: 'tight', depth: Math.round(shortPx), text: short, font, cls: 'kinetic'});
+    }
+    const tail = lines[lines.length - 1].text;
+    if (wraps && hasCJK(whole) && whole.length <= 40 && Array.from(tail).length === 1 && hasCJK(tail)) {
+      out.push({kind: 'orphan', depth: 1, text: short, font, cls: 'kinetic', other: tail});
+    }
+  });
   // 2. element against element — skip any pair where one contains the other (a label inside its own card
   //    is not a collision; its box is supposed to be inside)
   for (let i = 0; i < boxes.length; i++) {
     for (let j = i + 1; j < boxes.length; j++) {
       const a = boxes[i], b = boxes[j];
+      if (a.kin && a.kin === b.kin) continue;           // one KineticText's own lines: its leading, above
       if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      if (a.rects || b.rects) {
+        // a kinetic line is the set of its glyphs' boxes
+        const ra = a.rects ?? [a.r], rb = b.rects ?? [b.r];
+        let area = 0, bw = 0, bh = 0;
+        for (const x of ra) {
+          for (const y of rb) {
+            const iw = Math.min(x.right, y.right) - Math.max(x.left, y.left);
+            const ih = Math.min(x.bottom, y.bottom) - Math.max(x.top, y.top);
+            if (iw > 0 && ih > 0) { area += iw * ih; bw = Math.max(bw, iw); bh = Math.max(bh, ih); }
+          }
+        }
+        const sum = (rs: DOMRect[]) => rs.reduce((acc, q) => acc + q.width * q.height, 0);
+        const smaller = Math.min(sum(ra), sum(rb));
+        if (bw <= MIN_OVERLAP_PX || bh <= MIN_OVERLAP_PX) continue;
+        if (smaller <= 0 || area / smaller < OVERLAP_AREA_FRAC) continue;
+        out.push({kind: 'overlap', depth: Math.round(Math.min(bw, bh)), text: a.text, other: b.text,
+                  font: a.font, cls: a.cls, ...(a.rot || b.rot ? {rot: true} : {})});
+        continue;
+      }
       // A TILTED PAIR IS MEASURED AS THE RECTANGLES IT IS, NOT AS THE BOXES THAT BOUND THEM. A client rect
       // is axis-aligned, so for sloping type it is larger than the glyphs on the side they slope toward —
       // and the error runs BOTH ways, so a real collision between two tilted lines could equally be missed.
@@ -1292,13 +1418,7 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
   const out: Violation[] = [];
   let title: {el: Element; text: string; px: number; r: DOMRect | {left: number; top: number; right: number;
     bottom: number}} | null = null;
-  root.querySelectorAll('*').forEach((el) => {
-    const text = hasOwnText(el);
-    if (!text) return;
-    if (isEcho(el)) return;                           // already measured on its sharp original
-    if (el.closest?.('[data-bleed]')) return;         // an explicit, rare escape from a clip
-    const r = visibleRect(el, frame);
-    if (!r) return;
+  const judge = (el: Element, text: string, r: DOMRect, tag?: string) => {
     if (typeSize && composedOpacity(el) >= 0.5) {
       const tpx = renderedPx(el, win.getComputedStyle(el));
       if (!title || tpx > title.px) title = {el, text, px: tpx, r};
@@ -1332,11 +1452,32 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
       out: sides,
       ...(band ? {band} : {}),
       text: text.length > 48 ? text.slice(0, 48) + '…' : text,
-      tag: el.tagName.toLowerCase(),
+      tag: tag ?? el.tagName.toLowerCase(),
       cls: (el.getAttribute('class') ?? '').slice(0, 40),
       font: `${cs.fontSize} ${(cs.fontFamily || '').split(',')[0]}`,
       ...(small ? {small, short: Math.round(short)} : {}),
     });
+  };
+  root.querySelectorAll('*').forEach((el) => {
+    const text = hasOwnText(el);
+    if (!text) return;
+    if (isEcho(el)) return;                           // already measured on its sharp original
+    if (isKineticGlyph(el)) return;                   // read below, as the line it belongs to
+    if (el.closest?.('[data-bleed]')) return;         // an explicit, rare escape from a clip
+    const r = visibleRect(el, frame);
+    if (!r) return;
+    judge(el, text, r);
+  });
+  // KINETIC TYPE, as the lines a viewer reads: one finding per cut line, naming the line, measured on the union of
+  // its glyphs' visible boxes. Judged through its most opaque glyph (its size, its opacity).
+  kineticGroups(root, frame).forEach((kl) => {
+    if (kl.root.closest?.('[data-bleed]')) return;
+    const vis = kl.holders.filter((h) => (h.textContent ?? '').trim())
+      .map((h) => ({h, r: visibleRect(h, frame), o: composedOpacity(h)}))
+      .filter((x): x is {h: Element; r: DOMRect; o: number} => !!x.r && x.r.width > 0 && x.r.height > 0);
+    if (!vis.length) return;
+    const lead = vis.reduce((a, b) => (b.o > a.o ? b : a));
+    judge(lead.h, kl.text, unionRect(vis.map((x) => x.r)), 'kinetic');
   });
   if (title) {
     const t = title as {text: string; px: number; r: {left: number; top: number; right: number; bottom: number}};
@@ -1383,7 +1524,10 @@ export const TYPE_GLIDE_TAG = 'TYPE-GLIDE ';
  *  is unlocked, `px` its font size (a jump in it is the type re-set at a new size, not moved), and flags: `f` drawn
  *  through a blur or drop-shadow filter, `s` declared stepped, `c` on a composited layer (listed, not judged). */
 export type GlideLine = {k: string; y: number; x?: number; w?: number; h?: number; o: number; t: string;
-  ly?: number; u?: 1; fl?: string; px?: number; b?: string; v?: number};
+  ly?: number; u?: 1; fl?: string; px?: number; b?: string; v?: number;
+  /** a KINETIC line's glyphs, each its own run of type that can step: [grapheme index, true top, unlocked 0|1,
+   *  composed opacity]. The reader judges each glyph's track and reports the LINE once (scripts/text_safe_qa.py). */
+  g?: [number, number, 0 | 1, number][]};
 
 // THE SYNC AUDIT READS THE SAME CENSUS (scripts/sync_qa.py): when does each line of type become readable, and
 // when does the narration say it? Two fields serve it. `b` is the beat the line belongs to — the nearest
@@ -1493,6 +1637,7 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
   root.querySelectorAll('*').forEach((el) => {
     const text = hasOwnText(el);
     if (!text || isEcho(el)) return;
+    if (isKineticGlyph(el)) return;                  // read below, as the line it belongs to
     const vr = visibleRect(el, frame);
     if (!vr) return;                                 // hidden, fully transparent, or clipped away entirely
     // OFF THE FRAME is not on screen either. visibleRect lets the frame's own clip through (it is every shot's root —
@@ -1528,6 +1673,61 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
       px: Math.round(parseFloat(el.ownerDocument?.defaultView?.getComputedStyle(el).fontSize || '0') * 100) / 100,
       ...(fl ? {fl} : {})});
   });
+  // KINETIC TYPE: one record per line (per alternative, for a swap's slot), keyed under its KineticText. Every glyph
+  // is its own run of type with its own matrix, so each one can step on its own — its track rides along in `g`, the
+  // reader judges each, and a staircase is reported once, by the LINE's text. `o` is the line's mean opacity (by
+  // glyph width) and `v` its visible share, which is how the sync audit reads "half of it is on screen".
+  kineticGroups(root, frame, false).forEach((kl) => {
+    const hs = kl.holders.filter((h) => (h.textContent ?? '').trim());
+    if (!hs.length) return;
+    const seen = hs.map((h) => ({h, vr: visibleRect(h, frame)}));
+    const onFrame = seen.some(({vr}) => vr && !(vr.right <= frame.left || vr.left >= frame.right ||
+      vr.bottom <= frame.top || vr.top >= frame.bottom));
+    if (!onFrame) return;
+    const rc = chain(kl.root);
+    const key = `${rc.key}/kl${kl.line}${kl.alt !== null ? `a${kl.alt}` : ''}`;
+    let wsum = 0, osum = 0, area = 0, varea = 0, comp = false, spatial = false, steps = false, all = true;
+    const rects: DOMRect[] = [];
+    const g: [number, number, 0 | 1, number][] = [];
+    for (const {h, vr} of seen) {
+      const c = chain(h);
+      const r = inkRect(h) ?? h.getBoundingClientRect();
+      const w = Math.max(1e-3, r.width);
+      wsum += w; osum += w * c.op;
+      area += r.width * r.height;
+      if (vr) {
+        const vw = Math.max(0, Math.min(vr.right, frame.right) - Math.max(vr.left, frame.left));
+        const vh = Math.max(0, Math.min(vr.bottom, frame.bottom) - Math.max(vr.top, frame.top));
+        varea += vw * vh;
+        rects.push(r);
+      }
+      if (c.M === null || c.will || c.d3) { comp = true; continue; }
+      const ctm = c.spatial ? null : (h as unknown as {getScreenCTM?: () => DOMMatrix | null}).getScreenCTM?.();
+      const b = ctm ? ctm.b : c.spatial ? (c.L === null ? null : c.L[1] * c.ls) : c.M[1];
+      const unlocked = b !== null && !snapsBaseline(b);
+      if (vr && !unlocked) all = false;
+      if (c.spatial && vr && !unlocked) spatial = true;
+      if (c.steps) steps = true;
+      g.push([Number(h.getAttribute(KIN_GLYPH)), Math.round(r.top * 1e4) / 1e4, unlocked ? 1 : 0,
+              Math.round(c.op * 100) / 100]);
+    }
+    const box = unionRect(rects.length ? rects : hs.map((h) => h.getBoundingClientRect()));
+    const v = area > 0 ? Math.max(0, Math.min(1, varea / area)) : 1;
+    const base = {k: key, y: Math.round(box.top * 1e4) / 1e4, x: Math.round(box.left * 100) / 100,
+      w: Math.round(box.width * 100) / 100, h: Math.round(box.height * 100) / 100,
+      o: Math.round((wsum > 0 ? osum / wsum : 0) * 100) / 100, t: cutText(kl.text),
+      ...(rc.beat !== null ? {b: rc.beat} : {}), ...(v < 0.995 ? {v: Math.round(v * 100) / 100} : {})};
+    if (comp) {
+      z += 1;
+      lines.push({...base, fl: 'c'});
+      return;
+    }
+    if (all) u += 1;
+    const fl = (spatial ? 'f' : '') + (steps ? 's' : '');
+    lines.push({...base, ly: layoutY(hs[0]), ...(all ? {u: 1 as const} : {}),
+      px: Math.round(parseFloat(win.getComputedStyle(hs[0]).fontSize || '0') * 100) / 100,
+      ...(fl ? {fl} : {}), g});
+  });
   return {lines, u, z};
 };
 
@@ -1557,6 +1757,8 @@ export const TypeGlideAudit: React.FC = () => {
       } catch {
         /* a browser without the API still lays out; measure what it has */
       }
+      // a KineticText draws its glyphs only once it has measured them (runtime/kineticDom kineticIdle)
+      await kineticIdle();
       // after this frame's layout AND after any effect that re-renders on mount: one frame of the event loop
       await new Promise((res) => requestAnimationFrame(() => res(null)));
       await new Promise((res) => setTimeout(res, 0));
@@ -1599,6 +1801,7 @@ export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collis
       } catch {
         /* a browser without the API still lays out; measure what it has */
       }
+      await kineticIdle();       // a KineticText draws nothing until it has measured (runtime/kineticDom)
       await new Promise((res) => requestAnimationFrame(() => res(null)));
       if (dead) return;
       const host = ref.current;

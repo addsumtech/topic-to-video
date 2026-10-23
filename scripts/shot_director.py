@@ -67,6 +67,8 @@ FAMILY = {
     "OrbitClockGain": "D",
     "Escalation": "D",
     "ShorteningHold": "C",
+    "WordRoll": "C",
+    "HeadlineReveal": "C",
     "BreaksWhenAsked": "C",
     "HeldInstant": "D",
     "CraneUp": "B",
@@ -119,6 +121,8 @@ FAMILY = {
     "PlaneStack": "N",
     "NeonTickerWall": "O",
     "VariableTypeMorph": "P", "InflateType": "P", "ElasticType": "P",
+    "CroppedType": "P",
+    "TypeOnPath": "P",
     "AntiDesignChaos": "Q",
     "NeuralField": "R",
     "DNAHelix": "S", "AtomOrbital": "S", "MoleculeBallStick": "S",
@@ -151,6 +155,10 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "CroppedType":             'motion-graphics',
+    "TypeOnPath":              'motion-graphics',
+    "WordRoll":                'motion-graphics',
+    "HeadlineReveal":          'motion-graphics',
     "ForkingAnswers":          'data-viz',
     "WeightedWheel":           'data-viz',
     "ReplyWindow":             'product-ui',

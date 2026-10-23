@@ -200,7 +200,11 @@
     "OrbitClockGain": "2c9b9952a2f6c6a2",
     "ReplyWindow": "c07e34231966400d",
     "WeightedWheel": "4573018ced610633",
-    "ForkingAnswers": "031e14d03e9face9"
+    "ForkingAnswers": "031e14d03e9face9",
+    "CroppedType": "2e217990a72980f0",
+    "HeadlineReveal": "aac02d1f8d1eea00",
+    "TypeOnPath": "85c24dca794c6cda",
+    "WordRoll": "2aab3fb33cfc0e9b"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -229,7 +233,7 @@
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 200,
+  "_universe": 204,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -490,6 +494,13 @@
       "seconds": 4.7,
       "footprint": 0.345
     },
+    "CroppedType": {
+      "motion_p75": 0.0128,
+      "ink_median": 0.128,
+      "luma_range": 0.053,
+      "seconds": 5.5,
+      "footprint": 0.537
+    },
     "CubeRotate": {
       "motion_p75": 0.0046,
       "ink_median": 0.015,
@@ -741,6 +752,13 @@
       "luma_range": 0.026,
       "seconds": 5.0,
       "footprint": 0.522
+    },
+    "HeadlineReveal": {
+      "motion_p75": 0.0009,
+      "ink_median": 0.068,
+      "luma_range": 0.042,
+      "seconds": 5.5,
+      "footprint": 0.273
     },
     "HeldInstant": {
       "motion_p75": 0.0003,
@@ -1554,6 +1572,13 @@
       "seconds": 5.5,
       "footprint": 0.187
     },
+    "TypeOnPath": {
+      "motion_p75": 0.0024,
+      "ink_median": 0.071,
+      "luma_range": 0.026,
+      "seconds": 6.0,
+      "footprint": 0.41
+    },
     "UndersampledKspace": {
       "motion_p75": 0.0007,
       "ink_median": 0.106,
@@ -1616,6 +1641,13 @@
       "luma_range": 0.007,
       "seconds": 5.5,
       "footprint": 0.24
+    },
+    "WordRoll": {
+      "motion_p75": 0.0005,
+      "ink_median": 0.035,
+      "luma_range": 0.018,
+      "seconds": 7.0,
+      "footprint": 0.174
     },
     "WordTunnel": {
       "motion_p75": 0.0074,

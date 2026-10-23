@@ -641,8 +641,10 @@ def cjk_props(name, offset=0):
         # stone tone; defaults to a darker cut of the DNA's surface" — a COLOUR. It was handed a 26-glyph
         # sentence as a tone, which is the top-level twin of the `_NON_COPY_FIELDS` bug that fed TermBars a
         # sentence as the colour of every bar.
+        # `d` is an SVG path's DATA (TypeOnPath draws its words along the film's own route): geometry, never copy.
+        # Fed a Chinese sentence it is refused by name, and the register read as a coverage hole at every aspect.
         if prop in ("accent", "accent2", "imageAspect", "aspect", "dna", "page",
-                    "face") or re.match(r"^src[A-Z]?", prop):
+                    "face", "d") or re.match(r"^src[A-Z]?", prop):
             # colours / images / plumbing, not copy. The `src` test is a PREFIX: KSpaceAnatomy declares
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.

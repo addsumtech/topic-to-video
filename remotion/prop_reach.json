@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 200,
+  "_universe": 204,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -216,7 +216,11 @@
     "OrbitClockGain": "2c9b9952a2f6c6a2",
     "ReplyWindow": "c07e34231966400d",
     "WeightedWheel": "4573018ced610633",
-    "ForkingAnswers": "031e14d03e9face9"
+    "ForkingAnswers": "031e14d03e9face9",
+    "CroppedType": "2e217990a72980f0",
+    "HeadlineReveal": "aac02d1f8d1eea00",
+    "TypeOnPath": "85c24dca794c6cda",
+    "WordRoll": "2aab3fb33cfc0e9b"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -418,7 +422,11 @@
     "OrbitClockGain": "b3a6d1ef1d11340d",
     "ReplyWindow": "a6f079a868e1852d",
     "WeightedWheel": "e8b07c6de983fde6",
-    "ForkingAnswers": "c1809a812c8ce6a8"
+    "ForkingAnswers": "c1809a812c8ce6a8",
+    "CroppedType": "3374bef9b8f15328",
+    "HeadlineReveal": "39f887308e5ca211",
+    "TypeOnPath": "f6c5d19736bde437",
+    "WordRoll": "2708792f68f18fee"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -569,6 +577,10 @@
       "reach": 0.081,
       "prop_diff": 0.75
     },
+    "CroppedType": {
+      "reach": 0.735,
+      "prop_diff": 0.75
+    },
     "CubeRotate": {
       "reach": 0.491,
       "prop_diff": 1.0
@@ -712,6 +724,10 @@
     "HardBarrier": {
       "reach": 0.128,
       "prop_diff": 1.0
+    },
+    "HeadlineReveal": {
+      "reach": 0.829,
+      "prop_diff": 0.6
     },
     "HeldInstant": {
       "reach": 0.99,
@@ -1177,6 +1193,10 @@
       "reach": 0.531,
       "prop_diff": 1.0
     },
+    "TypeOnPath": {
+      "reach": 0.767,
+      "prop_diff": 0.75
+    },
     "UndersampledKspace": {
       "reach": 0.33,
       "prop_diff": 1.0
@@ -1212,6 +1232,10 @@
     "WireGlobe": {
       "reach": 0.371,
       "prop_diff": 1.0
+    },
+    "WordRoll": {
+      "reach": 0.844,
+      "prop_diff": 0.8
     },
     "WordTunnel": {
       "reach": 0.692,

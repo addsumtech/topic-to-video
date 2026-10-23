@@ -713,6 +713,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      `references/building-blocks.md`; how to make it mean something: `references/object-authoring.md`) and never
      touches the library. Real imagery where the topic is concrete stays the documentary tier's. A `shot`-based
      scene on the local renderer is a validate ERROR.
+     **Type that moves by the letter, word or line is drawn with `runtime/kinetic` (`useKinetic` + `KineticText`),
+     never a hand-rolled per-character split** — it keeps kerning and Chinese punctuation compression (0 px from one
+     text node), every type gate reads it as its lines, and `shot_proof.py` holds each must-read line to its reading time.
      **Parallel build (four or more built shots):** the lead designs every beat, the DNA and the kit and builds one
      reference shot; 3–4 `agents/shot-builder.md` builders, dispatched in ONE message, each build the shots they own
      and write a part file (never the board); `python3 scripts/design_merge.py <out_dir>` joins them (refusing any
