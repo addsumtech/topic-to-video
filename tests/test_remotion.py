@@ -4047,7 +4047,10 @@ def test_every_seam_that_fades_its_leaving_half_paints_a_ground_under_it():
         body = film[film.index("const %s" % name):]
         body = body[:body.index("\n};")]
         assert "SeamGround" in body, "%s fades both halves with no ground under them (E15)" % name
-        assert "show={!isEnter}" in body, "%s paints its ground on the wrong half (E15)" % name
+        # under the EXITING half, and only while it is leaving (progress > 0): a TransitionSeries keeps a sequence
+        # in its exit presentation for its whole length, and a ground painted then covered the beat before it at
+        # the start of this one's own entrance (tests/test_seam_ground_span.py renders it)
+        assert "show={!isEnter && p > 0}" in body, "%s paints its ground on the wrong half or frames (E15)" % name
     # ...and the picker has a ground to give them
     assert "const seamBg = nextG?.bg ?? prevG?.bg" in film
     for factory in ("fadeThrough(seamBg)", "drift(dir, W, H, seamBg)", "defocus(seamBg)", "focusRelay(seamBg)"):

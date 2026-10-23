@@ -569,7 +569,7 @@ const FocusRelayPresentation = ({presentationProgress: p, presentationDirection,
   // the matrix above it (runtime/textSafe.tsx), so an unlock written beside the blur would never reach the glyphs.
   const glide = useGlide();
   return (
-    <SeamGround bg={passedProps?.bg} show={!isEnter}
+    <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0}
       style={{opacity: op, filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined,
         transform: `scale(${scale.toFixed(4)})`, transformOrigin: 'center'}}>
       <AbsoluteFill style={{transform: glide(undefined, true)}}>{children}</AbsoluteFill>
@@ -603,6 +603,14 @@ const focusRelay = (bg?: string): TransitionPresentation<any> => ({component: Fo
 //
 // It is painted under the EXITING half only. The entering half sits on top, so an opaque ground there would
 // hide the beat being left behind for the whole seam.
+//
+// AND ONLY WHILE THAT HALF IS ACTUALLY LEAVING (progress above 0). A TransitionSeries wraps the WHOLE of each
+// sequence in its exit presentation, at progress 0 until its seam begins — so the ground was painted under the beat
+// for its entire length, including the frames in which that same beat was still ARRIVING over the one before it.
+// There it is an opaque full-frame fill above the beat being left: measured on the seam probe, a paper beat cut to
+// the next beat's near-black ground on the first frame of a plain dissolve (frame mean 205 -> 9.7), because that
+// next beat's own exit was a whip. At progress 0 the leaving half is still fully opaque in every seam that uses
+// this, so it needs no floor there.
 const SeamGround: React.FC<{bg?: string; show: boolean; children: React.ReactNode; style?: React.CSSProperties}> =
   ({bg, show, children, style}) => (
     <>
@@ -622,7 +630,7 @@ const FadeThroughPresentation = ({presentationProgress: p, presentationDirection
   const op = isEnter
     ? interpolate(p, [0.34, 1], [0, 1], c)          // 70% of the seam belongs to the new content
     : interpolate(p, [0, 0.30], [1, 0], c);         // 30%, and the old content is gone
-  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{opacity: op}}>{children}</SeamGround>;
+  return <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0} style={{opacity: op}}>{children}</SeamGround>;
 };
 const fadeThrough = (bg?: string): TransitionPresentation<any> => ({component: FadeThroughPresentation, props: {bg}});
 
@@ -682,7 +690,7 @@ const WhipPresentation = ({presentationProgress: p, presentationDirection, child
         edge="duplicate" /> : null}
       {/* the filter on the still OUTER layer, the move (with its type unlock) inside it: a blur on the moving element
           itself rasterised it whole-pixel, and a slow-drifting film's type stepped under it (text_safe --glide) */}
-      <SeamGround bg={passedProps?.bg} show={!isEnter} style={{filter: blur ? `url(#${id})` : undefined}}>
+      <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0} style={{filter: blur ? `url(#${id})` : undefined}}>
         <AbsoluteFill style={{transform: glide(t, true)}}>{children}</AbsoluteFill>
       </SeamGround>
     </>
@@ -708,7 +716,7 @@ const DriftPresentation = ({presentationProgress: p, presentationDirection, chil
   const op = isEnter ? interpolate(p, [0.18, 0.82], [0, 1], c) : interpolate(p, [0.18, 0.82], [1, 0], c);
   const t = vertical ? `translateY(${travel.toFixed(2)}px)` : `translateX(${travel.toFixed(2)}px)`;
   const glide = useGlide();
-  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{opacity: op, transform: glide(t, true)}}>{children}</SeamGround>;
+  return <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0} style={{opacity: op, transform: glide(t, true)}}>{children}</SeamGround>;
 };
 const drift = (direction: string | undefined, W: number, H: number, bg?: string): TransitionPresentation<any> =>
   ({component: DriftPresentation, props: {direction, bg, px: Math.round(Math.max(W, H) * DRIFT_FRAC)}});
@@ -732,7 +740,7 @@ const DefocusPresentation = ({presentationProgress: p, presentationDirection, ch
     : interpolate(p, [0, 0.5, 1], [0, DEFOCUS_MAX_PX, DEFOCUS_MAX_PX], c);
   const op = isEnter ? interpolate(p, [0.38, 0.72], [0, 1], c) : interpolate(p, [0.28, 0.62], [1, 0], c);
   return (
-    <SeamGround bg={passedProps?.bg} show={!isEnter}
+    <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0}
       style={{opacity: op, filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined}}>
       {children}
     </SeamGround>
