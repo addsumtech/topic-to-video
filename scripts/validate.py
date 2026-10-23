@@ -4381,6 +4381,9 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if "safe_zone" in meta and meta.get("safe_zone") not in ("social", "none", None, False, ""):
         errors.append("meta.safe_zone must be \"social\" (a 9:16 film's default: caption and type kept clear of the "
                       "platforms' UI) or \"none\", got %r" % (meta.get("safe_zone"),))
+    if "dither" in meta and not isinstance(meta.get("dither"), bool):
+        errors.append("meta.dither must be true or false (the remotion tier's delivery dither, on by default), got %r"
+                      % (meta.get("dither"),))
     # MIXED-VOICE (both tiers): tts.py records `meta._tts_mixed_voice` when a cloud/edge engine fell back to `say`
     # on SOME scenes — a systemic failure that split the deck between two voices. It was written and read by
     # nothing; surface it so a half-say/half-cloud deck can't ship silently (SKILL.md's ⚠️ MIXED-VOICE guidance).

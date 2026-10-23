@@ -4,6 +4,10 @@ import path from 'path';
 
 Config.setVideoImageFormat('jpeg');
 Config.setOverwriteOutput(true);
+// FRAMES AT JPEG 95, not Remotion's default 80: a frame goes to x264 as a JPEG, and quality 80 flattens each 8x8 block
+// of a smooth dark ground into a step — 60 frames of a dark radial opening measured CAMBI 22.6 (visible rings) at 80,
+// 8.5 at 95 and 8.7 as PNG. The rest of the banding is the film's dither (src/runtime/dither.tsx).
+Config.setJpegQuality(95);
 
 // A FILM'S WORKSHOP — the objects and shots one film builds for itself (scripts/workshop.py) — enters the
 // bundle through ONE alias, and nothing else about the library changes. `SLIDES_WORKSHOP` is set only by

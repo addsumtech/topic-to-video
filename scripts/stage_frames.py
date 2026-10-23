@@ -93,11 +93,13 @@ def sample_frames(scenes, tr, fps):
 
 
 def film_payload(out_dir, board, **audit):
-    """The Film's props for this board as render_remotion builds them, with the captions off (a register still has
-    none, and a caption in the band would read as the stage's own ink) and the given audit switches on."""
+    """The Film's props for this board as render_remotion builds them, with the captions and the dither off (a
+    register still has no caption, and a caption in the band would read as the stage's own ink) and the given audit
+    switches on."""
     import render_remotion as _rr
     props, _slides = _rr.film_props(out_dir, board)
-    props = dict(props, captions=False)
+    # no delivery dither either (runtime/dither.tsx): a gate reads the picture, not the encode's preparation of it
+    props = dict(props, captions=False, dither=False)
     props.update({k: v for k, v in audit.items() if v is not None})
     return props
 

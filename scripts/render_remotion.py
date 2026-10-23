@@ -704,7 +704,10 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
              # set backwards, so it is now `meta.camera_bed: true` for a film that genuinely wants the floor.
              "cameraBed": meta.get("camera_bed") is True,
              "reducedMotion": reduced, "aspect": aspect,
-             "captions": bool(meta.get("captions", True))}
+             "captions": bool(meta.get("captions", True)),
+             # THE DELIVERY DITHER (runtime/dither.tsx): the dark grounds measured CAMBI 12-22 — rings a viewer sees
+             # — without it, 0.0 with it; `meta.dither: false` turns it off
+             "dither": meta.get("dither") is not False}
     # THE PLATFORM'S OWN UI: a portrait film is posted where a description, an author line and a button column sit
     # over its bottom and right edges — its caption and labels are kept clear of them (runtime/safeZone.ts). The
     # default for a portrait film; `meta.safe_zone: "none"` for a portrait film shown somewhere without that UI.

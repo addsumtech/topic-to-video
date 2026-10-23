@@ -39,6 +39,7 @@ import {safeProfile, SafeZoneContext, SafeProfile, registerFrame, captionBottomY
 import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
 import {FilmFinishLayer} from './runtime/finish';
+import {FilmDither} from './runtime/dither';
 
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
 // luminance override; falls back to the measured shotLuma map). Future phases grow this schema (accent,
@@ -1029,9 +1030,11 @@ const StageBeatMark: React.FC<{first: number; beats: StageBeat[]; children: Reac
 };
 
 export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
-  typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string}> =
+  typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string;
+  // the delivery dither (runtime/dither): render_remotion asks for it; a still for a gate or a test does not
+  dither?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
-    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe}) => {
+    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe, dither = false}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -1253,6 +1256,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
       <AbsoluteFill style={{backgroundColor: veilBg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
       {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dna={activeDna} dnaFontBody={activeDna?.fontBody} dnaUniform={activeDna?.uniformType} reduced={reducedMotion} safe={safeP} /> : null}
       <BrandMark brand={brand} safe={safeP} />
+      {dither ? <FilmDither /> : null}
       </DesignDNAContext.Provider>
     </AbsoluteFill>
   );
