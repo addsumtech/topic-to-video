@@ -116,3 +116,27 @@ def test_an_unknown_safe_zone_is_an_error_before_the_voice_is_made(tmp_path):
     res = validate.check(str(tmp_path), pre_tts=True)
     errs = res[0] if isinstance(res, tuple) else res.get("errors", [])
     assert any("safe_zone" in e for e in errs), errs
+
+
+@needs_node
+def test_lit_surfaces_and_motion_blur_are_measured_quantities():
+    surf = '"' + os.path.join(_ROOT, "remotion", "src", "stage", "surface.tsx") + '"'
+    out = _tsprobe.run_ts("import {elevation, sheen, blurOf, topLight} from %s;" % surf, """
+      out.elev = elevation(1, 1080, '#E9EAEE', false);
+      out.elevDark = elevation(1, 1080, '#101114', true);
+      out.rest = sheen(2.2, 0); out.turned = sheen(-18, 14);
+      out.still = blurOf(0.39, 0.2); out.fast = blurOf(0, 40, 1); out.small = blurOf(0, 40, 0.5);
+      out.capped = blurOf(900, 0);
+      out.top = [topLight(1080, true), topLight(1080, false)];""")
+    layers = out["elev"].split("), ")
+    assert len(layers) == 5, out["elev"]                 # five layers, offsets doubling from one light above
+    offs = [float(l.split("px")[0].split()[-1]) for l in layers]
+    assert all(abs(offs[i + 1] / offs[i] - 2) < 1e-6 for i in range(4)), offs
+    assert "rgba(0, 0, 0" in out["elevDark"] and "rgba(0, 0, 0" not in out["elev"], "a light ground's shadow is tinted"
+    assert out["rest"] is None, "the sheen must not sit on a face at rest (where it is read)"
+    assert out["turned"] and out["turned"]["opacity"] > 0.1
+    assert out["still"] is None, "the idle float (under half a px a frame) must not blur"
+    assert out["fast"]["sy"] == pytest.approx(0.144 * 40) and out["fast"]["sx"] == 0
+    assert out["small"]["sy"] == pytest.approx(2 * 0.144 * 40), "the smear is in the element's own (scaled) px"
+    assert out["capped"]["sx"] == 40
+    assert out["top"][0] and not out["top"][1]

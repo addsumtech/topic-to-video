@@ -39,6 +39,7 @@ import {SafeZoneContext, captionBottomY, SAFE_CAPTION_SCALE} from '../runtime/sa
 import {CursorArrow, TapRipple} from '../runtime/gesture';
 import {usePlaceGlide, useGlide} from '../runtime/glide';
 import {useStageRun, lerpState, actor, sinceEvent, springSum, moveShare, State, Normalize} from '../runtime/stageRun';
+import {elevation, topLight, sheen, blurOf, BlurFilter, rimLight, surfaceIsDark} from './surface';
 
 /** The card's pose. x/y: offset of its centre from the content zone's centre, as fractions of the frame's width/height;
  *  s: scale (1 = as large as the zone allows); rx/ry/rz: degrees; aspect: width over height. */
@@ -378,8 +379,13 @@ export const CardStage: React.FC<{
   const tilt = cursorNow && cursorPrev && !now.reduced
     ? Math.max(-12, Math.min(12, ((cursorNow.u - cursorPrev.u) * cw * now.fps / U) * 0.9 * 1080 / 30)) : 0;
   let cursor: {x: number; y: number; o: number} | null = null;
+  let cursorBlur: {sx: number; sy: number} | null = null;
   if (cursorNow && typeof cursorNow.u === 'number' && typeof cursorNow.v === 'number') {
     const at = onView(cursorNow.u, cursorNow.v);
+    if (cursorPrev && !now.reduced) {
+      const was = onView(cursorPrev.u, cursorPrev.v);
+      cursorBlur = blurOf((at.x - was.x) * zoom, (at.y - was.y) * zoom);
+    }
     const entering = !cb && cs, leaving = cb && !cs;
     const k = entering ? 1 - p : leaving ? p : 0;
     // a place the camera has pushed out of the content zone has no cursor on it (it would sit over the caption)
@@ -508,7 +514,7 @@ export const CardStage: React.FC<{
         <div style={{position: 'absolute', ...place(!now.reduced, at.x, at.y, `scale(${0.94 + 0.06 * on})`),
           width: pw, height: ph, boxSizing: 'border-box', transformOrigin: `${at.bx - at.x}px ${at.by - at.y}px`,
           opacity: on, background: ink.acc, color: ink.on, borderRadius: labelPx * 0.4, padding: `${padY}px ${padX}px`,
-          whiteSpace: 'nowrap', boxShadow: `0 ${U * 0.006}px ${U * 0.02}px ${dark ? 'rgba(0,0,0,0.5)' : mix(ink.fg, ink.bg, 0.8)}`}}>
+          whiteSpace: 'nowrap', boxShadow: elevation(0.3, U, ground, dark)}}>
           {big !== undefined ? <div style={{font: `800 ${bigPx}px/1.05 var(--f-display, system-ui)`,
             fontVariantNumeric: 'tabular-nums lining-nums'}}>{big}</div> : null}
           {text ? <div style={{font: `700 ${labelPx}px/1.2 var(--f-body, system-ui)`}}>{text}</div> : null}
@@ -568,13 +574,30 @@ export const CardStage: React.FC<{
   const rim = dark ? ground : mix(ground, '#000000', 0.035);
   const shadowTop = Math.min(cy + size.hy * 0.96, zoneBot - U * 0.03);
   const cardShadow = dark ? 'rgba(0,0,0,0.55)' : mix(ink.fg, ink.bg, 0.75);
+  // LIT SURFACES (stage/surface): a layered shadow from one key light, the top edge of a dark surface catching it, a
+  // sheen that crosses the face as it turns, and — on a dark stage — a rim brightest toward the pointer (else the key)
+  const ring = `0 0 0 1px ${mix(ink.fg, ink.bg, 0.88)}`;
+  const lit = (level: number) => [elevation(level, U, ground, dark), ring, topLight(U, surfaceIsDark(ink.surface))]
+    .filter(Boolean).join(', ');
+  const faceSheen = now.reduced ? null : sheen(pose.ry + sway, pose.rx);
+  const rimGlow = dark ? rimLight(cursorNow && typeof cursorNow.u === 'number' ? clamp01(cursorNow.u) : 0.3 - pose.ry / 90,
+    cursorNow && typeof cursorNow.v === 'number' ? clamp01(cursorNow.v) : 0, U, r) : null;
+  // MOTION BLUR on the card and the pointer — the springs are front-loaded, so a move's first frames are its fastest,
+  // and at 30 fps a sharp card 40 px a frame strobes
+  const prevPose = now.reduced ? null : springSum<Pose>(now, (st) => poseOf(st), {feel: 'settle', frame: now.frame - 1});
+  const heroBlur = prevPose ? (() => {
+    const c0 = centre(prevPose);
+    return blurOf(cx - c0.cx, cy - c0.cy, pose.s);
+  })() : null;
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const heroBlurId = `mb-hero-${uid}`, cursorBlurId = `mb-cursor-${uid}`;
   const sideCard = (g: SideG) => {
     const e = easeOutCubic(g.on);
     const t = `translate(${g.cx - g.w / 2}px, ${g.cy + floatY - g.h / 2 + (1 - e) * U * 0.04}px) perspective(${persp}px) ` +
       `rotateX(${g.pose.rx}deg) rotateY(${g.pose.ry}deg) rotateZ(${g.pose.rz}deg) scale(${0.96 + 0.04 * e})`;
     return <div key={`c${g.c.id}`} style={{position: 'absolute', left: 0, top: 0, width: g.w, height: g.h, transform: t,
       transformOrigin: 'center center', opacity: g.on, borderRadius: r, overflow: 'hidden', background: ink.surface,
-      boxShadow: `0 ${U * 0.02}px ${U * 0.06}px ${cardShadow}, 0 0 0 1px ${mix(ink.fg, ink.bg, 0.88)}`}}>
+      boxShadow: lit(0.8)}}>
       {drawFace({image: g.c.image, page: g.c.page}, g.w, g.c.fit ?? 'cover')}
     </div>;
   };
@@ -592,8 +615,8 @@ export const CardStage: React.FC<{
             borderRadius: r * 0.6, background: ink.surface, opacity: c.a * (c.dim ? 0.5 : 1), zIndex: c.picked ? 2 : 1,
             transform: `translateY(${(1 - c.a) * U * 0.05 + idle * Math.sin((2 * Math.PI * sec) / 5.5 + c.i * 0.9) * U * 0.006}px) ` +
               `scale(${(0.96 + 0.04 * c.a) * (c.picked ? 1.1 : 1)})`,
-            boxShadow: c.picked ? `0 0 0 ${stroke * 1.5}px ${ink.acc}, 0 ${U * 0.02}px ${U * 0.05}px ${cardShadow}`
-              : `0 ${U * 0.008}px ${U * 0.02}px ${cardShadow}`}}>
+            boxShadow: c.picked ? `0 0 0 ${stroke * 1.5}px ${ink.acc}, ${elevation(0.8, U, ground, dark)}`
+              : elevation(0.35, U, ground, dark)}}>
             <Img src={staticFile(c.img)} style={{width: '100%', height: '100%', objectFit: 'cover', display: 'block'}} />
           </div>
         ))}
@@ -606,8 +629,9 @@ export const CardStage: React.FC<{
         <div style={{position: 'absolute', left: 0, top: 0, width: cw, height: ch, transform, transformOrigin: 'center center',
           transformStyle: 'preserve-3d', opacity: heroOn < 1 ? heroOn : undefined}}>
           {/* the face itself: a shadow is darker than the ground on any ground — a mix toward the ink was a pale halo */}
+          {heroBlur ? <BlurFilter id={heroBlurId} blur={heroBlur} /> : null}
           <div style={{position: 'absolute', inset: 0, borderRadius: r, overflow: 'hidden', background: ink.surface,
-            boxShadow: `0 ${U * 0.02}px ${U * 0.06}px ${cardShadow}, 0 0 0 1px ${mix(ink.fg, ink.bg, 0.88)}`}}>
+            boxShadow: lit(1), filter: heroBlur ? `url(#${heroBlurId})` : undefined}}>
             {swapping ? faceLayer(faceBefore, 1) : null}
             {faceLayer(faceNow, swapping ? clamp01((p - 0.42) / 0.16) : 1)}
             {lifts.map(({item, on}) => (
@@ -616,6 +640,8 @@ export const CardStage: React.FC<{
                 background: dark ? 'rgba(0,0,0,0.45)' : mix(ink.fg, ink.surface, 0.9), opacity: on}} />
             ))}
             {marks.filter(({item}) => !tileOf(item.rect)).map(({item, on}) => markBox(item, on, [0, 0, 1, 1]))}
+            {faceSheen ? <div style={faceSheen} /> : null}
+            {rimGlow ? <div style={rimGlow} /> : null}
           </div>
           {lifts.map(({item, on}) => {
             const [u0, v0, u1, v1] = item.rect;
@@ -625,8 +651,8 @@ export const CardStage: React.FC<{
             return (
               <div key={`l${rid(item)}`} style={{position: 'absolute', left: u0 * cw, top: v0 * ch, width: (u1 - u0) * cw,
                 height: (v1 - v0) * ch, overflow: 'hidden', borderRadius: r * 0.5, background: ink.surface,
-                transform: `translateZ(${liftOf({item, on})}px)`,
-                boxShadow: `0 ${U * 0.012 * on}px ${U * 0.04 * on}px ${cardShadow}`}}>
+                transform: `translateZ(${liftOf({item, on})}px)`, filter: heroBlur ? `url(#${heroBlurId})` : undefined,
+                boxShadow: elevation(0.6 * on, U, ground, dark)}}>
                 <div style={{position: 'absolute', left: -u0 * cw, top: -v0 * ch, width: cw, height: ch}}>{drawFace(ownFace)}</div>
                 {marks.filter(({item: m}) => tileOf(m.rect) === item).map(({item: m, on: mo}) => markBox(m, mo, item.rect))}
               </div>
@@ -660,8 +686,7 @@ export const CardStage: React.FC<{
               <div style={{position: 'absolute', ...place(!now.reduced, sp.x, sp.y, `scale(${0.96 + 0.04 * panelOn})`),
                 width: pw, height: ph, boxSizing: 'border-box', transformOrigin: `${sp.bx - sp.x}px ${sp.by - sp.y}px`,
                 opacity: panelOn, background: ink.surface, color: ink.fg, borderRadius: rowPx * 0.5, padding: pad,
-                boxShadow: `0 ${U * 0.012}px ${U * 0.04}px ${dark ? 'rgba(0,0,0,0.5)' : mix(ink.fg, ink.bg, 0.75)}, ` +
-                  `0 0 0 1px ${mix(ink.fg, ink.surface, 0.85)}`}}>
+                boxShadow: `${elevation(0.7, U, ground, dark)}, 0 0 0 1px ${mix(ink.fg, ink.surface, 0.85)}`}}>
                 {panel.title ? <div style={{height: headH, display: 'flex', alignItems: 'center', color: ink.dim,
                   font: `700 ${rowPx}px/1.2 var(--f-body, system-ui)`, borderBottom: `1px solid ${mix(ink.fg, ink.surface, 0.88)}`,
                   boxSizing: 'border-box'}}>{panel.title}</div> : null}
@@ -689,8 +714,13 @@ export const CardStage: React.FC<{
         })() : null}
         {clickAt && rippleU > 0 && rippleU < 1 ? <TapRipple x={clickAt.x} y={clickAt.y} u={rippleU} color={ink.acc}
           size={U * 0.06} /> : null}
-        {cursor ? <div style={{position: 'absolute', left: 0, top: 0, opacity: cursor.o, transformOrigin: `${cursor.x}px ${cursor.y}px`,
-          transform: tilt ? `rotate(${tilt}deg)` : undefined}}><CursorArrow x={cursor.x} y={cursor.y} size={U * 0.056} press={press} /></div>
+        {cursor && cursorBlur ? <BlurFilter id={cursorBlurId} blur={cursorBlur} /> : null}
+        {/* the full frame's box: an SVG filter's region is a share of the element's box, and an empty box clipped the
+            pointer away */}
+        {cursor ? <div style={{position: 'absolute', left: 0, top: 0, width: W, height: H, opacity: cursor.o,
+          transformOrigin: `${cursor.x}px ${cursor.y}px`, transform: tilt ? `rotate(${tilt}deg)` : undefined,
+          filter: cursorBlur ? `url(#${cursorBlurId})` : undefined}}>
+          <CursorArrow x={cursor.x} y={cursor.y} size={U * 0.056} press={press} /></div>
           : null}
       {outP > 0 ? titleLine(prevTitle, before.highlight as string | undefined, outP, true) : null}
       {titleLine(curTitle, state.highlight as string | undefined, inP, false)}
