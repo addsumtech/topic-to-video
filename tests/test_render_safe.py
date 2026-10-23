@@ -1,0 +1,243 @@
+"""The html tier's platform-safe portrait profile (render.py `_platform_safe`): a 9:16 film's caption, page and brand
+bug kept clear of the platform's own UI, read from remotion/src/runtime/safeZone.ts like the remotion tier."""
+import json
+import os
+
+import pytest
+from PIL import Image, ImageDraw
+
+import _common
+import render
+import storyboard as sb
+import text_safe_qa as tq
+from _caption_band import aspect_table, caption_band_px, caption_margin_px
+
+PROF = tq.safe_profile()
+W9, H9 = aspect_table()["9:16"]
+CJK = "抖音和小红书会在竖屏视频的底部叠加说明文字与作者信息，右侧还有一列点赞评论和分享按钮，所以字幕要放在它们碰不到的地方"
+LATIN = "The caption has to end above the description and author line and short of the button column on the right side"
+
+
+def _geom(W=W9, H=H9):
+    return render._platform_safe({}, W, H)
+
+
+# ── the profile and where it applies ────────────────────────────────────────────────────────────────────────────
+
+def test_profile_reads_the_caption_scale_and_action_safe_border_from_the_runtime():
+    src = open(os.path.join(tq._REMOTION, "src", "runtime", "safeZone.ts"), encoding="utf-8").read()
+    assert "SAFE_CAPTION_SCALE = %s" % ("%g" % PROF["caption_scale"]) in src
+    assert 0 < tq.action_safe_frac() < 0.2
+
+
+def test_applies_to_a_full_screen_vertical_film_only():
+    for name, (w, h) in aspect_table().items():
+        g = render._platform_safe({}, w, h)
+        assert (g is not None) == tq.safe_applies(w, h), name
+    assert _geom() is not None                                  # 9:16 — the default is "social"
+    assert render._platform_safe({"safe_zone": "social"}, W9, H9) is not None
+
+
+@pytest.mark.parametrize("meta", [{"safe_zone": "none"}, {"safe_zone": ""}, {"safe_zone": None}, {"safe_zone": False},
+                                  {"caption_mode": "band"}])
+def test_opt_outs_and_band_mode_render_as_before(meta):
+    assert render._platform_safe(meta, W9, H9) is None
+
+
+def test_an_unknown_profile_is_refused_not_ignored():
+    with pytest.raises(sb.StoryboardError, match="safe_zone"):
+        render._platform_safe({"safe_zone": "tiktok"}, 1920, 1080)
+
+
+# ── the geometry (pure) ─────────────────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("wh", [(1080, 1920), (720, 1280), (1440, 2560), (1081, 1921), (607, 1080)])
+def test_geometry_matches_film_tsx_and_stays_out_of_the_platform_ui(wh):
+    W, H = wh
+    g = render._safe_geometry(W, H, PROF, tq.action_safe_frac(), caption_band_px(W, H), caption_margin_px(W, H))
+    # the scaled frame: k of the film, centred across, from y0 — every offset even (ffmpeg pads yuv420p on even px)
+    assert abs(g["fw"] - PROF["k"] * W) <= 1 and abs(g["fh"] - PROF["k"] * H) <= 1
+    assert all(g[k] % 2 == 0 for k in ("fw", "fh", "x0", "y0"))
+    assert abs(g["x0"] - (W - g["fw"]) / 2) <= 1 and abs(g["y0"] - PROF["y0"] * H) <= 1
+    assert g["x0"] + g["fw"] <= W and g["y0"] + g["fh"] <= H
+    # the caption: bottom on captionBottomY (within Math.round), above the platform's bottom share
+    want = PROF["y0"] * H + PROF["k"] * H - caption_margin_px(W, H)
+    assert abs(g["cap_bottom"] - want) <= 0.5 and g["cap_bottom"] <= H * (1 - PROF["bottom"])
+    # …its lines may not climb above the scaled page's own caption band
+    assert g["cap_bottom"] - g["cap_room"] >= PROF["y0"] * H + PROF["k"] * (H - caption_band_px(W, H)) - 1
+    # a centred line of the full measure ends left of the button column
+    assert (W + g["measure"]) / 2 <= W * (1 - PROF["right"]) and g["measure"] <= int(W * 0.9)
+    assert g["bug_top"] >= PROF["top"] * H
+    assert g["fade_x"] == pytest.approx(tq.action_safe_frac() * g["fw"])
+
+
+def test_caption_margin_is_film_tsx_cap_margin():
+    import math
+    import _caption_band as cb
+    frac = cb._fracs()["CAPTION_MARGIN_FRAC"]
+    for w, h in [(1080, 1920), (1920, 1080), (720, 1280), (1081, 1921)]:
+        assert caption_margin_px(w, h) == math.floor(min(w, h) * frac + 0.5)   # Math.round, not round-half-even
+
+
+# ── the wrap: push-out kinsoku on a hard measure ──────────────────────────────────────────────────────────────
+
+def _d():
+    return ImageDraw.Draw(Image.new("RGB", (4, 4)))
+
+
+def test_strict_wrap_never_passes_the_measure_and_never_starts_a_line_with_a_closer():
+    font = render._load_font(49, render._font_path({"language": "zh"}, CJK))
+    d = _d()
+    hits = 0
+    for n in range(8, 40):                    # sweep the measure so a closer lands on a line end many times
+        mw = int(font.size * n + font.size * 0.4)
+        hung = render._wrap(d, CJK, font, mw)
+        strict = render._wrap(d, CJK, font, mw, hang=False)
+        assert "".join(strict) == "".join(hung) == CJK.replace(" ", "")
+        assert all(d.textlength(ln, font=font) <= mw for ln in strict), (n, strict)
+        assert not any(ln[0] in "，。、：；！？…）』」》%" for ln in strict[1:]), strict
+        hits += any(d.textlength(ln, font=font) > mw for ln in hung)
+    assert hits, "no measure put a closer on a line end — the test lost its point"
+
+
+def test_default_wrap_is_unchanged():
+    font = render._load_font(43, render.BUNDLED_FONT)
+    d = _d()
+    assert render._wrap(d, LATIN, font, 900) == render._wrap(d, LATIN, font, 900, hang=True)
+
+
+# ── the caption: size, fit and where its ink lands ─────────────────────────────────────────────────────────────
+
+def test_short_caption_takes_the_safe_size_step():
+    g = _geom()
+    font, lines = render._safe_caption_fit(_d(), "短句", W9, H9, {"language": "zh"}, g)
+    assert font.size == render._caption_font_px(W9, H9, safe_scale=PROF["caption_scale"]) > render._caption_font_px(W9, H9)
+    assert lines == ["短句"]
+
+
+@pytest.mark.parametrize("text", [CJK[:33], LATIN, LATIN + " " + LATIN])
+def test_a_long_caption_yields_size_to_fit_its_band(text):
+    g = _geom()
+    font, lines = render._safe_caption_fit(_d(), text, W9, H9, {"language": "zh"}, g)
+    a, de = font.getmetrics()
+    assert (a + de) * len(lines) <= g["cap_room"] or font.size == 12
+
+
+def _ink_box(png):
+    a = Image.open(png).getchannel("A")
+    return a.point(lambda v: 255 if v > 40 else 0).getbbox()
+
+
+@pytest.mark.parametrize("text,kw", [(CJK[:30], {}), (LATIN, {}), (LATIN, {"hl_word": 3}),
+                                     (CJK[:30], {"hl_span": [4, 9]})])
+def test_safe_caption_ink_stays_out_of_the_platform_ui(tmp_path, text, kw):
+    g = _geom()
+    p = str(tmp_path / "c.png")
+    render._caption_layer(text, W9, H9, p, {"language": "zh", "_out": str(tmp_path)}, safe=g, **kw)
+    x0, y0, x1, y1 = _ink_box(p)
+    assert x1 <= W9 * (1 - PROF["right"]), "caption ink runs to x %d, under the button column" % x1
+    # (bbox bounds are exclusive) the ink — its outline included — ends ON captionBottomY, above the platform's bottom
+    assert y1 <= g["cap_bottom"] <= H9 * (1 - PROF["bottom"]), "caption ink reaches y %d" % y1
+    assert y0 >= g["cap_bottom"] - g["cap_room"] - 2, "caption climbs onto the scaled page (top %d)" % y0
+    assert x0 >= W9 * PROF["right"] - 2                         # centred: as far from the left edge
+
+
+def test_without_a_profile_the_caption_layer_is_byte_identical(tmp_path):
+    a, b = str(tmp_path / "a.png"), str(tmp_path / "b.png")
+    render._caption_layer(LATIN, W9, H9, a, {})
+    render._caption_layer(LATIN, W9, H9, b, {}, safe=None)
+    assert open(a, "rb").read() == open(b, "rb").read()
+
+
+# ── the frame layer, the bug, the cache key ──────────────────────────────────────────────────────────────────
+
+def test_frame_layer_is_ground_outside_clear_inside_and_ramps_over_the_action_safe_border(tmp_path):
+    g = _geom()
+    p = render._safe_frame_png(W9, H9, g, (10, 20, 30), str(tmp_path / "f.png"))
+    im = Image.open(p)
+    a = im.getchannel("A")
+    assert im.getpixel((5, 5))[:3] == (10, 20, 30)
+    assert a.getpixel((g["x0"] - 1, H9 // 2)) == 255 and a.getpixel((W9 // 2, g["y0"] + g["fh"])) == 255
+    bx, by = int(g["fade_x"]) + 1, int(g["fade_y"]) + 1
+    inner = a.crop((g["x0"] + bx, g["y0"] + by, g["x0"] + g["fw"] - bx, g["y0"] + g["fh"] - by))
+    assert inner.getextrema() == (0, 0), "the page's own pixels must pass untouched inside the border"
+    row = [a.getpixel((g["x0"] + i, H9 // 2)) for i in range(bx + 1)]
+    assert row == sorted(row, reverse=True) and row[0] > 240 and row[-1] == 0
+
+
+def test_brand_bug_sits_below_the_tabs_on_a_safe_film(tmp_path):
+    os.makedirs(tmp_path / "brand")
+    Image.new("RGBA", (120, 40), (200, 50, 20, 255)).save(tmp_path / "brand" / "l.png")
+    meta = {"_out": str(tmp_path), "brand": {"logo": "brand/l.png", "placement": ["bug"]}}
+    g = _geom()
+    top = lambda p: Image.open(p).getchannel("A").getbbox()[1]
+    assert top(render._brand_bug_png(meta, W9, H9, str(tmp_path / "a.png"), top=g["bug_top"])) >= PROF["top"] * H9
+    assert top(render._brand_bug_png(meta, W9, H9, str(tmp_path / "b.png"))) < PROF["top"] * H9   # unchanged default
+
+
+def test_fingerprint_keys_the_safe_geometry_only_where_it_applies():
+    slide = {"index": 1, "type": "title", "props": {"title": "t"}, "narration": "x", "duration": 1.0}
+    meta = {"_out": "/nonexistent"}
+    fp = lambda m, W, H: render._fingerprint(slide, m, W, H, 2, True, W < H)
+    assert fp(meta, W9, H9) != fp(dict(meta, safe_zone="none"), W9, H9)         # safe clips re-render
+    assert fp(meta, 1920, 1080) == fp(dict(meta, safe_zone="none"), 1920, 1080)  # 16:9 keys unchanged
+    assert fp(dict(meta, caption_mode="band"), W9, H9) != fp(meta, W9, H9)
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_page_ground_is_measured_from_the_page_as_decoded(tmp_path):
+    bg = (242, 239, 232)
+    png = str(tmp_path / "p.png")
+    Image.new("RGB", (W9, H9), bg).save(png)
+    assert render._safe_page_ground(png, bg, W9, H9) == bg
+    jpg = str(tmp_path / "p.jpg")
+    Image.new("RGB", (W9, H9), bg).save(jpg, quality=90)
+    got = render._safe_page_ground(jpg, bg, W9, H9)
+    assert max(abs(a - b) for a, b in zip(got, bg)) <= render._SAFE_GROUND_TOL
+    red = str(tmp_path / "r.png")
+    Image.new("RGB", (W9, H9), (200, 30, 30)).save(red)
+    assert render._safe_page_ground(red, bg, W9, H9) == bg       # a flood page dissolves into the deck's ground
+
+
+# ── end to end: one programmatic scene through the real ffmpeg graph ─────────────────────────────────────────
+
+def _board(out, captions=True, aspect="9:16"):
+    os.makedirs(os.path.join(out, "audio"), exist_ok=True)
+    _common.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=300:duration=2", "-ar", "24000",
+                 "-ac", "1", os.path.join(out, "audio", "01.wav")])
+    open(os.path.join(out, "theme.css"), "w").write(":root{--bg:#f2efe8;--fg:#1d1d22;--accent:#c2410c;--on-accent:#fff}")
+    s = sb.new_scene(1, "title", {"title": "Safe", "subtitle": "portrait"}, narration=LATIN + ".")
+    s.update({"audio": "audio/01.wav", "duration": 2.0})
+    w, h = aspect_table()[aspect]
+    data = sb.new_storyboard({"aspect": aspect, "width": w, "height": h, "captions": captions, "transition": "none"})
+    data["slides"] = [s]
+    json.dump(data, open(os.path.join(out, "storyboard.json"), "w"))
+    return render.render(out)
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_a_safe_portrait_render_scales_the_page_keeps_the_caption_clear_and_writes_a_cover(tmp_path):
+    np = pytest.importorskip("numpy")
+    on, off = str(tmp_path / "on"), str(tmp_path / "off")
+    frames = []
+    for out, cap in ((on, True), (off, False)):
+        mp4 = _board(out, captions=cap)
+        png = os.path.join(out, "f.png")
+        _common.run(["ffmpeg", "-y", "-v", "error", "-ss", "1.0", "-i", mp4, "-frames:v", "1", png])
+        frames.append(np.asarray(Image.open(png).convert("L"), dtype=float))
+    ink = np.abs(frames[0] - frames[1]) > 40
+    rows, cols = np.where(ink.any(axis=1))[0], np.where(ink.any(axis=0))[0]
+    assert len(rows), "no caption was drawn"
+    assert cols.max() <= W9 * (1 - PROF["right"]) and rows.max() <= H9 * (1 - PROF["bottom"])
+    # the page is drawn in its scaled frame: its title (at 0.08 W on the page) now starts inside x0
+    g = _geom()
+    title_cols = np.where((frames[1][: H9 // 2] < 120).any(axis=0))[0]
+    assert title_cols.min() >= g["x0"] + int(W9 * 0.08 * PROF["k"]) - 4
+    cover = os.path.join(on, "out.cover.png")
+    assert os.path.exists(cover) and Image.open(cover).size == (1080, 1440)
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_a_landscape_render_writes_no_cover(tmp_path):
+    _board(str(tmp_path / "l"), aspect="16:9")
+    assert not os.path.exists(str(tmp_path / "l" / "out.cover.png"))

@@ -839,7 +839,23 @@ def safe_profile():
     if not t:
         raise RuntimeError("runtime/safeZone.ts has no SAFE_MIN_TALL to read")
     prof["min_tall"] = float(t.group(1))
+    # the caption's size against the film's own (Film.tsx CaptionTrack): the html tier's burned caption takes the
+    # same step up, so it is read with the shares rather than copied into render.py
+    s = re.search(r"export const SAFE_CAPTION_SCALE\s*=\s*([\d.]+)", src)
+    if not s:
+        raise RuntimeError("runtime/safeZone.ts has no SAFE_CAPTION_SCALE to read")
+    prof["caption_scale"] = float(s.group(1))
     return prof
+
+
+def action_safe_frac():
+    """runtime/depth.tsx ACTION_SAFE_FRAC, READ from the file: the border a frame keeps its type inside — the width
+    a scaled safe frame may dissolve its edges over without thinning a letter (Film.tsx SAFE_FRAME_MASK)."""
+    src = open(os.path.join(_REMOTION, "src", "runtime", "depth.tsx"), encoding="utf-8").read()
+    m = re.search(r"export const ACTION_SAFE_FRAC\s*=\s*([\d.]+)", src)
+    if not m:
+        raise RuntimeError("runtime/depth.tsx has no ACTION_SAFE_FRAC to read")
+    return float(m.group(1))
 
 
 def safe_applies(W, H, prof=None):

@@ -89,6 +89,13 @@ finding it prints that you do not understand.
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical] [--reduced-motion] [--preview]` — storyboard → `out.mp4` + `out.srt`.
   On an HTML-tier film (at least one `type:"html"` page) the FULL render — not `--sample`, not `--preview` — also
   leaves `NOT_DELIVERED.md` with the review steps that remain; `critic_ledger.py --final` removes it (step 9e).
+  **9:16 = the platform-safe profile** (`meta.safe_zone`, default `"social"`; `"none"` opts out; not in `caption_mode:
+  band`), read from `remotion/src/runtime/safeZone.ts` as the remotion tier reads it: every page/frame is drawn in the
+  scaled frame over `--bg` with its edges dissolving over the action-safe border, the overlay caption is
+  `SAFE_CAPTION_SCALE` larger, wrapped short of the button column and fitted to the scaled page's caption band with its
+  bottom on `captionBottomY`, the brand bug starts below the tabs, and the FULL render writes `out.cover.png` (a 3:4
+  `cover.card` of beat 1's uncaptioned settled frame, or `meta.cover.beat`) — best-effort, `[render] no cover: …` when
+  it cannot. Every other aspect, `band` mode and `safe_zone:"none"` render byte-identical to before.
   **`--preview`** = the cheap ITERATION tier (~1.4–2× wall-clock; 2.5× fewer captured frames — per-scene fixed overheads eat part of the gain): 12fps captures + lighter JPEG, its own
   clip cache (`.clips_preview`) and `preview.mp4` output — temporally identical (captions/cues/word-sync
   are time-based), just choppier; never touches `out.mp4`/`.clips`. Use it while experimenting with

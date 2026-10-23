@@ -21,6 +21,11 @@ no special ffmpeg build needed.
 - **Bottom safe margin:** ~2% of frame height above the very bottom edge (`H*0.02`).
   At 1080p ≈ 65 px from bottom — comfortably inside the safe zone.
 - **Text wrap:** Greedy word-wrap to 90% of frame width.
+- **9:16 (platform-safe, `meta.safe_zone` default `"social"`):** the page is scaled into the `runtime/safeZone.ts`
+  frame and the caption follows Film.tsx instead — `SAFE_CAPTION_SCALE` larger, wrapped short of the button column
+  (a closer that would overhang it takes the glyph before it down a line), shrunk only if its lines would not fit the
+  scaled page's caption band, its ink ending on `captionBottomY`. `meta.safe_zone: "none"` or `caption_mode: band`
+  keeps the placement above.
 - **Padding inside bar:** ~1.2% of frame height above and below text.
 
 ### Enabled / disabled
