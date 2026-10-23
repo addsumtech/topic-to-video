@@ -43,13 +43,21 @@ def _chrome_shot(url, out_png, W, H, meta):
            f"--window-size={W},{H}", f"--screenshot={out_png}", url]
     # Retry ONCE on a hang: a single frame that stalls under load must not crash a multi-scene render
     # (subprocess.run kills the timed-out Chrome, so a retry starts clean). 60s is generous for one page.
+    # Success is the WRITTEN screenshot, not Chrome's exit code: Chrome 155.0.8059.86 writes the PNG and then
+    # exits non-zero on teardown ("Teardown watchdog expired"), which failed every HTML-tier frame. The stale
+    # file is removed first, so an old screenshot can never stand in for a launch that wrote nothing.
     for attempt in (1, 2):
+        if os.path.exists(out_png):
+            os.remove(out_png)
         try:
-            subprocess.run(cmd, check=True, capture_output=True, timeout=60)
-            return
+            r = subprocess.run(cmd, capture_output=True, timeout=60)
         except subprocess.TimeoutExpired:
             if attempt == 2:
                 raise
+            continue
+        if os.path.exists(out_png) and os.path.getsize(out_png) > 0:
+            return
+        raise subprocess.CalledProcessError(r.returncode or 1, cmd, r.stdout, r.stderr)
 
 def _capture_frames(shots, copies, workdir, index, W, H, meta, label):
     """Materialise a scene's frame sequence and return the ffmpeg frame PATTERN.

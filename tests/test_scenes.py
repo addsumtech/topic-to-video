@@ -352,12 +352,22 @@ def test_chrome_bin_none_when_absent(monkeypatch):
     monkeypatch.setattr(_common.shutil, "which", lambda n: None)
     assert scenes._chrome_bin({}) is None
 
-def test_chrome_shot_builds_command(tmp_path, monkeypatch):
+def _fake_chrome(tmp_path, monkeypatch, rc=0, writes=True):
+    """A stand-in `subprocess.run` for _chrome_shot: records the call, writes the --screenshot target (or not) and
+    exits with `rc`."""
     fake = tmp_path / "chrome"; fake.write_text("x")
     cap = {}
     def fake_run(cmd, **kw):
         cap["cmd"] = cmd; cap["kw"] = kw
+        if writes:
+            out = next(c for c in cmd if c.startswith("--screenshot=")).split("=", 1)[1]
+            open(out, "wb").write(b"\x89PNG")
+        return scenes.subprocess.CompletedProcess(cmd, rc, b"", b"Teardown watchdog expired" if rc else b"")
     monkeypatch.setattr(scenes.subprocess, "run", fake_run)
+    return fake, cap
+
+def test_chrome_shot_builds_command(tmp_path, monkeypatch):
+    fake, cap = _fake_chrome(tmp_path, monkeypatch)
     scenes._chrome_shot("file:///p.html?p=0.5", str(tmp_path / "o.png"), 1920, 1080,
                         {"chrome_path": str(fake)})
     cmd = cap["cmd"]
@@ -366,7 +376,21 @@ def test_chrome_shot_builds_command(tmp_path, monkeypatch):
     assert f"--screenshot={tmp_path / 'o.png'}" in cmd
     assert cmd[-1] == "file:///p.html?p=0.5"
     assert "--user-data-dir" not in " ".join(cmd)   # explicit profile hangs vs a running Chrome
-    assert cap["kw"].get("check") is True and cap["kw"].get("timeout") == 60   # retries once on a hang
+    assert cap["kw"].get("timeout") == 60   # retries once on a hang
+
+def test_chrome_shot_trusts_the_written_png_over_a_teardown_exit_code(tmp_path, monkeypatch):
+    # Chrome 155.0.8059.86 writes the screenshot, then exits non-zero ("Teardown watchdog expired")
+    fake, _ = _fake_chrome(tmp_path, monkeypatch, rc=1)
+    out = tmp_path / "o.png"
+    scenes._chrome_shot("file:///p.html", str(out), 64, 64, {"chrome_path": str(fake)})
+    assert out.stat().st_size > 0
+
+def test_chrome_shot_raises_when_nothing_is_written_and_never_keeps_a_stale_png(tmp_path, monkeypatch):
+    fake, _ = _fake_chrome(tmp_path, monkeypatch, rc=0, writes=False)
+    out = tmp_path / "o.png"; out.write_bytes(b"old frame")
+    with pytest.raises(scenes.subprocess.CalledProcessError):
+        scenes._chrome_shot("file:///p.html", str(out), 64, 64, {"chrome_path": str(fake)})
+    assert not out.exists(), "a stale screenshot stood in for a launch that wrote nothing"
 
 def test_chrome_shot_no_chrome_raises(monkeypatch):
     monkeypatch.setattr(scenes, "_chrome_bin", lambda meta: None)
