@@ -252,7 +252,7 @@ in a frame scaled so its own caption band lands on the caption, a stage laid out
 (references/craft-research.md §2).
 **Reach for it:** only in Film.tsx and a stage component — a register never reads it (it is drawn in the frame).
 **Smallest real use:** `const safeP = React.useContext(SafeZoneContext);`
-**Exports:** `SafeZoneContext`, `SafeProfile`, `SOCIAL`, `safeProfile`, `registerFrame`, `captionBottomY`, `SAFE_CAPTION_SCALE`.
+**Exports:** `SafeZoneContext`, `SafeProfile`, `SOCIAL`, `SAFE_MIN_TALL`, `safeProfile`, `registerFrame`, `captionBottomY`, `SAFE_CAPTION_SCALE`. The profile applies to a full-screen vertical (9:16) frame only.
 
 ### `stageRun`
 The continuous stage: consecutive beats naming one `stage.run` are ONE scene drawn by one stage component. Each beat's
@@ -261,7 +261,13 @@ its phrase. The stage at any frame is a pure function of the keyframes and the f
 **Reach for it:** only in a stage component (`remotion/src/stage/`) — never in a register, which is one beat on its own
 clock.
 **Smallest real use:** `const now = useStageRun(); const cursor = actor<Cursor>(now, 'cursor');`
-**Exports:** `useStageRun`, `actor`, `sinceEvent`, `lerpState`, `mergeState`, `buildKeys`, `morphFrames`, `STEP_MOVE_S`, `StageRunContext`, `StageBeat`, `StageKey`, `StageNow`, `Normalize`.
+**Exports:** `useStageRun`, `actor`, `springSum`, `moveShare`, `sinceEvent`, `lerpState`, `mergeState`, `buildKeys`, `morphFrames`, `STEP_MOVE_S`, `StageRunContext`, `StageBeat`, `StageKey`, `StageNow`, `Normalize`. Spatial actors move on `springSum` (springs that add up across keyframes, landing exactly on target); `stage/surface.tsx` lights a stage's surfaces (layered key-light shadow, turn sheen, rim) and blurs what moves fast.
+
+### `dither`
+The film's delivery dither: a static, seeded triangular dither of ±2 code values over the whole frame, painted last so x264 cannot keep a dark gradient's 8-bit steps as rings (CAMBI 12-22 on this tier's own films without it, 0.0 with it; `scripts/banding_qa.py` measures the delivered file).
+**Reach for it:** never — Film.tsx draws it when render_remotion asks (`dither`, on unless `meta.dither: false`); a gate's still and a register's own still go without it.
+**Smallest real use:** `{dither ? <FilmDither /> : null}`
+**Exports:** `FilmDither`, `ditherTile`, `DITHER_TILE`, `DITHER_AMP`.
 
 ## The gates' own eyes
 

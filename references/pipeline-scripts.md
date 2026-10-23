@@ -709,6 +709,12 @@ agent on the beats it points at.
   `references/anti-ai-voice.md` before writing or revising narration. Its numbers mark where to LOOK —
   published practice says rules remove only ~40–50% of AI flavour and that over-applying them produces
   its own "rule voice", so the last pass is always a human read-aloud.
+- `scripts/banding_qa.py <out_dir> [--every SECONDS] [--json]` — **BANDING** on the DELIVERED file: CAMBI
+  (libvmaf's banding index, visible past ~5) on one frame a second of `out.mp4`, judged per scene by its median.
+  A dark gradient banded by the encode is invisible in every still a gate renders and in the DOM — this is the only
+  instrument that sees it. Measured: the remotion tier's films 12-22 before its delivery dither, 0.0 after; the html
+  tier 0. Exit 0 clean · 1 findings · 2 not measured (no out.mp4, or an ffmpeg without libvmaf — said, never passed
+  as clean). Advisory in both tiers' delivery gates. ~1 s a sample at 1080p.
 - `scripts/pedagogy_qa.py <out_dir> [--json]` — deterministic PRE-render **teaching-order** gate: walks
   the concept-dependency DAG in `<out_dir>/content_plan.json` (`introduces`/`builds_on`/`stage` +
   `meta.assumed_known`) and ERRORs on a **concept used before it is introduced**; WARNs on an `introduces`

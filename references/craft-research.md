@@ -71,7 +71,22 @@ Read this before changing how the stage moves, where a 9:16 film puts its captio
 - Redistributable samples: only CC0 is safe to vendor (Kenney.nl all CC0; Freesound CC0 filter). Pixabay forbids
   standalone redistribution.
 
-## 4. Texture (not yet adopted)
+## 4. Texture
+
+Adopted 2026-10-23 (measured on this machine):
+- **Banding** was real: CAMBI median 12-15, peaks 22 on the remotion tier's dark radial grounds (html tier: 0). Causes,
+  measured on 60 frames of one dark opening: JPEG-80 frames 22.6 → JPEG-95 8.5 (PNG 8.7); x264 aq-mode=3 alone 7.3; a
+  ±1 static luma dither before x264 0.01. Remotion's bundled ffmpeg has no `noise` filter, so the dither is painted in
+  Chrome (`runtime/dither.tsx`, triangular ±2, mean 0) → 0.00 (max 0.35), about 3.5 Mbps on that dark scene. Gate:
+  `scripts/banding_qa.py` (CAMBI on the delivered file, advisory). The finish layer's `overlay` grain cannot dither a
+  dark ground: overlay scales with the base luminance.
+- **Stage surfaces** (`stage/surface.tsx`): five-layer doubling shadow tinted to the ground, top-edge light on dark
+  surfaces, a turn sheen (none at rest), a pointer-led rim on dark stages; motion blur sigma = 0.144·v (180° shutter)
+  on the hero card, its lifts and the pointer. Pushes: a sine ease with the same shutter blur (seam render cost 4%).
+- Not adopted: per-glyph kerning — only ClothWave and VariableTypeMorph split a word into glyphs, both decorative
+  display words; fixing it re-measures their manifests for a small gain.
+
+Sources and numbers the research gave:
 
 - Shadows: 4–5 layers, offsets/blur doubling 1,2,4,8,16 px, alpha 0.075–0.2, one light, hue-tinted
   (joshwcomeau.com/css/designing-shadows). Raycast window: `0 4px 40px 8px #0006, 0 0 0 .5px #000c, inset 0 .5px
