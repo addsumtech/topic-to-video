@@ -8,6 +8,7 @@ import spec from './deviceSpec.json';
 import {CONTENT_TOP, contentBottom} from './layout';
 import {mix, type DesignDNA} from './dna';
 import {keyOf} from './light';
+import {CarryAnchor} from './carry';
 
 export type DeviceKind = 'phone' | 'tablet' | 'tablet-landscape' | 'laptop' | 'monitor';
 export type DeviceLook = 'flat' | 'real' | 'screen';
@@ -103,16 +104,21 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
   const lid: Rect = {x: face.x + ring, y: face.y + ring, w: face.w - 2 * ring, h: face.h - 2 * ring};
   return (
     <>
+      {/* TWO carry anchors (runtime/carry): `device`, the whole face — a container carries the phone itself — and
+          `screen`, the screen alone — a container carries what is ON it into another frame. Every piece of the face
+          is a part of `device`, so the face leaves its place whole. */}
+      <CarryAnchor id="device" x={face.x} y={face.y} w={face.w} h={face.h}
+        radius={g.look === 'screen' ? g.radius : g.radius + g.bezel} />
       {g.look !== 'screen' ? (
-        <div style={{position: 'absolute', left: lid.x, top: lid.y, width: lid.w, height: lid.h,
+        <div data-carry-part="device" style={{position: 'absolute', left: lid.x, top: lid.y, width: lid.w, height: lid.h,
           borderRadius: g.radius + g.bezel - ring, background: g.look === 'real' ? '#050608' : ink,
           boxShadow: g.look === 'real' ? `0 0 0 ${shine}px ${hi}, 0 0 0 ${ring}px ${lo}, ${shadow}` : shadow}} />
       ) : (
-        <div style={{position: 'absolute', left: face.x, top: face.y, width: face.w, height: face.h,
+        <div data-carry-part="device" style={{position: 'absolute', left: face.x, top: face.y, width: face.w, height: face.h,
           borderRadius: g.radius, background: mix(bg, '#ffffff', 0.85), boxShadow: shadow}} />
       )}
       {g.strip ? (
-        <div style={{position: 'absolute', left: g.strip.x, top: g.strip.y, width: g.strip.w, height: g.strip.h,
+        <div data-carry-part="device" style={{position: 'absolute', left: g.strip.x, top: g.strip.y, width: g.strip.w, height: g.strip.h,
           background: mix(bg, ink, 0.06), borderRadius: `${g.radius}px ${g.radius}px 0 0`}}>
           {[0, 1, 2].map((i) => (   // @positional: a window's three buttons are the same three on every window
             <span key={i} style={{position: 'absolute', top: g.strip!.h * 0.32, left: g.strip!.h * (0.5 + i * 0.55),
@@ -120,7 +126,7 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
           ))}
         </div>
       ) : null}
-      <div style={{position: 'absolute', left: s.x, top: s.y, width: s.w, height: s.h, overflow: 'hidden',
+      <div data-carry="screen" data-carry-part="device" style={{position: 'absolute', left: s.x, top: s.y, width: s.w, height: s.h, overflow: 'hidden',
         borderRadius: g.strip ? `0 0 ${g.radius}px ${g.radius}px` : g.radius, background: '#000'}}>
         {children}
         {g.look === 'real' ? (
@@ -129,7 +135,7 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
         ) : null}
       </div>
       {g.island ? (
-        <div style={{position: 'absolute', left: g.island.x, top: g.island.y, width: g.island.w, height: g.island.h,
+        <div data-carry-part="device" style={{position: 'absolute', left: g.island.x, top: g.island.y, width: g.island.w, height: g.island.h,
           borderRadius: g.island.h, background: g.look === 'real' ? '#000000' : ink}} />
       ) : null}
       {g.base && g.kind === 'laptop' ? (

@@ -35,6 +35,7 @@ import {hex6} from '../runtime/hexColor';
 import {ObjectSlot, useObjectEntry, fitAspect, type ObjectRef} from '../runtime/objectSlot';
 import {DEMO_ID} from '../objects/DemoForm';
 import {useCues, REACH_CUBIC} from '../runtime/cue';
+import {CarryAnchor, useCarried} from '../runtime/carry';
 
 export const DURATION = 165;
 export const MAX_STAGE_LABELS = 6;
@@ -166,8 +167,11 @@ export const ObjectStage: React.FC<{
   const floorY = box.y + box.h;
   const wordsTop = floorY + gap;
 
-  const objT = clamp01(seg(t, OBJ_A, OBJ_B));
-  const floorIn = easeOutCubic(clamp01(seg(t, 0.03, 0.2)));
+  // A CONTAINER THAT CARRIES THE FIGURE IN IS ITS ENTRANCE (runtime/carry): the thing is already whole where the seam
+  // lands it, rather than landing as an empty box and drawing itself a second time
+  const carried = useCarried('figure');
+  const objT = carried ? 1 : clamp01(seg(t, OBJ_A, OBJ_B));
+  const floorIn = carried ? 1 : easeOutCubic(clamp01(seg(t, 0.03, 0.2)));
   const step = nL > 1 ? Math.min(0.05, (LAND_BY - LBL_A - 0.12) / (nL - 1)) : 0;
   const onAt = (i: number) => easeOutCubic(clamp01(seg(t,
     ...cue.win('labels.' + i, LBL_A + i * step, LBL_A + i * step + 0.12, REACH_CUBIC))));
@@ -243,11 +247,17 @@ export const ObjectStage: React.FC<{
           font: `600 ${Math.round(U * 0.018)}px/1.2 ${mono}`, color: ACC, letterSpacing: dna?.labelSpacing ?? '0.14em',
           textTransform: (dna?.uppercaseLabels ?? true) ? 'uppercase' : 'none'}}>{kicker}</div>
       ) : null}
-      {/* the floor it stands on: a soft shadow, always darker than the floor, at a whisper */}
-      <div style={{position: 'absolute', left: box.x + box.w * 0.08, top: floorY - U * 0.012, width: box.w * 0.84,
-        height: U * 0.03, borderRadius: '50%', background: shadowInk, opacity: 0.1 * floorIn,
-        filter: `blur(${Math.round(U * 0.01)}px)`}} />
-      <ObjectSlot object={OBJECT} box={box} t={objT} idleFrom={OBJ_B} />
+      {/* the thing and its floor shadow are the carry anchor's PARTS (runtime/carry): a full-frame box that paints
+          nothing, so a container that carries the figure away can take them with it */}
+      <div data-carry-part="figure" style={{position: 'absolute', inset: 0}}>
+        {/* the floor it stands on: a soft shadow, always darker than the floor, at a whisper */}
+        <div style={{position: 'absolute', left: box.x + box.w * 0.08, top: floorY - U * 0.012, width: box.w * 0.84,
+          height: U * 0.03, borderRadius: '50%', background: shadowInk, opacity: 0.1 * floorIn,
+          filter: `blur(${Math.round(U * 0.01)}px)`}} />
+        <ObjectSlot object={OBJECT} box={box} t={objT} idleFrom={OBJ_B} />
+      </div>
+      {/* the thing itself is the carry anchor (runtime/carry): its box, which paints nothing */}
+      <CarryAnchor id="figure" x={box.x} y={box.y} w={box.w} h={box.h} />
       {placed.map(({l, i, p, right}) => {
         const on = onAt(i);
         if (on <= 0) return null;

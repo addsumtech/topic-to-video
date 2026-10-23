@@ -84,22 +84,22 @@ export const CodeCompose: React.FC<{doneLabel?: string; filename?: string; lines
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 20%, #10151d, #080a0e 70%)')}}>
-      {/* window */}
-      <div style={{position: 'absolute', left: wx, top: wy, width: winW, height: winH, borderRadius: 18,
+      {/* window — the carry anchor (runtime/carry) */}
+      <div data-carry="window" style={{position: 'absolute', left: wx, top: wy, width: winW, height: winH, borderRadius: 18,
         background: '#0d1117', border: '1px solid #202836', boxShadow: '0 40px 120px #000a', overflow: 'hidden'}}>
         <div style={{height: 52, background: '#131a24', borderBottom: '1px solid #202836', display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 20}}>
           {['#ff5f57', '#febc2e', '#28c840'].map((c) => <div key={c} style={{width: 14, height: 14, borderRadius: 7, background: c}} />)}
           <div style={{marginLeft: 18, padding: '6px 16px', borderRadius: 8, background: '#0d1117', color: '#8b96a6', font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{filename}</div>
         </div>
       </div>
-      {/* code layer */}
-      <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
+      {/* code layer — part of the window anchor: a container that carries the window carries its code with it */}
+      <svg data-carry-part="window" width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <line x1={gx + 54} y1={wy + 104} x2={gx + 54} y2={wy + winH - 130} stroke="#1b2430" strokeWidth={2} />
         {rendered}
         {caretOn && <rect x={caretX + 2} y={caretY - 2} width={3} height={FS + 6} fill="#7ee0ff" />}
       </svg>
-      {/* output strip */}
-      <div style={{position: 'absolute', left: wx, top: wy + winH - 96, width: winW, height: 96,
+      {/* output strip — part of the window anchor */}
+      <div data-carry-part="window" style={{position: 'absolute', left: wx, top: wy + winH - 96, width: winW, height: 96,
         borderTop: '1px solid #202836', background: '#0b1016', display: 'flex', alignItems: 'center', gap: 20,
         paddingLeft: 34, opacity: outT, borderRadius: '0 0 18px 18px'}}>
         {/* was ▶ — a filled play triangle at the left of a bar reads as PLAYER CHROME on a video frame */}
