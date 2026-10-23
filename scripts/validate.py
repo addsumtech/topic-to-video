@@ -3393,13 +3393,18 @@ def _product_screens(shot, sp):
 
 
 def _stage_run(slides, k):
-    """(shows a real image, acts on it) for the stage run beat k is on, or None when it is on none."""
+    """(shows a real image, is choreographed) for the stage run beat k is on, or None when it is on none. Choreographed
+    means acted on — a step, or an actor that points at, lifts, marks, leans in on, counts beside or sets other cards
+    next to the face; turning the card alone is not."""
     import stage_runs as _sr
+    actors = ("cursor", "marks", "lift", "camera", "count", "cards", "trace", "wall", "panel")
     for a, b, _r in _sr.runs(slides):
         if a <= k <= b:
             sps = [sl.get("shot_props") if isinstance(sl.get("shot_props"), dict) else {} for sl in slides[a:b + 1]]
             image = any(isinstance(sp.get("image"), str) and sp["image"].strip() for sp in sps)
-            acted = any(sp.get(x) for sp in sps for x in ("card", "steps", "cursor", "marks", "lift", "camera", "count"))
+            acted = any(sp.get(x) for sp in sps for x in actors) or any(
+                isinstance(st, dict) and any(st.get(x) for x in actors)
+                for sp in sps for st in (sp.get("steps") if isinstance(sp.get("steps"), list) else []))
             return image, acted
     return None
 
@@ -3439,16 +3444,17 @@ def design_routes(meta, slides, out_dir):
         if shot in built_shots:
             out.append((num, "built", "its shot %s is this film's own" % shot)); continue
         if _stage_run(slides, pos - 1):
-            # A STAGE RUN carries the film's OWN picture (its face) acted on by the film's own choreography, the shape
-            # a product's real screens have on a device register: a run holding a real image is exempt as they are;
-            # one that draws its page is adapted when its beats move or act on it, and as-is when they only re-title
+            # A STAGE RUN CHOREOGRAPHED FOR THIS FILM IS ITS BUILT SIGNATURE (the user's call, 2026-10-23: "有编排的舞台段
+            # 算自建"): steps that point, click, lift, mark, lean in or count on the film's own pages are drawn for this
+            # topic and no other. A run that only re-titles a real picture shows that picture (exempt, like a device's
+            # real screens); one that only re-titles a page it draws is as-is.
             face_image, acted = _stage_run(slides, pos - 1)
+            if acted:
+                out.append((num, "built", "a stage run choreographed for this film (%s)" % shot)); continue
             if face_image:
                 out.append((num, "exempt", "the film's own picture on a stage run (%s)" % shot)); continue
-            if acted:
-                out.append((num, "adapted", "")); continue
-            out.append((num, "as-is", "a stage run whose beats only change the title — pose the card or act on it "
-                                      "(steps), or choose a register")); continue
+            out.append((num, "as-is", "a stage run whose beats only change the title — act on the card with steps "
+                                      "(cursor, lift, marks, camera, count), or choose a register")); continue
         src = _ws.shot_source(out_dir, shot) if shot else None
         held = []
         if src and built_objects:

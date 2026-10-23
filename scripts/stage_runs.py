@@ -96,10 +96,25 @@ def stamp_faces(props, public_dir):
             raise FileNotFoundError("stage image %r is not a file in %s" % (d["image"], public_dir))
         return dict(d, imageAspect=image_aspect(path))     # a copy: the board's own shot_props are never written
 
-    out = one(props)
+    def wall_files(d):
+        # a wall names its thumbnails by file — a missing one is an error here, not a render that dies half way
+        wall = d.get("wall") if isinstance(d, dict) else None
+        for img in ((wall or {}).get("images") or []) if isinstance(wall, dict) else []:
+            if not (isinstance(img, str) and os.path.isfile(os.path.join(public_dir, img.lstrip("/")))):
+                raise FileNotFoundError("stage wall image %r is not a file in %s" % (img, public_dir))
+
+    def with_cards(d):
+        wall_files(d)
+        d = one(d)
+        # a SIDE CARD has a face of its own, shaped the same way (CardStage `cards`)
+        if isinstance(d, dict) and isinstance(d.get("cards"), list):
+            d = dict(d, cards=[one(c) for c in d["cards"]])
+        return d
+
+    out = with_cards(props)
     # a STEP may change the face too (a run of looks flicked through on one card): each gets its own shape
     if isinstance(out.get("steps"), list):
-        out = dict(out, steps=[one(st) for st in out["steps"]])
+        out = dict(out, steps=[with_cards(st) for st in out["steps"]])
     return out
 
 

@@ -68,7 +68,12 @@ while the card turns. To author the places, look at the face image and read the 
 | `marks [{rect, label?}]` | a box on a part of the face, with an optional name in a pill beside it. The pill takes the first place that stays in the frame and off the part. A box inside a lifted part rises with it. |
 | `lift [{rect, z?}]` | parts of the face lifted off it in depth (`z` 1 = the default height), leaving their places dimmed. Turn the card (`rx`/`ry`) so the depth reads. A point on a lifted part (a cursor, a mark) projects at its height. |
 | `camera {zoom, u, v}` | lean in on a place of the face. By zoom 2 that place sits at the middle of the content zone. While zoomed, the picture is held inside the content zone, so the title and caption stay clear. `camera: null` settles back. |
-| `count {value, from?, label?, u?, v?}` | a figure counting to `value` in a pill beside a place of the face. **A sourced figure only** — never invent one. |
+| `count {value, from?, label?, u?, v?}` | a figure counting to `value` in a pill beside a place of the face (a badge at the title's end while the hero is off the stage). **A sourced figure only** — never invent one. |
+| `hero` | `false` takes the hero card off the stage (a wall or side cards hold it alone); `true` brings it back. |
+| `cards [{id, image\|page, x, y, w, rx, ry, rz, aspect?, front?}]` | more cards on the stage beside the hero, each its own face and pose (`w` its width as a share of the frame; `x`/`y` like the hero's). A card that stays from one keyframe to the next moves between its poses; one that arrives rises in. Behind the hero unless `front`. |
+| `trace {card, from, to, label?}` | the same thing in two places: a rect of side card `card`'s face boxed, a rect of the hero's face boxed, and a line drawn from one to the other — the paper's sentence and the slide's figure that came from it. |
+| `wall {images, cols?, aspect?, pick?}` | a wall of thumbnails across the zone, arriving one after another (pair it with `hero: false`); `pick` lifts one cell out and dims the rest — "pick any". |
+| `panel {u, v, title?, rows: [[name, value]…], highlight?}` | a panel opening beside a place of the hero's face — a chart's data on a click. Its rows are the film's own **sourced** data. |
 
 When a keyframe changes the face, whatever sits on the old face (lifted parts, marks) goes before the swap, and the
 new face's arrives after it.

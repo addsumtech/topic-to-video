@@ -106,6 +106,10 @@ def test_a_stage_face_carries_the_shape_a_browser_draws(tmp_path):
     assert sr.stamp_faces({"title": "no face"}, str(tmp_path)) == {"title": "no face"}
     stepped = sr.stamp_faces({"steps": [{"at": 0.5, "image": "turned.jpg"}, {"at": 0.9, "marks": []}]}, str(tmp_path))
     assert stepped["steps"][0]["imageAspect"] == 0.75 and "imageAspect" not in stepped["steps"][1]
+    carded = sr.stamp_faces({"cards": [{"id": "p", "image": "turned.jpg"}],
+                             "steps": [{"at": 0.4, "cards": [{"id": "q", "image": "wide.png"}]}]}, str(tmp_path))
+    assert carded["cards"][0]["imageAspect"] == 0.75
+    assert carded["steps"][0]["cards"][0]["imageAspect"] == round(400 / 300, 4)
     with pytest.raises(FileNotFoundError):
         sr.stamp_faces({"image": "missing.png"}, str(tmp_path))
 
@@ -179,12 +183,16 @@ def test_the_board_gates_see_a_stage_for_what_it_is():
     assert "CardStage" in dna_audit.dna_aware_shots(), "it reads useDNA on its first line"
     assert "film_energy_qa" in energy_skeleton.unmeasured_reason("CardStage", {})
     assert beat_key.shot_file(None, "CardStage").endswith(os.path.join("stage", "CardStage.tsx"))
+    mark = [{"rect": [0, 0, 1, 1]}]
     slides = [_s("CinematicTitle", index=1),
               _s("CardStage", "a", index=2, shot_props={"image": "card.png"}), _s("CardStage", "a", index=3),
-              _s("CardStage", "b", index=4, shot_props={"page": {"title": "t"}, "steps": [{"at": 0.5, "marks": []}]}),
-              _s("CardStage", "c", index=5, shot_props={"page": {"title": "t"}, "title": "only a title"})]
+              _s("CardStage", "b", index=4, shot_props={"page": {"title": "t"}, "steps": [{"at": 0.5, "marks": mark}]}),
+              _s("CardStage", "b", index=5),
+              _s("CardStage", "c", index=6, shot_props={"page": {"title": "t"}, "title": "only a title",
+                                                         "card": {"rx": 20}})]
     routes = {n: r for n, r, _why in validate.design_routes({}, slides, None)}
-    assert routes[2] == routes[3] == "exempt" and routes[4] == "adapted" and routes[5] == "as-is"
+    # the user's rule: a choreographed run is this film's built signature; re-titling (or only turning) is not
+    assert routes[2] == routes[3] == "exempt" and routes[4] == routes[5] == "built" and routes[6] == "as-is"
 
 
 def test_a_run_tells_the_captions_which_backdrop_each_beat_is_lit_in():

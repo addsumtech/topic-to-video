@@ -22,6 +22,11 @@
 //   camera {zoom, u, v}         lean in on a place of the face (zoom 1 = no camera move)
 //   count {value, from?, label?, u?, v?}  a figure counting to `value` beside a place of the face — a SOURCED figure
 //   backdrop                    the DNA colour the stage is lit in (bg by default; fg, accent…) — set on a beat
+//   hero                        false hides the hero card (a wall or the side cards hold the stage alone)
+//   cards [{id, image|page, x, y, w, rx, ry, rz, aspect, front?}]  more cards on the stage, each its own face and pose
+//   trace {card, from, to, label?}  a rect of a side card tied to a rect of the hero's face — "this came from there"
+//   wall {images, cols?, aspect?, pick?}  a wall of thumbnails across the zone; `pick` lifts one out of it
+//   panel {u, v, title?, rows: [[name, value]…], highlight?}  a panel opening at a place of the face (sourced data)
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
 import {clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
@@ -46,6 +51,16 @@ type Lift = {rect: Rect; z?: number};
 type Cursor = {u: number; v: number; click?: boolean};
 type Camera = {zoom?: number; u?: number; v?: number};
 type Count = {value: number; from?: number; label?: string; u?: number; v?: number};
+/** another card on the stage beside the hero: its own face and pose, in the same coordinates (x/y from the zone's
+ *  centre as fractions of the frame, w its width as a fraction of the frame's width) */
+type SideCard = {id: string; image?: string; page?: Page; imageAspect?: number; fit?: 'cover' | 'contain'; x?: number;
+  y?: number; w?: number; rx?: number; ry?: number; rz?: number; aspect?: number; front?: boolean};
+/** the same thing in two places: a rect on a side card (`from`) tied to a rect on the hero's face (`to`) */
+type Trace = {card: string; from: Rect; to: Rect; label?: string};
+/** a wall of thumbnails filling the zone; `pick` marks one */
+type Wall = {images: string[]; cols?: number; aspect?: number; pick?: number};
+/** a panel that opens at a place of the hero's face: a title and rows of [name, value] — the film's own data */
+type Panel = {u: number; v: number; title?: string; rows: [string, string][]; highlight?: number};
 
 // a character a line may break before or after (layout.ts keeps its own copy private: exporting it would re-key every
 // register that imports layout.ts)
@@ -113,7 +128,8 @@ export const CardStage: React.FC<{
   image?: string; imageAspect?: number; page?: Page; fit?: 'cover' | 'contain'; title?: string; highlight?: string;
   card?: CardPose; cursor?: Cursor | null; marks?: Mark[] | null; lift?: Lift[] | null; camera?: Camera | null;
   backdrop?: string | null;
-  count?: Count | null; steps?: unknown[];
+  count?: Count | null; steps?: unknown[]; hero?: boolean; cards?: SideCard[] | null; trace?: Trace | null;
+  wall?: Wall | null; panel?: Panel | null;
 }> = () => {
   const dna = useDNA();
   const now = useStageRun(normalize);
@@ -148,7 +164,8 @@ export const CardStage: React.FC<{
   // portrait run to a caption's size because one of them was long, and the runtime's generous estimate (0.72 em a
   // character) read a 0.39 em serif as twice its width ──
   const sx = W * 0.065;
-  const titleBase = Math.round(U * (portrait ? 0.07 : 0.058));
+  // big enough to be the frame's headline on a phone (a short-video title is read before anything else on it)
+  const titleBase = Math.round(U * (portrait ? 0.085 : 0.066));
   const lineW = W - 2 * sx;
   const family = dna?.uniformType ? dna.fontMono : (dna?.fontDisplay ?? 'system-ui');
   const per = (t: string) => measureText({text: t, fontFamily: family, fontSize: 100, fontWeight: '800',
@@ -170,8 +187,11 @@ export const CardStage: React.FC<{
   const pose = (p >= 1 ? poseOf(state) : lerpState(poseOf(before), poseOf(state), p)) as Pose;
   const sec = now.frame / now.fps;
   const idle = now.reduced ? 0 : 1;
-  const floatY = idle * Math.sin((2 * Math.PI * sec) / 6.5) * U * 0.006;
-  const sway = idle * Math.sin((2 * Math.PI * sec) / 9 + 1.1) * 1.2;
+  // ALIVE WHILE IT HOLDS: three quarters of a run is held states, so the hold's own motion is most of the film's —
+  // at 0.6% float and 1.2 degrees of sway a choreographed run measured under film_energy_qa's motion floor (p75 0.0031)
+  const SWAY = 2.2;
+  const floatY = idle * Math.sin((2 * Math.PI * sec) / 6.5) * U * 0.011;
+  const sway = idle * Math.sin((2 * Math.PI * sec) / 9 + 1.1) * SWAY;
   const persp = U * 1.6;
   const centre = (q: Pose) => ({cx: W / 2 + q.x * W, cy: zoneMid.y + q.y * H});
   // the card's size in a pose: as large as the zone allows at its shape, then shrunk until the TURNED card (sway
@@ -181,7 +201,7 @@ export const CardStage: React.FC<{
     const a = Math.max(0.3, q.aspect);
     const room = {x: Math.max(1, Math.min(x - side, W - side - x)), y: Math.max(1, Math.min(y - zoneTop, zoneBot - y))};
     const w = Math.min(2 * room.x, 2 * room.y * a), h = w / a;
-    const e = extent(w, h, {...q, ry: Math.abs(q.ry) + 1.2}, persp);
+    const e = extent(w, h, {...q, ry: Math.abs(q.ry) + SWAY}, persp);
     const f = Math.min(1, room.x / e.hx, room.y / e.hy);
     return {w: w * f, h: h * f, hy: e.hy * f};
   };
@@ -191,6 +211,7 @@ export const CardStage: React.FC<{
     : lerpState(sizeIn(poseOf(before)), sizeIn(poseOf(state)), p)) as {w: number; h: number; hy: number};
   const {cx, cy} = centre(pose);
   const cw = size.w, ch = size.h;
+  const heroW = cw;
   const live: Pose = {...pose, ry: pose.ry + sway};
   // what sits ON the face (lifted parts, marks) belongs to that face: when the face changes in the same move, the old
   // face's parts are gone before the swap at the middle of the move and the new face's arrive after it — they used
@@ -239,13 +260,56 @@ export const CardStage: React.FC<{
     return zoom > 1 ? {x: camX + q.x * zoom, y: camY + q.y * zoom} : q;
   };
   const viewCx = zoom > 1 ? camX + cx * zoom : cx;
+  /** a point of the camera's world → where it is in the frame */
+  const toView = (q: {x: number; y: number}) => (zoom > 1 ? {x: camX + q.x * zoom, y: camY + q.y * zoom} : q);
+
+  // ── the hero can leave the stage to the others (a wall, side cards) and come back ──
+  const heroOn = (before.hero === false ? 0 : 1) + ((state.hero === false ? 0 : 1) - (before.hero === false ? 0 : 1)) * p;
+
+  // ── side cards: each its own face and pose, keyed by id; one that stays moves between its poses ──
+  const sideOf = (st: State) => (Array.isArray(st.cards) ? (st.cards as SideCard[]) : [])
+    .filter((c) => c && typeof c.id === 'string');
+  const sides = presence<SideCard>(before.cards, state.cards, p, p, (c) => c.id).map(({item, on}) => {
+    const a = sideOf(before).find((c) => c.id === item.id), b = sideOf(state).find((c) => c.id === item.id);
+    const c = (a && b && p < 1 ? lerpState(a, b, p) : item) as SideCard;
+    const asp = Math.max(0.3, c.aspect ?? (c.image && c.imageAspect ? c.imageAspect : 16 / 9));
+    let w = (c.w ?? 0.45) * W, h = w / asp;
+    if (h > (zoneBot - zoneTop) * 0.96) { h = (zoneBot - zoneTop) * 0.96; w = h * asp; }
+    const pose: Pose = {x: c.x ?? 0, y: c.y ?? 0, s: 1, rx: c.rx ?? 0, ry: (c.ry ?? 0) + sway, rz: c.rz ?? 0, aspect: asp};
+    return {c, on, w, h, cx: W / 2 + pose.x * W, cy: zoneMid.y + pose.y * H, pose};
+  });
+  type SideG = (typeof sides)[number];
+  /** a place on a side card's face → where it is in the frame */
+  const onSide = (g: SideG, u: number, v: number) => {
+    const q = turn((u - 0.5) * g.w, (v - 0.5) * g.h, g.pose, persp);
+    return toView({x: g.cx + q.x, y: g.cy + floatY + q.y});
+  };
+
+  // ── the wall: thumbnails across the zone, arriving one after another; `pick` lifts one out of the rest ──
+  const wallA = before.wall as Wall | undefined, wallB = state.wall as Wall | undefined;
+  const wall = wallB ?? wallA;
+  const wallOn = wallA && wallB ? 1 : wallB ? p : wallA ? 1 - p : 0;
+  const wallCells = (() => {
+    if (!wall || !Array.isArray(wall.images) || !wall.images.length || wallOn <= 0) return [];
+    const n = wall.images.length, cols = Math.max(1, Math.min(n, Math.round(wall.cols ?? (portrait ? 3 : 4))));
+    const rows = Math.ceil(n / cols), asp = Math.max(0.3, wall.aspect ?? 16 / 9);
+    const gap = U * 0.018, availW = W * (portrait ? 0.88 : 0.76), availH = zoneBot - zoneTop;
+    let w = (availW - gap * (cols - 1)) / cols, h = w / asp;
+    if (rows * h + gap * (rows - 1) > availH) { h = (availH - gap * (rows - 1)) / rows; w = h * asp; }
+    const x0 = W / 2 - (cols * w + gap * (cols - 1)) / 2, y0 = zoneMid.y - (rows * h + gap * (rows - 1)) / 2;
+    const pa = typeof wallA?.pick === 'number' ? wallA.pick : undefined, pb = typeof wallB?.pick === 'number' ? wallB.pick : undefined;
+    const pick = pb === undefined ? (p < 0.5 ? pa : undefined) : pa === undefined ? (p >= 0.5 ? pb : undefined)
+      : Math.round(pa + (pb - pa) * p);
+    return wall.images.map((img, i) => ({img, i, x: x0 + (i % cols) * (w + gap), y: y0 + Math.floor(i / cols) * (h + gap), w, h,
+      a: easeOutCubic(clamp01(wallOn * 1.8 - (i / n) * 0.8)), picked: pick === i, dim: pick !== undefined && pick !== i}));
+  })();
 
   // ── the face. A face that changes is swapped at the middle of the move, where the card travels fastest: a cross-fade
   // across the whole move read as a double exposure, and fading out through the card's surface blinked the card to the
   // ground's colour on a dark DNA ──
   const fit = (state.fit as 'cover' | 'contain' | undefined) ?? 'cover';
-  const drawFace = (f: Face) => f.image ? (
-    <Img src={staticFile(f.image)} style={{position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: fit,
+  const drawFace = (f: Face, cw: number = heroW, fitAs: 'cover' | 'contain' = fit) => f.image ? (
+    <Img src={staticFile(f.image)} style={{position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: fitAs,
       display: 'block'}} />
   ) : f.page ? (
     // a page the card draws reads at the card's own size — its type was 2.8% of the card's width, under the floor on a
@@ -369,21 +433,10 @@ export const CardStage: React.FC<{
 
   // ── a name beside a place: a pill on the side of the card with more room, joined to the place by a short line ──
   const labelPx = Math.round(U * 0.034);
-  /** A name for a part of the face: a pill beside the part's box on screen — right or left of it (the side its centre
-   *  leans to first), else above or below it — the first place that stays in the frame and off the part, joined to the
-   *  part by a short line. In a portrait frame the card is nearly as wide as the frame, so beside it there is no room
-   *  and a pill set there covered the very part it named. */
-  const pill = (key: string, box: {x0: number; y0: number; x1: number; y1: number}, text: string, on: number,
-    big?: string, bigRange?: string[]) => {
-    const bodyFamily = dna?.uniformType ? dna.fontMono : (dna?.fontBody ?? 'system-ui');
-    const bigPx = Math.round(labelPx * 1.9);
-    const wText = text ? measureText({text, fontFamily: bodyFamily, fontSize: labelPx, fontWeight: '700'}).width : 0;
-    // a counting figure is measured at its WIDEST, so the plate holds one size while it counts — re-measured each
-    // frame, the plate (and the name under the figure) re-laid itself as the digits changed
-    const wBig = Math.max(0, ...(bigRange ?? (big !== undefined ? [big] : [])).map((b) => measureText({text: b,
-      fontFamily: family, fontSize: bigPx, fontWeight: '800'}).width));
-    const padY = labelPx * 0.3, padX = labelPx * 0.55;
-    const pw = Math.max(wText, wBig) + 2 * padX, ph = (text ? labelPx * 1.2 : 0) + (big !== undefined ? bigPx * 1.05 : 0) + 2 * padY;
+  /** Where a pw×ph thing goes beside a box on screen: right or left of it (the side its centre leans to first), else
+   *  above or below it — the first place that stays in the frame and off the box — with the two ends of the line that
+   *  joins them (a: on the box, b: on the thing). */
+  const spotNear = (box: {x0: number; y0: number; x1: number; y1: number}, pw: number, ph: number) => {
     const gap = U * 0.045, margin = W * 0.03, top = zoneTop - U * 0.02, bottom = zoneBot;
     const midX = (box.x0 + box.x1) / 2, midY = (box.y0 + box.y1) / 2;
     const clampX = (x: number) => Math.min(Math.max(x, margin), W - margin - pw);
@@ -398,8 +451,26 @@ export const CardStage: React.FC<{
     const below: Spot = {x: clampX(midX - pw / 2), y: box.y1 + gap * 0.6, ax: midX, ay: box.y1, bx: midX,
       by: box.y1 + gap * 0.6, ok: box.y1 + gap * 0.6 + ph <= bottom};
     const order = midX >= viewCx ? [right, left, above, below] : [left, right, above, below];
-    const at = order.find((o) => o.ok) ?? {...right, x: clampX(right.x)};
-    const len = Math.hypot(at.bx - at.ax, at.by - at.ay), ang = Math.atan2(at.by - at.ay, at.bx - at.ax);
+    return order.find((o) => o.ok) ?? {...right, x: clampX(right.x)};
+  };
+  /** A name for a part of the face: a pill beside the part's box on screen — right or left of it (the side its centre
+   *  leans to first), else above or below it — the first place that stays in the frame and off the part, joined to the
+   *  part by a short line. In a portrait frame the card is nearly as wide as the frame, so beside it there is no room
+   *  and a pill set there covered the very part it named. */
+  const pill = (key: string, box: {x0: number; y0: number; x1: number; y1: number}, text: string, on: number,
+    big?: string, bigRange?: string[], badge?: boolean) => {
+    const bodyFamily = dna?.uniformType ? dna.fontMono : (dna?.fontBody ?? 'system-ui');
+    const bigPx = Math.round(labelPx * 1.9);
+    const wText = text ? measureText({text, fontFamily: bodyFamily, fontSize: labelPx, fontWeight: '700'}).width : 0;
+    // a counting figure is measured at its WIDEST, so the plate holds one size while it counts — re-measured each
+    // frame, the plate (and the name under the figure) re-laid itself as the digits changed
+    const wBig = Math.max(0, ...(bigRange ?? (big !== undefined ? [big] : [])).map((b) => measureText({text: b,
+      fontFamily: family, fontSize: bigPx, fontWeight: '800'}).width));
+    const padY = labelPx * 0.3, padX = labelPx * 0.55;
+    const pw = Math.max(wText, wBig) + 2 * padX, ph = (text ? labelPx * 1.2 : 0) + (big !== undefined ? bigPx * 1.05 : 0) + 2 * padY;
+    // a BADGE has no place on the hero to point at (the hero has left the stage): it stands at the title's right end
+    const at = badge ? {x: W - W * 0.065 - pw, y: TITLE_Y, ax: 0, ay: 0, bx: 0, by: 0} : spotNear(box, pw, ph);
+    const len = badge ? 0 : Math.hypot(at.bx - at.ax, at.by - at.ay), ang = Math.atan2(at.by - at.ay, at.bx - at.ax);
     return (
       <React.Fragment key={key}>
         <div style={{position: 'absolute', left: at.ax, top: at.ay - stroke / 2, width: len, height: stroke,
@@ -418,6 +489,41 @@ export const CardStage: React.FC<{
       </React.Fragment>
     );
   };
+  const boxPts = (pts: {x: number; y: number}[]) => ({x0: Math.min(...pts.map((q) => q.x)), y0: Math.min(...pts.map((q) => q.y)),
+    x1: Math.max(...pts.map((q) => q.x)), y1: Math.max(...pts.map((q) => q.y))});
+  const poly = (pts: {x: number; y: number}[]) => pts.map((q) => `${q.x},${q.y}`).join(' ');
+
+  // ── trace: the same thing in two places — a box on a side card, a box on the hero, a line drawn between them ──
+  const traceOf = (st: State) => (st.trace && typeof st.trace === 'object' ? [st.trace as Trace] : []);
+  const traceArt = presence<Trace>(traceOf(before), traceOf(state), p, p, (t) => JSON.stringify(t))
+    .filter(({item, on}) => on > 0 && rectOk(item.from) && rectOk(item.to) && sides.some((g) => g.c.id === item.card))
+    .map(({item, on}) => {
+      const g = sides.find((x) => x.c.id === item.card)!;
+      const [a0, b0, a1, b1] = item.from, [c0, d0, c1, d1] = item.to;
+      const fp = [onSide(g, a0, b0), onSide(g, a1, b0), onSide(g, a1, b1), onSide(g, a0, b1)];
+      const tp = [onView(c0, d0), onView(c1, d0), onView(c1, d1), onView(c0, d1)];
+      const fb = boxPts(fp), tb = boxPts(tp);
+      // the line leaves the side card's box on the side facing the hero's box, and lands on the hero's box
+      const down = (tb.y0 + tb.y1) / 2 > (fb.y0 + fb.y1) / 2;
+      const s0 = {x: (fb.x0 + fb.x1) / 2, y: down ? fb.y1 : fb.y0}, e0 = {x: (tb.x0 + tb.x1) / 2, y: down ? tb.y0 : tb.y1};
+      const dy = e0.y - s0.y;
+      return {key: JSON.stringify(item), on, fp, tp, tb, label: item.label, draw: clamp01(on * 1.4 - 0.2),
+        path: `M ${s0.x} ${s0.y} C ${s0.x} ${s0.y + dy * 0.5}, ${e0.x} ${e0.y - dy * 0.5}, ${e0.x} ${e0.y}`};
+    });
+
+  // ── panel: a panel opening at a place of the hero's face — its title and rows are the film's own data ──
+  const panelA = before.panel as Panel | undefined, panelB = state.panel as Panel | undefined;
+  const panel = panelB ?? panelA;
+  const panelOn = panelA && panelB ? 1 : panelB ? p : panelA ? 1 - p : 0;
+  const panelArt = (() => {
+    if (!panel || !Array.isArray(panel.rows) || !panel.rows.length || panelOn <= 0 ||
+        typeof panel.u !== 'number' || typeof panel.v !== 'number') return null;
+    const rowPx = Math.round(labelPx * 0.95), rowH = rowPx * 1.75, headH = panel.title ? rowPx * 2.1 : 0;
+    const pad = rowPx * 0.7, pw = W * (portrait ? 0.62 : 0.3), ph = headH + panel.rows.length * rowH + pad * 2;
+    const at0 = onView(panel.u, panel.v);
+    return {sp: spotNear({x0: at0.x, y0: at0.y, x1: at0.x, y1: at0.y}, pw, ph), pw, ph, rowPx, rowH, headH, pad};
+  })();
+
   /** the screen box of a rect of the face (its four corners carried through the pose) */
   const boxOf = (rc: Rect) => {
     const pts = [onView(rc[0], rc[1]), onView(rc[2], rc[1]), onView(rc[2], rc[3]), onView(rc[0], rc[3])];
@@ -431,6 +537,16 @@ export const CardStage: React.FC<{
   const rim = dark ? ground : mix(ground, '#000000', 0.035);
   const shadowTop = Math.min(cy + size.hy * 0.96, zoneBot - U * 0.03);
   const cardShadow = dark ? 'rgba(0,0,0,0.55)' : mix(ink.fg, ink.bg, 0.75);
+  const sideCard = (g: SideG) => {
+    const e = easeOutCubic(g.on);
+    const t = `translate(${g.cx - g.w / 2}px, ${g.cy + floatY - g.h / 2 + (1 - e) * U * 0.04}px) perspective(${persp}px) ` +
+      `rotateX(${g.pose.rx}deg) rotateY(${g.pose.ry}deg) rotateZ(${g.pose.rz}deg) scale(${0.92 + 0.08 * e})`;
+    return <div key={`c${g.c.id}`} style={{position: 'absolute', left: 0, top: 0, width: g.w, height: g.h, transform: t,
+      transformOrigin: 'center center', opacity: g.on, borderRadius: r, overflow: 'hidden', background: ink.surface,
+      boxShadow: `0 ${U * 0.02}px ${U * 0.06}px ${cardShadow}, 0 0 0 1px ${mix(ink.fg, ink.bg, 0.88)}`}}>
+      {drawFace({image: g.c.image, page: g.c.page}, g.w, g.c.fit ?? 'cover')}
+    </div>;
+  };
   return (
     <AbsoluteFill style={{background: `radial-gradient(ellipse 70% 55% at 50% ${(zoneMid.y / H) * 100}%, ` +
       `${glow} 0%, ${ground} 72%, ${rim} 100%)`}}>
@@ -440,12 +556,24 @@ export const CardStage: React.FC<{
         WebkitMaskImage: viewport, maskImage: viewport} : {})}}>
       <div style={{position: 'absolute', left: 0, top: 0, width: W, height: H, transformOrigin: '0 0',
         transform: zoom > 1 ? `translate(${camX}px, ${camY}px) scale(${zoom})` : undefined}}>
+        {wallCells.map((c) => (
+          <div key={`w${c.i}`} style={{position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h, overflow: 'hidden',
+            borderRadius: r * 0.6, background: ink.surface, opacity: c.a * (c.dim ? 0.5 : 1), zIndex: c.picked ? 2 : 1,
+            transform: `translateY(${(1 - c.a) * U * 0.05 + idle * Math.sin((2 * Math.PI * sec) / 5.5 + c.i * 0.9) * U * 0.006}px) ` +
+              `scale(${(0.9 + 0.1 * c.a) * (c.picked ? 1.1 : 1)})`,
+            boxShadow: c.picked ? `0 0 0 ${stroke * 1.5}px ${ink.acc}, 0 ${U * 0.02}px ${U * 0.05}px ${cardShadow}`
+              : `0 ${U * 0.008}px ${U * 0.02}px ${cardShadow}`}}>
+            <Img src={staticFile(c.img)} style={{width: '100%', height: '100%', objectFit: 'cover', display: 'block'}} />
+          </div>
+        ))}
+        {sides.filter((g) => !g.c.front).map(sideCard)}
         {/* the card's shadow on the floor of the stage */}
         <div style={{position: 'absolute', left: cx - cw * 0.42 * pose.s, top: shadowTop, width: cw * 0.84 * pose.s,
           height: U * 0.04, borderRadius: '50%', background: dark ? '#000000' : mix(ink.fg, ink.bg, 0.6),
-          opacity: dark ? 0.6 : 0.35, filter: `blur(${U * 0.028}px)`}} />
+          opacity: (dark ? 0.6 : 0.35) * heroOn, filter: `blur(${U * 0.028}px)`}} />
+        {/* opacity only while it fades: below 1 it flattens the 3D of the lifted parts */}
         <div style={{position: 'absolute', left: 0, top: 0, width: cw, height: ch, transform, transformOrigin: 'center center',
-          transformStyle: 'preserve-3d'}}>
+          transformStyle: 'preserve-3d', opacity: heroOn < 1 ? heroOn : undefined}}>
           {/* the face itself: a shadow is darker than the ground on any ground — a mix toward the ink was a pale halo */}
           <div style={{position: 'absolute', inset: 0, borderRadius: r, overflow: 'hidden', background: ink.surface,
             boxShadow: `0 ${U * 0.02}px ${U * 0.06}px ${cardShadow}, 0 0 0 1px ${mix(ink.fg, ink.bg, 0.88)}`}}>
@@ -474,14 +602,59 @@ export const CardStage: React.FC<{
             );
           })}
         </div>
+        {sides.filter((g) => g.c.front).map(sideCard)}
       </div>
       </div>
         {marks.filter(({item}) => item.label).map(({item, on}) => pill(`p${rid(item)}`, boxOf(item.rect), item.label!, on))}
+        {traceArt.length ? (
+          <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0, overflow: 'visible'}}>
+            {traceArt.map((t) => (
+              <g key={t.key} opacity={t.on}>
+                <polygon points={poly(t.fp)} fill={`${hex6(ink.acc)}22`} stroke={ink.acc} strokeWidth={stroke} strokeLinejoin="round" />
+                <polygon points={poly(t.tp)} fill={`${hex6(ink.acc)}22`} stroke={ink.acc} strokeWidth={stroke} strokeLinejoin="round" />
+                <path d={t.path} fill="none" stroke={ink.acc} strokeWidth={stroke * 1.2} strokeLinecap="round" pathLength={1}
+                  strokeDasharray="1 1" strokeDashoffset={1 - t.draw} />
+              </g>
+            ))}
+          </svg>
+        ) : null}
+        {traceArt.filter((t) => t.label).map((t) => pill(`t${t.key}`, t.tb, t.label!, t.on))}
+        {panel && panelArt ? (() => {
+          const {sp, pw, ph, rowPx, rowH, headH, pad} = panelArt;
+          const len = Math.hypot(sp.bx - sp.ax, sp.by - sp.ay), ang = Math.atan2(sp.by - sp.ay, sp.bx - sp.ax);
+          return (
+            <React.Fragment>
+              <div style={{position: 'absolute', left: sp.ax, top: sp.ay - stroke / 2, width: len, height: stroke,
+                background: ink.acc, opacity: panelOn, transformOrigin: '0 50%', transform: `rotate(${ang}rad) scaleX(${panelOn})`}} />
+              <div style={{position: 'absolute', ...place(!now.reduced, sp.x, sp.y, `scale(${0.9 + 0.1 * panelOn})`),
+                width: pw, height: ph, boxSizing: 'border-box', transformOrigin: `${sp.bx - sp.x}px ${sp.by - sp.y}px`,
+                opacity: panelOn, background: ink.surface, color: ink.fg, borderRadius: rowPx * 0.5, padding: pad,
+                boxShadow: `0 ${U * 0.012}px ${U * 0.04}px ${dark ? 'rgba(0,0,0,0.5)' : mix(ink.fg, ink.bg, 0.75)}, ` +
+                  `0 0 0 1px ${mix(ink.fg, ink.surface, 0.85)}`}}>
+                {panel.title ? <div style={{height: headH, display: 'flex', alignItems: 'center', color: ink.dim,
+                  font: `700 ${rowPx}px/1.2 var(--f-body, system-ui)`, borderBottom: `1px solid ${mix(ink.fg, ink.surface, 0.88)}`,
+                  boxSizing: 'border-box'}}>{panel.title}</div> : null}
+                {panel.rows.map(([k, v], i) => (
+                  <div key={i} style={{height: rowH, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: `0 ${rowPx * 0.4}px`, borderRadius: rowPx * 0.3,
+                    background: i === panel.highlight ? `${hex6(ink.acc)}1f` : undefined,
+                    color: i === panel.highlight ? ink.acc : ink.fg}}>
+                    <span style={{font: `600 ${rowPx}px/1 var(--f-body, system-ui)`, whiteSpace: 'nowrap'}}>{k}</span>
+                    <span style={{font: `700 ${rowPx}px/1 var(--f-mono, ui-monospace, monospace)`,
+                      fontVariantNumeric: 'tabular-nums lining-nums', whiteSpace: 'nowrap'}}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </React.Fragment>
+          );
+        })() : null}
         {countNow && countShown !== null ? (() => {
           const at = onView(countNow.u ?? 0.92, countNow.v ?? 0.1);
           const lo = countNow.from ?? 0;
+          // with the hero off the stage a count has no place on it to stand beside: it becomes the title's badge
           return pill('count', {x0: at.x, y0: at.y, x1: at.x, y1: at.y}, countNow.label ?? '', countIn,
-            fmtNumber(countShown, countNow.value), [fmtNumber(lo, countNow.value), fmtNumber(countNow.value, countNow.value)]);
+            fmtNumber(countShown, countNow.value), [fmtNumber(lo, countNow.value), fmtNumber(countNow.value, countNow.value)],
+            heroOn < 0.5);
         })() : null}
         {clickAt && rippleU > 0 && rippleU < 1 ? <TapRipple x={clickAt.x} y={clickAt.y} u={rippleU} color={ink.acc}
           size={U * 0.06} /> : null}
