@@ -1,5 +1,7 @@
 # topic-to-video: any topic, made into a short video
 
+[![AgentShield Security](https://merx.help/badge/A+.svg)](https://merx.help/shield)
+
 <p align="center">
   <a href="README_CN.md"><strong>简体中文</strong></a>
 </p>
