@@ -42,12 +42,46 @@ _TRANSITION_STYLE = {
     "through-dark": {"type": "through-dark"}, "flight": {"type": "through-dark"},
     "through-black": {"type": "through-dark"},
     "portal": {"type": "portal"}, "aperture": {"type": "portal"},
+    # the four that take hold of ONE thing on the frame, or land one beat (remotion/src/seams.tsx). A style word
+    # names no anchor, so `container`/`grow`/`through-window` spelled here still need `transition_in.carry` —
+    # validate.py refuses them without one rather than letting them become a fade.
+    "container": {"type": "container"}, "container-transform": {"type": "container"},
+    "shared-element": {"type": "container"},
+    "grow": {"type": "grow"}, "expand": {"type": "grow"},
+    "through-window": {"type": "through-window"}, "zoom-through": {"type": "through-window"},
+    "punch": {"type": "punch"}, "push-cut": {"type": "punch"}, "pushcut": {"type": "punch"},
 }
 # `focus`, `through-dark` and `portal` are the DEPTH seams (Film.tsx). They belong here or a storyboard that
 # asks for one is silently downgraded to a fade, which is the exact "built but unreachable" failure this
 # file's `transition_in` docstring was written about — and it has already cost this repo two deliveries.
 _KINETIC_TYPES = {"slide", "push", "lift", "wipe", "clock", "dissolve", "fadethrough", "drift", "blur",
-                  "carry", "focus", "through-dark", "portal", "return"}
+                  "carry", "focus", "through-dark", "portal", "return",
+                  "container", "grow", "through-window", "punch"}
+# The seams that take hold of a marked element (runtime/carry `data-carry`) and need to be told which one.
+ANCHORED_TYPES = {"container", "grow", "through-window"}
+# A match_cut's shapes, in the order the corner rounds (Film.tsx containerSpec).
+MATCH_SHAPES = ("box", "bar", "line", "dot")
+
+
+def match_cut_seam(prev_slide):
+    """The OUTGOING beat's `match_cut` as the container seam it now is, or None.
+
+    `match_cut: {shape, from: [cx,cy,w,h], to: [cx,cy,w,h]}` was validated and documented for years and drawn by
+    nothing — a dead spec. It is the container seam by declared rects: the region `from` on the leaving beat is
+    carried to the region `to` on the arriving one (remotion/src/seams.tsx). Shape sets the corner."""
+    mc = (prev_slide or {}).get("match_cut")
+    if not isinstance(mc, dict):
+        return None
+    fr, to = mc.get("from"), mc.get("to")
+    ok = lambda v: isinstance(v, (list, tuple)) and len(v) == 4 and all(  # noqa: E731
+        isinstance(x, (int, float)) and not isinstance(x, bool) for x in v)
+    if not (ok(fr) and ok(to)):
+        return None
+    out = {"type": "container", "from": [float(x) for x in fr], "to": [float(x) for x in to]}
+    shape = str(mc.get("shape", "box"))
+    if shape in MATCH_SHAPES:
+        out["shape"] = shape
+    return out
 
 
 # The runtime's own settled point, parsed from motion.ts so the two cannot drift: a keyframe must be the
@@ -133,7 +167,7 @@ def seam_type(word):
     return mapped["type"] if mapped else None
 
 
-def _transition_in(slide, travel=None):
+def _transition_in(slide, travel=None, prev=None):
     """Map a storyboard scene's transition intent → the Film `transitionIn` mark (or None = the safe default fade).
     Only a MARKED (kinetic) seam returns a value; the shot-director budgets ~2-3 per film for chapter breaks.
 
@@ -141,6 +175,9 @@ def _transition_in(slide, travel=None):
     RETURN. It arrives as an argument rather than being derived here because the vector is a property of the
     whole board — where this beat sits and where the one it names sits — and a per-slide function cannot see
     that. One definition, in `film_board`, used by the planner, the validator and this emitter alike.
+
+    `prev` is the beat before, for its `match_cut` (the container by declared rects, `match_cut_seam`); a seam this
+    beat names itself wins over it, and validate.py refuses a board where the two disagree.
     """
     if travel is not None:
         dx, dy = travel
@@ -156,9 +193,19 @@ def _transition_in(slide, travel=None):
             out = {"type": t}
             if ti.get("direction"):
                 out["direction"] = ti["direction"]
+            # the anchored seams carry WHICH element they hold (validate.py checks it against the registers)
+            if t in ANCHORED_TYPES:
+                for k in ("carry", "from", "to", "shape"):
+                    if ti.get(k) is not None:
+                        out[k] = ti[k]
             return out
     style = (slide.get("transition_style") or "").strip().lower()
-    return dict(_TRANSITION_STYLE[style]) if style in _TRANSITION_STYLE else None
+    if style in _TRANSITION_STYLE:
+        out = dict(_TRANSITION_STYLE[style])
+        if out["type"] in ANCHORED_TYPES and isinstance(ti, dict) and ti.get("carry") is not None:
+            out["carry"] = ti["carry"]
+        return out
+    return match_cut_seam(prev)
 
 
 _CAMERA_MOVES = ("push", "pull", "hold")
@@ -193,6 +240,10 @@ def _camera(slide):
             out["pan"] = [float(pan[0]), float(pan[1])]
         except (TypeError, ValueError):
             pass
+    # THE HAND-OFF: the move runs into its cut and the next beat inherits its velocity (Film.tsx HandoffCamera).
+    # Only `true` reaches the film — a truthy string is not an instruction to move two beats.
+    if cam.get("handoff") is True:
+        out["handoff"] = True
     return out
 
 
@@ -608,7 +659,8 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         spans = _caption_word_spans(out_dir, audio, caption)
         if spans:
             scene["capWords"] = spans
-        tin = _transition_in(s, _travels.get(i))   # a MARKED seam → Film's kinetic transition; else the safe fade
+        # a MARKED seam → Film's kinetic transition; else the safe fade. The beat before is passed for its match_cut.
+        tin = _transition_in(s, _travels.get(i), slides[i - 1] if i > 0 else None)
         if tin:
             scene["transitionIn"] = tin
         cam = _camera(s)          # a MOTIVATED per-beat move (push/pull); absent = hold

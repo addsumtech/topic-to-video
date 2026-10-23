@@ -235,7 +235,10 @@ finding it prints that you do not understand.
   result share the screen · `close` → `carry`; `continuation` is never marked, because most cuts should be
   invisible and a mark only reads as punctuation while it stays rare), keeping them ≥5 beats apart and
   luminance-safe; and `validate.py` WARNS when a film of ≥12 beats carries no mark at all, or when more than
-  ~1-in-8 are marked. An explicit authored `transition_in` always wins over the plan.
+  ~1-in-8 are marked. An explicit authored `transition_in` always wins over the plan. Where the beats' registers
+  draw ANCHORS (`python3 scripts/carry_anchors.py [Register]` lists them, read from the source) the plan reaches for
+  the anchored seams — `container`, `grow`, `through-window`, `punch` — and sets `camera.handoff` on a move that
+  continues across an unmarked cut; `references/motion-grammar.md` "The anchored seams" says when each is right.
   **REAL IMAGERY IS EVIDENCE, SO GIVE IT THE FRAME.** `imagefetch.py` returns license-clean photographs of
   the ACTUAL subject, and the tier used to spend them as insets: measured on a delivered film about a
   physical city, the real images occupied 5.3%, 8.5% and 16.3% of the frame — the evidence was a footnote in

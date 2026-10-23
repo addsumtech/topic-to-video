@@ -492,6 +492,38 @@ const cameraTypeBoxes = (root: HTMLElement, W: number): EdgeBox[] => {
 };
 
 /**
+ * What a beat's camera may spend, as one definition: the cap the caption band and the drift leave (`maxCameraPush`),
+ * the move it asks for, the baseline unlock's overscan when the camera moves, and the `amp` that remains for the move
+ * itself. SceneCamera draws with it; Film's camera hand-off (a move that runs into its cut and the next beat that
+ * inherits its velocity) reads the same numbers, so the velocity handed across a cut is the velocity on screen.
+ */
+export const cameraBudget = (o: {W: number; H: number; move?: CameraMove; amount?: number; pan?: [number, number];
+  driftExtra?: number; driftTranslate?: number; bed?: boolean; reduced?: boolean; unlockAllowed?: boolean;
+  driven?: boolean}) => {
+  const {W, H, move = 'hold', amount, pan, driftExtra = 0, driftTranslate = 0, bed = false, reduced = false,
+    unlockAllowed = true, driven = false} = o;
+  const cap = maxCameraPush(W, H, driftExtra, driftTranslate);
+  // THE DEFAULT AMOUNT IS DERIVED FROM THE ROOM, not hand-set. 0.045 was a number chosen once at 16:9 and
+  // then clamped everywhere else — at 9:16 the cap is 4.7%, so the "default" was 96% of the maximum there
+  // and 45% of it at 16:9: the same authored intent produced two different moves. Three-quarters of the
+  // cap is the same fraction of the available headroom at every aspect and every drift level, which is
+  // what "a gentle push" should mean.
+  const want = reduced ? 0 : Math.max(0, Math.min(amount ?? cap * (bed ? BED_AMOUNT_FRAC : 0.75), cap));
+  const originY = (CONTENT_TOP + contentBottom(W, H)) / 2;
+  // THE BASELINE UNLOCK RIDES EVERY FRAME OF A BEAT WHOSE CAMERA MOVES — the frames before a push starts and
+  // after a pull lands included. Switched on with the move instead, the type would jump from pixel-snapped to
+  // quarter-snapped on the frame the camera sets off: one pop in place of the sawtooth. A beat that holds (or
+  // runs under reduced motion) gets none of it, so its frames are exactly what they were. The overscan the
+  // skew needs comes out of the same cap as the move, so the two together never reach past maxCameraPush.
+  // (BaselineUnlockContext false — an identity proof — draws the camera exactly as it was before the unlock.)
+  const unlockScale = baselineUnlockOverscan(W, H, originY);
+  const moves = unlockAllowed && !reduced && (driven || (want > 0 && move !== 'hold') || clampPan(pan) !== null);
+  const unlock = moves && cap > unlockScale ? unlockScale : 0;
+  const amp = Math.max(0, Math.min(want, cap - unlock));
+  return {cap, want, originY, unlock, amp, moves};
+};
+
+/**
  * Wraps ONE scene's shot: applies the camera's 2D scale and publishes the push so `Plane`s can parallax.
  *
  * The transform origin is the centre of the CONTENT ZONE, not of the frame. Scaling about the frame centre
@@ -525,30 +557,24 @@ export const SceneCamera: React.FC<{
   children?: React.ReactNode;
   /** this camera is the BED: derive the smaller BED_AMOUNT_FRAC of the cap instead of a move's 0.75 */
   bed?: boolean;
-}> = ({move = 'hold', amount, pan, driftExtra = 0, driftTranslate = 0, bed = false, children}) => {
+  /**
+   * A move DRIVEN from outside, frame by frame — the camera hand-off (Film.tsx `HandoffCamera`): the extra scale this
+   * frame (already inside `cameraBudget`'s cap) and whether the beat's camera moves at all (the unlock's span). It is
+   * the beat's ONE channel: `move`, `amount`, `pan` and the bed are not read alongside it.
+   */
+  drive?: {extra: number; moving: boolean};
+}> = ({move = 'hold', amount, pan: panAsked, driftExtra = 0, driftTranslate = 0, bed = false, drive, children}) => {
   const {width: W, height: H} = useVideoConfig();
   const reduced = React.useContext(ReducedMotionContext);
   const unlockAllowed = React.useContext(BaselineUnlockContext);
   const t = useT();
-  const cap = maxCameraPush(W, H, driftExtra, driftTranslate);
-  // THE DEFAULT AMOUNT IS DERIVED FROM THE ROOM, not hand-set. 0.045 was a number chosen once at 16:9 and
-  // then clamped everywhere else — at 9:16 the cap is 4.7%, so the "default" was 96% of the maximum there
-  // and 45% of it at 16:9: the same authored intent produced two different moves. Three-quarters of the
-  // cap is the same fraction of the available headroom at every aspect and every drift level, which is
-  // what "a gentle push" should mean.
-  const want = reduced ? 0 : Math.max(0, Math.min(amount ?? cap * (bed ? BED_AMOUNT_FRAC : 0.75), cap));
-  const originY = (CONTENT_TOP + contentBottom(W, H)) / 2;
-  // THE BASELINE UNLOCK RIDES EVERY FRAME OF A BEAT WHOSE CAMERA MOVES — the frames before a push starts and
-  // after a pull lands included. Switched on with the move instead, the type would jump from pixel-snapped to
-  // quarter-snapped on the frame the camera sets off: one pop in place of the sawtooth. A beat that holds (or
-  // runs under reduced motion) gets none of it, so its frames are exactly what they were. The overscan the
-  // skew needs comes out of the same cap as the move, so the two together never reach past maxCameraPush.
-  // (BaselineUnlockContext false — an identity proof — draws the camera exactly as it was before the unlock.)
-  const unlockScale = baselineUnlockOverscan(W, H, originY);
-  const moves = unlockAllowed && !reduced && ((want > 0 && move !== 'hold') || clampPan(pan) !== null);
-  const unlock = moves && cap > unlockScale ? unlockScale : 0;
-  const amp = Math.max(0, Math.min(want, cap - unlock));
-  const push = amp > 0 ? cameraAt(move, t) : 0;
+  const pan = drive ? undefined : panAsked;
+  // the move's cap, its amount and the unlock's overscan: `cameraBudget` (above), which the camera hand-off reads
+  const {cap, originY, unlock, amp: ampMove} = cameraBudget({W, H, move: drive ? 'hold' : move, amount, pan, driftExtra,
+    driftTranslate, bed, reduced, unlockAllowed, driven: Boolean(drive && drive.moving)});
+  const driven = drive && !reduced ? Math.max(0, Math.min(drive.extra, cap - unlock)) : null;
+  const amp = driven !== null ? driven : ampMove;
+  const push = driven !== null ? (driven > 0 ? 1 : 0) : amp > 0 ? cameraAt(move, t) : 0;
   // A pan needs overscan to travel in. On a HOLD the push provides none, so the pan brings its own — the
   // same three-quarters-of-the-cap a gentle push would have taken, held CONSTANT so the frame does not also
   // zoom. Reduced motion zeroes it with everything else.

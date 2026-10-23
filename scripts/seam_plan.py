@@ -24,8 +24,18 @@ So the intent the storyboard ALREADY carries is translated into seams here. Ever
 seam that cannot flash: a `payoff` becomes `focus`, a `new-topic` becomes `through-dark` (out through black
 and in again, which is what a chapter break is saying), everything else the `carry`.
 
-`continuation` is never marked. Most cuts should be invisible; a marked seam only means something while
-it stays rare, which is why the budget is 2 on a short film and 3 on a long one, never per-chapter.
+`continuation` is marked only by the one seam that reads as no seam at all — a CONTAINER, when the two beats'
+registers draw the same anchor (scripts/carry_anchors.py): the element stays on screen and is re-framed, which is
+the strongest continuity claim a cut can make. Otherwise most cuts should be invisible; a marked seam only means
+something while it stays rare, which is why the budget is 2 on a short film and 3 on a long one, never per-chapter.
+
+THE ANCHORED SEAMS take precedence where the beats can carry them, each at most once per film (a move mastered,
+not a menu) — remotion/src/seams.tsx draws them and references/motion-grammar.md says when each is right:
+
+  shared anchor (A and B draw the same id) → `container`       this IS that, re-framed
+  new-topic, A draws a `screen`/`window`   → `through-window`  the next subject is inside this screen
+  new-topic, A draws any other anchor      → `grow`            the next subject opens out of this thing
+  payoff that is the climax or at `peak`   → `punch`           the one hard landing
 
 TWO CONSTRAINTS MAKE THE PLAN, NOT TASTE:
 
@@ -215,6 +225,10 @@ CROSSING_PAYOFF_SEAM = {"type": "focus"}
 # of what a chapter break across a light boundary is claiming.
 CROSSING_NEW_TOPIC_SEAM = {"type": "through-dark"}
 
+# Which anchors a through-window can go INTO: a surface that shows something. A card or a figure is a thing, and
+# pushing into a thing is a grow's claim, not a window's.
+WINDOW_ANCHORS = ("screen", "window")
+
 MIN_GAP = 5          # beats between two marked seams, so a mark stays punctuation
 _LUM_RANK = {"dark": 0, "mid": 1, "light": 2}
 
@@ -241,6 +255,17 @@ def _harsh_gap():
 
 HARSH_GAP = _harsh_gap()
 
+_FILM = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "Film.tsx")
+
+
+def film_cannot_flash():
+    """The seams Film.tsx's luminance guard lets across a dark/light boundary — READ from its CANNOT_FLASH set, so
+    the planner and the validator cannot disagree with the guard about which marks survive a crossing."""
+    m = re.search(r"const CANNOT_FLASH = new Set\(\[([^\]]*)\]\)", open(_FILM, encoding="utf-8").read())
+    if not m:
+        raise SystemExit("[seam_plan] Film.tsx no longer declares CANNOT_FLASH — the planner cannot mirror its guard")
+    return set(re.findall(r"'([a-z-]+)'", m.group(1)))
+
 
 def _crosses(prev_shot, shot, dna=None):
     """Would Film.tsx force this seam back to a fade? (its luminance guard, mirrored exactly)
@@ -256,19 +281,102 @@ def _crosses(prev_shot, shot, dna=None):
     return abs(a - b) >= 2
 
 
-def plan(slides, dna=None):
+# A GROW IS ITS GROUND. The shape that opens out of the anchor is filled with the arriving beat's ground, so between
+# two beats on one ground it is invisible: rendered on the seam probe (two paper beats), the anchor simply faded out
+# and the frame sat empty until the next beat rose in. Below this display-encoded difference two grounds are taken
+# as one. The number is a floor chosen here, not a measured threshold of visibility — it only has to separate
+# "the same token" from "a different ground", and every declared key or ground counts as different outright.
+GROW_MIN_GAP = 0.05
+
+
+def _grounds_differ(prev, cur, dna):
+    """Do these two beats stand on visibly different grounds? A beat-level `key`/`ground` that differs decides it;
+    otherwise the two registers' own grounds under the film's DNA, as the luminance guard reads them."""
+    dk = lambda s: (s.get("key"), json.dumps(s.get("ground"), sort_keys=True))      # noqa: E731
+    if (prev.get("key") or prev.get("ground") is not None or cur.get("key") or cur.get("ground") is not None) \
+            and dk(prev) != dk(cur):
+        return True
+    gap = ground_gap(dna_ground_y(prev.get("shot"), dna), dna_ground_y(cur.get("shot"), dna))
+    return gap is not None and gap >= GROW_MIN_GAP
+
+
+def _anchored(prev, cur, rel, crossing, used, exempt, out_dir=None, dna=None):
+    """The anchored seam this cut can carry, as (seam, why) — or None. Each word at most once per film (`used`)."""
+    import carry_anchors as _ca
+    a_shot, b_shot = prev.get("shot"), cur.get("shot")
+    if crossing:
+        # only a word the guard lets across a dark/light boundary survives one; the rest would render as a fade
+        allowed = exempt
+    else:
+        allowed = {"container", "grow", "through-window", "punch"}
+    if "container" in allowed and "container" not in used and rel in ("continuation", "payoff", "close"):
+        common = _ca.shared(a_shot, b_shot, out_dir)
+        if common:
+            return ({"type": "container", "carry": common[0]},
+                    "both beats draw the '%s' — it stays on screen and is re-framed: this IS that" % common[0])
+    if rel == "new-topic":
+        a = _ca.anchors_of(a_shot, out_dir) or {"ids": set()}
+        wins = [x for x in WINDOW_ANCHORS if x in a["ids"]]
+        if wins and "through-window" in allowed and "through-window" not in used:
+            return ({"type": "through-window", "carry": wins[0]},
+                    "the next subject is inside the %s — the camera goes through it" % wins[0])
+        if a["ids"] and "grow" in allowed and "grow" not in used and _grounds_differ(prev, cur, dna):
+            aid = sorted(a["ids"])[0]
+            return ({"type": "grow", "carry": aid}, "the next subject opens out of the %s" % aid)
+    if rel == "payoff" and "punch" in allowed and "punch" not in used and (
+            cur.get("climax") is True or str(cur.get("energy") or "").lower() == "peak"):
+        return ({"type": "punch"}, "the climax lands hard — the film's one push cut")
+    return None
+
+
+def _exposure(slide, dna):
+    """'light' / 'dark' when a beat's exposure is known from its declaration or the film's DNA, else None. A
+    declared `key` is the exposure; a declared `ground` is not resolved here (it may be any colour), so None."""
+    k = slide.get("key")
+    if k in ("light", "dark"):
+        return k
+    if slide.get("ground") is not None:
+        return None
+    y = _rel_lum((dna or {}).get("bg")) if isinstance(dna, dict) else None
+    return None if y is None else ("light" if y > 0.18 else "dark")
+
+
+def crosses_beats(prev, cur, dna=None):
+    """`_crosses` for two BEATS: a beat's declared `key` re-lights it whatever its register paints, so two beats on
+    opposite keys cross even when their registers would not. Measured on the seam probe: a grow planned from a dark
+    beat into a `key: light` beat — `_crosses` reads registers only and called it safe, and Film drew a fade."""
+    a, b = _exposure(prev, dna), _exposure(cur, dna)
+    if a and b and a != b and (prev.get("key") or cur.get("key")):
+        return True
+    return _crosses(prev.get("shot"), cur.get("shot"), dna)
+
+
+def plan(slides, dna=None, out_dir=None):
     dna = _resolve_dna(dna)
-    """→ {beat_index: {"type": ..., "why": ...}} for the beats that should carry a marked seam.
+    """→ {beat_index: {"type": ..., "why": ..., "carry"?: ...}} for the beats that should carry a marked seam.
 
     Beat 0 is never a candidate: there is no seam before the first shot.
     """
+    try:
+        exempt = film_cannot_flash()
+    except SystemExit:
+        exempt = set()
     cands = []
     for i in range(1, len(slides)):
         rel = (slides[i].get("relation") or "").strip().lower()
         seam = SEAM_BY_RELATION.get(rel)
-        if not seam:
+        if not seam and rel != "continuation":
             continue
-        crossing = _crosses(slides[i - 1].get("shot"), slides[i].get("shot"), dna)
+        crossing = crosses_beats(slides[i - 1], slides[i], dna)
+        if not seam:
+            # a CONTINUATION is marked only by a container between two beats that draw the same anchor
+            import carry_anchors as _ca
+            common = _ca.shared(slides[i - 1].get("shot"), slides[i].get("shot"), out_dir)
+            if common and (not crossing or "container" in exempt):
+                cands.append((3, i, {"type": "container", "carry": common[0]},
+                              "both beats draw the '%s' — it stays on screen and is re-framed: this IS that"
+                              % common[0], rel))
+            continue
         if crossing:
             # Two seams survive the luminance guard, and they are not interchangeable. A `payoff` is the beat
             # where the argument lands, so the crossing form of it should still say "this became that":
@@ -290,7 +398,7 @@ def plan(slides, dna=None):
                    "close": "the last move reads as continuity, not one more swap"}[rel]
         # `close` is the film's ending and always the strongest candidate; then chapter breaks; then payoffs
         rank = {"close": 0, "new-topic": 1, "payoff": 2}[rel]
-        cands.append((rank, i, seam, why))
+        cands.append((rank, i, seam, why, rel))
 
     if not cands:
         return {}
@@ -302,12 +410,22 @@ def plan(slides, dna=None):
     targets = [n * (k + 1) / (budget + 1) for k in range(budget)]
 
     chosen = {}
-    for rank, i, seam, why in sorted(cands, key=lambda c: (c[0], min(abs(c[1] - t) for t in targets))):
+    used = set()
+    for rank, i, seam, why, rel in sorted(cands, key=lambda c: (c[0], min(abs(c[1] - t) for t in targets))):
         if len(chosen) >= budget:
             break
         if any(abs(i - j) < MIN_GAP for j in chosen):
             continue
-        chosen[i] = {"type": seam["type"], "why": why}
+        if seam["type"] == "container" and "container" in used:
+            continue                                   # a continuation container is a once-per-film claim
+        # AN ANCHORED SEAM WHERE THE BEATS CAN CARRY ONE, the relation's own word where they cannot
+        crossing = crosses_beats(slides[i - 1], slides[i], dna)
+        better = None if seam["type"] == "container" else _anchored(
+            slides[i - 1], slides[i], rel, crossing, used, exempt, out_dir, dna)
+        if better:
+            seam, why = better
+        used.add(seam["type"])
+        chosen[i] = dict(seam, why=why)
     return chosen
 
 
@@ -407,6 +525,28 @@ def plan_camera(slides):
     return chosen
 
 
+def plan_handoffs(slides, cams, marks):
+    """The planned moves that should HAND OFF across their cut (Film.tsx HandoffCamera) → [beat_index].
+
+    A push that comes to rest before every cut is a camera that stops for each edit, and across a CONTINUATION —
+    the same thought, one more beat of it — that stop is the seam showing. So a planned push or pull hands its
+    velocity to the next beat when that beat continues the thought, plans no move of its own and authors none (one
+    camera channel per beat), sits across an UNMARKED cut (a marked seam moves the frame itself), and neither beat
+    is a stage (which moves its own camera)."""
+    import stage_runs as _sr
+    out = []
+    for i, c in sorted(cams.items()):
+        if c.get("move") not in ("push", "pull") or i + 1 >= len(slides):
+            continue
+        a, b = slides[i], slides[i + 1]
+        if (str(b.get("relation") or "").strip().lower() != "continuation" or (i + 1) in cams or b.get("camera")
+                or a.get("camera") or (i + 1) in marks or b.get("transition_in") or b.get("transition_style")
+                or _sr.run_id(a) or _sr.run_id(b) or a.get("camera_pan")):
+            continue
+        out.append(i)
+    return out
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__.strip())
@@ -452,7 +592,7 @@ def _plan_film(argv, out_dir, dry, path, board):
         print("[seam_plan] %d beat(s) already carry an authored seam (%s) — leaving them alone"
               % (len(already), ", ".join(str(i + 1) for i in already)))
 
-    marks = plan(slides, board.get("meta", {}).get("design_dna"))
+    marks = plan(slides, board.get("meta", {}).get("design_dna"), out_dir)
     # A BEAT THAT CONTINUES A STAGE RUN has no cut before it (scripts/stage_runs.py): nothing to mark there
     import stage_runs as _sr
     for i in [i for i in marks if i > 0 and _sr.joined(slides[i - 1], slides[i])]:
@@ -471,20 +611,24 @@ def _plan_film(argv, out_dir, dry, path, board):
             continue
         print("  beat %-3d %s %-9s %s" % (i + 1, tag, m["type"], m["why"]))
         if not dry:
-            s["transition_in"] = {"type": m["type"]}
+            s["transition_in"] = {k: v for k, v in m.items() if k != "why"}
 
     cams = {} if "--no-camera" in argv else plan_camera(slides)
     for i in [i for i in cams if _sr.run_id(slides[i])]:
         del cams[i]                                    # a stage moves its own camera
+    handoffs = set(plan_handoffs(slides, cams, marks))
     for i, c in sorted(cams.items()):
         sl = slides[i]
         if sl.get("camera"):
             print("  beat %-3d skip camera (authored)" % (i + 1))
             continue
-        print("  beat %-3d %s camera %-5s %s" % (i + 1, "would" if dry else "set", c["move"], c["why"]))
+        hand = " — runs into the cut, beat %d inherits it" % (i + 2) if i in handoffs else ""
+        print("  beat %-3d %s camera %-5s %s%s" % (i + 1, "would" if dry else "set", c["move"], c["why"], hand))
         if not dry:
             sl["camera"] = {"move": c["move"]} if CAMERA_AMOUNT is None else \
                 {"move": c["move"], "amount": CAMERA_AMOUNT}
+            if i in handoffs:
+                sl["camera"]["handoff"] = True
 
     if not dry:
         json.dump(board, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
