@@ -245,6 +245,15 @@ META, and the slot that finds it by id and draws it at its box's size.
 **Smallest real use:** `<ObjectSlot object={props.object} box={{x, y, w, h}} t={objT} />`
 **Exports:** `ObjectSlot`, `ObjectRef`, `ObjectProps`, `ObjectMeta`, `ObjectEntry`, `fitAspect`, `useObjectEntry`, `resolveObject`, `ObjectsContext`, `SLOT_KEYS`.
 
+### `stageRun`
+The continuous stage: consecutive beats naming one `stage.run` are ONE scene drawn by one stage component. Each beat's
+props and each of its `steps` is a keyframe that says what changes (objects merge, `null` removes); a step arrives on
+its phrase. The stage at any frame is a pure function of the keyframes and the frame (references/stage-runs.md).
+**Reach for it:** only in a stage component (`remotion/src/stage/`) — never in a register, which is one beat on its own
+clock.
+**Smallest real use:** `const now = useStageRun(); const cursor = actor<Cursor>(now, 'cursor');`
+**Exports:** `useStageRun`, `actor`, `sinceEvent`, `lerpState`, `mergeState`, `buildKeys`, `morphFrames`, `STEP_MOVE_S`, `StageRunContext`, `StageBeat`, `StageKey`, `StageNow`, `Normalize`.
+
 ## The gates' own eyes
 
 ### `textSafe`

@@ -402,7 +402,8 @@ def test_the_seam_guard_and_the_veil_read_the_beats_ground_not_the_films():
     not fade in from the film's near-black. Both used a film-wide constant that per-beat grounds made
     obsolete."""
     film = _src(FILM_TSX)
-    assert re.search(r"pickPresentation\(sc, scenes\[i \+ 1\], width, height, activeDna,\s*\n?\s*"
+    # the seam is between UNITS now (a beat, or a whole stage run): `next` is the first beat across the cut
+    assert re.search(r"pickPresentation\(sc, next, width, height, activeDna,\s*\n?\s*"
                      r"edgeGround\(sc, 'out'\)", film), \
         "pickPresentation is no longer given the two beats' resolved grounds"
     assert "dnaGroundY(prev.shot, prevG)" in film and "dnaGroundY(next.shot, nextG)" in film, \
