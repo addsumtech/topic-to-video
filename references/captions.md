@@ -21,6 +21,10 @@ no special ffmpeg build needed.
 - **Bottom safe margin:** ~2% of frame height above the very bottom edge (`H*0.02`).
   At 1080p ≈ 65 px from bottom — comfortably inside the safe zone.
 - **Text wrap:** Greedy word-wrap to 90% of frame width.
+- **Leading:** a line pitch of 1.30 × the type size for every script (the band strip reserves two lines of it;
+  the face's own ascent + descent made Chinese lines touch). Each mode FITS its band — overlay the bottom
+  `caption_band_px` keyframe_qa keeps clear, `band` its strip, 9:16 the scaled caption band — shrinking the type
+  only when a caption wraps to one line more than fits. validate.py lints the same layout (`render._caption_layout`).
 - **9:16 (platform-safe, `meta.safe_zone` default `"social"`):** the page is scaled into the `runtime/safeZone.ts`
   frame and the caption follows Film.tsx instead — `SAFE_CAPTION_SCALE` larger, wrapped short of the button column
   (a closer that would overhang it takes the glyph before it down a line), shrunk only if its lines would not fit the

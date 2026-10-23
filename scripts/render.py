@@ -196,6 +196,51 @@ def _caption_font_px(W, H, band=False, meta=None, safe_scale=1.0):
     scale = (0.85 if band else 1.0) * float((meta or {}).get("caption_scale", 1.0) or 1.0) * safe_scale
     return max(12, int(min(W, H) * 0.040 * scale))
 
+# THE CAPTION'S LEADING: a line PITCH of 1.30 x its type size, for every script — the pitch the band strip below the
+# content is sized for (_caption_band_px reserves two lines of it). It was the face's own ascent + descent, which is
+# 1.02 em for Hiragino Sans GB (this machine's zh caption face: 44 + 6 px at 49 px), so a two- or three-line Chinese
+# caption's lines touched — measured, their ink ran together with no clear row between them.
+_CAPTION_LEAD = 1.30
+
+
+def _caption_line_h(font):
+    """A caption line's pitch in px (_CAPTION_LEAD x the size); the face's own ascent + descent for a font that has
+    no size (PIL's bitmap fallback)."""
+    size = getattr(font, "size", None)
+    return int(round(_CAPTION_LEAD * size)) if size else sum(font.getmetrics())
+
+
+def _caption_half_lead(font):
+    """How far below its line box's top a line is drawn, so the face's own ascent + descent sits CENTRED in the
+    taller pitch (CSS half-leading) — not all the added space below the last line."""
+    return (_caption_line_h(font) - sum(font.getmetrics())) // 2
+
+
+def _caption_layout(d, text, W, H, meta=None, band=0, safe=None):
+    """(font, lines) exactly as `_draw_caption` sets this caption — one definition, read by validate.py's caption lint
+    too. Each mode FITS the band it was given (the remotion CaptionTrack's rule), shrinking the type only when the
+    lines would not: `band` the strip below the content; a platform-safe film (`safe`) its scaled caption band
+    (_safe_caption_fit); overlay the bottom caption_band_px of the frame — the band keyframe_qa keeps page content
+    out of, so a caption that wraps to one more line no longer reaches up into the picture."""
+    if safe and not band:
+        return _safe_caption_fit(d, text, W, H, meta, safe)
+    path = _font_path(meta, text)
+    font = _load_font(_caption_font_px(W, H, band=bool(band), meta=meta), path)
+    lines = _wrap(d, text, font, int(W * 0.9))
+    pad = int(H * 0.012)
+    if band:
+        while _caption_line_h(font) * len(lines) + pad * 2 > band and getattr(font, "size", 0) > 16:
+            font = _load_font(max(16, int(font.size * 0.87)), path)    # authored 3+-line band captions shrink to
+            lines = _wrap(d, text, font, int(W * 0.9))                # fit the strip instead of clipping lines
+        return font, lines
+    from _caption_band import caption_band_px
+    room = caption_band_px(W, H) - int(H * 0.02) - pad          # from the block's bottom margin up to the band's top
+    while _caption_line_h(font) * len(lines) > room and getattr(font, "size", 0) > 12:
+        font = _load_font(font.size - 1, path)
+        lines = _wrap(d, text, font, int(W * 0.9))
+    return font, lines
+
+
 def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None,
                   hl_span=None, safe=None):
     """Burn a centered caption. `band==0` (default 'overlay'): NO background bar — the text sits at the very
@@ -211,21 +256,9 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
     if not text:
         return
     pad = int(H * 0.012)
-    if safe and not band:
-        font, lines = _safe_caption_fit(d, text, W, H, meta, safe)
-    else:
-        font = _load_font(_caption_font_px(W, H, band=bool(band), meta=meta), _font_path(meta, text))
-        lines = _wrap(d, text, font, int(W * 0.9))
-    ascent, descent = font.getmetrics()
-    line_h = ascent + descent
+    font, lines = _caption_layout(d, text, W, H, meta, band=band, safe=safe)
+    line_h = _caption_line_h(font)
     block_h = line_h * len(lines) + pad * 2
-    if band:
-        while block_h > band and getattr(font, "size", 0) > 16:   # authored 3+-line band captions: shrink to
-            font = _load_font(max(16, int(font.size * 0.87)), _font_path(meta, text))   # fit the strip instead of
-            lines = _wrap(d, text, font, int(W * 0.9))                                  # silently clipping lines
-            ascent, descent = font.getmetrics()
-            line_h = ascent + descent
-            block_h = line_h * len(lines) + pad * 2
     if band:                                    # caption strip below the content — text only, centered in the band
         out = (meta or {}).get("_out", ".")
         # text = the per-scene sampled colour (contrasts THIS scene's strip) else the flat fallback
@@ -261,7 +294,7 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
             y0 = safe["cap_bottom"] - _safe_block_h(d, lines, font) - pad   # (_safe_block_h), not the font's descent
         else:
             y0 = H - int(H * 0.02) - block_h    # flush to the very bottom edge
-    y = y0 + pad
+    y = y0 + pad + _caption_half_lead(font)
     def _put(xy, s, fill):                      # a caption line/word, with a thin outline when there's no bar
         if halo:
             ox, oy = xy
@@ -756,7 +789,7 @@ def _caption_band_px(meta, W, H):
     if (meta or {}).get("caption_mode") != "band" or not (meta or {}).get("captions", True):
         return 0                                  # no strip in overlay mode OR when captions are off
     fp = _caption_font_px(W, H, band=True, meta=meta)
-    band = int(fp * 2 * 1.30) + int(H * 0.030)   # up to 2 caption lines + tight vertical padding
+    band = int(fp * 2 * _CAPTION_LEAD) + int(H * 0.030)   # up to 2 caption lines + tight vertical padding
     return band + (band & 1)
 
 def _caption_band_colors(meta):
@@ -1260,15 +1293,15 @@ def _safe_caption_fit(d, text, W, H, meta, geom):
 
 
 def _safe_block_h(d, lines, font):
-    """A safe caption block's height down to its INK: the line boxes above the last line, then the last line's real
-    glyph bottom plus the 2 px outline `_draw_caption._put` draws, when that is deeper than the font's own line box.
-    Measured on Hiragino Sans GB (this machine's zh caption face) at 49 px: ascent 44 + descent 6 = a 50 px line, a
-    descender reaching 54 — placed by its line box, a CJK caption's outline crossed captionBottomY by 3 px."""
-    ascent, descent = font.getmetrics()
-    line_h = ascent + descent
+    """A safe caption block's height down to its INK: the line pitches above the last line, then the last line's real
+    glyph bottom (drawn _caption_half_lead down its box) plus the 2 px outline `_draw_caption._put` draws, when that is
+    deeper than its line box. Measured on Hiragino Sans GB at 49 px with the face's own 50 px line: a descender
+    reached 54 — placed by its line box, a CJK caption's outline crossed captionBottomY by 3 px."""
+    line_h = _caption_line_h(font)
     if not lines:
         return 0
-    return line_h * (len(lines) - 1) + max(line_h, d.textbbox((0, 0), lines[-1], font=font)[3] + 2)
+    ink = _caption_half_lead(font) + d.textbbox((0, 0), lines[-1], font=font)[3] + 2
+    return line_h * (len(lines) - 1) + max(line_h, ink)
 
 
 # ── brand bug: a render-level persistent corner mark (meta.brand, placement "bug") ─────────────

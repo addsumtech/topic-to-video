@@ -239,8 +239,20 @@ def _caption_band_line(meta):
         from _caption_band import caption_band_px
         W, H = _rd._canvas(meta, meta.get("aspect") == "9:16")
         band = caption_band_px(W, H)
+        safe = _rd._platform_safe(meta, W, H)
     except Exception as e:                                    # noqa: BLE001 — a fact for the critic, never a crash
         return "**Caption band** — could not be computed (%s); read it off the delivered frames." % e
+    if safe:
+        # a platform-safe 9:16 film draws the PAGE scaled into a smaller frame, so the band is in one place on the
+        # keyframes (page coordinates) and in another on the delivered frames — read from render.py, not restated
+        return ("**Caption band** — on each %dx%d PAGE (the keyframes) the bottom %dpx (y ≥ %d) stays clear for "
+                "the caption; content that reaches it is keyframe_qa's caption-zone finding. In the DELIVERED film "
+                "(`_frames/`) the page is drawn in the platform-safe frame, %dx%d at (%d, %d), and the caption burns "
+                "between y %d and %d in centred lines at most %dpx wide, so they end by x %d — left of the platform's "
+                "button column — and above the bottom %d%% its description covers." % (
+                    W, H, band, H - band, safe["fw"], safe["fh"], safe["x0"], safe["y0"],
+                    safe["cap_bottom"] - safe["cap_room"], safe["cap_bottom"], safe["measure"],
+                    (W + safe["measure"]) // 2, round(100 * (H - safe["cap_bottom"]) / H)))
     return ("**Caption band** — the bottom %dpx of the %dx%d frame (y ≥ %d) is where the overlay caption burns; "
             "content that reaches it is keyframe_qa's caption-zone finding, and a page that leaves it empty is "
             "doing its job." % (band, W, H, H - band))

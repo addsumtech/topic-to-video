@@ -330,3 +330,75 @@ def subprocess_rgb(mp4, t, W, H):
                        capture_output=True, check=True).stdout
     x, y = W // 2, H // 2
     return tuple(d[(y * W + x) * 3:(y * W + x) * 3 + 3])
+
+
+# ── caption leading and band fit (every mode) ───────────────────────────────────────────────────────────────
+
+_CJK3 = CJK + "所以字幕要放在它们碰不到的地方"
+_LAT3 = LATIN + " of the frame, every single time it is posted"
+
+
+def _ink_runs(png):
+    a = Image.open(png).getchannel("A")
+    rows = [a.crop((0, y, a.width, y + 1)).getextrema()[1] > 40 for y in range(a.height)]
+    runs, start = [], None
+    for y, r in enumerate(rows + [False]):
+        if r and start is None:
+            start = y
+        if not r and start is not None:
+            runs.append((start, y - 1)); start = None
+    return runs
+
+
+@pytest.mark.parametrize("aspect,extra", [("16:9", {}), ("9:16", {"safe_zone": "none"}), ("16:9", {"caption_mode": "band"}),
+                                          ("9:16", {"caption_mode": "band"}), ("9:16", {})])
+@pytest.mark.parametrize("text", [CJK[:33], LATIN[:81], _CJK3, _LAT3])
+def test_caption_lines_never_touch_and_never_leave_their_band(tmp_path, aspect, extra, text):
+    W, H = aspect_table()[aspect]
+    meta = dict({"language": "zh", "_out": str(tmp_path)}, **extra)
+    band = render._caption_band_px(meta, W, H)
+    safe = render._platform_safe(meta, W, H)
+    p = str(tmp_path / "c.png")
+    render._caption_layer(text, W, H, p, meta, band=band, safe=safe)
+    _, lines = render._caption_layout(_d(), text, W, H, meta, band=band, safe=safe)
+    runs = _ink_runs(p)
+    assert len(runs) == len(lines), "%d lines drew as %d ink runs — lines touch" % (len(lines), len(runs))
+    if band:
+        lo, hi = H, H + band
+    elif safe:
+        lo, hi = safe["cap_bottom"] - safe["cap_room"], safe["cap_bottom"]
+    else:
+        lo, hi = H - caption_band_px(W, H), H          # keyframe_qa keeps page content above this line
+    assert runs[0][0] >= lo and runs[-1][1] < hi, (runs, lo, hi)
+
+
+def test_band_strip_reserves_the_drawn_pitch():
+    meta = {"caption_mode": "band"}
+    for W, H in ((1920, 1080), (1080, 1920)):
+        fp = render._caption_font_px(W, H, band=True, meta=meta)
+        font = render._load_font(fp, render.BUNDLED_FONT)
+        assert 2 * render._caption_line_h(font) + 2 * int(H * 0.012) <= render._caption_band_px(meta, W, H)
+
+
+# ── validate's lint and the critic brief read the same geometry ─────────────────────────────────────────────
+
+def test_validate_lints_the_caption_render_draws():
+    import validate
+    meta = {"aspect": "9:16", "language": "zh"}
+    want = render._caption_layout(_d(), CJK[:33], W9, H9, meta, safe=_geom())[1]
+    assert validate._caption_lines(CJK[:33], meta, W9, H9) == want
+    plain = validate._caption_lines(CJK[:33], dict(meta, safe_zone="none"), W9, H9)
+    assert plain != want and plain == render._caption_layout(_d(), CJK[:33], W9, H9, dict(meta, safe_zone="none"))[1]
+    # a remotion board's caption is Film.tsx's; an unknown safe_zone is ERRORed elsewhere — neither crashes the lint
+    assert validate._caption_lines(CJK[:33], dict(meta, renderer="remotion"), W9, H9) == plain
+    assert validate._caption_lines(CJK[:33], dict(meta, safe_zone="tiktok"), W9, H9) == plain
+
+
+def test_critic_brief_places_the_caption_where_the_delivered_film_has_it():
+    import critic_brief
+    g = _geom()
+    safe_line = critic_brief._caption_band_line({"aspect": "9:16"})
+    assert "%dx%d at (%d, %d)" % (g["fw"], g["fh"], g["x0"], g["y0"]) in safe_line
+    assert "between y %d and %d" % (g["cap_bottom"] - g["cap_room"], g["cap_bottom"]) in safe_line
+    assert "platform-safe" not in critic_brief._caption_band_line({"aspect": "9:16", "safe_zone": "none"})
+    assert "platform-safe" not in critic_brief._caption_band_line({"aspect": "16:9"})

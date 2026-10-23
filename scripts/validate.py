@@ -286,14 +286,21 @@ def _local_path_from_url(url):
 
 
 def _caption_lines(text, meta, W, H):
-    """The lines this caption wraps to at the burned-in font/width (render.py's exact logic)."""
+    """The lines this caption wraps to as render.py burns it — render._caption_layout itself (size, measure and band
+    fit of every mode), not a copy: a copy kept the 0.9 W measure after a platform-safe 9:16 film's caption moved to
+    a narrower, larger one, so its line-count, widow and CJK-per-line warnings described a caption nobody drew."""
     from PIL import Image, ImageDraw
     if not (text or "").strip():
         return []
-    font = rd._load_font(rd._caption_font_px(W, H, band=(meta or {}).get("caption_mode") == "band", meta=meta),
-                         rd._font_path(meta, text))  # narrow-dim scaled + caption_scale/band-aware
+    meta = meta or {}
+    safe = None
+    if (meta.get("renderer") or "local") not in ("remotion", "remotion-legacy"):   # the html/image tier's geometry
+        try:
+            safe = rd._platform_safe(meta, W, H)
+        except Exception:                      # an unknown meta.safe_zone is ERRORed on its own; lint the plain caption
+            safe = None
     d = ImageDraw.Draw(Image.new("RGB", (4, 4)))
-    return rd._wrap(d, text, font, int(W * 0.9))
+    return rd._caption_layout(d, text, W, H, meta, band=rd._caption_band_px(meta, W, H), safe=safe)[1]
 
 
 def _dangling_word(lines):
