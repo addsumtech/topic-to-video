@@ -66,8 +66,26 @@ def cue(name):
     # process, making the noise cues (click/whoosh) synthesize a different waveform on each render. crc32
     # is stable, so a re-render is byte-reproducible (the frame-driven determinism law, in the audio bed).
     rng = np.random.default_rng(_SEED + (zlib.crc32(name.encode("utf-8")) % 9973))
-    if name == "click":                            # a decision / selection tick
-        n = int(0.06 * SR); return _norm(rng.standard_normal(n) * _env(n, 0.001, 0.02)) * 0.85
+    if name == "click":                            # a mouse button: the press, then its release
+        # A MOUSE CLICK IS TWO KNOCKS, NOT A HISS. This was 60 ms of white noise — energy spread flat to 22 kHz, a
+        # "tsss" a viewer heard as wrong on the first stage film ("鼠标点击的声音不是很好"). A switch is a press and a
+        # release ~80 ms apart, each a sub-millisecond contact edge ringing the housing's few resonances for a few
+        # milliseconds; the release is softer and a little higher. The resonances sit 1.6-4.7 kHz — inside the SFX
+        # bus's high band (`_SFX_HP`) — and the faint body at 95 Hz inside its low band, so the filtergraph keeps
+        # the whole sound rather than the part a 110-800 Hz body would lose.
+        n = int(0.13 * SR); t = np.arange(n) / SR
+
+        def knock(t0, pitch, gain):
+            tt = np.maximum(0.0, t - t0)
+            on = t >= t0
+            ring = (1.00 * np.sin(2 * np.pi * 2900 * pitch * tt) * np.exp(-tt / 0.0028)
+                    + 0.55 * np.sin(2 * np.pi * 4700 * pitch * tt) * np.exp(-tt / 0.0016)
+                    + 0.40 * np.sin(2 * np.pi * 1650 * pitch * tt) * np.exp(-tt / 0.0045)
+                    + 0.25 * np.sin(2 * np.pi * 95 * tt) * np.exp(-tt / 0.010))
+            edge = np.convolve(rng.standard_normal(n) * np.exp(-tt / 0.0006), np.ones(4) / 4, mode="same")
+            return np.where(on, (ring + 0.35 * edge) * gain, 0.0)
+
+        return _norm(knock(0.0, 1.0, 1.0) + knock(0.082, 1.12, 0.45)) * 0.85
     if name == "tick":                             # a small focus/progress blip
         n = int(0.05 * SR); t = np.arange(n) / SR
         return _norm(np.sin(2 * np.pi * 3200 * t) * _env(n, 0.001, 0.014)) * 0.6
