@@ -834,7 +834,18 @@ def safe_profile():
     m = re.search(r"export const SOCIAL: SafeProfile = \{([^}]*)\}", src)
     if not m:
         raise RuntimeError("runtime/safeZone.ts has no SOCIAL profile to read")
-    return {k: float(v) for k, v in re.findall(r"(\w+):\s*(-?[\d.]+)", m.group(1))}
+    prof = {k: float(v) for k, v in re.findall(r"(\w+):\s*(-?[\d.]+)", m.group(1))}
+    t = re.search(r"export const SAFE_MIN_TALL\s*=\s*([\d.]+)", src)
+    if not t:
+        raise RuntimeError("runtime/safeZone.ts has no SAFE_MIN_TALL to read")
+    prof["min_tall"] = float(t.group(1))
+    return prof
+
+
+def safe_applies(W, H, prof=None):
+    """Whether the platform profile applies to a W x H film: a full-screen vertical one (runtime/safeZone.ts
+    safeProfile — H at least SAFE_MIN_TALL times W)."""
+    return H >= (prof or safe_profile())["min_tall"] * W
 
 
 PLATFORM_TABS = 0.05          # the top share every platform's tabs cover (references/craft-research.md §2)

@@ -147,10 +147,13 @@ def check(out_dir):
     if os.path.exists(mp4) and a > 0:
         rate, integ, tp = delivery_audio(mp4)
         r.update({"delivery_rate": rate, "integrated_lufs": integ, "true_peak_dbtp": tp})
-        if rate is None or integ is None:
-            r["not_measured"].append("the delivered audio's %s could not be read"
-                                     % ("sample rate" if rate is None else "loudness"))
+        # the rate is refused when wrong, so an unread rate leaves the check incomplete; loudness is only a
+        # convention (warned), so an unread loudness is said, not blocking
+        if rate is None:
+            r["not_measured"].append("the delivered audio's sample rate could not be read")
             r["complete"] = False
+        if integ is None:
+            r["warnings"].append("out.mp4's loudness could not be measured (ffmpeg ebur128 summary not found)")
         if rate is not None and rate > DELIVERY_RATE_MAX:
             r["issues"].append("out.mp4 audio is %d Hz — AAC delivery wants ≤%d Hz (a loudness pass upsamples; "
                                "resample after it)" % (rate, DELIVERY_RATE_MAX))

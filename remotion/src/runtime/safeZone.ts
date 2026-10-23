@@ -31,9 +31,14 @@ export const SAFE_CAPTION_SCALE = 1.15;
 
 export const SOCIAL: SafeProfile = {name: 'social', top: 0.08, bottom: 0.19, right: 0.14, rightFrom: 0.40, k: 0.80, y0: 0.03};
 
-/** The profile a film asks for (`safe: 'social'`), on a portrait frame only — a landscape film has no such UI. */
+/** How tall a frame must be for the profile: a FULL-SCREEN vertical film (9:16). The shares above are shares of a
+ *  1080x1920 screen; a 4:5 or 3:4 film is a feed post — no button column over it — or, played full-screen, letterboxed
+ *  so that the shares no longer fall where the UI is. scripts/render_remotion.py safe_zone() reads this number. */
+export const SAFE_MIN_TALL = 1.7;
+
+/** The profile a film asks for (`safe: 'social'`), on a full-screen vertical frame only. */
 export const safeProfile = (safe: unknown, W: number, H: number): SafeProfile | null =>
-  safe === 'social' && H > W ? SOCIAL : null;
+  safe === 'social' && H >= SAFE_MIN_TALL * W ? SOCIAL : null;
 
 export const SafeZoneContext = React.createContext<SafeProfile | null>(null);
 

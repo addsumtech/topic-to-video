@@ -373,8 +373,10 @@ export const CardStage: React.FC<{
     {feel: 'glide', lead: Math.round(now.fps * 0.15), frame});
   const cursorNow = cursorAt();
   const cursorPrev = cursorAt(now.frame - 1);
+  // degrees per speed in frame-heights a second, so the lean is the same at any fps and any resolution: 0.9 degrees
+  // a px/frame at 30 fps on a 1080 frame, as tuned
   const tilt = cursorNow && cursorPrev && !now.reduced
-    ? Math.max(-12, Math.min(12, (cursorNow.u - cursorPrev.u) * cw * 0.9)) : 0;
+    ? Math.max(-12, Math.min(12, ((cursorNow.u - cursorPrev.u) * cw * now.fps / U) * 0.9 * 1080 / 30)) : 0;
   let cursor: {x: number; y: number; o: number} | null = null;
   if (cursorNow && typeof cursorNow.u === 'number' && typeof cursorNow.v === 'number') {
     const at = onView(cursorNow.u, cursorNow.v);

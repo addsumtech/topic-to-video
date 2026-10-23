@@ -27,7 +27,7 @@ import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumVal
 import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DARK, CAPTION_INK_LIGHT,
         type SceneGroundDecl} from './runtime/light';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
-import {SceneCamera, bedPan, type CameraMove} from './runtime/depth';
+import {SceneCamera, bedPan, ACTION_SAFE_FRAC, type CameraMove} from './runtime/depth';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
@@ -128,9 +128,12 @@ export const joinedAt = (scenes: SceneSpec[], i: number) =>
   i > 0 && runOf(scenes[i]) !== null && runOf(scenes[i]) === runOf(scenes[i - 1]);
 /** The luminance of the ground a STAGE beat paints (stage/index.ts STAGE_GROUND), or null for any other beat — a stage
  *  has no measured row, so asking the register table about it answered "dark" for a light studio. */
-/** The scaled register frame's edges, faded over 7% across and 5% down (both masks intersected). */
-const SAFE_FRAME_MASK = 'linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%), ' +
-  'linear-gradient(180deg, transparent 0%, #000 5%, #000 95%, transparent 100%)';
+/** The scaled register frame's edges, faded over the register's own action-safe border (both masks intersected): type
+ *  is kept inside that border (frame_safe_qa, runtime/depth edge budget), so the fade can never thin a letter. It was
+ *  7% across and 5% down — wider than the border, over type a register may set 3.5% from its edge. */
+const SAFE_EDGE = `${(ACTION_SAFE_FRAC * 100).toFixed(1)}%`, SAFE_EDGE_FAR = `${(100 - ACTION_SAFE_FRAC * 100).toFixed(1)}%`;
+const SAFE_FRAME_MASK = `linear-gradient(90deg, transparent 0%, #000 ${SAFE_EDGE}, #000 ${SAFE_EDGE_FAR}, transparent 100%), ` +
+  `linear-gradient(180deg, transparent 0%, #000 ${SAFE_EDGE}, #000 ${SAFE_EDGE_FAR}, transparent 100%)`;
 const stageGroundY = (sc: SceneSpec, dna?: unknown): number | null => {
   // `stageGround` is the backdrop this beat of the run holds (render_remotion works it out from the run's beats)
   const tok = runOf(sc) ? (sc.stageGround ?? STAGE_GROUND[sc.shot]) : undefined;
@@ -310,7 +313,10 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // INSIDE its side padding, so the lines are `capMeasure - 2 * CAP_PAD_X` long: fitted against the whole
   // block, a 68-glyph Chinese sentence passed as two lines of 35 and the browser set it in three lines of 32,
   // the third climbing out of the band onto the shot's own words.
-  const capMeasure = Math.min(1600, width - 120);
+  // on a platform-safe film the LINES end short of the button column (runtime/safeZone `right`), centred — a full
+  // line of a 1080-wide caption ran to x 960, under the buttons from 929; 8 px of air
+  const capMeasure = Math.min(1600, width - 120,
+    safe ? Math.floor(width * (1 - 2 * safe.right)) - 8 + 2 * CAP_PAD_X : Infinity);
   const capTextW = capMeasure - 2 * CAP_PAD_X;
   const merged = fitCaption(splitCaption(sc.caption), capSize, capTextW, CAPTION_LINES, dnaFontBody, dnaUniform);
   // WEIGHT each chunk's on-screen time by its LENGTH (not equal slices) — else a 3-word chunk lingers while a
@@ -989,7 +995,7 @@ const Missing: React.FC<{id: string}> = ({id}) => (
 // a branded remotion film actually carries the mark (the html tier's render-level bug, ported — remotion has no
 // separate cover/endcard PAGES, so a corner mark is how the logo appears at all). Top corners only (bottom = the
 // caption band). Prefers the dark-ground variant since the bespoke shots are mostly dark. placement:[] opts out.
-const BrandMark: React.FC<{brand?: any}> = ({brand}) => {
+const BrandMark: React.FC<{brand?: any; safe?: SafeProfile | null}> = ({brand, safe}) => {
   const {width, height} = useVideoConfig();
   if (!brand || !brand.logo) return null;
   const placement: string[] = Array.isArray(brand.placement) ? brand.placement : ['cover', 'endcard'];
@@ -1006,7 +1012,8 @@ const BrandMark: React.FC<{brand?: any}> = ({brand}) => {
   return (
     <AbsoluteFill style={{pointerEvents: 'none'}}>
       <img src={staticFile(src)} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-        style={{position: 'absolute', top: m, height: h, maxWidth: width * 0.35, objectFit: 'contain',
+        // on a platform-safe film below the platform's tabs (runtime/safeZone `top`)
+        style={{position: 'absolute', top: safe ? Math.max(m, safe.top * height) : m, height: h, maxWidth: width * 0.35, objectFit: 'contain',
           opacity: bug.opacity ?? 0.55, ...side}} />
     </AbsoluteFill>
   );
@@ -1245,7 +1252,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
       <FilmFinishLayer dna={activeDna} />
       <AbsoluteFill style={{backgroundColor: veilBg, opacity: Math.max(intro, outro), pointerEvents: 'none'}} />
       {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dna={activeDna} dnaFontBody={activeDna?.fontBody} dnaUniform={activeDna?.uniformType} reduced={reducedMotion} safe={safeP} /> : null}
-      <BrandMark brand={brand} />
+      <BrandMark brand={brand} safe={safeP} />
       </DesignDNAContext.Provider>
     </AbsoluteFill>
   );

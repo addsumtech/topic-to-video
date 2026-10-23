@@ -28,12 +28,14 @@ LONG = ("这时机器发出一段射频脉冲，频率正好跟它们打转的�
 SCALE = 0.5
 
 
-def _frame(tmp_path, aspect, captions):
+def _frame(tmp_path, aspect, captions, safe=None):
     scene = {"shot": "TermTable", "durF": 150, "caption": LONG,
              "props": {"kicker": "K", "rows": [["a", "1"], ["b", "2"]]}}
-    pf = str(tmp_path / ("%s-%s.json" % (aspect.replace(":", "x"), captions)))
-    json.dump({"scenes": [scene], "dna": "product", "captions": captions, "camera": 0, "aspect": aspect},
-              open(pf, "w", encoding="utf-8"), ensure_ascii=False)
+    pf = str(tmp_path / ("%s-%s-%s.json" % (aspect.replace(":", "x"), captions, safe)))
+    props = {"scenes": [scene], "dna": "product", "captions": captions, "camera": 0, "aspect": aspect}
+    if safe:
+        props["safe"] = safe
+    json.dump(props, open(pf, "w", encoding="utf-8"), ensure_ascii=False)
     png = pf[:-5] + ".png"
     r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "Film", png, "--frame=40", "--gl=angle",
                         "--timeout=150000", "--scale=%s" % SCALE, "--log=error", "--props=" + pf],
@@ -56,3 +58,25 @@ def test_a_long_sentence_never_climbs_out_of_the_caption_band(tmp_path, aspect):
     assert rows.min() >= band_top - 1, (
         "the caption reaches %d px above its band (%.0f px from the top, band starts at %.0f) — it was fitted "
         "against a wider measure than the one its text wraps in" % (band_top - rows.min(), rows.min(), band_top))
+
+
+@needs_toolchain
+def test_a_platform_safe_caption_stays_clear_of_the_platform_ui(tmp_path):
+    # runtime/safeZone.ts: on a 9:16 film for the platforms the caption ends above the bottom share the description
+    # covers and its lines end short of the button column. A full CJK line (it breaks anywhere, so it fills the
+    # measure) ran to x 960 of 1080 — under the buttons from 929.
+    np = pytest.importorskip("numpy")
+    Image = pytest.importorskip("PIL.Image", reason="needs Pillow")
+    import text_safe_qa as tq
+    prof = tq.safe_profile()
+    on = np.asarray(Image.open(_frame(tmp_path, "9:16", True, "social")).convert("L"), dtype=float)
+    off = np.asarray(Image.open(_frame(tmp_path, "9:16", False, "social")).convert("L"), dtype=float)
+    ink = np.abs(on - off) > 40
+    rows, cols = np.where(ink.any(axis=1))[0], np.where(ink.any(axis=0))[0]
+    assert len(rows), "no caption was drawn"
+    w, h = cb.aspect_wh("9:16")
+    assert cols.max() / SCALE <= w * (1 - prof["right"]), (
+        "the caption runs to x %.0f, into the button column from %.0f" % (cols.max() / SCALE, w * (1 - prof["right"])))
+    assert rows.max() / SCALE <= h * (1 - prof["bottom"]), (
+        "the caption reaches y %.0f, into the platform's bottom from %.0f" % (rows.max() / SCALE, h * (1 - prof["bottom"])))
+    assert cols.max() / SCALE >= w * (1 - prof["right"]) - 80, "the caption no longer fills its measure — the test lost its point"

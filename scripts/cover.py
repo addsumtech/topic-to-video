@@ -63,12 +63,50 @@ def cover(out_dir, beat=None):
     im = Image.open(png).convert("RGB")
     if im.size != (W, H):
         im = im.resize((W, H))
-    ch = round(W * COVER_H / COVER_W)
-    y0 = int(max(0, min(H - ch, round(_title_top(payload, W, H) - 0.04 * H))))
     dest = os.path.join(out_dir, "out.cover.png")
-    im.crop((0, y0, W, y0 + ch)).resize((COVER_W, COVER_H)).save(dest)
+    card(im, _title_top(payload, W, H) - 0.04 * H, _content_bottom(payload, W, H)).save(dest)
     os.remove(png)
     return dest
+
+
+def _content_bottom(props, W, H):
+    """Where the picture ends: above the caption band (captions are off in the still, the band is empty) — inside the
+    platform-safe frame when the film has one."""
+    from _caption_band import caption_band_px
+    import text_safe_qa as _tq
+    bottom = H - caption_band_px(W, H)
+    if not props.get("safe"):
+        return bottom
+    prof = _tq.safe_profile()
+    return prof["y0"] * H + prof["k"] * bottom
+
+
+def card(im, top, bottom):
+    """The 3:4 card cut from a portrait frame `im`, keeping rows top..bottom (the title down to the end of the picture):
+      · a frame taller than 3:4 whose picture fits a 3:4 window: the window from `top` (shifted up when the frame ends);
+      · a picture taller than that window: the picture whole, scaled to the card's height, its sides filled with the
+        frame's own edge colour — never a cut through the picture;
+      · a frame wider than 3:4 (4:5): its centre, cut at the sides.
+    A crop past the frame's edge padded the card black (a 4:5 film's card had a 90 px black strip)."""
+    from PIL import Image
+    W, H = im.size
+    if W * COVER_H > H * COVER_W:                       # wider than 3:4 — cut the sides
+        cw = int(round(H * COVER_W / COVER_H))
+        x0 = (W - cw) // 2
+        return im.crop((x0, 0, x0 + cw, H)).resize((COVER_W, COVER_H), Image.LANCZOS)
+    ch = int(round(W * COVER_H / COVER_W))
+    top = int(max(0, min(H, round(top))))
+    bottom = int(max(top + 1, min(H, round(bottom))))
+    if bottom - top <= ch:
+        y0 = max(0, min(H - ch, top))
+        return im.crop((0, y0, W, y0 + ch)).resize((COVER_W, COVER_H), Image.LANCZOS)
+    pic = im.crop((0, top, W, bottom))
+    scale = COVER_H / pic.height
+    pic = pic.resize((max(1, int(round(W * scale))), COVER_H), Image.LANCZOS)
+    edge = im.crop((0, top, 4, bottom)).resize((1, 1), Image.BOX).getpixel((0, 0))
+    out = Image.new("RGB", (COVER_W, COVER_H), edge)
+    out.paste(pic, ((COVER_W - pic.width) // 2, 0))
+    return out
 
 
 def main(argv):

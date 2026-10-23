@@ -69,8 +69,21 @@ export type StageKey = {
  *  Linear's curves are half way at 13-16% of a move; `easeInOutCubic`, which every move here used, is half way at 49% —
  *  slow out of the blocks, slow into the stop, the "robotic" read. A move's share at frame f of a d-frame move is a
  *  critically damped spring stretched to land on d: fast off the mark, no overshoot. */
-export const moveShare = (f: number, d: number, fps: number): number =>
-  d <= 0 || f >= d ? 1 : f <= 0 ? 0 : clamp01(spring({frame: f, fps, durationInFrames: d, config: {damping: 200}}));
+export const moveShare = (f: number, d: number, fps: number): number => clamp01(landed(f, d, fps, SHARE));
+
+type SpringConfig = {mass?: number; stiffness?: number; damping?: number};
+const SHARE: SpringConfig = {damping: 200};
+/** A spring stretched onto d frames that lands ON its target at frame d. Remotion's stretched spring is only within its
+ *  0.005 rest threshold at d and returns the target after it: the last frame jumped 0.4% of the move, 1.3-4x the
+ *  step before it (measured at d 6-30) — a 900 px move clicked 4 px into place. The residual is folded into the move
+ *  instead, growing with the square of its progress, so the landing is continuous. */
+const landed = (f: number, d: number, fps: number, config: SpringConfig): number => {
+  if (d <= 0 || f >= d) return 1;
+  if (f <= 0) return 0;
+  const at = (x: number) => spring({frame: x, fps, durationInFrames: d, config});
+  const u = f / d;
+  return at(f) + (1 - at(d)) * u * u;
+};
 
 const progress = (kf: {from: number; to: number}, f: number, fps: number) => moveShare(f - kf.from, kf.to - kf.from, fps);
 
@@ -236,8 +249,7 @@ export const springSum = <T extends Num>(now: StageNow, get: (s: State) => T | u
       return;
     }
     const d = Math.max(1, kf.to - kf.from);
-    const k = now.reduced || f - start >= d ? 1 : f <= start ? 0
-      : spring({frame: f - start, fps: now.fps, durationInFrames: d, config: cfg});
+    const k = now.reduced ? 1 : landed(f - start, d, now.fps, cfg);
     if (k !== 0) acc = addMove(acc, prev, v, k);
     prev = v;
   });

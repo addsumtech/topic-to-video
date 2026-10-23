@@ -323,6 +323,7 @@ TARGET_TP = -2.0       # true-peak ceiling BEFORE the AAC encode: a -1.5 request
 # the duck: music under the voice ≥10 LU while it speaks (Torcoli et al. 2019), 6 dB in a breath; measured with this
 # pad level: 12.8 LU under speech, 6.8 in pauses (references/craft-research.md §3)
 DUCK = {"threshold": 0.02, "ratio": 3, "attack": 15, "release": 450}
+VOICE_FLOOR = 10 ** (-40 / 20.0)   # a voice track peaking under -40 dBFS is no voice to gain-stage the cues under
 
 
 def _loudnorm(measured=None, print_json=False):
@@ -394,6 +395,12 @@ def _through_chain(inputs, dur, has_bgm, out, maps):
     meas = _measure_loudness(inputs, dur, has_bgm)
     subprocess.run(["ffmpeg", "-y", "-v", "error"] + inputs + ["-filter_complex", filtergraph(dur, has_bgm, meas)]
                    + maps + ["-c:a", "aac", "-b:a", "192k", out], check=True)
+
+
+def sfx_peak_cap(vo_peak):
+    """The SFX bus's peak: 6 dB under the voice's own peak. A film with no voice to stage under (a music-only cut, a
+    silent track: peak under -40 dBFS) or an unread one is not capped — capped to a silent voice, every cue was muted."""
+    return vo_peak * 10 ** (-6 / 20.0) if vo_peak and vo_peak >= VOICE_FLOOR else None
 
 
 def _audio_peak(mp4):
@@ -522,8 +529,7 @@ def mix(out_dir, mp4, scenes, meta, fps, events_only=False):
     # GAIN-STAGED UNDER THE VOICE: the SFX bus peaks ≥6 dB under the voice's own peak. A riser and an impact at
     # -2.4 dBFS stacked on voice peaks put the sum over full scale before the limiter, and the film landed under its
     # loudness target (references/craft-research.md §3)
-    vo_peak = _audio_peak(mp4)
-    if not build_sfx_track(cues, dur, sfx_wav, peak_cap=(vo_peak * 10 ** (-6 / 20.0)) if vo_peak else None):
+    if not build_sfx_track(cues, dur, sfx_wav, peak_cap=sfx_peak_cap(_audio_peak(mp4))):
         print("[sfx] could not build the cue track — video unchanged"); return False
 
     inputs = ["-i", mp4, "-i", sfx_wav] + (["-i", bgm_wav] if bgm_wav else [])

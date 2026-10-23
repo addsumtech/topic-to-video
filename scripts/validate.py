@@ -4376,6 +4376,11 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
 
     meta = data["meta"]
     slides = data["slides"]
+    # the platform-safe profile (runtime/safeZone.ts) is "social" or "none"; anything else used to surface only when
+    # the render refused it (both tiers read it), after the voice had been made
+    if "safe_zone" in meta and meta.get("safe_zone") not in ("social", "none", None, False, ""):
+        errors.append("meta.safe_zone must be \"social\" (a 9:16 film's default: caption and type kept clear of the "
+                      "platforms' UI) or \"none\", got %r" % (meta.get("safe_zone"),))
     # MIXED-VOICE (both tiers): tts.py records `meta._tts_mixed_voice` when a cloud/edge engine fell back to `say`
     # on SOME scenes — a systemic failure that split the deck between two voices. It was written and read by
     # nothing; surface it so a half-say/half-cloud deck can't ship silently (SKILL.md's ⚠️ MIXED-VOICE guidance).

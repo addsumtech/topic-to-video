@@ -650,16 +650,18 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
 
 
 def safe_zone(meta, aspect):
-    """The platform-safe profile a film renders with: "social" for a portrait film unless `meta.safe_zone` is "none",
-    else None. A landscape or square film has no platform UI over it."""
+    """The platform-safe profile a film renders with: "social" for a full-screen vertical (9:16) film unless
+    `meta.safe_zone` is "none", else None. A landscape, square or 4:5 film has no platform UI over it where the
+    profile says (runtime/safeZone.ts SAFE_MIN_TALL)."""
     want = (meta or {}).get("safe_zone", "social")
     if want in (None, "", "none", False):
         return None
     if want != "social":
         raise SystemExit("[render_remotion] meta.safe_zone must be \"social\" or \"none\", got %r" % (want,))
     from _caption_band import aspect_table
+    import text_safe_qa as _tq
     w, h = aspect_table().get(str(aspect), (1920, 1080))
-    return "social" if h > w else None
+    return "social" if _tq.safe_applies(w, h) else None
 
 
 def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False):
