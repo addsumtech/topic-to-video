@@ -94,8 +94,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     `meta.captions_karaoke` (`auto`|`off`) needs edge word times (CJK matched by char-span) and falls back to line chunks
     without them. The remotion tier follows the same rule with no scrim (`references/captions.md`).
     **A 9:16 film uses the platform-safe profile on this tier too** (`meta.safe_zone`, default `"social"`; `"none"`
-    opts out; `band` mode is left as it was): each page is drawn in the scaled frame of `runtime/safeZone.ts` with its
-    edges dissolving into `--bg`, the caption is a size larger, ends short of the button column and sits above the
+    opts out; `band` mode is left as it was): each page is drawn in the scaled frame of `runtime/safeZone.ts`, its edges
+    dissolving into a margin of its own ground (or, for a photo/gradient edge, its own edges extended and blurred), the caption is a size larger, ends short of the button column and sits above the
     platform's description, the brand bug sits below the tabs, and the full render writes `out.cover.png`. Pages are
     authored and gated exactly as before (keyframe_qa measures the page; its caption band lands under the caption).
   - **Timed callouts.** A callout with a `cue` anchor phrase (or `at` 0..1) appears as its region is spoken and holds to

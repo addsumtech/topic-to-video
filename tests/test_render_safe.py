@@ -184,19 +184,68 @@ def test_fingerprint_keys_the_safe_geometry_only_where_it_applies():
     assert fp(dict(meta, caption_mode="band"), W9, H9) != fp(meta, W9, H9)
 
 
+def _gradient(path, W=W9, H=H9):
+    im = Image.new("RGB", (W, H))
+    d = ImageDraw.Draw(im)
+    for y in range(H):
+        t = y / H
+        d.line([(0, y), (W, y)], fill=(int(30 + 60 * t), int(70 + 90 * (1 - t)), int(140 + 80 * t)))
+    im.save(path)
+    return path
+
+
 @pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
-def test_page_ground_is_measured_from_the_page_as_decoded(tmp_path):
+def test_margin_fill_is_decided_from_the_frames_own_edge(tmp_path):
     bg = (242, 239, 232)
+    meta = {"_out": str(tmp_path)}
+    open(tmp_path / "theme.css", "w").write(":root{--bg:#f2efe8}")
     png = str(tmp_path / "p.png")
     Image.new("RGB", (W9, H9), bg).save(png)
-    assert render._safe_page_ground(png, bg, W9, H9) == bg
+    assert render._safe_fill(meta, W9, H9, png) == {"uniform": True, "ground": bg, "std": 0.0}
+    # a JPEG capture of the same ground is uniform, its pad the colour as DECODED (the graph composites that)
     jpg = str(tmp_path / "p.jpg")
     Image.new("RGB", (W9, H9), bg).save(jpg, quality=90)
-    got = render._safe_page_ground(jpg, bg, W9, H9)
-    assert max(abs(a - b) for a, b in zip(got, bg)) <= render._SAFE_GROUND_TOL
-    red = str(tmp_path / "r.png")
-    Image.new("RGB", (W9, H9), (200, 30, 30)).save(red)
-    assert render._safe_page_ground(red, bg, W9, H9) == bg       # a flood page dissolves into the deck's ground
+    f = render._safe_fill(meta, W9, H9, jpg)
+    assert f["uniform"] and max(abs(a - b) for a, b in zip(f["ground"], bg)) <= 3
+    # type set inside the page's padding is not "a varied edge" — the ring measured is the action-safe border
+    page = Image.new("RGB", (W9, H9), bg)
+    ImageDraw.Draw(page).rectangle([80, 300, 1000, 420], fill=(20, 20, 20))
+    page.save(png)
+    assert render._safe_fill(meta, W9, H9, png)["uniform"]
+    # a flat flood of another colour pads with ITS colour, not the deck's ground
+    Image.new("RGB", (W9, H9), (200, 30, 30)).save(png)
+    assert render._safe_fill(meta, W9, H9, png)["ground"] == (200, 30, 30)
+    # a gradient to the edge is not a flat ground
+    f = render._safe_fill(meta, W9, H9, _gradient(png))
+    assert not f["uniform"] and f["std"] > render._SAFE_UNIFORM_STD
+    # unreadable -> a solid pad of --bg
+    assert render._safe_fill(meta, W9, H9, str(tmp_path / "missing.png"))["ground"] == bg
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_a_varied_frame_margin_continues_the_picture(tmp_path):
+    out = str(tmp_path / "g")
+    os.makedirs(os.path.join(out, "audio"))
+    os.makedirs(os.path.join(out, "images"))
+    _common.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=300:duration=1", "-ar", "24000",
+                 "-ac", "1", os.path.join(out, "audio", "01.wav")])
+    open(os.path.join(out, "theme.css"), "w").write(":root{--bg:#f2efe8}")
+    _gradient(os.path.join(out, "images", "g.png"))
+    s = sb.new_slide(1, "images/g.png", narration="")
+    s.update({"audio": "audio/01.wav", "duration": 1.0, "transition": "none",
+              "motion": {"type": "kenburns", "from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.0]}})
+    data = sb.new_storyboard({"aspect": "9:16", "width": W9, "height": H9, "captions": False})
+    data["slides"] = [s]
+    json.dump(data, open(os.path.join(out, "storyboard.json"), "w"))
+    mp4 = render.render(out)
+    png = os.path.join(out, "f.png")
+    _common.run(["ffmpeg", "-y", "-v", "error", "-ss", "0.5", "-i", mp4, "-frames:v", "1", png])
+    im = Image.open(png).convert("RGB")
+    g = _geom()
+    for y in (g["y0"] + 200, H9 // 2, g["y0"] + g["fh"] - 200):
+        margin, page = im.getpixel((10, y)), im.getpixel((g["x0"] + 60, y))
+        assert max(abs(a - b) for a, b in zip(margin, page)) <= 12, (y, margin, page)   # continues the picture's row
+        assert max(abs(a - b) for a, b in zip(margin, (242, 239, 232))) > 40              # not the deck's grey pad
 
 
 # ── end to end: one programmatic scene through the real ffmpeg graph ─────────────────────────────────────────

@@ -708,7 +708,7 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     # cached clips) stay exactly as they were.
     safe = _platform_safe(meta, W, H)
     if safe:
-        fp["safe"] = ["html1", sorted(safe.items())]
+        fp["safe"] = ["html2", sorted(safe.items())]
     payload = json.dumps(fp, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
@@ -1121,12 +1121,10 @@ def _safe_ground(meta):
     return _theme_rgb((meta or {}).get("_out", "."), "--bg", (13, 17, 23))
 
 
-def _safe_frame_png(W, H, geom, ground, dst):
-    """The scaled frame's surround as a W x H layer laid over the composite: the ground, opaque outside the frame,
-    clear inside it, ramping across the frame's action-safe border — Film.tsx SAFE_FRAME_MASK (two linear gradients,
-    transparent at the edge to opaque at ACTION_SAFE_FRAC, intersected), inverted. Over the padded frame this is
-    content·m + ground·(1 - m), the mask's own blend; inside the border it is fully clear, so the page's pixels
-    pass through untouched."""
+def _safe_keep_mask(W, H, geom):
+    """Where the scaled page shows, as a W x H "L" mask: 0 outside the frame, 255 inside its action-safe border, a
+    linear ramp across that border — Film.tsx SAFE_FRAME_MASK (two linear gradients, transparent at the edge to opaque
+    at ACTION_SAFE_FRAC, intersected). Inside the border it is fully opaque, so the page's pixels pass untouched."""
     fw, fh = geom["fw"], geom["fh"]
 
     def _ramp(n, b):                         # coverage at each pixel centre: 0 at the edge -> 1 at the border
@@ -1134,55 +1132,110 @@ def _safe_frame_png(W, H, geom, ground, dst):
                      for i in range(n))
     gx = Image.frombytes("L", (fw, 1), _ramp(fw, geom["fade_x"])).resize((fw, fh), Image.NEAREST)
     gy = Image.frombytes("L", (1, fh), _ramp(fh, geom["fade_y"])).resize((fw, fh), Image.NEAREST)
-    alpha = Image.new("L", (W, H), 255)
-    alpha.paste(ImageChops.invert(ImageChops.multiply(gx, gy)), (geom["x0"], geom["y0"]))
+    keep = Image.new("L", (W, H), 0)
+    keep.paste(ImageChops.multiply(gx, gy), (geom["x0"], geom["y0"]))
+    return keep
+
+
+def _safe_frame_png(W, H, geom, ground, dst):
+    """The scaled frame's surround as a W x H layer laid over the composite: the ground, opaque outside the frame and
+    clear inside it — `_safe_keep_mask` inverted. Over the padded frame this is content·m + ground·(1 - m), the mask's
+    own blend."""
     layer = Image.new("RGBA", (W, H), tuple(ground) + (255,))
-    layer.putalpha(alpha)
+    layer.putalpha(ImageChops.invert(_safe_keep_mask(W, H, geom)))
     layer.save(dst)
     return dst
 
 
-_SAFE_GROUND_TOL = 6     # per channel: a page edge this close to --bg IS --bg, as its capture encoded it
+# A frame whose outer action-safe ring varies more than this (the largest per-channel standard deviation, 0-255)
+# is not a flat ground, and a flat pad around it reads as a card on an unrelated board. Measured on 1080x1920 first
+# frames: solid light and dark --bg pages 0.0 (0.16 with the heaviest theme grain, --grain-amount .16); a .bg-glow
+# page 31.6, a .bg-photo page 33.3, a full-bleed gradient slide 35.6 — in their most varied channel.
+_SAFE_UNIFORM_STD = 4.0
+_SAFE_FILL_SIGMA = 0.03     # the non-uniform margin's blur, as a share of W — the vertical-video "blurred fill"
+# …and NOT dimmed (1.0): dimmed to 0.93 or 0.85, the margin around a light page whose one corner glows read as a grey
+# board around a card — the look the fill exists to remove; undimmed it continues the page on light and dark frames.
+_SAFE_FILL_DIM = 1.0
 
 
-def _safe_page_ground(frame_path, ground, W, H):
-    """The ground as the GRAPH decodes this page: the median of the page frame's outer ring, decoded by ffmpeg to
-    rgb24 at W x H, when it is --bg give or take its capture (_SAFE_GROUND_TOL); `ground` (--bg) otherwise — a page
-    whose edge is a photo or a flood dissolves into the deck's ground, as Film.tsx dissolves a register into its beat's.
+def _safe_fill(meta, W, H, frame_path):
+    """How the margin around this scene's scaled frame is filled, decided ONCE per scene from its first frame
+    `frame_path`, decoded by ffmpeg to rgb24 at W x H — the pixels the graph composites (deterministic):
+      {"uniform": True, "ground": rgb} — the frame's edge is a flat ground (its outer action-safe ring varies less
+        than _SAFE_UNIFORM_STD): a solid pad of THAT colour, the median of the frame's outermost ring as decoded;
+      {"uniform": False, "ground": rgb} — a photo, a gradient, a glow at the edge: the frame's own edges, extended
+        outward and blurred, fill the margin, so the surround continues the picture's own colours.
+    Unreadable -> a solid pad of the deck's --bg.
 
-    WHY MEASURE. An html page is captured as JPEG: measured on a light theme (--bg #f2efe8), ffmpeg decodes its ground
-    as (242,240,232), and composited in YUV the page and a pad of the exact --bg landed one level apart in Y and U
-    (240,123,129 against 239,122,129) — the scaled frame showed as a faint panel. Composited in RGB from the decoded
-    value, both encode to the same pixel. A PNG frame (programmatic scenes, image slides) decodes to its own RGB."""
+    WHY THE DECODED COLOUR. An html page is captured as JPEG: measured on a light theme (--bg #f2efe8), ffmpeg decodes
+    its ground as (242,240,232), and composited in YUV the page and a pad of the exact --bg landed one level apart in Y
+    and U (240,123,129 against 239,122,129) — the scaled frame showed as a faint panel. Composited in RGB from the
+    decoded value, both encode to the same pixel. A PNG frame (programmatic scenes, image slides) decodes to its RGB."""
+    import statistics
     import subprocess
+    import text_safe_qa as _tq
+    ground = _safe_ground(meta)
     try:
         raw = subprocess.run(["ffmpeg", "-v", "error", "-i", frame_path, "-vf", f"scale={W}:{H}", "-frames:v", "1",
                               "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
     except (OSError, subprocess.CalledProcessError):
-        return tuple(ground)
+        return {"uniform": True, "ground": tuple(ground), "std": None}
     if len(raw) != W * H * 3:
-        return tuple(ground)
+        return {"uniform": True, "ground": tuple(ground), "std": None}
     px = lambda x, y: tuple(raw[(y * W + x) * 3:(y * W + x) * 3 + 3])
     ring = ([px(x, 2) for x in range(0, W, 4)] + [px(x, H - 3) for x in range(0, W, 4)]
             + [px(2, y) for y in range(0, H, 4)] + [px(W - 3, y) for y in range(0, H, 4)])
     med = sorted(ring, key=_rel_lum)[len(ring) // 2]
-    return med if max(abs(a - b) for a, b in zip(med, ground)) <= _SAFE_GROUND_TOL else tuple(ground)
+    # uniformity over the frame's own action-safe border — the ring a page keeps its TYPE out of, so a page's text
+    # never reads as "not a flat ground" (the wider strip the scale uncovers holds the 9:16 page's text: 11-12 there)
+    edge = _tq.action_safe_frac()
+    bx, by = max(1, int(round(edge * W))), max(1, int(round(edge * H)))
+    border = [px(x, y) for y in range(0, H, 3) for x in range(0, W, 3)
+              if x < bx or x >= W - bx or y < by or y >= H - by]
+    std = max(statistics.pstdev([p[c] for p in border]) for c in range(3))
+    return {"uniform": std <= _SAFE_UNIFORM_STD, "ground": med, "std": round(std, 2)}
 
 
-def _safe_frame_parts(meta, W, H, geom, vlabel, n_in, dst, src_frame=None):
+def _safe_frame_parts(W, H, geom, fill, vlabel, n_in, dst, bg_label=None):
     """(filtergraph parts, extra -i inputs, new vlabel, next input index): the page at `vlabel` drawn in its scaled
-    frame over the ground, its edges dissolved. Composited BEFORE the brand bug, the captions and the seam, so
-    those stay in frame coordinates and the seam carries the whole composite. In RGB, from the ground as the page's
-    own first frame `src_frame` decodes (_safe_page_ground), so the page's ground and the surround are one pixel."""
-    ground = _safe_ground(meta)
-    if src_frame:
-        ground = _safe_page_ground(src_frame, ground, W, H)
-    _safe_frame_png(W, H, geom, ground, dst)
-    hexg = "0x%02x%02x%02x" % tuple(ground)
-    return ([f"[{vlabel}]format=rgb24,scale={geom['fw']}:{geom['fh']}:flags=lanczos,"
-             f"pad={W}:{H}:{geom['x0']}:{geom['y0']}:color={hexg}[vsafe]",
-             f"[vsafe][{n_in}:v]overlay=0:0[v{n_in}]"],
-            ["-i", dst], f"v{n_in}", n_in + 1)
+    frame, its edges dissolving into the margin `fill` (_safe_fill) — a solid pad of the frame's own ground, or the
+    frame's own edges extended and blurred (from `bg_label` when the caller split the frame off earlier,
+    before its callouts). Composited BEFORE the brand bug, the captions and the seam, so those stay in frame
+    coordinates and the seam carries the whole composite. In RGB, so the page's ground and a solid pad encode to one
+    pixel.
+
+    WHY EXTEND THE EDGES, NOT BLUR A COVER COPY. The usual vertical-video fill — the same picture scaled to cover and
+    blurred — puts a SAME-aspect frame's own content just outside the 0.8 frame's edges: on a gradient slide and a
+    photo page its title and shapes showed as smudges in the margin at sigma 3% and still at 8% of W. Extending the
+    frame from just inside its action-safe border (past the ramp, so a picture's own 1 px rule is not stretched)
+    carries each edge's colours outward and nothing else."""
+    if fill["uniform"]:
+        _safe_frame_png(W, H, geom, fill["ground"], dst)
+        hexg = "0x%02x%02x%02x" % tuple(fill["ground"])
+        return ([f"[{vlabel}]format=rgb24,scale={geom['fw']}:{geom['fh']}:flags=lanczos,"
+                 f"pad={W}:{H}:{geom['x0']}:{geom['y0']}:color={hexg}[vsafe]",
+                 f"[vsafe][{n_in}:v]overlay=0:0[v{n_in}]"],
+                ["-i", dst], f"v{n_in}", n_in + 1)
+    _safe_keep_mask(W, H, geom).save(dst)
+    parts = []
+    if bg_label is None:
+        parts.append(f"[{vlabel}]split=2[vsafp][vsafb]")
+        vlabel, bg_label = "vsafp", "vsafb"
+    dim = _SAFE_FILL_DIM
+    fw, fh, x0, y0 = geom["fw"], geom["fh"], geom["x0"], geom["y0"]
+    ix, iy = int(math.ceil(geom["fade_x"])), int(math.ceil(geom["fade_y"]))   # inside the ramp
+    # planar RGB end to end: maskedmerge blends each plane by the SAME plane of the mask, and a grey mask in gbrp is
+    # one value in all three — so the blend is content·m + fill·(1 - m) per pixel, the mask's own blend
+    parts += [f"[{bg_label}]format=gbrp,scale={fw}:{fh}:flags=lanczos,crop={fw - 2 * ix}:{fh - 2 * iy}:{ix}:{iy},"
+              f"pad={W}:{H}:{x0 + ix}:{y0 + iy}:color=black,"
+              f"fillborders=left={x0 + ix}:right={W - x0 - fw + ix}:top={y0 + iy}:bottom={H - y0 - fh + iy}:mode=smear,"
+              f"gblur=sigma={_SAFE_FILL_SIGMA * W:.1f}"
+              + (f",colorchannelmixer=rr={dim}:gg={dim}:bb={dim}" if dim < 1 else "") + "[vsafg]",
+              f"[{vlabel}]format=gbrp,scale={geom['fw']}:{geom['fh']}:flags=lanczos,"
+              f"pad={W}:{H}:{geom['x0']}:{geom['y0']}:color=black[vsafs]",
+              f"[{n_in}:v]format=gbrp[vsafm]",
+              f"[vsafg][vsafs][vsafm]maskedmerge[v{n_in}]"]
+    return parts, ["-i", dst], f"v{n_in}", n_in + 1
 
 
 def _safe_caption_fit(d, text, W, H, meta, geom):
@@ -1308,8 +1361,8 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
     safe = _platform_safe(meta, W, H)                 # a platform-safe portrait film: the page in its scaled frame
 
     if safe:                                          # first — the bug, captions and seam are in FRAME coordinates
-        sp, si, vlabel, n_in = _safe_frame_parts(meta, W, H, safe, vlabel, n_in, os.path.join(
-            workdir, f"ssafe_{(slide or {}).get('index', 0):02d}.png"), src_frame=pattern % 0)
+        sp, si, vlabel, n_in = _safe_frame_parts(W, H, safe, _safe_fill(meta, W, H, pattern % 0), vlabel, n_in,
+                                                 os.path.join(workdir, f"ssafe_{(slide or {}).get('index', 0):02d}.png"))
         parts.extend(sp); extra_inputs += si
 
     if _bug_wanted(meta, slide):                      # before _edge_filter (both branches) — the bug rides the seam
@@ -1413,6 +1466,13 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     vlabel = "v0"
     extra_inputs = []
     n_in = 2                                        # 0=frame(loop), 1=audio
+    # A platform-safe portrait film (`_platform_safe`): decided here, before the callouts — a slide whose edge is not a
+    # flat ground fills the margin with ITSELF blurred, and that copy is split off before the callouts are drawn on it
+    safe = _platform_safe(meta, W, H)
+    fill = _safe_fill(meta, W, H, frame) if safe else None
+    fill_src = None
+    if fill and not fill["uniform"]:
+        parts = [f"[0:v]{vf},split=2[v0][vsafb]"]; fill_src = "vsafb"
     if slide.get("callouts"):
         cos = slide["callouts"]
         # C3 — a callout with `cue`/`at` is TIMED: it appears when its region is spoken and holds
@@ -1433,12 +1493,11 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             en = f"between(t,{t0:.3f},{dur})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
-    # A platform-safe portrait film: the slide — its callouts with it, they mark regions OF the slide — drawn in
-    # its scaled frame; the bug and captions below stay in frame coordinates.
-    safe = _platform_safe(meta, W, H)
+    # …the slide — its callouts with it, they mark regions OF the slide — drawn in its scaled frame; the bug and
+    # captions below stay in frame coordinates.
     if safe:
-        sp, si, vlabel, n_in = _safe_frame_parts(meta, W, H, safe, vlabel, n_in,
-                                                 os.path.join(workdir, f"safe_{i:02d}.png"), src_frame=frame)
+        sp, si, vlabel, n_in = _safe_frame_parts(W, H, safe, fill, vlabel, n_in,
+                                                 os.path.join(workdir, f"safe_{i:02d}.png"), bg_label=fill_src)
         parts.extend(sp); extra_inputs += si
     # Brand bug — an ffmpeg overlay input (like callouts), NOT a paste into the source frame: the
     # frame rides zoompan, so a baked-in bug would zoom/pan with the Ken Burns move. Composited here,

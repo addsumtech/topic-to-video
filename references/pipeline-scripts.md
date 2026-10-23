@@ -91,7 +91,9 @@ finding it prints that you do not understand.
   leaves `NOT_DELIVERED.md` with the review steps that remain; `critic_ledger.py --final` removes it (step 9e).
   **9:16 = the platform-safe profile** (`meta.safe_zone`, default `"social"`; `"none"` opts out; not in `caption_mode:
   band`), read from `remotion/src/runtime/safeZone.ts` as the remotion tier reads it: every page/frame is drawn in the
-  scaled frame over `--bg` with its edges dissolving over the action-safe border, the overlay caption is
+  scaled frame with its edges dissolving over the action-safe border into a margin decided per scene from its first
+  frame — a solid pad of its own ground when its outer action-safe ring is flat, else its own edges extended and
+  blurred, the overlay caption is
   `SAFE_CAPTION_SCALE` larger, wrapped short of the button column and fitted to the scaled page's caption band with its
   bottom on `captionBottomY`, the brand bug starts below the tabs, and the FULL render writes `out.cover.png` (a 3:4
   `cover.card` of beat 1's uncaptioned settled frame, or `meta.cover.beat`) — best-effort, `[render] no cover: …` when
