@@ -722,6 +722,16 @@ def judge_glide(frames):
         for ln in frames[f].get("lines") or []:
             if "c" in (ln.get("fl") or ""):
                 continue                                  # a composited layer: listed for pixel checks, not judged
+            if ln.get("g"):
+                # A KINETIC LINE (runtime/kinetic.tsx): every glyph is its own run of type under its own matrix, so
+                # each is judged on its own track — `<line key>#<grapheme>` — and the runs are folded back into ONE
+                # finding per line below. Judged as one averaged track a staggered reveal would hide a glyph's
+                # staircase inside its neighbours' motion; reported per glyph, one line would be forty findings.
+                for kg, gy, gu, go in ln["g"]:
+                    tracks.setdefault("%s#%s" % (ln["k"], kg), []).append(
+                        (f, float(gy), float(go), ln.get("t", ""), ln.get("fl", ""), bool(gu), ln.get("ly"),
+                         ln.get("px")))
+                continue
             tracks.setdefault(ln["k"], []).append((f, float(ln["y"]), float(ln.get("o", 1)), ln.get("t", ""),
                                                    ln.get("fl", ""), bool(ln.get("u")), ln.get("ly"),
                                                    ln.get("px")))
@@ -733,7 +743,8 @@ def judge_glide(frames):
         return {k for k in b if a.get(k) and b[k] and abs(float(b[k]) - float(a[k])) >= GLIDE_RESET_PX}
     runs = []
     for key, pts in tracks.items():
-        parent = key.rsplit("/", 1)[0]
+        base = key.split("#", 1)[0]                       # a kinetic glyph's track is judged as its line's
+        parent = base.rsplit("/", 1)[0]
         cur = None
         for (f0, y0, o0, _t0, fl0, u0, ly0, px0), (f1, y1, o1, t1, fl1, u1, ly1, px1) in zip(pts, pts[1:]):
             dy = y1 - y0
@@ -753,7 +764,7 @@ def judge_glide(frames):
                 # hero does when its expand begins: offset 404 -> 0 while the line moved 0.013px) — not a step
                 laid = (ly0 is not None and ly1 is not None and ly0 != ly1
                         and abs(ly1 - ly0) <= abs(dy) + 1)
-                if any(k == key or k.rsplit("/", 1)[0] == parent for k in _resets(f0, f1)):
+                if any(k == base or k.rsplit("/", 1)[0] == parent for k in _resets(f0, f1)):
                     # RE-SET, not stepped: this line's font size jumped between the frames, or a sibling's did and
                     # re-flowed it. InOrder's label going 26 -> 27px moved its own top 0.36px; ViewSwitch's label
                     # refitted a px larger pushed its note 0.6px. A size LERPED a little each frame stays judged:
@@ -779,7 +790,24 @@ def judge_glide(frames):
             runs.append(cur)
     for r in runs:
         r.pop("moved", None)
-    return sorted(runs, key=lambda r: (-r["steps"], r["a"]))
+    # one finding per kinetic LINE: its glyphs' runs folded together (the worst glyph's steps, the span of all)
+    folded, out = {}, []
+    for r in runs:
+        if "#" not in r["k"]:
+            out.append(r)
+            continue
+        k = r["k"].split("#", 1)[0]
+        m = folded.get(k)
+        if m is None:
+            folded[k] = dict(r, k=k, glyphs=1)
+            continue
+        m["steps"] = max(m["steps"], r["steps"])
+        m["a"], m["b"] = min(m["a"], r["a"]), max(m["b"], r["b"])
+        m["max_dy"] = max(m["max_dy"], r["max_dy"])
+        m["fl"] = "".join(sorted(set(m["fl"]) | set(r["fl"])))
+        m["glyphs"] += 1
+    out.extend(folded.values())
+    return sorted(out, key=lambda r: (-r["steps"], r["a"]))
 
 
 def glide_level(runs):

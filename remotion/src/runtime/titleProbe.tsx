@@ -16,7 +16,8 @@
 
 import React from 'react';
 import {cancelRender, continueRender, delayRender} from 'remotion';
-import {renderedPx} from './textSafe';
+import {renderedPx, kineticGroups, isKineticGlyph} from './textSafe';
+import {KIN_ALIGN, kineticIdle} from './kineticDom';
 
 export const TITLE_PROBE_TAG = 'TITLE-PROBE ';
 // ANY script's letters. A Latin+CJK class read every Cyrillic, Greek, Arabic, Devanagari and Thai title as a
@@ -77,6 +78,7 @@ export const pickTitle = (root: Element, frame: DOMRect): TitleRecord | null => 
   root.querySelectorAll('*').forEach((el) => {
     const text = ownText(el);
     if (!text || isReadout(text) || el.closest?.('[data-echo]')) return;
+    if (isKineticGlyph(el)) return;                 // a kinetic line is one candidate, read below
     if (!visible(el, win) || opacityOf(el, win) < 0.5) return;
     const r = inkBox(el);
     if (!r || r.right <= frame.left || r.left >= frame.right || r.bottom <= frame.top || r.top >= frame.bottom) return;
@@ -88,6 +90,22 @@ export const pickTitle = (root: Element, frame: DOMRect): TitleRecord | null => 
       const align = a === 'center' || a === '-webkit-center' ? 'center'
         : a === 'right' || (a === 'end' && !rtl) || (a === 'start' && rtl) ? 'right' : 'left';
       best = {text, px, r, align};
+    }
+  });
+  // KINETIC TYPE (runtime/kinetic.tsx) draws one element per grapheme: read as elements, its title would be its
+  // largest LETTER. Each line is one candidate — its readable glyphs' union, its own text, the alignment it was set with.
+  kineticGroups(root, frame).forEach((kl) => {
+    if (!kl.text || isReadout(kl.text)) return;
+    const vis = kl.holders.filter((h) => (h.textContent ?? '').trim() && visible(h, win) && opacityOf(h, win) >= 0.5);
+    const boxes = vis.map((h) => inkBox(h)).filter((r): r is DOMRect => !!r);
+    if (!boxes.length) return;
+    const l = Math.min(...boxes.map((r) => r.left)), t = Math.min(...boxes.map((r) => r.top));
+    const r = new DOMRect(l, t, Math.max(...boxes.map((q) => q.right)) - l, Math.max(...boxes.map((q) => q.bottom)) - t);
+    if (r.right <= frame.left || r.left >= frame.right || r.bottom <= frame.top || r.top >= frame.bottom) return;
+    const px = Math.max(...vis.map((h) => renderedPx(h, win.getComputedStyle(h))));
+    if (!best || px > best.px + 0.5 || (Math.abs(px - best.px) <= 0.5 && r.top < best.r.top)) {
+      const a = (kl.root.getAttribute(KIN_ALIGN) || 'left').toLowerCase();
+      best = {text: kl.text, px, r, align: a === 'center' || a === 'right' ? a : 'left'};
     }
   });
   if (!best) return null;
@@ -110,6 +128,7 @@ export const TitleProbe: React.FC = () => {
     let dead = false;
     (async () => {
       try { await (document as unknown as {fonts?: {ready: Promise<unknown>}}).fonts?.ready; } catch { /* lays out */ }
+      await kineticIdle();       // a KineticText draws nothing until it has measured (runtime/kineticDom)
       await new Promise((res) => requestAnimationFrame(() => res(null)));
       if (dead) return;
       const host = ref.current;

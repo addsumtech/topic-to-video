@@ -1,0 +1,14 @@
+{
+  "_why": "How long words take to read — ONE table for the TypeScript that paces kinetic type (runtime/kineticCore readingSeconds) and the Python that judges it (scripts/shot_proof.py kinetic_hold_findings). tests/test_kinetic.py pins the shared numbers to scripts/validate.py's caption rule.",
+  "cps": {"zh": 9, "ko": 9, "ja": 4, "latin": 20},
+  "minSeconds": 0.833,
+  "mustReadSecondsPerWord": 0.6,
+  "sources": {
+    "cps.zh": "Netflix Simplified Chinese timed-text style guide: <= 9 characters/s (adult)",
+    "cps.ja": "Netflix Japanese timed-text style guide: <= 4 characters/s",
+    "cps.latin": "Netflix English timed-text style guide: <= 20 characters/s (adult)",
+    "cps.ko": "no Korean figure was sourced; the nearest sourced CJK rate (zh), as validate.py's caption rule already applies to Hangul",
+    "minSeconds": "Netflix: a subtitle event is at least 5/6 s",
+    "mustReadSecondsPerWord": "ssw.com.au: text that must be understood is held long enough to read twice at 200 wpm (~0.6 s a word)"
+  }
+}

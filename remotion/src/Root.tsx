@@ -12,7 +12,13 @@ import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {CameraTypeProbe, EdgeBudgetProbe, DURATION as CTP} from './runtime/__probe_camera';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
+import {KineticProbe, DURATION as KPD} from './runtime/__probe_kinetic';
+import {KineticHoldAudit, KineticHoldContext, HoldReport} from './runtime/kinetic';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {CroppedType, DURATION as D_CROPPEDTYPE} from './shots/CroppedType';
+import {TypeOnPath, DURATION as D_TYPEONPATH} from './shots/TypeOnPath';
+import {WordRoll, DURATION as D_WORDROLL} from './shots/WordRoll';
+import {HeadlineReveal, DURATION as D_HEADLINEREVEAL} from './shots/HeadlineReveal';
 import {ForkingAnswers, DURATION as D_FORKINGANSWERS} from './shots/ForkingAnswers';
 import {WeightedWheel, DURATION as D_WEIGHTEDWHEEL} from './shots/WeightedWheel';
 import {ReplyWindow, DURATION as D_REPLYWINDOW} from './shots/ReplyWindow';
@@ -420,7 +426,16 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   // `titleProbe` asks where the settled frame's title sits (runtime/titleProbe.tsx) — its own pass, so the
   // text-safety walk every register imports stays untouched
   const titleProbe = (p as {titleProbe?: unknown}).titleProbe ? <TitleProbe /> : null;
-  const inner = <ObjectsContext.Provider value={OBJECTS}><C {...rest} />{audit}{glide}{titleProbe}</ObjectsContext.Provider>;
+  // `kineticHolds` asks every KineticText how long each must-read line stays READABLE, walked through its own clock
+  // at the composition's length (pass `holdFrames` = the beat's frames) — runtime/kinetic.tsx; read by
+  // scripts/shot_proof.py, which holds each hold to its reading time.
+  const holds = Boolean((p as {kineticHolds?: unknown}).kineticHolds);
+  const holdReports = React.useMemo<HoldReport[]>(() => [], []);
+  const collect = React.useCallback((r: HoldReport) => { holdReports.push(r); }, [holdReports]);
+  const body = holds
+    ? <KineticHoldContext.Provider value={collect}><C {...rest} /></KineticHoldContext.Provider> : <C {...rest} />;
+  const inner = <ObjectsContext.Provider value={OBJECTS}>{body}{audit}{glide}{titleProbe}
+    {holds ? <KineticHoldAudit reports={holdReports} /> : null}</ObjectsContext.Provider>;
   const shot = unlockOff ? <BaselineUnlockContext.Provider value={false}>{inner}</BaselineUnlockContext.Provider> : inner;
   if (!active) return shot;
   return (
@@ -430,10 +445,16 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
     </DesignDNAContext.Provider>
   );
 };
+// `holdFrames` renders a register at a BEAT's length rather than its own DURATION — for a gate that must ask the
+// register's clock about the beat it will actually get (the kinetic hold report). Absent, nothing changes.
+const holdLen = (props: unknown) => {
+  const n = Number((props as {holdFrames?: unknown})?.holdFrames);
+  return Number.isFinite(n) && n > 0 ? {durationInFrames: Math.round(n)} : {};
+};
 const F = (id: string, C: React.FC<any>, d: number) => (
   <Composition id={id} component={(p: Record<string, unknown>) => <DnaPreview C={C} p={p} />}
     durationInFrames={d} fps={30} width={1920} height={1080} defaultProps={{}}
-    calculateMetadata={({props}) => ({...dims((props as any).aspect)})} />
+    calculateMetadata={({props}) => ({...dims((props as any).aspect), ...holdLen(props)})} />
 );
 // The film's scenes find their OBJECTS (runtime/objectSlot) by id among the library's and the film's workshop's,
 // provided once for the whole Film — as DnaPreview provides them to a beat rendered on its own.
@@ -473,6 +494,7 @@ export const RemotionRoot: React.FC = () => (
     {F('FlooredLeadingProbe', FlooredLeadingProbe, 165)}
     {F('FontProbe', FontProbe, FPR)}
     {F('TypeSpecimen', TypeSpecimen, TSP)}
+    {F('KineticProbe', KineticProbe, KPD)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
     {F('CommandSummon', CommandSummon, CS)}
     {F('TemporalAccelerate', TemporalAccelerate, TA)}
@@ -673,6 +695,10 @@ export const RemotionRoot: React.FC = () => (
     {F('ReplyWindow', ReplyWindow, D_REPLYWINDOW)}
     {F('WeightedWheel', WeightedWheel, D_WEIGHTEDWHEEL)}
     {F('ForkingAnswers', ForkingAnswers, D_FORKINGANSWERS)}
+    {F('HeadlineReveal', HeadlineReveal, D_HEADLINEREVEAL)}
+    {F('WordRoll', WordRoll, D_WORDROLL)}
+    {F('TypeOnPath', TypeOnPath, D_TYPEONPATH)}
+    {F('CroppedType', CroppedType, D_CROPPEDTYPE)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}

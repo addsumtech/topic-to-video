@@ -13,6 +13,10 @@ music. The remotion tier is for ANY video — creativity, craft and design, neve
   SwissEditorial, LiquidChrome, GlitchDatamosh), no big-cropped-type register. Bundled variable fonts: Space Grotesk,
   Playfair, JetBrains Mono, Inter (wght, opsz 14-32), Source Serif 4 (wght, opsz 8-60), IBM Plex Sans (the only wdth,
   75-100 — `FACES` declares weight only), Bodoni Moda (opsz 6-96), Baloo 2, Noto Sans/Serif SC subsets (wght).
+  **Built 2026-10-23 from §1 below:** `runtime/kinetic.tsx` (one shared primitive, measured 0 px from a text node in
+  Latin and Chinese; the census reads it as lines; `shot_proof` holds must-read lines to reading time), four registers
+  on it (HeadlineReveal, WordRoll, TypeOnPath, CroppedType), and Plex's `wdth` 75-100 declared. The eight hand-rolled
+  per-character registers above are NOT migrated yet.
 - **Seams**: 15 words; `portal` is the only mask transition; `match_cut:{shape,from,to}` is validated
   (validate.py) and described for the design-director but **nothing renders it** — a dead spec. `@remotion/transitions`
   4.0.486 ships iris, flip and 11 shader presentations (HtmlInCanvas — measured non-deterministic here); also

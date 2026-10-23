@@ -3534,6 +3534,14 @@ def test_every_bundled_face_can_honour_the_weight_range_it_declares():
             static = f["OS/2"].usWeightClass
             if len(declared) != 1 or abs(declared[0] - static) > 1:
                 bad.append("%s declares %s, the static file is %d" % (family, weight, static))
+        # ...and a WIDTH range is the same promise on the `wdth` axis (runtime/kinetic morphs it through
+        # font-stretch, which the browser clamps to what the face declares)
+        row = re.search(r"\{family: '%s'[^}]*\}" % re.escape(family), ts).group(0)
+        st = re.search(r"stretch: '([\d.]+)% ([\d.]+)%'", row)
+        wdth = next((a for a in f["fvar"].axes if a.axisTag == "wdth"), None) if "fvar" in f else None
+        if st and (wdth is None or float(st.group(1)) < wdth.minValue or float(st.group(2)) > wdth.maxValue):
+            bad.append("%s declares stretch %s-%s%% and the file's wdth axis is %s" % (
+                family, st.group(1), st.group(2), "absent" if wdth is None else "%g-%g" % (wdth.minValue, wdth.maxValue)))
         f.close()
     assert not bad, "these declarations promise more than the file carries: %s" % bad
 
