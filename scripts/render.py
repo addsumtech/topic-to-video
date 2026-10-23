@@ -703,6 +703,11 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     # every cached clip of every deck for a fix that moves a few pages.
     if _tail_led(slide, meta):
         fp["tail"] = "led1"
+    # an html scene's clip is converted to limited range now (_limited_range); one cached before that is full-range and
+    # would put the concat back in the wrong range. Programmatic and image clips were already limited and encode to
+    # the same bytes, so only html scenes are salted.
+    if slide.get("type") == "html":
+        fp["range"] = "tv1"
     # a platform-safe portrait film draws every clip differently (scaled page, caption, bug) — keyed by the geometry
     # it was drawn with, so a change to safeZone.ts re-renders it too. Absent on every other film, whose keys (and
     # cached clips) stay exactly as they were.
@@ -1347,6 +1352,16 @@ def _brand_bug_png(meta, W, H, dst, top=None):
         return None
 
 
+def _limited_range(parts, vlabel):
+    """End a clip's filtergraph in LIMITED-range yuv420p, the range converted (not just relabelled) — every clip of a
+    film in one range. An html scene's frames are Chrome JPEGs, full range, and its clip came out yuvj420p tagged `pc`
+    while programmatic and image clips are limited; the `-c copy` concat carries the FIRST clip's tag, so after an html
+    opener every later scene decoded in the wrong range. Measured on a delivered html -> keypoints -> image-slide film:
+    the keypoints ground 18 levels off its --bg (224,221,214 for 242,239,232) and a flat (200,60,40) slide 10 off."""
+    parts.append(f"[{vlabel}]scale=out_range=tv,format=yuv420p[vrange]")
+    return "vrange"
+
+
 def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir, slide=None):
     """Encode a per-frame PNG sequence + the scene's TTS audio (+ timed captions) into a
     clip using the SAME codec params as the slide path, so the '-c copy' concat still works.
@@ -1400,6 +1415,7 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
         _add_caption_overlays()
         ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
         parts.extend(ep)
+    vlabel = _limited_range(parts, vlabel)
     cmd = ["ffmpeg", "-y", "-framerate", str(fps), "-i", pattern,
            "-i", os.path.join(meta["_out"], audio_rel)] + extra_inputs + [
         "-filter_complex", ";".join(parts), "-map", f"[{vlabel}]", "-map", "1:a",
@@ -1536,6 +1552,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
         _cap_overlays()
         ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
         parts.extend(ep)
+    vlabel = _limited_range(parts, vlabel)
     fcomplex = ";".join(parts)
 
     cmd = ["ffmpeg", "-y", "-loop", "1", "-i", frame, "-i",

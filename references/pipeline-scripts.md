@@ -98,6 +98,8 @@ finding it prints that you do not understand.
   bottom on `captionBottomY`, the brand bug starts below the tabs, and the FULL render writes `out.cover.png` (a 3:4
   `cover.card` of beat 1's uncaptioned settled frame, or `meta.cover.beat`) — best-effort, `[render] no cover: …` when
   it cannot. Every other aspect, `band` mode and `safe_zone:"none"` render byte-identical to before.
+  **Every clip leaves the graph in limited-range yuv420p, converted** (an html scene's Chrome JPEG frames are full
+  range; tagged `pc`, the first html clip made the `-c copy` concat decode every later scene in the wrong range).
   **`--preview`** = the cheap ITERATION tier (~1.4–2× wall-clock; 2.5× fewer captured frames — per-scene fixed overheads eat part of the gain): 12fps captures + lighter JPEG, its own
   clip cache (`.clips_preview`) and `preview.mp4` output — temporally identical (captions/cues/word-sync
   are time-based), just choppier; never touches `out.mp4`/`.clips`. Use it while experimenting with

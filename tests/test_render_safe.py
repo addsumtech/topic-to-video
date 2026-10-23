@@ -290,3 +290,43 @@ def test_a_safe_portrait_render_scales_the_page_keeps_the_caption_clear_and_writ
 def test_a_landscape_render_writes_no_cover(tmp_path):
     _board(str(tmp_path / "l"), aspect="16:9")
     assert not os.path.exists(str(tmp_path / "l" / "out.cover.png"))
+
+
+# ── colour range: every clip limited, converted ────────────────────────────────────────────────────────────────
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_a_full_range_scene_first_no_longer_shifts_the_scenes_after_it(tmp_path):
+    # an html scene's frames are Chrome JPEGs (full range); JPEG frames written here stand in for them, Chrome-free
+    out = str(tmp_path)
+    os.makedirs(os.path.join(out, "audio"))
+    _common.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=300:duration=1", "-ar", "24000",
+                 "-ac", "1", os.path.join(out, "audio", "01.wav")])
+    meta = {"_out": out, "fps": 10, "captions": False, "transition": "none"}
+    clips = []
+    for k, (ext, col) in enumerate((("jpg", (242, 239, 232)), ("png", (200, 60, 40)))):
+        pat = os.path.join(out, f"f{k}_%04d.{ext}")
+        for i in range(10):
+            Image.new("RGB", (320, 180), col).save(pat % i, quality=95) if ext == "jpg" else \
+                Image.new("RGB", (320, 180), col).save(pat % i)
+        clip = os.path.join(out, f"c{k}.mp4")
+        render._encode_frames_clip(pat, "audio/01.wav", 1.0, [], meta, 320, 180, clip, out, slide={"index": k})
+        probe = _common.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                             "stream=pix_fmt,color_range", "-of", "compact=p=0:nk=1", clip]).strip()
+        assert probe.split("|")[:2] in (["yuv420p", "tv"], ["yuv420p", "unknown"]), probe
+        clips.append(clip)
+    lst = os.path.join(out, "list.txt")
+    open(lst, "w").write("".join(f"file '{c}'\n" for c in clips))
+    mp4 = os.path.join(out, "o.mp4")
+    _common.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", mp4])
+    for t, want in (("0.5", (242, 239, 232)), ("1.5", (200, 60, 40))):
+        raw = subprocess_rgb(mp4, t, 320, 180)
+        assert max(abs(a - b) for a, b in zip(raw, want)) <= 3, (t, raw, want)
+
+
+def subprocess_rgb(mp4, t, W, H):
+    import subprocess
+    d = subprocess.run(["ffmpeg", "-v", "error", "-ss", t, "-i", mp4, "-frames:v", "1", "-vf",
+                        "scale=flags=accurate_rnd+full_chroma_int+bitexact,format=rgb24", "-f", "rawvideo", "-"],
+                       capture_output=True, check=True).stdout
+    x, y = W // 2, H // 2
+    return tuple(d[(y * W + x) * 3:(y * W + x) * 3 + 3])
