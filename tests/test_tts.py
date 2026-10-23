@@ -1,4 +1,4 @@
-import os, pytest
+import json, os, pytest
 import tts, storyboard as sb, _common
 
 def test_words_from_boundaries():
@@ -822,3 +822,83 @@ def test_a_say_voice_writes_audio_the_remotion_tier_can_read(tmp_path):
     assert ok, why
     # lossless rewrap: the board's measured duration still holds to the sample
     assert abs(_common.audio_duration(os.path.join(out, rel)) - _common.audio_duration(legacy)) < 1e-4
+
+
+# --- the music grid (scripts/beatgrid.py): cuts onto the beat at the pad stage -------------------------------------
+def _scored_board(tmp_path, lens, **meta):
+    out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
+    data = sb.new_storyboard()
+    data["meta"].update({"renderer": "remotion", "sound_design": True, "bgm": "auto", "voice": "edge:en-US-EmmaNeural",
+                         "language": "en", "title": "grid test"})
+    data["meta"].update(meta)
+    data["slides"] = [sb.new_slide(k + 1, "frames/%02d.png" % (k + 1), "Beat number %d speaks here." % (k + 1))
+                      for k in range(len(lens))]
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    return str(out)
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_a_scored_board_lands_its_cuts_on_the_beat_and_keeps_its_words(tmp_path, monkeypatch):
+    """THE CONTRACT at the stage that owns it: with music on, every snapped cut — recomputed from the durations the
+    BOARD now holds, through the Film's own timeline — sits on its beat or one frame before it; no clip grows by more
+    than 0.3 s; and no word moves (the words.json each clip had before the step is the one it has after)."""
+    import beatgrid
+    lens = [2.31, 3.07, 1.74, 2.86, 2.22, 3.41, 2.05]
+    out = _scored_board(tmp_path, lens)
+
+    def fake_edge(text, dest, voice, rate="+0%"):
+        k = int(os.path.basename(dest)[:2]) - 1
+        _tone_clip(dest, tone_s=lens[k], lead_s=0.15, tail_s=0.5)
+        json.dump([{"w": "Beat", "t": 0.15}, {"w": "here.", "t": round(0.15 + lens[k] * 0.8, 3)}],
+                  open(os.path.splitext(dest)[0] + ".words.json", "w"))
+    monkeypatch.setattr(tts, "_edge", fake_edge)
+    seen = {}
+    real = tts._music_stage
+
+    def spy(out_dir, data, ref, lead, only=None, log=print):
+        seen["dur"] = [s["duration"] for s in data["slides"]]
+        seen["words"] = [json.load(open(os.path.join(out_dir, "audio", "%02d.words.json" % s["index"])))
+                         for s in data["slides"]]
+        return real(out_dir, data, ref, lead, only, log)
+    monkeypatch.setattr(tts, "_music_stage", spy)
+    data = tts.synthesize(out)
+    doc = json.load(open(os.path.join(out, "beats.json")))
+    g = beatgrid.BeatGrid.from_dict(doc["grid"])
+    durF = [beatgrid.dur_frames(s["duration"]) for s in data["slides"]]
+    assert durF == doc["durF"], "the board holds the lengths the grid was planned for"
+    bnd = beatgrid.boundaries(durF, [False] * len(lens), beatgrid.seam_frames(), close_on_arrival=True)
+    snapped = 0
+    for row, b in zip(doc["cuts"], bnd):
+        t = b["frame"] / 30.0
+        if row["snapped"]:
+            snapped += 1
+            assert -1.0 / 30 < t - g.t(g.nearest_beat(t)) <= 1e-6, (row, t)
+    assert snapped >= len(bnd) // 2, doc["summary"]
+    for before, s in zip(seen["dur"], data["slides"]):
+        assert -beatgrid.MAX_TRIM_S - 0.034 <= s["duration"] - before <= beatgrid.MAX_ADD_S + 0.034
+    words = [json.load(open(os.path.join(out, "audio", "%02d.words.json" % s["index"]))) for s in data["slides"]]
+    assert words == seen["words"], "a word moved"
+    # the audio head is the same audio: the first 1.5 s of every clip decodes to what it was (only the tail changed)
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+def test_a_board_without_music_never_reaches_the_grid(tmp_path, monkeypatch):
+    """A film without music behaves exactly as before: the grid code is never called and no beats.json appears."""
+    import beatgrid
+    out = _scored_board(tmp_path, [1.0, 1.2], sound_design=False)
+
+    def boom(*a, **k):
+        raise AssertionError("a board without music reached the beat grid")
+    monkeypatch.setattr(beatgrid, "plan_film", boom)
+    monkeypatch.setattr(tts, "_edge", lambda text, dest, voice, rate="+0%": _tone_clip(dest, tone_s=1.0))
+    tts.synthesize(out)
+    assert not os.path.exists(os.path.join(out, "beats.json"))
+
+
+def test_a_malformed_music_field_stops_before_any_voice(tmp_path, monkeypatch):
+    out = _scored_board(tmp_path, [1.0], music={"snap": "bar"})
+    spoke = []
+    monkeypatch.setattr(tts, "_edge", lambda *a, **k: spoke.append(a))
+    with pytest.raises(ValueError) as e:
+        tts.synthesize(out)
+    assert "meta.music.snap" in str(e.value) and not spoke

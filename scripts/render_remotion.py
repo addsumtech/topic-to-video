@@ -827,8 +827,16 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
                               for k, sc in enumerate(scenes)]   # overlap-compressed timeline
                 if sfx_scenes:                          # the closing sentence lands on the last beat's arrival
                     sfx_scenes[-1]["shots"] = [{"startFrame": 0}]
+                # THE FILM'S BEAT GRID (beats.json, written by tts.py when the board asks for music): the score is
+                # generated on it and the whooshes quantise to it. None for a film without music — the mix below is
+                # then exactly the one it always was.
+                music = None
+                if meta.get("sound_design"):
+                    import beatgrid
+                    music = beatgrid.music_for_render(out_dir, slides, scenes, meta,
+                                                      log=lambda m: print("[render_remotion] " + m))
                 sfx.mix(out_dir, out_mp4, sfx_scenes, meta, fps,     # whooshes + riser/impact/sparkle + meta.bgm
-                        events_only=not meta.get("sound_design"))
+                        events_only=not meta.get("sound_design"), music=music)
             except Exception as e:
                 print("[render_remotion] sound_design skipped: %s" % e)
         # a portrait film posted to a platform also needs its feed card (scripts/cover.py): best-effort, said aloud

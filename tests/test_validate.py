@@ -1891,3 +1891,34 @@ def test_an_empty_decoration_list_is_a_declaration_not_a_missing_key():
     for gone in ({k: v for k, v in dna.items() if k != "decoration"}, dict(dna, decoration=None),
                  dict(dna, accent=""), dict(dna, motion="  ")):
         assert missing(gone), gone
+
+
+# ── meta.music (scripts/beatgrid.music_problems — the rule tts.py refuses the same board by) ─────────────────────────
+def _music_board(tmp_path, music, **meta):
+    m = {"renderer": "local", "sound_design": True, "bgm": "auto", "music": music}
+    m.update(meta)
+    return _board(str(tmp_path), [_slide_scene(tmp_path, 0), _slide_scene(tmp_path, 1)], m)
+
+
+def test_meta_music_fields_are_validated(tmp_path):
+    r = validate.evaluate(_music_board(tmp_path, {"bpm": 400, "snap": "bar", "key": "H#", "seed": 1.5, "tmpo": 3}),
+                          str(tmp_path))
+    errs = " | ".join(r["errors"])
+    for f in ("meta.music.bpm", "meta.music.snap", "meta.music.key", "meta.music.seed", "meta.music.tmpo"):
+        assert f in errs, (f, r["errors"])
+    r2 = validate.evaluate(_music_board(tmp_path, "fast"), str(tmp_path))
+    assert any("meta.music must be an object" in e for e in r2["errors"])
+
+
+def test_a_music_field_without_a_mixed_score_is_a_warning_not_silence(tmp_path):
+    """meta.music on a board the pipeline will not score (here: the html/local tier, which has no music mix) does
+    nothing — said, not ignored."""
+    r = validate.evaluate(_music_board(tmp_path, {"bpm": 110}), str(tmp_path))
+    assert not any("meta.music" in e for e in r["errors"])
+    assert any("meta.music is set but the film has no music" in w for w in r["warnings"]), r["warnings"]
+
+
+def test_a_board_without_meta_music_gets_no_music_finding(tmp_path):
+    data = _board(str(tmp_path), [_slide_scene(tmp_path, 0), _slide_scene(tmp_path, 1)])
+    r = validate.evaluate(data, str(tmp_path))
+    assert not any("meta.music" in m for m in r["errors"] + r["warnings"])
