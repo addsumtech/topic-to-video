@@ -849,7 +849,8 @@ def _music_stage(out_dir, data, ref, lead, only=None, log=print):
         % (g["bpm"], g["source"], ", frame-locked" if g["frame_locked"] else "", sm["cuts"],
            sm.get("mean_abs_err_ms_before", 0.0), sm.get("mean_abs_err_ms_after", 0.0), sm.get("snapped", 0),
            sm.get("added_total_s", 0.0), sm.get("trimmed_total_s", 0.0),
-           (" — UNSNAPPED (no beat within the pad's window): boundaries %s" % sm["unsnappable"])
+           ((" — snap is OFF (meta.music.snap): boundaries %s left where they are" if doc.get("snap") == "off" else
+             " — UNSNAPPED (no beat within the pad's window): boundaries %s") % sm["unsnappable"])
            if sm.get("unsnappable") else ""))
     if bad:
         log("[tts] WARNING: %d clip(s) did not take the length the grid planned %s — those cuts are off their beat; "

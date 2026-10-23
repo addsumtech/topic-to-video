@@ -514,8 +514,9 @@ def _frames(y, n_fft, hop):
     n_fr = 1 + (len(y) - n_fft) // hop
     if n_fr < 2:
         return None
-    idx = np.arange(n_fft)[None, :] + hop * np.arange(n_fr)[:, None]
-    return y[idx] * np.hanning(n_fft)
+    # a strided VIEW, windowed into the one copy: an int64 index matrix the size of the frames was a third of
+    # detect()'s memory on a long track
+    return np.lib.stride_tricks.sliding_window_view(y, n_fft)[::hop][:n_fr] * np.hanning(n_fft)
 
 
 def onset_env(x, sr):
@@ -911,6 +912,9 @@ def plan_film(slides, meta, bgm_path=None, slack=None, log=print):
     if windows is None:
         new = list(durations)
         _, report = snap_pads(durations, joined, grid, tr=tr, max_add_s=0.0, max_trim_s=0.0, close_on_arrival=True)
+        for r in report:
+            if not r["snapped"]:
+                r["why"] = "meta.music.snap is off: measured, not moved (%.0f ms off the beat)" % r["err_after_ms"]
     else:
         new, report = snap_pads(durations, joined, grid, tr=tr, slack=slack, close_on_arrival=True)
     newF = [dur_frames(d, fps) for d in new]

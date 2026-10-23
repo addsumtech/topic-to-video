@@ -161,13 +161,15 @@ def _filt(kind, x, f0, q=0.707, sr=SR):
     return lfilter(b, a, x)
 
 
-def _sweep(kind, x, f_of_t, q, sr=SR, block=256):
-    """A biquad whose centre moves: coefficients per `block` samples, state carried across blocks."""
+def _sweep(kind, x, f_of_t, q, sr=SR, block=256, per_block=False):
+    """A biquad whose centre moves: coefficients per `block` samples, state carried across blocks. `f_of_t` is the
+    centre per SAMPLE, or with `per_block` one value per block (a long film's pad: four full-rate float64 arrays for
+    one filter were most of a 5-minute score's 2.4 GB peak)."""
     from scipy.signal import lfilter
     y = np.empty_like(x)
     zi = np.zeros(2)
     for i in range(0, len(x), block):
-        b, a = _biquad(kind, float(f_of_t[i]), q, sr)
+        b, a = _biquad(kind, float(f_of_t[i // block] if per_block else f_of_t[i]), q, sr)
         y[i:i + block], zi = lfilter(b, a, x[i:i + block], zi=zi)
     return y
 
@@ -294,7 +296,7 @@ def _place(buf, t, s, gain, sr=SR):
 def pump_env(n, kick_times, period, depth, sr=SR):
     """Sidechain pumping computed from the kick times themselves (not from a detector): the gain dips `depth` on
     each kick — a 4 ms lead-in so the dip itself does not click — and recovers over about half a beat."""
-    g = np.ones(n)
+    g = np.ones(n, np.float32)
     tau = 0.2 * period
     L = int(0.6 * period * sr)
     lead = int(0.004 * sr)
@@ -334,12 +336,21 @@ _K1 = ([1.53512485958697, -2.69169618940638, 1.19839281085285], [1.0, -1.6906592
 _K2 = ([1.0, -2.0, 1.0], [1.0, -1.99004745483398, 0.99007225036621])
 
 
-def lufs(x, sr=SR):
+def lufs(x, sr=SR, chunk=1 << 20):
     from scipy.signal import lfilter
     if sr != 48000:
         raise ValueError("the K-weighting coefficients here are the 48 kHz ones (BS.1770 table 1/2)")
-    y = lfilter(*_K2, lfilter(*_K1, np.asarray(x, dtype=np.float64)))
-    ms = float(np.mean(y * y))
+    x = np.asarray(x)
+    if not len(x):
+        return -120.0
+    # in chunks, the filter state carried: a whole 5-minute stem in float64, filtered twice, is three 115 MB copies
+    z1, z2 = np.zeros(2), np.zeros(2)
+    acc = 0.0
+    for i in range(0, len(x), chunk):
+        y, z1 = lfilter(*_K1, x[i:i + chunk].astype(np.float64), zi=z1)
+        y, z2 = lfilter(*_K2, y, zi=z2)
+        acc += float(np.dot(y, y))
+    ms = acc / len(x)
     return -0.691 + 10.0 * math.log10(ms) if ms > 0 else -120.0
 
 
@@ -399,7 +410,8 @@ def render(grid, seconds, climax_s=None, riser_into_climax=True, seed=0, key=Non
     b0, b1 = arr["bars"]
     bpb, per, bar = grid.beats_per_bar, grid.period, grid.bar_s
     n = int(math.ceil((seconds + 0.25) * sr))
-    tracks = {k: np.zeros(n) for k in ("kick", "shaker", "hat", "clap", "pluck", "pad", "bass", "riser")}
+    # float32 tracks: measured, float64 ones put a 60 s score at a 0.7 GB peak and a 5-minute one at 2.4 GB
+    tracks = {k: np.zeros(n, np.float32) for k in ("kick", "shaker", "hat", "clap", "pluck", "pad", "bass", "riser")}
     chords = [_triad(pc, mode, r) for r in prog]
     pad_v = _voice_lead(chords * 2, 50, 74)[len(chords):]          # settled voice leading around the loop
     land, lbar = arr["landing_beat"], arr["landing_bar"]
@@ -484,13 +496,14 @@ def render(grid, seconds, climax_s=None, riser_into_climax=True, seed=0, key=Non
     # PUMP — from the kick times, on the pad (deepest), bass and pluck (lightest)
     for name, depth in (("pad", 0.5), ("bass", 0.4), ("pluck", 0.18)):
         tracks[name] *= pump_env(n, kicks, per, depth, sr)
-    # the pad's lowpass opens across each 4-bar phrase and with energy: "slow filter" (motion-research §3)
-    t = np.arange(n) / sr
-    ph = ((t - grid.t(lbar * bpb)) / (4 * bar)) % 1.0
-    eb = np.array([arr["energy"].get(int(math.floor((tt - grid.offset_s) / bar)), 1) for tt in t[::sr // 100]])
-    base = np.interp(t, (np.arange(len(eb)) * (sr // 100)) / sr, np.array((520.0, 700.0, 1000.0, 1450.0))[eb])
-    fc = base * (1.0 + 0.8 * (0.5 - 0.5 * np.cos(2 * np.pi * ph)))
-    tracks["pad"] = _sweep("lp", tracks["pad"], fc, 0.9, sr)
+    # the pad's lowpass opens across each 4-bar phrase and with energy: "slow filter" (motion-research §3) — computed
+    # once per filter block, which is all the filter reads
+    blk = 256
+    tb = np.arange(0, n, blk) / float(sr)
+    ph = ((tb - grid.t(lbar * bpb)) / (4 * bar)) % 1.0
+    eb = np.array([arr["energy"].get(int(math.floor((tt - grid.offset_s) / bar)), 1) for tt in tb])
+    fc = np.array((520.0, 700.0, 1000.0, 1450.0))[eb] * (1.0 + 0.8 * (0.5 - 0.5 * np.cos(2 * np.pi * ph)))
+    tracks["pad"] = _sweep("lp", tracks["pad"], fc, 0.9, sr, block=blk, per_block=True)
     # THE BALANCE, set by measuring each voice alone (scratch diag, 112.5 BPM, 32 s): at the first gains the kick and
     # bass came out 14-15 LU over the pluck and the hat and clap 30 LU under the kick — 58-61% of the energy below
     # 100 Hz, a bed a phone speaker would barely play. These weights put the pad and the pluck in front (the music;
