@@ -48,8 +48,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   A scored remotion film's clips also get their tails snapped to the beat grid (see **Sound**; words.json untouched).
   Every clip is mastered in place (EBU R128 I=-14, trailing dead air trimmed, word times stay valid; `meta.audio_master: false` opts out).
   **`meta.scene_pause` (default 0.55 s) is the pause the viewer HEARS between scenes, not the pad.** `tts.py` converts
-  it per tier (remotion adds the 0.40 s cross-dissolve overlap, so both tiers sound the same) and targets 1.7× the
-  film's own 75th-percentile sentence pause, floored at `scene_pause` and capped at 1.5 s; it prints the number.
+  it per tier (remotion adds the 0.40 s cross-dissolve overlap, so both tiers sound the same) and targets the film's
+  own 75th-percentile sentence pause PLUS a 0.45 s breath, floored at `scene_pause` and capped at 1.5 s; it prints the number.
   `meta.audio_breath` sets a RAW pad, only for a board that deliberately wants one. **Keep `scene_pause` ≤ ~0.9 s**:
   it is a pause, not a reading buffer (a long tail reads as the video hanging); reading time goes into a slower `meta.tts_speed`.
 - `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex] [--style <key>] [--brand-logo <png>]`:

@@ -31,8 +31,9 @@ finding it prints that you do not understand.
   than finished. So `tts.py` measures every clip's longest internal silence, takes the **75th percentile
   across the whole film** (`_film_sentence_pause` — the median lands between the one-sentence and
   two-sentence beats and describes neither; the max would let one dramatic pause set every seam) and
-  targets **1.7×** that, floored at `scene_pause` and capped at `MAX_SCENE_PAUSE` (1.5s) so it stays a
-  pause. The reference is film-wide on purpose: per clip, a two-sentence beat would get a ~1.0s seam and
+  targets that **plus a 0.45 s breath** (`SENTENCE_PAUSE_BREATH` — an increment, not the earlier 1.7× multiple,
+  which turned an English voice's 0.90 s full stop into a 1.53 s hold), floored at `scene_pause` and capped at
+  `MAX_SCENE_PAUSE` (1.5s) so it stays a pause. The reference is film-wide on purpose: per clip, a two-sentence beat would get a ~1.0s seam and
   a one-sentence beat 0.55s — the rhythm would change for a reason no viewer can perceive. A film with no
   measurable full stop (every beat one unbroken clause) falls back to the floor. `tts.py` prints the
   number it derived.
