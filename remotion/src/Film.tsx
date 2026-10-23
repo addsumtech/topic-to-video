@@ -949,9 +949,10 @@ const seamDrawn = (prev: SceneSpec, next: SceneSpec, dna: DesignDNA | null,
   // `container` (seams.tsx) earns it the way `drift` did, and it was MEASURED before it was granted: outside the
   // container every pixel is exactly what `fade` draws (the arriving beat at opacity p over the opaque leaving one),
   // and inside it the two beats' own pixels cross later in the seam. Rendered between a dark phone beat and the
-  // same beat re-keyed light (mean 17.4 / 237.9): the frame mean ran monotone between the two in both directions,
-  // never outside them, within 26.6 levels of the fade on the same frame, with a steepest step of 26 levels a
-  // frame against the fade's 18 — a fade with a box in it, not a flash. `grow`, `through-window` and `punch` are
+  // same beat re-keyed light (mean 17.4 / 237.9): the frame mean ran monotone between the two in both directions
+  // (one 0.2-level wobble on the first frame), never outside them, within 17 levels of the fade on the same frame,
+  // with a steepest step of 27 levels a frame against the fade's 19 — and 24.5 against 18.5 on the probe film's
+  // dark stage card carried into a light figure. A fade with an element in it, not a flash. `grow`, `through-window` and `punch` are
   // deliberately NOT here: a growing shape or a window of a bright beat opening on a dark one is the portal's
   // brightness jump, and a punch is a hard cut with a flash on it.
   const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark', 'drift', 'blur', 'container']);
@@ -1019,7 +1020,10 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
   const seamBg = nextG?.bg ?? prevG?.bg ?? undefined;
   // MOTION GRAMMAR: an UNMARKED (default) seam becomes the DNA's native action on a luminance-safe cut (a themed
   // film's cuts belong to its world — terminal = screen-clear, etc.); explicit marks + the dark↔light fade win.
-  if (t === 'fade' && !harsh) { const s = dnaDefaultSeam(dna, W, H); if (s) return s; }
+  // ...except a cut a camera HAND-OFF carries (runtime/handoff): the push running through it is that cut's motion,
+  // and the product DNA's native whip on top of it was measured on the seam probe as two moves at once — the frame
+  // sliding sideways under a blur while it zoomed. One motion per cut: the hand-off rides the plain cross-fade.
+  if (t === 'fade' && !harsh && !prev.camera?.handoff) { const s = dnaDefaultSeam(dna, W, H); if (s) return s; }
   switch (t) {
     // One relation, one word, on both tiers: `push` is Remotion's own slide (the incoming page pushes the
     // outgoing one off), and `lift` is that move turned through 90° — a reading-flow progression down a page.

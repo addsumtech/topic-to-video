@@ -225,9 +225,9 @@ CROSSING_PAYOFF_SEAM = {"type": "focus"}
 # of what a chapter break across a light boundary is claiming.
 CROSSING_NEW_TOPIC_SEAM = {"type": "through-dark"}
 
-# Which anchors a through-window can go INTO: a surface that shows something. A card or a figure is a thing, and
-# pushing into a thing is a grow's claim, not a window's.
-WINDOW_ANCHORS = ("screen", "window")
+# Which anchors a through-window can go INTO: a surface that shows something, or a WORD (a glyph anchor — the window
+# is its letterforms). A card or a figure is a thing, and pushing into a thing is a grow's claim, not a window's.
+WINDOW_ANCHORS = ("screen", "window", "word")
 
 MIN_GAP = 5          # beats between two marked seams, so a mark stays punctuation
 _LUM_RANK = {"dark": 0, "mid": 1, "light": 2}

@@ -9,7 +9,9 @@
 // code layer and output strip beside its window box), each of them says `data-carry-part="<id>"`: a container hides
 // the parts with the anchor at the place the element leaves, so nothing of it is left behind there. Ids are shared
 // words so two DIFFERENT registers can name the same thing: `screen` (a device's screen), `window` (an app or terminal
-// window), `hero` (a stage's hero card), `figure` (the main figure), `card:<id>` (a stage's side card by its id).
+// window), `hero` (a stage's hero card), `figure` (the main figure), `card:<id>` (a stage's side card by its id),
+// `word` (a line of display type). A text anchor that also says `data-carry-glyph` is a GLYPH anchor: a
+// through-window seam looks through its letterforms rather than its box.
 //
 // WHY AN ANCHOR IS DECLARED AND NEVER GUESSED. The planner and the validator read these declarations out of the
 // source (scripts/carry_anchors.py) so a board that asks for a seam on an anchor the register does not have is an
@@ -33,8 +35,7 @@ export const useCarried = (id: string): boolean => React.useContext(CarryContext
 
 /**
  * An anchor's rect where the thing it names is drawn as several parts (a device's lid, strip and screen) — an empty,
- * absolutely placed box that paints nothing. `radius` is the outline's corner in px (a seam's clip follows it); a
- * `glyph` anchor holds the TEXT whose letterforms a through-window seam looks through.
+ * absolutely placed box that paints nothing. `radius` is the outline's corner in px (a seam's clip follows it).
  */
 export const CarryAnchor: React.FC<{id: string; x: number; y: number; w: number; h: number; radius?: number}> =
   ({id, x, y, w, h, radius}) => (

@@ -65,8 +65,11 @@ export const DeviceHero: React.FC<{
     throw new Error('DeviceHero: a screen image needs its size (`imageW`, `imageH`) — scripts/device_script.py ' +
       'reads it from the file; render through render_remotion.py.');
   }
+  // ...and so is what is ON the screen: a container lands on this screen already showing its own drawing, rather
+  // than on an empty screen that then draws it (measured on the seam probe: the rings carried in from a phone
+  // vanished on landing and redrew from one dot). Uncarried, `t` is left to the slot's own clock as before.
   const content = SCREEN.object
-    ? <ObjectSlot object={SCREEN.object} box={{x: 0, y: 0, w: s.w, h: s.h}} />
+    ? <ObjectSlot object={SCREEN.object} box={{x: 0, y: 0, w: s.w, h: s.h}} t={carried ? 1 : undefined} />
     : SCREEN.image
       ? <ScreenImage src={SCREEN.image} imageW={SCREEN.imageW!} imageH={SCREEN.imageH!} w={s.w} h={s.h} />
       : SCREEN.video

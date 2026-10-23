@@ -76,7 +76,7 @@ def test_a_match_cut_is_now_the_container_it_always_described():
 # ── the anchors in the source ─────────────────────────────────────────────────────────────────────────────────
 def test_the_library_declares_the_anchors_the_planner_relies_on():
     want = {"DeviceHero": {"device", "screen"}, "DeviceDemo": {"device", "screen"}, "CodeCompose": {"window"},
-            "TermTable": {"window"}, "ObjectStage": {"figure"}, "CardStage": {"hero"}}
+            "TermTable": {"window"}, "ObjectStage": {"figure"}, "CardStage": {"hero"}, "CinematicTitle": {"word"}}
     for shot, ids in want.items():
         a = ca.anchors_of(shot)
         assert a and ids <= a["ids"], (shot, a)
@@ -377,6 +377,22 @@ def test_the_handoff_hands_over_its_velocity_and_never_reverses():
     assert all(y <= x + 1e-12 for x, y in zip(p, p[1:])) and abs(p[-1]) < 0.06 * 0.05
     t = out["tight"]
     assert max(t) <= out["v"] * 14 + 1e-9, "a hand-off overran the room it was given"
+
+
+def test_a_word_window_aims_at_the_ink_with_the_most_room():
+    """The glyph window pushes into the centre of the thickest stroke: on a thin bar beside a fat block the room is
+    found in the block, at its centre, and is its half-width (chamfer distance, within a pixel)."""
+    out = _run(os.path.join(_SRC, "seams"), """
+      const w = 60, h = 40, ink = new Uint8Array(w * h);
+      for (let y = 5; y < 35; y++) for (let x = 2; x < 5; x++) ink[y * w + x] = 1;        // a thin stroke
+      for (let y = 5; y < 35; y++) for (let x = 20; x < 50; x++) ink[y * w + x] = 1;      // a 30x30 block
+      const r = M.inkRoom(ink, w, h);
+      out.x = r.i % w; out.y = Math.floor(r.i / w); out.d = r.d;
+      out.none = M.inkRoom(new Uint8Array(w * h), w, h);
+    """)
+    assert 32 <= out["x"] <= 37 and 17 <= out["y"] <= 22, out
+    assert 14 <= out["d"] <= 16.5, out
+    assert out["none"]["i"] == -1, "no ink must answer 'no room', and the seam refuses it"
 
 
 # ── on the frame ──────────────────────────────────────────────────────────────────────────────────────────────

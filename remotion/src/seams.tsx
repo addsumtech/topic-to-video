@@ -47,7 +47,10 @@ export const SeamCopyContext = React.createContext<boolean>(false);
 export const SEAM_PEAK = {punch: 5 / 12, 'through-window': 0.5, grow: 0.525, container: 0.3};
 
 // ── measuring an anchor ───────────────────────────────────────────────────────────────────────────────────────
-type Box = {x: number; y: number; w: number; h: number; r: number};
+// `outline`: the anchor element draws a box of its own (a fill, a border, a declared radius, or content inside it).
+// A MARKER — an empty <CarryAnchor> whose thing is drawn by its parts — has none, and a seam that shows the anchor's
+// shape shows a disc for it instead of the marker's bare rectangle.
+type Box = {x: number; y: number; w: number; h: number; r: number; outline?: boolean};
 type Quad = [number, number, number, number];                      // [cx, cy, w, h], fractions of the frame
 
 /** Runs `fn` once this frame's layout is final — fonts loaded, every layout effect in both beats applied (the scene
@@ -151,12 +154,17 @@ const anchorBox = (seam: string, half: 'exiting' | 'entering', id: string, W: nu
   }
   const saved = layer.style.transform;
   layer.style.transform = 'none';
+  // and the seam's own styles off while it looks: they hide the anchor on purpose (a container's place it leaves, a
+  // word fading under its window), and the visibility check below asks what the BEAT draws, not what the seam does
+  const sheets = Array.from(root.querySelectorAll('style[data-seam-style]'))
+    .map((st) => (st as HTMLStyleElement).sheet).filter((sh): sh is CSSStyleSheet => Boolean(sh));
+  sheets.forEach((sh) => { sh.disabled = true; });
   const frame = root.getBoundingClientRect();
   const r = el.getBoundingClientRect();
   layer.style.transform = saved;
   if (!(frame.width > 0)) throw new Error(`seam ${seam}: the frame has no size yet`);
   const k = W / frame.width;
-  const box = {x: (r.left - frame.left) * k, y: (r.top - frame.top) * k, w: r.width * k, h: r.height * k, r: 0};
+  const box: Box = {x: (r.left - frame.left) * k, y: (r.top - frame.top) * k, w: r.width * k, h: r.height * k, r: 0};
   if (!(box.w > 2 && box.h > 2)) {
     throw new Error(`the anchor '${id}' on the ${half === 'exiting' ? 'leaving' : 'arriving'} beat of a ${where} ` +
       `seam has no size on the frame (${box.w.toFixed(1)}x${box.h.toFixed(1)} px) — it is not drawn there.`);
@@ -164,6 +172,10 @@ const anchorBox = (seam: string, half: 'exiting' | 'entering', id: string, W: nu
   // frame px per layout px: the anchor may sit under a camera, a stage's pose or a platform-safe frame's scale
   const layoutW = (el as HTMLElement).offsetWidth;
   box.r = radiusOf(el, layoutW > 0 ? box.w / layoutW : k, box.w, box.h);
+  const cs = getComputedStyle(el);
+  const painted = !/rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)|transparent/.test(cs.backgroundColor)
+    || parseFloat(cs.borderTopWidth || '0') > 0 || cs.backgroundImage !== 'none';
+  box.outline = painted || el.childElementCount > 0 || el.hasAttribute('data-carry-radius');
   // THE ANCHOR MUST BE SEEN, not merely present. A register that reveals its anchor after the seam draws it at
   // opacity 0 on the arriving beat's held frame, and a container landing there would land on nothing; such a register
   // reads runtime/carry `useCarried` and draws the anchor in place. Read on the copy layer when there is one (the
@@ -171,6 +183,7 @@ const anchorBox = (seam: string, half: 'exiting' | 'entering', id: string, W: nu
   const copy = root.querySelector(':scope > [data-seam-layer="copy"]');
   const probe = copy ? copy.querySelector(`[data-carry="${id}"]`) : el;
   const shown = probe ? shownOpacity(probe, copy ?? layer) : 0;
+  sheets.forEach((sh) => { sh.disabled = false; });
   if (shown < 0.5) {
     throw new Error(`the anchor '${id}' on the ${half === 'exiting' ? 'leaving' : 'arriving'} beat of a ${where} seam ` +
       `is drawn at opacity ${shown.toFixed(2)} on the seam's frames — a seam cannot carry what is not on screen. ` +
@@ -295,7 +308,7 @@ const ContainerPresentation = ({presentationProgress: p, presentationDirection, 
           go over the container's first PART_FADE of travel and come back over its last, while the container still
           covers them — a part reaching outside the anchor's rect (a device's drop shadow) would otherwise blink
           off on the seam's first frame and on again after its last */}
-      {id ? <style>{anchorSel('rest').join(', ') +
+      {id ? <style data-seam-style="">{anchorSel('rest').join(', ') +
         ` { opacity: ${(isEnter ? clamp01((p - (1 - PART_FADE)) / PART_FADE) : 1 - clamp01(p / PART_FADE)).toFixed(3)}` +
         ' !important; }'}</style> : null}
       {/* THE COPY IS THE ELEMENT, NOT A RECTANGLE OF THE FRAME. The first build copied the whole region under the
@@ -304,7 +317,7 @@ const ContainerPresentation = ({presentationProgress: p, presentationDirection, 
           seam as a dark rectangle in the middle of a lightening frame. `visibility` is inherited and can be turned
           back on below: everything in the copy is hidden except the anchor, its parts and what they contain. A
           board's match_cut rects name a REGION, not an element, so they keep the region. */}
-      {id ? <style>{`${scope} > [data-seam-layer="copy"] * { visibility: hidden !important; } ` +
+      {id ? <style data-seam-style="">{`${scope} > [data-seam-layer="copy"] * { visibility: hidden !important; } ` +
         anchorSel('copy').flatMap((x) => [x, `${x} *`]).join(', ') + ' { visibility: visible !important; }'}</style>
         : null}
       {/* the rest: A opaque underneath, B fading in over it exactly as `fade` draws it */}
@@ -347,8 +360,12 @@ const GrowPresentation = ({presentationProgress: p, presentationDirection, child
   const shape = React.useRef<HTMLDivElement>(null), fill = React.useRef<HTMLDivElement>(null);
   const on = useInSeam(isEnter, p, P.lead, P.n);
   useAfterLayout(on && isEnter, () => {
-    const a = anchorBox(P.seam, 'exiting', P.from, P.W, 'grow');
-    const cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+    const m = anchorBox(P.seam, 'exiting', P.from, P.W, 'grow');
+    const cx = m.x + m.w / 2, cy = m.y + m.h / 2;
+    // a MARKER anchor (no box of its own — a figure standing on the ground) opens as a DISC inscribed in its box:
+    // measured on the seam probe, its bare layout rectangle filled with the next ground read as a box wipe
+    const d = Math.min(m.w, m.h);
+    const a = m.outline ? m : {x: cx - d / 2, y: cy - d / 2, w: d, h: d, r: d / 2};
     // THE ANCHOR'S OWN SHAPE, grown about its centre until it covers the frame: a disc anchor is a disc the whole
     // way, a card a rounded card, and the radius grows with it so a disc never squares off on the way out
     const g = coverScale(cx, cy, a.w / 2, a.h / 2, a.r, P.W, P.H) * 1.02;
@@ -383,14 +400,13 @@ const WINDOW_CUT = 0.5, WINDOW_OVER = 1.06, WINDOW_IN_A = 0.05, WINDOW_IN_B = 0.
 
 type WindowSpec = {seam: string; from: string; ground?: string; W: number; H: number; lead: number; n: number};
 
-/** Where the leaving beat is at progress p of a push into box `a`: x' = tx + k·x. The scale is EXPONENTIAL in an
- *  ease-in (constant perceived zoom rate needs an exponential; ease-in so it starts from rest and is fastest at the
- *  cut), the anchor travels to the frame centre in step with the zoom, and the translation is clamped so the scaled
- *  frame always covers the frame — near an edge the anchor cannot be centred early without uncovering the ground. */
-export const windowAt = (p: number, a: Box, W: number, H: number): {k: number; tx: number; ty: number; K: number} => {
-  const cx = a.x + a.w / 2, cy = a.y + a.h / 2;
-  // never below WINDOW_OVER: an anchor already as large as the frame is still pushed into, never pulled out of
-  const K = Math.max(WINDOW_OVER, WINDOW_OVER * coverScale(W / 2, H / 2, a.w / 2, a.h / 2, a.r, W, H));
+/** Where the leaving beat is at progress p of a push toward the point (cx, cy), reaching scale K at the cut:
+ *  x' = tx + k·x. The scale is EXPONENTIAL in an ease-in (constant perceived zoom rate needs an exponential; ease-in
+ *  so it starts from rest and is fastest at the cut), the point travels to the frame centre in step with the zoom,
+ *  and the translation is clamped so the scaled frame always covers the frame — near an edge the point cannot be
+ *  centred early without uncovering the ground. */
+export const pushAt = (p: number, cx: number, cy: number, K: number, W: number, H: number):
+  {k: number; tx: number; ty: number; K: number} => {
   const q = clamp01(p / WINDOW_CUT);
   const k = Math.pow(K, q * q);
   const along = K > 1 ? (k - 1) / (K - 1) : 1;
@@ -399,17 +415,123 @@ export const windowAt = (p: number, a: Box, W: number, H: number): {k: number; t
   return {k, tx, ty, K};
 };
 
+/** A push into box `a` until it covers the frame with WINDOW_OVER to spare (never below WINDOW_OVER: an anchor as
+ *  large as the frame is still pushed into, never pulled out of). */
+export const windowAt = (p: number, a: Box, W: number, H: number) =>
+  pushAt(p, a.x + a.w / 2, a.y + a.h / 2,
+    Math.max(WINDOW_OVER, WINDOW_OVER * coverScale(W / 2, H / 2, a.w / 2, a.h / 2, a.r, W, H)), W, H);
+
+// ── a window shaped like a WORD ────────────────────────────────────────────────────────────────────────────────
+// An anchor marked `data-carry-glyph` is a line of type, and the window is its letterforms: the next beat is seen
+// THROUGH the word (an SVG clipPath holding the same text, in the same face, size and tracking, where the HTML drew
+// it). A box would push into the gaps between the letters as readily as into them, so the push aims at the point
+// INSIDE the ink with the most room around it — the centre of the thickest stroke, found by a distance transform of
+// the word drawn to a canvas — and goes until the disc of that room covers the frame: then the frame is inside a
+// letter, and every pixel of it is the next beat.
+type Glyph = {text: string; font: string; family: string; weight: string; style: string; size: number;
+  spacing: number; x: number; baseline: number; px: number; py: number; clear: number};
+
+/** Two-pass chamfer (3-4) distance to the nearest non-ink pixel — the room around each ink pixel. */
+export const inkRoom = (ink: Uint8Array, w: number, h: number): {i: number; d: number} => {
+  const D = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) D[i] = ink[i] ? 1e9 : 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    if (!D[i]) continue;
+    let v = D[i];
+    if (x > 0) v = Math.min(v, D[i - 1] + 3);
+    if (y > 0) v = Math.min(v, D[i - w] + 3);
+    if (x > 0 && y > 0) v = Math.min(v, D[i - w - 1] + 4);
+    if (x < w - 1 && y > 0) v = Math.min(v, D[i - w + 1] + 4);
+    D[i] = v;
+  }
+  let best = -1, bd = 0;
+  for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+    const i = y * w + x;
+    if (!D[i]) continue;
+    let v = D[i];
+    if (x < w - 1) v = Math.min(v, D[i + 1] + 3);
+    if (y < h - 1) v = Math.min(v, D[i + w] + 3);
+    if (x < w - 1 && y < h - 1) v = Math.min(v, D[i + w + 1] + 4);
+    if (x > 0 && y < h - 1) v = Math.min(v, D[i + w - 1] + 4);
+    D[i] = v;
+    if (v >= bd) { bd = v; best = i; }
+  }
+  return {i: best, d: bd / 3};
+};
+
+/** The glyph window of the anchor `id` on the leaving half, or null when the anchor is not marked as one. */
+const glyphOf = (seam: string, id: string, W: number): Glyph | null => {
+  const root = halfRoot(seam, 'exiting');
+  const layer = root?.querySelector(':scope > [data-seam-layer="rest"]') as HTMLElement | null;
+  const el = layer?.querySelector(`[data-carry="${id}"]`) as HTMLElement | null;
+  if (!root || !layer || !el || !el.hasAttribute('data-carry-glyph')) return null;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let tn: Node | null = walker.nextNode();
+  while (tn && !(tn.textContent ?? '').trim()) tn = walker.nextNode();
+  if (!tn || !tn.parentElement) throw new Error(`the glyph anchor '${id}' holds no text — a word window needs a word`);
+  const saved = layer.style.transform;
+  layer.style.transform = 'none';
+  const frame = root.getBoundingClientRect();
+  const range = document.createRange();
+  range.selectNodeContents(tn);
+  const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
+  const elW = el.getBoundingClientRect().width;
+  layer.style.transform = saved;
+  if (!rects.length) throw new Error(`the glyph anchor '${id}' draws its text nowhere on the frame`);
+  if (new Set(rects.map((r) => Math.round(r.top))).size > 1) {
+    throw new Error(`the glyph anchor '${id}' wraps to more than one line — a word window is one line of type`);
+  }
+  const k = W / frame.width;
+  const left = Math.min(...rects.map((r) => r.left)), top = Math.min(...rects.map((r) => r.top));
+  const right = Math.max(...rects.map((r) => r.right)), bottom = Math.max(...rects.map((r) => r.bottom));
+  const cs = getComputedStyle(tn.parentElement);
+  const scale = el.offsetWidth > 0 ? (elW / el.offsetWidth) * k : k;       // frame px per layout px
+  const size = parseFloat(cs.fontSize) * scale;
+  const spacing = (parseFloat(cs.letterSpacing) || 0) * scale;
+  let text = (tn.textContent ?? '').trim();
+  if (cs.textTransform === 'uppercase') text = text.toUpperCase();
+  const font = `${cs.fontStyle} ${cs.fontWeight} ${size.toFixed(2)}px ${cs.fontFamily}`;
+  const x = (left - frame.left) * k, y0 = (top - frame.top) * k, w = (right - left) * k, h = (bottom - top) * k;
+  // the word, drawn the same way into a canvas at a working scale, to find the stroke with the most room
+  const ds = Math.min(1, 480 / Math.max(1, w));
+  const cw = Math.ceil(w * ds) + 4, ch = Math.ceil(h * ds) + 4;
+  const cv = document.createElement('canvas');
+  cv.width = cw; cv.height = ch;
+  const ctx = cv.getContext('2d');
+  if (!ctx) throw new Error('no 2D canvas to measure the glyph window with');
+  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${(size * ds).toFixed(2)}px ${cs.fontFamily}`;
+  (ctx as any).letterSpacing = `${(spacing * ds).toFixed(2)}px`;
+  const asc = ctx.measureText(text).fontBoundingBoxAscent;
+  ctx.fillStyle = '#000';
+  ctx.fillText(text, 2, 2 + asc);
+  const img = ctx.getImageData(0, 0, cw, ch).data;
+  const ink = new Uint8Array(cw * ch);
+  for (let i = 0; i < cw * ch; i++) ink[i] = img[i * 4 + 3] > 127 ? 1 : 0;
+  const room = inkRoom(ink, cw, ch);
+  if (room.i < 0 || room.d < 1) throw new Error(`the glyph anchor '${id}' has no ink to look through`);
+  const ix = room.i % cw, iy = Math.floor(room.i / cw);
+  return {text, font, family: cs.fontFamily, weight: cs.fontWeight, style: cs.fontStyle, size, spacing, x,
+    baseline: y0 + asc / ds, px: x + (ix - 2) / ds, py: y0 + (iy - 2) / ds, clear: room.d / ds};
+};
+
 const WindowPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
   const P = passedProps as WindowSpec;
   const isEnter = presentationDirection === 'entering';
   const half = isEnter ? 'entering' : 'exiting';
   const layer = React.useRef<HTMLDivElement>(null), inner = React.useRef<HTMLDivElement>(null);
+  const word = React.useRef<SVGTextElement>(null);
+  const clipId = `seam-glyph-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const glide = useGlide();
   const on = useInSeam(isEnter, p, P.lead, P.n);
   const cut = p >= WINDOW_CUT;
   useAfterLayout(on, () => {
     const a = anchorBox(P.seam, 'exiting', P.from, P.W, 'through-window');
-    const {k, tx, ty, K} = windowAt(p, a, P.W, P.H);
+    const g = glyphOf(P.seam, P.from, P.W);
+    // a word window aims at its thickest stroke, until the room around it covers the frame's half-diagonal
+    const {k, tx, ty, K} = g
+      ? pushAt(p, g.px, g.py, Math.max(WINDOW_OVER, WINDOW_OVER * Math.hypot(P.W / 2, P.H / 2) / g.clear), P.W, P.H)
+      : windowAt(p, a, P.W, P.H);
     if (!isEnter) {
       if (layer.current) layer.current.style.transform =
         glide(`translate(${f2(tx)}px, ${f2(ty)}px) scale(${k.toFixed(5)})`, true) ?? '';
@@ -422,12 +544,24 @@ const WindowPresentation = ({presentationProgress: p, presentationDirection, chi
       if (inner.current) inner.current.style.transform = glide(`scale(${s.toFixed(5)})`, true) ?? '';
       return;
     }
-    // before it: the window is the anchor's box carried by the leaving beat's push, and the arriving beat sits
-    // inside it at the scale that reaches WINDOW_OVER exactly as the window fills the frame
-    const wx = tx + k * a.x, wy = ty + k * a.y, ww = k * a.w, wh = k * a.h;
+    // before it: the window is the anchor carried by the leaving beat's push (its box, or its letterforms), and the
+    // arriving beat sits inside it at the scale that reaches WINDOW_OVER exactly as the window fills the frame,
+    // centred on the point the push aims at
     const s = WINDOW_OVER * k / K;
-    const ox = wx + ww / 2 - s * P.W / 2, oy = wy + wh / 2 - s * P.H / 2;
-    if (layer.current) layer.current.style.clipPath = `path('${roundRect(wx, wy, ww, wh, a.r * k)}')`;
+    const fx = g ? tx + k * g.px : tx + k * (a.x + a.w / 2), fy = g ? ty + k * g.py : ty + k * (a.y + a.h / 2);
+    const ox = fx - s * P.W / 2, oy = fy - s * P.H / 2;
+    if (g && word.current) {
+      const t = word.current;
+      t.textContent = g.text;
+      t.setAttribute('x', f2(g.x));
+      t.setAttribute('y', f2(g.baseline));
+      t.setAttribute('transform', `matrix(${k.toFixed(5)} 0 0 ${k.toFixed(5)} ${f2(tx)} ${f2(ty)})`);
+      t.setAttribute('style', `font: ${g.font}; letter-spacing: ${g.spacing.toFixed(2)}px; font-kerning: normal`);
+      if (layer.current) layer.current.style.clipPath = `url(#${clipId})`;
+    } else if (layer.current) {
+      const wx = tx + k * a.x, wy = ty + k * a.y, ww = k * a.w, wh = k * a.h;
+      layer.current.style.clipPath = `path('${roundRect(wx, wy, ww, wh, a.r * k)}')`;
+    }
     if (inner.current) inner.current.style.transform =
       glide(`translate(${f2(ox)}px, ${f2(oy)}px) scale(${s.toFixed(5)})`, true) ?? '';
   }, () => {
@@ -436,10 +570,19 @@ const WindowPresentation = ({presentationProgress: p, presentationDirection, chi
   });
   if (!on) return <Plain seam={P.seam} half={half} layer={layer}>{children}</Plain>;
   if (!isEnter) {
+    // PAST THE CUT THE LEAVING BEAT IS GONE, not merely covered: on a platform-safe film the arriving beat is drawn
+    // in a scaled frame with faded edges, and measured on the 9:16 probe the zoomed leaving beat showed through
+    // those margins until the seam ended, then vanished in one frame (frame mean 19.8 -> 14.7)
+    // A WORD'S OWN INK leaves as the next beat fills its letters: the clip's letterforms and the HTML's are the same
+    // face at the same size but not the same rasteriser, and measured on the glyph probe the leaving word's
+    // anti-aliased edge peeked out round the clip, magnified by the push into white rims along every stroke
+    const wordOp = 1 - clamp01((p - WINDOW_IN_A) / (WINDOW_IN_B - WINDOW_IN_A));
     return (
       <AbsoluteFill data-seam={P.seam} data-seam-half={half}>
-        {null}
-        <div ref={layer} data-seam-layer="rest" style={{position: 'absolute', inset: 0, transformOrigin: '0 0'}}>
+        <style data-seam-style="">{`[data-seam="${P.seam}"][data-seam-half="exiting"] > [data-seam-layer="rest"] ` +
+          `[data-carry="${P.from}"][data-carry-glyph] { opacity: ${wordOp.toFixed(3)} !important; }`}</style>
+        <div ref={layer} data-seam-layer="rest" style={{position: 'absolute', inset: 0, transformOrigin: '0 0',
+          opacity: cut ? 0 : 1}}>
           {children}
         </div>
       </AbsoluteFill>
@@ -448,7 +591,10 @@ const WindowPresentation = ({presentationProgress: p, presentationDirection, chi
   const op = cut ? 1 : clamp01((p - WINDOW_IN_A) / (WINDOW_IN_B - WINDOW_IN_A));
   return (
     <AbsoluteFill data-seam={P.seam} data-seam-half={half}>
-      {null}
+      {/* the word window's letterforms (used only when the anchor is a glyph; an empty clipPath clips nothing in) */}
+      <svg width={0} height={0} style={{position: 'absolute'}} aria-hidden="true">
+        <defs><clipPath id={clipId} clipPathUnits="userSpaceOnUse"><text ref={word} /></clipPath></defs>
+      </svg>
       <div ref={layer} data-seam-layer="window" style={{position: 'absolute', inset: 0, opacity: op}}>
         {/* the window shows the next beat's own ground first, so a beat smaller than the window sits on its ground */}
         {P.ground && !cut ? <div style={{position: 'absolute', inset: 0, background: P.ground}} /> : null}
@@ -489,10 +635,11 @@ const PunchPresentation = ({presentationProgress: p, presentationDirection, chil
     // eased IN: the lean accelerates into the cut, so the cut lands on the fastest frame
     const q = clamp01(p / PUNCH_CUT);
     const s = 1 + (PUNCH_IN - 1) * q * q;
+    // a HARD cut: past it the leaving beat is not drawn at all (a platform-safe film's arriving frame has margins)
     return (
       <AbsoluteFill data-seam={P.seam} data-seam-half={half}>
         {null}
-        <div data-seam-layer="rest" style={{position: 'absolute', inset: 0,
+        <div data-seam-layer="rest" style={{position: 'absolute', inset: 0, opacity: cut ? 0 : 1,
           transform: glide(`scale(${s.toFixed(5)})`, true), transformOrigin: origin}}>{children}</div>
       </AbsoluteFill>
     );

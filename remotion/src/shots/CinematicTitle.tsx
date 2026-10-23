@@ -65,7 +65,8 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
         <div style={{opacity: clamp01(seg(t, 0.24, 0.5)), color: kickCol, font: `600 ${Math.round(Math.min(W, H) * 0.0278)}px/1 var(--f-mono, "JetBrains Mono", monospace)`,   // the label floor (was 26 px)
           letterSpacing: '0.5em', textTransform: 'uppercase', paddingLeft: '0.5em', marginBottom: 34,
           transform: glide(`translateY(${(1 - titleUp) * 18}px)`, titleUp !== 1)}}>{dnaHas(dna, 'prompt') ? '▸ ' : ''}{KICKER}</div>
-        <div style={{opacity: titleUp, transform: glide(`translateY(${(1 - titleUp) * 46}px)`, titleUp !== 1), maxWidth: W * 0.9,
+        {/* the title is a GLYPH carry anchor (runtime/carry): a through-window seam can go in through its letters */}
+        <div data-carry="word" data-carry-glyph="" style={{opacity: titleUp, transform: glide(`translateY(${(1 - titleUp) * 46}px)`, titleUp !== 1), maxWidth: W * 0.9,
           color: titleCol, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
           // width-AND-length-aware so a long title / narrow (portrait|square) frame can't clip the wordmark
           font: `800 ${Math.min(176, W * 0.13, titleFit)}px/${leading(TITLE, 0.98)} ${titleFont}`,

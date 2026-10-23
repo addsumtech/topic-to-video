@@ -280,7 +280,8 @@ Four seams that take hold of ONE THING on the frame, or land ONE beat (`remotion
 `references/motion-research.md` §2). Three of them hold a marked element — an ANCHOR: a register marks it with
 `data-carry="<id>"` (`runtime/carry.tsx`), and the board names it in `transition_in.carry` (one id for both beats,
 or `{from, to}`). `python3 scripts/carry_anchors.py` lists what each register draws: `device` and `screen` (every
-`Device`), `window` (CodeCompose, TermTable), `hero` and `card:<id>` (CardStage), `figure` (ObjectStage). A board
+`Device`), `window` (CodeCompose, TermTable), `hero` and `card:<id>` (CardStage), `figure` (ObjectStage), `word`
+(CinematicTitle's title, a glyph anchor). A board
 that names an anchor the register does not draw is an ERROR in `validate.py`, and the seam stops the render if the
 anchor is not on the frame — never a quiet fade in its place.
 
@@ -288,7 +289,7 @@ anchor is not on the frame — never a quiet fade in its place.
 |---|---|---|---|---|
 | **container** | the element stays on screen while its rect FLIPs from where it sat in A to where it sits in B (Material's container transform: standard curve, content swap 30/70, an arc when the travel is long and diagonal); the rest of A gives way to the rest of B around it exactly as `fade` would | **this IS that** — the same thing, re-framed | both beats draw the same thing (a phone that becomes the next beat's phone, a card that opens into a window, a figure that recurs) — at most one per film | the two elements are different things that merely share a shape (that is `carry`'s graphic match, or no match at all) |
 | **grow** | the anchor's own outline fills with B's ground, then grows about its centre until it covers the frame, and B comes in inside it | **this opens onto that** | a new topic that springs from one element of the last beat, and the two beats sit on visibly DIFFERENT grounds | the grounds are the same (the growth is invisible: the anchor just fades), or the anchor is arbitrary |
-| **through-window** | the camera pushes EXPONENTIALLY into the anchor (constant perceived speed), the next beat already inside it, until the window fills the frame at the seam's middle — the cut, on the fastest frame — and B settles from 1.06 | **we go inside this** | the anchor is a surface that shows something (`screen`, `window`) and B is what it shows; B's first frame shows its own frame (a window, a card) | B rises in from nothing (the window shows an empty ground), or the anchor is a thing rather than a surface |
+| **through-window** | the camera pushes EXPONENTIALLY into the anchor (constant perceived speed), the next beat already inside it, until the window fills the frame at the seam's middle — the cut, on the fastest frame — and B settles from 1.06. A `data-carry-glyph` anchor (a line of type — CinematicTitle's `word`) is a window shaped like its LETTERS: an SVG clipPath of the same text, the push aimed at the thickest stroke until the room around it covers the frame | **we go inside this** | the anchor is a surface that shows something (`screen`, `window`) or the word that names the next beat, and B is what it shows; B's first frame shows its own frame (a window, a card) | B rises in from nothing (the window shows an empty ground), or the anchor is a thing rather than a surface |
 | **punch** | a push cut: A leans in to 1.04, a hard cut at 5/12 of the seam, B lands from 1.07 with a two-frame flash of the film's paper at 0.2 | **this lands** | the payoff — the climax beat, at peak energy. ONCE per film (`validate.py` errors on a second) | anywhere else: on an ordinary beat a flash is an effect, and two of them make the first one an effect too |
 
 All four keep the 12-frame seam (the narration breath); any anticipation belongs inside the beats. All four are
@@ -324,7 +325,9 @@ and the next beat — a `continuation` with no camera of its own — starts at t
 (`runtime/handoff.ts`; an exponential, so it never reverses). Both beats move at the same rate through every frame
 they share, so the blend is of two images doing one thing. ONE camera channel per beat: no pan beside a hand-off,
 no camera on the inheriting beat, no stage run on either side — Film refuses each, and so does `validate.py`.
-`seam_plan.py` sets it on a planned push or pull whose next beat continues the thought across an unmarked cut.
+`seam_plan.py` sets it on a planned push or pull whose next beat continues the thought across an unmarked cut, and
+that cut is the plain cross-fade even on a DNA whose unmarked cuts are kinetic (the product whip): the push IS the
+cut's motion, and a whip on top of it was two moves at once.
 
 **Taste + rhythm rules (from the research consensus):**
 - **Cut is the default; styled seams are punctuation.** Budget ~2–3 marked transitions per video
