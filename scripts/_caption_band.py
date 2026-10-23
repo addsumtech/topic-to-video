@@ -11,6 +11,7 @@ still pass. A duplicated constant is not a constant; it is a bug with a delay.
 The TypeScript is the definition because the renderer is what actually draws the band. This module parses the
 fractions out of it, so a change there reaches the Python gates without anyone remembering to copy it.
 """
+import math
 import os
 import re
 
@@ -69,6 +70,12 @@ def _fracs(path=None):
 def caption_size_px(w, h):
     """The caption's own type size at this frame — sized off the NARROW dimension, like the renderer."""
     return int(round(min(w, h) * _fracs()["CAPTION_SIZE_FRAC"]))
+
+
+def caption_margin_px(w, h):
+    """The caption block's own bottom margin — Film.tsx `capMargin`, Math.round(min(W,H) * CAPTION_MARGIN_FRAC)
+    (floor(x + 0.5), not Python's round(), which rounds a .5 to even where Math.round rounds it up)."""
+    return int(math.floor(min(w, h) * _fracs()["CAPTION_MARGIN_FRAC"] + 0.5))
 
 
 def caption_band_px(w, h):

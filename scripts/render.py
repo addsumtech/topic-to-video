@@ -4,8 +4,8 @@ Captions are burned in with PIL (a bundled font), composited as an overlay
 *after* zoompan so they stay fixed while the slide gently zooms. This avoids
 any dependency on an ffmpeg built with libass.
 """
-import argparse, json, os, re, tempfile, time
-from PIL import Image, ImageDraw, ImageFont
+import argparse, json, math, os, re, tempfile, time
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 import _common
 import storyboard as sb
 
@@ -151,42 +151,98 @@ def _atoms(text):
     words) stay together and re-join with a space."""
     return re.findall(f"[{_CJK_TIGHT}]|[^{_CJK_TIGHT}\\s]+", text)
 
-def _wrap(d, text, font, max_w):
+def _wrap(d, text, font, max_w, hang=True):
     """Greedy wrap to a max pixel width. Latin words join with a space; CJK characters
     join tight and may break anywhere — so Chinese/Japanese/Korean captions wrap instead
-    of overflowing as one un-splittable line (which `text.split()` alone produced)."""
+    of overflowing as one un-splittable line (which `text.split()` alone produced).
+    `hang=False` is for a measure that is a HARD edge (a platform-safe caption ends short of the
+    button column): a closer that would overhang it carries the glyph before it down to the next line
+    instead (push-out kinsoku), so no line is wider than max_w — a hung "，" is a full em past it."""
     KINSOKU = "，。、：；！？…）』」》%"      # closers/clause marks never START a wrapped line
-    lines, cur = [], ""
-    for a in _atoms(text):
+
+    def _join(cur, a):
         if not cur:
-            trial = a
-        elif _CJK_TIGHT_RE.match(a) or _CJK_TIGHT_RE.match(cur[-1]):
-            trial = cur + a            # no space when either side is zh/ja CJK
+            return a
+        if _CJK_TIGHT_RE.match(a) or _CJK_TIGHT_RE.match(cur[-1]):
+            return cur + a             # no space when either side is zh/ja CJK
+        return cur + " " + a           # space between Latin/hangul words
+    lines, cur, prev, last = [], "", "", ""   # prev = the line before its last atom (for a push-out)
+    for a in _atoms(text):
+        trial = _join(cur, a)
+        # (with nothing before it to push — a one-atom line — the closer still hangs: a line that STARTS
+        # with "，" is the worse failure, and that lone atom is already as wide as the measure)
+        if not cur or d.textlength(trial, font=font) <= max_w or (a in KINSOKU and (hang or not prev)):
+            prev, last, cur = cur, a, trial   # kinsoku: a lone closer rides the line even slightly over budget
+        elif a in KINSOKU:
+            lines.append(prev)                # push-out: the closer's neighbour goes down with it
+            prev, last, cur = last, a, _join(last, a)
         else:
-            trial = cur + " " + a      # space between Latin/hangul words
-        if not cur or d.textlength(trial, font=font) <= max_w or a in KINSOKU:
-            cur = trial                # kinsoku: a lone closer rides the line even slightly over budget
-        else:
-            lines.append(cur); cur = a
+            lines.append(cur); prev, last, cur = "", a, a
     if cur:
         lines.append(cur)
     return lines
 
 KARAOKE_HL = (255, 209, 102, 255)   # warm gold — reads clearly on the dark caption bar
 
-def _caption_font_px(W, H, band=False, meta=None):
+def _caption_font_px(W, H, band=False, meta=None, safe_scale=1.0):
     """Caption size scales with the NARROW dimension, not height: H-relative sizing balloons to
     ~86px on a 9:16 canvas (double the landscape weight in half the width — 3-line wraps, widows,
     and the band eats the layout). min(W,H)*0.040 keeps the same visual weight in both aspects.
     The below-content BAND uses a slightly smaller face (~0.85×) — it has its own strip, so it needn't
     shout over content; `meta.caption_scale` tunes either mode (e.g. 0.9 to shrink further).
     Base factor 0.040 (was 0.045): captions are a reading aid, not a headline — they should sit quietly
-    under the content (user feedback: the burned caption competed with the page's own type)."""
-    scale = (0.85 if band else 1.0) * float((meta or {}).get("caption_scale", 1.0) or 1.0)
+    under the content (user feedback: the burned caption competed with the page's own type).
+    `safe_scale` is a platform-safe portrait film's step up (runtime/safeZone.ts SAFE_CAPTION_SCALE)."""
+    scale = (0.85 if band else 1.0) * float((meta or {}).get("caption_scale", 1.0) or 1.0) * safe_scale
     return max(12, int(min(W, H) * 0.040 * scale))
 
+# THE CAPTION'S LEADING: a line PITCH of 1.30 x its type size, for every script — the pitch the band strip below the
+# content is sized for (_caption_band_px reserves two lines of it). It was the face's own ascent + descent, which is
+# 1.02 em for Hiragino Sans GB (this machine's zh caption face: 44 + 6 px at 49 px), so a two- or three-line Chinese
+# caption's lines touched — measured, their ink ran together with no clear row between them.
+_CAPTION_LEAD = 1.30
+
+
+def _caption_line_h(font):
+    """A caption line's pitch in px (_CAPTION_LEAD x the size); the face's own ascent + descent for a font that has
+    no size (PIL's bitmap fallback)."""
+    size = getattr(font, "size", None)
+    return int(round(_CAPTION_LEAD * size)) if size else sum(font.getmetrics())
+
+
+def _caption_half_lead(font):
+    """How far below its line box's top a line is drawn, so the face's own ascent + descent sits CENTRED in the
+    taller pitch (CSS half-leading) — not all the added space below the last line."""
+    return (_caption_line_h(font) - sum(font.getmetrics())) // 2
+
+
+def _caption_layout(d, text, W, H, meta=None, band=0, safe=None):
+    """(font, lines) exactly as `_draw_caption` sets this caption — one definition, read by validate.py's caption lint
+    too. Each mode FITS the band it was given (the remotion CaptionTrack's rule), shrinking the type only when the
+    lines would not: `band` the strip below the content; a platform-safe film (`safe`) its scaled caption band
+    (_safe_caption_fit); overlay the bottom caption_band_px of the frame — the band keyframe_qa keeps page content
+    out of, so a caption that wraps to one more line no longer reaches up into the picture."""
+    if safe and not band:
+        return _safe_caption_fit(d, text, W, H, meta, safe)
+    path = _font_path(meta, text)
+    font = _load_font(_caption_font_px(W, H, band=bool(band), meta=meta), path)
+    lines = _wrap(d, text, font, int(W * 0.9))
+    pad = int(H * 0.012)
+    if band:
+        while _caption_line_h(font) * len(lines) + pad * 2 > band and getattr(font, "size", 0) > 16:
+            font = _load_font(max(16, int(font.size * 0.87)), path)    # authored 3+-line band captions shrink to
+            lines = _wrap(d, text, font, int(W * 0.9))                # fit the strip instead of clipping lines
+        return font, lines
+    from _caption_band import caption_band_px
+    room = caption_band_px(W, H) - int(H * 0.02) - pad          # from the block's bottom margin up to the band's top
+    while _caption_line_h(font) * len(lines) > room and getattr(font, "size", 0) > 12:
+        font = _load_font(font.size - 1, path)
+        lines = _wrap(d, text, font, int(W * 0.9))
+    return font, lines
+
+
 def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None,
-                  hl_span=None):
+                  hl_span=None, safe=None):
     """Burn a centered caption. `band==0` (default 'overlay'): NO background bar — the text sits at the very
     BOTTOM of the W×H content in the deck's `--fg` ink with a subtle opposite-luminance OUTLINE, so it reads
     over any ground (empty frame, a tint, a photo) on any theme + aspect without a heavy/ugly strip; the
@@ -194,22 +250,15 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
     strip BELOW the content — the region [H, H+band] on a W×(H+band) layer — so it never overlaps the
     slide (the strip's solid background is added by the render's `pad` filter; here we draw only the text
     in the deck's --bg colour over it). If `hl_word` is given, that word takes the karaoke colour —
-    contrast-picked against `band_bg` (the strip ground) so it never vanishes into an accent-fill band."""
+    contrast-picked against `band_bg` (the strip ground) so it never vanishes into an accent-fill band.
+    `safe` (overlay only — `_platform_safe`'s geometry) places it for a platform-safe portrait film instead:
+    a size larger, wrapped short of the button column, its bottom above the platform's description."""
     if not text:
         return
-    font = _load_font(_caption_font_px(W, H, band=bool(band), meta=meta), _font_path(meta, text))
     pad = int(H * 0.012)
-    lines = _wrap(d, text, font, int(W * 0.9))
-    ascent, descent = font.getmetrics()
-    line_h = ascent + descent
+    font, lines = _caption_layout(d, text, W, H, meta, band=band, safe=safe)
+    line_h = _caption_line_h(font)
     block_h = line_h * len(lines) + pad * 2
-    if band:
-        while block_h > band and getattr(font, "size", 0) > 16:   # authored 3+-line band captions: shrink to
-            font = _load_font(max(16, int(font.size * 0.87)), _font_path(meta, text))   # fit the strip instead of
-            lines = _wrap(d, text, font, int(W * 0.9))                                  # silently clipping lines
-            ascent, descent = font.getmetrics()
-            line_h = ascent + descent
-            block_h = line_h * len(lines) + pad * 2
     if band:                                    # caption strip below the content — text only, centered in the band
         out = (meta or {}).get("_out", ".")
         # text = the per-scene sampled colour (contrasts THIS scene's strip) else the flat fallback
@@ -241,8 +290,11 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
         # caption zone and only a subtle hair where the ground varies — never a bar, never white. Authors keep
         # content clear of the bottom ~15% (keyframe_qa gates it) so the zone is the frame's own clean ground.
         halo = tuple(ground[:3]) + (235,)
-        y0 = H - int(H * 0.02) - block_h        # flush to the very bottom edge
-    y = y0 + pad
+        if safe:                                # the block's bottom edge on runtime/safeZone captionBottomY — by its INK
+            y0 = safe["cap_bottom"] - _safe_block_h(d, lines, font) - pad   # (_safe_block_h), not the font's descent
+        else:
+            y0 = H - int(H * 0.02) - block_h    # flush to the very bottom edge
+    y = y0 + pad + _caption_half_lead(font)
     def _put(xy, s, fill):                      # a caption line/word, with a thin outline when there's no bar
         if halo:
             ox, oy = xy
@@ -315,14 +367,15 @@ def _callout_layer(callouts, W, H, dst, meta=None):
     layer.save(dst)
 
 def _caption_layer(text, W, H, dst, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None,
-                   hl_span=None):
+                   hl_span=None, safe=None):
     """Draw ONLY one caption block onto a transparent PNG (shown for one time window). In band mode the
     layer is W×(H+band) so the caption text lands in the strip below the content; `text_rgb` overrides
     the text colour (the per-scene sampled colour that contrasts a flush strip); `band_bg` is that strip's
-    ground rgb, used to contrast-pick the karaoke highlight so it never vanishes into the band."""
+    ground rgb, used to contrast-pick the karaoke highlight so it never vanishes into the band. `safe` is a
+    platform-safe portrait film's geometry (`_platform_safe`)."""
     layer = Image.new("RGBA", (W, H + band), (0, 0, 0, 0))
     _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word, band=band, text_rgb=text_rgb,
-                  band_bg=band_bg, hl_span=hl_span)
+                  band_bg=band_bg, hl_span=hl_span, safe=safe)
     layer.save(dst)
 
 def _load_words(out_dir, index):
@@ -683,6 +736,17 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     # every cached clip of every deck for a fix that moves a few pages.
     if _tail_led(slide, meta):
         fp["tail"] = "led1"
+    # an html scene's clip is converted to limited range now (_limited_range); one cached before that is full-range and
+    # would put the concat back in the wrong range. Programmatic and image clips were already limited and encode to
+    # the same bytes, so only html scenes are salted.
+    if slide.get("type") == "html":
+        fp["range"] = "tv1"
+    # a platform-safe portrait film draws every clip differently (scaled page, caption, bug) — keyed by the geometry
+    # it was drawn with, so a change to safeZone.ts re-renders it too. Absent on every other film, whose keys (and
+    # cached clips) stay exactly as they were.
+    safe = _platform_safe(meta, W, H)
+    if safe:
+        fp["safe"] = ["html2", sorted(safe.items())]
     payload = json.dumps(fp, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 
@@ -725,7 +789,7 @@ def _caption_band_px(meta, W, H):
     if (meta or {}).get("caption_mode") != "band" or not (meta or {}).get("captions", True):
         return 0                                  # no strip in overlay mode OR when captions are off
     fp = _caption_font_px(W, H, band=True, meta=meta)
-    band = int(fp * 2 * 1.30) + int(H * 0.030)   # up to 2 caption lines + tight vertical padding
+    band = int(fp * 2 * _CAPTION_LEAD) + int(H * 0.030)   # up to 2 caption lines + tight vertical padding
     return band + (band & 1)
 
 def _caption_band_colors(meta):
@@ -1021,6 +1085,225 @@ def _edge_filter(meta, dur, slide, vlabel, W, H):
              f"[ebg][{vlabel}]overlay=eval=frame:x='{xe}':y='{ye}':shortest=1[vedge]"], "vedge")
 
 
+# ── PLATFORM-SAFE PORTRAIT (meta.safe_zone) — the remotion tier's runtime/safeZone.ts, on this tier ──────────
+# A 9:16 film posted to Douyin / Xiaohongshu / TikTok / Reels has the platform's own UI drawn over it: the
+# description, author and music line across the bottom, a column of buttons down the right, tabs along the top
+# (references/craft-research.md §2). This tier burned its caption flush to the bottom edge across 0.9 of the
+# width — under the description on every one of them, its full lines under the buttons too. The `social`
+# profile is READ from safeZone.ts (text_safe_qa.safe_profile), never restated, and applied as Film.tsx does:
+#   · the PAGE is drawn in a frame scaled by k from y0 (registerFrame), over the deck's own --bg, its edges
+#     dissolving into that ground across the action-safe border only — type is kept inside that border, so the
+#     fade can never thin a letter. The page's own reserved caption band, scaled with it, lands where the caption
+#     now sits: no page is re-authored, and keyframe_qa / snapshot still measure pages in PAGE coordinates;
+#   · the caption is a size larger (SAFE_CAPTION_SCALE), wraps short of the button column, and its bottom edge
+#     sits on captionBottomY — above the platform's description;
+#   · the brand bug starts below the platform's tabs.
+# Only a full-screen vertical frame (safe_applies) in overlay mode: `caption_mode: band` grows the canvas below the
+# content and is left exactly as it was, and every other aspect renders byte-identical to before.
+
+def _safe_geometry(W, H, prof, edge, band_px, margin_px):
+    """The platform-safe layout of a W x H frame, in frame px — pure (the tests drive it directly).
+    `prof` = text_safe_qa.safe_profile(); `edge` = ACTION_SAFE_FRAC; `band_px` / `margin_px` = the caption band and
+    the caption's bottom margin (_caption_band, i.e. runtime/layout.ts).
+      fw, fh, x0, y0   the scaled page's size and top-left (registerFrame), kept EVEN so the frame's edges fall
+                       on the chroma-sample grid of the 4:2:0 film it is encoded into;
+      fade_x, fade_y   the dissolve's width across / down — the frame's own action-safe border;
+      cap_bottom       the caption block's bottom edge, its ink ending on it: H - Math.round(H - captionBottomY),
+                       as Film.tsx sets it;
+      cap_room         the height the block may take: the page's caption band scaled with it, less the caption's
+                       own margin (Film.tsx `capBand - capMargin`) — so it cannot climb onto the scaled page;
+      measure          the longest line: W(1 - 2·right) - 8 px, centred, so a line ends left of the button column
+                       at W(1 - right) (Film.tsx capMeasure's text width; never wider than this tier's 0.9 W);
+      bug_top          the brand bug's top: below the tabs (top·H, rounded up so it is never above it);
+      cap_scale        the caption's step up; sample_top: the page row (as a share of H) its caption band
+                       starts at — the page region the caption now sits over."""
+    def _even(v):
+        return 2 * int(math.floor(v / 2.0 + 0.5))
+    fw, fh = _even(prof["k"] * W), _even(prof["k"] * H)
+    x0 = (W - fw) // 2
+    x0 -= x0 % 2
+    y0 = _even(prof["y0"] * H)
+    cap_bottom_y = prof["y0"] * H + prof["k"] * H - margin_px            # safeZone.ts captionBottomY
+    return {"fw": fw, "fh": fh, "x0": x0, "y0": y0,
+            "fade_x": edge * fw, "fade_y": edge * fh,
+            "cap_bottom": H - int(math.floor(H - cap_bottom_y + 0.5)),
+            "cap_room": int(math.floor(prof["k"] * band_px + 0.5)) - margin_px,
+            "measure": min(int(W * 0.9), int(math.floor(W * (1 - 2 * prof["right"]))) - 8),
+            "bug_top": int(math.ceil(prof["top"] * H)),
+            "cap_scale": prof["caption_scale"],
+            "sample_top": (H - band_px) / float(H)}
+
+
+def _platform_safe(meta, W, H):
+    """This film's platform-safe geometry (`_safe_geometry`), or None when it renders as before: `meta.safe_zone`
+    "none", `caption_mode: band`, or a frame that is not full-screen vertical. A value other than "social"/"none"
+    is refused, as render_remotion.safe_zone refuses it (validate.py ERRORs on it before render)."""
+    want = (meta or {}).get("safe_zone", "social")
+    if want in (None, "", "none", False):
+        return None
+    if want != "social":
+        raise sb.StoryboardError("meta.safe_zone must be \"social\" or \"none\", got %r" % (want,))
+    if (meta or {}).get("caption_mode") == "band":
+        return None
+    import text_safe_qa as _tq
+    prof = _tq.safe_profile()
+    if not _tq.safe_applies(W, H, prof):
+        return None
+    from _caption_band import caption_band_px, caption_margin_px
+    return _safe_geometry(W, H, prof, _tq.action_safe_frac(), caption_band_px(W, H), caption_margin_px(W, H))
+
+
+def _safe_ground(meta):
+    """The ground a scaled page sits on and dissolves into: the deck's --bg — the same fill _fit_frame letterboxes
+    an image slide with and the seam dips through (_theme_bg's default)."""
+    return _theme_rgb((meta or {}).get("_out", "."), "--bg", (13, 17, 23))
+
+
+def _safe_keep_mask(W, H, geom):
+    """Where the scaled page shows, as a W x H "L" mask: 0 outside the frame, 255 inside its action-safe border, a
+    linear ramp across that border — Film.tsx SAFE_FRAME_MASK (two linear gradients, transparent at the edge to opaque
+    at ACTION_SAFE_FRAC, intersected). Inside the border it is fully opaque, so the page's pixels pass untouched."""
+    fw, fh = geom["fw"], geom["fh"]
+
+    def _ramp(n, b):                         # coverage at each pixel centre: 0 at the edge -> 1 at the border
+        return bytes(int(round(255 * min(1.0, min(i + 0.5, n - i - 0.5) / b))) if b > 0 else 255
+                     for i in range(n))
+    gx = Image.frombytes("L", (fw, 1), _ramp(fw, geom["fade_x"])).resize((fw, fh), Image.NEAREST)
+    gy = Image.frombytes("L", (1, fh), _ramp(fh, geom["fade_y"])).resize((fw, fh), Image.NEAREST)
+    keep = Image.new("L", (W, H), 0)
+    keep.paste(ImageChops.multiply(gx, gy), (geom["x0"], geom["y0"]))
+    return keep
+
+
+def _safe_frame_png(W, H, geom, ground, dst):
+    """The scaled frame's surround as a W x H layer laid over the composite: the ground, opaque outside the frame and
+    clear inside it — `_safe_keep_mask` inverted. Over the padded frame this is content·m + ground·(1 - m), the mask's
+    own blend."""
+    layer = Image.new("RGBA", (W, H), tuple(ground) + (255,))
+    layer.putalpha(ImageChops.invert(_safe_keep_mask(W, H, geom)))
+    layer.save(dst)
+    return dst
+
+
+# A frame whose outer action-safe ring varies more than this (the largest per-channel standard deviation, 0-255)
+# is not a flat ground, and a flat pad around it reads as a card on an unrelated board. Measured on 1080x1920 first
+# frames: solid light and dark --bg pages 0.0 (0.16 with the heaviest theme grain, --grain-amount .16); a .bg-glow
+# page 31.6, a .bg-photo page 33.3, a full-bleed gradient slide 35.6 — in their most varied channel.
+_SAFE_UNIFORM_STD = 4.0
+_SAFE_FILL_SIGMA = 0.03     # the non-uniform margin's blur, as a share of W — the vertical-video "blurred fill"
+# …and NOT dimmed (1.0): dimmed to 0.93 or 0.85, the margin around a light page whose one corner glows read as a grey
+# board around a card — the look the fill exists to remove; undimmed it continues the page on light and dark frames.
+_SAFE_FILL_DIM = 1.0
+
+
+def _safe_fill(meta, W, H, frame_path):
+    """How the margin around this scene's scaled frame is filled, decided ONCE per scene from its first frame
+    `frame_path`, decoded by ffmpeg to rgb24 at W x H — the pixels the graph composites (deterministic):
+      {"uniform": True, "ground": rgb} — the frame's edge is a flat ground (its outer action-safe ring varies less
+        than _SAFE_UNIFORM_STD): a solid pad of THAT colour, the median of the frame's outermost ring as decoded;
+      {"uniform": False, "ground": rgb} — a photo, a gradient, a glow at the edge: the frame's own edges, extended
+        outward and blurred, fill the margin, so the surround continues the picture's own colours.
+    Unreadable -> a solid pad of the deck's --bg.
+
+    WHY THE DECODED COLOUR. An html page is captured as JPEG: measured on a light theme (--bg #f2efe8), ffmpeg decodes
+    its ground as (242,240,232), and composited in YUV the page and a pad of the exact --bg landed one level apart in Y
+    and U (240,123,129 against 239,122,129) — the scaled frame showed as a faint panel. Composited in RGB from the
+    decoded value, both encode to the same pixel. A PNG frame (programmatic scenes, image slides) decodes to its RGB."""
+    import statistics
+    import subprocess
+    import text_safe_qa as _tq
+    ground = _safe_ground(meta)
+    try:
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", frame_path, "-vf", f"scale={W}:{H}", "-frames:v", "1",
+                              "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return {"uniform": True, "ground": tuple(ground), "std": None}
+    if len(raw) != W * H * 3:
+        return {"uniform": True, "ground": tuple(ground), "std": None}
+    px = lambda x, y: tuple(raw[(y * W + x) * 3:(y * W + x) * 3 + 3])
+    ring = ([px(x, 2) for x in range(0, W, 4)] + [px(x, H - 3) for x in range(0, W, 4)]
+            + [px(2, y) for y in range(0, H, 4)] + [px(W - 3, y) for y in range(0, H, 4)])
+    med = sorted(ring, key=_rel_lum)[len(ring) // 2]
+    # uniformity over the frame's own action-safe border — the ring a page keeps its TYPE out of, so a page's text
+    # never reads as "not a flat ground" (the wider strip the scale uncovers holds the 9:16 page's text: 11-12 there)
+    edge = _tq.action_safe_frac()
+    bx, by = max(1, int(round(edge * W))), max(1, int(round(edge * H)))
+    border = [px(x, y) for y in range(0, H, 3) for x in range(0, W, 3)
+              if x < bx or x >= W - bx or y < by or y >= H - by]
+    std = max(statistics.pstdev([p[c] for p in border]) for c in range(3))
+    return {"uniform": std <= _SAFE_UNIFORM_STD, "ground": med, "std": round(std, 2)}
+
+
+def _safe_frame_parts(W, H, geom, fill, vlabel, n_in, dst, bg_label=None):
+    """(filtergraph parts, extra -i inputs, new vlabel, next input index): the page at `vlabel` drawn in its scaled
+    frame, its edges dissolving into the margin `fill` (_safe_fill) — a solid pad of the frame's own ground, or the
+    frame's own edges extended and blurred (from `bg_label` when the caller split the frame off earlier,
+    before its callouts). Composited BEFORE the brand bug, the captions and the seam, so those stay in frame
+    coordinates and the seam carries the whole composite. In RGB, so the page's ground and a solid pad encode to one
+    pixel.
+
+    WHY EXTEND THE EDGES, NOT BLUR A COVER COPY. The usual vertical-video fill — the same picture scaled to cover and
+    blurred — puts a SAME-aspect frame's own content just outside the 0.8 frame's edges: on a gradient slide and a
+    photo page its title and shapes showed as smudges in the margin at sigma 3% and still at 8% of W. Extending the
+    frame from just inside its action-safe border (past the ramp, so a picture's own 1 px rule is not stretched)
+    carries each edge's colours outward and nothing else."""
+    if fill["uniform"]:
+        _safe_frame_png(W, H, geom, fill["ground"], dst)
+        hexg = "0x%02x%02x%02x" % tuple(fill["ground"])
+        return ([f"[{vlabel}]format=rgb24,scale={geom['fw']}:{geom['fh']}:flags=lanczos,"
+                 f"pad={W}:{H}:{geom['x0']}:{geom['y0']}:color={hexg}[vsafe]",
+                 f"[vsafe][{n_in}:v]overlay=0:0[v{n_in}]"],
+                ["-i", dst], f"v{n_in}", n_in + 1)
+    _safe_keep_mask(W, H, geom).save(dst)
+    parts = []
+    if bg_label is None:
+        parts.append(f"[{vlabel}]split=2[vsafp][vsafb]")
+        vlabel, bg_label = "vsafp", "vsafb"
+    dim = _SAFE_FILL_DIM
+    fw, fh, x0, y0 = geom["fw"], geom["fh"], geom["x0"], geom["y0"]
+    ix, iy = int(math.ceil(geom["fade_x"])), int(math.ceil(geom["fade_y"]))   # inside the ramp
+    # planar RGB end to end: maskedmerge blends each plane by the SAME plane of the mask, and a grey mask in gbrp is
+    # one value in all three — so the blend is content·m + fill·(1 - m) per pixel, the mask's own blend
+    parts += [f"[{bg_label}]format=gbrp,scale={fw}:{fh}:flags=lanczos,crop={fw - 2 * ix}:{fh - 2 * iy}:{ix}:{iy},"
+              f"pad={W}:{H}:{x0 + ix}:{y0 + iy}:color=black,"
+              f"fillborders=left={x0 + ix}:right={W - x0 - fw + ix}:top={y0 + iy}:bottom={H - y0 - fh + iy}:mode=smear,"
+              f"gblur=sigma={_SAFE_FILL_SIGMA * W:.1f}"
+              + (f",colorchannelmixer=rr={dim}:gg={dim}:bb={dim}" if dim < 1 else "") + "[vsafg]",
+              f"[{vlabel}]format=gbrp,scale={geom['fw']}:{geom['fh']}:flags=lanczos,"
+              f"pad={W}:{H}:{geom['x0']}:{geom['y0']}:color=black[vsafs]",
+              f"[{n_in}:v]format=gbrp[vsafm]",
+              f"[vsafg][vsafs][vsafm]maskedmerge[v{n_in}]"]
+    return parts, ["-i", dst], f"v{n_in}", n_in + 1
+
+
+def _safe_caption_fit(d, text, W, H, meta, geom):
+    """(font, lines) for a platform-safe caption: SAFE_CAPTION_SCALE larger, wrapped to the safe measure with
+    push-out kinsoku (a hung closer would cross the button column), and FITTED to the band it was given — the
+    largest size whose lines fit `cap_room` (Film.tsx's fitSize: a caption that wraps to one more line yields
+    size rather than climb onto the picture). Measured, not estimated: every size is wrapped and its lines
+    counted, so it holds for any script, face and length."""
+    path = _font_path(meta, text)
+    size = _caption_font_px(W, H, meta=meta, safe_scale=geom["cap_scale"])
+    while True:
+        font = _load_font(size, path)
+        lines = _wrap(d, text, font, geom["measure"], hang=False)
+        if _safe_block_h(d, lines, font) <= geom["cap_room"] or size <= 12:   # Film.tsx's floor, max(12, …)
+            return font, lines
+        size -= 1
+
+
+def _safe_block_h(d, lines, font):
+    """A safe caption block's height down to its INK: the line pitches above the last line, then the last line's real
+    glyph bottom (drawn _caption_half_lead down its box) plus the 2 px outline `_draw_caption._put` draws, when that is
+    deeper than its line box. Measured on Hiragino Sans GB at 49 px with the face's own 50 px line: a descender
+    reached 54 — placed by its line box, a CJK caption's outline crossed captionBottomY by 3 px."""
+    line_h = _caption_line_h(font)
+    if not lines:
+        return 0
+    ink = _caption_half_lead(font) + d.textbbox((0, 0), lines[-1], font=font)[3] + 2
+    return line_h * (len(lines) - 1) + max(line_h, ink)
+
+
 # ── brand bug: a render-level persistent corner mark (meta.brand, placement "bug") ─────────────
 def _brand_dict(meta):
     """meta.brand as a dict, {} for anything malformed — validate ERRORs a non-dict brand, but render
@@ -1061,11 +1344,12 @@ def _bug_logo_rel(meta):
         return dark
     return brand.get("logo")
 
-def _brand_bug_png(meta, W, H, dst):
+def _brand_bug_png(meta, W, H, dst, top=None):
     """The corner bug as a W×H transparent layer (same shape as the callout/caption layers), or None
     when the logo is missing/unreadable — a broken brand asset warns and skips, never kills a render.
     Aspect preserved (scaled by height only), never recolored, no effects; opacity rides the alpha.
-    Top corners only — the bottom is the caption zone; an unknown corner value means tr."""
+    Top corners only — the bottom is the caption zone; an unknown corner value means tr. `top` = the
+    least y its top may sit at (a platform-safe film: below the platform's tabs)."""
     cfg = _brand_dict(meta).get("bug")
     cfg = cfg if isinstance(cfg, dict) else {}         # validate ERRORs a non-dict; render degrades
     rel = _bug_logo_rel(meta)
@@ -1092,12 +1376,23 @@ def _brand_bug_png(meta, W, H, dst):
             logo.putalpha(logo.getchannel("A").point(lambda a: int(a * op)))
         x = margin if cfg.get("corner") == "tl" else W - w - margin
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        layer.paste(logo, (x, margin)) # verbatim copy (no mask): the ground is fully transparent, and a
+        y = margin if top is None else max(margin, top)
+        layer.paste(logo, (x, y))      # verbatim copy (no mask): the ground is fully transparent, and a
         layer.save(dst)                # masked paste would re-blend the logo's own alpha against it (op²)
         return dst
     except Exception as e:
         print(f"[render] warning: brand bug skipped — logo unusable: {rel} ({e})")
         return None
+
+
+def _limited_range(parts, vlabel):
+    """End a clip's filtergraph in LIMITED-range yuv420p, the range converted (not just relabelled) — every clip of a
+    film in one range. An html scene's frames are Chrome JPEGs, full range, and its clip came out yuvj420p tagged `pc`
+    while programmatic and image clips are limited; the `-c copy` concat carries the FIRST clip's tag, so after an html
+    opener every later scene decoded in the wrong range. Measured on a delivered html -> keypoints -> image-slide film:
+    the keypoints ground 18 levels off its --bg (224,221,214 for 242,239,232) and a flat (200,60,40) slide 10 off."""
+    parts.append(f"[{vlabel}]scale=out_range=tv,format=yuv420p[vrange]")
+    return "vrange"
 
 
 def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_clip, workdir, slide=None):
@@ -1111,10 +1406,16 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
     band = _caption_band_px(meta, W, H)                # >0 -> captions in a strip BELOW the content
     parts = [f"[0:v]scale={W}:{H}[v0]"]               # frames are already WxH; scale = safety
     vlabel = "v0"; extra_inputs = []; n_in = 2        # 0=frames, 1=audio
+    safe = _platform_safe(meta, W, H)                 # a platform-safe portrait film: the page in its scaled frame
+
+    if safe:                                          # first — the bug, captions and seam are in FRAME coordinates
+        sp, si, vlabel, n_in = _safe_frame_parts(W, H, safe, _safe_fill(meta, W, H, pattern % 0), vlabel, n_in,
+                                                 os.path.join(workdir, f"ssafe_{(slide or {}).get('index', 0):02d}.png"))
+        parts.extend(sp); extra_inputs += si
 
     if _bug_wanted(meta, slide):                      # before _edge_filter (both branches) — the bug rides the seam
         bug_png = os.path.join(workdir, f"sbug_{(slide or {}).get('index', 0):02d}.png")
-        if _brand_bug_png(meta, W, H, bug_png):       # None = unreadable logo (warned) — render on without it
+        if _brand_bug_png(meta, W, H, bug_png, top=safe["bug_top"] if safe else None):   # None = unreadable logo
             extra_inputs += ["-i", bug_png]
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0[v{n_in}]"); vlabel = f"v{n_in}"; n_in += 1
 
@@ -1127,7 +1428,7 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
             # index-scoped like every other per-scene artifact in the shared workdir (sbug_/cap_/
             # scene_ frames) — the sequential loop makes a bare k safe today, a parallel one wouldn't
             cap_png = os.path.join(workdir, f"scap_{(slide or {}).get('index', 0):02d}_{k:03d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"))
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe)
             extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
@@ -1141,10 +1442,13 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
         parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
         _add_caption_overlays()
     else:                                              # overlay (no bar): sample the ground UNDER the caption so its
-        band_bg = _sample_region_color(pattern % 0)    # ink/outline/karaoke adapt to a photo/tint/letterbox
+        band_bg = (_sample_region_color(pattern % 0)   # ink/outline/karaoke adapt to a photo/tint/letterbox — on a safe
+                   if not safe else                    # film the page's own caption band, which the caption now sits on
+                   _sample_region_color(pattern % 0, safe["sample_top"]))
         _add_caption_overlays()
         ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
         parts.extend(ep)
+    vlabel = _limited_range(parts, vlabel)
     cmd = ["ffmpeg", "-y", "-framerate", str(fps), "-i", pattern,
            "-i", os.path.join(meta["_out"], audio_rel)] + extra_inputs + [
         "-filter_complex", ";".join(parts), "-map", f"[{vlabel}]", "-map", "1:a",
@@ -1211,6 +1515,13 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     vlabel = "v0"
     extra_inputs = []
     n_in = 2                                        # 0=frame(loop), 1=audio
+    # A platform-safe portrait film (`_platform_safe`): decided here, before the callouts — a slide whose edge is not a
+    # flat ground fills the margin with ITSELF blurred, and that copy is split off before the callouts are drawn on it
+    safe = _platform_safe(meta, W, H)
+    fill = _safe_fill(meta, W, H, frame) if safe else None
+    fill_src = None
+    if fill and not fill["uniform"]:
+        parts = [f"[0:v]{vf},split=2[v0][vsafb]"]; fill_src = "vsafb"
     if slide.get("callouts"):
         cos = slide["callouts"]
         # C3 — a callout with `cue`/`at` is TIMED: it appears when its region is spoken and holds
@@ -1231,12 +1542,18 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             en = f"between(t,{t0:.3f},{dur})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
+    # …the slide — its callouts with it, they mark regions OF the slide — drawn in its scaled frame; the bug and
+    # captions below stay in frame coordinates.
+    if safe:
+        sp, si, vlabel, n_in = _safe_frame_parts(W, H, safe, fill, vlabel, n_in,
+                                                 os.path.join(workdir, f"safe_{i:02d}.png"), bg_label=fill_src)
+        parts.extend(sp); extra_inputs += si
     # Brand bug — an ffmpeg overlay input (like callouts), NOT a paste into the source frame: the
     # frame rides zoompan, so a baked-in bug would zoom/pan with the Ken Burns move. Composited here,
     # BEFORE _edge_filter in both caption modes, so the bug dips/travels with the seam.
     if _bug_wanted(meta, slide):
         bug_png = os.path.join(workdir, f"bug_{i:02d}.png")
-        if _brand_bug_png(meta, W, H, bug_png):        # None = unreadable logo (warned) — render on without it
+        if _brand_bug_png(meta, W, H, bug_png, top=safe["bug_top"] if safe else None):   # None = unreadable logo
             extra_inputs += ["-i", bug_png]
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0[v{n_in}]"); vlabel = f"v{n_in}"; n_in += 1
     band = _caption_band_px(meta, W, H)                # >0 -> captions in a strip BELOW the content
@@ -1249,7 +1566,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             if not (seg.get("text") or "").strip():
                 continue
             cap_png = os.path.join(workdir, f"cap_{i:02d}_{k:02d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"))
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe)
             extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
@@ -1263,10 +1580,12 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
         parts.append(f"[{vlabel}]pad={W}:{H + band}:0:0:color={bg}[vpad]"); vlabel = "vpad"
         _cap_overlays()
     else:                                              # overlay (no bar): sample the ground UNDER the caption so its
-        band_bg = _sample_region_color(frame)          # ink/outline/karaoke adapt to a photo/tint/--bg letterbox
+        band_bg = (_sample_region_color(frame)         # ink/outline/karaoke adapt to a photo/tint/--bg letterbox (on a
+                   if not safe else _sample_region_color(frame, safe["sample_top"]))   # safe film: its caption band)
         _cap_overlays()
         ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
         parts.extend(ep)
+    vlabel = _limited_range(parts, vlabel)
     fcomplex = ";".join(parts)
 
     cmd = ["ffmpeg", "-y", "-loop", "1", "-i", frame, "-i",
@@ -1356,8 +1675,75 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
         print(f"({rendered} slide(s) rendered, {len(clips) - rendered} reused from cache; "
               f"{time.monotonic()-t_all:.1f}s total)")
         if not preview:
+            # a portrait film posted to a platform also needs its feed card (scripts/cover.py), as render_remotion
+            # writes one: best-effort and said aloud — a film without a cover still renders
+            if _platform_safe(meta, W, H):
+                try:
+                    print("[render] cover -> %s" % os.path.basename(_write_cover(out_dir, data, meta, W, H, wd)))
+                except Exception as e:                  # noqa: BLE001
+                    print("[render] no cover: %s" % e)
             _not_delivered(out_dir, data)
         return dst
+
+
+def _write_cover(out_dir, data, meta, W, H, workdir):
+    """out.cover.png — the 3:4 feed card (scripts/cover.py `card`) cut from an UNCAPTIONED settled frame of beat 1, or
+    of `meta.cover.beat` (1-based): an html page at p=1.0 (snapshot.py's capture, no burn), an image slide's fitted
+    frame, a programmatic scene's last frame (reused from this render's workdir when it was just drawn). The card
+    keeps the unscaled PAGE from its top — the page's own top padding is the title's margin — down to where its
+    caption band starts. Returns the path; raises with the reason when there is no cover to make."""
+    import cover as _cover
+    from _caption_band import caption_band_px
+    slides = data["slides"]
+    beat = (meta.get("cover") or {}).get("beat") if isinstance(meta.get("cover"), dict) else None
+    try:
+        k = int(beat or 1) - 1
+    except (TypeError, ValueError):
+        raise ValueError("meta.cover.beat %r is not a beat number" % (beat,))
+    if not 0 <= k < len(slides):
+        raise ValueError("meta.cover.beat %d is not a beat of this film (1-%d)" % (k + 1, len(slides)))
+    s = slides[k]
+    kind = s.get("type", "slide")
+    src = os.path.join(workdir, "cover_src.png")
+    if kind == "slide":
+        _fit_frame(os.path.join(out_dir, s["image"]), src, W, H, s.get("fit", "contain"), bg_rgb=_safe_ground(meta))
+    elif kind == "html":
+        import scenes
+        from urllib.parse import quote
+        page = os.path.abspath(os.path.join(out_dir, (s.get("props") or {})["html"]))
+        if not os.path.isfile(page):            # Chrome would render its error page — a "cover" of nothing
+            raise FileNotFoundError(page)
+        url = "file://" + quote(page) + "?p=1.0"
+        try:                                    # the CDP fast path (snapshot.shoot's), else one --screenshot
+            import _cdp
+            chrome = _cdp.Chrome(scenes._chrome_bin(meta), W, H, quality=95)
+        except Exception:
+            chrome = None
+        if chrome:
+            try:
+                chrome.shot(url, src)
+            finally:
+                chrome.close()
+        else:
+            scenes._chrome_shot(url, src, W, H, meta)
+    else:
+        import scenes
+        fps = meta.get("fps", 30)
+        frames = max(1, int(round(float(s.get("duration") or 0) * fps)))
+        last = os.path.join(workdir, f"scene_{s['index']:02d}_%04d.png") % (frames - 1)
+        if not os.path.exists(last):             # the clip came from the cache: draw the scene again, aside
+            sub = os.path.join(workdir, "cover_scene")
+            os.makedirs(sub, exist_ok=True)      # the renderers write into an existing workdir
+            meta["_narration"] = s.get("narration") or ""
+            meta["_slide"] = s
+            last = getattr(scenes, "render_" + kind)(s.get("props") or {}, meta, W, H, frames, sub,
+                                                     s["index"]) % (frames - 1)
+    im = Image.open(src if kind in ("slide", "html") else last).convert("RGB")
+    if im.size != (W, H):
+        im = im.resize((W, H), Image.LANCZOS)
+    dest = os.path.join(out_dir, "out.cover.png")
+    _cover.card(im, 0, H - caption_band_px(W, H)).save(dest)
+    return dest
 
 
 # THE RENDER DOES NOT END ON A GREEN LIGHT — on this tier either. render_remotion.py leaves NOT_DELIVERED.md beside

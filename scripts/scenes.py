@@ -258,6 +258,8 @@ def _wrap_pil(draw, text, font, max_w):
                 cur += ch
             else:
                 out.append(cur); cur = ch
+        if cur:                    # the LAST line too: without it a char-wrapped title lost its tail ("…安全区里面"
+            out.append(cur)        # drew as "…安全") and _fit_lines took the shortened text for one that fit
         return out or [""]
     lines, cur = [], words[0]
     for w in words[1:]:
@@ -356,8 +358,30 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
     cue_times = _resolve_chart_cues(props.get("cue"), meta, index, frames / (fps or 30))
     x = int(W * 0.10)
     sub_sample = "".join(str(p.get("sub", "")) for p in points) or "x"
-    tfont = _font(meta, title or " ", int(H * 0.058), role="serif")   # editorial headline
-    top = int(H * 0.28) if title else int(H * 0.22)
+    # the editorial headline FITS the width, as render_title's does: it was set at 0.058 H on one line whatever its
+    # length, so on a 9:16 frame (0.058 H = 111 px across a 1080 column) "Platform-safe portrait" ran off the right edge.
+    # It shrinks to stay on one line — to 80% of its size, a headline still a headline — and past that wraps to two.
+    t_px = int(H * 0.058)
+    tfont, title_lines = _font(meta, title or " ", t_px, role="serif"), ([title] if title else [])
+    if title:
+        tfont, title_lines = _fit_lines(meta, title, W - 2 * x, t_px, max_lines=1, role="serif")
+        if len(title_lines) > 1 or getattr(tfont, "size", t_px) < int(t_px * 0.8):
+            tfont, title_lines = _fit_lines(meta, title, W - 2 * x, t_px, max_lines=2, role="serif")
+        if len(title_lines) > 1:
+            # BALANCED: the narrowest measure that keeps the same number of lines. Greedy, a 27-character Chinese
+            # title at 9:16 broke 13 / 13 / 1 — a lone "面" on the last line
+            scratch, n = ImageDraw.Draw(Image.new("RGB", (10, 10))), len(title_lines)
+            lo, hi = 1, W - 2 * x
+            while lo < hi:
+                mid = (lo + hi) // 2
+                if len(_wrap_pil(scratch, title, tfont, mid)) <= n:
+                    hi = mid
+                else:
+                    lo = mid + 1
+            title_lines = _wrap_pil(scratch, title, tfont, lo)
+    t_lh = int(getattr(tfont, "size", t_px) * 1.14)
+    # the points start below a wrapped headline, never under it
+    top = max(int(H * 0.28), int(H * 0.15) + len(title_lines) * t_lh + int(H * 0.04)) if title else int(H * 0.22)
     # DYNAMIC row height so N points fit the vertical zone (was fixed 0.135H → the 6th row clipped off-frame)
     avail_h = int(H * 0.92) - top
     row_h = min(int(H * 0.135), max(int(H * 0.085), avail_h // n_pts))
@@ -381,7 +405,8 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
         d = ImageDraw.Draw(layer)
         if title:
             a0 = int(255 * _prog(i, 0))
-            d.text((x, int(H * 0.15)), title, font=tfont, fill=fg + (a0,))
+            for k, ln in enumerate(title_lines):
+                d.text((x, int(H * 0.15) + k * t_lh), ln, font=tfont, fill=fg + (a0,))
         for k, pnt in enumerate(points):
             if frames <= 1:                                        # static single frame -> settled end state
                 p = 1.0
