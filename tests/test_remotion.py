@@ -4034,7 +4034,11 @@ def test_the_luminance_guard_exempts_only_seams_that_cannot_add_light():
     m = re.search(r"const CANNOT_FLASH = new Set\(\[([^\]]+)\]\)", film)
     assert m, "the seam guard's exemption list moved"
     exempt = set(re.findall(r"'([a-z-]+)'", m.group(1)))
-    assert exempt == {"carry", "focus", "through-dark", "drift", "blur"}, exempt
+    # `container` joined on a measurement (Film.tsx's note above the set): outside the box it IS a fade, and across
+    # a 17 -> 238 dark/light seam its frame mean stayed monotone and inside both beats' range
+    assert exempt == {"carry", "focus", "through-dark", "drift", "blur", "container"}, exempt
+    for flashes in ("grow", "through-window", "punch", "portal"):
+        assert flashes not in exempt, "%s opens a bright beat over a dark one (or cuts with a flash)" % flashes
     # the fast-exit seam must NOT be exempt: leaving in 30% of the seam is how a dark ground becomes light
     assert "fadethrough" not in exempt
 
@@ -4051,7 +4055,10 @@ def test_every_seam_that_fades_its_leaving_half_paints_a_ground_under_it():
         body = film[film.index("const %s" % name):]
         body = body[:body.index("\n};")]
         assert "SeamGround" in body, "%s fades both halves with no ground under them (E15)" % name
-        assert "show={!isEnter}" in body, "%s paints its ground on the wrong half (E15)" % name
+        # under the EXITING half, and only while it is leaving (progress > 0): a TransitionSeries keeps a sequence
+        # in its exit presentation for its whole length, and a ground painted then covered the beat before it at
+        # the start of this one's own entrance (tests/test_seam_ground_span.py renders it)
+        assert "show={!isEnter && p > 0}" in body, "%s paints its ground on the wrong half or frames (E15)" % name
     # ...and the picker has a ground to give them
     assert "const seamBg = nextG?.bg ?? prevG?.bg" in film
     for factory in ("fadeThrough(seamBg)", "drift(dir, W, H, seamBg)", "defocus(seamBg)", "focusRelay(seamBg)"):

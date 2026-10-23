@@ -11,6 +11,7 @@ import {TITLE_Y} from '../runtime/layout';
 import {deviceGeometry, defaultLook, Device, type DeviceKind, type DeviceLook, type Placement} from '../runtime/device';
 import {ScreenImage, ScreenVideo, type VideoSpan} from '../runtime/screen';
 import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
+import {useCarried} from '../runtime/carry';
 
 export const DURATION = 150;
 
@@ -31,7 +32,11 @@ export const DeviceHero: React.FC<{
   const lk: DeviceLook = look ?? defaultLook(dna);
   const g = deviceGeometry(device, lk, W, H, placement, Boolean(kicker));
   const s = g.screen;
-  const enter = easeOutCubic(seg(t, ENTRY_T, 0.32));
+  // A CONTAINER SEAM THAT CARRIES THE SCREEN IN IS THE DEVICE'S ENTRANCE (runtime/carry): the device is already
+  // standing where the seam lands it, rather than landing it and then rising out of nothing a second time.
+  const carriedScreen = useCarried('screen'), carriedDevice = useCarried('device');   // two hooks, both always called
+  const carried = carriedScreen || carriedDevice;
+  const enter = carried ? 1 : easeOutCubic(seg(t, ENTRY_T, 0.32));
   // THE ENTRANCE NEVER LEAVES THE RECT deviceGeometry FITTED INSIDE THE CONTENT ZONE. It used to slide up from
   // 4% of the frame below — and the geometry fills the zone exactly, so a laptop at 16:9 entered 35 px deep in
   // the caption band while half opaque — and its perspective, centred on the FRAME, pushed the turned device's
@@ -60,8 +65,11 @@ export const DeviceHero: React.FC<{
     throw new Error('DeviceHero: a screen image needs its size (`imageW`, `imageH`) — scripts/device_script.py ' +
       'reads it from the file; render through render_remotion.py.');
   }
+  // ...and so is what is ON the screen: a container lands on this screen already showing its own drawing, rather
+  // than on an empty screen that then draws it (measured on the seam probe: the rings carried in from a phone
+  // vanished on landing and redrew from one dot). Uncarried, `t` is left to the slot's own clock as before.
   const content = SCREEN.object
-    ? <ObjectSlot object={SCREEN.object} box={{x: 0, y: 0, w: s.w, h: s.h}} />
+    ? <ObjectSlot object={SCREEN.object} box={{x: 0, y: 0, w: s.w, h: s.h}} t={carried ? 1 : undefined} />
     : SCREEN.image
       ? <ScreenImage src={SCREEN.image} imageW={SCREEN.imageW!} imageH={SCREEN.imageH!} w={s.w} h={s.h} />
       : SCREEN.video

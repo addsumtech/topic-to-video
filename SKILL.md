@@ -129,8 +129,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   - **The cut has to be authored.** No seam reaches a film unless something writes `transition_in`, so run
     `python3 scripts/seam_plan.py <out_dir>`. From each beat's `relation` it derives ~2-3 MARKED seams (≥5 beats apart,
     luminance-safe) and ~2-4 motivated `slide.camera` moves. An authored `transition_in` always wins. validate WARNS on a
-    ≥12-beat film with no mark, or more than ~1-in-8 marked. Only `carry`, `focus`, `through-dark`, `drift` and `blur` may
-    sit on a dark↔light seam; any other mark there (`portal` included) is silently forced to a fade. A bespoke direction
+    ≥12-beat film with no mark, or more than ~1-in-8 marked. Only `carry`, `focus`, `through-dark`, `drift`, `blur` and
+    `container` may sit on a dark↔light seam; any other mark there (`portal` included) is silently forced to a fade.
+    The ANCHORED seams — `container` (an element carried across the cut), `grow`, `through-window`, `punch` (once, the
+    payoff) — and the camera hand-off (`camera.handoff`) are in `references/motion-grammar.md`; an anchor is
+    `transition_in.carry`, and `python3 scripts/carry_anchors.py` lists what each register draws. A bespoke direction
     must declare `meta.design_dna.seam` (e.g. `{type:'wipe',direction:'from-bottom'}` or `{type:'fade'}`), or its
     unmarked seams fall through to an anonymous cross-fade.
   - **Camera** is per beat and motivated: `slide.camera:{move:'push'|'pull'|'hold'}` (payoff → push, close/opener → pull,

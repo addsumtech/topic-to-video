@@ -214,7 +214,8 @@ export const TermTable: React.FC<{cmd?: string; headers?: string[]; rows?: strin
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0}}>
-      <div style={{position: 'absolute', left, top, width: winW,
+      {/* the terminal's box is its carry anchor (runtime/carry) — the window when framed, the output's region when not */}
+      <div data-carry="window" style={{position: 'absolute', left, top, width: winW,
         background: framed ? SURFACE : 'transparent',
         border: framed ? `1px solid ${BORDER}` : 'none', borderRadius: framed ? (dna?.radius ?? 8) : 0,
         boxShadow: framed ? '0 30px 90px #0009' : 'none', overflow: 'hidden'}}>

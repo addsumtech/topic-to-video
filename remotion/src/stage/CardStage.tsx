@@ -608,7 +608,8 @@ export const CardStage: React.FC<{
     const e = easeOutCubic(g.on);
     const t = `translate(${g.cx - g.w / 2}px, ${g.cy + floatY - g.h / 2 + (1 - e) * U * 0.04}px) perspective(${persp}px) ` +
       `rotateX(${g.pose.rx}deg) rotateY(${g.pose.ry}deg) rotateZ(${g.pose.rz}deg) scale(${0.96 + 0.04 * e})`;
-    return <div key={`c${g.c.id}`} style={{position: 'absolute', left: 0, top: 0, width: g.w, height: g.h, transform: t,
+    // a side card is a carry anchor under its own id (runtime/carry): `card:<id>`
+    return <div key={`c${g.c.id}`} data-carry={`card:${g.c.id}`} style={{position: 'absolute', left: 0, top: 0, width: g.w, height: g.h, transform: t,
       transformOrigin: 'center center', opacity: g.on, borderRadius: r, overflow: 'hidden', background: ink.surface,
       boxShadow: lit(0.8)}}>
       {drawFace({image: g.c.image, page: g.c.page}, g.w, g.c.fit ?? 'cover')}
@@ -643,7 +644,8 @@ export const CardStage: React.FC<{
           transformStyle: 'preserve-3d', opacity: heroOn < 1 ? heroOn : undefined}}>
           {/* the face itself: a shadow is darker than the ground on any ground — a mix toward the ink was a pale halo */}
           {heroBlur ? <BlurFilter id={heroBlurId} blur={heroBlur} /> : null}
-          <div style={{position: 'absolute', inset: 0, borderRadius: r, overflow: 'hidden', background: ink.surface,
+          {/* the hero's face is the stage's carry anchor (runtime/carry) */}
+          <div data-carry="hero" style={{position: 'absolute', inset: 0, borderRadius: r, overflow: 'hidden', background: ink.surface,
             boxShadow: lit(1), filter: heroBlur ? `url(#${heroBlurId})` : undefined}}>
             {swapping ? faceLayer(faceBefore, 1) : null}
             {faceLayer(faceNow, swapping ? clamp01((p - 0.42) / 0.16) : 1)}

@@ -26,7 +26,8 @@ import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumVal
 import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DARK, CAPTION_INK_LIGHT,
         type SceneGroundDecl} from './runtime/light';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
-import {SceneCamera, bedPan, ACTION_SAFE_FRAC, type CameraMove} from './runtime/depth';
+import {SceneCamera, bedPan, ACTION_SAFE_FRAC, cameraBudget, type CameraMove} from './runtime/depth';
+import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
 import {REGISTRY} from './registry';
@@ -40,6 +41,8 @@ import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
 import {FilmFinishLayer} from './runtime/finish';
 import {FilmDither} from './runtime/dither';
+import {CarryContext} from './runtime/carry';
+import {container, grow, throughWindow, punch, SeamCopyContext} from './seams';
 
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
 // luminance override; falls back to the measured shotLuma map). Future phases grow this schema (accent,
@@ -61,14 +64,25 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // remotion-only; unset = the luminance-safe default (a gentle cross-fade). A kinetic type is honored only
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
   transitionIn?: {type: 'fade' | 'slide' | 'push' | 'lift' | 'wipe' | 'clock' | 'dissolve' | 'fadethrough'
-    | 'drift' | 'blur' | 'carry' | 'focus' | 'through-dark' | 'portal' | 'return'; direction?: string;
+    | 'drift' | 'blur' | 'carry' | 'focus' | 'through-dark' | 'portal' | 'return'
+    | 'container' | 'grow' | 'through-window' | 'punch'; direction?: string;
     /** `return` only: the pan across the film's board, as fractions of the frame's LONG side. Computed by
      *  `scripts/film_board.py`, which is the one place that knows where two beats sit. */
-    dx?: number; dy?: number};
+    dx?: number; dy?: number;
+    /** `container` / `grow` / `through-window`: the anchor the seam takes hold of (runtime/carry `data-carry`). One
+     *  id names the same anchor in both beats; `{from, to}` names the leaving beat's and the arriving beat's. */
+    carry?: string | {from: string; to: string};
+    /** `container` by DECLARED rects instead of anchors — a board's `match_cut` (render_remotion maps it): [cx, cy, w,
+     *  h] as fractions of the frame, the leaving beat's region and the arriving beat's; `shape` sets the corner. */
+    from?: [number, number, number, number]; to?: [number, number, number, number];
+    shape?: 'box' | 'bar' | 'line' | 'dot'};
   // A MOTIVATED camera move for THIS beat: `push` (look closer at what is here), `pull` (here is the whole
   // of it), `hold` (most beats). Optional; absent = hold. This is not the film-wide ambient drift below —
   // that one had no relationship to anything being said, which is precisely why it read as a wobble.
-  camera?: {move?: CameraMove; amount?: number; pan?: [number, number]};
+  camera?: {move?: CameraMove; amount?: number; pan?: [number, number];
+    /** the move runs INTO the cut instead of coming to rest, and the next beat — a continuation, with no camera of
+     *  its own — starts with this move's velocity and lets it decay (runtime/depth `handoff`) */
+    handoff?: boolean};
   // THE BEAT'S CLOCK, WARPED ONTO ITS VOICE. Knots [[film frame, register frame], ...] on the beat's own clock,
   // strictly increasing in both: the register is handed `warpFrame(frame, warp)` instead of `frame`, so an
   // entrance it times as a fixed fraction of the beat lands on the word that names it — with no register file
@@ -555,7 +569,7 @@ const FocusRelayPresentation = ({presentationProgress: p, presentationDirection,
   // the matrix above it (runtime/textSafe.tsx), so an unlock written beside the blur would never reach the glyphs.
   const glide = useGlide();
   return (
-    <SeamGround bg={passedProps?.bg} show={!isEnter}
+    <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0}
       style={{opacity: op, filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined,
         transform: `scale(${scale.toFixed(4)})`, transformOrigin: 'center'}}>
       <AbsoluteFill style={{transform: glide(undefined, true)}}>{children}</AbsoluteFill>
@@ -589,6 +603,14 @@ const focusRelay = (bg?: string): TransitionPresentation<any> => ({component: Fo
 //
 // It is painted under the EXITING half only. The entering half sits on top, so an opaque ground there would
 // hide the beat being left behind for the whole seam.
+//
+// AND ONLY WHILE THAT HALF IS ACTUALLY LEAVING (progress above 0). A TransitionSeries wraps the WHOLE of each
+// sequence in its exit presentation, at progress 0 until its seam begins — so the ground was painted under the beat
+// for its entire length, including the frames in which that same beat was still ARRIVING over the one before it.
+// There it is an opaque full-frame fill above the beat being left: measured on the seam probe, a paper beat cut to
+// the next beat's near-black ground on the first frame of a plain dissolve (frame mean 205 -> 9.7), because that
+// next beat's own exit was a whip. At progress 0 the leaving half is still fully opaque in every seam that uses
+// this, so it needs no floor there.
 const SeamGround: React.FC<{bg?: string; show: boolean; children: React.ReactNode; style?: React.CSSProperties}> =
   ({bg, show, children, style}) => (
     <>
@@ -608,7 +630,7 @@ const FadeThroughPresentation = ({presentationProgress: p, presentationDirection
   const op = isEnter
     ? interpolate(p, [0.34, 1], [0, 1], c)          // 70% of the seam belongs to the new content
     : interpolate(p, [0, 0.30], [1, 0], c);         // 30%, and the old content is gone
-  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{opacity: op}}>{children}</SeamGround>;
+  return <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0} style={{opacity: op}}>{children}</SeamGround>;
 };
 const fadeThrough = (bg?: string): TransitionPresentation<any> => ({component: FadeThroughPresentation, props: {bg}});
 
@@ -668,7 +690,7 @@ const WhipPresentation = ({presentationProgress: p, presentationDirection, child
         edge="duplicate" /> : null}
       {/* the filter on the still OUTER layer, the move (with its type unlock) inside it: a blur on the moving element
           itself rasterised it whole-pixel, and a slow-drifting film's type stepped under it (text_safe --glide) */}
-      <SeamGround bg={passedProps?.bg} show={!isEnter} style={{filter: blur ? `url(#${id})` : undefined}}>
+      <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0} style={{filter: blur ? `url(#${id})` : undefined}}>
         <AbsoluteFill style={{transform: glide(t, true)}}>{children}</AbsoluteFill>
       </SeamGround>
     </>
@@ -694,7 +716,7 @@ const DriftPresentation = ({presentationProgress: p, presentationDirection, chil
   const op = isEnter ? interpolate(p, [0.18, 0.82], [0, 1], c) : interpolate(p, [0.18, 0.82], [1, 0], c);
   const t = vertical ? `translateY(${travel.toFixed(2)}px)` : `translateX(${travel.toFixed(2)}px)`;
   const glide = useGlide();
-  return <SeamGround bg={passedProps?.bg} show={!isEnter} style={{opacity: op, transform: glide(t, true)}}>{children}</SeamGround>;
+  return <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0} style={{opacity: op, transform: glide(t, true)}}>{children}</SeamGround>;
 };
 const drift = (direction: string | undefined, W: number, H: number, bg?: string): TransitionPresentation<any> =>
   ({component: DriftPresentation, props: {direction, bg, px: Math.round(Math.max(W, H) * DRIFT_FRAC)}});
@@ -718,7 +740,7 @@ const DefocusPresentation = ({presentationProgress: p, presentationDirection, ch
     : interpolate(p, [0, 0.5, 1], [0, DEFOCUS_MAX_PX, DEFOCUS_MAX_PX], c);
   const op = isEnter ? interpolate(p, [0.38, 0.72], [0, 1], c) : interpolate(p, [0.28, 0.62], [1, 0], c);
   return (
-    <SeamGround bg={passedProps?.bg} show={!isEnter}
+    <SeamGround bg={passedProps?.bg} show={!isEnter && p > 0}
       style={{opacity: op, filter: blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : undefined}}>
       {children}
     </SeamGround>
@@ -866,6 +888,11 @@ const carryLine = (g: SeamColors | null): string | undefined => {
 
 const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
 
+/** The anchors a seam takes hold of: one id for both beats, or `{from, to}`. Null when the board named none. */
+export const carryIds = (ti?: SceneSpec['transitionIn']): {from: string; to: string} | null => {
+  const c = ti?.carry;
+  if (typeof c === 'string' && c.trim()) return {from: c, to: c};
+
 // The seam GRAMMAR. A seam is luminance-SAFE by default and SEMANTIC when marked. A ground-luminance gap of
 // ≥2 (a dark↔light cut) FORCES a gentle cross-fade — it blends through mid-gray so there's no brightness
 // flash, and a hard kinetic edge (a bright scene sliding over a dark one) is exactly what we suppress there.
@@ -876,20 +903,19 @@ const LUM_RANK: Record<Lum, number> = {dark: 0, mid: 1, light: 2};
 // entering beat's first. They are the film DNA for a beat that declares no ground of its own, which is what
 // keeps every existing film's seam decisions identical; for a re-grounded beat they are the only honest
 // input, since the film-wide ground the guard used to read is no longer what is on either frame.
-const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number, dna: DesignDNA | null,
-                          prevG: GroundColors | null, nextG: GroundColors | null,
-                          reducedMotion = false): TransitionPresentation<any> => {
-  // REDUCED MOTION REACHES THE SEAMS, WHICH IT DID NOT. Everything else in this tier honoured it — `useT()`
-  // freezes every register's animation at REDUCED_MOTION_T, the ambient camera is zeroed, the finish layer
-  // drops to 0.55 — and then the film slid a WHOLE FRAME across the screen at every marked seam, which is
-  // the largest single movement in it. Measured by rendering the same mid-seam frame both ways: the tile
-  // boundary sat at column 889 against 889, the only difference being the 10px of ambient drift that was
-  // already being switched off. The accessibility variant was leaving the biggest motion untouched.
-  //
-  // A cross-fade is the answer the html tier already gives ("HTML reveals become opacity-only
-  // cross-fades"), it is what this function's own luminance guard already falls back to, and it carries no
-  // movement at all. One rule, both tiers.
-  if (reducedMotion) return fade();
+  if (c && typeof c === 'object' && typeof c.from === 'string' && typeof c.to === 'string' && c.from && c.to) {
+    return {from: c.from, to: c.to};
+  }
+  return null;
+};
+
+// The seam the cut ACTUALLY draws once reduced motion and the luminance guard have had their say. Two callers must
+// agree on it: the presentation picked below, and the arriving beat's carry provider — a register draws a container's
+// anchor already in place only when a container is really what arrives, never when the guard turned it into a fade.
+const seamDrawn = (prev: SceneSpec, next: SceneSpec, dna: DesignDNA | null,
+                   prevG: GroundColors | null, nextG: GroundColors | null,
+                   reducedMotion = false): {t: string; harsh: boolean} => {
+  if (reducedMotion) return {t: 'fade', harsh: false};
   const lumOf = (sc: SceneSpec, g: typeof nextG) => {
     const y = stageGroundY(sc, g);
     return y !== null ? lumFromY(y) : dnaGroundLum(sc.shot, sc.bgLum, g);
@@ -920,15 +946,84 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
   // Both may well deserve the exemption (nothing is ever uncovered, so no ground can flash through), but
   // that is a claim to EARN with three measured renders the way `focus` earned its, and for both words at
   // once. Giving my own new word an exemption its twin does not have would be special pleading.
-  const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark', 'drift', 'blur']);
+  // `container` (seams.tsx) earns it the way `drift` did, and it was MEASURED before it was granted: outside the
+  // container every pixel is exactly what `fade` draws (the arriving beat at opacity p over the opaque leaving one),
+  // and inside it the two beats' own pixels cross later in the seam. Rendered between a dark phone beat and the
+  // same beat re-keyed light (mean 17.4 / 237.9): the frame mean ran monotone between the two in both directions
+  // (one 0.2-level wobble on the first frame), never outside them, within 17 levels of the fade on the same frame,
+  // with a steepest step of 27 levels a frame against the fade's 19 — and 24.5 against 18.5 on the probe film's
+  // dark stage card carried into a light figure. A fade with an element in it, not a flash. `grow`, `through-window` and `punch` are
+  // deliberately NOT here: a growing shape or a window of a bright beat opening on a dark one is the portal's
+  // brightness jump, and a punch is a hard cut with a flash on it.
+  const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark', 'drift', 'blur', 'container']);
   const t = (harsh && !CANNOT_FLASH.has(want)) ? 'fade' : want;
+  return {t, harsh};
+};
+
+/** The anchor pair of a seam that must have one — a board that asks for it with none is refused, loudly. */
+const needAnchor = (next: SceneSpec, word: string): {from: string; to: string} => {
+  const ids = carryIds(next.transitionIn);
+  if (!ids) {
+    throw new Error(`scene ${next.shot} asks for a '${word}' seam and names no anchor (\`carry\`) — this seam takes ` +
+      'hold of one marked element (runtime/carry data-carry), and a seam with nothing to hold is not drawn as a fade ' +
+      'in its place. Name the anchor, or choose another seam (validate.py lists each register\'s anchors).');
+  }
+  return ids;
+};
+
+// The corner a DECLARED container rect is drawn with (a board's match_cut `shape`): a box takes the film's own card
+// radius; a bar, a line and a dot are fully rounded (the clip clamps the radius to half the short side).
+const SHAPE_RADIUS_FULL = 1e6;
+const containerSpec = (next: SceneSpec, W: number, H: number, seam: string, dna: DesignDNA | null) => {
+  const ti = next.transitionIn ?? {type: 'container' as const};
+  const quad = (q: unknown): [number, number, number, number] | undefined =>
+    Array.isArray(q) && q.length === 4 && q.every((v) => typeof v === 'number' && Number.isFinite(v))
+      ? q as [number, number, number, number] : undefined;
+  const fromQuad = quad(ti.from), toQuad = quad(ti.to);
+  if (fromQuad && toQuad) {
+    const shape = ti.shape ?? 'box';
+    const radius = shape === 'box' ? (typeof dna?.radius === 'number' ? dna.radius : 12) : SHAPE_RADIUS_FULL;
+    return {seam, fromQuad, toQuad, radius, W, H};
+  }
+  const ids = needAnchor(next, 'container');
+  return {seam, from: ids.from, to: ids.to, W, H};
+};
+
+const groundFill = (g: GroundColors | null): string | undefined => g?.bgGrad ?? g?.bg ?? undefined;
+
+/** The film's PAPER — the lightest of its ground, surface and ink — which a punch flashes for two frames. */
+const paperOf = (dna: DesignDNA | null, g: GroundColors | null): string | undefined => {
+  const cands = [g?.bg, g?.surface, dna?.bg, dna?.surface, dna?.fg].filter((c): c is string => typeof c === 'string');
+  let best: string | undefined, bestY = -1;
+  for (const c of cands) { const y = lumValue(c); if (y !== null && y > bestY) { best = c; bestY = y; } }
+  return best;
+};
+
+const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number, dna: DesignDNA | null,
+                          prevG: GroundColors | null, nextG: GroundColors | null,
+                          reducedMotion = false, seam = 'seam', lead = 0): TransitionPresentation<any> => {
+  // REDUCED MOTION REACHES THE SEAMS, WHICH IT DID NOT. Everything else in this tier honoured it — `useT()`
+  // freezes every register's animation at REDUCED_MOTION_T, the ambient camera is zeroed, the finish layer
+  // drops to 0.55 — and then the film slid a WHOLE FRAME across the screen at every marked seam, which is
+  // the largest single movement in it. Measured by rendering the same mid-seam frame both ways: the tile
+  // boundary sat at column 889 against 889, the only difference being the 10px of ambient drift that was
+  // already being switched off. The accessibility variant was leaving the biggest motion untouched.
+  //
+  // A cross-fade is the answer the html tier already gives ("HTML reveals become opacity-only
+  // cross-fades"), it is what this function's own luminance guard already falls back to, and it carries no
+  // movement at all. One rule, both tiers.
+  if (reducedMotion) return fade();
+  const {t, harsh} = seamDrawn(prev, next, dna, prevG, nextG, reducedMotion);
   const dir = next.transitionIn?.direction;
   // The seams that fade their LEAVING half need a floor to fade onto. `carry` already asked for this ground
   // by name; the others took whatever was behind the sequences, which is black.
   const seamBg = nextG?.bg ?? prevG?.bg ?? undefined;
   // MOTION GRAMMAR: an UNMARKED (default) seam becomes the DNA's native action on a luminance-safe cut (a themed
   // film's cuts belong to its world — terminal = screen-clear, etc.); explicit marks + the dark↔light fade win.
-  if (t === 'fade' && !harsh) { const s = dnaDefaultSeam(dna, W, H); if (s) return s; }
+  // ...except a cut a camera HAND-OFF carries (runtime/handoff): the push running through it is that cut's motion,
+  // and the product DNA's native whip on top of it was measured on the seam probe as two moves at once — the frame
+  // sliding sideways under a blur while it zoomed. One motion per cut: the hand-off rides the plain cross-fade.
+  if (t === 'fade' && !harsh && !prev.camera?.handoff) { const s = dnaDefaultSeam(dna, W, H); if (s) return s; }
   switch (t) {
     // One relation, one word, on both tiers: `push` is Remotion's own slide (the incoming page pushes the
     // outgoing one off), and `lift` is that move turned through 90° — a reading-flow progression down a page.
@@ -958,8 +1053,35 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     case 'focus': return focusRelay(seamBg);
     case 'through-dark': return throughDark();
     case 'portal': return portal(W, H);
+    // the four that take hold of ONE thing (seams.tsx). An anchor the board did not name is refused here as well as
+    // in validate.py: a container with nothing to carry is not a seam that can quietly become a fade
+    // `lead` (the leaving unit's length) and `n` (the seam's) let each half tell its seam frames from the rest of its
+    // beat — a TransitionSeries wraps the WHOLE sequence in its presentation (seams.tsx useInSeam)
+    case 'container': return container({...containerSpec(next, W, H, seam, dna), lead, n: TR});
+    // the arriving beat's GROUND, gradient and all — measured on the first grow, a flat `bg` under a beat that paints
+    // `bgGrad` showed as a flat-edged panel across the frame until the beat came in over it
+    case 'grow': return grow({seam, from: needAnchor(next, 'grow').from, ground: groundFill(nextG), W, H, lead, n: TR});
+    case 'through-window': return throughWindow({seam, from: needAnchor(next, 'through-window').from,
+      ground: groundFill(nextG), W, H, lead, n: TR});
+    case 'punch': return punch({paper: paperOf(dna, nextG), W, H, n: TR, seam, lead});
     default: return fade();
   }
+};
+
+// the camera hand-off's curves live in runtime/handoff.ts (pure, so a test can run them)
+type CamPlan = {out?: {amp: number; move: 'push' | 'pull'}; in?: {rate: number; limit: number}};
+
+/** The beat's camera: SceneCamera exactly as before, or — on a beat in a hand-off — HandoffCamera. */
+const BeatCamera: React.FC<React.ComponentProps<typeof SceneCamera> & {plan: CamPlan | null}> = ({plan, ...rest}) =>
+  plan ? <HandoffCamera plan={plan} {...rest} /> : <SceneCamera {...rest} />;
+
+/** SceneCamera driven by the hand-off's curves on this beat's own clock. */
+const HandoffCamera: React.FC<React.ComponentProps<typeof SceneCamera> & {plan: CamPlan}> = ({plan, ...rest}) => {
+  const f = useCurrentFrame();
+  const dur = React.useContext(SceneDurationContext) ?? 1;
+  const extra = plan.out ? handoffOut(f, dur, plan.out.amp, plan.out.move).extra
+    : plan.in ? handoffIn(f, dur, plan.in.rate, plan.in.limit) : 0;
+  return <SceneCamera {...rest} drive={{extra, moving: true}} />;
 };
 
 // #camera — a subtle whole-film DRIFT (a slow breathing zoom + float) applied to the WORLD only; the HUD
@@ -1038,6 +1160,11 @@ const BrandMark: React.FC<{brand?: any; safe?: SafeProfile | null}> = ({brand, s
     </AbsoluteFill>
   );
 };
+
+/** A beat's voice — except inside a seam's second rendering of the beat (seams.tsx container), where it would play
+ *  twice over its own first words. The same <Audio> element otherwise, so a film's sound is what it was. */
+const BeatAudio: React.FC<{src: string}> = ({src}) =>
+  React.useContext(SeamCopyContext) ? null : <Audio src={staticFile(src)} />;
 
 /** Marks a stage run's frame with the beat on screen (`data-beat`), as each single beat's wrapper does, so the sync
  *  audit can still attribute what it reads to a beat. */
@@ -1141,9 +1268,10 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
             {/* the camera BED: a beat nobody authored a camera for drifts gently instead of sitting
                 dead — see bedPan's header for the measurements and the guarantees. An authored camera
                 (even 'hold') wins outright; un-themed films and drifting films get none. */}
-            <SceneCamera move={sc.camera?.move} amount={sc.camera?.amount}
-              pan={sc.camera?.pan ?? bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)?.pan}
-              bed={!sc.camera && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
+            {/* a beat in a camera HAND-OFF is driven by its curves (HandoffCamera); every other beat by its own move */}
+            <BeatCamera plan={camPlan[i]} move={sc.camera?.move} amount={sc.camera?.amount}
+              pan={sc.camera?.pan ?? (camPlan[i] ? undefined : bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)?.pan)}
+              bed={!sc.camera && !camPlan[i] && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
                          driftExtra={driftExtraFor(ambient, width, height, unlockAllowed)}
                          driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
               {/* `data-beat` marks THIS beat's register for the sync audit (scripts/sync_qa.py reads it from the
@@ -1158,16 +1286,19 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                 WebkitMaskComposite: 'source-in', maskComposite: 'intersect'} : undefined}>
                 <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
                   <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
-                    <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                    {/* the anchor a container carried INTO this beat, which the register then draws in place */}
+                    <CarryContext.Provider value={arrived[i] ?? null}>
+                      <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                    </CarryContext.Provider>
                   </ObjectIdleContext.Provider>
                 </CueContext.Provider>
               </AbsoluteFill>
-            </SceneCamera>
+            </BeatCamera>
             <BeatChrome chrome={sc.chrome} W={width} H={height} />
           </BeatGround>
           </NarrationContext.Provider>
         </SceneDurationContext.Provider>
-        {sc.mp3 ? <Audio src={staticFile(sc.mp3)} /> : null}
+        {sc.mp3 ? <BeatAudio src={sc.mp3} /> : null}
       </TransitionSeries.Sequence>
     );
     return seq;
@@ -1193,14 +1324,16 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
               <StageRunContext.Provider value={{run: runOf(head) ?? '', beats, runDur}}>
                 {/* a stage lays itself out in the platform-safe area directly (runtime/safeZone) */}
                 <SafeZoneContext.Provider value={safeP}>
-                  {S ? <S {...(head.props ?? {})} /> : <Missing id={head.shot} />}
+                  <CarryContext.Provider value={arrived[first] ?? null}>
+                    {S ? <S {...(head.props ?? {})} /> : <Missing id={head.shot} />}
+                  </CarryContext.Provider>
                 </SafeZoneContext.Provider>
               </StageRunContext.Provider>
             </StageBeatMark>
           </BeatGround>
         </SceneDurationContext.Provider>
         {runScenes.map((x, k) => (x.mp3 ? (
-          <Sequence key={`a${k}`} from={offs[k]} durationInFrames={durs[k]}><Audio src={staticFile(x.mp3)} /></Sequence>
+          <Sequence key={`a${k}`} from={offs[k]} durationInFrames={durs[k]}><BeatAudio src={x.mp3} /></Sequence>
         ) : null))}
       </TransitionSeries.Sequence>
     );
@@ -1209,6 +1342,57 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   scenes.forEach((sc, i) => {
     if (joinedAt(scenes, i)) units[units.length - 1].last = i;
     else units.push({first: i, last: i, run: runOf(sc) !== null});
+  });
+  // the grounds a cut sits between, and the anchor a CONTAINER cut carries into the beat after it — read from the
+  // seam the cut actually draws (seamDrawn), so a container the guard turned into a fade carries nothing in
+  const cutGrounds = (a: SceneSpec, b: SceneSpec) =>
+    [edgeGround(a, 'out') ?? activeDna, edgeGround(b, 'in') ?? activeDna] as const;
+  const arrived: (string | null)[] = scenes.map(() => null);
+  units.forEach((u, ui) => {
+    if (ui === 0) return;
+    const prev = scenes[units[ui - 1].last], next = scenes[u.first];
+    const [pg, ng] = cutGrounds(prev, next);
+    if (seamDrawn(prev, next, activeDna, pg, ng, reducedMotion).t === 'container') {
+      arrived[u.first] = carryIds(next.transitionIn)?.to ?? null;
+    }
+  });
+  // the frames a CONTAINER seam is on screen (the film layer is isolated for them — see the AbsoluteFill below)
+  const filmStarts = sceneStarts(scenes);
+  const inContainer = units.some((u, ui) => ui > 0 && seamDrawn(scenes[units[ui - 1].last], scenes[u.first], activeDna,
+    ...cutGrounds(scenes[units[ui - 1].last], scenes[u.first]), reducedMotion).t === 'container'
+    && frame >= filmStarts[u.first] && frame < filmStarts[u.first] + TR);
+  // THE HAND-OFFS (see HandoffCamera): which beat runs its move into its cut, and what the next beat inherits
+  const driftX = driftExtraFor(ambient, width, height, unlockAllowed), driftT = ambient * DRIFT_MAX_TRANSLATE_Y;
+  const camPlan: (CamPlan | null)[] = scenes.map(() => null);
+  units.forEach((u, ui) => {
+    const a = scenes[u.last];
+    if (!a.camera?.handoff) return;
+    const where = `scene ${u.last} (${a.shot}) hands its camera off`;
+    const move = a.camera.move;
+    if (move !== 'push' && move !== 'pull') {
+      throw new Error(`${where}, but its move is ${JSON.stringify(move)} — only a push or a pull has a velocity to hand on.`);
+    }
+    if (a.camera.pan) throw new Error(`${where} and also pans — one camera channel per beat; drop the pan or the hand-off.`);
+    if (u.run || ui === units.length - 1) {
+      throw new Error(`${where}, but ${u.run ? 'it is a stage run, which moves its own camera' : 'it is the last beat'}.`);
+    }
+    const nu = units[ui + 1], b = scenes[nu.first];
+    if (nu.run) throw new Error(`${where} into a stage run, which moves its own camera.`);
+    if (b.camera) {
+      throw new Error(`${where} into scene ${nu.first} (${b.shot}), which declares a camera of its own — one channel per ` +
+        'beat: the inheriting beat moves with what it is handed, so drop its camera.');
+    }
+    if (reducedMotion) return;
+    const bA = cameraBudget({W: width, H: height, move, amount: a.camera.amount, driftExtra: driftX, driftTranslate: driftT,
+      unlockAllowed});
+    const durA = Math.max(1, Math.round(a.durF));
+    const {v} = handoffOut(durA - 1, durA, bA.amp, move);
+    // the RELATIVE zoom rate on screen at A's last frame, re-expressed on B's own scale (its unlock overscan)
+    const rel = v / (1 + bA.unlock + (move === 'push' ? bA.amp : 0));
+    const bB = cameraBudget({W: width, H: height, driven: true, driftExtra: driftX, driftTranslate: driftT, unlockAllowed});
+    camPlan[u.last] = {...(camPlan[u.last] ?? {}), out: {amp: bA.amp, move}};
+    camPlan[nu.first] = {...(camPlan[nu.first] ?? {}),
+      in: {rate: (move === 'push' ? 1 : -1) * rel * (1 + bB.unlock), limit: bB.cap - bB.unlock}};
   });
   return (
     <AbsoluteFill style={{backgroundColor: rootBg}}>
@@ -1247,7 +1431,11 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           `!important` rule below still wins, so terminal is unchanged. */}
       {activeDna ? <style>{`.dna-film { --f-display: ${activeDna.fontDisplay}; --f-body: ${activeDna.fontBody}; --f-mono: ${activeDna.fontMono}; }`}</style> : null}
       {activeDna?.uniformType ? <style>{`.dna-film, .dna-film * { font-family: ${activeDna.fontMono} !important; }`}</style> : null}
-      <AbsoluteFill className="dna-film" style={cam === 'none' ? undefined : {transform: cam}}>
+      {/* ISOLATED WHILE A CONTAINER IS ON SCREEN, and only then: a container's copy is lifted over both beats with a
+          z-index (seams.tsx), and without a stacking context of its own here it would rise over the caption and the
+          finish too. Every other frame carries no isolation, so it draws exactly what it drew before. */}
+      <AbsoluteFill className="dna-film" style={cam === 'none' ? (inContainer ? {isolation: 'isolate'} : undefined)
+        : {transform: cam, ...(inContainer ? {isolation: 'isolate' as const} : {})}}>
       <TransitionSeries>
         {units.flatMap((u, ui) => {
           // ONE UNIT is a single beat — rendered exactly as before stage runs existed — or a whole stage run
@@ -1257,8 +1445,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           return [seq, (
             <TransitionSeries.Transition key={`t${u.last}`}
               presentation={pickPresentation(sc, next, width, height, activeDna,
-                edgeGround(sc, 'out') ?? activeDna, edgeGround(next, 'in') ?? activeDna,
-                reducedMotion)}
+                ...cutGrounds(sc, next), reducedMotion, `t${u.last}`,
+                scenes.slice(u.first, u.last + 1).reduce((a, x) => a + Math.max(1, Math.round(x.durF)), 0))}
               timing={linearTiming({durationInFrames: TR})} />
           )];
         })}

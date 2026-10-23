@@ -218,8 +218,9 @@ a light dip on FAST continuation cuts is the "nervous blink" to avoid; the same 
 scenes is a gentle cross-fade. If you slow the voice to fix "too fast," soften the cuts to match — the
 two decisions travel together.
 
-**Honest deliverables:** the per-clip render (`-c copy` concat) cannot see the neighboring clip, so
-morph / shared-element / cross-clip pans are NOT deliverable — for a drill-down or comparison
+**Honest deliverables (html and image tiers):** the per-clip render (`-c copy` concat) cannot see the neighboring
+clip, so morph / shared-element / cross-clip pans are NOT deliverable there — the remotion tier mounts both beats
+for the whole seam and DOES draw a shared element (`container`, below) — for a drill-down or comparison
 relation, put the semantics INSIDE the scene (the timeline archetype's left-to-right reveals, a
 counter animating its own number, a `.defocus` comparison) and use the short fade at the cut, per
 the guide's own fallback. Edge dips are LINEAR (ffmpeg's fade has no easing) — accepted: at ≤0.45s
@@ -272,6 +273,61 @@ Until 2026-09-20 the two tiers disagreed: `fadethrough`, `drift` and `blur` had 
 anonymous fade. A relation one tier can claim and the other cannot is a vocabulary hole, and a seam that goes
 quiet is the worst kind of bug — the board says one thing, the film does another, and every gate is green.
 `validate.py` now ERRORS on a seam word the renderer cannot resolve.
+
+### The anchored seams — `container`, `grow`, `through-window`, `punch` (remotion, 2026-10-23)
+
+Four seams that take hold of ONE THING on the frame, or land ONE beat (`remotion/src/seams.tsx`; the research is
+`references/motion-research.md` §2). Three of them hold a marked element — an ANCHOR: a register marks it with
+`data-carry="<id>"` (`runtime/carry.tsx`), and the board names it in `transition_in.carry` (one id for both beats,
+or `{from, to}`). `python3 scripts/carry_anchors.py` lists what each register draws: `device` and `screen` (every
+`Device`), `window` (CodeCompose, TermTable), `hero` and `card:<id>` (CardStage), `figure` (ObjectStage), `word`
+(CinematicTitle's title, a glyph anchor). A board
+that names an anchor the register does not draw is an ERROR in `validate.py`, and the seam stops the render if the
+anchor is not on the frame — never a quiet fade in its place.
+
+| word | what it draws | the claim | right when | reads cheap when |
+|---|---|---|---|---|
+| **container** | the element stays on screen while its rect FLIPs from where it sat in A to where it sits in B (Material's container transform: standard curve, content swap 30/70, an arc when the travel is long and diagonal); the rest of A gives way to the rest of B around it exactly as `fade` would | **this IS that** — the same thing, re-framed | both beats draw the same thing (a phone that becomes the next beat's phone, a card that opens into a window, a figure that recurs) — at most one per film | the two elements are different things that merely share a shape (that is `carry`'s graphic match, or no match at all) |
+| **grow** | the anchor's own outline fills with B's ground, then grows about its centre until it covers the frame, and B comes in inside it | **this opens onto that** | a new topic that springs from one element of the last beat, and the two beats sit on visibly DIFFERENT grounds | the grounds are the same (the growth is invisible: the anchor just fades), or the anchor is arbitrary |
+| **through-window** | the camera pushes EXPONENTIALLY into the anchor (constant perceived speed), the next beat already inside it, until the window fills the frame at the seam's middle — the cut, on the fastest frame — and B settles from 1.06. A `data-carry-glyph` anchor (a line of type — CinematicTitle's `word`) is a window shaped like its LETTERS: an SVG clipPath of the same text, the push aimed at the thickest stroke until the room around it covers the frame | **we go inside this** | the anchor is a surface that shows something (`screen`, `window`) or the word that names the next beat, and B is what it shows; B's first frame shows its own frame (a window, a card) | B rises in from nothing (the window shows an empty ground), or the anchor is a thing rather than a surface |
+| **punch** | a push cut: A leans in to 1.04, a hard cut at 5/12 of the seam, B lands from 1.07 with a two-frame flash of the film's paper at 0.2 | **this lands** | the payoff — the climax beat, at peak energy. ONCE per film (`validate.py` errors on a second) | anywhere else: on an ordinary beat a flash is an effect, and two of them make the first one an effect too |
+
+All four keep the 12-frame seam (the narration breath); any anticipation belongs inside the beats. All four are
+OPAQUE underneath (E15 — none fades its leaving half over nothing). Under reduced motion every one is the plain
+cross-fade. The luminance guard: `container` is exempt and earned it by measurement (outside the element it IS a
+fade; across a 17 → 238 dark/light seam its frame mean stayed monotone and inside both beats' range — Film.tsx's
+note above `CANNOT_FLASH`); `grow`, `through-window` and `punch` are not — a bright beat growing or opening on a
+dark one is the portal's flash, and `validate.py` warns when one sits on a crossing (it would draw as a fade).
+
+**A register whose anchor has an entrance** reads `useCarried(id)`: when a container carried that anchor in, it
+draws it already in place (DeviceHero's device does not rise a second time; ObjectStage's figure is already
+whole). A register that does not can still be a container's TARGET only if its anchor is visible on its held first
+frame; the seam measures it there and stops the render when it is not.
+
+**`match_cut` is the container by DECLARED rects.** `match_cut: {shape, from: [cx,cy,w,h], to: [cx,cy,w,h]}` on the
+outgoing scene used to be validated and drawn by nothing; it is now the container that carries the REGION `from` of
+the leaving beat to the region `to` of the arriving one (`shape` sets the corner). A region is not an element, so
+it travels as a box of the leaving beat's pixels — name an anchor instead whenever the registers draw one. A
+match_cut on the last scene, or one whose next beat names a different seam, is an ERROR.
+
+**`seam_plan.py` proposes them** where the beats can carry them, inside the same budget (2-3 marks, ≥5 beats
+apart), each word at most once: a shared anchor → `container` (the one mark a `continuation` may carry, because it
+reads as no seam at all); a `new-topic` out of a `screen`/`window` → `through-window`, out of any other anchor onto
+a different ground → `grow`; a `payoff` that is the climax or at `peak` → `punch`. **Sound** (`sfx.py`): each cue
+peaks on its seam's fastest frame, read from `seams.tsx` `SEAM_PEAK` — the punch's impact on its cut, a whoosh on
+the window's cut and the grow's mid-growth, a soft swell where the container's curve is fastest.
+
+### The camera hand-off — a push that survives a cut
+
+A move that rests before every cut is a camera that stops for each edit. `camera: {move: 'push', handoff: true}`
+runs the move INTO its cut (an ease-in that reaches the seam at velocity v and holds it through the seam's frames),
+and the next beat — a `continuation` with no camera of its own — starts at that velocity and lets it decay
+(`runtime/handoff.ts`; an exponential, so it never reverses). Both beats move at the same rate through every frame
+they share, so the blend is of two images doing one thing. ONE camera channel per beat: no pan beside a hand-off,
+no camera on the inheriting beat, no stage run on either side — Film refuses each, and so does `validate.py`.
+`seam_plan.py` sets it on a planned push or pull whose next beat continues the thought across an unmarked cut, and
+that cut is the plain cross-fade even on a DNA whose unmarked cuts are kinetic (the product whip): the push IS the
+cut's motion, and a whip on top of it was two moves at once.
 
 **Taste + rhythm rules (from the research consensus):**
 - **Cut is the default; styled seams are punctuation.** Budget ~2–3 marked transitions per video

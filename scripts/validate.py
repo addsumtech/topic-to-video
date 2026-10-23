@@ -1764,6 +1764,162 @@ def _image_attribution(slides, out_dir, errors, warnings):
                     "%r)." % (i, rel, lic))
 
 
+def _camera_handoffs(slides, errors, warnings):
+    """`camera.handoff` — a move that runs into its cut and a next beat that inherits its velocity (Film.tsx
+    HandoffCamera). Every refusal the film makes at render time is made here first, in the board's own words: one
+    camera channel per beat, a velocity only a push or a pull has, and a next beat that exists, is not a stage (which
+    moves its own camera) and declares no camera of its own."""
+    import stage_runs as _sr
+    for i, sl in enumerate(slides):
+        c = sl.get("camera")
+        if not isinstance(c, dict) or "handoff" not in c:
+            continue
+        tag = "beat %d" % (i + 1)
+        if c["handoff"] is not True:
+            if c["handoff"] is not False:
+                errors.append("%s: camera.handoff is %r — it is true or false; anything else is dropped by the "
+                              "renderer, and a hand-off that silently does not happen leaves the move resting at "
+                              "the cut" % (tag, c["handoff"]))
+            continue
+        move = str(c.get("move", "")).strip().lower()
+        nxt = slides[i + 1] if i + 1 < len(slides) else None
+        if move not in ("push", "pull"):
+            errors.append("%s: camera.handoff on a %r — only a push or a pull has a velocity to hand on" % (tag, move))
+        if c.get("pan"):
+            errors.append("%s: camera.handoff and a pan on one beat — one camera channel per beat; drop one" % tag)
+        if nxt is None:
+            errors.append("%s: camera.handoff on the last beat — there is no next beat to hand the move to" % tag)
+            continue
+        if _sr.run_id(sl) or _sr.run_id(nxt):
+            errors.append("%s: camera.handoff into or out of a stage run — a stage moves its own camera" % tag)
+            continue
+        if nxt.get("camera"):
+            errors.append("%s: camera.handoff into beat %d, which declares a camera of its own — one channel per "
+                          "beat: the inheriting beat moves with what it is handed, so drop its camera" % (tag, i + 2))
+        rel = str(nxt.get("relation") or "").strip().lower()
+        if rel and rel != "continuation":
+            warnings.append("%s: camera.handoff into a beat whose relation is %r — a move that carries across the cut "
+                            "says the thought continues; across a %s it argues against the board"
+                            % (tag, rel, rel))
+        if nxt.get("transition_in") or nxt.get("transition_style"):
+            warnings.append("%s: camera.handoff across a MARKED seam (beat %d) — the seam moves the frame itself, and "
+                            "a camera carrying through it adds a second motion to the one cut meant to be read"
+                            % (tag, i + 2))
+
+
+def _anchored_seams(meta, slides, errors, warnings, out_dir=None):
+    """The four seams that take hold of ONE thing or land one beat (remotion/src/seams.tsx): container, grow,
+    through-window, punch — and the dead `match_cut` spec, which is the container by declared rects now.
+
+    A MISSING ANCHOR IS AN ERROR, never a quiet fallback. The seam reads its anchor off the frame at render time and
+    stops the render when it is not there; this reads the same declaration out of the source
+    (scripts/carry_anchors.py) so the board is refused in a second instead of a render in. A register whose source
+    cannot be read (a film's workshop shot) is reported as UNCHECKED, not as missing.
+    """
+    import render_remotion as _rr
+    import carry_anchors as _ca
+    import stage_runs as _sr
+    try:
+        import seam_plan as _sp
+        dna = _sp._resolve_dna(meta.get("design_dna"))
+        exempt = _sp.film_cannot_flash()
+    except Exception:                                  # noqa: BLE001 — the crossing note is advisory
+        _sp, dna, exempt = None, None, set()
+    punches = []
+    for i, sl in enumerate(slides):
+        prev = slides[i - 1] if i > 0 else None
+        ti = sl.get("transition_in") if isinstance(sl.get("transition_in"), dict) else {}
+        raw = ti.get("type") or sl.get("transition_style") or ""
+        word = _rr.seam_type(raw) if raw else None
+        mc = _rr.match_cut_seam(prev) if prev is not None else None
+        tag = "remotion: beat %d" % (i + 1)
+        if mc and word and word != "container":
+            errors.append("%s names the seam %r, and beat %d's match_cut asks for a container into it — one cut, two "
+                          "claims. Drop the match_cut, or the seam word." % (tag, raw, i))
+            continue
+        if word is None and mc:
+            word, ti = "container", dict(mc)
+        if word not in ("container", "grow", "through-window", "punch"):
+            continue
+        if prev is None:
+            errors.append("%s asks for a '%s' seam into the FIRST beat — there is no beat before it to cut from"
+                          % (tag, word))
+            continue
+        if _sr.joined(prev, sl):
+            continue                                   # stage_runs.check refuses a seam inside a run
+        if word == "punch":
+            punches.append(i + 1)
+            if str(sl.get("relation") or "").lower() != "payoff" and not sl.get("climax"):
+                warnings.append("%s: a punch on a beat that is neither the payoff nor the climax — a push cut is the "
+                                "film's one hard landing, and on an ordinary beat it reads as an effect" % tag)
+        else:
+            carry = ti.get("carry")
+            ids = None
+            if isinstance(carry, str) and carry.strip():
+                ids = (carry.strip(), carry.strip())
+            elif isinstance(carry, dict) and isinstance(carry.get("from"), str) and isinstance(carry.get("to"), str):
+                ids = (carry["from"], carry["to"])
+            elif carry is not None:
+                errors.append("%s: `carry` must be an anchor id or {from, to}, got %r" % (tag, carry))
+                continue
+            if ids is None and word == "container":
+                quads = [ti.get("from"), ti.get("to")]
+                bad = [q for q in quads if not (isinstance(q, list) and len(q) == 4 and all(
+                    isinstance(x, (int, float)) and not isinstance(x, bool) for x in q))]
+                if bad:
+                    errors.append("%s asks for a container and names neither an anchor (`carry`) nor both rects "
+                                  "(`from`/`to` as [cx,cy,w,h] frame fractions, or the beat before's match_cut). A "
+                                  "container with nothing to carry would render as nothing." % tag)
+                    continue
+                for k, q in zip(("from", "to"), quads):
+                    if not (q[2] > 0 and q[3] > 0) or any(not (-0.2 <= float(x) <= 1.2) for x in q):
+                        errors.append("%s: container `%s` %r is not a region of the frame — [cx, cy, w, h] as "
+                                      "fractions of the frame, width and height above 0" % (tag, k, q))
+            elif ids is None:
+                errors.append("%s asks for a '%s' seam and names no anchor (`carry`) — it takes hold of one marked "
+                              "element of the beat before (%s draws: %s)." % (tag, word, prev.get("shot"),
+                                                                            _anchor_list(_ca, prev.get("shot"), out_dir)))
+                continue
+            if ids is not None:
+                ends = [("leaving", i, prev.get("shot"), ids[0])]
+                if word == "container":
+                    ends.append(("arriving", i + 1, sl.get("shot"), ids[1]))
+                for role, beat, shot, aid in ends:
+                    if not _ca.ID_RE.match(aid):
+                        errors.append("%s: anchor id %r is not an anchor name (lowercase words, `card:<id>`)"
+                                      % (tag, aid))
+                        continue
+                    have = _ca.has_anchor(shot, aid, out_dir)
+                    if have is False:
+                        errors.append("%s: the '%s' seam holds '%s' on the %s beat (%d, %s), which draws no such "
+                                      "anchor — it draws: %s. Name one it draws, or choose another seam."
+                                      % (tag, word, aid, role, beat, shot,
+                                         _anchor_list(_ca, shot, out_dir)))
+                    elif have is None:
+                        warnings.append("%s: cannot read %s's source to check its anchor '%s' — the render will "
+                                        "stop if it is not drawn" % (tag, shot, aid))
+        if _sp is not None and word not in exempt:
+            try:
+                if _sp.crosses_beats(prev, sl, dna):
+                    warnings.append("%s: the '%s' seam crosses a dark/light boundary, where the film's luminance "
+                                    "guard draws a plain fade instead (Film.tsx CANNOT_FLASH) — the seam you asked "
+                                    "for will not be on the screen" % (tag, word))
+            except Exception:                          # noqa: BLE001
+                pass
+    if len(punches) > 1:
+        errors.append("remotion: %d punch seams (beats %s) — a push cut is the payoff's one hard landing, at most "
+                      "once per film; a second one makes the first an effect" % (len(punches),
+                                                                              ", ".join(map(str, punches))))
+
+
+def _anchor_list(_ca, shot, out_dir):
+    a = _ca.anchors_of(shot, out_dir) if shot else None
+    if a is None:
+        return "(its source was not found)"
+    names = sorted(a["ids"]) + ["%s<id>" % p for p in sorted(a["prefixes"])]
+    return ", ".join(names) if names else "no anchors at all"
+
+
 def _camera_vocabulary(meta, slides, errors, warnings):
     """A `camera` the renderer cannot execute, and the two camera layers competing for one budget.
 
@@ -1803,6 +1959,7 @@ def _camera_vocabulary(meta, slides, errors, warnings):
             "beat(s) %s give `camera.amount` a value outside 0-0.2; SceneCamera clamps it to what the "
             "caption band can absorb, so the number on the page is not the move on the screen."
             % ", ".join(map(str, wild_amt[:8])))
+    _camera_handoffs(slides, errors, warnings)
 
     # THE TWO CAMERA LAYERS COMPETE FOR ONE BUDGET. The film-wide ambient drift and the per-beat move both
     # scale the picture toward the caption band, so `maxCameraPush` hands the beat only what the drift has
@@ -2911,6 +3068,8 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
                                   f"(aliases in render_remotion._TRANSITION_STYLE)")
     except Exception:
         pass
+    # the anchored seams and the punch: OUTSIDE the try above — a crash in this check must not pass as a clean run
+    _anchored_seams(meta, slides, errors, warnings, out_dir)
     try:                                                   # A RETURN MUST NAME A PLACE THE FILM HAS BEEN
         # `relation: 'return'` is the only seam word that refers to ANOTHER beat, so it is the only one that
         # can be wrong about something outside itself: a forward reference, a beat that is not there, the
@@ -4552,8 +4711,10 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                         warnings.append(f"{tag}: match_cut.{key} {v} looks like PIXELS — coords are FRAME "
                                         f"FRACTIONS (0..1); the anchor will sit off-frame")
                 if slides and s is slides[-1]:
-                    warnings.append(f"{tag}: match_cut is on the LAST scene — no next scene to match into, so it "
-                                    f"never renders; put it on the scene that transitions INTO the shared element")
+                    # It RENDERS now (the container seam, remotion/src/seams.tsx), so a match_cut with no scene
+                    # after it is a cut asked for and never made — an error, where a dead spec could only be a hint.
+                    errors.append(f"{tag}: match_cut is on the LAST scene — there is no next scene to carry the "
+                                  f"region into; put it on the scene that cuts INTO the shared element")
 
         # PATH-A deprecation (the cinematic tier is a DISTINCT native-3D style — not the HTML tier with a
         # camera bolted on). A hand-authored `html:"pages/..."` on a stage `card`/plane is SCREENSHOTTED onto

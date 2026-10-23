@@ -182,6 +182,33 @@ SENTENCE_SPARKLE_LAG = 25
 SPARKLE_MIN_TAIL_S = 0.6     # the sparkle must have this much film left to ring into
 
 
+# WHERE EACH ANCHORED SEAM IS FASTEST, as a share of the seam — READ from remotion/src/seams.tsx `SEAM_PEAK`, the one
+# definition, so the sound cannot drift off the picture it marks: a punch's impact on its cut, a through-window's and
+# a grow's whoosh on the frame that moves most, a container's soft swell where Material's curve is fastest.
+_SEAMS_TSX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "seams.tsx")
+
+
+def _seam_peaks():
+    import re as _re
+    src = open(_SEAMS_TSX, encoding="utf-8").read()
+    m = _re.search(r"export const SEAM_PEAK = \{([^}]*)\}", src)
+    if not m:
+        raise RuntimeError("remotion/src/seams.tsx no longer exports SEAM_PEAK — sfx cannot place the anchored "
+                           "seams' cues on their fastest frames")
+    out = {}
+    for key, num, den in _re.findall(r"'?([a-z-]+)'?\s*:\s*([0-9.]+)(?:\s*/\s*([0-9.]+))?", m.group(1)):
+        out[key] = float(num) / (float(den) if den else 1.0)
+    return out
+
+
+SEAM_PEAK = _seam_peaks()
+# the cue each anchored seam makes: (name, gain, priority). A punch is an IMPACT — the one hard landing, so it is
+# never dropped by the density cap before a whoosh is. A container is the softest: the element never leaves the
+# screen, and its sound is the carry's gentle swell, not a cut's.
+SEAM_CUE = {"punch": ("impact", 0.62, 0), "through-window": ("whoosh", 0.5, 0), "grow": ("whoosh", 0.45, 0),
+            "container": ("whoosh", 0.32, 1)}
+
+
 # ── cue planning: pin cues to the video's BEATS (frame-exact), with restraint ─────────────────────────
 def _on_the_beat(t_cue, t_cut, grid, fps):
     """A seam cue's peak, given a beat grid: still ON the cut — the cut's own frame or the one before it, the one-frame
@@ -225,7 +252,13 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
             tt = _on_the_beat(tt, t0 + (seam_frames // 2) / float(fps), grid, fps)
             if "transitionIn" in sc:                # the seam grammar is DECLARED (remotion tier)
                 ti = sc.get("transitionIn")
-                if ti and ti.get("type") == "carry":
+                if ti and ti.get("type") in SEAM_CUE:
+                    # on the seam's OWN fastest frame (SEAM_PEAK) — a whoosh a frame early at most, as above; an
+                    # impact ON its cut, because a transient heard before the picture it hits reads as a glitch
+                    name, gain, prio = SEAM_CUE[ti["type"]]
+                    at = SEAM_PEAK[ti["type"]] * seam_frames - (0.0 if name == "impact" else 1.0)
+                    seam_cue = (t0 + max(0.0, at) / fps, name, gain, prio)
+                elif ti and ti.get("type") == "carry":
                     seam_cue = (tt, "whoosh", 0.32, 1)      # a gentle match-cut swell (softer than a hard cut)
                 elif ti:                            # slide / wipe / clock — a motion whoosh
                     seam_cue = (tt, "whoosh", 0.5, 0)

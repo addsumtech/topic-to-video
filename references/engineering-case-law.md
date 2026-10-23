@@ -245,6 +245,21 @@ regions, and report the largest.
 > **Ask yourself:** Of everything this gate reports as one number, what two pictures would score the same —
 > and would a reader tell them apart in a second?
 
+**E17 · A SEAM'S PRESENTATION RUNS ON EVERY FRAME OF ITS BEAT, NOT ONLY ON THE SEAM.** A TransitionSeries wraps
+the WHOLE of each sequence in its exit presentation (at progress 0 until the seam begins) and in its entrance
+presentation (at progress 1 after it ends). Anything a presentation paints, transforms or measures at progress 0
+or 1 it does for the entire beat — including the frames in which that beat is the OTHER half of a different seam.
+Gate everything on "am I in my seam" (the leaving half's own clock, the arriving half's progress below 1), and
+look at the first and last frame of a cut, not only its middle.
+
+> **Precedent — `2ba24a0`:** `SeamGround` painted the film's ground under every EXITING half, so a beat whose own
+> exit was a whip carried an opaque full-frame ground from its first frame — on which it was still arriving over
+> the beat before, and covered it: a paper beat cut to near-black on the first frame of a plain dissolve (frame
+> mean 205 -> 9.7). On a product film every unmarked cut is that whip. It had shipped since the ground was added,
+> found only by looking at a probe's seam frames one at a time; the same wrapping is why the first anchored seam
+> looked for its partner on its beat's first frame and found nothing.
+> **Ask yourself:** On a frame where this beat is not in this seam at all, what does this presentation draw?
+
 ---
 
 ## Run-time case notes — why the workflow says what it says
