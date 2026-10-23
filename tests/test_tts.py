@@ -435,9 +435,11 @@ def test_scene_pause_is_what_the_viewer_hears_on_both_tiers():
     # the remotion pad MUST exceed the dissolve, or the pause collapses to nothing
     rem = {"renderer": "remotion", "fps": 30}
     assert tts._tail_pad(rem) > _eats(rem) + 0.2, "default pad does not clear the dissolve"
-    # the seam length is READ from motion.ts, never duplicated — 24fps must halve it, not keep 0.40s
+    # the seam length is READ from motion.ts, never duplicated, and timed at the FILM's 30 fps: a board's meta.fps
+    # does not change the remotion render (Root.tsx, render_remotion.py fps = 30) — this line once asserted a 60-fps
+    # board halved it, which is the bug it now guards against
     assert abs(tts._seam_seconds({"renderer": "remotion", "fps": 60})
-               - tts._seam_seconds({"renderer": "remotion", "fps": 30}) / 2) < 1e-6
+               - tts._seam_seconds({"renderer": "remotion", "fps": 30})) < 1e-6
     # an explicit audio_breath stays the RAW pad (boards that set it meant the pad, not the pause)
     assert abs(tts._tail_pad({"renderer": "remotion", "fps": 30, "audio_breath": 0.42}) - 0.42) < 1e-6
     # the between-scene pause must be at least as long as a within-sentence pause, or it reads backwards
@@ -902,3 +904,11 @@ def test_a_malformed_music_field_stops_before_any_voice(tmp_path, monkeypatch):
     with pytest.raises(ValueError) as e:
         tts.synthesize(out)
     assert "meta.music.snap" in str(e.value) and not spoke
+
+
+def test_the_seam_is_timed_at_the_films_own_frame_rate_whatever_the_board_says():
+    # the Film renders at 30 fps (remotion/src/Root.tsx); meta.fps is the html tier's — a 60-fps board halved the seam
+    import tts
+    assert tts._film_fps() == 30
+    assert tts._seam_seconds({"renderer": "remotion", "fps": 60}) == tts._seam_seconds({"renderer": "remotion"})
+    assert tts._seam_seconds({"renderer": "remotion"}) > 0 and tts._seam_seconds({"fps": 60}) == 0.0

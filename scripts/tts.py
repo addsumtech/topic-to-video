@@ -466,6 +466,16 @@ def _detect_language(slides):
 SCENE_PAUSE_DEFAULT = 0.55      # the silence a viewer should HEAR between two scenes
 
 
+def _film_fps():
+    """The Film composition's fps, READ from remotion/src/Root.tsx (30 if it cannot be read)."""
+    try:
+        src = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "Root.tsx"), encoding="utf-8").read()
+        m = re.search(r'<Composition id="Film"[^>]*?fps=\{(\d+)\}', src, re.S)
+        return int(m.group(1)) if m else 30
+    except OSError:
+        return 30
+
+
 def _seam_seconds(meta):
     """How much of a scene's tail the RENDERER overlaps with the next scene, in seconds.
 
@@ -478,11 +488,9 @@ def _seam_seconds(meta):
     """
     if str((meta or {}).get("renderer", "")).lower() not in ("remotion", "remotion-bespoke"):
         return 0.0
-    fps = 30
-    try:
-        fps = int((meta or {}).get("fps") or 30) or 30
-    except (TypeError, ValueError):
-        fps = 30
+    # the FILM's frame rate, not the board's: the Film composition renders at 30 fps whatever `meta.fps` says
+    # (remotion/src/Root.tsx; meta.fps is the html tier's) — read from the board, a 60-fps board halved the seam
+    fps = _film_fps()
     frames = 12
     try:
         src = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime", "motion.ts"),
