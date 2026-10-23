@@ -487,7 +487,8 @@ def summarise(report):
 SR_ENV = 8000          # Ellis: analyse at 8 kHz
 WIN_MS, HOP_MS = 32, 4  # 32 ms window, 4 ms hop -> a 250 Hz onset envelope
 # THE TIMESTAMP. A flux frame stamped at its window's START put every beat ~30 ms early on synthetic beds with a known
-# grid (measured: the research prototype); stamped at the window's END less one hop, the median bias is ~0-2 ms.
+# grid (the research prototype); stamped at the window's END less one hop, the detected grid sits 2.3-3.2 ms early on
+# the ten beds of tests/test_beatgrid.py (76-140 BPM) — inside one 4 ms hop.
 STAMP_S = (WIN_MS - HOP_MS) / 1000.0
 
 
@@ -603,8 +604,8 @@ def _lowband(x, sr):
 
 def _phase_fix(x, sr, beats):
     """The DP can lock on the OFF-beat: hats and plucks are as loud as the kick in dB flux. Compare the low band at
-    the beats with the low band half a beat later and keep the heavier (research prototype: fixes the half-beat
-    locks on four-on-the-floor and rock patterns)."""
+    the beats with the low band half a beat later and keep the heavier — the beat is where the kick and bass are
+    (the research prototype's fix, kept as it was)."""
     e, fr, t0 = _lowband(x, sr)
     half = float(np.median(np.diff(beats))) / 2.0
 
@@ -617,8 +618,9 @@ def _phase_fix(x, sr, beats):
 
 def _downbeat_phase(x, sr, beats, bpb):
     """Which of every `bpb` beats is beat one: the beat-synchronous LOW-BAND RISE (a bass note or a kick starting a
-    bar). Of the four rules the prototype tried it was the only one right on all three synthetic patterns (house,
-    rock, syncopated: 27/27); spectral flux alone failed rock and syncopation."""
+    bar). Of the four rules the research prototype tried it was the only one right on every synthetic bed (54/54:
+    house, rock, syncopated, with rubato, shuffle and a lead-in); spectral flux alone failed rock and syncopation.
+    10/10 on the beds of tests/test_beatgrid.py."""
     y = _to_8k(x, sr)
     n_fft, hop = 512, 128
     F = _frames(y, n_fft, hop)
@@ -757,9 +759,10 @@ class BedOffGrid(RuntimeError):
 
 def verify_bed(x, sr, grid, limit_ms=BED_LIMIT_MS, log=print):
     """Re-detect the beats of a RENDERED bed and hold them to its grid: median |error| under `limit_ms`, at the
-    grid's own tempo. The score is synthesised ON the grid, so this should be ~2 ms (the detector's own error on
-    synthetic beds); anything near the limit means the synthesis and the grid disagree, and that ships as music
-    landing off every cut. Raises BedOffGrid; returns the numbers when it passes."""
+    grid's own tempo. The score is synthesised ON the grid, so this measures the detector's own error: 0-5.3 ms on
+    generated beds (48 beds, 8 seeds x 6 tempos: 4.3 ms worst median). Anything near the limit means the synthesis and
+    the grid disagree, and that ships as music landing off every cut. Raises BedOffGrid; returns the numbers when it
+    passes."""
     g = detect(x, sr=sr, bpm_range=(grid.bpm * 0.97, grid.bpm * 1.03), beats_per_bar=grid.beats_per_bar,
                fps=grid.fps, log=log)
     if g is None:

@@ -39,6 +39,51 @@ finding it prints that you do not understand.
   **`scene_pause` is a PAUSE, not a reading buffer — keep it ≤~0.9 s.** Padding it to 2–3 s to
   "give time to read" makes each scene end on a frozen, silent frame that reads as the video hanging;
   reading time belongs in a slower `meta.tts_speed`, not a long dead tail (see `tts_speed` below).
+- `scripts/beatgrid.py <out_dir>` (prints `beats.json`) / `--detect <track>` — the film's **BEAT GRID**, for a scored
+  film only (remotion tier, `meta.sound_design` on, `meta.bgm` `"auto"` or a path; anything else never reaches it, and
+  a music-free film voices, mixes and validates byte-identically to before — proved against 16a7af6). `tts.py` runs it
+  at the pad stage, after mastering and the open/close holds, because that is the one place a beat can grow without a
+  word moving: a clip only gains or loses silence at its TAIL, so `audio/NN.words.json` stays valid.
+  **Tier 1** (`fit_to_cuts`) chooses tempo and phase FOR the cuts: frame-locked tempos first (60·fps/n — at 30 fps 90,
+  94.7, 100, 105.9, 112.5, 120 BPM, where every beat IS a frame), the beat declaring `relation: payoff` (else `close`) on
+  beat one of a bar. **Tier 2** (`snap_pads`) moves each cut onto its beat by stretching the tail of the clip before it
+  — at most **+0.30 s**, or trimming at most **0.10 s** and never under the `scene_pause` floor (a voice whose full
+  stop is unmeasurable has no slack, so it only stretches). A cut's picture moment is its seam's MIDDLE frame (inside
+  a stage run: the beat's first frame; a scored film's close: its arrival, where `sfx` lands the closing impact), and
+  "on the beat" is that frame or one before it (picture early: motion-research §3). A cut no beat reaches inside its
+  window is left where it is and NAMED. `beats.json` keeps the grid, every cut before and after, each beat's added
+  seconds and its base length (so `--only` re-plans instead of stacking pads). `render_remotion` reads it
+  (`music_for_render`); if the board's beat lengths no longer match, the grid is re-fitted to the cuts as they are
+  and it prints a WARNING — re-run `tts.py`. `meta.music: {bpm?, snap?: "beat"|"off", key?, seed?}` is checked by
+  `validate.py` and refused by `tts.py` before any voice is made. **An author track** (`meta.bgm: <path>`) is
+  detected and NEVER time-stretched: its head is skipped by less than a bar (`bgm_skip_s`) so its grid slides under
+  the cuts. **Detection** is Ellis 2007 in numpy+scipy (librosa is not installed): mel flux at 8 kHz / 4 ms, tempo by
+  weighted autocorrelation inside 70–145 BPM, DP beats, flux frames stamped at window end − hop (else ~30 ms early),
+  the half-beat lock fixed on the low band, one constant tempo fitted. It returns **None, saying why**, unless the
+  beats are steady (≤20 ms off one tempo), phased (robust contrast ≥3 against the period's other phases) and strong
+  (onset level ≥2.5 σ): measured, synthetic beds 76–140 BPM and triplet swing 2–3 ms median error, noise / drones /
+  speech-like bursts all refused; on 254 local Apple Loops the tempo is right on 78% and the gate keeps 139 of 198
+  right grids and 9 of 56 wrong ones (~94% of returned grids right). The residual is a swung track read at 4/3 of its
+  tempo — `meta.music.bpm` pins the search to ±3% of the author's tempo. Measured on a copy of the slidemaker-promo
+  film (8 beats, one stage run, 7 boundaries): tier 1 alone, 81 ms mean cut-to-beat; tier 2, 105 → 24 ms on its
+  chosen 120 BPM grid, 6 of 7 cuts on the beat, +0.43 s in all (max 0.20 s a beat), words untouched.
+- `scripts/score.py [--bpm --seconds --seed --key --climax] out.wav` — the **GENERATED SCORE** `meta.bgm: "auto"` now
+  is (it replaces `sfx.synth_pad`, a tempo-less drone, which remains only as the fallback below). Synthesised in numpy
+  at 48 kHz ON the grid, so snapped cuts land on its beats by construction: falling-pitch kick, shaker and hat, a
+  Karplus-Strong pluck arpeggio (fractional-delay loop — measured within 0.13 cents over its range, MIDI 62–88,
+  where an integer delay would be up to 44 cents off), detuned band-limited saw pad through a lowpass that opens across each phrase, bass, a clap at the peak, a
+  noise riser 150 Hz → 10 kHz over the two beats into the payoff (not into the close — the SFX closing sentence
+  already builds there). One chord a bar from a seeded four-chord loop (I–V–vi–IV and relatives; `meta.music.key`
+  pins the key, the seed defaults to the title's crc32); sections of 4 or 8 bars counted FROM the payoff; accents by
+  velocity, never timing jitter; pumping computed from the kick times. Two stems: the BED (pad, pluck, bass, clap)
+  ducks under the voice like the old pad; the PULSE (kick, shaker, hat, riser) is not ducked, so time is kept while
+  the voice speaks. `sfx.mix` re-detects the rendered bed's beats against the grid before mixing — **median ≥10 ms
+  and it is NOT mixed** (an ERROR line; the film falls back to the pad) — and prints how far the music sits under the
+  voice. Measured: 48 beds (8 seeds × 6 tempos) 4.3 ms worst median; through the real chain 3.7 / 5.3 ms; on the
+  promo copy the music sits 15.5 LU under the voice while it speaks and 9.8 LU under its level in the pauses (old pad,
+  same film: 21.9 / 11.9); delivery −14.0 LUFS, −2.0 dBFS peak, 48 kHz. The listen-proxies (tests/test_score.py: no
+  clipping, crest 10–18 dB, <50% of the energy under 100 Hz, ≥10% in 400 Hz–2 kHz) can say it is wrong, never that
+  it is good. **A person must listen to it before delivery.**
 - `scripts/theme.py <out_dir> [--mode light|dark] [--accent #hex] [--accent2 #hex] [--bg #hex] [--style <key>] [--brand-logo <png>]` —
   derive a topic-fitting palette from `frames/` (or the passed overrides) and write
   `<out_dir>/theme.css` (the HTML tier links it; the programmatic renderers parse the same
@@ -401,8 +446,9 @@ finding it prints that you do not understand.
   library pins its payoff with. Cues are chosen by PICTURE KIND (a move, a landing, a build, a glow), never by
   UI event — event-semantic clicks/bells read as a game, which is why the close no longer rings a bell. The
   impact's body lives under 110 Hz, so the SFX bus is split in-graph into a >800 Hz band and a <110 Hz band,
-  both outside the voice's 300 Hz–3 kHz (measured: the low bus adds nothing there). `meta.bgm` (a path or
-  `"auto"` synth pad) scores it, and a scored film also ships an `out.nobgm.mp4` twin — same cues, same
+  both outside the voice's 300 Hz–3 kHz (measured: the low bus adds nothing there). `meta.bgm` (a path, or
+  `"auto"`: the generated score on the film's beat grid — `scripts/score.py`, `scripts/beatgrid.py`) scores it, and a
+  scored film also ships an `out.nobgm.mp4` twin — same cues, same
   frames, no music — so the user can score it themselves without a re-render. **Audition it before delivery
   (the pipeline can't hear it).** **"Frame-exact" is now MEASURED, not assumed:** the cue times were computed to the frame
   (a seam whoosh lands 2 frames EARLY on purpose) and then handed to an encoder nobody had checked, while the

@@ -355,8 +355,9 @@ def _loudnorm(measured=None, print_json=False):
 # THE GENERATED SCORE IN THE MIX (scripts/score.py): two stems. The BED (pad, pluck, bass, clap) takes the old pad's
 # place — lowpassed, faded and ducked under the voice exactly as it was. The PULSE (kick, shaker, hat, riser) is NOT
 # ducked: a quiet kick and hat keep the time while the voice speaks (motion-research §3 "under a voice"), and it is
-# lowpassed at 12 kHz rather than 4, because a shaker under 4 kHz is a thud. Levels set by measuring the promo film
-# (references/motion-research.md §3): ≥10 LU under the voice while it speaks.
+# lowpassed at 12 kHz rather than 4, because a shaker under 4 kHz is a thud. Levels set by measuring a copy of the
+# slidemaker-promo film through this chain (`music_under_voice`): 15.5 LU under the voice while it speaks (≥10 wanted,
+# craft-research §3) and 9.8 LU under its speaking level in the pauses; the old pad measured 21.9 / 11.9 there.
 _SCORE_BED_VOL = 0.85
 _SCORE_PULSE_VOL = 0.50
 _PULSE_LP = 12000

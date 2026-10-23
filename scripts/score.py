@@ -194,8 +194,9 @@ def clap(rng, sr=SR):
 
 def pluck(f, rng, vel=1.0, dur=1.1, decay_s=0.85, sr=SR):
     """Karplus-Strong: a period of filtered noise recirculating through a delay whose loop filter is a two-point
-    average and a linear-interpolation fractional delay, so the note is IN TUNE (an integer delay alone is up to
-    ~12 cents sharp at 660 Hz, 48 kHz — audible against the pad). The loop gain sets a T60 of `decay_s`; the
+    average and a linear-interpolation fractional delay, so the note is IN TUNE: measured within 0.13 cents over the
+    pluck's range (MIDI 62-88), where an integer delay would be up to 44 cents off at 48 kHz — audible against the
+    pad. The loop gain sets a T60 of `decay_s`; the
     averaging takes the highs out faster, which is the pluck's natural darkening. Vectorised per period: every sample
     of one period depends only on the period before it."""
     period = sr / f
@@ -490,11 +491,12 @@ def render(grid, seconds, climax_s=None, riser_into_climax=True, seed=0, key=Non
     base = np.interp(t, (np.arange(len(eb)) * (sr // 100)) / sr, np.array((520.0, 700.0, 1000.0, 1450.0))[eb])
     fc = base * (1.0 + 0.8 * (0.5 - 0.5 * np.cos(2 * np.pi * ph)))
     tracks["pad"] = _sweep("lp", tracks["pad"], fc, 0.9, sr)
-    # THE BALANCE, set by measuring each voice alone (scratch diag, 112.5 BPM, 32 s): at equal-looking gains the
-    # kick and bass came out 15 LU over the pluck and the hat and clap 30 LU under — 60% of the energy below 100 Hz,
-    # a bed a phone speaker would barely play. These weights put the pad and the pluck in front (the music), the bass
-    # ~3 LU and the kick ~4 LU under the pad, the shaker ~11 and the hat ~16 under (choices, measured as LUFS over
-    # the film; the riser plays for two beats, so its whole-film level reads ~15 LU under its momentary one).
+    # THE BALANCE, set by measuring each voice alone (scratch diag, 112.5 BPM, 32 s): at the first gains the kick and
+    # bass came out 14-15 LU over the pluck and the hat and clap 30 LU under the kick — 58-61% of the energy below
+    # 100 Hz, a bed a phone speaker would barely play. These weights put the pad and the pluck in front (the music;
+    # pluck 2.7 LU under the pad), the bass 3.0 and the kick 4.0 LU under the pad, the shaker 10.9, clap 12.3 and hat
+    # 15.9 under (choices, measured as LUFS over the whole bed; the riser plays for two beats, so over a 32 s bed its
+    # level reads ~15 LU under its momentary one).
     mix = {"kick": 0.32, "shaker": 0.15, "hat": 0.29, "clap": 0.9, "pluck": 0.97, "pad": 0.5, "bass": 0.165,
            "riser": 0.22}
     bed = sum(tracks[k] * mix[k] for k in ("pad", "pluck", "bass", "clap"))

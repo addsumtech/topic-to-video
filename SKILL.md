@@ -45,6 +45,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   word times. **`tts.py` REWRITES `storyboard.json`**, so run it (and any duration-editing pass of your own, e.g.
   tail-padding) **BEFORE you hand-set per-scene fields like `transition`**, or a later re-synth silently clobbers
   them. Order: finalize audio & durations → THEN set transitions/motion → validate → render (render only READS the board).
+  A scored remotion film's clips also get their tails snapped to the beat grid (see **Sound**; words.json untouched).
   Every clip is mastered in place (EBU R128 I=-14, trailing dead air trimmed, word times stay valid; `meta.audio_master: false` opts out).
   **`meta.scene_pause` (default 0.55 s) is the pause the viewer HEARS between scenes, not the pad.** `tts.py` converts
   it per tier (remotion adds the 0.40 s cross-dissolve overlap, so both tiers sound the same) and targets 1.7× the
@@ -176,7 +177,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     key-light shadow, a sheen as they turn and motion blur when they move fast; push / slide / lift / return seams ease
     in and out with shutter blur.
   - **Sound.** `meta.sound_design:true` is an opt-in SFX bed. `meta.bgm` (a path or `"auto"`) scores the film, and a scored
-    film also ships `out.nobgm.mp4`; the music ducks under the voice (sidechain, ≥10 LU under speech). The mix is two-pass
+    film also ships `out.nobgm.mp4`; the music ducks under the voice (sidechain, ≥10 LU under speech). `"auto"` is a
+    generated score on the film's BEAT GRID (`scripts/score.py`): `tts.py` picks the grid and stretches each scene's tail
+    pad (≤0.3 s, never under the pause floor) so its cut lands on a beat, writing `beats.json` (`python3
+    scripts/beatgrid.py <out_dir>` prints every cut before/after). An author track is beat-detected and shifted, never
+    stretched. `meta.music: {bpm?, snap?: "beat"|"off", key?, seed?}`. The mix is two-pass
     loudness-normalised to -14 LUFS / -2 dBTP at 48 kHz, every cue aligned by its PEAK (≤1 frame early), and `check_av`
     refuses a delivery over 48 kHz. The pipeline cannot hear, so **audition it before delivery**.
     `python3 scripts/sfx.py --calibrate` measures the cue offset through the real filtergraph and exits non-zero past half a frame.
