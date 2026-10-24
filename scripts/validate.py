@@ -1597,8 +1597,14 @@ def _idiom_world(meta, slides, errors, warnings, out_dir=None):
         return
     ok = set(declared)
     off, untagged = [], []
+    import stage_runs as _sr_prov
+    _stages = set(_sr_prov.stage_names())
     for _pos, s in enumerate(slides, start=1):
         shot = s.get("shot")
+        if shot in _stages:
+            # A STAGE RUN'S STAGE (remotion/src/stage/) has no visual language of its own to come from a world: it draws
+            # only the film's own pictures, words and shapes, so its beats speak the worlds the film declared
+            continue
         ids, worlds, is_stage = _beat_objects(shot, s.get("shot_props"))
         judged = [(o, w) for o, w in zip(ids, worlds) if w]     # only an object that HAS a provenance is judged
         if is_stage and judged:
@@ -1714,8 +1720,20 @@ def _image_attribution(slides, out_dir, errors, warnings):
         if not isinstance(props, dict):
             continue
         blob = json.dumps(props, ensure_ascii=False)
-        credits = " ".join(str(v) for k, v in props.items()
-                           if "credit" in str(k).lower() and isinstance(v, str))
+        # every credit the beat carries, at any depth: a WorldStage beat credits each picture on the object that shows
+        # it (`world.objects.<id>.credit`), a stage's side card on the card — reading only the top level called them
+        # uncredited
+        def _credits(v):
+            if isinstance(v, dict):
+                for k2, v2 in v.items():
+                    if "credit" in str(k2).lower() and isinstance(v2, str):
+                        yield v2
+                    else:
+                        yield from _credits(v2)
+            elif isinstance(v, list):
+                for v2 in v:
+                    yield from _credits(v2)
+        credits = " ".join(_credits(props))
         # ANY relative image path, not only `media/` and `assets/`. A film is free to organise its files, and
         # a beat whose photograph sits in `photos/` or `img/2024/` was invisible to this gate entirely —
         # the licence condition does not depend on the directory someone chose.
@@ -2691,7 +2709,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
     # A CONTINUOUS STAGE (remotion/src/stage/) draws a whole run of beats; its runs are checked here, before a render
     import stage_runs as _sr
     valid |= set(_sr.stage_names())
-    for _stage_prob in _sr.check(slides):
+    for _stage_prob in _sr.check(slides, out_dir):
         errors.append("stage run: " + _stage_prob)
     try:                          # which shots READ the Design DNA (self-updating grep of the source) — the rest
         import dna_audit as _da   # wear a hardcoded palette and won't unify on a THEMED film (lint below)
@@ -2867,7 +2885,10 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
             warnings.append(f"{tag}: shot_fit.verdict {verdict!r} is not one of fit/adapt/build")
         else:
             _fit_verdicts.append(verdict)
-            if verdict == "build" and shot not in _film_shots:
+            # A STAGE (remotion/src/stage/) is not a register: "build" on its beat means the RUN was choreographed for
+            # this film (its world, its camera, its steps), which design_routes credits from the run itself — there is
+            # no register to have registered
+            if verdict == "build" and shot not in _film_shots and shot not in _sr.stage_names():
                 # NOTE ON WHAT THIS CAN AND CANNOT CHECK: a "build" claim is not independently verifiable
                 # here — nothing in the board proves a register was authored for THIS film rather than
                 # picked from the catalogue and relabelled. What is checkable is that the claim is
@@ -3664,7 +3685,8 @@ def _stage_run(slides, k):
     means acted on — a step, or an actor that points at, lifts, marks, leans in on, counts beside or sets other cards
     next to the face; turning the card alone is not."""
     import stage_runs as _sr
-    actors = ("cursor", "marks", "lift", "camera", "count", "cards", "trace", "wall", "panel")
+    # CardStage's actors, and WorldStage's (a camera that frames the world's objects, names shown beside them)
+    actors = ("cursor", "marks", "lift", "camera", "count", "cards", "trace", "wall", "panel", "labels")
     for a, b, _r in _sr.runs(slides):
         if a <= k <= b:
             sps = [sl.get("shot_props") if isinstance(sl.get("shot_props"), dict) else {} for sl in slides[a:b + 1]]

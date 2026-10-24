@@ -29,7 +29,10 @@ music. The remotion tier is for ANY video — creativity, craft and design, neve
   4.0.486 ships iris, flip and 11 shader presentations (HtmlInCanvas — measured non-deterministic here); also
   `useTransitionProgress()` and `TransitionSeries.Overlay`, both unused.
 - **Camera**: per-beat push/pull/hold (runtime/depth SceneCamera, edge-budgeted), `Plane` depth planes, stage3d
-  (CSS 3D, type flat), pageCam2D. No camera continuity across cuts.
+  (CSS 3D, type flat), pageCam2D. No camera continuity across cuts. **Built 2026-10-24 from §2:** `WorldStage`
+  (references/stage-runs.md) — one world across a run of beats, a camera that dollies, cranes, tilts, orbits and
+  scale-zooms (exponential, fixed point held, nested layers handed over) between framings of named objects, parallax
+  by real depth, focus by distance, blur by speed.
 - **Music**: `bgm: 'auto'` is a drone with no tempo or key; nothing reads tempo; nothing aligns picture to music.
   focus/pop/tick/reveal cues are never planned on the remotion path. (The first three are answered since: §3 "Built".)
 

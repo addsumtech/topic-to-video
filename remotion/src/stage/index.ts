@@ -3,10 +3,11 @@
 // sweeps and manifests never see it, and Film.tsx looks a run's shot up here.
 import React from 'react';
 import {CardStage} from './CardStage';
+import {WorldStage} from './WorldStage';
 
-export const STAGES: Record<string, React.FC<any>> = {CardStage};
+export const STAGES: Record<string, React.FC<any>> = {CardStage, WorldStage};
 
 /** The DNA colour each stage paints its ground with — what the caption ink and the seam guard judge a stage beat's
  *  ground by. A register's comes from its measured row (runtime/shotLuma DNA_GROUND_TOKEN); a stage has none, and the
  *  fallback called CardStage's light studio "dark" and burned WHITE captions onto it. */
-export const STAGE_GROUND: Record<string, string> = {CardStage: 'bg'};
+export const STAGE_GROUND: Record<string, string> = {CardStage: 'bg', WorldStage: 'bg'};

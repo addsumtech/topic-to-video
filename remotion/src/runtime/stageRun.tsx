@@ -39,6 +39,14 @@ export const StageRunContext = React.createContext<StageRunValue | null>(null);
 export const morphFrames = (durF: number, fps: number) => Math.max(1, Math.round(Math.min(durF * 0.4, fps * 0.8)));
 /** How long a step's move takes by default, ending on its phrase. scripts/stage_runs.py mirrors it. */
 export const STEP_MOVE_S = 0.45;
+/** A beat's own keyframe may say how long its move in takes (`move`, seconds, on the beat's shot_props): a camera that
+ *  travels from the Sun to the Earth needs longer than a card's 0.8 s re-pose. Never more than this share of the beat —
+ *  the rest is the state HELD, which is what the voice talks over. scripts/stage_frames.py mirrors both. */
+export const BEAT_MOVE_MAX_SHARE = 0.75;
+export const beatMoveFrames = (durF: number, fps: number, move: unknown): number =>
+  typeof move === 'number' && isFinite(move) && move > 0
+    ? Math.max(1, Math.round(Math.min(durF * BEAT_MOVE_MAX_SHARE, move * fps)))
+    : morphFrames(durF, fps);
 
 export type State = Record<string, unknown>;
 const isObj = (v: unknown): v is State => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -86,6 +94,11 @@ const landed = (f: number, d: number, fps: number, config: SpringConfig): number
 };
 
 const progress = (kf: {from: number; to: number}, f: number, fps: number) => moveShare(f - kf.from, kf.to - kf.from, fps);
+/** A move's share at frame f of a d-frame move under one of the stage's spatial feels (FEEL below) — what `springSum`
+ *  moves each keyframe's change by, for a stage that sums its own kind of change (WorldStage's camera travels on
+ *  paths — an arc, an exponential zoom — not on straight lines between numbers). */
+export const feelShare = (f: number, d: number, fps: number, feel: Feel = 'glide'): number =>
+  landed(f, d, fps, FEEL[feel]);
 
 /** Every keyframe of the run, in time order. A step arrives on its phrase even while the move before it is still
  *  under way: its own move then starts from where that move has got to and carries the rest of it along — pushing the
@@ -102,9 +115,9 @@ export const buildKeys = (beats: StageBeat[], fps: number, normalize?: Normalize
   const keys: StageKey[] = [];
   let state: State = {};
   beats.forEach((b, k) => {
-    const {steps, ...own} = b.props as State & {steps?: unknown};
+    const {steps, move: beatMove, ...own} = b.props as State & {steps?: unknown; move?: unknown};
     const from = b.start;
-    const to = k === 0 ? b.start : b.start + morphFrames(b.durF, fps);
+    const to = k === 0 ? b.start : b.start + beatMoveFrames(b.durF, fps, beatMove);
     state = apply(state, own);
     keys.push({beat: k, step: -1, from, to, props: own, state, begin: state});
     (Array.isArray(steps) ? steps : []).forEach((raw, j) => {

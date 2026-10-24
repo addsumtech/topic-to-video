@@ -115,7 +115,9 @@ def stamp_faces(props, public_dir):
     # a STEP may change the face too (a run of looks flicked through on one card): each gets its own shape
     if isinstance(out.get("steps"), list):
         out = dict(out, steps=[with_cards(st) for st in out["steps"]])
-    return out
+    # a WORLD's pictures (WorldStage `world.objects`): each image's shape and drawn width, read from its file
+    import world_stage as _wst
+    return _wst.stamp(out, public_dir)
 
 
 def resolve_steps(props, resolve, dur_s, beat_no):
@@ -220,8 +222,9 @@ def mark_backdrops(scenes):
     return scenes
 
 
-def check(slides):
-    """The problems that make a board's stage runs unrenderable or misleading — [] when there are none."""
+def check(slides, out_dir=None):
+    """The problems that make a board's stage runs unrenderable or misleading — [] when there are none. A WorldStage
+    run's world is checked too (scripts/world_stage.py) — its image files against `out_dir` when one is given."""
     probs = []
     names = set(stage_names())
     seen = {}
@@ -254,6 +257,9 @@ def check(slides):
             if "steps" in sp:
                 for pr in step_problems(sp["steps"], slides[k].get("narration") if "narration" in slides[k] else None):
                     probs.append("beat %d (stage run %r): %s" % (k + 1, r, pr))
+        if shot == "WorldStage" and len(shots) == 1:
+            import world_stage as _wst
+            probs.extend("stage run %r: %s" % (r, pr) for pr in _wst.check(slides, first, last, out_dir))
         for k in range(first, last + 1):
             if slides[k].get("camera") not in (None, "", {}):
                 probs.append("beat %d is on stage run %r, whose stage moves its own camera — drop its `camera` (put "

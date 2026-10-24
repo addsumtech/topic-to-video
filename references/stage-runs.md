@@ -15,7 +15,7 @@ shots: a run is one picture held across its beats, so every beat of it must stil
 ```
 
 - Consecutive beats with the same `stage.run` are one run. The id must not appear twice in a film.
-- Every beat of a run names the same `shot`, and it must be a stage (`remotion/src/stage/`; today: `CardStage`).
+- Every beat of a run names the same `shot`, and it must be a stage (`remotion/src/stage/`: `CardStage`, `WorldStage`).
 - Inside a run there is no seam, so a joined beat may not declare `transition_in`. No beat of a run may declare
   `camera` (the stage moves its own camera). `ground`/`key` belong to the run's first beat.
 - `stage_runs.check` enforces all of this in `validate.py` and refuses it again in `render_remotion.py`.
@@ -31,7 +31,9 @@ the narration. A keyframe states WHAT CHANGES: the state after it is the state b
 (objects field by field; `null` removes a key). The stage at any frame is a pure function of that list and the frame,
 which is why the per-beat segment render still works and a run is deterministic.
 
-- A beat's own keyframe moves in over its first 0.8 s (never more than 40% of the beat).
+- A beat's own keyframe moves in over its first 0.8 s (never more than 40% of the beat) — or over `move` seconds when
+  the beat's shot_props say so (never more than 75% of the beat): a camera that travels from one place to another
+  needs longer than a card's re-pose.
 - A step ARRIVES on its phrase: its move runs over the `move` seconds before it (0.45 s by default), so a click lands on
   the word that names it. A step whose phrase comes while an earlier move is still under way starts from wherever that
   move has got to.
@@ -77,6 +79,64 @@ while the card turns. To author the places, look at the face image and read the 
 
 When a keyframe changes the face, whatever sits on the old face (lifted parts, marks) goes before the swap, and the
 new face's arrives after it.
+
+## WorldStage
+
+ONE world a camera travels through — the shape of a Kurzgesagt or Powers-of-Ten film: a dolly from the Sun to the
+Earth, a zoom from the planet into the ring round its pole, a tilt up through the layers of the sky, without a cut,
+because it is one place. Reach for it when the subject HAS a geography (scales, distances, layers, a route) that a
+row of flat beats cannot show. `stage/worldCore.ts` holds the maths; `scripts/world_stage.py` checks the board.
+
+**The world** is declared on the run's first beat — `world.objects: {<id>: {...}}` — and later keyframes change it
+field by field (`{"world": {"objects": {"wind": {"on": 0}}}}` fades the wind out; `null` removes an object). World
+units are the frame's short side (1 = 1080 px at every aspect); +x right, +y DOWN, +z toward the viewer.
+
+| object field | what it does |
+|---|---|
+| `kind` | `image` (a file the film serves; `edge` feather · circle · hard · none, `imageZoom` crops to the centre), `globe` (the real-coastline Earth, `lon`/`lat`, an optional `ring` {lon, lat, radius, color}), `disc`, `glow`, `field` (a dipole's field lines, squeezed toward `sun`, a tail behind), `stream` (streaks flowing +x, round an `obstacle` [u, v, r]), `stars`, `band` (a glowing layer), `type` (`text`, `size` in world units: a word standing in space), `frame` (a place to frame and nest in, drawn as nothing) |
+| `at` [x, y, z], `w`, `aspect` | where it stands and how wide it is (an image takes its file's shape) |
+| `in`, `uv`, `span`, `dz` | NESTED in a parent: centre at `uv` on the parent, width `span` of the parent's (0..1), `dz` in front of the parent's plane in its own widths — the scales a scale-zoom goes through |
+| `on` | 0..1 presence, carried across the move |
+| `label`, `labelAt` | its name, shown while the state's `labels` lists it, beside it at a reading size (or at `labelAt` on a diffuse thing) |
+| `credit` | who made the picture — shown while it is in view; validate reads it against the image's sidecar |
+| `bloom`, `color`, `color2`, `dof` | light it spills on screen; its colours (DNA tokens or #hex); how strongly it defocuses (stars: 0.15) |
+
+**The camera.** Each keyframe's `camera` frames one object: `{frame, fill?, fit?, offset?, yaw?, pitch?, move?}` —
+`fill` its share of the content zone (`fit: "cover"`: it fills the picture — the frame's width and everything above
+the caption band, which stays the world's own space for the caption), `offset` [dx, dy] in shares of the
+zone, `yaw`/`pitch` degrees round it (+pitch looks up). `move` is how this keyframe's camera gets there:
+
+| move | what it does | parallax |
+|---|---|---|
+| `dolly` (default) | the lens travels in a straight line to its new place | real, by depth |
+| `crane` | the lens rises, falls or slides at the distance it already had (the framed thing keeps its size) | real |
+| `tilt` | the lens stays put and turns to look (`fill` does not apply) | none — a pure turn, as in a real tilt |
+| `orbit` | the lens swings round the framed thing on an arc to `yaw`/`pitch`; a globe turns with it | real |
+| `scale-zoom` | POWERS OF TEN: exponential zoom about the one point that stays still on screen, at a constant rate (it cruises between a short start and landing), into an object NESTED in the one framed before (or out to an ancestor); each nested scale fades in as the zoom carries it toward the frame, and a parent gives way once a child covers the frame | none (it is a zoom) |
+
+Moves are summed along their own paths on the stage's glide spring, so one that starts before the last has landed
+carries its speed on, and the camera lands exactly. A beat's own `move` (seconds) times its keyframe's travel; a
+step's `move` times a step's. Give a camera move 1.5–4 s: the defaults (0.8 s, 0.45 s) are a card's.
+
+**How it is drawn.** Every object is a plane that FACES the lens (a multiplane camera), so it projects to an exact
+scale and translate and is painted as a flat 2D element at its final size: photographs and words stay sharp at any
+distance. Depth of field comes from each plane's distance to what the camera frames (restrained, ~5 px at 1080);
+motion blur from each object's own speed on screen (capped near 13 px at 1080); the camera breathes while it holds
+(`drift: 0` stops it). A plane the lens comes too close to gives way as it passes (line art sooner than pictures).
+The caption sits on the world's own space: anything but the stars dims into it over the fifth of the short side
+above the caption band (eased, so it reads as distance, not a cut) — no strip is laid over the band, the world's
+things simply end there.
+
+**Type in the world** is a `type` object (it scales with its distance, fades out before it is under the type floor
+and as it leaves the content zone) or a `label` (a reading size, kept in the content zone, off the other labels).
+The type layer is a window cut at the content zone, so a word the camera carries past the zone's edge leaves through
+it; type never enters the caption band or the platform's button column. `title`/`highlight` are optional.
+
+**Checked before render** (`validate.py`, `render_remotion.py` via `stage_runs.check`): an object the camera frames,
+a label names or a nest is `in` that is not in the world at that keyframe; a nest that loops; a nested object no
+smaller than its parent; a top-level object without `at`/`w`; an image file that is not there; a kind or move the
+stage does not draw; a scale-zoom whose two framings are not on one nest chain, or that turns the lens. The stage
+throws on the same things at render — never an empty frame.
 
 ## Sound
 

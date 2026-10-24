@@ -38,9 +38,21 @@ def _js_round(x):
     return _rs.js_round(x)
 
 
+BEAT_MOVE_MAX_SHARE = 0.75  # runtime/stageRun.tsx BEAT_MOVE_MAX_SHARE
+
+
 def morph_frames(dur_f, fps):
     """runtime/stageRun.tsx morphFrames."""
     return max(1, _js_round(min(dur_f * 0.4, fps * 0.8)))
+
+
+def beat_move_frames(dur_f, fps, move):
+    """runtime/stageRun.tsx beatMoveFrames: a beat's own `move` (seconds), capped at BEAT_MOVE_MAX_SHARE of the beat;
+    without one, morph_frames."""
+    if isinstance(move, (int, float)) and not isinstance(move, bool) and move > 0 and move == move \
+            and move != float("inf"):
+        return max(1, _js_round(min(dur_f * BEAT_MOVE_MAX_SHARE, move * fps)))
+    return morph_frames(dur_f, fps)
 
 
 def keyframes(scenes, first, last, fps):
@@ -51,7 +63,8 @@ def keyframes(scenes, first, last, fps):
         sc = scenes[k]
         dur = max(1, _js_round(sc.get("durF") or 0))
         keys.append({"beat": k, "step": -1, "from": start,
-                     "to": start if k == first else start + morph_frames(dur, fps)})
+                     "to": start if k == first else start + beat_move_frames(dur, fps,
+                                                                             (sc.get("props") or {}).get("move"))})
         for j, st in enumerate(((sc.get("props") or {}).get("steps") or [])):
             t = st.get("t") if isinstance(st, dict) else None
             if not isinstance(t, (int, float)) or isinstance(t, bool):
