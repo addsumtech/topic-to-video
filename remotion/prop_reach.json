@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 212,
+  "_universe": 215,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -217,10 +217,10 @@
     "ReplyWindow": "c07e34231966400d",
     "WeightedWheel": "4573018ced610633",
     "ForkingAnswers": "031e14d03e9face9",
-    "CroppedType": "2e217990a72980f0",
-    "HeadlineReveal": "aac02d1f8d1eea00",
-    "TypeOnPath": "85c24dca794c6cda",
-    "WordRoll": "2aab3fb33cfc0e9b",
+    "CroppedType": "cc007cbfa228ea0b",
+    "HeadlineReveal": "86e25bd7771dd71c",
+    "TypeOnPath": "c94212a0d97cb7ce",
+    "WordRoll": "9978b9e6c23e1dc7",
     "EquationMorph": "6a4902424a9f2df3",
     "FunctionPlot": "c105daa04a9bcc72",
     "GrowingFigure": "90402c71172deeb8",
@@ -228,7 +228,9 @@
     "FlightArcs": "9309071933e3d324",
     "FlowSankey": "40c53268658148a2",
     "GlobeFocus": "8d949f10e58136f7",
-    "RankRace": "84cf953e4b2ddbbe"
+    "RankRace": "84cf953e4b2ddbbe",
+    "LandscapeWell": "2699774419d0ef6a",
+    "MagicMoveType": "a4fb4d7cdc132345"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -431,10 +433,10 @@
     "ReplyWindow": "a6f079a868e1852d",
     "WeightedWheel": "e8b07c6de983fde6",
     "ForkingAnswers": "c1809a812c8ce6a8",
-    "CroppedType": "3374bef9b8f15328",
-    "HeadlineReveal": "39f887308e5ca211",
+    "CroppedType": "6724aa07c65cbebb",
+    "HeadlineReveal": "2c5df3e699246ff6",
     "TypeOnPath": "f6c5d19736bde437",
-    "WordRoll": "2708792f68f18fee",
+    "WordRoll": "88b5eccc7006dcb2",
     "EquationMorph": "b2117e2df586042d",
     "FunctionPlot": "f094a34bcaf51cfa",
     "GrowingFigure": "b658680bad3ac44b",
@@ -442,7 +444,9 @@
     "FlightArcs": "41eaea94b76b81fe",
     "FlowSankey": "1b4dc4851855d918",
     "GlobeFocus": "8fe392bef7bfd45d",
-    "RankRace": "65d48938c5ccb4c1"
+    "RankRace": "65d48938c5ccb4c1",
+    "LandscapeWell": "f9eca27145746dc9",
+    "MagicMoveType": "196f1e0f70b03fbd"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -594,8 +598,8 @@
       "prop_diff": 0.75
     },
     "CroppedType": {
-      "reach": 0.735,
-      "prop_diff": 0.75
+      "reach": 0.73,
+      "prop_diff": 0.6
     },
     "CubeRotate": {
       "reach": 0.491,
@@ -673,9 +677,21 @@
       "reach": 0.724,
       "prop_diff": 1.0
     },
+    "FlightArcs": {
+      "reach": 0.145,
+      "prop_diff": 0.75
+    },
+    "FlowCounter": {
+      "reach": 0.385,
+      "prop_diff": 1.0
+    },
     "FlowField": {
       "reach": 0.317,
       "prop_diff": 1.0
+    },
+    "FlowSankey": {
+      "reach": 0.278,
+      "prop_diff": 0.75
     },
     "FocalIsolation": {
       "reach": 0.253,
@@ -725,6 +741,10 @@
       "reach": 0.629,
       "prop_diff": 1.0
     },
+    "GlobeFocus": {
+      "reach": 0.044,
+      "prop_diff": 1.0
+    },
     "GlowPick": {
       "reach": 0.677,
       "prop_diff": 0.8
@@ -755,7 +775,7 @@
     },
     "HeadlineReveal": {
       "reach": 0.829,
-      "prop_diff": 0.6
+      "prop_diff": 0.5
     },
     "HeldInstant": {
       "reach": 0.99,
@@ -829,6 +849,10 @@
       "reach": 0.441,
       "prop_diff": 1.0
     },
+    "LandscapeWell": {
+      "reach": 0.05,
+      "prop_diff": 1.0
+    },
     "LarmorPrecession": {
       "reach": 0.648,
       "prop_diff": 1.0
@@ -880,6 +904,10 @@
     "MagazineSpread": {
       "reach": 0.279,
       "prop_diff": 1.0
+    },
+    "MagicMoveType": {
+      "reach": 0.776,
+      "prop_diff": 0.67
     },
     "MagnetizationTip": {
       "reach": 0.274,
@@ -1048,6 +1076,10 @@
     "RangeSpheres": {
       "reach": 0.401,
       "prop_diff": 0.89
+    },
+    "RankRace": {
+      "reach": 0.122,
+      "prop_diff": 1.0
     },
     "RansomZine": {
       "reach": 0.817,
@@ -1262,8 +1294,8 @@
       "prop_diff": 1.0
     },
     "WordRoll": {
-      "reach": 0.844,
-      "prop_diff": 0.8
+      "reach": 0.852,
+      "prop_diff": 0.67
     },
     "WordTunnel": {
       "reach": 0.692,
@@ -1271,26 +1303,6 @@
     },
     "WorksThrough": {
       "reach": 0.269,
-      "prop_diff": 1.0
-    },
-    "FlightArcs": {
-      "reach": 0.145,
-      "prop_diff": 0.75
-    },
-    "FlowCounter": {
-      "reach": 0.385,
-      "prop_diff": 1.0
-    },
-    "FlowSankey": {
-      "reach": 0.278,
-      "prop_diff": 0.75
-    },
-    "GlobeFocus": {
-      "reach": 0.044,
-      "prop_diff": 1.0
-    },
-    "RankRace": {
-      "reach": 0.122,
       "prop_diff": 1.0
     }
   }

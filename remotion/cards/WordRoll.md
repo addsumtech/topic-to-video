@@ -19,7 +19,7 @@
 - Even spacing gave "here" and "on its word" the same time; at 6 s the demo's three came back from the hold gate a third of a second short. The schedule is now proportional to reading need and the register runs 7 s by default — in a film the beat's own length is what counts, and the gate measures that.
 - The slot's clip is its own line box, so the space above it is where an outgoing word disappears; with a tight gap the exit read as the word sliding INTO the sentence above. The gap is kept.
 - Set flush left at the column edge, a short sentence filled 43% of the frame from one side and the proof sheet called the other side dead. The block is centred on the widest thing it holds; the type inside stays flush left.
-- QUIET by construction: measured 0.0005 motion, 3.5% ink, 0.018 light (product DNA) against 0.0037 / 12% / 0.135. Intercut with a dense register.
+- QUIET by construction: measured 0.0005 motion (0.0008 with `hold: 'alive'`), 3.5% ink, 0.018 light (product DNA) against 0.0037 / 12% / 0.135. Intercut with a dense register.
 - PACED IN SECONDS: authored in shares of the beat, a 3–4 s beat played the 7 s design 2.1–2.4x fast and the second option was readable 0.73 s against 0.83 s (bench-launch). The schedule now pays every option its read-once time FIRST, then shares the rest by must-read time; a change's roll shrinks on a short beat to 0.24 s (never shorter). Measured (hold gate, `shot_proof.kinetic_hold_findings`): 它能写 + 大模型 / 代码 / 成片 at a 4 s beat, roll — 1.23 / 0.97 / 0.87 s readable, no error (was: the second option under its 0.83 s floor); four options at 4.4 s, roll — 0.87 / 0.83 / 0.83 / 0.93 s, no error (bench-rams had three errors there). Scramble resolves later in each turn, so the same three options at 4 s are 0.03 s short of the floors and the gate errors — scramble wants about 4.1 s; a beat that cannot pay the floors gets them in proportion.
 - SCRAMBLE never shows a wrong word: drawn from the copy's own glyphs it flashed 大模刑 on the way to 大模型. Its stand-ins are now a block drawn as a box or the right glyph at another weight (CJK), a symbol for every other script (`kineticCore` `scrambleGlyph`).
 - In a tall frame the slot may take two lines: held to one, a long option set the whole slot ~80 px in a 1920-tall frame (2.5–3% ink). Portrait keeps every option on one line only down to U·0.13; the sentence is set a size larger.
@@ -30,7 +30,7 @@
 
 **Reference:** `remotion/src/shots/WordRoll.tsx`
 
-**Measured:** 3.5% ink (clip median) · 17.4% footprint · 0.0005 motion · reach 0.844. Holds: clean at its own 7 s (1.37 / 1.40 / 2.53 s for here / there / on its word); at a 4 s beat the two one-word options cannot be read once (errors).
+**Measured:** 3.5% ink (clip median) · 17.4% footprint · 0.0008 motion (was 0.0005) · reach 0.852. Holds: clean at its own 7 s (2.07 / 1.80 / 1.90 s for here / there / on its word); the short-beat numbers are under Known traps.
 
 **Review:** NOT critic-reviewed — built and looked at by its author (roll / scramble / flip, 16:9 / 9:16 / 1:1, Latin and Chinese, three DNAs).
 

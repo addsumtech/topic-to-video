@@ -19,7 +19,7 @@
 - The emphasis was first an underline. At display size it ran straight through the descenders ("by", "pay") and read as a strike in the wrong place, so emphasis is colour and weight, which also cannot collide with the next line.
 - Fitted only to its box, the largest size wins by wrapping: 「一行一行升起」 came out 「一行一 / 行升起」. The first fit tier keeps every entry whole; a Chinese entry that must wrap breaks at an Intl.Segmenter word, never between any two characters.
 - The accent is kept only where it reads (3:1, large type): `readableOn(bg, accent, fg)` returns the most legible candidate, which on a dark ground is always the foreground — the first render drew the emphasised run white on white text.
-- QUIET by construction: measured 0.0009 motion, 6.8% ink, 0.042 light (product DNA) against 0.0037 / 12% / 0.135 floors — a headline lands and holds. Intercut with a dense register.
+- QUIET by construction: measured 0.0009 motion (0.0015 with `hold: 'alive'`), 6.8% ink, 0.042 light (product DNA) against 0.0037 / 12% / 0.135 floors — a headline lands and holds. Intercut with a dense register.
 - PACED IN SECONDS (`PACE = 'seconds'`): the reveals are durations and the beat's shares only bound when they start; validate no longer calls a 3 s beat "2x faster" — the hold gate measures what a short beat really costs (reading time).
 - In a tall frame an entry is kept whole only down to U·0.11, then given ONE extra line at U·0.12, then any wrap: kept whole to the landscape floor, a nine-glyph end line came out ~100 px in a 1920-tall frame (bench-launch b8, 4.9% ink); with the tiers 「一个题目，/一条成片」 sets at display size and is never cut 一个/题目.
 - HELD TYPE STAYS ALIVE (`hold: 'alive'`, the default): once a line lands, a breath of tracking (≤0.006 em) and a light passing along it every ~3.4 s (`runtime/kinetic` `idle`), with the baseline unlock on for the whole shot so it never steps a pixel; `hold: 'still'` is a slide's hold.
@@ -29,7 +29,7 @@
 
 **Reference:** `remotion/src/shots/HeadlineReveal.tsx`
 
-**Measured:** 6.8% ink (clip median) · 27.3% footprint · 0.0009 motion · reach 0.829. Holds (its own gate, `scripts/shot_proof.py`): clean at its own 5.5 s; at a 4 s beat the two-line block and the note fall under the must-read bar (warnings).
+**Measured:** 6.7% ink (clip median) · 27.5% footprint · 0.0015 motion (was 0.0009 before held lines breathed) · reach 0.829. Holds (its own gate, `scripts/shot_proof.py`): clean at its own 5.5 s (4.40 / 4.23 s a line); 「一个题目，*一条成片*」 at a 3 s beat — no error, readable 2.0 s against a must-read 2.4 s (a warning).
 
 **Review:** NOT critic-reviewed — built and looked at by its author (contact sheets at 16:9 / 9:16 / 1:1, Latin and Chinese, product / editorial / terminal DNA).
 

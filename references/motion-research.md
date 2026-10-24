@@ -16,7 +16,12 @@ music. The remotion tier is for ANY video — creativity, craft and design, neve
   **Built 2026-10-23 from §1 below:** `runtime/kinetic.tsx` (one shared primitive, measured 0 px from a text node in
   Latin and Chinese; the census reads it as lines; `shot_proof` holds must-read lines to reading time), four registers
   on it (HeadlineReveal, WordRoll, TypeOnPath, CroppedType), and Plex's `wdth` 75-100 declared. The eight hand-rolled
-  per-character registers above are NOT migrated yet.
+  per-character registers above are NOT migrated yet. **v2 (2026-10-24):** a scramble whose stand-ins can never spell
+  (blocks / the right glyph at another weight for CJK, symbols otherwise), `KMotion.idle` (breathe, passing light,
+  eased drift — held type stays alive), the magic move (`runtime/kineticMove`, register `MagicMoveType`: LCS-paired
+  glyphs travel between measured settings), `word` carry anchors (`runtime/kineticWord`) that a through-window looks
+  through glyph by glyph, the kinetic registers paced in SECONDS with reading floors paid first, and `LandscapeWell`
+  for a product's own 16:9 picture in a 9:16 film.
 - **Maths and morphs** (built 2026-10-24): `CompressedSensingEq` had set its formula as a hand-typed Unicode string and
   nothing used `@remotion/paths`' `interpolatePath`. Now: TeX typeset ahead of the render by MathJax 3.2.2
   (`scripts/tex_glyphs.mjs`; a film's equations by `scripts/mathtex.py`, which `render_remotion.py` runs first),

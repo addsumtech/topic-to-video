@@ -29,7 +29,7 @@
 
 **Reference:** `remotion/src/shots/CroppedType.tsx`
 
-**Measured:** 12.8% ink (clip median) · 53.7% footprint · 0.0128 motion · reach 0.735 — clears the motion and ink floors. Holds: clean at its own 5.5 s.
+**Measured:** 12.7% ink (clip median) · 52.3% footprint · 0.0107 motion (0.0128 when the drift was a share of the shot) · reach 0.730 — clears the motion and ink floors. Holds: clean at its own 5.5 s; 每一帧，都是代码画的 at 3.7 s — no error (2.33 s readable, a must-read warning). In a platform-safe 9:16 Film: 0 findings in the platform's zones, zh and en.
 
 **Review:** NOT critic-reviewed — built and looked at by its author (16:9 / 9:16 / 1:1, Latin and Chinese, three DNAs).
 

@@ -558,7 +558,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.913046875,
+   "moved": 0.9179166666666667,
    "ok": true,
    "why": []
   },
@@ -833,6 +833,34 @@
    "why": []
   },
   {
+   "shot": "FlightArcs",
+   "bandY": {
+    "light": 0.8714196681976318,
+    "dark": 0.0006082680774852633
+   },
+   "fieldY": {
+    "light": 0.9573096036911011,
+    "dark": 0.0021328111179172993
+   },
+   "moved": 0.9988991477272727,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "FlowCounter",
+   "bandY": {
+    "light": 0.8790692090988159,
+    "dark": 0.0005644387565553188
+   },
+   "fieldY": {
+    "light": 0.9474552273750305,
+    "dark": 0.0027116010896861553
+   },
+   "moved": 0.9980563446969697,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "FlowField",
    "bandY": {
     "light": 0.8468732833862305,
@@ -843,6 +871,20 @@
     "dark": 0.003912078216671944
    },
    "moved": 0.987561553030303,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "FlowSankey",
+   "bandY": {
+    "light": 0.8719632625579834,
+    "dark": 0.0003035269910469651
+   },
+   "fieldY": {
+    "light": 0.561455488204956,
+    "dark": 0.044772520661354065
+   },
+   "moved": 0.9934067234848485,
    "ok": true,
    "why": []
   },
@@ -859,7 +901,7 @@
    "moved": 0.9494767992424242,
    "ok": false,
    "why": [
-    "ink: receded card labels 1.07:1 on their own card, by design (the sub-headline and the #060910 vignette were repaired 2026-09-21) — render read"
+    "ink: receded card labels 1.07:1 on their own card, by design (the sub-headline and the #060910 vignette were repaired 2026-09-21) \u2014 render read"
    ]
   },
   {
@@ -1020,8 +1062,22 @@
     "band ink light wants #ffffff",
     "field light reads dark",
     "only 0% of the frame moved",
-    "ink: display word 'SIGNAL' is #ffffff — 1.14:1 on paper; the frame is empty (render read)"
+    "ink: display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)"
    ]
+  },
+  {
+   "shot": "GlobeFocus",
+   "bandY": {
+    "light": 0.8474594950675964,
+    "dark": 0.0006508832448162138
+   },
+   "fieldY": {
+    "light": 0.8134512901306152,
+    "dark": 0.0033558025024831295
+   },
+   "moved": 0.9681321022727273,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "GlowPick",
@@ -1133,7 +1189,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9705658143939394,
+   "moved": 0.9703314393939394,
    "ok": true,
    "why": []
   },
@@ -1164,7 +1220,7 @@
    "moved": 0.9911647727272728,
    "ok": false,
    "why": [
-    "ink: subtitle is #fff — 1.01:1 on paper"
+    "ink: subtitle is #fff \u2014 1.01:1 on paper"
    ]
   },
   {
@@ -1404,6 +1460,20 @@
    ]
   },
   {
+   "shot": "LandscapeWell",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0009105809731408954
+   },
+   "moved": 0.9976988636363636,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "LarmorPrecession",
    "bandY": {
     "light": 0.8879231810569763,
@@ -1598,6 +1668,20 @@
     "dark": 0.0012141079641878605
    },
    "moved": 0.7985961174242424,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "MagicMoveType",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9855823863636364,
    "ok": true,
    "why": []
   },
@@ -2212,6 +2296,20 @@
     "dark": 0.002731743035838008
    },
    "moved": 0.9578787878787879,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "RankRace",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 0.8539275527000427,
+    "dark": 0.0033558025024831295
+   },
+   "moved": 0.9355847537878788,
    "ok": true,
    "why": []
   },
@@ -2984,7 +3082,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9732220643939394,
+   "moved": 0.9739086174242424,
    "ok": true,
    "why": []
   },
@@ -3013,76 +3111,6 @@
     "dark": 0.002124688820913434
    },
    "moved": 0.8218702651515152,
-   "ok": true,
-   "why": []
-  },
-  {
-   "shot": "FlightArcs",
-   "bandY": {
-    "light": 0.8714196681976318,
-    "dark": 0.0006082680774852633
-   },
-   "fieldY": {
-    "light": 0.9573096036911011,
-    "dark": 0.0021328111179172993
-   },
-   "moved": 0.9988991477272727,
-   "ok": true,
-   "why": []
-  },
-  {
-   "shot": "FlowCounter",
-   "bandY": {
-    "light": 0.8790692090988159,
-    "dark": 0.0005644387565553188
-   },
-   "fieldY": {
-    "light": 0.9474552273750305,
-    "dark": 0.0027116010896861553
-   },
-   "moved": 0.9980563446969697,
-   "ok": true,
-   "why": []
-  },
-  {
-   "shot": "FlowSankey",
-   "bandY": {
-    "light": 0.8719632625579834,
-    "dark": 0.0003035269910469651
-   },
-   "fieldY": {
-    "light": 0.561455488204956,
-    "dark": 0.044772520661354065
-   },
-   "moved": 0.9934067234848485,
-   "ok": true,
-   "why": []
-  },
-  {
-   "shot": "GlobeFocus",
-   "bandY": {
-    "light": 0.8474594950675964,
-    "dark": 0.0006508832448162138
-   },
-   "fieldY": {
-    "light": 0.8134512901306152,
-    "dark": 0.0033558025024831295
-   },
-   "moved": 0.9681321022727273,
-   "ok": true,
-   "why": []
-  },
-  {
-   "shot": "RankRace",
-   "bandY": {
-    "light": 0.8879231810569763,
-    "dark": 0.0
-   },
-   "fieldY": {
-    "light": 0.8539275527000427,
-    "dark": 0.0033558025024831295
-   },
-   "moved": 0.9355847537878788,
    "ok": true,
    "why": []
   }
@@ -3288,10 +3316,10 @@
   "ReplyWindow": "c07e34231966400d",
   "WeightedWheel": "4573018ced610633",
   "ForkingAnswers": "031e14d03e9face9",
-  "HeadlineReveal": "aac02d1f8d1eea00",
-  "WordRoll": "2aab3fb33cfc0e9b",
-  "TypeOnPath": "85c24dca794c6cda",
-  "CroppedType": "2e217990a72980f0",
+  "HeadlineReveal": "86e25bd7771dd71c",
+  "WordRoll": "9978b9e6c23e1dc7",
+  "TypeOnPath": "c94212a0d97cb7ce",
+  "CroppedType": "cc007cbfa228ea0b",
   "EquationMorph": "6a4902424a9f2df3",
   "GrowingFigure": "90402c71172deeb8",
   "FunctionPlot": "c105daa04a9bcc72",
@@ -3299,16 +3327,18 @@
   "FlightArcs": "9309071933e3d324",
   "FlowSankey": "40c53268658148a2",
   "FlowCounter": "c90a0163fc9d4ce8",
-  "RankRace": "84cf953e4b2ddbbe"
+  "RankRace": "84cf953e4b2ddbbe",
+  "MagicMoveType": "a4fb4d7cdc132345",
+  "LandscapeWell": "2699774419d0ef6a"
  },
  "failed": {},
- "universe": 212,
+ "universe": 215,
  "inkRefused": {
-  "GlitchDatamosh": "display word 'SIGNAL' is #ffffff — 1.14:1 on paper; the frame is empty (render read)",
-  "HoloFoil": "subtitle is #fff — 1.01:1 on paper",
+  "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
+  "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",
   "StarfieldWarp": "6607 pure-white streak pixels at 1.10:1 on the light key",
   "EmberFlame": "'BUILT WITH FIRE' at 2.35:1, under ACCENT_CONTRAST_MIN",
-  "FocalIsolation": "receded card labels 1.07:1 on their own card, by design (the sub-headline and the #060910 vignette were repaired 2026-09-21) — render read",
+  "FocalIsolation": "receded card labels 1.07:1 on their own card, by design (the sub-headline and the #060910 vignette were repaired 2026-09-21) \u2014 render read",
   "CodeRain": "title+glow fall from 19.2:1 to 6.1:1 and the dark glow halo becomes a brown smudge on cream",
   "KnowledgeGraph": "hub label was hardcoded near-white (17.41:1 native, 1.07:1 on the light key, render read); repaired 2026-09-21 and awaiting a re-measure by this sweep"
  },

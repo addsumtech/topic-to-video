@@ -26,7 +26,7 @@
 
 **Reference:** `remotion/src/shots/MagicMoveType.tsx` · runtime: `runtime/kineticMove.tsx`, `runtime/kineticMoveCore.ts`
 
-**Measured:** see LIBRARY.md (register_energy row).
+**Measured:** 4.0% ink (clip median) · 20% footprint · 0.0001 motion p75 · reach 0.776 (the fixture keeps the phrase pair fixed — it must share letters — and varies the kicker and note). QUIET by its p75: the moves are short and the holds are the reading; intercut with a dense register. Holds: clean at its own 7 s (2.33 / 2.10 s); 少，但更好 → 更好，但更少 at 4.5 s — no error (1.37 / 1.20 s, must-read warnings).
 
 **Review:** NOT critic-reviewed — built and looked at by its author (line / stack / scatter; 16:9, 9:16, 1:1; Latin and Chinese).
 
