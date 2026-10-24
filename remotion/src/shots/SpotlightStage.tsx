@@ -19,6 +19,7 @@ import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic} from '../runtime
 import {useDNA} from '../runtime/dna';
 import {darkGround} from '../runtime/light';
 import {textWidthPx} from '../runtime/layout';
+import {useBeatOptic, OpticSource, ofKind} from '../runtime/optics';
 
 export const DURATION = 175; // ~5.8s
 const DEFAULT_WORDS = ['PLAN', 'BUILD', 'SHIP'];
@@ -27,6 +28,10 @@ export const MAX_SPOTLIGHT_WORDS = 5;
 const ADV = 0.68, CJK = 1.05;            // a bold display serif's cap advance, generous so an arrow never touches ink
 const ARROW_MIN = 64;                    // 18px of air either side + the shortest shaft that still reads as an arrow
 const FS_MIN = 38;
+// THE OPTICS THIS STAGE CAN ANCHOR (runtime/optics.tsx): the spotlight is a real source, so `bloom` scatters its pool
+// and cone in the lens; the words it finds become the stage's highlights, so `halation` bleeds them red through the
+// film base — only once they are lit (the threshold keeps the dark, unlit words out of it).
+export const OPTICS = ['bloom', 'halation'] as const;
 
 export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = ({
   items: WORDS = DEFAULT_WORDS, wordmark: WORDMARK = 'WORKBUDDY'} = {}) => {
@@ -74,6 +79,12 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
   if (toCentre > 0) sx = lerp(stops[n - 1], W / 2, easeInOutCubic(toCentre));
   const rx = lerp(300, 1300, easeOutCubic(segW)); // widen at the end
   const ry = lerp(300, 820, easeOutCubic(segW));
+  const optic = useBeatOptic(OPTICS);
+  // the word line and the wordmark, so the spotlight's bloom keeps off them (feathered; measured by the optics test)
+  const lineX0 = wordX(0) - halfW(0), lineX1 = wordX(n - 1) + halfW(n - 1);
+  const markW = textWidthPx(String(WORDMARK), 34, {adv: 0.62, track: 0.4});
+  const keepOut = [{x: lineX0, y: wy - FS * 0.6, w: lineX1 - lineX0, h: FS * 1.2},
+    {x: W / 2 - markW / 2, y: wy + 200, w: markW, h: 54}];
 
   return (
     // @dark-world: the REVEAL here is brightness — each word is drawn from near-black up to cream as the
@@ -85,6 +96,7 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
       <div style={{position: 'absolute', left: 0, right: 0, bottom: 0, height: H * 0.4,
         background: 'linear-gradient(#0000, #0d0d10)'}} />
 
+      <OpticSource optic={ofKind(optic, 'bloom')} keepOut={keepOut}>
       {/* the spotlight (soft warm ellipse) */}
       <div style={{position: 'absolute', left: sx - rx, top: wy - ry / 2, width: rx * 2, height: ry,
         background: `radial-gradient(ellipse at center, #fbe7c266 0%, #6b5a3a22 34%, #0000 66%)`, pointerEvents: 'none'}} />
@@ -93,8 +105,10 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
         <defs><linearGradient id="cone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffe9c0" stopOpacity="0.16" /><stop offset="1" stopColor="#ffe9c0" stopOpacity="0" /></linearGradient></defs>
         <path d={`M${sx - 60},-20 L${sx + 60},-20 L${sx + rx * 0.7},${wy + ry / 2} L${sx - rx * 0.7},${wy + ry / 2} Z`} fill="url(#cone)" opacity={1 - easeOutCubic(segW) * 0.4} />
       </svg>
+      </OpticSource>
 
       {/* words — lit by proximity of the spotlight centre */}
+      <OpticSource optic={ofKind(optic, 'halation')}>
       {WORDS.map((w, i) => {
         const d = Math.abs(sx - wordX(i));
         const lit = clamp01(1 - d / 360); // brightness falloff
@@ -107,6 +121,7 @@ export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = (
             textShadow: b > 0.5 ? `0 0 60px rgba(255,220,150,${(b - 0.5) * 0.9})` : 'none'}}>{w}</div>
         );
       })}
+      </OpticSource>
       {/* connecting arrows between words, revealed at the widen */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: easeOutCubic(seg(t, 0.8, 0.95))}}>
         {WORDS.slice(0, -1).map((_, i) => {

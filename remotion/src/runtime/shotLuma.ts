@@ -7,6 +7,7 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  LitMedium: 'light',
   CroppedType: 'dark',
   TypeOnPath: 'dark',
   WordRoll: 'dark',
@@ -138,6 +139,9 @@ const literalGround = (tok: GroundSpec | undefined): string | null =>
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
+  // a LITERAL: LitMedium paints its medium's own colour (runtime/material MATERIAL_BASE; paper by default), not a DNA
+  // token — the luminance probe matched it to the accent/accent2 mix by coincidence (E3), so it is written by hand
+  LitMedium: '#ece5d5',
   CroppedType: 'bg',
   TypeOnPath: 'bg',
   WordRoll: 'bg',

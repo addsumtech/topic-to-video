@@ -687,6 +687,18 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         for _f in ("ground", "key"):
             if s.get(_f) is not None:
                 scene[_f] = s[_f]
+        # THE BEAT'S OPTIC (runtime/optics.tsx): `slide.optic`, or `shot_props.optic` lifted out of the props (a register
+        # never reads it as a prop). validate.py refuses a board where the two disagree; Film refuses an unknown one.
+        _optic = s.get("optic")
+        if isinstance(scene.get("props"), dict) and "optic" in scene["props"]:
+            _po = scene["props"].get("optic")
+            scene["props"] = {k: v for k, v in scene["props"].items() if k != "optic"}
+            if _optic is not None and _optic != _po:
+                raise RuntimeError("scene #%s (%s): optic %r and shot_props.optic %r disagree — one beat, one optic"
+                                   % (idx, shot, _optic, _po))
+            _optic = _po if _optic is None else _optic
+        if _optic is not None:
+            scene["optic"] = _optic
         # A CONTINUOUS STAGE RUN (scripts/stage_runs.py): consecutive beats naming one run render as one scene
         import stage_runs as _sr
         if _sr.run_id(s):

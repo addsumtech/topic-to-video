@@ -131,6 +131,7 @@ FAMILY = {
     "StarfieldWarp": "V",
     "FractalTree": "W",
     "RainGlass": "X",
+    "LitMedium": "X",
     "EmberFlame": "Y",
     "ClothWave": "Z",
 }
@@ -155,6 +156,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "LitMedium":               'craft-handmade',
     "CroppedType":             'motion-graphics',
     "TypeOnPath":              'motion-graphics',
     "WordRoll":                'motion-graphics',

@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (204 design languages)
+# Remotion2 — Bespoke Shot Library (205 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 204 registers across 27 families.** D×32 · A×25 · C×19 · B×14 · F×11 · G×11 · H×11 · L×10 · E×9 · I×9 · S×7 · K×6 · J×5 · JA×5 · M×5 · P×5 · U×5 · N×4 · R×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · X×1 · Y×1
+**Family census — 205 registers across 27 families.** D×32 · A×25 · C×19 · B×14 · F×11 · G×11 · H×11 · L×10 · E×9 · I×9 · S×7 · K×6 · J×5 · JA×5 · M×5 · P×5 · U×5 · N×4 · R×2 · X×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · Y×1
 
 **9 families hold two registers or fewer: O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -364,6 +364,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 92. **FractalTree** — a recursive tree GROWS from the ground, branches splitting depth by depth, then blossoms bloom at the tips. *Use: grow / branch out / "from one root, everything" (techno-natural).*
 
 ## X · Weather / atmosphere
+229. **LitMedium** — a statement set on the topic's own MEDIUM — paper, water, brushed metal or clay — the surface still and ONE light drifting across it (runtime/material.tsx), so the medium reads by how it answers light; the ink is picked against the lit ground's measured span. *Use: what something is made of or where it lives — "it started on paper", "the harbour decides", "milled from one block", "shaped by hand".* `material, base, kicker, title, note`
 93. **RainGlass** — a message behind a rain-blurred glass pane: droplets slide + streak while the soft-focus scene SHARPENS and the title resolves. *Use: a moody, atmospheric, material interlude.*
 
 ## Y · Fire / energy

@@ -158,6 +158,31 @@ The photographic layer between rendered and shot — grain, bloom, a vignette �
 **Smallest real use:** `<FilmFinishLayer dna={dna} finish={dna?.finish} />`
 **Exports:** `FilmFinishLayer`, `FilmFinish`.
 
+### `optics`
+What the lens does with a light the register DRAWS — one optic per beat, never decoration: `bloom` (a source
+scatters: copy + blur 24-40 px + screen, <= 0.3), `halation` (highlights over 0.7 luminance bleed red, <= 0.15),
+`sweep` (ONE 20-30 frame pass across a hero surface, from the DNA's key side), `aberration` (red/blue scaled about
+the frame centre: 0 at the centre, 1-2 px at the corners — on pictures of emitted light, never type) and `leak` (the
+Film burns it over the seam INTO a beat, top edge only, 10 frames). CSS/SVG only, so frames stay a pure function of
+their number (scripts/determinism_qa.py).
+**Reach for it:** a register whose picture HAS a light — a lit screen, a star, a spotlight, a flame, a glass surface
+turning. Export `OPTICS = [...] as const` (validate.py reads it), call `useBeatOptic(OPTICS)`, mount the primitive on
+the light; pass the type's rects as `keepOut` so the glow stays off the words (measured: an unmasked bloom took a
+title from 10.3:1 to 9.5:1).
+**Smallest real use:** `const o = useBeatOptic(OPTICS); <OpticSource optic={ofKind(o, 'bloom')} keepOut={rects}>{lamp}</OpticSource>`
+**Exports:** `OPTIC_KINDS`, `OPTIC_MAX`, `useBeatOptic`, `OpticSource`, `GlowCopy`, `LightSweep`, `Aberration`,
+`SeamLeak`, `ofKind`, `useFrameAtT`, `normalizeOptic`, `OpticContext`.
+
+### `material`
+The topic's own MEDIUM as a lit ground — `paper`, `water`, `metal` (brushed), `clay`: a fixed-seed SVG height field
+(feTurbulence) lit by feDiffuse/feSpecularLighting, the surface still and ONE light drifting across it over the beat.
+Never under body type without the proof: `MATERIAL_SPAN` is the lit ground's measured 2nd-98th percentile under a
+type column, and `materialShades` gives the two grounds an ink must read on.
+**Reach for it:** a beat about what something is made of or where it lives (LitMedium is the register for it); a DNA
+names the film's medium with `material: {kind}`.
+**Smallest real use:** `<LitGround material="water" base="#173f5a" light={dnaLight(dna)} travel={[0.66, 0.96]} />`
+**Exports:** `LitGround`, `MATERIALS`, `MATERIAL_BASE`, `MATERIAL_SPAN`, `materialShades`, `isMaterial`.
+
 ### `fonts`
 Loads the DNA's typefaces for the Film and for every standalone still — the reason the faces a DNA names are the
 faces that render.

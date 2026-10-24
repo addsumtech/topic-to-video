@@ -41,6 +41,7 @@ import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
 import {FilmFinishLayer} from './runtime/finish';
 import {FilmDither} from './runtime/dither';
+import {OpticContext, opticState, normalizeOptic, dnaLight, SeamLeak, type OpticDecl, type OpticSpec} from './runtime/optics';
 import {CarryContext} from './runtime/carry';
 import {container, grow, throughWindow, punch, SeamCopyContext} from './seams';
 
@@ -96,6 +97,11 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // THE HELD OBJECT'S IDLE CLOCK (runtime/objectSlot): on unless the storyboard sets `"object_idle": false` on
   // this beat — for a beat where a held object's own cycle would say something the narration does not.
   objectIdle?: boolean;
+  // THE BEAT'S OPTIC (runtime/optics.tsx): at most one, anchored to a light the register draws — `bloom` | `halation` |
+  // `sweep` | `aberration` (the register's own `OPTICS` export says which it can anchor), or `leak`, which the Film
+  // draws over the seam INTO this beat. Absent = none (or the DNA's `optics: 'auto'`); the frame is then exactly what it
+  // was before optics existed.
+  optic?: OpticDecl;
   // A CONTINUOUS STAGE RUN (runtime/stageRun.tsx): consecutive beats naming the same run are ONE Sequence with no seam
   // between them, drawn by ONE stage component (remotion/src/stage/) that carries its actors from beat to beat.
   stage?: {run: string}};
@@ -1175,12 +1181,24 @@ const StageBeatMark: React.FC<{first: number; beats: StageBeat[]; children: Reac
   return <AbsoluteFill data-beat={String(first + k)} data-stage-run="1">{children}</AbsoluteFill>;
 };
 
+// THE BEAT'S OPTIC, offered to its register (runtime/optics useBeatOptic). With nothing declared and no `auto` DNA no
+// provider is mounted at all — a context provider draws nothing either way, but this keeps the no-optic tree the tree
+// it always was.
+const BeatOptic: React.FC<{decl: OpticDecl; dna: DesignDNA | null; where: string; children: React.ReactNode}> = ({
+  decl, dna, where, children}) => {
+  if (decl === undefined && dna?.optics !== 'auto') return <>{children}</>;
+  return <OpticContext.Provider value={opticState(decl, dna, where)}>{children}</OpticContext.Provider>;
+};
+
 export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
   typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string;
   // the delivery dither (runtime/dither): render_remotion asks for it; a still for a gate or a test does not
-  dither?: boolean}> =
+  dither?: boolean;
+  // `optics: false` switches every beat's optic off — for scripts/determinism_qa.py's layer attribution and the
+  // optics identity proofs. Never set by a film.
+  optics?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
-    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe, dither = false}) => {
+    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe, dither = false, optics = true}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -1223,6 +1241,17 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   scenes.forEach((sc, i) => {
     if (sc.warp) checkWarp(sc.warp, i, sc.shot);
     if (sc.cues) checkCues(sc.cues, i, sc.shot);
+    // an optic is checked on every frame (normalizeOptic throws on an unknown kind or an intensity past its cap); a
+    // LEAK burns over the seam INTO the beat, so a beat with no seam before it has nowhere to draw one
+    const o = normalizeOptic(sc.optic, `scene ${i} (${sc.shot}) optic`);
+    if (o && (i === 0 || joinedAt(scenes, i)) && o.kind === 'leak') {
+      throw new Error(`scene ${i} (${sc.shot}) declares optic 'leak', which burns over the seam INTO a beat — and ` +
+        `${i === 0 ? 'the first beat has no seam before it' : 'a beat that continues a stage run has no seam'}.`);
+    }
+    if (o && o.kind !== 'leak' && runOf(sc) !== null) {
+      throw new Error(`scene ${i} (${sc.shot}) is on a stage run and declares optic '${o.kind}': a stage draws the whole ` +
+        'run and anchors no optic. Drop it, or take the beat off the run.');
+    }
   });
   scenes.forEach((sc, i) => {
     if (!sc.bgLum || (sc.ground === undefined && !sc.key)) return;
@@ -1288,7 +1317,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                   <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
                     {/* the anchor a container carried INTO this beat, which the register then draws in place */}
                     <CarryContext.Provider value={arrived[i] ?? null}>
-                      <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                      <BeatOptic decl={optics ? sc.optic : undefined} dna={activeDna} where={`scene ${i} (${sc.shot}) optic`}>
+                        <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                      </BeatOptic>
                     </CarryContext.Provider>
                   </ObjectIdleContext.Provider>
                 </CueContext.Provider>
@@ -1348,9 +1379,14 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   const cutGrounds = (a: SceneSpec, b: SceneSpec) =>
     [edgeGround(a, 'out') ?? activeDna, edgeGround(b, 'in') ?? activeDna] as const;
   const arrived: (string | null)[] = scenes.map(() => null);
+  // the seams a LEAK burns over: the seam INTO a unit whose first beat declares one (runtime/optics SeamLeak) — read
+  // from that beat, which is the segment's own `cur` (remotion_segments.plan), so the per-beat cache keys it
+  const leaks: {first: number; optic: OpticSpec}[] = [];
   units.forEach((u, ui) => {
     if (ui === 0) return;
     const prev = scenes[units[ui - 1].last], next = scenes[u.first];
+    const lo = optics && !reducedMotion ? normalizeOptic(next.optic) : null;   // a flash is no reduced-motion frame
+    if (lo && lo.kind === 'leak') leaks.push({first: u.first, optic: lo});
     const [pg, ng] = cutGrounds(prev, next);
     if (seamDrawn(prev, next, activeDna, pg, ng, reducedMotion).t === 'container') {
       arrived[u.first] = carryIds(next.transitionIn)?.to ?? null;
@@ -1452,6 +1488,13 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
         })}
       </TransitionSeries>
       </AbsoluteFill>
+      {/* THE LEAK is in the lens, not the scene: outside the camera layer, above both beats of its seam, below the
+          material, the finish and the caption. Nothing is mounted on a frame outside a leaking seam. */}
+      {leaks.map(({first, optic}) => {
+        const f = frame - filmStarts[first];
+        return f >= 0 && f < TR
+          ? <SeamLeak key={`leak${first}`} optic={optic} f={f} seam={TR} light={dnaLight(activeDna)} /> : null;
+      })}
       </ReducedMotionContext.Provider>
       {/* the film's MATERIAL — above the shots (each paints its own opaque ground) and below the caption,
           so it never competes with the words the viewer is reading */}
