@@ -19,7 +19,8 @@
 // stale or colliding file is refused rather than drawn.
 //
 // MathJax: mathjax-full 3.2.2, Apache-2.0 (https://github.com/mathjax/MathJax-src), pinned in remotion/package.json.
-// Its TeX fonts' outlines are what is drawn (the MathJax TeX fonts, SIL OFL 1.1 / Apache-2.0 as distributed in it).
+// What is drawn is its TeX font DATA (js/output/svg/fonts/tex/*.js — "Copyright (c) 2018-2022 The MathJax Consortium,
+// Licensed under the Apache License, Version 2.0", read from the file headers of the installed package).
 //
 // UNITS OF THE OUTPUT: 1/1000 em, y DOWN, origin at the equation box's top-left. `base` is the baseline's y.
 import {createRequire} from 'module';
