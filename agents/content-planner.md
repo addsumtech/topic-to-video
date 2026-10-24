@@ -22,6 +22,8 @@ plan. You do not write final narration; you design content beats.
 ```json
 { "arc": "hook → build → payoff → takeaway (one line)",
   "arc_kind": "narrative | expository — ADOPT the arc_kind passed from the interview's Purpose (Pitch/Launch/Promo→narrative; Teach/How-to/Reference/Overview→expository); override only with a one-line justification in director_note. narrative BUILDS to a payoff (a paper, a pitch, a result, a story); expository is an EVEN-WEIGHT walkthrough (a tutorial, a reference, a survey, a how-to) with no single peak",
+  "purpose": "teach | howto | research | overview | pitch | launch | promo — the interview's ① key, copied to meta.purpose by storyboard.py --from-plan (it sets the cut tempo, rule 9)",
+  "tempo": "OPTIONAL kinetic | scored | calm — ONLY to override the tempo the purpose implies, with the reason in director_note",
   "viewer_question": "the ONE question the viewer wants answered — the video is the answer (drives the hook)",
   "director_note": { "thesis": "one sentence — what this video argues", "not": ["explicit exclusions"], "tone": "one word", "audience": "who watches, in a phrase — from the interview's Purpose answer" },
   "anti_slop": ["faithfulness bans, e.g. no stat without a source_ref", "no invented numbers/citations"],
@@ -115,6 +117,17 @@ plan. You do not write final narration; you design content beats.
    else resequence or add a `ground`/`build` beat. (For `arc_kind:expository` a `why` may be a "what this
    lets you do", but ground-before-build and build→why adjacency still hold.) `pedagogy_qa.py` +
    `critic-content`'s prerequisite gate enforce this.
+
+9. **Purpose sets the TEMPO — plan the beat lengths it needs.** On the cinematic tier the purpose decides how the
+   film cuts (`scripts/seam_plan.py` `film_tempo`): a **launch / promo** (or `meta.intensity: bold`) is `kinetic` —
+   every unmarked seam a hard cut; a film with music is `scored` — half its seams cut on the beat, never into a `low`
+   beat or the close; a **teach / how-to / research / overview** explainer with no score is `calm` — it keeps the
+   dissolve, which is its breath. Copy the interview's purpose into `purpose`; set `tempo` only when this film should
+   cut differently from what its purpose implies (a punchy teaching short → `kinetic`), and say why. The cut RATE
+   follows the beat lengths, which only you set: Apple's launch film cuts 27.8 times a minute
+   (`references/launch-film-study.md`), about 2.2 s a shot — so a launch plan has short build beats, and a short beat
+   holds few words (`pace.py --budget`). Type that IS the picture is held to its reading time, so a 3–4 s beat carries
+   ONE short line, not a slogan with a list in it.
 
 ## Make it engaging — curiosity PULLS, directness REWARDS (decide both, beat by beat)
 Two forces keep a viewer watching: **curiosity** (an open gap that pulls them forward) and **directness**

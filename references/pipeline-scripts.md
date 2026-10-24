@@ -432,7 +432,12 @@ finding it prints that you do not understand.
   — matching the beat's intent to a register's "use when" and **varying the FAMILY across the film** (no two
   adjacent beats read as one look). `python scripts/shot_director.py <out_dir>` is a deterministic skeleton that
   PROPOSES a register per beat as MATERIAL (`shot_fit.material`, verdict `unjudged`) after the ideals are written —
-  never the assignment; it keeps `shot_fit.ideal`/`form` and leaves routed beats alone. The design-first floor
+  never the assignment; it keeps `shot_fit.ideal`/`form`/`composition` and leaves routed beats (and declared stage
+  runs) alone. It reads each beat's argument — its form, the form's vocabulary entry, its ideal, the plan's
+  `learning_point`/`narration_intent` — for the shapes the library has a built tool for (`REACH`,
+  `references/remotion-shot-authoring.md` §F), proposes that tool first, records every match in `shot_fit.reach`
+  (and `shot_fit.timing` for a kinetic register on a beat shorter than its own length), and prints the world runs
+  (`WorldStage`), shared elements (`container`) and cut tempo the board implies. The design-first floor
   (`shot_fit.ideal` first, `shot_adaptation.changes` visible in the props, half built, one built) is
   agents/shot-director.md Step 0.55.
   **Faithfulness:** a register that shows a NUMBER (ChartLive/BeforeAfterSlider/VelocitySnap) MUST be given a
