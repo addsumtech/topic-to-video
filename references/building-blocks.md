@@ -309,6 +309,44 @@ a continuation.
 **Smallest real use:** `const {extra, v} = handoffOut(f, durF, amp, 'push');`
 **Exports:** `handoffOut`, `handoffIn`, `HANDOFF_SETTLE`.
 
+### `geo`
+Offline vector geography: Natural Earth (public domain) from `world-atlas` 2.0.2 at 1:110m/1:50m, decoded with
+`topojson-client`, projected in code (orthographic globe, Equal Earth flat map), great-circle arcs, region lookup by
+Natural Earth name or ISO code (an unknown name throws with the nearest names), framing on a region's main body.
+Nothing is fetched at render time; licences in `remotion/THIRD_PARTY.json`.
+**Reach for it:** any beat about where, a route or a scale on Earth — GlobeFocus and FlightArcs are built on it.
+**Smallest real use:** `const r = findRegion('Japan'); const view = regionFrame(r, W, H);`
+**Exports:** `atlas`, `findRegion`, `regionFrame`, `orthoProjection`, `orthoXY`, `flatProjection`, `greatCircle`,
+`lerpView`, `radiusFor`, `validLonLat`, `lonLatOf`, `pointsFrame`, `meanLon`, `wrapDelta`, `arcDeg`, `viewVec`, types.
+
+### `earth`
+The one globe the geography registers draw: an orthographic sphere lit from the upper left, Natural Earth land and
+borders, a hairline graticule, an atmosphere rim, the film's regions lit in its accent — a pure function of the view.
+**Reach for it:** draw the planet in a geography register; the register owns the camera (`geo.lerpView`) and every name.
+**Smallest real use:** `<Earth view={view} W={W} H={H} lit={['Japan']} />`
+**Exports:** `Earth`, `earthPalette`, `EarthInk`.
+
+### `labelPlace`
+Labels beside their points with no two labels — and no label and another point — overlapping: eight positions round
+each point, nearest first, then further out; throws when a label cannot be placed rather than overlapping.
+**Reach for it:** any register that names several points (maps, scatters, networks).
+**Smallest real use:** `const placed = placeLabels(reqs, {W, H});`
+**Exports:** `placeLabels`, `overlaps`, `Rect`, `LabelReq`, `Placed`.
+
+### `labelWidths`
+How wide each label really is in the face the shot resolves, measured by the browser through `kinetic`'s reference
+node — a chip sized from the advance estimate was half again too wide and collision checks refused layouts that fit.
+**Reach for it:** before placing labels or sizing chips.
+**Smallest real use:** `const widths = useLabelWidths(labels, font);`
+**Exports:** `useLabelWidths`.
+
+### `sankey`
+A flow layout from the film's own nodes and links, every ribbon's width its quantity; REFUSES a node whose inflow and
+outflow differ (relative 1e-9), loops and dangling links — a loss is a link to a node named for it.
+**Reach for it:** where a quantity goes and is conserved (FlowSankey).
+**Smallest real use:** `const lay = layoutSankey(nodes, links, box);`
+**Exports:** `layoutSankey`, `validateSankey`, `ribbonPath`, `stackLabels`, `SANKEY_TOL`, types.
+
 ### `dither`
 The film's delivery dither: a static, seeded triangular dither of ±2 code values over the whole frame, painted last so x264 cannot keep a dark gradient's 8-bit steps as rings (CAMBI 12-22 on this tier's own films without it, 0.0 with it; `scripts/banding_qa.py` measures the delivered file).
 **Reach for it:** never — Film.tsx draws it when render_remotion asks (`dither`, on unless `meta.dither: false`); a gate's still and a register's own still go without it.
