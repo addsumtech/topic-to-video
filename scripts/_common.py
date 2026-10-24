@@ -343,6 +343,27 @@ def words(text, digits=True):
     return [w for w in toks if (_HAS_LETTER.search(w) or (digits and re.search(r"\d", w)))]
 
 
+_CLIP_BREAK = re.compile(r"[\s,.;:!?()\[\]{}<>\"“”«»—–/\\|…·、，。！？；：（）【】《》「」『』]")
+_LATIN_RUN = re.compile(r"[A-Za-z0-9À-ɏЀ-ӿ'’+.-]")
+
+
+def clip_text(text, n, ellipsis="…"):
+    """`text` cut to at most `n` characters at a BOUNDARY — a space, a punctuation mark, or between two CJK glyphs —
+    never inside a Latin or Cyrillic word or a number. `t[:n]` printed "镜头像在看一张 NAS…" and the wordmark
+    "DIETER RAMS 少，但更好 WENI" into contest samples. The ellipsis is added only when something was cut."""
+    t = " ".join(str(text or "").split())
+    if len(t) <= n:
+        return t
+    room = max(1, n - len(ellipsis))
+    cut = 0
+    for i in range(1, room + 1):
+        a, b = t[i - 1], t[i] if i < len(t) else " "
+        if _CLIP_BREAK.match(b) or _CLIP_BREAK.match(a) or not (_LATIN_RUN.match(a) and _LATIN_RUN.match(b)):
+            cut = i
+    head = t[:cut].rstrip(" ,.;:—–-/|·、，。；：") if cut else t[:room]
+    return head + ellipsis
+
+
 def substance(text):
     """How much a justification says: words (any script) + CJK characters / 2."""
     t = str(text or "")

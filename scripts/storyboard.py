@@ -61,6 +61,17 @@ def new_storyboard(meta_overrides=None):
             "language": "auto", "voice": "auto", "captions": True}
     if meta_overrides:
         meta.update(meta_overrides)
+    # THE FRAME FOLLOWS THE ASPECT. `aspect=9:16` (and 1:1) used to keep the 16:9 default's width 1920 / height 1080,
+    # so a portrait board declared a landscape frame; two benchmark films fixed it by hand. An aspect the renderer
+    # does not draw is refused here rather than at the first render.
+    from _caption_band import aspect_table
+    table = aspect_table()
+    asp = str(meta.get("aspect") or "16:9")
+    if asp not in table:
+        raise SystemExit("[storyboard] aspect %r is not one the renderer draws (%s)" % (asp, ", ".join(sorted(table))))
+    over = meta_overrides or {}
+    if "width" not in over and "height" not in over:
+        meta["width"], meta["height"] = table[asp]
     return {"meta": meta, "slides": []}
 
 # THE FIELDS A FILM'S TOOLS READ FROM ITS SLIDES THAT ONLY THE CONTENT PLAN WRITES. seam_plan derives the cuts and the

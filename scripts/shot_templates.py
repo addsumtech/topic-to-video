@@ -133,20 +133,23 @@ def conceive_gap(topic, n=None, audacity="balanced"):
 def contest_still(key, topic):
     """A (register_id, props) to render as this template's representative CONTEST still — the template's HERO
     register carrying the TOPIC, so the user compares real, topic-bearing frames (never abstract defaults)."""
+    import _common as _c
     t = (topic or "your topic").strip()
-    up = t.upper()[:22]
+    # CUT AT A BOUNDARY, never `t[:22]`: the Dieter Rams film's wordmark came out "DIETER RAMS 少，但更好 WENI"
+    clip = lambda n: _c.clip_text(t, n, ellipsis="")
+    up = clip(22).upper()
     heroes = {
-        "product-demo": ("CommandSummon", {"command": "Build the %s" % t[:40],
+        "product-demo": ("CommandSummon", {"command": "Build the %s" % clip(40),
                                            "items": ["Plan it", "Pull the data", "Draft the deck", "Ship it"]}),
-        "kinetic-editorial": ("LiquidChrome", {"word": up, "tagline": t.lower()[:40]}),
-        "cinematic-craft": ("MaterialHero", {"title": t[:40]}),
+        "kinetic-editorial": ("LiquidChrome", {"word": up, "tagline": clip(40).lower()}),
+        "cinematic-craft": ("MaterialHero", {"title": clip(40)}),
         # Not ChartLive: a topic string carries no figure and no series, and the register now draws neither
         # without one — the still used to be an invented "128k" over a made-up rising line.
-        "data-story": ("WireGlobe", {"tagline": t.lower()[:40]}),
-        "retro-playful": ("NeonGrid", {"title": up, "tagline": t.lower()[:40]}),
+        "data-story": ("WireGlobe", {"tagline": clip(40).lower()}),
+        "retro-playful": ("NeonGrid", {"title": up, "tagline": clip(40).lower()}),
         "terminal-technical": ("CodeCompose", {"filename": re.sub(r"[^a-z0-9]+", "_", t.lower())[:24] + ".py"}),
     }
-    return heroes.get(key, ("CinematicTitle", {"title": t[:40]}))
+    return heroes.get(key, ("CinematicTitle", {"title": clip(40)}))
 
 
 def main():
