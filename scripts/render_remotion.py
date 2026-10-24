@@ -533,7 +533,20 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
             was = json.load(open(src_path, encoding="utf-8")) if segments else {}
         except (OSError, ValueError):
             was = {}
-        now, kept = {}, 0
+        # A KEPT KEYFRAME IS ONLY AS GOOD AS THE FILM IT WAS TAKEN FROM. A keyframe used to be kept on (frame, segment
+        # key) alone — and a benchmark film's second render joined a segment on the wrong time base into a 352 s video
+        # stream; the keyframes taken from it were then kept across the repaired render, and the keyframe gate, the
+        # contact sheet and the review all judged 8 frames that were not the film. The record now carries the joined
+        # film's own timing; a film that differs re-extracts every keyframe.
+        import remotion_segments as _rs
+        try:
+            vf, vd, _tb = _rs.video_timing(out_mp4)
+            film_sig = [vf, round(vd, 3)]
+        except Exception:                                  # noqa: BLE001 — unreadable: keep nothing
+            film_sig = None
+        if not film_sig or was.get("__film__") != film_sig:
+            was = {}
+        now, kept = ({"__film__": film_sig} if film_sig else {}), 0
 
         def key_at(f):
             return next((k for a, b, k in segments if a <= f <= b), None) if segments else None

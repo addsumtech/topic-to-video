@@ -332,6 +332,50 @@ def video_frames(path):
     return int(st["nb_frames"])
 
 
+TIMESCALE = 90000          # Remotion's own `-video_track_timescale`; every segment is held to it before a join
+
+
+def video_timing(path):
+    """(frames, seconds, time_base) of a file's video stream, as ffprobe reads them."""
+    st = _probe(path, "v:0", "nb_frames,duration,time_base")
+    if not st or not str(st.get("nb_frames", "")).isdigit():
+        raise ModelMismatch("%s has no countable video stream" % path)
+    try:
+        dur = float(st.get("duration"))
+    except (TypeError, ValueError):
+        dur = float("nan")
+    return int(st["nb_frames"]), dur, str(st.get("time_base") or "")
+
+
+def timing_ok(frames, seconds, fps=None):
+    """Whether a stream of `frames` frames lasts what it should at the film's fps (within one frame)."""
+    fps = fps or FPS
+    return seconds == seconds and abs(seconds - frames / float(fps)) <= 1.0 / fps + 1e-6
+
+
+def normalized_segment(path, work):
+    """`path`, or a stream-copy of it re-timed onto TIMESCALE when its video does not last its frame count.
+
+    A SEGMENT CAN COME BACK ON ANOTHER TIME BASE. Measured on a benchmark film: one of ten segments rendered with a
+    video time_base of 1/16000 where the other nine had 1/90000, and a `-c copy` concat of the ten produced an
+    out.mp4 whose video stream lasted 352.6 s for 1882 frames against 62.8 s of audio — accepted, because the join
+    counted frames only. A stream copy with `-video_track_timescale` re-times it without re-encoding a pixel; a
+    segment that still does not last its frames after that is refused (the caller renders whole)."""
+    frames, dur, tb = video_timing(path)
+    if timing_ok(frames, dur) and tb == "1/%d" % TIMESCALE:
+        return path
+    fixed = os.path.join(work, "retimed_" + os.path.basename(path))
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", path, "-map", "0", "-c", "copy",
+                    "-video_track_timescale", str(TIMESCALE), fixed], check=True)
+    f2, d2, tb2 = video_timing(fixed)
+    if f2 != frames or not timing_ok(f2, d2):
+        raise ModelMismatch("segment %s lasts %.3f s for %d frames (time base %s) and could not be re-timed (%.3f s, %s)"
+                            % (os.path.basename(path), dur, frames, tb, d2, tb2))
+    print("[segments] re-timed %s: %s %.3f s -> %s %.3f s for %d frames"
+          % (os.path.basename(path), tb, dur, tb2, d2, frames))
+    return fixed
+
+
 def minimal_public(props, public_dir, dest):
     """A public folder holding exactly the files the props name, linked (copied across filesystems).
 
@@ -419,9 +463,11 @@ def assemble(segs, files, out_mp4, work):
     if not first:
         raise ModelMismatch("%s has no audio stream" % files[0])
     ch = int(first["channels"])
+    # every segment on one time base, lasting its own frames, before a stream-copy join (normalized_segment)
+    joined = [normalized_segment(f, work) for f in files]
     lst = os.path.join(work, "concat.txt")
     with open(lst, "w", encoding="utf-8") as fh:
-        for f in files:
+        for f in joined:
             fh.write("file '%s'\n" % os.path.abspath(f).replace("'", "'\\''"))
     vid = os.path.join(work, "video.mp4")
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-map", "0:v:0",
@@ -435,11 +481,20 @@ def assemble(segs, files, out_mp4, work):
                     "-i", raw, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-b:a", AUDIO_BITRATE,
                     "-movflags", "+faststart", tmp], check=True)
     want = sum(s["b"] - s["a"] + 1 for s in segs)
-    got = video_frames(tmp)
+    got, vdur, _tb = video_timing(tmp)
     if got != want:
         raise ModelMismatch("the joined film has %d frames, the segments %d" % (got, want))
+    # and it LASTS them: the frame count alone accepted a 352 s video stream under 62.8 s of audio
+    adur = _probe(tmp, "a:0", "duration") or {}
+    try:
+        adur = float(adur.get("duration"))
+    except (TypeError, ValueError):
+        adur = float("nan")
+    if not timing_ok(got, vdur) or not (abs(adur - vdur) <= 2.0 / FPS):
+        raise ModelMismatch("the joined film's video lasts %.3f s for %d frames (%.3f s expected) against %.3f s of "
+                            "audio" % (vdur, got, got / float(FPS), adur))
     os.replace(tmp, out_mp4)
-    for p in (lst, vid, raw):
+    for p in [lst, vid, raw] + [f for f in joined if f not in files]:
         if os.path.exists(p):
             os.remove(p)
 

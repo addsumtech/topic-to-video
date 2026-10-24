@@ -634,3 +634,30 @@ def test_an_unchanged_keyframe_is_kept_and_a_changed_one_is_not(tmp_path, monkey
     grabs.clear()
     rr._remotion_deliverables(str(tmp_path), scenes, film, 30)            # a whole render
     assert len(grabs) == 6 and not os.path.exists(str(tmp_path / "_keyframes" / rr._KEYFRAME_SOURCES))
+
+
+def _seg(path, frames, timescale=90000, stretch=1.0):
+    """A synthetic segment like a Remotion one: h264 video at 30 fps (+ pcm audio), on a given track timescale; a
+    `stretch` re-times the video (same frames, longer stream) — the shape of the 352 s failure."""
+    vf = "setpts=%g*PTS" % stretch if stretch != 1.0 else "null"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=64x36:rate=30",
+                    "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-frames:v", str(frames),
+                    "-t", "%.4f" % (frames / 30.0), "-vf", vf, "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                    "-c:a", "pcm_s16le", "-video_track_timescale", str(timescale), str(path)], check=True)
+    return str(path)
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_a_segment_on_another_time_base_is_retimed_and_a_stretched_one_refused(tmp_path):
+    a = _seg(tmp_path / "a.mov", 30)
+    b = _seg(tmp_path / "b.mov", 45, timescale=16000)            # another time base, right length: re-timed, joined
+    segs = [{"a": 0, "b": 29}, {"a": 30, "b": 74}]
+    out = str(tmp_path / "out.mp4")
+    rs.assemble(segs, [a, b], out, str(tmp_path))
+    frames, dur, _tb = rs.video_timing(out)
+    assert frames == 75 and rs.timing_ok(frames, dur), (frames, dur)
+    # same frames, a stream 5.6x as long (the benchmark's 352.6 s for 1882 frames): never joined
+    bad = _seg(tmp_path / "bad.mov", 45, stretch=5.6)
+    with pytest.raises(rs.ModelMismatch):
+        rs.assemble(segs, [a, bad], str(tmp_path / "out2.mp4"), str(tmp_path))
+    assert not os.path.exists(str(tmp_path / "out2.mp4"))
