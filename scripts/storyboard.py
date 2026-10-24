@@ -91,7 +91,18 @@ def from_content_plan(plan, meta_overrides=None):
         data["slides"].append(s)
     if (plan or {}).get("arc_kind"):
         data["meta"].setdefault("arc_kind", plan["arc_kind"])
+    # THE FILM'S CUT TEMPO STARTS AT THE PLAN. seam_plan.film_tempo reads `meta.purpose` (a launch or promo cuts every
+    # unmarked seam hard) and `meta.cuts` (the tempo named outright); a board built from the plan without them is
+    # planned as a calm film whatever the interview said. The plan carries the interview's purpose, and a `tempo` only
+    # when it overrides what the purpose implies; the interview's own key=value meta still wins.
+    if (plan or {}).get("purpose"):
+        data["meta"].setdefault("purpose", plan["purpose"])
+    if str((plan or {}).get("tempo") or "").strip().lower() in TEMPOS:
+        data["meta"].setdefault("cuts", str(plan["tempo"]).strip().lower())
     return data
+
+
+TEMPOS = ("kinetic", "scored", "calm")          # seam_plan.CUT_TEMPOS — test_director_reach holds the two equal
 
 
 def plan_fields_missing(slides, plan):

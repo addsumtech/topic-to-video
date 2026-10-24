@@ -102,6 +102,10 @@ film is a new render) — so a verdict cannot be written from a memory of an ear
 "use when")? A statement beat on a data-chart register, or a climax on a flat list register, is a REVISE.
 If a NEW shot draws a quantity bar, a headline figure or a list without using `runtime/atoms.tsx`, it must
 say why — those parts have a per-DNA form and a hand-rolled one will not follow the film's system.
+**Read `shot_fit.reach` too** (`references/remotion-shot-authoring.md` §F): when it names a tool built for this
+beat's shape — a `WorldStage` run for a journey, `EquationMorph` for a derivation, `FlowSankey` for a conserved
+flow, `FlightArcs` for a route, a kinetic register for words that ARE the picture — and the beat went another way,
+its `why` must say what that tool cannot carry here. A tool offered and passed over with no reason is a REVISE.
 
 > **Precedent — `18371d5`:** A city documentary came out of this library speaking developer-tool: six terminal shots (`$ dig --oudegracht`, `$ diff 1674 1826`), a SaaS dashboard under a children's-book character, product cards for a municipal bicycle garage. 16 of 35 beats, every one passing its own gates. The cause was the ORDER OF OPERATIONS — atmosphere was derived from the topic, form vocabulary was taken from the catalogue, so whatever the catalogue is mostly made of became every film's vocabulary.
 > **Ask yourself:** Name the form this beat's SUBJECT is actually recorded, measured or argued about in. Is that what is on screen, or is it the nearest thing the catalogue had?
@@ -298,6 +302,9 @@ reveals over roughly t 0.05-0.45 and the camera runs 0.28-0.88 for that reason, 
 arrives the frame is finished: for those 2-4 beats only, open the keyframe and ask what it is pushing INTO. A
 push on two rows of text magnifies two rows of text; spend it on a beat whose frame HOLDS something — a
 photograph, a built figure, a diagram with parts. FIX = move the push to the beat that has one, or hold.
+**(d) SPACE** — consecutive beats whose argument is one place travelled (scales, a distance, layers;
+`shot_director.py` prints them as a world run) shot as flat beats with a cut each is a REVISE toward a `WorldStage`
+run (`references/stage-runs.md`), unless the board says why they are separate arguments.
 Also: a ≥12-beat film with NO `camera` on any beat is a DECISION (a static register mix, a reduced-motion
 delivery), and should read as one; if nothing explains it, say the film left its camera unrun and name the
 payoff/close beats that should have carried it — `python3 scripts/seam_plan.py <out_dir>` derives a plan from

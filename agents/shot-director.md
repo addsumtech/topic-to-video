@@ -18,6 +18,10 @@ each scene in `storyboard.json`. You do NOT change facts, narration, or beat ord
 0. **`references/remotion-shot-authoring.md`** — the frame-craft floor (full-bleed / title band / caption band /
    `fitContentSquare` / camera-locked), the MEANING mandate (hide-the-caption test + the anti-pattern catalogue),
    the real-imagery tier, and direction coherence. This is where films fail SILENTLY — read it before authoring.
+   Its **§F (Reach)** is the table of argument shapes the library has a BUILT tool for — a journey across scales or
+   places → a `WorldStage` run; a derivation → `EquationMorph`; a quantity's flow → `FlowSankey`; a route →
+   `FlightArcs`; words that ARE the picture → the kinetic registers, at their reading time; light as content →
+   `slide.optic`; a launch tempo → hard `cut`s; one element across beats → `container`.
 1. `content_plan.json` — the ordered beats (learning_point, narration_intent, `visual_intent`, `relation`,
    `energy`, `stage`, `climax`/`hold`, and `source_ref`).
 2. `remotion/LIBRARY.md` — the registers grouped into FAMILIES (A Product-UI · B Camera/space · C Kinetic
@@ -185,6 +189,13 @@ register used unchanged is the exception that has to earn it. Per beat, in this 
    forced through it), a relation (loose against packed). Design it with the checklist below. Only after every
    beat has one does `scripts/shot_director.py` propose library registers as MATERIAL (Step 0, item 6); a
    proposal is something to adapt or borrow from, not the answer.
+   **Then read the beat's argument against `references/remotion-shot-authoring.md` §F** (after the ideal, never
+   before it: the form came from the subject, and the table names tools, not forms). When a row's shape is this
+   beat's shape, its tool is where the route starts — adapt it, build on its runtime module, or say in `why` why it
+   does not carry this beat. `shot_director.py` reads the same shapes and records each match in `shot_fit.reach`
+   (`when` / `not` / `needs`), and `shot_fit.timing` when a kinetic register is proposed for a beat shorter than its
+   own length. Of the three benchmark films that motivated it, none reached camera space, and the launch film tried
+   all four kinetic registers and kept one.
 2. **Route — `shot_fit.verdict` + a one-clause `why`.**
    * **build** — the picture is drawn for this film: an OBJECT held in a library template's slot (`ObjectStage`
      one thing named · `ObjectCompare` two, one difference · `ObjectPath` through stations, changing ·
@@ -529,12 +540,22 @@ reflex.
    and names in-band, unused alternatives for each mismatch (`validate.py` repeats them as warnings). Its
    findings are candidates — a beat's real motion also depends on props, ground, camera and length — so check
    the beat, then swap the register or re-declare the energy; never leave the two disagreeing.
-1. **Match intent → register.** `statement`→a title/kinetic register (CinematicTitle, FocalIsolation,
-   KineticManifesto, LiquidChrome, BrutalistType, SwissEditorial); `sequence`→ExplodedSchematic/TimelineTravel/
-   CommandSummon; `structure`→CollaborativeCursors/KnowledgeGraph/MapRoutes/DataOrrery/WireGlobe/BlueprintGrid;
-   `list`→BlockAssembly/TemporalAccelerate; `metric`→ChartLive/BlueprintGrid(counter)/PhysicsStack. The `climax`
-   beat gets a payoff register (ParticleForm/RadialBurst/LightTrails/SpotlightStage/LiquidFill); the `close`/`hold`
-   beat gets a premium title (LiquidChrome/HoloFoil/CinematicTitle/SwissEditorial). Use the "use when" as the map.
+1. **Match the argument's SHAPE first, then the intent.** The shapes the library built tools for are
+   `references/remotion-shot-authoring.md` §F: a derivation → `EquationMorph` · the shape of a dependence →
+   `FunctionPlot` · one thing through its stages → `GrowingFigure` · a route between places → `FlightArcs` · where →
+   `GlobeFocus` · a conserved flow → `FlowSankey` · a ranking over time → `RankRace` · one quantity moving →
+   `FlowCounter` · the headline IS the beat → `HeadlineReveal` · "not X — Z" → `WordRoll` · scale in one word →
+   `CroppedType` · the path's shape is the claim → `TypeOnPath` · the medium → `LitMedium` · a journey across scales
+   or through a place → a `WorldStage` run (Camera SPACE below). Only where no shape fits does the intent decide:
+   `statement`→a title/kinetic register (CinematicTitle, HeadlineReveal, FocalIsolation, KineticManifesto,
+   LiquidChrome, BrutalistType, SwissEditorial); `sequence`→ExplodedSchematic/TimelineTravel/CommandSummon;
+   `structure`→CollaborativeCursors/KnowledgeGraph/MapRoutes/DataOrrery/WireGlobe/BlueprintGrid;
+   `list`→BlockAssembly/TemporalAccelerate; `metric`→ChartLive/BlueprintGrid(counter)/PhysicsStack/FlowCounter. The
+   `climax` beat gets a payoff register (ParticleForm/RadialBurst/LightTrails/SpotlightStage/LiquidFill); the
+   `close`/`hold` beat gets a premium title (LiquidChrome/HoloFoil/CinematicTitle/SwissEditorial). Use the "use when"
+   as the map. **Kinetic type carries its reading time:** every must-read line of a `runtime/kinetic` register is held
+   to it by `shot_proof.py`, and at a 4 s beat WordRoll's one-word options cannot be read once — at a short beat set
+   ONE line (§F "Kinetic type at the film's tempo").
 
    **A CONCRETE topic can want a real PHOTOGRAPH as the register itself, not as a texture behind one.** When the
    beat's claim is *look at the actual thing*, reach for **PhotoPlate** (LIBRARY 171): the photograph IS the
@@ -576,6 +597,13 @@ reflex.
 2. **Vary the FAMILY across the film — never two ADJACENT beats from the same family.** This is what stops the
    film reading as one look. Spread across ≥6 families in a ≥10-beat film; feature the 3D register (MaterialHero)
    and one illustrated/craft style at most once or twice.
+2a. **Light that IS the content gets an optic — `slide.optic`, one per beat, never decoration.** When the picture
+   HAS a light the argument is about (a lit screen, a star, a spotlight, a flame), set `optic` to one the register
+   anchors (`export const OPTICS` in its source — SpotlightStage bloom/halation, StarfieldWarp bloom/aberration,
+   EmberFlame bloom/halation, DeviceHero bloom/sweep; a film's own shot declares its own), or `leak` to burn over
+   the seam INTO a beat. `validate.py` refuses an optic the register cannot anchor, one on a stage-run beat, and an
+   intensity past its cap (`runtime/optics.tsx` OPTIC_MAX). The film's MEDIUM as a lit surface is `LitMedium` (or a
+   DNA's `material: {kind}`): what something is made of, the light drifting across it.
 2b. **On a CJK film, check the TYPE after you fill the props — `python3 scripts/cjk_type_qa.py <out_dir>`.**
    The library is authored with short English demo copy, and a face set at `line-height: 0.82` is confident
    Latin typography and a COLLISION in Chinese: Latin glyphs sit inside their em box, CJK glyphs fill it.
@@ -593,8 +621,12 @@ reflex.
    default, and never invent a statistic.** If a beat has no real number, pick a non-number register.
 4. **Copy stays in the beat's language** (the deck's language — English or 中文) and stays SHORT (a register's
    label/title is a few words, not the whole narration — the narration is the voiceover + caption).
-5. **MARK ~2–3 chapter-break seams — the rest ride the default (set nothing).** Every seam is a gentle
-   luminance-safe cross-fade by default; that already reads well and needs no authoring. On the FEW beats that
+5. **MARK ~2–3 chapter-break seams — the rest ride the film's TEMPO (set nothing).** An unmarked seam is a
+   luminance-safe cross-fade on a CALM film (a teach / how-to / research explainer with no score) and a hard **`cut`**
+   on a KINETIC one (a launch or promo, or `meta.intensity: bold`); a SCORED film (music) cuts half its seams on the
+   beat. `seam_plan.py` plans those cuts from `meta.purpose` / `meta.cuts` (`references/motion-grammar.md` "The hard
+   cut"); a cut spends none of the mark budget. The benchmark films named the all-dissolve film the strongest "this is
+   slides" signal; on a calm explainer the dissolve is its breath. On the FEW beats that
    open a new chapter, set `transition_style` on the INCOMING scene so the cut CLAIMS the relationship — chosen
    from the beats' `relation`, never decoration: a reveal / new-topic → `clock` or `wipe` (the frame opens); a
    forward push / building energy → `slide` (push); a payoff where the outgoing FORM becomes the incoming one
@@ -614,6 +646,13 @@ reflex.
    redistributes it); `fadethrough` does not, because leaving fast is how a dark ground becomes a light one in
    0.15s. A seam word this renderer cannot resolve is now an ERROR in `validate.py`, never a quiet fade.
 
+   **The anchored seams take hold of ONE thing on the frame** (`references/motion-grammar.md`): `container` — the same
+   element on both beats, re-framed (this IS that; once a film); `through-window` — a new topic out of a screen,
+   window or the word that names it; `grow` — the next subject opens out of an anchor onto a different ground;
+   `punch` — the climax payoff lands hard (once). They need an ANCHOR both registers draw (`python3
+   scripts/carry_anchors.py`); `seam_plan.py` proposes them where the anchors exist, so your part is to put the same
+   drawn thing on both beats when the argument says this IS that.
+
    Two constraints: **budget ≤~3 marks** in a
    ≥10-beat film (marking every seam is as monotonous as marking none, and the shot-critic S2 flags it), and a
    mark only "takes" on a **same-luminance** seam — a dark↔light cut is auto-forced back to the safe fade
@@ -624,8 +663,9 @@ reflex.
    `meta.design_dna.seam` — and a preset `meta.design_dna.id`, Step 0.6 — replaces every UNMARKED cut with the
    design system's own move. Measured on a delivered film: it turned 31 of 34 cuts kinetic, so the 3 deliberate
    marks read exactly like the 31 that meant nothing — the film LOST its punctuation to the feature meant to give
-   it a voice. A plain cross-fade on the unmarked cuts is the CORRECT default and a finished decision, not a
-   missing one. Declare a `seam` only for a world with a genuine native ACTION (a terminal clearing its screen);
+   it a voice. On a calm film a plain cross-fade on the unmarked cuts is the CORRECT default and a finished
+   decision, not a missing one; on a kinetic or scored film the unmarked cuts are seam_plan's hard `cut`s, not the
+   DNA's move. Declare a `seam` only for a world with a genuine native ACTION (a terminal clearing its screen);
    on a preset id whose world has none, opt back out with `"seam": {"type": "fade"}`. `validate.py` warns when a
    declared seam swamps the marks.
 
@@ -658,6 +698,18 @@ After `tts.py`, `python3 scripts/validate.py <out_dir>` checks every device beat
 it — the script's shape, its screenshots, every text target, the time each step needs — and names every
 problem before a render.
 
+## Camera SPACE — when the subject is a place, one world the camera travels through
+
+A per-beat push cannot cross a cut, and a row of flat beats cannot show a journey. When the subject HAS a geography —
+nested scales (the planet → the region → the ring round its pole), distances (the Sun to the Earth), layers (up
+through the sky), a thing seen in the round — make those beats ONE `WorldStage` run (`references/stage-runs.md`):
+`stage: {run: <id>}` on each, `world.objects` on the first (images, the real-coastline globe, discs, fields, streams,
+bands, words standing in space, frames to nest in), and each beat's `shot_props.camera` frames one object with a
+`move` — `dolly` · `crane` · `tilt` · `orbit` · `scale-zoom` (powers of ten, through objects nested `in` each other).
+Give a camera move 1.5–4 s. A run is one picture with no seam inside it; its beats take no `slide.camera`, no optic and no
+`transition_in`, and a choreographed run counts as BUILT. `shot_director.py` prints the beats whose argument reads as
+one world. Not when the beats are separate arguments — a cut is the honest move between unrelated places.
+
 ## The camera — a move needs a CAUSE (per beat, budget 2–4)
 A scene may carry **`camera` = `{move: "push"|"pull"|"hold", amount: 0.045}`**. This is not a Ken Burns drift:
 the tier's earlier camera was a film-wide sinusoidal wander with no relationship to anything being said, and
@@ -667,6 +719,8 @@ entirely, an over-correction. So derive the move from what the beat is FOR:
 - **`close`, and the OPENING beat → `pull`** — here is the whole of it, from either end of the film.
 - **everything else HOLDS** (set nothing). Budget **2–4 moving beats in a whole film, spaced apart** — a film
   whose camera always moves has no camera, exactly as a film that marks every seam has no punctuation.
+- **`handoff: true`** runs a push or pull INTO its cut, and the next beat — a `continuation` with no camera of its
+  own — inherits the velocity (`references/motion-grammar.md` "The camera hand-off"); `seam_plan.py` sets it.
 
 **Spend a push only on a frame that HOLDS something to look closer AT.** A shot reveals over roughly t 0.05–0.45,
 which is why the move runs 0.28–0.88 — it rides `useT()`, so it never runs over a cut and it lands on SETTLED
@@ -702,6 +756,8 @@ Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene:
   `changes` on every adapted beat). On a DNA-themed film, **`theme_cues`** are the 2-3 concrete cues that tie THIS
   shot to the global visual system (e.g. `["mono heading","▸ prompt","terminal grid","green accent"]`) so the
   Design DNA verifiably runs through every frame.
+- On the beats a world camera travels, `stage: {run}` + the world in `shot_props` (Camera SPACE); on a beat whose
+  light is the content, `optic` (Rule 2a).
 - On the FEW beats that earn them, `transition_style` (Rule 5) and `camera` (the camera section);
   `python3 scripts/seam_plan.py <out_dir>` then fills the beats you left and skips every one you authored.
 - A short `shot_rationale` (why this register, which family) is encouraged, for the critic.

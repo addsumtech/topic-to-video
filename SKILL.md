@@ -128,17 +128,27 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   `"remotion-legacy"` errors (that tier was removed). Run `cd remotion && npm install` once. Rules on this tier:
   - **The cut has to be authored.** No seam reaches a film unless something writes `transition_in`, so run
     `python3 scripts/seam_plan.py <out_dir>`. From each beat's `relation` it derives ~2-3 MARKED seams (≥5 beats apart,
-    luminance-safe) and ~2-4 motivated `slide.camera` moves. An authored `transition_in` always wins. validate WARNS on a
-    ≥12-beat film with no mark, or more than ~1-in-8 marked. Only `carry`, `focus`, `through-dark`, `drift`, `blur` and
-    `container` may sit on a dark↔light seam; any other mark there (`portal` included) is silently forced to a fade.
+    luminance-safe) and ~2-4 motivated `slide.camera` moves, and cuts the UNMARKED seams by the film's tempo: a launch or
+    promo (`meta.purpose`) cuts every one hard (`cut`), a scored film half, a calm explainer keeps the dissolve
+    (`meta.cuts` names it). An authored `transition_in` always wins. validate WARNS on a
+    ≥12-beat film with no mark, or more than ~1-in-8 marked. Only `carry`, `focus`, `through-dark`, `drift`, `blur`,
+    `container` and `cut` may sit on a dark↔light seam; any other mark there (`portal` included) is silently forced to a fade.
     The ANCHORED seams — `container` (an element carried across the cut), `grow`, `through-window`, `punch` (once, the
     payoff) — and the camera hand-off (`camera.handoff`) are in `references/motion-grammar.md`; an anchor is
     `transition_in.carry`, and `python3 scripts/carry_anchors.py` lists what each register draws. A bespoke direction
     must declare `meta.design_dna.seam` (e.g. `{type:'wipe',direction:'from-bottom'}` or `{type:'fade'}`), or its
     unmarked seams fall through to an anonymous cross-fade.
   - **Camera** is per beat and motivated: `slide.camera:{move:'push'|'pull'|'hold'}` (payoff → push, close/opener → pull,
-    else hold). `meta.camera_drift` stays off. The camera bed is OFF by default (`meta.camera_bed: true` opts in) and
-    never coexists with `camera_drift`.
+    else hold; `handoff: true` carries a push across a continuation cut). A subject with a geography — scales, distances,
+    layers — is a `WorldStage` run instead (Continuous stage, below). `meta.camera_drift` stays off. The camera bed is
+    OFF by default (`meta.camera_bed: true` opts in) and never coexists with `camera_drift`.
+  - **Reach.** After the forms and ideals, each beat's argument is read against the table of shapes the library has a
+    BUILT tool for (`references/remotion-shot-authoring.md` §F): a derivation → `EquationMorph`, a curve →
+    `FunctionPlot`, one shape becoming another → `GrowingFigure`, a conserved flow → `FlowSankey`, a ranking over time
+    → `RankRace`, one moving figure → `FlowCounter`, where → `GlobeFocus`, a route → `FlightArcs`, words that ARE the
+    picture → `HeadlineReveal` / `WordRoll` / `CroppedType` / `TypeOnPath` (held to reading time), the medium →
+    `LitMedium`, light as content → `slide.optic`, a journey → a `WorldStage` run. `shot_director.py` records the
+    matches in `shot_fit.reach` and prints the world runs, shared elements (`container`) and cut tempo the board implies.
   - **Forms come from the subject, not the catalogue.** The shot-director derives 6–10 forms BEFORE opening `LIBRARY.md`
     (`meta.form_vocabulary`). Each beat names its form in `shot_fit.form`, and `meta.idiom_world` declares the provenance
     worlds the film may draw from. validate ERRORS on a missing or undeclared form or world. A derived form with no
@@ -247,7 +257,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   ink, off-palette colour, dead frames, unreadable captions). Fix everything it reports; passing is a FLOOR, not a verdict.
   `scripts/energy_skeleton.py <out_dir>` checks declared energy against measured register motion.
   `scripts/cjk_type_qa.py <out_dir>` is required on a CJK film; **run it serially**, because parallel shards report
-  false failures. `scripts/density_advice.py <out_dir>` names starved beats and denser same-family registers; these are
+  false failures. `scripts/caption_breaks_qa.py <out_dir>` checks a CJK film's burned caption lines as Film.tsx breaks
+  them (ERROR on a line opening with closing punctuation or a one-glyph last line; `references/captions.md`).
+  `scripts/density_advice.py <out_dir>` names starved beats and denser same-family registers; these are
   candidates, never instructions. `scripts/text_safe_qa.py <out_dir>` is the TEXT-SAFE gate (type cut by the canvas;
   full-bleed graphics and container-cropped type are legal; an intentional bleed layer carries `data-bleed` with a written
   reason). It also runs as `--glide` (type crawling in whole-pixel jumps; fix through `glide()`) and `--sync` (text
@@ -294,7 +306,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 - `scripts/dna_audit.py [--depth|--type] [--check]` reports DNA reach. `scripts/dna_smoke.py`: run it after any bulk shot
   change. `scripts/font_gate.py` proves declared faces load. `scripts/clock_qa.py` lists stalled cyclic drivers; these are
   candidates, and a fix is kept only if a render shows it.
-  `scripts/null_dna_pixel_gate.py`: run `--save` BEFORE your change and `--check` after. `scripts/type_specimens.py`,
+  `scripts/null_dna_pixel_gate.py`: run `--save` BEFORE your change and `--check` after. `scripts/determinism_qa.py
+  <Id> | --film <out_dir>` asks whether a frame is the same however and whenever it is rendered (advisory for a new
+  register that keeps any state; `references/pipeline-scripts.md`). `scripts/type_specimens.py`,
   `scripts/dna_migrate.py` / `dna_migrate_bg.py` / `dna_migrate_type.py` are codemods and specimens.
 
 ## Workflow (follow in order)
@@ -728,6 +742,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      **Type that moves by the letter, word or line is drawn with `runtime/kinetic` (`useKinetic` + `KineticText`),
      never a hand-rolled per-character split** — it keeps kerning and Chinese punctuation compression (0 px from one
      text node), every type gate reads it as its lines, and `shot_proof.py` holds each must-read line to its reading time.
+     **Before routing, read each beat's argument against the reach table** (`references/remotion-shot-authoring.md`
+     §F) — the shapes the library already has a built tool for, including a `WorldStage` run for a journey.
      **Parallel build (four or more built shots):** the lead designs every beat, the DNA and the kit and builds one
      reference shot; 3–4 `agents/shot-builder.md` builders, dispatched in ONE message, each build the shots they own
      and write a part file (never the board); `python3 scripts/design_merge.py <out_dir>` joins them (refusing any
@@ -736,8 +752,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      **③ Then run `python scripts/seam_plan.py <out_dir>` — the film's CUTS and CAMERA.** A verify-and-fill pass,
      not a competitor: it SKIPS every beat the shot-director already marked, so authored intent always wins. It
      adds what an author cannot do by reading — it mirrors the renderer's luminance guard (a kinetic mark across a
-     dark↔light boundary is silently downgraded, so a mark spent there vanishes) and derives 2-4 MOTIVATED camera
-     beats from each beat's `relation` (payoff → push, close/opener → pull, else hold). Never skip it (why:
+     dark↔light boundary is silently downgraded, so a mark spent there vanishes), proposes the anchored seams where
+     two beats' registers draw one anchor, cuts the unmarked seams by the film's tempo (launch/promo → hard cuts), and
+     derives 2-4 MOTIVATED camera beats from each beat's `relation` (payoff → push, close/opener → pull, else hold;
+     a push into a continuation hands off). Never skip it (why:
      case-law W2). `validate.py` warns when a film of ≥12 beats carries no marked seam at all, and when a
      declared `design_dna.seam` makes so many cuts kinetic that the marks stop being punctuation.
      **④ Look at the whole film on one page, then show it.** `python3 scripts/shot_proof.py <out_dir>` renders
@@ -754,7 +772,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      promotion of built things are steps 9d–9f.
      **From scratch, start the board from the content plan:** `python3 scripts/storyboard.py <out_dir> --from-plan
      language=zh renderer=remotion aspect=16:9 target_seconds=70 …` writes one slide per beat carrying `relation`,
-     `energy`, `stage`, `climax`, `hold` — the fields seam_plan, energy_skeleton and rhythm_qa read from the slides.
+     `energy`, `stage`, `climax`, `hold` — the fields seam_plan, energy_skeleton and rhythm_qa read from the slides —
+     and the plan's `purpose` (→ `meta.purpose`) and any `tempo` (→ `meta.cuts`), which set how the film cuts.
      **Build the storyboard by MERGING the two plans:** the design's `visual.type`+`props`
      become each scene; its `transition` becomes the per-scene edges; a `climax` beat's scene carries
      `props.climax:true` — the climax MARKER (`rhythm_qa` reads it); it also drives the key-number landing

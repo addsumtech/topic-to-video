@@ -633,6 +633,78 @@ the shot-critic (S1–S11). Meaning + frame-craft (S10), direction-adherence (S7
 (S11 — the Design DNA runs through EVERY frame, per §C2) are gates, not nice-to-haves. `validate.py` also warns
 when a themed film has no `design_dna`/preset or a scene has no `theme_cues`.
 
+## F · Reach — the argument's shape calls for a tool the library already built
+
+Three benchmark films (2026-10-24) found the director barely used the kinetic registers and never reached camera
+space; the proposer's keyword lists named none of the maths, kinetic-type or medium registers, and nothing said when a
+`WorldStage` run is the right tool. A capability the director is never offered is built but unreachable. So, AFTER the
+form vocabulary (shot-director Step 0.5) and each beat's ideal picture (Step 0.55) — forms still come from the subject,
+and nothing below names a form — read the beat's argument against this table. When a row fits, its tool is the
+starting material: adapt it, or build on its runtime module (`kinetic`, `mathMorph`, `pathMorph`, `geo`/`earth`,
+`sankey`, `optics`, `material`, `references/building-blocks.md`) — or say in `shot_fit.why` why it does not carry
+this beat. `scripts/shot_director.py` reads the same shapes (`REACH`) from `shot_fit.form`, the form's
+`meta.form_vocabulary` entry, `shot_fit.ideal` and the plan's `learning_point`/`narration_intent`, puts the route's
+register first in its proposal (still MATERIAL, verdict `unjudged`; family variety still wins), records every match in
+`shot_fit.reach` (`route`, `use`, `when`, `not`, `needs`) and prints the runs, shared elements and cut tempo the board
+implies. `tests/test_director_reach.py` holds this table and the code to the same routes.
+
+| route | the argument's shape | the tool | not when | needs |
+|---|---|---|---|---|
+| `derivation` | the next form IS the last one rearranged — solve, simplify, substitute, derive; one formula with a term to point at | `EquationMorph` (runtime/mathMorph) | a quantity's history (a chart); prose that merely mentions a formula | the film's TeX in `steps[].tex` — `scripts/mathtex.py` typesets it before the render |
+| `dependence-shape` | the SHAPE of a dependence — where it rises, turns, dies away | `FunctionPlot` | categories (a bar register); a history with events; one number | the film's own sourced `points` — nothing fitted |
+| `shape-becomes-shape` | ONE thing through its stages — a cell that divides, a point that becomes a segment, a square | `GrowingFigure` (runtime/pathMorph), `MorphForms` | different things (a list); two objects compared; a quantity growing | the states' shapes |
+| `journey-across-scales` | a journey through nested scales — a planet into a region into a city — as ONE continuous zoom | a `WorldStage` run, `camera.move: scale-zoom` (a one-beat stand-in: InfiniteCanvas, CrashZoom) | two unrelated places (a cut is honest); a push on one flat picture (`slide.camera`) | `world.objects`, each scale `in` its parent |
+| `route-between-places` | these places are connected, and how far apart they really are | `FlightArcs` (MapRoutes) | connections with no geography; one place | real coordinates or place names |
+| `journey-through-space` | the subject HAS a geography the camera can travel — the Sun to the Earth, up through the layers of the sky, round the thing | a `WorldStage` run, `camera.move: dolly` / `tilt` / `crane` / `orbit` (stand-in: TerrainFly, CraneUp) | beats that are separate arguments; a move with nothing at depth (parallax needs ≥2 planes) | objects placed in depth; a camera move 1.5–4 s |
+| `flow-of-a-quantity` | where a whole goes, and that it is conserved — a budget, an energy balance, a funnel | `FlowSankey` (MadeOf) | parts of one whole with no stages (MadeOf); a ranking | sourced flows on one scale |
+| `ranking-over-time` | a ranking changed over time and WHEN the order changed is the story | `RankRace` (ChartRace) | one period; one quantity moving | the sourced series |
+| `one-quantity-moving` | one figure and how far it moved | `FlowCounter` (OdometerRoll) | several figures side by side; a ranking | the sourced values in order |
+| `where` | the claim is WHERE, at the scale that makes it legible | `GlobeFocus` (MapPlate) | a route (FlightArcs); an engraved or imagined plate (MapPlate) | the place |
+| `slot-that-varies` | "not X, not Y — it is Z": what is constant and what varies IS the argument | `WordRoll` | peers read together; nothing varies | the options, each READ once (below) |
+| `scale-word` | the claim is SCALE and one word carries it | `CroppedType` | a word that must be read whole; a CJK word a crop cuts into other characters | one word + the plain sentence under it |
+| `shape-is-claim` | the path's SHAPE is the claim — this repeats, this rises, this is the route | `TypeOnPath` | steps in order; a shape picked for looks | the subject's own path |
+| `headline` | the headline IS the beat — one claim in one breath, one phrase of it marked `*…*` | `HeadlineReveal` | a list; one enormous word; a slot that changes | the lines as the voice says them |
+| `medium` | what it is made of or where it lives — paper, water, brushed metal, clay | `LitMedium` (runtime/material; a DNA's `material: {kind}`) | a breakdown of parts (MadeOf) | the material |
+| `light-as-content` | the picture HAS a light and the light is the content | `slide.optic` on the register that draws it — SpotlightStage, EmberFlame, StarfieldWarp, or a film's own shot exporting `OPTICS`; `leak` over the seam INTO a beat | a frame with no light; never on type | an `OPTICS` export — validate refuses an optic its register cannot anchor |
+
+### Kinetic type at the film's tempo — the reading time travels with the beat
+
+Every must-read line of a register set with `runtime/kinetic` is held to its reading time by `shot_proof.py`, from
+`runtime/readingSpec.json`: zh 9 / ja 4 / Latin 20 characters a second, at least 5/6 s, ~0.6 s a word for copy that
+must be taken in (each figure sourced in the file). The registers are authored at their own length (`DURATION`), and
+their cards say what survives a shorter beat: `HeadlineReveal` is clean at 5.5 s, and at a 4 s beat its two-line block
+and note fall under the bar (warnings); `WordRoll` is clean at 7 s, and at a 4 s beat its one-word options cannot be
+read once (errors); `TypeOnPath` and `CroppedType` are clean at their own 6 s and 5.5 s. A launch film's 3–4 s beats
+met exactly this (bench-launch: WordRoll's second option readable 0.73 s against 0.83 s needed; Chinese scramble flips
+through real wrong characters; CroppedType cropped 代码 into other characters). So at a short beat: ONE line of a few
+words (`pace.py --budget <s> --lang <code>` says how many), `reveal: 'line'`, no slot-roll unless every option gets
+its read; `read={false}` only for type that is texture. `shot_director.py` writes `shot_fit.timing` when it proposes
+a reading-held register for a beat planned shorter than the register's own length.
+
+### Camera space — a world, a hand-off, or a push
+
+- **`slide.camera` push / pull** — one beat, a 2D move with a cause (payoff, close, opener; a long hold on detail).
+- **`camera.handoff`** — a push or pull that runs INTO a continuation cut and the next beat inherits (motion-grammar).
+- **A `WorldStage` run** — when the subject has a geography (scales, distances, layers, a route) and several beats are
+  one place: each beat's keyframe frames a named object and says how the lens gets there; no seam inside the run, no
+  `slide.camera` and no optic on its beats (the stage anchors none; `leak` cannot burn inside a run), its photographs,
+  shapes and words standing in the world (`references/stage-runs.md`). Never a run to avoid choosing shots — every
+  beat of it still earns its own change.
+
+### Cuts and shared elements
+
+- **Tempo** (`seam_plan.film_tempo`): `kinetic` — a launch or promo (`meta.purpose`), or `meta.intensity: bold` — cuts
+  every unmarked seam hard; `scored` (music) cuts half, never into a low beat or the close; `calm` keeps the dissolve.
+  `meta.cuts` names it outright; the plan's `purpose`/`tempo` reach the board through `storyboard.py --from-plan`. The
+  RATE is set by beat length, which no seam planner changes: Apple's launch film cuts 27.8 a minute
+  (`references/launch-film-study.md`), an average of about 2.2 s a shot (60 / 27.8), so a launch film that wants that
+  pace plans short beats — and short beats are where the reading time above binds.
+- **One element across beats** (the same object, the same built thing, the same form) — make it the SAME drawn thing
+  with one anchor on both beats, and the cut can be a `container` (this IS that, once a film); a new topic out of a
+  screen, window or the word that names it → `through-window`; out of an anchor onto a different ground → `grow`;
+  the climax payoff → `punch` (once). `seam_plan.py` proposes them from the anchors (`carry_anchors.py`); the
+  director's part is to make them possible.
+
 ## Before you commit a change to this library — walk the case law
 
 `references/engineering-case-law.md` is the E-numbered case law for whoever EDITS the renderer, the runtime
