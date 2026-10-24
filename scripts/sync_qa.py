@@ -48,6 +48,11 @@ _CJK_RE = re.compile("[%s]" % _CJK)
 _UNIT_RE = re.compile(r"(\d+(?:[.,:]\d+)*%?)|([^\W\d_]+(?:['’][^\W\d_]+)*)", re.U)
 # Characters that carry grammar, not content: a CJK run made only of these ("一个", "的是") is not a mention.
 _CJK_STOP = set("的了是在和与及也都就把被这那个们之其以而或为对上下中不有我你他她它吗呢吧啊着过得地很更最还又再能会要将从到向给让使用")
+# ...of which these are PURE particles: never half of a content word. The rest of the stop list are LIGHT
+# characters — function words alone, but half of a real word in 实用 · 更好 · 可能 · 最好 · 中心 · 上升 — and
+# counting them as nothing meant a two-character item made with one never got a cue: on the Dieter Rams film
+# station 02 「实用」 fell back to the even timing and the dial ran a station ahead of the voice, and nothing said so.
+_CJK_PARTICLE = set("的了吗呢吧啊着过得地之其以而或及与和也都就把被们个这那")
 _LATIN_STOP = {
     "a", "an", "the", "and", "or", "of", "to", "in", "on", "at", "for", "with", "by", "as", "from", "into",
     "is", "are", "was", "were", "be", "been", "being", "it", "its", "this", "that", "these", "those", "there",
@@ -159,7 +164,10 @@ def _run_ok(run):
         return True
     if any(u[0] == "w" and u[1] not in _LATIN_STOP and len(u[1]) >= 2 for u in run):
         return True
-    return sum(1 for u in run if u[0] == "c" and u[1] not in _CJK_STOP) >= 2
+    cjk = [u[1] for u in run if u[0] == "c"]
+    # two content characters; or one content character WITH a light one (实用, 更好) — never with a particle (的粉)
+    return (sum(1 for c in cjk if c not in _CJK_STOP) >= 1
+            and sum(1 for c in cjk if c not in _CJK_PARTICLE) >= 2)
 
 
 def _score(run):
