@@ -5,36 +5,60 @@ and report only what is new. Numbers are SOURCED unless marked (U) — a suggest
 on this machine. Read this before building kinetic type, a new seam or camera move, or anything that times picture to
 music. The remotion tier is for ANY video — creativity, craft and design, never "slides" (user, 2026-10-23).
 
-## 0. What the library already has (inventory, verified by search)
+## 0. What the library has (inventory, verified by search; updated 2026-10-24)
 
-- **Type**: 8 registers hand-roll a per-character split (VariableTypeMorph, InflateType, ElasticType, RansomZine,
-  ClothWave, OdometerRoll, AsciiField, SplitFlap); `grep kern` finds nothing — no shared helper, no text on a path, no
-  animated tracking, `fontVariationSettings` used once, no line/word mask-reveal helper (re-implemented in
-  SwissEditorial, LiquidChrome, GlitchDatamosh), no big-cropped-type register. Bundled variable fonts: Space Grotesk,
-  Playfair, JetBrains Mono, Inter (wght, opsz 14-32), Source Serif 4 (wght, opsz 8-60), IBM Plex Sans (the only wdth,
-  75-100 — `FACES` declares weight only), Bodoni Moda (opsz 6-96), Baloo 2, Noto Sans/Serif SC subsets (wght).
-  **Built 2026-10-23 from §1 below:** `runtime/kinetic.tsx` (one shared primitive, measured 0 px from a text node in
-  Latin and Chinese; the census reads it as lines; `shot_proof` holds must-read lines to reading time), four registers
-  on it (HeadlineReveal, WordRoll, TypeOnPath, CroppedType), and Plex's `wdth` 75-100 declared. The eight hand-rolled
-  per-character registers above are NOT migrated yet.
-- **Maths and morphs** (built 2026-10-24): `CompressedSensingEq` had set its formula as a hand-typed Unicode string and
-  nothing used `@remotion/paths`' `interpolatePath`. Now: TeX typeset ahead of the render by MathJax 3.2.2
+This section first listed the GAPS the research found (2026-10-23). Most are filled now; each line says what exists,
+and what is still open. Every capability below is offered to the director by the reach table
+(`references/remotion-shot-authoring.md` §F, `scripts/shot_director.py` `REACH`), because a tool nothing proposes is
+built but unreachable — three benchmark films (2026-10-24) found the kinetic registers barely used and camera space
+never reached.
+
+- **Type** — `runtime/kinetic.tsx` (one shared primitive: one reference text node, per-grapheme
+  `Range.getClientRects()`, measured 0 px from a text node in Latin and Chinese; the census reads it as lines;
+  `shot_proof` holds must-read lines to reading time from `runtime/readingSpec.json`). Registers on it: HeadlineReveal,
+  WordRoll, TypeOnPath, CroppedType, and the maths and data registers below set their copy with it (12 registers import
+  it, counted by `grep "runtime/kinetic'" remotion/src/shots`). Bundled variable fonts: Space Grotesk, Playfair,
+  JetBrains Mono, Inter (wght, opsz 14-32), Source Serif 4 (wght, opsz 8-60), IBM Plex Sans (the only wdth, 75-100,
+  now declared in `FACES`), Bodoni Moda (opsz 6-96), Baloo 2, Noto Sans/Serif SC subsets (wght). **Still open:** the
+  eight hand-rolled per-character registers (VariableTypeMorph, InflateType, ElasticType, RansomZine, ClothWave,
+  OdometerRoll, AsciiField, SplitFlap) are not migrated; the kinetic registers are authored for 5.5-7 s and a 3-4 s
+  launch beat cannot read their every line (bench-launch); no kinetic register declares a carry anchor (bench-rams).
+- **Maths and morphs** (built 2026-10-24): TeX typeset ahead of the render by MathJax 3.2.2
   (`scripts/tex_glyphs.mjs`; a film's equations by `scripts/mathtex.py`, which `render_remotion.py` runs first),
   drawn from its glyph outlines by `runtime/mathMorph` — Manim's Write, TransformMatchingTex, Indicate/Circumscribe
   and ValueTracker reimplemented from their behaviour — and `runtime/pathMorph` for shapes that become shapes
   (resampled and aligned — measured half-way through circle→triangle in a 400 px box, interpolatePath's outline
-  encloses 4,932 px² against endpoints of 125,686 and 57,288; this one 90,848). Registers: `EquationMorph`, `FunctionPlot` (MA), `GrowingFigure` (S).
-- **Seams**: 15 words; `portal` is the only mask transition; `match_cut:{shape,from,to}` is validated
-  (validate.py) and described for the design-director but **nothing renders it** — a dead spec. `@remotion/transitions`
-  4.0.486 ships iris, flip and 11 shader presentations (HtmlInCanvas — measured non-deterministic here); also
-  `useTransitionProgress()` and `TransitionSeries.Overlay`, both unused.
-- **Camera**: per-beat push/pull/hold (runtime/depth SceneCamera, edge-budgeted), `Plane` depth planes, stage3d
-  (CSS 3D, type flat), pageCam2D. No camera continuity across cuts. **Built 2026-10-24 from §2:** `WorldStage`
-  (references/stage-runs.md) — one world across a run of beats, a camera that dollies, cranes, tilts, orbits and
-  scale-zooms (exponential, fixed point held, nested layers handed over) between framings of named objects, parallax
-  by real depth, focus by distance, blur by speed.
-- **Music**: `bgm: 'auto'` is a drone with no tempo or key; nothing reads tempo; nothing aligns picture to music.
-  focus/pop/tick/reveal cues are never planned on the remotion path. (The first three are answered since: §3 "Built".)
+  encloses 4,932 px² against endpoints of 125,686 and 57,288; this one 90,848). Registers: `EquationMorph`,
+  `FunctionPlot` (MA), `GrowingFigure` (S).
+- **Data and geography** (built 2026-10-24): `FlowSankey`, `RankRace`, `FlowCounter` (D) and `GlobeFocus`,
+  `FlightArcs` (GE) — offline Natural Earth projected in code (`runtime/geo`, `earth`, `labelPlace`, `sankey`).
+- **Seams**: `render_remotion` resolves 19 seam types besides the default fade (`_KINETIC_TYPES`). Since the research:
+  the anchored seams `container` / `grow` / `through-window` / `punch` (`remotion/src/seams.tsx`) on carry anchors a
+  register marks with `data-carry` (`runtime/carry.tsx`, listed by `scripts/carry_anchors.py`); `match_cut` is no
+  longer a dead spec — it is the container by declared rects; and the hard `cut` (the picture changes on the seam's
+  middle frame), which `seam_plan.py` plans on unmarked seams by the film's tempo (kinetic / scored / calm). `seam_plan`
+  proposes the anchored seams too. `@remotion/transitions` 4.0.486 also ships iris, flip and 11 shader presentations
+  (HtmlInCanvas — measured non-deterministic here), unused. **Still open:** a content match-cut between two
+  photographs that share no anchor
+  (bench-aurora), and the 6 still frames after a cut (`useT` holds `ENTRY_T` through the seam — a `runtime/motion.ts`
+  change).
+- **Camera**: per-beat push/pull/hold (runtime/depth SceneCamera, edge-budgeted), `Plane` depth planes, stage3d,
+  pageCam2D; **camera continuity across a cut** — `camera.handoff` (`runtime/handoff.ts`: a push that runs into its cut,
+  the next beat inherits the velocity); and **`WorldStage`** (references/stage-runs.md) — one world across a run of
+  beats, a camera that dollies, cranes, tilts, orbits and scale-zooms (exponential, fixed point held, nested layers
+  handed over) between framings of named objects, parallax by real depth, focus by distance, blur by speed.
+- **Light and material**: `slide.optic` (`runtime/optics.tsx`: bloom / halation / sweep / aberration on a light the
+  register draws, `leak` over a seam INTO a beat; one per beat, capped by `OPTIC_MAX`, refused by validate on a register
+  that does not export it) and lit material grounds (`runtime/material.tsx`: paper / water / metal / clay; the
+  `LitMedium` register; a DNA's `material`).
+- **Music**: answered — `scripts/beatgrid.py` (a beat grid, cuts snapped to it at the tts/pad stage) and
+  `scripts/score.py` (a generated score on that grid), §3 "Built". **Still open:** tier 3 (a tempo map); whether it
+  sounds acceptable is unmeasured; and the 2026-10-23 inventory found focus/pop/tick/reveal cues never planned on the
+  remotion path (not re-checked in this update).
+- **Portrait and gates**: on 9:16 the platform-safe frame's margin is the beat itself, blurred (the safe echo;
+  `meta.safe_echo: false` refuses it); `scripts/determinism_qa.py` (is a frame the same however and whenever it is
+  asked for), `scripts/caption_breaks_qa.py` (CJK caption lines broken at words, kinsoku held), `scripts/banding_qa.py`
+  (CAMBI on the delivered file).
 
 ## 1. Kinetic typography
 
