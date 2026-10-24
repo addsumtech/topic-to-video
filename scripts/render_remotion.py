@@ -493,6 +493,9 @@ def _split_caption(text):
             merged.append(c)
     return merged
 
+_CJK_CUE = re.compile(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+
+
 def _srt_ts(t):
     ms = int(round(max(0.0, t) * 1000)); h, ms = divmod(ms, 3600000); m, ms = divmod(ms, 60000); s, ms = divmod(ms, 1000)
     return "%02d:%02d:%02d,%03d" % (h, m, s, ms)
@@ -526,6 +529,17 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
     # Film.tsx's splitCaption (including its decimal guard) and its length-weighted chunk timing here.
     half = tr // 2
     lines, n = [], 0
+    # A CJK CUE IS BROKEN AT WORD BOUNDARIES (scripts/caption_breaks_qa.srt_lines: the film's own captionBreak.ts in
+    # node, 16 glyphs a line, balanced, kinsoku) — a player wraps Chinese between any two characters, which is how the
+    # burned caption came to read 「交回成 / 片」. Without node the cues stay one line each, as before.
+    _all = [c for sc in scenes if sc.get("caption") for c in _split_caption(sc["caption"])]
+    try:
+        import caption_breaks_qa as _cbq
+        _broken = _cbq.srt_lines(_all) if any(_CJK_CUE.search(c) for c in _all) else None
+    except Exception as e:                                  # noqa: BLE001 — a sidecar is never worth a failed render
+        print("[render_remotion] out.srt: CJK cues left unbroken (%s)" % e)
+        _broken = None
+    _lines_of = dict(zip(_all, _broken)) if _broken else {}
     for i, sc in enumerate(scenes):
         cap = sc.get("caption")
         if not cap:
@@ -544,7 +558,8 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
             cum += L
             f1 = a + span * (cum / tot)
             n += 1
-            lines.append("%d\n%s --> %s\n%s\n" % (n, _srt_ts(f0 / fps), _srt_ts(max(f0 / fps + 0.3, f1 / fps - 0.02)), c))
+            text = "\n".join(_lines_of.get(c) or [c])
+            lines.append("%d\n%s --> %s\n%s\n" % (n, _srt_ts(f0 / fps), _srt_ts(max(f0 / fps + 0.3, f1 / fps - 0.02)), text))
     with open(os.path.join(out_dir, "out.srt"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     if shutil.which("ffmpeg") and os.path.exists(out_mp4):   # per-scene keyframes for the shot-critic
