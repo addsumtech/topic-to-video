@@ -2717,6 +2717,10 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         sp = s.get("shot_props")
         if sp is not None and not isinstance(sp, dict):
             errors.append(f"{tag}: `shot_props` must be an object")
+        # THE BEAT'S OPTIC (runtime/optics.tsx): one, anchored to a light its register draws
+        _i = next(i for i, x in enumerate(slides) if x is s)      # by identity: two equal slides are two beats
+        _prev = slides[_i - 1] if _i > 0 else None
+        errors.extend(f"{tag}: {m}" for m in optic_problems(s, shot, _prev, out_dir))
         if shot in NUM and (not isinstance(sp, dict) or NUM[shot] not in sp):
             warnings.append(f"{tag}: {shot} shows an ILLUSTRATIVE demo number by default — pass "
                             f"shot_props.{NUM[shot]} a SOURCED figure, or use a non-number register (no-fake-info)")
@@ -2793,7 +2797,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         # slots, and a board that hands it four is wrong before anything is rendered. Both halves of that
         # have already happened here: IsometricAssembly dropped a fourth item in silence (A4 found it only
         # because a type audit asked what a register DECLINED to draw), and AcceptanceStamp threw mid-render,
-        # which costs a full bundle plus a render — and, on this machine, a second render without --gl —
+        # which costs a full bundle plus a render — and, on this machine, a second whole render on the fallback GL backend —
         # before anyone learns the count was wrong. The declaration already knew; nothing read it.
         #
         # Only a type that fixes ONE length is checked (see demo_copy_qa.tuple_arity): a union with a loose
@@ -3423,6 +3427,82 @@ _TITLE_CARD_REGISTERS = {"CinematicTitle"}
 _GENERIC_FIT = {"it fits", "fits", "fit", "good fit", "perfect fit", "fits well", "matches", "it matches",
                 "same", "as is", "as-is", "default", "适合", "合适", "正好", "符合", "匹配", "一样"}
 _REMOTION_SHOTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
+_OPTICS_TS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "runtime",
+                          "optics.tsx")
+
+
+def optic_vocabulary():
+    """(kinds, caps) read from runtime/optics.tsx itself — OPTIC_KINDS and OPTIC_MAX — so the validator and the
+    runtime cannot disagree about what an optic is or how strong it may be."""
+    src = open(_OPTICS_TS, encoding="utf-8").read()
+    m = re.search(r"export const OPTIC_KINDS = \[([^\]]*)\]", src)
+    c = re.search(r"export const OPTIC_MAX[^=]*=\s*\{([^}]*)\}", src)
+    if not m or not c:
+        raise RuntimeError("validate: OPTIC_KINDS / OPTIC_MAX not found in runtime/optics.tsx — the optic check "
+                           "reads them from there")
+    kinds = re.findall(r"'(\w+)'", m.group(1))
+    caps = {k: float(v) for k, v in re.findall(r"(\w+):\s*([\d.]+)", c.group(1))}
+    if set(caps) != set(kinds):
+        raise RuntimeError("validate: OPTIC_MAX names %s but OPTIC_KINDS names %s" % (sorted(caps), sorted(kinds)))
+    return kinds, caps
+
+
+def register_optics(shot, out_dir=None):
+    """The optics a register anchors: its `export const OPTICS = [...]`, or () when it declares none. A film's
+    workshop shot is read from the workshop."""
+    cands = [os.path.join(_REMOTION_SHOTS, "%s.tsx" % shot)]
+    if out_dir:
+        cands.append(os.path.join(out_dir, "workshop", "shots", "%s.tsx" % shot))
+    for p in cands:
+        if os.path.isfile(p):
+            src = open(p, encoding="utf-8").read()
+            m = re.search(r"^export const OPTICS\s*=\s*\[([^\]]*)\]", src, re.M)
+            return tuple(re.findall(r"'(\w+)'", m.group(1))) if m else ()
+    return ()
+
+
+def optic_problems(s, shot, prev, out_dir=None):
+    """Every reason this slide's optic cannot render, [] when it can (or declares none). `slide.optic` is the
+    field; `shot_props.optic` is accepted (render_remotion lifts it) but the two may not disagree."""
+    out = []
+    sp = s.get("shot_props") if isinstance(s.get("shot_props"), dict) else {}
+    decl = s.get("optic")
+    if "optic" in sp:
+        if decl is not None and decl != sp["optic"]:
+            return ["declares optic %r and shot_props.optic %r — one beat, one optic; keep `optic`" % (decl, sp["optic"])]
+        decl = sp["optic"] if decl is None else decl
+    if decl is None or decl == "none":
+        return out
+    kinds, caps = optic_vocabulary()
+    kind = decl if isinstance(decl, str) else (decl.get("kind") if isinstance(decl, dict) else None)
+    if kind not in kinds:
+        return ["optic %r is not one of %s (or 'none')" % (decl, ", ".join(kinds))]
+    if isinstance(decl, dict):
+        extra = set(decl) - {"kind", "intensity"}
+        if extra:
+            out.append("optic carries unknown key(s) %s — only kind and intensity" % sorted(extra))
+        if "intensity" in decl:
+            v = decl["intensity"]
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 < v <= caps[kind]:
+                out.append("optic %s intensity must be in (0, %s] (got %r) — past the cap it reads as an effect, not "
+                           "light" % (kind, caps[kind], v))
+    import stage_runs as _sro
+    run = _sro.run_id(s)
+    if kind == "leak":
+        if prev is None:
+            out.append("optic 'leak' burns over the seam INTO a beat, and the first beat has no seam before it")
+        elif run and _sro.run_id(prev) == run:
+            out.append("optic 'leak' burns over a seam, and this beat continues stage run %r — no seam" % run)
+        return out
+    if run:
+        out.append("optic %r on a stage-run beat: the stage draws the run and anchors no optic" % kind)
+        return out
+    offered = register_optics(shot, out_dir)
+    if kind not in offered:
+        out.append("optic %r — %s cannot anchor it (it offers %s). An optic encodes where the light is; pick one the "
+                   "register offers, or a register whose picture has that light" % (kind, shot,
+                                                                                    ", ".join(offered) or "none"))
+    return out
 # props that set colour, a picture's source or plumbing — turning them changes no layout, encoding or structure
 _NON_STRUCTURAL_PROPS = {"accent", "accent2", "imageAspect", "aspect", "dna", "page", "face", "seed", "credit",
                          "w", "h", "t", "yaw", "idle"}

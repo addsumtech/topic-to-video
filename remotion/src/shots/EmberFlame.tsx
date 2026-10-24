@@ -7,9 +7,14 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {useGlide} from '../runtime/glide';
+import {useBeatOptic, OpticSource} from '../runtime/optics';
 
 export const DURATION = 155; // ~5.2s
 const BG_D0 = '#0b0402';
+// THE OPTICS THIS FIRE CAN ANCHOR (runtime/optics.tsx): the flame is the only light in the frame, so `bloom` scatters
+// it in the lens, and its white-hot core is the kind of highlight film halates around — `halation` bleeds red past
+// the hottest licks. Both act on the fire layer only; the title keeps its own forged glow.
+export const OPTICS = ['bloom', 'halation'] as const;
 
 export const EmberFlame: React.FC<{title?: string; tagline?: string}> = ({
   title: TITLE = 'Ignite', tagline: TAG = 'built with fire'} = {}) => {
@@ -34,8 +39,10 @@ export const EmberFlame: React.FC<{title?: string; tagline?: string}> = ({
     pts.push(`${cx + spanW} ${baseY}`);
     return <path d={`M${pts.join(' L')} Z`} fill={col} opacity={op} />;
   };
+  const optic = useBeatOptic(OPTICS);
   return (
     <AbsoluteFill style={{background: `radial-gradient(90% 70% at 50% 78%, #3a1004, ${BG} 70%)`, overflow: 'hidden'}}>
+      <OpticSource optic={optic}>
       {/* heat glow */}
       <div style={{position: 'absolute', left: cx, top: baseY - 120, width: 900, height: 700, transform: 'translate(-50%,-50%)',
         background: 'radial-gradient(circle, #ff7a1866, #ff2e0022 40%, #0000 68%)', opacity: 0.6 + 0.2 * flick}} />
@@ -57,6 +64,7 @@ export const EmberFlame: React.FC<{title?: string; tagline?: string}> = ({
             opacity={clamp01((1 - life) * 1.3)} style={{filter: 'drop-shadow(0 0 4px #ff8a2e)'}} />;
         })}
       </svg>
+      </OpticSource>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: 40}}>
         {/* the shadows sit on a wrapper: a drop-shadow keeps only the scale of the matrix above it, so the flickering
             title's unlock has to be BELOW the filter to reach its glyphs (runtime/glide.ts) */}

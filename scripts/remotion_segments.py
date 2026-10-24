@@ -76,6 +76,60 @@ def pixel_flags(gl):
     return {"gl": gl, "codec": "h264", "audio": "pcm-16"}
 
 
+# ── ONE BACKEND PER FILM ────────────────────────────────────────────────────────────────────────────────
+# A GL backend is part of the picture, not a performance knob. Measured on this machine (the effects research's
+# probes, 2026-10-24): the same frame rendered with --gl=angle and --gl=swangle differs by up to 10/255 on a
+# plain gradient and by up to 255/255 on 3D or HtmlInCanvas content, while the same backend re-rendered is
+# bit-identical (9/9) and concurrency 1 vs 3 stays within 2/255 on at most 0.003% of the pixels. A film whose
+# beats come from two backends therefore carries a visible step at the cut where the backend changes.
+#
+# The renderer used to do exactly that: a segment that failed under --gl was retried WITHOUT --gl (whatever
+# Chrome then picks), cached under a key that still said `angle`, and joined with neighbours rendered on angle.
+# Now a GL failure on one beat re-renders the WHOLE film on the named fallback backend (the failing beat
+# first, so a beat that fails there too — a register that throws, not a GL problem — is reported before
+# anything else is rendered), every segment is keyed by the backend it was really drawn on, and the backend
+# is written into the render record. `REMOTION_GL_FALLBACK=0` refuses the fallback and fails loudly instead.
+FALLBACK_GL = "swangle"     # software ANGLE: slower, but present wherever Chrome is, and NAMED — never "no flag"
+RECORD = ".render_record.json"
+
+
+class BackendFailure(RuntimeError):
+    """A beat failed on the film's GL backend and could not be rendered on the fallback either (or the fallback
+    is disabled). Raised with both reasons, so the person reading it can tell a GL problem from a register."""
+
+
+def gl_of(cli_flags):
+    """The --gl value in a CLI flag list, or None when the list names none."""
+    vals = [a.split("=", 1)[1] for a in cli_flags if a.startswith("--gl=")]
+    if len(vals) > 1:
+        raise ModelMismatch("the render flags name %d GL backends (%s) — a film renders on exactly one"
+                            % (len(vals), ", ".join(vals)))
+    return vals[0] if vals else None
+
+
+def fallback_gl(gl):
+    """The backend a film is re-rendered on when `gl` fails, or None: no --gl to fall back FROM, already on the
+    fallback, or `REMOTION_GL_FALLBACK=0` (the caller then fails loudly with the original error)."""
+    if not gl or gl == FALLBACK_GL or os.environ.get("REMOTION_GL_FALLBACK", "1") == "0":
+        return None
+    return FALLBACK_GL
+
+
+def with_gl(cli_flags, gl):
+    """The same flags on another backend — the only flag that changes."""
+    return [a for a in cli_flags if not a.startswith("--gl=")] + ["--gl=" + gl]
+
+
+def write_record(out_dir, record):
+    """`<out_dir>/.render_record.json`: which backend drew the delivered film, and how. Written atomically."""
+    path = os.path.join(out_dir, RECORD)
+    tmp = path + ".part"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(record, fh, indent=1, sort_keys=True)
+    os.replace(tmp, path)
+    return path
+
+
 class ModelMismatch(RuntimeError):
     """The segment model disagrees with what Remotion rendered. Never shipped: the caller renders whole."""
 
@@ -425,13 +479,9 @@ def render_segment(seg, last, props_path, public_dir, cache, cli_flags, run=subp
     cmd = (["npx", "remotion", "render"] + source + ["Film", os.path.abspath(tmp), "--codec=h264", "--audio-codec=pcm-16",
            "--enforce-audio-track", "--frames=" + frames, "--props=" + os.path.abspath(props_path)]
            + ([] if serve else ["--public-dir=" + os.path.abspath(public_dir)]) + list(cli_flags))
-    try:
-        run(cmd, cwd=REMOTION, check=True, **_wk(env))
-    except subprocess.CalledProcessError:
-        if not any(a.startswith("--gl=") for a in cmd):
-            raise
-        print("[segments] beat %d failed with GL — retrying ONCE without --gl (software raster; slower)." % seg["k"])
-        run([a for a in cmd if not a.startswith("--gl=")], cwd=REMOTION, check=True, **_wk(env))
+    # NO RETRY HERE. A retry on another backend inside one segment is how a film came to mix backends; a GL
+    # failure propagates to render_film, which re-renders the whole film on the fallback (see FALLBACK_GL).
+    run(cmd, cwd=REMOTION, check=True, **_wk(env))
     got, want = video_frames(tmp), seg["b"] - seg["a"] + 1
     if got != want:
         os.remove(tmp)
@@ -500,12 +550,45 @@ def assemble(segs, files, out_mp4, work):
 
 
 def render_film(out_dir, props, props_path, out_mp4, cli_flags, flags, log=print, run=subprocess.run, labels=None):
-    """Render `out_mp4` from cached and fresh segments. Returns a summary dict.
+    """Render `out_mp4` from cached and fresh segments, every one of them on ONE GL backend. Returns a summary
+    dict whose `gl` is the backend that drew the film (and `gl_fallback_from` / `gl_reason` when it is not the
+    one asked for).
 
     `labels` are the board's own beat numbers, for messages only: a person fixes "beat 21" by opening the
     board's index 21, and position+1 is not always that (the audition printed index+1 and pointed at the
     wrong slide)."""
     name = (lambda k: labels[k]) if labels else (lambda k: k + 1)
+    gl = gl_of(cli_flags)
+    if gl and flags.get("gl") not in (None, gl):
+        raise ModelMismatch("the CLI renders on --gl=%s but the cache keys say gl=%s — a segment would be cached "
+                            "under a backend that did not draw it" % (gl, flags.get("gl")))
+    try:
+        done = _render_film_on(out_dir, props, props_path, out_mp4, cli_flags, flags, log, run, name)
+        done.update(gl=gl)
+        return done
+    except subprocess.CalledProcessError as first:
+        beat = getattr(first, "beat", None)
+        fb = fallback_gl(gl)
+        if fb is None:
+            raise
+        log("[segments] beat %s failed on --gl=%s. A film is drawn on ONE backend (angle and swangle differ by up "
+            "to 10/255 on a gradient, far more in 3D), so the WHOLE film is re-rendered on --gl=%s — beat %s first."
+            % (name(beat) if beat is not None else "?", gl, fb, name(beat) if beat is not None else "?"))
+        try:
+            done = _render_film_on(out_dir, props, props_path, out_mp4, with_gl(cli_flags, fb), dict(flags, gl=fb),
+                                   log, run, name, first=beat)
+        except subprocess.CalledProcessError as second:
+            raise BackendFailure(
+                "beat %s failed on --gl=%s AND on the fallback --gl=%s, so it is not a GL problem — the register "
+                "or the machine (memory: REMOTION_CONCURRENCY=1) is. First failure: %s. Second: %s."
+                % (name(beat) if beat is not None else "?", gl, fb, first, second)) from second
+        done.update(gl=fb, gl_fallback_from=gl, gl_reason="beat %s failed on --gl=%s: %s"
+                    % (name(beat) if beat is not None else "?", gl, first))
+        return done
+
+
+def _render_film_on(out_dir, props, props_path, out_mp4, cli_flags, flags, log, run, name, first=None):
+    """One attempt at the film on the backend `flags` names. `first` = a beat index to render before the others."""
     cache = os.path.join(out_dir, CACHE_DIR)
     os.makedirs(cache, exist_ok=True)
     segs, total = plan(props, out_dir, flags)
@@ -516,6 +599,8 @@ def render_film(out_dir, props, props_path, out_mp4, cli_flags, flags, log=print
         raise ModelMismatch("the segment ranges do not tile the film's %d frames: %r"
                             % (total, [(s["a"], s["b"]) for s in segs]))
     stale = [s for s in segs if not os.path.exists(seg_path(cache, s["key"]))]
+    if first is not None:                               # the beat that failed on the other backend goes first
+        stale.sort(key=lambda s: s["k"] != first)
     log("[segments] %d beat(s): %d reused, %d to render%s" % (
         len(segs), len(segs) - len(stale), len(stale),
         (" (beats %s)" % ", ".join(str(name(s["k"])) for s in stale[:12]) + (" ..." if len(stale) > 12 else ""))
@@ -547,7 +632,8 @@ def _render_stale(stale, segs, props_path, out_dir, cache, cli_flags, run, serve
         try:
             render_segment(s, s["k"] == len(segs) - 1, props_path, out_dir, cache, cli_flags, run=run, serve=serve,
                            env=env)
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            e.beat = s["k"]                             # render_film names it, and renders it first on the fallback
             # A real render failure (memory, a register that throws) is not the model's fault and a whole
             # render would hit it too. Say what is already safe, so a re-run is a resume, not a restart.
             log("[segments] beat %s failed. %d of %d beat(s) are cached in %s/ — re-running the same command "

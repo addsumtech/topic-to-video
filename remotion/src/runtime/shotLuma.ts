@@ -15,6 +15,7 @@ export const SHOT_LUMA: Record<string, Lum> = {
   FlowSankey: 'dark',
   FlightArcs: 'dark',
   GlobeFocus: 'dark',
+  LitMedium: 'light',
   CroppedType: 'dark',
   TypeOnPath: 'dark',
   WordRoll: 'dark',
@@ -154,6 +155,9 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   FlowSankey: 'bg',
   FlightArcs: 'bg',
   GlobeFocus: 'bg',
+  // a LITERAL: LitMedium paints its medium's own colour (runtime/material MATERIAL_BASE; paper by default), not a DNA
+  // token — the luminance probe matched it to the accent/accent2 mix by coincidence (E3), so it is written by hand
+  LitMedium: '#ece5d5',
   CroppedType: 'bg',
   TypeOnPath: 'bg',
   WordRoll: 'bg',

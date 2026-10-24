@@ -140,6 +140,7 @@ FAMILY = {
     "StarfieldWarp": "V",
     "FractalTree": "W",
     "RainGlass": "X",
+    "LitMedium": "X",
     "EmberFlame": "Y",
     "ClothWave": "Z",
 }
@@ -172,6 +173,7 @@ PROVENANCE = {
     "FlowSankey":              'data-viz',
     "FlightArcs":              'motion-graphics',
     "GlobeFocus":              'motion-graphics',
+    "LitMedium":               'craft-handmade',
     "CroppedType":             'motion-graphics',
     "TypeOnPath":              'motion-graphics',
     "WordRoll":                'motion-graphics',

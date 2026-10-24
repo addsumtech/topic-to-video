@@ -24,6 +24,9 @@ import {FlowCounter, DURATION as D_FLOWCOUNTER} from './shots/FlowCounter';
 import {FlowSankey, DURATION as D_FLOWSANKEY} from './shots/FlowSankey';
 import {FlightArcs, DURATION as D_FLIGHTARCS} from './shots/FlightArcs';
 import {GlobeFocus, DURATION as D_GLOBEFOCUS} from './shots/GlobeFocus';
+import {OpticsProbe, DURATION as OPD} from './runtime/__probe_optics';
+import {OpticContext, opticState} from './runtime/optics';
+import {LitMedium, DURATION as D_LITMEDIUM} from './shots/LitMedium';
 import {CroppedType, DURATION as D_CROPPEDTYPE} from './shots/CroppedType';
 import {TypeOnPath, DURATION as D_TYPEONPATH} from './shots/TypeOnPath';
 import {WordRoll, DURATION as D_WORDROLL} from './shots/WordRoll';
@@ -410,7 +413,7 @@ export const FlooredLeadingProbe: React.FC = () => (
 );
 
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
-  const {dna, aspect: _a, ...rest} = p as {dna?: unknown; aspect?: unknown};
+  const {dna, aspect: _a, optic, ...rest} = p as {dna?: unknown; aspect?: unknown; optic?: unknown};
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
   const _p = p as {textSafe?: unknown; typeCollisions?: unknown; fedText?: unknown; unfedText?: unknown;
     unfedScope?: unknown; typeSize?: unknown};
@@ -445,7 +448,13 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
     ? <KineticHoldContext.Provider value={collect}><C {...rest} /></KineticHoldContext.Provider> : <C {...rest} />;
   const inner = <ObjectsContext.Provider value={OBJECTS}>{body}{audit}{glide}{titleProbe}
     {holds ? <KineticHoldAudit reports={holdReports} /> : null}</ObjectsContext.Provider>;
-  const shot = unlockOff ? <BaselineUnlockContext.Provider value={false}>{inner}</BaselineUnlockContext.Provider> : inner;
+  const unlocked = unlockOff ? <BaselineUnlockContext.Provider value={false}>{inner}</BaselineUnlockContext.Provider> : inner;
+  // `optic` — the beat's optic for a register rendered on its own (runtime/optics.tsx), as the Film provides it per
+  // beat. Absent, no provider is mounted and the register renders exactly what it always did. With a DNA that says
+  // `optics: 'auto'` the provider is mounted for it too, so a still shows what the film would.
+  const shot = optic !== undefined || (active && active.optics === 'auto')
+    ? <OpticContext.Provider value={opticState(optic as never, active, 'optic')}>{unlocked}</OpticContext.Provider>
+    : unlocked;
   if (!active) return shot;
   return (
     <DesignDNAContext.Provider value={active}>
@@ -505,6 +514,7 @@ export const RemotionRoot: React.FC = () => (
     {F('TypeSpecimen', TypeSpecimen, TSP)}
     {F('KineticProbe', KineticProbe, KPD)}
     {F('MathProbe', MathProbe, MPD)}
+    {F('OpticsProbe', OpticsProbe, OPD)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
     {F('CommandSummon', CommandSummon, CS)}
     {F('TemporalAccelerate', TemporalAccelerate, TA)}
@@ -717,6 +727,7 @@ export const RemotionRoot: React.FC = () => (
     {F('FlowSankey', FlowSankey, D_FLOWSANKEY)}
     {F('FlowCounter', FlowCounter, D_FLOWCOUNTER)}
     {F('RankRace', RankRace, D_RANKRACE)}
+    {F('LitMedium', LitMedium, D_LITMEDIUM)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}

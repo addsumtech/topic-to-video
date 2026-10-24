@@ -9,6 +9,8 @@ import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutCubic, hash01} from '..
 import {useDNA} from '../runtime/dna';
 import {darkGround} from '../runtime/light';
 import {useGlide} from '../runtime/glide';
+import {useBeatOptic, OpticSource, Aberration, ofKind} from '../runtime/optics';
+import {textWidthPx} from '../runtime/layout';
 
 export const DURATION = 150; // 5s
 // @dark-world: a star is a POINT OF LIGHT and the warp is the trail it leaves — the field is drawn as bright
@@ -19,6 +21,10 @@ export const DURATION = 150; // 5s
 // Dark streaks on paper would be a scratched print, not a warp. So it keeps its own night.
 const BG_D0 = '#03040c';
 const N = 240;
+// THE OPTICS THIS PICTURE CAN ANCHOR (runtime/optics.tsx): its stars and its core ARE the light, so `bloom` scatters
+// them in the lens; and the streaks race out to the frame's edge, where a wide lens splits colour — `aberration`
+// is 0 at the vanishing point and 1-2 px at the corners, on the stars only, never the title.
+export const OPTICS = ['bloom', 'aberration'] as const;
 
 export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?: string}> = ({
   title: TITLE = 'Lightspeed', tagline: TAG = 'the next era, now', accent: ACC = '#8fb6ff'} = {}) => {
@@ -34,8 +40,15 @@ export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?:
   const flash = Math.sin(clamp01(seg(t, 0.6, 0.78)) * Math.PI);    // white core bloom at peak
   const titleIn = easeOutCubic(seg(t, 0.72, 0.92));
   const maxR = Math.hypot(cx, cy) * 1.1;
+  const optic = useBeatOptic(OPTICS);
+  // where the title and tagline sit (a centred column), so the bloom keeps off them: an ESTIMATE of the browser's
+  // layout, which is why the keep-out feathers 90 px past it and the optics test measures the type's contrast
+  const typeW = Math.max(textWidthPx(String(TITLE), 128, {adv: 0.62}), textWidthPx(String(TAG), 32, {adv: 0.62, track: 0.2}));
+  const keepOut = [{x: cx - typeW / 2, y: cy - 100, w: typeW, h: 200}];
   return (
     <AbsoluteFill style={{background: `radial-gradient(60% 60% at 50% 50%, #0a1030, ${BG} 74%)`, overflow: 'hidden'}}>
+      <OpticSource optic={ofKind(optic, 'bloom')} keepOut={keepOut}>
+      <Aberration optic={ofKind(optic, 'aberration')}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         {[...Array(N)].map((_, i) => {
           const ang = hash01(i * 2.3) * Math.PI * 2;
@@ -51,10 +64,12 @@ export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?:
             strokeLinecap="round" opacity={op} />;
         })}
       </svg>
+      </Aberration>
       {/* core bloom */}
       <div style={{position: 'absolute', left: cx, top: cy, width: 900, height: 900, transform: 'translate(-50%,-50%)',
         background: `radial-gradient(circle, #ffffff ${flash * 8}%, ${ACC}55 ${20 + flash * 20}%, #0000 60%)`,
         opacity: 0.4 + 0.6 * flash, pointerEvents: 'none'}} />
+      </OpticSource>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: glide(`scale(${lerp(1.3, 1, titleIn)})`, titleIn !== 1), color: '#fff',
           font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',

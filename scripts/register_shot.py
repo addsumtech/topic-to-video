@@ -34,6 +34,10 @@ one slips through, `--only <Id>` re-measures the affected rows without repeating
        DRAW. text_safe_qa reports type CUT OFF, so it can only see ink that exists — WordTunnel's
        final phrase was culled for width at 1:1 and the shot ended on an empty frame while
        text_safe_qa reported 0 findings at all five aspects in both languages.)
+  python3 scripts/determinism_qa.py <Id>                               # ADVISORY: a frame is a pure function of
+      its number — twice, at concurrency 1 vs 3, cold vs warm. Run it if the register keeps ANY state (a canvas, a
+      WebGL context, a module-level cache): a state leak is invisible in every still and shows as a flicker at a
+      segment boundary.
 (The earlier text here named `--only <Id>` alone, which MEASURES and writes nothing, and an `--apply-json`
 flag that does not exist. Following it left both placeholders in place with no hint that anything was left
 to do — the first new register in a while is what found that.)
@@ -444,7 +448,8 @@ NEXT_STEPS = (
     "    python3 scripts/measure_ground_luma.py --only %(s)s --emit          # DNA_GROUND_TOKEN\n"
     "    python3 scripts/cjk_type_qa.py --only %(s)s --all-aspects            # type in Chinese, EVERY aspect\n"\
     "      (--all-aspects matters: this is the only audit that sees a string the register declined to DRAW —\n"\
-    "       text_safe_qa reports type CUT OFF, so it can only see ink that EXISTS)"
+    "       text_safe_qa reports type CUT OFF, so it can only see ink that EXISTS)\n"
+    "    python3 scripts/determinism_qa.py %(s)s                              # ADVISORY: if it keeps any state"
 )
 
 

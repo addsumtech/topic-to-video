@@ -700,6 +700,18 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         for _f in ("ground", "key"):
             if s.get(_f) is not None:
                 scene[_f] = s[_f]
+        # THE BEAT'S OPTIC (runtime/optics.tsx): `slide.optic`, or `shot_props.optic` lifted out of the props (a register
+        # never reads it as a prop). validate.py refuses a board where the two disagree; Film refuses an unknown one.
+        _optic = s.get("optic")
+        if isinstance(scene.get("props"), dict) and "optic" in scene["props"]:
+            _po = scene["props"].get("optic")
+            scene["props"] = {k: v for k, v in scene["props"].items() if k != "optic"}
+            if _optic is not None and _optic != _po:
+                raise RuntimeError("scene #%s (%s): optic %r and shot_props.optic %r disagree — one beat, one optic"
+                                   % (idx, shot, _optic, _po))
+            _optic = _po if _optic is None else _optic
+        if _optic is not None:
+            scene["optic"] = _optic
         # A CONTINUOUS STAGE RUN (scripts/stage_runs.py): consecutive beats naming one run render as one scene
         import stage_runs as _sr
         if _sr.run_id(s):
@@ -855,6 +867,11 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
     segmented = (sample is None and not whole and meta.get("segment_cache", True) is not False
                  and os.environ.get("REMOTION_SEGMENTS", "1") != "0")
     segments_used = None
+    # THE RENDER RECORD (remotion_segments.RECORD): which GL backend drew this film. A film is drawn on ONE
+    # backend — the per-beat path re-renders the whole film on the fallback when a beat fails on the first, and a
+    # whole render is one process — and the record says which, so a later comparison of two renders of "the same"
+    # film can tell a real change from a backend change (up to 10/255 on a gradient, measured).
+    record = {"out": os.path.basename(out_mp4), "gl": gl, "mode": None}
     if segmented:
         try:
             done = _rs.render_film(out_dir, props, props_path, out_mp4, run_flags, _rs.pixel_flags(gl),
@@ -862,6 +879,11 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
             print("[render_remotion] %d beat(s): %d re-rendered, %d reused from %s/"
                   % (done["beats"], len(done["rendered"]), done["beats"] - len(done["rendered"]), _rs.CACHE_DIR))
             segments_used = done["segments"]
+            record.update(mode="segments", gl=done.get("gl") or gl, frames=done["frames"],
+                          segments=[[a, b, k] for a, b, k in done["segments"]])
+            for f in ("gl_fallback_from", "gl_reason"):
+                if done.get(f):
+                    record[f] = done[f]
         except _rs.ModelMismatch as e:
             print("[render_remotion] the per-beat cache disagreed with the film (%s) — rendering it WHOLE "
                   "instead; nothing from the cache is used." % e)
@@ -871,11 +893,24 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         wk = _ws.run_kwargs(out_dir)            # the film's workshop, or no extra environment when it has none
         cmd = ["npx", "remotion", "render", "src/index.ts", "Film", out_mp4,
                "--props=" + os.path.abspath(props_path), "--public-dir=" + os.path.abspath(out_dir)] + run_flags
+        record["mode"] = "whole"
         try:
             subprocess.run(cmd, cwd=_REMOTION2_DIR, check=True, **wk)
-        except subprocess.CalledProcessError:
-            print("[render_remotion] render failed with GL — retrying ONCE without --gl (software raster; slower).")
-            subprocess.run([a for a in cmd if not a.startswith("--gl=")], cwd=_REMOTION2_DIR, check=True, **wk)
+        except subprocess.CalledProcessError as e:
+            # NEVER "without --gl": that hands the backend to whatever Chrome picks and records nothing. One process
+            # draws every frame, so a re-render on the NAMED fallback is still one backend for the whole film.
+            fb = _rs.fallback_gl(gl)
+            if fb is None:
+                raise
+            print("[render_remotion] render failed on --gl=%s — re-rendering the whole film on --gl=%s "
+                  "(software ANGLE; slower)." % (gl, fb))
+            subprocess.run(_rs.with_gl(cmd, fb), cwd=_REMOTION2_DIR, check=True, **wk)
+            record.update(gl=fb, gl_fallback_from=gl, gl_reason="whole render failed on --gl=%s: %s" % (gl, e))
+    if sample is None:
+        _rs.write_record(out_dir, record)
+        if record.get("gl_fallback_from"):
+            print("[render_remotion] NOTE: this film was drawn on --gl=%s, not --gl=%s (%s) — recorded in %s"
+                  % (record["gl"], record["gl_fallback_from"], record["gl_reason"], _rs.RECORD))
     if sample is None:                                 # delivery parity: srt + critic keyframes (full render only)
         try:
             _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=segments_used)

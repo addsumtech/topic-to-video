@@ -661,3 +661,122 @@ def test_a_segment_on_another_time_base_is_retimed_and_a_stretched_one_refused(t
     with pytest.raises(rs.ModelMismatch):
         rs.assemble(segs, [a, bad], str(tmp_path / "out2.mp4"), str(tmp_path))
     assert not os.path.exists(str(tmp_path / "out2.mp4"))
+
+# ── ONE BACKEND PER FILM ───────────────────────────────────────────────────────────────────────────────
+# Measured (effects research, 2026-10-24): angle vs swangle differ by up to 10/255 on a gradient and far more in
+# 3D, while one backend re-rendered is bit-identical. A segment used to be retried WITHOUT --gl after a GL
+# failure and joined with its angle neighbours under a key that still said angle — a film of two backends.
+class _GlFake(_FakeRemotion):
+    """Fails a beat while the command names one of `bad_gl` (None in the set = fails on every backend)."""
+
+    def __init__(self, total, fail_at, bad_gl):
+        super().__init__(total)
+        self.fail_at_gl, self.bad_gl, self.gls = fail_at, set(bad_gl), []
+
+    def __call__(self, cmd, cwd=None, check=True):
+        if cmd[2] != "bundle":
+            gls = [a.split("=", 1)[1] for a in cmd if a.startswith("--gl=")]
+            self.gls.append(gls[0] if gls else None)
+            a = int(next(x for x in cmd if x.startswith("--frames=")).split("=", 1)[1].split("-")[0])
+            if a == self.fail_at_gl and (None in self.bad_gl or (gls and gls[0] in self.bad_gl)):
+                self.calls.append("FAIL %d" % a)
+                raise subprocess.CalledProcessError(1, cmd)
+        return super().__call__(cmd, cwd=cwd, check=check)
+
+
+def _gl_film(public, durs=(60, 70, 80)):
+    p = _props(list(durs))
+    pf = public / ".remotion-props.json"
+    pf.write_text(json.dumps(p), encoding="utf-8")
+    segs, total = rs.timeline(p["scenes"], TR)
+    return p, str(pf), segs, total
+
+
+@needs_ffmpeg
+def test_a_gl_failure_re_renders_the_whole_film_on_one_named_backend(public, monkeypatch):
+    monkeypatch.delenv("REMOTION_GL_FALLBACK", raising=False)
+    p, pf, segs, total = _gl_film(public)
+    fake = _GlFake(total, fail_at=segs[1][0], bad_gl={"angle"})
+    done = rs.render_film(str(public), p, pf, str(public / "out.mp4"), ["--gl=angle"], rs.pixel_flags("angle"),
+                          log=lambda *_: None, run=fake)
+    assert done["gl"] == rs.FALLBACK_GL and done["gl_fallback_from"] == "angle" and "failed" in done["gl_reason"]
+    assert None not in fake.gls, "a segment was rendered with no --gl at all: %r" % fake.gls
+    # angle drew beat 1, failed on beat 2 — then EVERY beat on the fallback, the failing one first
+    assert fake.gls == ["angle", "angle"] + [rs.FALLBACK_GL] * 3, fake.gls
+    swangle_calls = [c for c in fake.calls if c not in ("bundle",)][2:]
+    assert swangle_calls[0] == "%d-%d" % segs[1], swangle_calls
+    # the joined film is built from the fallback's keys only, and the angle segment is gone from the cache
+    want = {rs.seg_path(str(public / rs.CACHE_DIR), s["key"])
+            for s in rs.plan(p, str(public), rs.pixel_flags(rs.FALLBACK_GL))[0]}
+    have = {os.path.join(str(public / rs.CACHE_DIR), f) for f in os.listdir(public / rs.CACHE_DIR) if f.endswith(".mov")}
+    assert have == want, (have, want)
+    assert rs.video_frames(str(public / "out.mp4")) == total
+
+
+@needs_ffmpeg
+def test_a_beat_that_fails_on_both_backends_is_reported_not_rendered_around(public, monkeypatch):
+    """A register that throws fails on every backend: the fallback renders THAT beat first and stops, so the
+    report comes before a whole film is re-rendered, and it says it is not a GL problem."""
+    monkeypatch.delenv("REMOTION_GL_FALLBACK", raising=False)
+    p, pf, segs, total = _gl_film(public)
+    fake = _GlFake(total, fail_at=segs[2][0], bad_gl={None})
+    with pytest.raises(rs.BackendFailure, match="not a GL problem"):
+        rs.render_film(str(public), p, pf, str(public / "out.mp4"), ["--gl=angle"], rs.pixel_flags("angle"),
+                       log=lambda *_: None, run=fake)
+    assert fake.gls == ["angle", "angle", "angle", rs.FALLBACK_GL], fake.gls
+    assert not (public / "out.mp4").exists()
+
+
+@needs_ffmpeg
+def test_the_fallback_can_be_refused_and_then_fails_loudly(public, monkeypatch):
+    monkeypatch.setenv("REMOTION_GL_FALLBACK", "0")
+    p, pf, segs, total = _gl_film(public)
+    fake = _GlFake(total, fail_at=segs[0][0], bad_gl={"angle"})
+    with pytest.raises(subprocess.CalledProcessError):
+        rs.render_film(str(public), p, pf, str(public / "out.mp4"), ["--gl=angle"], rs.pixel_flags("angle"),
+                       log=lambda *_: None, run=fake)
+    assert fake.gls == ["angle"], fake.gls
+
+
+def test_the_cache_keys_must_name_the_backend_the_cli_draws_on(public):
+    """A segment cached under `angle` while the CLI drew it on swangle is the mixed film by another route."""
+    p = _props([60, 70])
+    with pytest.raises(rs.ModelMismatch, match="backend"):
+        rs.render_film(str(public), p, str(public / "p.json"), str(public / "out.mp4"), ["--gl=swangle"],
+                       rs.pixel_flags("angle"), log=lambda *_: None, run=lambda *a, **k: None)
+    with pytest.raises(rs.ModelMismatch, match="GL backends"):
+        rs.gl_of(["--gl=angle", "--gl=swangle"])
+
+
+def test_a_whole_render_falls_back_on_the_named_backend_and_records_it(monkeypatch, tmp_path):
+    """The whole-film path is one process, so one backend by construction — but it too used to retry with NO
+    --gl (whatever Chrome picks), and nothing recorded which backend drew the film."""
+    import render_remotion as rr
+    monkeypatch.delenv("REMOTION_GL_FALLBACK", raising=False)
+    monkeypatch.setenv("REMOTION_GL", "angle")
+    cmds = []
+
+    def fake_run(cmd, cwd=None, check=True, **k):
+        cmds.append(list(cmd))
+        if "--gl=angle" in cmd:
+            raise subprocess.CalledProcessError(1, cmd)
+
+    monkeypatch.setattr(rr.subprocess, "run", fake_run)
+    monkeypatch.setattr(rr, "_remotion_deliverables", lambda *a, **k: None)
+    monkeypatch.setattr(rr, "build_scenes", lambda slides, out_dir, valid, fps=30, **kw: [{"shot": "TermTable", "durF": 60}])
+    monkeypatch.setattr(rr, "_remotion_shot_ids", lambda: {"TermTable"})
+    monkeypatch.setattr(rr.shutil, "which", lambda _x: "/usr/bin/npx")
+    monkeypatch.setenv("REMOTION_SYNC", "0")
+    rr._render_remotion(str(tmp_path), {"meta": {"renderer": "remotion"}, "slides": [{"index": 1}]}, whole=True)
+    renders = [c for c in cmds if c[:3] == ["npx", "remotion", "render"]]
+    assert [[a for a in c if a.startswith("--gl")] for c in renders] == [["--gl=angle"], ["--gl=" + rs.FALLBACK_GL]]
+    rec = json.loads((tmp_path / rs.RECORD).read_text(encoding="utf-8"))
+    assert rec["gl"] == rs.FALLBACK_GL and rec["gl_fallback_from"] == "angle" and rec["mode"] == "whole", rec
+
+
+def test_a_segmented_render_records_its_backend(monkeypatch, tmp_path):
+    import render_remotion as rr
+    monkeypatch.setenv("REMOTION_GL", "angle")
+    _route(monkeypatch, tmp_path)
+    rec = json.loads((tmp_path / rs.RECORD).read_text(encoding="utf-8"))
+    assert rec["mode"] == "segments" and rec["gl"] == "angle" and rec["segments"] == [[0, 59, "k0"]], rec

@@ -218,6 +218,7 @@ import {FlightArcs} from './shots/FlightArcs';
 import {FlowSankey} from './shots/FlowSankey';
 import {FlowCounter} from './shots/FlowCounter';
 import {RankRace} from './shots/RankRace';
+import {LitMedium} from './shots/LitMedium';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -313,6 +314,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   FlowSankey,
   FlowCounter,
   RankRace,
+  LitMedium,
 };
 
 // A FILM'S OWN SHOTS AND OBJECTS — its workshop (scripts/workshop.py) — join the library here, for a render scoped

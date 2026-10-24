@@ -12,8 +12,14 @@ import {deviceGeometry, defaultLook, Device, type DeviceKind, type DeviceLook, t
 import {ScreenImage, ScreenVideo, type VideoSpan} from '../runtime/screen';
 import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
 import {useCarried} from '../runtime/carry';
+import {useBeatOptic, GlowCopy, LightSweep, ofKind, useFrameAtT} from '../runtime/optics';
 
 export const DURATION = 150;
+// THE OPTICS THIS DEVICE CAN ANCHOR (runtime/optics.tsx): a screen that is ON is a light source, so `bloom` spills its
+// own picture past the bezel the way a lit screen does in a dark room (a copy of the screen, clipped to its shape,
+// blurred — it is the screen's colours that glow, not a generic halo); and the glass is the hero surface, so
+// `sweep` runs ONE pass of the key across it as the turn settles. Either one, never both.
+export const OPTICS = ['bloom', 'sweep'] as const;
 
 type HeroScreen = {image?: string; imageW?: number; imageH?: number; video?: string; spans?: VideoSpan[];
   page?: 'demo'; object?: ObjectRef};
@@ -52,6 +58,9 @@ export const DeviceHero: React.FC<{
   const b = g.body, ox = b.x + b.w / 2, oy = b.y + b.h;
   const fit = lk === 'real' ? persp / (persp + (b.w / 2) * Math.sin((TURN_FROM * Math.PI) / 180)) : 1;
   const k = fit * (0.94 + 0.06 * enter);
+  const optic = useBeatOptic(OPTICS);
+  // the sweep crosses the glass while the turn comes to rest: the entrance (seg ENTRY_T..0.32) is ~70% done here
+  const sweepStart = useFrameAtT(0.2);
   const demo = !SCREEN.image && !SCREEN.video && !SCREEN.object && SCREEN.page === 'demo';
   if (!demo && !SCREEN.image && !SCREEN.video && !SCREEN.object) {
     throw new Error("DeviceHero: `screen` needs an image, a recording, an object, or page 'demo' — got " +
@@ -87,7 +96,10 @@ export const DeviceHero: React.FC<{
       perspectiveOrigin: `${ox}px ${oy}px`}}>
       <AbsoluteFill style={{opacity: enter, transformOrigin: `${ox}px ${oy}px`,
         transform: `scale(${k}) rotateY(${turn}deg)`}}>
-        <Device g={g} dna={dna}>{content}</Device>
+        <Device g={g} dna={dna}>{content}<LightSweep optic={ofKind(optic, 'sweep')} start={sweepStart} frames={24} /></Device>
+        <GlowCopy optic={ofKind(optic, 'bloom')} rect={s} radius={g.strip ? `0 0 ${g.radius}px ${g.radius}px` : g.radius}>
+          {content}
+        </GlowCopy>
       </AbsoluteFill>
       {kicker ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: TITLE_Y, textAlign: 'center', color: dna?.dim ?? '#5b6472',

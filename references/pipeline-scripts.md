@@ -776,6 +776,15 @@ agent on the beats it points at.
   instrument that sees it. Measured: the remotion tier's films 12-22 before its delivery dither, 0.0 after; the html
   tier 0. Exit 0 clean · 1 findings · 2 not measured (no out.mp4, or an ffmpeg without libvmaf — said, never passed
   as clean). Advisory in both tiers' delivery gates. ~1 s a sample at 1080p.
+- `scripts/determinism_qa.py <CompositionId> [--props JSON] [--range M-N] [--layer name=JSON ...]` /
+  `--film <out_dir>` — **DETERMINISM**: is a frame the same however and whenever it is asked for? Renders frames
+  M..N twice at concurrency 1, at 1 vs 3, and frame N cold (a fresh tab) vs after M..N-1, on the film's own GL
+  backend, and fails a frame when more than 0.01% of its pixels differ by more than 2/255 (above the measured
+  rasterisation noise of a deterministic composition, ≤2/255 on ≤0.003%; far below the 10/255 a backend change makes).
+  A failure names the test, the frame, the box the difference sits in, and — with `--layer` toggles, or a film's
+  built-in ones (optics, dither, finish, captions) — the layer whose removal makes it agree. A state leak (a canvas
+  context left set between frames, a module-level cache) is invisible in any still; this is the instrument that sees
+  it. **ADVISORY for a new register** that keeps any state; the optics tests hold every optic to it. ~35 s a run.
 - `scripts/pedagogy_qa.py <out_dir> [--json]` — deterministic PRE-render **teaching-order** gate: walks
   the concept-dependency DAG in `<out_dir>/content_plan.json` (`introduces`/`builds_on`/`stage` +
   `meta.assumed_known`) and ERRORs on a **concept used before it is introduced**; WARNs on an `introduces`
