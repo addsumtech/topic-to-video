@@ -2900,7 +2900,8 @@ def test_the_cut_vocabulary_actually_reaches_the_storyboard():
     for i, m in marks.items():
         rel = slides[i]["relation"]
         assert rel in sp.SEAM_BY_RELATION, "marked a %r seam, which is not a claim about anything" % rel
-        assert m["type"] in ("clock", "dissolve", "carry", "slide", "wipe")
+        # push (new-topic) and focus (close) replaced the planner's clock and carry (bench films read them as slideware)
+        assert m["type"] in ("push", "focus", "dissolve", "clock", "carry", "slide", "wipe")
 
     # `continuation` is never marked — the one relation whose honest cut is no cut
     only_cont = [{"shot": "MapPlate", "relation": "continuation"} for _ in range(30)]
@@ -4020,8 +4021,10 @@ def test_a_seam_word_the_renderer_cannot_resolve_is_refused_not_faded():
     # ...but the html tier's own words are KNOWN, not errors: `transition_style` is shared, and there `dip`
     # is the default seam while `cut`/`none` name a deliberate non-mark. Reporting them as undrawable would
     # fail every html deck that spells its seams.
-    for w in ("dip", "cut", "none", "fade"):
+    for w in ("dip", "none", "fade"):
         assert rr.seam_word_known(w) and rr.seam_type(w) is None, w
+    # `cut` is a real seam now — the picture switches on one frame (seams.tsx CutPresentation), not a non-mark
+    assert rr.seam_word_known("cut") and rr.seam_type("cut") == "cut"
     # validate carries the refusal (the mechanism, not a comment): it reads the same resolver
     v = open(os.path.join(root, "scripts", "validate.py"), encoding="utf-8").read()
     assert "seam_word_known(raw)" in v, "validate no longer checks seam words against the renderer's own vocabulary"
