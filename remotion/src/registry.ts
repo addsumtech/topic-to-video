@@ -210,6 +210,11 @@ import {HeadlineReveal} from './shots/HeadlineReveal';
 import {WordRoll} from './shots/WordRoll';
 import {TypeOnPath} from './shots/TypeOnPath';
 import {CroppedType} from './shots/CroppedType';
+import {GlobeFocus} from './shots/GlobeFocus';
+import {FlightArcs} from './shots/FlightArcs';
+import {FlowSankey} from './shots/FlowSankey';
+import {FlowCounter} from './shots/FlowCounter';
+import {RankRace} from './shots/RankRace';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -297,6 +302,11 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   WordRoll,
   TypeOnPath,
   CroppedType,
+  GlobeFocus,
+  FlightArcs,
+  FlowSankey,
+  FlowCounter,
+  RankRace,
 };
 
 // A FILM'S OWN SHOTS AND OBJECTS — its workshop (scripts/workshop.py) — join the library here, for a render scoped

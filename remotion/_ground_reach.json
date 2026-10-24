@@ -819,6 +819,34 @@
    "why": []
   },
   {
+   "shot": "FlightArcs",
+   "bandY": {
+    "light": 0.8714196681976318,
+    "dark": 0.0006082680774852633
+   },
+   "fieldY": {
+    "light": 0.9573096036911011,
+    "dark": 0.0021328111179172993
+   },
+   "moved": 0.9988991477272727,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "FlowCounter",
+   "bandY": {
+    "light": 0.8790692090988159,
+    "dark": 0.0005644387565553188
+   },
+   "fieldY": {
+    "light": 0.9474552273750305,
+    "dark": 0.0027116010896861553
+   },
+   "moved": 0.9980563446969697,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "FlowField",
    "bandY": {
     "light": 0.8468732833862305,
@@ -829,6 +857,20 @@
     "dark": 0.003912078216671944
    },
    "moved": 0.987561553030303,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "FlowSankey",
+   "bandY": {
+    "light": 0.8719632625579834,
+    "dark": 0.0003035269910469651
+   },
+   "fieldY": {
+    "light": 0.561455488204956,
+    "dark": 0.044772520661354065
+   },
+   "moved": 0.9934067234848485,
    "ok": true,
    "why": []
   },
@@ -994,6 +1036,20 @@
     "only 0% of the frame moved",
     "ink: display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)"
    ]
+  },
+  {
+   "shot": "GlobeFocus",
+   "bandY": {
+    "light": 0.8474594950675964,
+    "dark": 0.0006508832448162138
+   },
+   "fieldY": {
+    "light": 0.8134512901306152,
+    "dark": 0.0033558025024831295
+   },
+   "moved": 0.9681321022727273,
+   "ok": true,
+   "why": []
   },
   {
    "shot": "GlowPick",
@@ -2174,6 +2230,20 @@
    "why": []
   },
   {
+   "shot": "RankRace",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 0.8539275527000427,
+    "dark": 0.0033558025024831295
+   },
+   "moved": 0.9355847537878788,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "RansomZine",
    "bandY": {
     "light": 0.7912980318069458,
@@ -3179,10 +3249,15 @@
   "HeadlineReveal": "aac02d1f8d1eea00",
   "WordRoll": "2aab3fb33cfc0e9b",
   "TypeOnPath": "85c24dca794c6cda",
-  "CroppedType": "2e217990a72980f0"
+  "CroppedType": "2e217990a72980f0",
+  "GlobeFocus": "8d949f10e58136f7",
+  "FlightArcs": "9309071933e3d324",
+  "FlowSankey": "40c53268658148a2",
+  "FlowCounter": "c90a0163fc9d4ce8",
+  "RankRace": "84cf953e4b2ddbbe"
  },
  "failed": {},
- "universe": 204,
+ "universe": 209,
  "inkRefused": {
   "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
   "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",

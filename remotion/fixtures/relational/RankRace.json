@@ -1,0 +1,4 @@
+{"_why": "RankRace needs one value per period per series; the structure is the register's demo (three periods, four series, one overtake), only the copy paths get the fixture's words. See cjk_type_qa.relational_props.",
+ "props": {"title": "t", "note": "n", "periods": ["1", "2", "3"],
+  "series": [{"label": "a", "values": [40, 52, 58]}, {"label": "b", "values": [55, 50, 47]}, {"label": "c", "values": [20, 41, 66]}, {"label": "d", "values": [30, 33, 35]}]},
+ "copy": ["title", "note", "periods[]", "series[].label"]}

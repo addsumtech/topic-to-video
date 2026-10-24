@@ -1,0 +1,13 @@
+{
+  "_what": "Third-party code and data bundled into the remotion tier's renders that is not a font (fonts: assets/fonts/OFL-*.txt). Versions are exact, as pinned in package.json; each licence was read from the package's own package.json/LICENSE at install time.",
+  "packages": [
+    {"name": "d3-geo", "version": "3.1.1", "license": "ISC", "use": "projections (orthographic, Equal Earth), spherical clipping, great-circle interpolation, geoPath", "used_by": ["runtime/geo.ts", "runtime/earth.tsx"]},
+    {"name": "d3-array", "version": "3.2.4", "license": "ISC", "use": "dependency of d3-geo"},
+    {"name": "internmap", "version": "2.0.3", "license": "ISC", "use": "dependency of d3-array"},
+    {"name": "topojson-client", "version": "3.1.0", "license": "ISC", "use": "decodes the world-atlas TopoJSON into GeoJSON features and the shared-border mesh", "used_by": ["runtime/geo.ts"]},
+    {"name": "world-atlas", "version": "2.0.2", "license": "ISC", "use": "Natural Earth country and land outlines as TopoJSON; the 1:110m and 1:50m files are imported (countries-110m, countries-50m, land-110m, land-50m), the 1:10m files are not", "used_by": ["runtime/geo.ts"]}
+  ],
+  "data": [
+    {"name": "Natural Earth vector data", "version": "4.1.0 (as redistributed by world-atlas 2.0.2)", "license": "public domain", "source": "https://www.naturalearthdata.com/", "note": "No attribution is required; country names and borders are Natural Earth's editorial choices (it shows de facto boundaries), so a film that names a disputed region should say whose boundary it is."}
+  ]
+}

@@ -204,7 +204,12 @@
     "CroppedType": "2e217990a72980f0",
     "HeadlineReveal": "aac02d1f8d1eea00",
     "TypeOnPath": "85c24dca794c6cda",
-    "WordRoll": "2aab3fb33cfc0e9b"
+    "WordRoll": "2aab3fb33cfc0e9b",
+    "FlightArcs": "9309071933e3d324",
+    "FlowCounter": "c90a0163fc9d4ce8",
+    "FlowSankey": "40c53268658148a2",
+    "GlobeFocus": "8d949f10e58136f7",
+    "RankRace": "84cf953e4b2ddbbe"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -233,7 +238,7 @@
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 204,
+  "_universe": 209,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -627,12 +632,33 @@
       "seconds": 6.3,
       "footprint": 0.262
     },
+    "FlightArcs": {
+      "motion_p75": 0.0001,
+      "ink_median": 0.04,
+      "luma_range": 0.004,
+      "seconds": 7.0,
+      "footprint": 0.262
+    },
+    "FlowCounter": {
+      "motion_p75": 0.0171,
+      "ink_median": 0.028,
+      "luma_range": 0.008,
+      "seconds": 7.0,
+      "footprint": 0.134
+    },
     "FlowField": {
       "motion_p75": 0.0007,
       "ink_median": 0.242,
       "luma_range": 0.028,
       "seconds": 5.3,
       "footprint": 1.0
+    },
+    "FlowSankey": {
+      "motion_p75": 0.0035,
+      "ink_median": 0.041,
+      "luma_range": 0.125,
+      "seconds": 7.0,
+      "footprint": 0.547
     },
     "FocalIsolation": {
       "motion_p75": 0.0014,
@@ -710,6 +736,13 @@
       "luma_range": 0.012,
       "seconds": 4.7,
       "footprint": 0.152
+    },
+    "GlobeFocus": {
+      "motion_p75": 0.0027,
+      "ink_median": 0.035,
+      "luma_range": 0.028,
+      "seconds": 6.0,
+      "footprint": 0.537
     },
     "GlowPick": {
       "motion_p75": 0.0027,
@@ -1270,6 +1303,13 @@
       "luma_range": 0.04,
       "seconds": 6.0,
       "footprint": 0.769
+    },
+    "RankRace": {
+      "motion_p75": 0.0036,
+      "ink_median": 0.073,
+      "luma_range": 0.03,
+      "seconds": 9.0,
+      "footprint": 0.557
     },
     "RansomZine": {
       "motion_p75": 0.0046,

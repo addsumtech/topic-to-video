@@ -15,6 +15,11 @@ import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {KineticProbe, DURATION as KPD} from './runtime/__probe_kinetic';
 import {KineticHoldAudit, KineticHoldContext, HoldReport} from './runtime/kinetic';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {RankRace, DURATION as D_RANKRACE} from './shots/RankRace';
+import {FlowCounter, DURATION as D_FLOWCOUNTER} from './shots/FlowCounter';
+import {FlowSankey, DURATION as D_FLOWSANKEY} from './shots/FlowSankey';
+import {FlightArcs, DURATION as D_FLIGHTARCS} from './shots/FlightArcs';
+import {GlobeFocus, DURATION as D_GLOBEFOCUS} from './shots/GlobeFocus';
 import {CroppedType, DURATION as D_CROPPEDTYPE} from './shots/CroppedType';
 import {TypeOnPath, DURATION as D_TYPEONPATH} from './shots/TypeOnPath';
 import {WordRoll, DURATION as D_WORDROLL} from './shots/WordRoll';
@@ -699,6 +704,11 @@ export const RemotionRoot: React.FC = () => (
     {F('WordRoll', WordRoll, D_WORDROLL)}
     {F('TypeOnPath', TypeOnPath, D_TYPEONPATH)}
     {F('CroppedType', CroppedType, D_CROPPEDTYPE)}
+    {F('GlobeFocus', GlobeFocus, D_GLOBEFOCUS)}
+    {F('FlightArcs', FlightArcs, D_FLIGHTARCS)}
+    {F('FlowSankey', FlowSankey, D_FLOWSANKEY)}
+    {F('FlowCounter', FlowCounter, D_FLOWCOUNTER)}
+    {F('RankRace', RankRace, D_RANKRACE)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}

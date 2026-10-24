@@ -1,0 +1,4 @@
+{"_why": "GlobeFocus's region names must be names the atlas carries and its marks need real coordinates; the structure is fixed here (one region, two marks inside it), only the copy paths get the fixture's words. See cjk_type_qa.relational_props.",
+ "props": {"title": "t", "note": "n", "regions": [{"name": "Japan", "label": "r"}],
+  "marks": [{"label": "a", "lon": 139.69, "lat": 35.69}, {"label": "b", "lon": 135.5, "lat": 34.69}]},
+ "copy": ["title", "note", "regions[].label", "marks[].label"]}

@@ -1,0 +1,6 @@
+{"_why": "FlowSankey's links name node ids and every interior node must balance; the structure is the register's demo (60 + 40 in, 70 + 30 out), only the copy paths get the fixture's words. See cjk_type_qa.relational_props.",
+ "props": {"title": "t", "note": "n",
+  "nodes": [{"id": "a", "label": "a", "display": "60"}, {"id": "b", "label": "b", "display": "40"}, {"id": "m", "label": "m"},
+            {"id": "x", "label": "x", "display": "70"}, {"id": "y", "label": "y", "display": "30"}],
+  "links": [{"from": "a", "to": "m", "value": 60}, {"from": "b", "to": "m", "value": 40}, {"from": "m", "to": "x", "value": 70}, {"from": "m", "to": "y", "value": 30}]},
+ "copy": ["title", "note", "nodes[].label"]}
