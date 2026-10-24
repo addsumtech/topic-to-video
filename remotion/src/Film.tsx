@@ -42,6 +42,7 @@ import {FilmMotifLayer} from './runtime/motif';
 import {FilmFinishLayer} from './runtime/finish';
 import {FilmDither} from './runtime/dither';
 import {OpticContext, opticState, normalizeOptic, dnaLight, SeamLeak, type OpticDecl, type OpticSpec} from './runtime/optics';
+import {litMediumGround} from './runtime/material';
 import {CarryContext} from './runtime/carry';
 import {container, grow, throughWindow, punch, SeamCopyContext} from './seams';
 
@@ -155,11 +156,18 @@ export const joinedAt = (scenes: SceneSpec[], i: number) =>
 const SAFE_EDGE = `${(ACTION_SAFE_FRAC * 100).toFixed(1)}%`, SAFE_EDGE_FAR = `${(100 - ACTION_SAFE_FRAC * 100).toFixed(1)}%`;
 const SAFE_FRAME_MASK = `linear-gradient(90deg, transparent 0%, #000 ${SAFE_EDGE}, #000 ${SAFE_EDGE_FAR}, transparent 100%), ` +
   `linear-gradient(180deg, transparent 0%, #000 ${SAFE_EDGE}, #000 ${SAFE_EDGE_FAR}, transparent 100%)`;
+// A REGISTER WHOSE GROUND IS A PROP: its one measured row (shotLuma) describes its DEFAULT only. LitMedium paints its
+// medium's colour, so a water beat read as the default paper and its caption was inked dark on dark water.
+const PROP_GROUND: Record<string, (props: Record<string, unknown> | undefined, dna?: never) => string | null> = {
+  LitMedium: litMediumGround as never,
+};
 const stageGroundY = (sc: SceneSpec, dna?: unknown): number | null => {
   // `stageGround` is the backdrop this beat of the run holds (render_remotion works it out from the run's beats)
   const tok = runOf(sc) ? (sc.stageGround ?? STAGE_GROUND[sc.shot]) : undefined;
   const c = tok && dna ? (dna as Record<string, unknown>)[tok] : undefined;
-  return typeof c === 'string' ? lumValue(c) : null;
+  if (typeof c === 'string') return lumValue(c);
+  const own = !runOf(sc) && PROP_GROUND[sc.shot] ? PROP_GROUND[sc.shot](sc.props, dna as never) : null;
+  return own ? lumValue(own) : null;
 };
 /** ONE definition of where each beat starts on the film's timeline: the next beat mounts TR frames before this one
  *  ends at a cut (the seam overlaps them), and on the frame after it ends inside a stage run. scripts/stage_runs.py

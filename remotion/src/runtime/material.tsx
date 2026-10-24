@@ -89,6 +89,17 @@ export const materialShades = (kind: MaterialKind, base: string): [string, strin
   return [at(mul[0], add[0]), at(mul[1], add[1])];
 };
 
+/** THE GROUND A LitMedium BEAT PAINTS, from its props — what the Film's caption ink and seam guard must read. Its
+ *  ground is a PROP, not a DNA token, so the register table's one measured row (the default paper) is right for one
+ *  medium only: a water beat measured as paper had its caption inked dark on dark water (seen on a rendered clip). */
+export const litMediumGround = (props: Record<string, unknown> | undefined,
+  dna?: {material?: {kind?: unknown}} | null): string | null => {
+  const c = props?.mediumColor;
+  if (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) return c;
+  const m = props?.material ?? dna?.material?.kind ?? 'paper';
+  return isMaterial(m) ? MATERIAL_BASE[m] : null;
+};
+
 export const isMaterial = (v: unknown): v is MaterialKind =>
   typeof v === 'string' && (MATERIALS as readonly string[]).includes(v);
 
