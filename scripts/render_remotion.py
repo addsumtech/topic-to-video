@@ -803,6 +803,12 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js.")
     if not os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules")):
         raise RuntimeError("remotion deps not installed — run `cd %s && npm install` once." % _REMOTION2_DIR)
+    # TYPESET MATHS first: every `tex` the storyboard names becomes glyph outlines in <out_dir>/_math, which every
+    # render below (the sync census included) reads through the film's public dir. A TeX error stops here, by name.
+    import mathtex as _mt
+    _mrep = _mt.ensure(out_dir, data)
+    if _mrep.get("written"):
+        print("[render_remotion] typeset %d equation(s) into %s/" % (len(_mrep["written"]), _mt.MATH_DIR))
     props, slides = film_props(out_dir, data, sample=sample, reduced_motion=reduced_motion, vertical=vertical)
     # A beat whose warp is missing or stale is measured now — one census of the film on its registers' own
     # clocks — so a re-render after any edit lands each entrance on its word without a separate step.

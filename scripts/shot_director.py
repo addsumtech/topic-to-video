@@ -26,6 +26,8 @@ import argparse, json, os, sys
 # fields — so a "generative" beat is never ambiguous. Post-audit (2026-08-15): VoiceSignal F→U (audio waveform),
 # IsometricAssembly G→N (all iso shots together), VariableTypeMorph J→P (J retired, one-shot subset of P).
 FAMILY = {
+    "EquationMorph": "MA",
+    "FunctionPlot": "MA",
     "GazetteerEntry": "JA",
     "StatedBy": "JA",
     "ProfileGrowth": "J",
@@ -98,6 +100,7 @@ FAMILY = {
     "ObjectStage": "E",
     "MorphForms": "E", "KSpaceToImage": "E", "MagnetizationTip": "E",
     "InducedFID": "U", "GFactorNoise": "M", "UndersampledKspace": "D", "ScanReconstruct": "G", "RealVersus": "H", "SpinningProton": "S", "PhaseEncodeStep": "D", "MRIPipeline": "B", "FrequencyEncode": "U", "CompressedSensingEq": "L", "KSpaceReal": "G", "SpeedLimit": "D", "LarmorPrecession": "S", "Aliasing": "M", "DiffusionDenoise": "F", "SpinsAlign": "M", "GradientTilt": "U", "KSpaceAnatomy": "H", "TensionScale": "H", "PlatformSurfaces": "A", "OpenQuestions": "C",
+    "GrowingFigure": "S",
     "LightShellOrbit": "F",
     "RangeSpheres": "S",
     "KSpaceToPicture": "S",
@@ -155,6 +158,9 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "FunctionPlot":            'scientific',
+    "GrowingFigure":           'scientific',
+    "EquationMorph":           'scientific',
     "CroppedType":             'motion-graphics',
     "TypeOnPath":              'motion-graphics',
     "WordRoll":                'motion-graphics',

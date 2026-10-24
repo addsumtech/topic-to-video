@@ -204,7 +204,10 @@
     "CroppedType": "2e217990a72980f0",
     "HeadlineReveal": "aac02d1f8d1eea00",
     "TypeOnPath": "85c24dca794c6cda",
-    "WordRoll": "2aab3fb33cfc0e9b"
+    "WordRoll": "2aab3fb33cfc0e9b",
+    "EquationMorph": "6a4902424a9f2df3",
+    "FunctionPlot": "c105daa04a9bcc72",
+    "GrowingFigure": "90402c71172deeb8"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -233,7 +236,7 @@
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 204,
+  "_universe": 207,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -599,6 +602,13 @@
       "seconds": 5.2,
       "footprint": 0.171
     },
+    "EquationMorph": {
+      "motion_p75": 0.0009,
+      "ink_median": 0.044,
+      "luma_range": 0.006,
+      "seconds": 11.0,
+      "footprint": 0.351
+    },
     "Escalation": {
       "motion_p75": 0.0,
       "ink_median": 0.011,
@@ -669,6 +679,13 @@
       "seconds": 6.0,
       "footprint": 0.532
     },
+    "FunctionPlot": {
+      "motion_p75": 0.0005,
+      "ink_median": 0.057,
+      "luma_range": 0.006,
+      "seconds": 8.0,
+      "footprint": 0.528
+    },
     "GFactorNoise": {
       "motion_p75": 0.0,
       "ink_median": 0.042,
@@ -731,6 +748,13 @@
       "luma_range": 0.005,
       "seconds": 5.0,
       "footprint": 0.182
+    },
+    "GrowingFigure": {
+      "motion_p75": 0.0008,
+      "ink_median": 0.037,
+      "luma_range": 0.01,
+      "seconds": 9.0,
+      "footprint": 0.397
     },
     "HalftonePop": {
       "motion_p75": 0.0256,

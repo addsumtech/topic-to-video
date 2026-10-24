@@ -185,7 +185,7 @@ geometric invariant, that is the test to write.
 | k-space | a kaleido/mandala (pretty, symmetric-ish) | the REAL FFT log-magnitude; then center=contrast / edges=detail via actual partial reconstructions |
 | Aliasing | a digital "datamosh" glitch (generic corruption) | the real anatomy WRAPPING onto itself (fold-over ghost) |
 | "You can't go faster" | text overflowing decorative boxes | a gradient-speed bar physically capped at the slew-rate + PNS ceilings |
-| Compressed sensing | yet another node diagram | the typeset objective `min‖Ψx‖₁ s.t. ‖Fx−y‖₂≤ε`, annotated — **an equation IS a valid encoding** |
+| Compressed sensing | yet another node diagram | the typeset objective `min‖Ψx‖₁ s.t. ‖Fx−y‖₂≤ε`, annotated — **an equation IS a valid encoding**; typeset it for real (`EquationMorph` / runtime `mathMorph`: the film's TeX, MathJax's glyphs), never as a Unicode string in a text face |
 
 **What follows for the author** (the method — routes, the per-beat checklist, the audit — is shot-director Step
 0.55 and its mandate; this is the how):
