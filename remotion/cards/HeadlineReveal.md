@@ -13,12 +13,17 @@
 | `note` | one supporting sentence under it | held to its reading time like the headline; balanced over up to three lines |
 | `reveal` | what rises: `line`, `word` or `char` | line is the calmest and most premium; char is the most energetic and needs the most time |
 | `align` | `left` (editorial, with the kicker's rule) or `center` | centred drops the rule |
+| `hold` | what the landed type does while it holds: `alive` (default) — a breath of tracking and, every few seconds, a light passing along the line; `still` — nothing | alive keeps a held line from reading as a slide's hold; still is for a beat that must be utterly quiet |
 
 **Known traps:**
 - The emphasis was first an underline. At display size it ran straight through the descenders ("by", "pay") and read as a strike in the wrong place, so emphasis is colour and weight, which also cannot collide with the next line.
 - Fitted only to its box, the largest size wins by wrapping: 「一行一行升起」 came out 「一行一 / 行升起」. The first fit tier keeps every entry whole; a Chinese entry that must wrap breaks at an Intl.Segmenter word, never between any two characters.
 - The accent is kept only where it reads (3:1, large type): `readableOn(bg, accent, fg)` returns the most legible candidate, which on a dark ground is always the foreground — the first render drew the emphasised run white on white text.
 - QUIET by construction: measured 0.0009 motion, 6.8% ink, 0.042 light (product DNA) against 0.0037 / 12% / 0.135 floors — a headline lands and holds. Intercut with a dense register.
+- PACED IN SECONDS (`PACE = 'seconds'`): the reveals are durations and the beat's shares only bound when they start; validate no longer calls a 3 s beat "2x faster" — the hold gate measures what a short beat really costs (reading time).
+- In a tall frame an entry is kept whole only down to U·0.11, then given ONE extra line at U·0.12, then any wrap: kept whole to the landscape floor, a nine-glyph end line came out ~100 px in a 1920-tall frame (bench-launch b8, 4.9% ink); with the tiers 「一个题目，/一条成片」 sets at display size and is never cut 一个/题目.
+- HELD TYPE STAYS ALIVE (`hold: 'alive'`, the default): once a line lands, a breath of tracking (≤0.006 em) and a light passing along it every ~3.4 s (`runtime/kinetic` `idle`), with the baseline unlock on for the whole shot so it never steps a pixel; `hold: 'still'` is a slide's hold.
+- The headline is the `word` carry anchor (`runtime/kineticWord`) — a glyph window when it is one line, so `through-window` looks through its letters.
 
 **Refuses:** no headline (or only whitespace); more than `MAX_LINES` (5) entries — past that it is a paragraph, and a paragraph revealed line by line reads as a teleprompter; copy that cannot fit its room even at the display floor (the primitive names the measured size).
 

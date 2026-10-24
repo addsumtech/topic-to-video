@@ -13,12 +13,18 @@
 | `after` | the sentence after the slot, if it goes on | fades up word by word |
 | `kicker` | a small spaced label over the sentence | not held to a reading time |
 | `mode` | how the slot changes: `roll`, `scramble` or `flip` | roll is mechanical and calm; scramble is noisier and reads as "being decided"; flip is a departure board |
+| `hold` | what the landed type does while it holds: `alive` (default) — a breath of tracking and, every few seconds, a light passing along the line; `still` — nothing | alive keeps a held line from reading as a slide's hold; still is for a beat that must be utterly quiet |
 
 **Known traps:**
 - Even spacing gave "here" and "on its word" the same time; at 6 s the demo's three came back from the hold gate a third of a second short. The schedule is now proportional to reading need and the register runs 7 s by default — in a film the beat's own length is what counts, and the gate measures that.
 - The slot's clip is its own line box, so the space above it is where an outgoing word disappears; with a tight gap the exit read as the word sliding INTO the sentence above. The gap is kept.
 - Set flush left at the column edge, a short sentence filled 43% of the frame from one side and the proof sheet called the other side dead. The block is centred on the widest thing it holds; the type inside stays flush left.
 - QUIET by construction: measured 0.0005 motion, 3.5% ink, 0.018 light (product DNA) against 0.0037 / 12% / 0.135. Intercut with a dense register.
+- PACED IN SECONDS: authored in shares of the beat, a 3–4 s beat played the 7 s design 2.1–2.4x fast and the second option was readable 0.73 s against 0.83 s (bench-launch). The schedule now pays every option its read-once time FIRST, then shares the rest by must-read time; a change's roll shrinks on a short beat to 0.24 s (never shorter). Measured (hold gate, `shot_proof.kinetic_hold_findings`): 它能写 + 大模型 / 代码 / 成片 at a 4 s beat, roll — 1.23 / 0.97 / 0.87 s readable, no error (was: the second option under its 0.83 s floor); four options at 4.4 s, roll — 0.87 / 0.83 / 0.83 / 0.93 s, no error (bench-rams had three errors there). Scramble resolves later in each turn, so the same three options at 4 s are 0.03 s short of the floors and the gate errors — scramble wants about 4.1 s; a beat that cannot pay the floors gets them in proportion.
+- SCRAMBLE never shows a wrong word: drawn from the copy's own glyphs it flashed 大模刑 on the way to 大模型. Its stand-ins are now a block drawn as a box or the right glyph at another weight (CJK), a symbol for every other script (`kineticCore` `scrambleGlyph`).
+- In a tall frame the slot may take two lines: held to one, a long option set the whole slot ~80 px in a 1920-tall frame (2.5–3% ink). Portrait keeps every option on one line only down to U·0.13; the sentence is set a size larger.
+- HELD TYPE STAYS ALIVE (`hold: 'alive'`, the default): once a line lands, a breath of tracking (≤0.006 em) and a light passing along it every ~3.4 s (`runtime/kinetic` `idle`), with the baseline unlock on for the whole shot so it never steps a pixel; `hold: 'still'` is a slide's hold.
+- The slot is the `word` carry anchor (`runtime/kineticWord`), boxed on the option it lands on.
 
 **Refuses:** fewer than `MIN_OPTIONS` (2) — one option is a sentence; more than `MAX_OPTIONS` (6) — past that each is gone before it is read; an empty option.
 

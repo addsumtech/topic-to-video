@@ -24,8 +24,13 @@ import {useDNA, readableOn, dimOn, contrastOf} from '../runtime/dna';
 import {rows} from '../runtime/rows';
 import {hasCJK} from '../runtime/cjkType';
 import {useKinetic, KineticText, KMotion} from '../runtime/kinetic';
+import {KineticWord} from '../runtime/kineticWord';
 
 export const DURATION = 165; // 5.5s
+// THE PACE IS IN SECONDS (validate.py reads this): every entrance below is a duration in seconds, and the shares of
+// the beat (`at`, `until`) only bound WHEN — a 3 s beat plays the same reveal and holds it for less, it does not run a
+// 5.5 s design twice as fast. Whether a line is then held long enough to read is shot_proof's measurement.
+export const PACE = 'seconds';
 export const MAX_LINES = 5;
 
 const BG_D0 = '#0c0e13', FG_D0 = '#f3f4f7', DIM_D0 = '#8f97a8', ACC_D0 = '#86a8ff';
@@ -47,9 +52,12 @@ export const HeadlineReveal: React.FC<{
   /** what rises: whole lines through their masks, words through theirs, or letters blurring in */
   reveal?: 'line' | 'word' | 'char';
   align?: 'left' | 'center';
+  /** what the landed headline does while it holds: `alive` — a breath of tracking and a light passing along each
+   *  line; `still` — nothing (a slide's hold) */
+  hold?: 'alive' | 'still';
   accent?: string;
 }> = ({kicker = 'IN ONE BREATH', lines: linesIn = DEMO, note = 'and the emphasis lands last',
-       reveal = 'line', align = 'left', accent: accIn} = {}) => {
+       reveal = 'line', align = 'left', hold = 'alive', accent: accIn} = {}) => {
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -88,9 +96,15 @@ export const HeadlineReveal: React.FC<{
   // THE FILM'S LINES ARE LINES. Fitted only to the box, the largest size that fits wins, and it got there by
   // wrapping: 「一行一行升起」 came out as 「一行一 / 行升起」, a phrase cut in half for a few more pixels of type. So
   // the first tier keeps every entry whole down to a display floor; only past that floor may an entry wrap.
+  // IN A TALL FRAME WHOLE ENTRIES ARE KEPT ONLY DOWN TO A HIGHER FLOOR. Kept whole to the landscape floor, a
+  // nine-glyph Chinese end line came out ~100 px in a 1920-tall frame — 4.9% ink, small type in an empty field
+  // (bench-launch b8). Past U·0.11 an entry wraps (at a word, Chinese included) at a size that fills the column.
   const head = useKinetic({text: LINES, w: colW, h: headH, fit: 'box', maxLines: MAX_LINES + 2, align,
-    fitTiers: [{maxLines: LINES.length, minSize: Math.round(U * 0.072)}],
-    axes: {wght: [620, 760]}, wrap: 'balance', font: {family: DISPLAY, weight: 620, size: Math.round(U * (portrait ? 0.165 : 0.15)),
+    // portrait: whole entries down to U·0.11; then ONE extra line at U·0.12 (「一个题目，/一条成片」, not three lines
+    // that cut 一个/题目 apart at the column's full size); only then any wrap
+    fitTiers: portrait ? [{maxLines: LINES.length, minSize: Math.round(U * 0.11)},
+      {maxLines: LINES.length + 1, minSize: Math.round(U * 0.12)}] : [{maxLines: LINES.length, minSize: Math.round(U * 0.072)}],
+    axes: {wght: [620, 760]}, wrap: 'balance', font: {family: DISPLAY, weight: 620, size: Math.round(U * (portrait ? 0.2 : 0.15)),
       minSize: Math.round(U * 0.05), lineHeight: 1.02, tracking: cjk ? 0 : -0.024}});
   const sub = useKinetic({text: note || ' ', w: Math.min(colW, Math.round(U * 1.1)), h: noteMaxH || NOTE * 2,
     fit: 'box', maxLines: 3, align, wrap: 'balance',
@@ -121,6 +135,10 @@ export const HeadlineReveal: React.FC<{
   // straight through the descenders ("by", "pay") and read as a strike in the wrong place. The run takes the accent
   // and thickens, each letter a beat after the last, once its own line has landed.
   headMotion.emph = {after: 0.18, stagger: cjk ? 0.06 : 0.028, dur: 0.45, wght: 760};
+  // HELD TYPE STAYS ALIVE (runtime/kinetic `idle`): once a line lands, a breath of tracking and, every few seconds, a
+  // light that passes along it in the accent — continuous, so the baseline unlock glides it instead of stepping
+  if (hold === 'alive') headMotion.idle = {breathe: 0.005, period: 3.6, delay: 0.35,
+    light: {color: ACC, every: 3.4, dur: 1.1, width: 0.2, strength: 0.32}};
 
   // the kicker's rule draws first; it is the shot's one piece of furniture and it points at the type
   const ruleIn = easeOutCubic(clamp01(seg(t, 0.06, 0.2)));
@@ -139,7 +157,8 @@ export const HeadlineReveal: React.FC<{
                 until: 0.42}}} />
         </>
       ) : kick.anchor}
-      <KineticText k={head} x={x0} y={top + kickH} color={FG} emphColor={ACC} motion={headMotion} id="headline" />
+      {/* the headline is the `word` carry anchor (runtime/kineticWord) — a glyph window when it is one line */}
+      <KineticWord k={head} x={x0} y={top + kickH} color={FG} emphColor={ACC} motion={headMotion} id="headline" />
       {note ? (
         <KineticText k={sub} x={align === 'center' ? Math.round((W - Math.min(colW, U * 1.1)) / 2) : x0}
           y={top + kickH + headHt + gap} color={DIM} id="note"

@@ -1745,7 +1745,11 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
         const vw = Math.max(0, Math.min(vr.right, frame.right) - Math.max(vr.left, frame.left));
         const vh = Math.max(0, Math.min(vr.bottom, frame.bottom) - Math.max(vr.top, frame.top));
         varea += vw * vh;
-        rects.push(r);
+        // the line's box is what is DRAWN: each glyph's ink as the author's own clips cut it (visibleRect — a clip
+        // that covers the frame is not one). With the uncut ink, CroppedType's bands — glyphs twice the height of
+        // their windows — reported type in a 9:16 film's button column and top tabs from letters the band had cut
+        // away, after the bands had been moved clear of both; a glyph the FRAME cuts still reports its whole ink.
+        rects.push(vr);
       }
       if (c.M === null || c.will || c.d3) { comp = true; continue; }
       const ctm = c.spatial ? null : (h as unknown as {getScreenCTM?: () => DOMMatrix | null}).getScreenCTM?.();

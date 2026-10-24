@@ -233,9 +233,34 @@ export const swapTimes = (n: number, first: number, last: number, cued?: (number
   return out;
 };
 
-/** A deterministic stand-in glyph for a scramble: drawn from `pool`, changing every `step` (frames / 2, "on twos"). */
-export const scrambleChar = (pool: string[], seed: number, i: number, step: number): string =>
-  pool.length ? pool[Math.floor(hash01(seed * 1013 + i * 37.7 + step * 3.31) * pool.length) % pool.length] : '';
+// ── the scramble's stand-ins ─────────────────────────────────────────────────────────────────────────────
+// A SCRAMBLE MUST NEVER SPELL A WORD. The first one drew its stand-ins from the copy's OWN glyphs — "random glyphs
+// of the copy's own script" — and a Chinese slot resolving onto 大模型 flashed 大模刑 on the way (bench-launch, r2
+// b1_a): a real character in the place of a real character is a wrong word, read and believed for two frames. Any
+// pool of letters can spell; so the stand-ins carry no letters at all:
+//   · a Han / kana / Hangul slot shows a BLOCK drawn as a box (no character — the bundled CJK subsets have no
+//     geometric shapes, and a fallback face is a different face on every machine) or the RIGHT glyph at another
+//     weight (the same character, so whatever is read is true);
+//   · any other slot shows a typographic SYMBOL from a fixed list every Latin, Greek, Cyrillic and mono face has —
+//     no letter and no digit, so it cannot spell a word or a wrong number.
+// Deterministic: a hash of (seed, glyph, step), changing every `step` (frames / 2, "on twos").
+export type ScrambleGlyph = {kind: 'symbol'; ch: string} | {kind: 'block'; shape: number} |
+  {kind: 'weight'; weight: number};
+export const SCRAMBLE_SYMBOLS = ['#', '%', '&', '*', '+', '=', '/', '\\', '<', '>', '~', '^', '|', '_'];
+/** Block shapes, drawn by the primitive as boxes: full, lower half, upper half, outline, left half. */
+export const SCRAMBLE_BLOCKS = 5;
+/** The weights a CJK slot shows its own glyph at — the extremes and two between, so each step reads as a change. */
+export const SCRAMBLE_WEIGHTS = [200, 900, 340, 760];
+const SCRAMBLE_CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+export const scrambleGlyph = (target: string, seed: number, i: number, step: number): ScrambleGlyph => {
+  const h = hash01(seed * 1013 + i * 37.7 + step * 3.31);
+  if (SCRAMBLE_CJK.test(target)) {
+    const n = SCRAMBLE_BLOCKS + SCRAMBLE_WEIGHTS.length;
+    const k = Math.min(n - 1, Math.floor(h * n));
+    return k < SCRAMBLE_BLOCKS ? {kind: 'block', shape: k} : {kind: 'weight', weight: SCRAMBLE_WEIGHTS[k - SCRAMBLE_BLOCKS]};
+  }
+  return {kind: 'symbol', ch: SCRAMBLE_SYMBOLS[Math.min(SCRAMBLE_SYMBOLS.length - 1, Math.floor(h * SCRAMBLE_SYMBOLS.length))]};
+};
 
 // ── reading ──────────────────────────────────────────────────────────────────────────────────────────────
 /** How long `text` takes to read, from the one table the gate also reads (runtime/readingSpec.json): `once` at the
