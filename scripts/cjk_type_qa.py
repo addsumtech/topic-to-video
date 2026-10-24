@@ -643,11 +643,19 @@ def cjk_props(name, offset=0):
         # sentence as the colour of every bar.
         # `d` is an SVG path's DATA (TypeOnPath draws its words along the film's own route): geometry, never copy.
         # Fed a Chinese sentence it is refused by name, and the register read as a coverage hole at every aspect.
+        # `tex` is TeX (runtime/mathMorph), typeset before the render: fed a Chinese sentence the render cancels with
+        # "TeX not typeset" — FunctionPlot read as a render failure at every aspect until it was listed here.
         if prop in ("accent", "accent2", "imageAspect", "aspect", "dna", "page",
-                    "face", "d") or re.match(r"^src[A-Z]?", prop):
+                    "face", "d", "tex") or re.match(r"^src[A-Z]?", prop):
             # colours / images / plumbing, not copy. The `src` test is a PREFIX: KSpaceAnatomy declares
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.
+            continue
+        if re.fullmatch(r"\[number(,number)*\](\|undefined|\|null)?", t) and prop not in _ARRAY_SHAPES:
+            # A TUPLE OF NUMBERS IS DATA, NOT COPY — FunctionPlot's `xRange`/`yRange` are an axis's span. Filed as
+            # untestable, the register read as NOT MEASURED at every aspect for a prop no Chinese could go into. A
+            # tuple the name table curates (OverlapSeparation's `domain: [0, 1]`) keeps its curated value: skipping
+            # it changed that register's measured prop set (prop_reach --check went stale on it).
             continue
         if re.fullmatch(r"Record<[^<>]*>(\|undefined|\|null)?", t):
             # AN OPEN MAP IS NOT COPY THIS FIXTURE CAN SHAPE. `Record<string, unknown>` declares no field — PourSync's
@@ -813,6 +821,8 @@ def cjk_props(name, offset=0):
     for prop, val in _REGISTER_COPY.get(name, {}).items():
         if val is None:
             props.pop(prop, None)
+        elif callable(val):
+            props[prop] = val(props.get(prop), offset)
         elif prop in props:
             props[prop] = val
     # TWO SPELLINGS OF ONE SLOT MUST NOT BOTH BE FED. `// @supersedes groups: items` declares that `groups`
@@ -968,7 +978,34 @@ _REGISTER_COPY = {
     # Chinese this gate measures; typed Chinese on a real screenshot is measured by tests/test_device_demo.py.
     "DeviceDemo": {"steps": None},
     "DeviceHero": {"screen": None},
+    # TYPESET MATHS (runtime/mathMorph): a `tex` is TeX, typeset before the render — never copy. Fed a Chinese sentence
+    # it fails the typesetter by name, so the forms stay the register's own (they ship in the bundle) and the CHINESE
+    # goes where a film puts it: each form's label and the highlighted term's label. A callable keeps the labels the
+    # shaper chose for this prop set, so the second set `prop_reach` renders still carries different words.
+    "EquationMorph": {"steps": lambda shaped, off: _eq_steps(shaped, off),
+                      "highlight": lambda shaped, off: {"term": "root", "label": _rotate(list(_ITEMS), off + 2)[0]},
+                      "live": None},
+    # a figure's states: the film's names (Chinese here) over shapes from the register's own vocabulary
+    "GrowingFigure": {"states": lambda shaped, off: _figure_states(shaped, off)},
 }
+
+_EQ_FORMS = ["x^2 + 6x + 5 = 0", "\\class{sq}{(x+3)^2} - 4 = 0", "\\class{sq}{(x+3)^2} = 4",
+             "x = -3 \\class{root}{\\pm 2}"]
+
+
+def _labels_of(shaped, off, n, key="label"):
+    got = [r.get(key) for r in (shaped or []) if isinstance(r, dict) and isinstance(r.get(key), str) and r.get(key)]
+    pool = [x for x in _rotate(list(_ITEMS), off) if x not in got]
+    return (got + pool)[:n]
+
+
+def _eq_steps(shaped, off):
+    return [{"tex": t, "label": lab} for t, lab in zip(_EQ_FORMS, _labels_of(shaped, off, len(_EQ_FORMS)))]
+
+
+def _figure_states(shaped, off):
+    shapes = [{"shape": "circle"}, {"shape": "ellipse"}, {"shape": "circle", "count": 2}]
+    return [dict(sh, label=lab) for sh, lab in zip(shapes, _labels_of(shaped, off, len(shapes)))]
 
 # A number that is plainly a 0..1 fraction gets one; anything else gets a small count. No figure this gate
 # invents ever reaches a film — these props exist only to make the register DRAW so its type can be measured.

@@ -17,6 +17,13 @@ music. The remotion tier is for ANY video — creativity, craft and design, neve
   Latin and Chinese; the census reads it as lines; `shot_proof` holds must-read lines to reading time), four registers
   on it (HeadlineReveal, WordRoll, TypeOnPath, CroppedType), and Plex's `wdth` 75-100 declared. The eight hand-rolled
   per-character registers above are NOT migrated yet.
+- **Maths and morphs** (built 2026-10-24): `CompressedSensingEq` had set its formula as a hand-typed Unicode string and
+  nothing used `@remotion/paths`' `interpolatePath`. Now: TeX typeset ahead of the render by MathJax 3.2.2
+  (`scripts/tex_glyphs.mjs`; a film's equations by `scripts/mathtex.py`, which `render_remotion.py` runs first),
+  drawn from its glyph outlines by `runtime/mathMorph` — Manim's Write, TransformMatchingTex, Indicate/Circumscribe
+  and ValueTracker reimplemented from their behaviour — and `runtime/pathMorph` for shapes that become shapes
+  (resampled and aligned — measured half-way through circle→triangle in a 400 px box, interpolatePath's outline
+  encloses 4,932 px² against endpoints of 125,686 and 57,288; this one 90,848). Registers: `EquationMorph`, `FunctionPlot` (MA), `GrowingFigure` (S).
 - **Seams**: 15 words; `portal` is the only mask transition; `match_cut:{shape,from,to}` is validated
   (validate.py) and described for the design-director but **nothing renders it** — a dead spec. `@remotion/transitions`
   4.0.486 ships iris, flip and 11 shader presentations (HtmlInCanvas — measured non-deterministic here); also

@@ -210,6 +210,9 @@ import {HeadlineReveal} from './shots/HeadlineReveal';
 import {WordRoll} from './shots/WordRoll';
 import {TypeOnPath} from './shots/TypeOnPath';
 import {CroppedType} from './shots/CroppedType';
+import {EquationMorph} from './shots/EquationMorph';
+import {GrowingFigure} from './shots/GrowingFigure';
+import {FunctionPlot} from './shots/FunctionPlot';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -297,6 +300,9 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   WordRoll,
   TypeOnPath,
   CroppedType,
+  EquationMorph,
+  GrowingFigure,
+  FunctionPlot,
 };
 
 // A FILM'S OWN SHOTS AND OBJECTS — its workshop (scripts/workshop.py) — join the library here, for a render scoped

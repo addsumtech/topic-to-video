@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 204,
+  "_universe": 207,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -220,7 +220,10 @@
     "CroppedType": "2e217990a72980f0",
     "HeadlineReveal": "aac02d1f8d1eea00",
     "TypeOnPath": "85c24dca794c6cda",
-    "WordRoll": "2aab3fb33cfc0e9b"
+    "WordRoll": "2aab3fb33cfc0e9b",
+    "EquationMorph": "6a4902424a9f2df3",
+    "FunctionPlot": "c105daa04a9bcc72",
+    "GrowingFigure": "90402c71172deeb8"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -426,7 +429,10 @@
     "CroppedType": "3374bef9b8f15328",
     "HeadlineReveal": "39f887308e5ca211",
     "TypeOnPath": "f6c5d19736bde437",
-    "WordRoll": "2708792f68f18fee"
+    "WordRoll": "2708792f68f18fee",
+    "EquationMorph": "b2117e2df586042d",
+    "FunctionPlot": "f094a34bcaf51cfa",
+    "GrowingFigure": "b658680bad3ac44b"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -637,6 +643,10 @@
       "reach": 0.41,
       "prop_diff": 1.0
     },
+    "EquationMorph": {
+      "reach": 0.567,
+      "prop_diff": 0.8
+    },
     "Escalation": {
       "reach": 0.835,
       "prop_diff": 1.0
@@ -677,6 +687,10 @@
       "reach": 0.109,
       "prop_diff": 1.0
     },
+    "FunctionPlot": {
+      "reach": 0.599,
+      "prop_diff": 1.0
+    },
     "GFactorNoise": {
       "reach": 0.344,
       "prop_diff": 1.0
@@ -711,6 +725,10 @@
     },
     "GrantedTree": {
       "reach": 0.927,
+      "prop_diff": 1.0
+    },
+    "GrowingFigure": {
+      "reach": 0.55,
       "prop_diff": 1.0
     },
     "HalftonePop": {

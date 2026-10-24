@@ -341,6 +341,92 @@ table, read by the TypeScript that paces kinetic type and by the Python that jud
 **Smallest real use:** `const need = READING.cps.zh;` (`import READING from '@runtime/readingSpec.json'`)
 **Exports:** `cps`, `minSeconds`, `mustReadSecondsPerWord`, `sources`.
 
+## Maths and figures that transform
+
+### `mathMorph`
+Typeset maths that moves — the film's TeX drawn from its real glyph outlines (MathJax 3.2.2's TeX fonts, typeset
+ahead of the render by `scripts/tex_glyphs.mjs`, never at render time) and animated the way a maths explainer needs:
+written on (outline, then fill), carried into its next form (shared marks travel, the rest leave and arrive), a term
+picked out, a number running live. `useEquations` reads the library's equations from the bundle and a film's from
+`<out_dir>/_math/` (written by `scripts/mathtex.py`, which `render_remotion.py` runs before its first render); a TeX
+nobody typeset cancels the render by name. `MathLayer` bakes each glyph's matrix into its outline (so a stroke is
+the same width on a superscript as on a big operator) and marks the root so every type gate reads the equation as ONE
+line named by its TeX. Re-exports the whole of `mathCore`.
+**Reach for it:** any beat whose content IS an equation or a derivation — never set maths as a Unicode string in a
+text face (`CompressedSensingEq` did; it can neither typeset a fraction nor move like maths).
+**Smallest real use:** `const eqs = useEquations([texA, texB]); if (eqs) { const {pl} = placeAll(eqs, box, U * 0.11);
+const m = matchGlyphs(eqs[0], eqs[1], pl[0], pl[1]); return <MathLayer draws={transformState(eqs[0], pl[0], eqs[1],
+pl[1], m, p)} tex={texB} emPx={pl[0].s * 1000} W={W} H={H} ink={fg} accent={acc} />; }`
+**Exports:** `useEquations`, `MathLayer`, `bake`, `frameAround`, `inLibrary`, `MATH_DIR`.
+A TeX error is MathJax's own message at prep time ("Missing close brace"); CJK inside the maths is refused (it would
+be set in whatever face the browser finds) — words go in the register's label props. `\class{name}{…}` names a term:
+the same name in two forms is matched as the same term, and it is how a register addresses a term to highlight or a
+`live…` slot to run a number in.
+
+### `mathCore`
+The pure half of `mathMorph`, no DOM, runnable in node. Manim's ideas reimplemented from their behaviour: `writeState`
+(Write / DrawBorderThenFill, staggered — the settled frame is the plain typeset equation), `matchGlyphs` +
+`transformState` (TransformMatchingTex: named terms first, then the longest run of shared marks in reading order with
+ties broken by travel MEASURED WHERE THE GLYPHS ARE DRAWN; two differently named terms never trade a glyph; any pair
+whose left-to-right order flips against another travels on an ARC, over the equals sign, not through it), `indicate`
+(swell and take the accent; held), `placeAll` (one scale and one baseline for every form; relation signs on one
+vertical when the box allows), `liveText` / `liveDraws` (a ValueTracker: the film's `from` and `to` printed exactly at
+the ends, digits from the font's own atlas, decimal points on one vertical; a value wider than its template slot
+throws).
+**Reach for it:** a register that composes its own timeline of writes, transforms and highlights.
+**Smallest real use:** `const draws = indicate(stillState(eq, pl, 's'), ids, unionBox(eq, glyphsOf(eq, 'root'), pl)!, p);`
+**Exports:** `matchGlyphs`, `transformState`, `writeState`, `stillState`, `indicate`, `placeAll`, `pivotX`, `liveText`, `liveDraws`, `parseLive`, `glyphsOf`, `classesOf`, `unionBox`, `screenMat`, `screenBox`, `scaleAbout`, `lerpMat`, `mul`, `smooth`, `thereAndBack`, `segOf`, `Equation`, `MGlyph`, `GDraw`, `Placement`, `Match`, `Pair`, `Mat6`.
+
+### `mathKey`
+The name a typeset equation is filed under — one function, imported by the bundle AND by the node typesetter (which
+loads this file directly), so the key a film's prep writes and the key a register fetches cannot be computed two ways.
+**Reach for it:** never in a register; the equation hook in `mathMorph` calls it.
+**Smallest real use:** `mathKey(tex, true)`
+**Exports:** `mathKey`, `normTex`, `MATH_FORMAT`.
+
+### `mathLibrary.json`
+The library's own typeset equations (every register default and probe), bundled so a library render is offline. Built
+from `mathLibrary.tex.json` by `node scripts/tex_glyphs.mjs --library`; a test rebuilds it and compares the bytes.
+**Reach for it:** never by hand — add a register's default TeX to `mathLibrary.tex.json` and rebuild.
+**Smallest real use:** (read by `mathMorph`)
+**Exports:** `v`, `mathjax`, `eq`.
+
+### `mathLibrary.tex.json`
+The list the library cache is built from: `{tex, display, for}` per equation, `for` naming what draws it.
+**Reach for it:** when a register's DEFAULT copy is TeX.
+**Smallest real use:** `{"tex": "y = e^{-x/2}\\cos 2x", "display": true, "for": "FunctionPlot default"}`
+**Exports:** `_why`, `equations`.
+
+### `mathDom`
+The two attributes an equation writes and the census reads (`mathMorph` writes them, `textSafe` reads an equation as one
+line whose text is its TeX) — its own module rather than more of `kineticDom`, because a constant appended there
+re-hashes every kinetic register's measured rows.
+**Reach for it:** never in a register.
+**Smallest real use:** (written by `mathMorph`, read by the census)
+**Exports:** `MATH_ROOT`, `MATH_GLYPH`.
+
+### `pathCore`
+Path geometry with no imports: parse any SVG `d` (relative, H/V/S/T and arcs reduced to absolute M/L/Q/C/Z), transform
+it, its EXACT bounding box (curve extrema, not the control hull), flatten to polylines, resample by arc length
+(monotone by construction), align one loop to another (same winding, least travel). Shared by the bundle and the
+typesetter, so a glyph's box and a morph's outline are one geometry.
+**Reach for it:** any register that reasons about an outline it was handed.
+**Smallest real use:** `const box = segsBBox(parsePath(d));`
+**Exports:** `parsePath`, `transformSegs`, `segsToD`, `segsBBox`, `flatten`, `polyLength`, `resample`, `alignTo`, `signedArea`, `centroidOf`, `ptsToD`, `matMul`, `apply`, `IDENTITY`, `Seg`, `Pt`, `Mat`, `Poly`.
+
+### `pathMorph`
+One figure becoming the next. `planMorph` resamples both outlines to the same points and aligns them before anything
+is lerped; a side with more pieces shares the pieces before it, so one cell drawn twice over itself parts into two.
+Measured against `@remotion/paths`' interpolatePath on the same shapes (half-way signed area, 400 px box):
+circle→triangle 4,932 there against 90,848 here (endpoints 125,686 · 57,288); a split it refuses outright.
+`shapeD` draws a named shape into a box (`count` repeats it side by side); `fitD` scales the film's own 0–1000
+outline into one.
+**Reach for it:** a diagram that grows, divides, merges or turns into something else.
+**Smallest real use:** `const plan = useMemo(() => planMorph(shapeD('circle', box), shapeD('circle', box, 2)), [box]); <path d={morphAt(plan, p)} />`
+**Exports:** `planMorph`, `morphAt`, `morphPieces`, `shapeD`, `fitD`, `SHAPE_NAMES`, `ShapeName`, `MorphPlan`.
+A split's pieces overlap at its start: draw the body as one path (the fill is laid once) and stroke each piece masked
+by the others' interiors, or the copies' outlines cross inside the body (`GrowingFigure` does this).
+
 ## The gates' own eyes
 
 ### `textSafe`

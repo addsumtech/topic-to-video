@@ -27,6 +27,7 @@ import {cancelRender, continueRender, delayRender, useCurrentFrame} from 'remoti
 import {captionBand} from './layout';
 import {CJK_MIN_LEADING, hasCJK} from './cjkType';
 import {KIN_ALT, KIN_GLYPH, KIN_LINE, KIN_ROOT, kineticIdle} from './kineticDom';
+import {MATH_GLYPH, MATH_ROOT} from './mathDom';
 
 /** Prefix on the render-cancelling error, so a caller can find the JSON payload in the CLI's stderr. */
 export const TEXT_SAFE_TAG = 'TEXT-SAFE-VIOLATIONS ';
@@ -633,6 +634,39 @@ const unionRect = (rs: DOMRect[]): DOMRect => {
   return new DOMRect(l, t, Math.max(...rs.map((r) => r.right)) - l, Math.max(...rs.map((r) => r.bottom)) - t);
 };
 
+// ── TYPESET MATHS IS READ AS ONE LINE ─────────────────────────────────────────────────────────────────────────
+//
+// runtime/mathMorph.tsx draws an equation as glyph OUTLINES — SVG paths with no text node — so every walk in this file
+// passes straight over it: an equation cut by the frame, sitting in the caption band, or with a label set on top of it
+// reported clean. Each equation root (runtime/mathDom MATH_ROOT) is read here as ONE line: its text is its TeX, its
+// box the union of its glyphs' visible boxes, its size the root's font-size (the equation's em in px). A glyph that is
+// fading out under MIN_OPACITY is not part of the frame's content yet, exactly like any other type.
+export type MathLine = {root: Element; text: string; holders: Element[]; rects: DOMRect[]};
+/** TeX with its markup removed: a term's \class handle, control words and braces — the symbols that are left. */
+export const plainTex = (tex: string): string => tex
+  .replace(/\\(?:class|cssId|style)\{[^{}]*\}/g, '')
+  .replace(/\\[A-Za-z]+/g, ' ')
+  .replace(/\\[,;:!> ]/g, ' ')
+  .replace(/[{}]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+export const mathGroups = (root: Element, frame: DOMRect): MathLine[] => {
+  const out: MathLine[] = [];
+  root.querySelectorAll(`[${MATH_ROOT}]`).forEach((mr) => {
+    if (isEcho(mr)) return;
+    const holders: Element[] = [], rects: DOMRect[] = [];
+    mr.querySelectorAll(`[${MATH_GLYPH}]`).forEach((g) => {
+      if (composedOpacity(g) < MIN_OPACITY) return;
+      const r = visibleRect(g, frame);
+      if (!r || r.width <= 0 || r.height <= 0) return;
+      holders.push(g);
+      rects.push(r);
+    });
+    if (holders.length) out.push({root: mr, text: (mr.getAttribute(MATH_ROOT) ?? '').trim(), holders, rects});
+  });
+  return out;
+};
+
 export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] => {
   const win = root.ownerDocument?.defaultView;
   if (!win) return [];
@@ -736,6 +770,13 @@ export const auditTypeCollisions = (root: Element, frame: DOMRect): Collision[] 
     const short = kl.text.length > 40 ? kl.text.slice(0, 40) + '…' : kl.text;
     kin.set(kl.root, [...(kin.get(kl.root) ?? []), {line: kl.line, r, text: kl.text, cs, rot}]);
     boxes.push({el: kl.root, r, text: short, font, cls: 'kinetic', rot, mat: null, rects, kin: kl.root});
+  });
+  // 1c. TYPESET MATHS: one line, its glyphs' boxes — a label laid over an equation is a collision like any other
+  mathGroups(root, frame).forEach((ml) => {
+    const cs = win.getComputedStyle(ml.root);
+    const short = ml.text.length > 40 ? ml.text.slice(0, 40) + '…' : ml.text;
+    boxes.push({el: ml.root, r: unionRect(ml.rects), text: short, font: `${cs.fontSize} math`, cls: 'math',
+      rot: false, mat: null, rects: ml.rects, kin: ml.root});
   });
   kin.forEach((lines) => {
     lines.sort((a, b) => a.line - b.line);
@@ -1479,6 +1520,11 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
     const lead = vis.reduce((a, b) => (b.o > a.o ? b : a));
     judge(lead.h, kl.text, unionRect(vis.map((x) => x.r)), 'kinetic');
   });
+  // TYPESET MATHS, as one line named by its TeX, judged through its root (whose font-size is the equation's em)
+  mathGroups(root, frame).forEach((ml) => {
+    if (ml.root.closest?.('[data-bleed]')) return;
+    judge(ml.root, ml.text, unionRect(ml.rects), 'math');
+  });
   if (title) {
     const t = title as {text: string; px: number; r: {left: number; top: number; right: number; bottom: number}};
     // FIRST, so the payload cap (MAX_REPORTED) can never cut it off a busy frame
@@ -1727,6 +1773,29 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     lines.push({...base, ly: layoutY(hs[0]), ...(all ? {u: 1 as const} : {}),
       px: Math.round(parseFloat(win.getComputedStyle(hs[0]).fontSize || '0') * 100) / 100,
       ...(fl ? {fl} : {}), g});
+  });
+  // TYPESET MATHS: one record per equation. Its glyphs are OUTLINES, filled geometry that is anti-aliased at its true
+  // sub-pixel position — Skia's baseline rounding is a property of text runs and never reaches a path — so the line is
+  // listed unlocked (`u`) and keeps its layout offset (`ly`, which a `top` move would still step). Its `t` is the TeX
+  // with the markup taken out (`\class{sq}{(x+3)^2} = 4` → `(x+3)^2 = 4`), so the sync audit matches the symbols a
+  // narration says, never `class`, `frac` or a term's handle.
+  mathGroups(root, frame).forEach((ml) => {
+    const box = unionRect(ml.rects);
+    const onFrame = !(box.right <= frame.left || box.left >= frame.right || box.bottom <= frame.top ||
+      box.top >= frame.bottom);
+    if (!onFrame) return;
+    const rc = chain(ml.root);
+    let wsum = 0, osum = 0;
+    ml.holders.forEach((h, i) => {
+      const w = Math.max(1e-3, ml.rects[i].width);
+      wsum += w; osum += w * composedOpacity(h);
+    });
+    u += 1;
+    lines.push({k: `${rc.key}/math`, y: Math.round(box.top * 1e4) / 1e4, x: Math.round(box.left * 100) / 100,
+      w: Math.round(box.width * 100) / 100, h: Math.round(box.height * 100) / 100,
+      o: Math.round((wsum > 0 ? osum / wsum : 0) * 100) / 100, t: cutText(plainTex(ml.text)), ly: layoutY(ml.root), u: 1,
+      px: Math.round(parseFloat(win.getComputedStyle(ml.root).fontSize || '0') * 100) / 100,
+      ...(rc.beat !== null ? {b: rc.beat} : {})});
   });
   return {lines, u, z};
 };

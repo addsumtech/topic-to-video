@@ -1,0 +1,50 @@
+{
+  "_why": "The TeX the library's own registers and probes draw by default. `node scripts/tex_glyphs.mjs --library` typesets every entry into mathLibrary.json (bundled, so a library render is offline); a film's TeX never goes here — scripts/mathtex.py writes it into <out_dir>/_math.",
+  "equations": [
+    {
+      "tex": "x^2 + 6x + 5 = 0",
+      "display": true,
+      "for": "EquationMorph default, form 1"
+    },
+    {
+      "tex": "\\class{sq}{(x+3)^2} - 4 = 0",
+      "display": true,
+      "for": "EquationMorph default, form 2"
+    },
+    {
+      "tex": "\\class{sq}{(x+3)^2} = 4",
+      "display": true,
+      "for": "EquationMorph default, form 3"
+    },
+    {
+      "tex": "x = -3 \\class{root}{\\pm 2}",
+      "display": true,
+      "for": "EquationMorph default, form 4"
+    },
+    {
+      "tex": "y = e^{-x/2}\\cos 2x",
+      "display": true,
+      "for": "FunctionPlot default"
+    },
+    {
+      "tex": "\\sum_{k=1}^{n} \\frac{1}{k^2} \\le \\sqrt{\\frac{\\pi^2}{6}} + \\overbrace{a+b}^{n} + \\boxed{E=mc^2} + \\begin{pmatrix}1&0\\\\0&1\\end{pmatrix}",
+      "display": true,
+      "for": "MathProbe: every drawn part MathJax emits (rules, nested viewports, frames, big delimiters)"
+    },
+    {
+      "tex": "T = \\class{live}{00.0}\\,\\mathrm{K}",
+      "display": true,
+      "for": "MathProbe: a live-number slot"
+    },
+    {
+      "tex": "\\class{a}{a} + \\class{b}{b} = c",
+      "display": true,
+      "for": "MathProbe: a term that changes sides, form 1"
+    },
+    {
+      "tex": "\\class{a}{a} = c - \\class{b}{b}",
+      "display": true,
+      "for": "MathProbe: a term that changes sides, form 2"
+    }
+  ]
+}

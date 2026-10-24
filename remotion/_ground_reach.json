@@ -763,6 +763,20 @@
    ]
   },
   {
+   "shot": "EquationMorph",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9949502840909091,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "Escalation",
    "bandY": {
     "light": 0.8879231810569763,
@@ -907,6 +921,20 @@
    "why": []
   },
   {
+   "shot": "FunctionPlot",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9921756628787879,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "GFactorNoise",
    "bandY": {
     "light": 0.8879231810569763,
@@ -1036,6 +1064,20 @@
     "dark": 0.0
    },
    "moved": 0.9944957386363636,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "GrowingFigure",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9920809659090909,
    "ok": true,
    "why": []
   },
@@ -3179,10 +3221,13 @@
   "HeadlineReveal": "aac02d1f8d1eea00",
   "WordRoll": "2aab3fb33cfc0e9b",
   "TypeOnPath": "85c24dca794c6cda",
-  "CroppedType": "2e217990a72980f0"
+  "CroppedType": "2e217990a72980f0",
+  "EquationMorph": "6a4902424a9f2df3",
+  "GrowingFigure": "90402c71172deeb8",
+  "FunctionPlot": "c105daa04a9bcc72"
  },
  "failed": {},
- "universe": 204,
+ "universe": 207,
  "inkRefused": {
   "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
   "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",

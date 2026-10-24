@@ -13,8 +13,12 @@ import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {CameraTypeProbe, EdgeBudgetProbe, DURATION as CTP} from './runtime/__probe_camera';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {KineticProbe, DURATION as KPD} from './runtime/__probe_kinetic';
+import {MathProbe, DURATION as MPD} from './runtime/__probe_math';
 import {KineticHoldAudit, KineticHoldContext, HoldReport} from './runtime/kinetic';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {FunctionPlot, DURATION as D_FUNCTIONPLOT} from './shots/FunctionPlot';
+import {GrowingFigure, DURATION as D_GROWINGFIGURE} from './shots/GrowingFigure';
+import {EquationMorph, DURATION as D_EQUATIONMORPH} from './shots/EquationMorph';
 import {CroppedType, DURATION as D_CROPPEDTYPE} from './shots/CroppedType';
 import {TypeOnPath, DURATION as D_TYPEONPATH} from './shots/TypeOnPath';
 import {WordRoll, DURATION as D_WORDROLL} from './shots/WordRoll';
@@ -495,6 +499,7 @@ export const RemotionRoot: React.FC = () => (
     {F('FontProbe', FontProbe, FPR)}
     {F('TypeSpecimen', TypeSpecimen, TSP)}
     {F('KineticProbe', KineticProbe, KPD)}
+    {F('MathProbe', MathProbe, MPD)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
     {F('CommandSummon', CommandSummon, CS)}
     {F('TemporalAccelerate', TemporalAccelerate, TA)}
@@ -699,6 +704,9 @@ export const RemotionRoot: React.FC = () => (
     {F('WordRoll', WordRoll, D_WORDROLL)}
     {F('TypeOnPath', TypeOnPath, D_TYPEONPATH)}
     {F('CroppedType', CroppedType, D_CROPPEDTYPE)}
+    {F('EquationMorph', EquationMorph, D_EQUATIONMORPH)}
+    {F('GrowingFigure', GrowingFigure, D_GROWINGFIGURE)}
+    {F('FunctionPlot', FunctionPlot, D_FUNCTIONPLOT)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}
