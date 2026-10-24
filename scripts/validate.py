@@ -2793,7 +2793,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         # slots, and a board that hands it four is wrong before anything is rendered. Both halves of that
         # have already happened here: IsometricAssembly dropped a fourth item in silence (A4 found it only
         # because a type audit asked what a register DECLINED to draw), and AcceptanceStamp threw mid-render,
-        # which costs a full bundle plus a render — and, on this machine, a second render without --gl —
+        # which costs a full bundle plus a render — and, on this machine, a second whole render on the fallback GL backend —
         # before anyone learns the count was wrong. The declaration already knew; nothing read it.
         #
         # Only a type that fixes ONE length is checked (see demo_copy_qa.tuple_arity): a union with a loose
