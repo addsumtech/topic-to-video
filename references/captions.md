@@ -30,6 +30,13 @@ no special ffmpeg build needed.
   (a closer that would overhang it takes the glyph before it down a line), shrunk only if its lines would not fit the
   scaled page's caption band, its ink ending on `captionBottomY`. `meta.safe_zone: "none"` or `caption_mode: band`
   keeps the placement above.
+- **CJK line breaks (remotion tier, 2026-10-24):** the burned caption is NOT left to the browser, which breaks Chinese
+  between any two characters (benchmarks burned 「交回成 / 片」 and 「…加速电 / 子。」). `remotion/src/captionBreak.ts`
+  decides a CJK chunk's lines — breaks only between words (Intl.Segmenter), never before closing punctuation or after
+  opening punctuation, a clause break preferred when no line becomes a scrap, else the most balanced — and Film.tsx
+  draws each line as its own block. `python3 scripts/caption_breaks_qa.py <out_dir>` runs the same file in node at the
+  film's frame and face and ERRORS on a line that starts with closing punctuation or a caption ending on one glyph;
+  `out.srt`'s CJK cues are broken by it too (16 glyphs a line). A caption it cannot break cleanly is fixed in the copy.
 - **Padding inside bar:** ~1.2% of frame height above and below text.
 
 ### Enabled / disabled

@@ -271,7 +271,7 @@ def test_the_handoff_plan_needs_a_continuation_across_an_unmarked_cut():
 
 # ── sound ─────────────────────────────────────────────────────────────────────────────────────────────────────
 def test_the_cues_peak_on_each_seams_own_fastest_frame():
-    assert set(sfx.SEAM_PEAK) == set(NEW), sfx.SEAM_PEAK
+    assert set(sfx.SEAM_PEAK) == set(NEW) | {"cut"}, sfx.SEAM_PEAK         # the hard cut: its frame, no cue (test_hard_cut)
     m = re.search(r"export const PUNCH_CUT = (\d+) / (\d+);", SEAMS)
     assert m and abs(sfx.SEAM_PEAK["punch"] - int(m.group(1)) / int(m.group(2))) < 1e-9
     fps, n = 30, 12

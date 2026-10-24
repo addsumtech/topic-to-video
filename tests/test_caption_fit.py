@@ -26,10 +26,16 @@ needs_toolchain = pytest.mark.skipif(not os.path.isdir(os.path.join(_REM, "node_
 LONG = ("这时机器发出一段射频脉冲，频率正好跟它们打转的频率一样，所以它们跟着共振，被一起扳倒；"
         "倒下之后还在接着转，旁边的线圈里就感应出了电信号。")
 SCALE = 0.5
+# 25 glyphs and a full stop, NO clause mark: a CJK caption is broken by captionBreak.ts now (word boundaries, a clause
+# break preferred, kinsoku), so only a sentence with no clause to break at fills its measure — the case the
+# button-column bound has to be exercised on. At 9:16 it is drawn 14 / 13 glyphs (scripts/caption_breaks_qa.py).
+# LONG breaks after its first comma and never reaches the measure; a 27-glyph sentence needs THREE lines, because its
+# full stop may not start one.
+FULL = "机器发出一段射频脉冲它的频率正好跟质子打转的频率一样。"
 
 
-def _frame(tmp_path, aspect, captions, safe=None):
-    scene = {"shot": "TermTable", "durF": 150, "caption": LONG,
+def _frame(tmp_path, aspect, captions, safe=None, caption=LONG):
+    scene = {"shot": "TermTable", "durF": 150, "caption": caption,
              "props": {"kicker": "K", "rows": [["a", "1"], ["b", "2"]]}}
     pf = str(tmp_path / ("%s-%s-%s.json" % (aspect.replace(":", "x"), captions, safe)))
     props = {"scenes": [scene], "dna": "product", "captions": captions, "camera": 0, "aspect": aspect}
@@ -63,14 +69,14 @@ def test_a_long_sentence_never_climbs_out_of_the_caption_band(tmp_path, aspect):
 @needs_toolchain
 def test_a_platform_safe_caption_stays_clear_of_the_platform_ui(tmp_path):
     # runtime/safeZone.ts: on a 9:16 film for the platforms the caption ends above the bottom share the description
-    # covers and its lines end short of the button column. A full CJK line (it breaks anywhere, so it fills the
-    # measure) ran to x 960 of 1080 — under the buttons from 929.
+    # covers and its lines end short of the button column. A full CJK line ran to x 960 of 1080 — under the buttons
+    # from 929. (FULL: a sentence with no clause mark, so its balanced lines fill the measure.)
     np = pytest.importorskip("numpy")
     Image = pytest.importorskip("PIL.Image", reason="needs Pillow")
     import text_safe_qa as tq
     prof = tq.safe_profile()
-    on = np.asarray(Image.open(_frame(tmp_path, "9:16", True, "social")).convert("L"), dtype=float)
-    off = np.asarray(Image.open(_frame(tmp_path, "9:16", False, "social")).convert("L"), dtype=float)
+    on = np.asarray(Image.open(_frame(tmp_path, "9:16", True, "social", FULL)).convert("L"), dtype=float)
+    off = np.asarray(Image.open(_frame(tmp_path, "9:16", False, "social", FULL)).convert("L"), dtype=float)
     ink = np.abs(on - off) > 40
     rows, cols = np.where(ink.any(axis=1))[0], np.where(ink.any(axis=0))[0]
     assert len(rows), "no caption was drawn"

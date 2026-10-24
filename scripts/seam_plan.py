@@ -54,7 +54,9 @@ TWO CONSTRAINTS MAKE THE PLAN, NOT TASTE:
 Deterministic: same storyboard in, same marks out. The shot-director may override any of it by writing
 `transition_in` itself — an explicit mark always wins.
 """
+import copy
 import json
+import math
 import os
 import re
 import sys
@@ -551,6 +553,169 @@ def plan_handoffs(slides, cams, marks):
     return out
 
 
+# ── the hard cuts ───────────────────────────────────────────────────────────────────────────────────────
+# EVERY UNMARKED SEAM USED TO BE A 12-FRAME CROSS-DISSOLVE (or the DNA's native whip), and three benchmark films
+# made with this skill (2026-10-24) named that the strongest "this is slides" signal in them: a 1:1 type film cut on
+# a 105.88 BPM grid still dissolved on every cut, and a 9:16 launch film cut ~14 times a minute, all soft, against the
+# 27.8 a minute measured on Apple's launch film (references/launch-film-study.md). motion-research §2: "hard cut by
+# default". So an UNMARKED seam is planned as the `cut` seam (remotion/src/seams.tsx: the picture changes on the
+# seam's middle frame, the audio keeps the seam's overlap) on a film whose ENERGY asks for it:
+#
+#   kinetic  a launch or promo (meta.purpose), or meta.intensity "bold" — every unmarked seam is a cut
+#   scored   a film with music (beatgrid.music_requested) — half its seams hard, the cut landing on the beat the
+#            pads are snapped to; a seam into a LOW-energy beat or into the close keeps its dissolve
+#   calm     everything else (a teach / howto / research explainer with no score) — no planned cuts: a dissolve
+#            is the calm film's breath, and the pace caveat in references/motion-grammar.md is about exactly that
+#
+# `meta.cuts: "kinetic" | "scored" | "calm"` names the tempo outright. The shares are this planner's choice (U), not
+# a published number: what a published number exists for is the RATE, and the rate a board can reach is set by its
+# beat lengths, which a seam planner cannot change — `cut_report` measures both from the board and says which bound.
+#
+# A planned cut is written `{"type": "cut", "by": "seam_plan"}`, so a re-run can tell its own cuts from an author's
+# (an author's cut has no `by`) and re-plan them; the renderer reads only `type`.
+CUT_TEMPOS = ("kinetic", "scored", "calm")
+CUT_SHARE = {"kinetic": 1.0, "scored": 0.5, "calm": 0.0}
+# ...and the share under which validate.py says so. A kinetic film's marks, hand-offs and returns stay soft by design,
+# so its floor sits below its plan: 2-3 marks on an 8-beat film leave 4-5 of 7 seams to cut (0.57-0.71).
+CUT_WARN_BELOW = {"kinetic": 0.5, "scored": 0.4, "calm": 0.0}
+REFERENCE_CUTS_PER_MIN = 27.8          # Apple's launch film, measured (references/launch-film-study.md)
+PLANNED_BY = "seam_plan"
+_ENERGY_RANK = {"peak": 0, "high": 1, "medium": 2, "": 3, "low": 4}
+_REL_RANK = {"continuation": 0, "new-topic": 1, "payoff": 2}
+
+
+def film_tempo(meta):
+    """(tempo, basis) — how hard this film cuts, from what the board already says about it."""
+    m = meta if isinstance(meta, dict) else {}
+    forced = str(m.get("cuts") or "").strip().lower()
+    if forced in CUT_TEMPOS:
+        return forced, "meta.cuts"
+    try:
+        import tier_advice as _ta
+        purpose = _ta.canonical_purpose(m.get("purpose"))
+    except Exception:                                  # noqa: BLE001 — no purpose reader, no purpose
+        purpose = None
+    if purpose in ("launch", "promo"):
+        return "kinetic", "purpose:%s" % purpose
+    if str(m.get("intensity") or "").strip().lower() == "bold":
+        return "kinetic", "intensity:bold"
+    try:
+        import beatgrid as _bg
+        if _bg.music_requested(m):
+            return "scored", "music (bgm %r)" % m.get("bgm")
+    except Exception:                                  # noqa: BLE001
+        pass
+    return "calm", "purpose:%s, no music" % (purpose or "unknown")
+
+
+def is_planned_cut(slide):
+    """A `cut` this planner wrote (and may re-plan), as opposed to an author's."""
+    ti = (slide or {}).get("transition_in")
+    return isinstance(ti, dict) and ti.get("type") == "cut" and ti.get("by") == PLANNED_BY
+
+
+def strip_planned_cuts(slides):
+    """Remove this planner's own earlier cuts (they are re-planned from the board as it is now) → their beat indexes."""
+    out = []
+    for i, s in enumerate(slides):
+        if is_planned_cut(s):
+            del s["transition_in"]
+            out.append(i)
+    return out
+
+
+def _cut_eligible(slides, i, marks, handoffs):
+    """Why seam i cannot be a planned cut, or None when it can."""
+    import stage_runs as _sr
+    a, b = slides[i - 1], slides[i]
+    if _sr.joined(a, b):
+        return "inside a stage run (no seam)"
+    if i in marks:
+        return "marked"
+    if b.get("transition_in") or b.get("transition_style"):
+        return "authored"
+    if (i - 1) in handoffs or (a.get("camera") or {}).get("handoff"):
+        return "a camera hand-off carries it (the push IS that cut's motion)"
+    if str(b.get("relation") or "").strip().lower() == "return":
+        return "a return (the seam is the pan back across the board)"
+    if a.get("match_cut"):
+        return "a match_cut (the container by declared rects)"
+    return None
+
+
+def plan_cuts(slides, meta=None, marks=None, handoffs=None):
+    """→ (tempo, basis, {beat_index: why}) — the UNMARKED seams to cut hard, by the film's tempo (see above)."""
+    marks, handoffs = marks or {}, set(handoffs or ())
+    tempo, basis = film_tempo(meta)
+    n = len(slides)
+    seams = [i for i in range(1, n) if not _joined(slides, i)]
+    if tempo == "calm" or not seams:
+        return tempo, basis, {}
+    elig = [i for i in seams if _cut_eligible(slides, i, marks, handoffs) is None]
+    if tempo == "scored":
+        def rel(i):
+            return str(slides[i].get("relation") or "").strip().lower()
+        elig = [i for i in elig if rel(i) != "close"
+                and str(slides[i].get("energy") or "").strip().lower() != "low"]
+        already = sum(1 for i in seams if _hard(slides[i], marks.get(i)))
+        want = max(0, int(math.ceil(CUT_SHARE[tempo] * len(seams) - 1e-9)) - already)
+        elig = sorted(elig, key=lambda i: (_ENERGY_RANK.get(str(slides[i].get("energy") or "").strip().lower(), 3),
+                                           _REL_RANK.get(rel(i), 3), i))[:want]
+    why = {"kinetic": "a %s film cuts hard on its unmarked seams" % tempo,
+           "scored": "the cut lands on the beat the pads are snapped to"}[tempo]
+    return tempo, basis, {i: why for i in sorted(elig)}
+
+
+def _joined(slides, i):
+    import stage_runs as _sr
+    return _sr.joined(slides[i - 1], slides[i])
+
+
+def _hard(slide, mark=None):
+    """Is this seam a hard cut once the plan is applied — a `cut`, or the `punch` (a hard cut with a lean and a flash)?"""
+    t = (mark or {}).get("type")
+    if t is None:
+        import render_remotion as _rr
+        ti = _rr._transition_in(slide)
+        t = (ti or {}).get("type")
+    return t in ("cut", "punch")
+
+
+def cut_report(slides, fps=30, tr=None):
+    """The hard-cut RATE measured from the board as it stands: {'seams', 'hard', 'share', 'film_s', 'per_min',
+    'max_per_min'} — `per_min` counts hard cuts, `max_per_min` every seam (what the beat lengths allow at most).
+    `film_s`/rates are None when the beats carry no durations yet (before tts.py)."""
+    if tr is None:
+        import beatgrid as _bg
+        tr = _bg.seam_frames()
+    n = len(slides)
+    seams = [i for i in range(1, n) if not _joined(slides, i)]
+    hard = [i for i in seams if _hard(slides[i])]
+    durs = [s.get("duration") for s in slides]
+    film_s = None
+    if n and all(isinstance(d, (int, float)) and d > 0 for d in durs):
+        film_s = sum(max(1, int(round(float(d) * fps))) for d in durs) / float(fps) - len(seams) * tr / float(fps)
+    per = (lambda k: round(60.0 * k / film_s, 1)) if film_s and film_s > 0 else (lambda k: None)
+    return {"seams": len(seams), "hard": len(hard), "hard_beats": [i + 1 for i in hard],
+            "share": round(len(hard) / float(len(seams)), 3) if seams else 0.0,
+            "film_s": round(film_s, 3) if film_s else None, "per_min": per(len(hard)), "max_per_min": per(len(seams))}
+
+
+def cut_shortfall(slides, meta):
+    """A sentence when the board's hard-cut share is under its tempo's target, else None (validate.py repeats it)."""
+    tempo, basis = film_tempo(meta)
+    rep = cut_report(slides)
+    floor = CUT_WARN_BELOW[tempo]
+    if not rep["seams"] or floor <= 0 or rep["share"] + 1e-9 >= floor:
+        return None
+    rate = (" (%.1f hard cuts a minute; its beat lengths allow %.1f; Apple's launch film cuts %.1f)"
+            % (rep["per_min"], rep["max_per_min"], REFERENCE_CUTS_PER_MIN)) if rep["per_min"] is not None else ""
+    return ("%d of %d seams are hard cuts%s on a %s film (%s) — every other seam is a 12-frame dissolve, the strongest "
+            "\"this is slides\" signal three benchmark films found. Run `python3 scripts/seam_plan.py <out_dir>` to "
+            "plan the cuts, or set `meta.cuts` if this film is meant to breathe." % (rep["hard"], rep["seams"], rate,
+                                                                                      tempo, basis))
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__.strip())
@@ -590,7 +755,11 @@ def main(argv):
 
 
 def _plan_film(argv, out_dir, dry, path, board):
+    if dry:
+        board = copy.deepcopy(board)                  # a dry run plans on a copy and writes nothing
     slides = board.get("slides", [])
+    # this planner's OWN earlier cuts are re-planned from the board as it is now; an author's cut has no `by`
+    replanned = strip_planned_cuts(slides)
     already = [i for i, s in enumerate(slides) if s.get("transition_in") or s.get("transition_style")]
     if already and not dry:
         print("[seam_plan] %d beat(s) already carry an authored seam (%s) — leaving them alone"
@@ -603,8 +772,11 @@ def _plan_film(argv, out_dir, dry, path, board):
         print("  beat %-3d skip (continues stage run %r — no cut)" % (i + 1, _sr.run_id(slides[i])))
         del marks[i]
     if not marks:
-        print("[seam_plan] no beat declares new-topic / payoff / close — every seam stays the default cut. "
+        print("[seam_plan] no beat declares new-topic / payoff / close — no seam is marked. "
               "That is a legitimate film (one unbroken argument), but check the `relation` field is set.")
+        _plan_cut_seams(board, slides, {}, set(), replanned, dry)
+        if not dry:
+            json.dump(board, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
         return 0
 
     for i, m in sorted(marks.items()):
@@ -614,8 +786,7 @@ def _plan_film(argv, out_dir, dry, path, board):
             print("  beat %-3d skip (authored)" % (i + 1))
             continue
         print("  beat %-3d %s %-9s %s" % (i + 1, tag, m["type"], m["why"]))
-        if not dry:
-            s["transition_in"] = {k: v for k, v in m.items() if k != "why"}
+        s["transition_in"] = {k: v for k, v in m.items() if k != "why"}
 
     cams = {} if "--no-camera" in argv else plan_camera(slides)
     for i in [i for i in cams if _sr.run_id(slides[i])]:
@@ -634,12 +805,29 @@ def _plan_film(argv, out_dir, dry, path, board):
             if i in handoffs:
                 sl["camera"]["handoff"] = True
 
+    _plan_cut_seams(board, slides, marks, handoffs, replanned, dry)
     if not dry:
         json.dump(board, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print("[seam_plan] %d marked seam(s) of %d cut(s), %d moving beat(s) of %d%s"
           % (len(marks), max(0, len(slides) - 1), len(cams), len(slides),
              " (dry run — nothing written)" if dry else ""))
     return 0
+
+
+def _plan_cut_seams(board, slides, marks, handoffs, replanned, dry):
+    """Plan and write the hard cuts (plan_cuts), then print the rate measured from the board."""
+    meta = board.get("meta", {})
+    tempo, basis, cuts = plan_cuts(slides, meta, marks, handoffs)
+    for i, why in sorted(cuts.items()):
+        print("  beat %-3d %s cut       %s" % (i + 1, "would" if dry else "cut", why))
+        slides[i]["transition_in"] = {"type": "cut", "by": PLANNED_BY}
+    rep = cut_report(slides)
+    rate = (", %.1f a minute (every seam would be %.1f; Apple's launch film %.1f)"
+            % (rep["per_min"], rep["max_per_min"], REFERENCE_CUTS_PER_MIN)) if rep["per_min"] is not None else ""
+    print("[seam_plan] tempo %s (%s): %d of %d seam(s) hard%s%s"
+          % (tempo, basis, rep["hard"], rep["seams"], rate,
+             "; re-planned %d earlier planned cut(s)" % len(replanned) if replanned else ""))
+    return cuts
 
 
 if __name__ == "__main__":

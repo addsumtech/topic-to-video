@@ -50,13 +50,21 @@ _TRANSITION_STYLE = {
     "grow": {"type": "grow"}, "expand": {"type": "grow"},
     "through-window": {"type": "through-window"}, "zoom-through": {"type": "through-window"},
     "punch": {"type": "punch"}, "push-cut": {"type": "punch"}, "pushcut": {"type": "punch"},
+    # THE HARD CUT (remotion/src/seams.tsx `cut`): the picture changes on the seam's middle frame and the audio keeps
+    # the seam's overlap. `cut` was an html word only ("no seam at all") and resolved to the default cross-fade here,
+    # because this tier had no picture for it — so a board that asked for a hard cut got a dissolve.
+    "cut": {"type": "cut"}, "hard-cut": {"type": "cut"},
 }
 # `focus`, `through-dark` and `portal` are the DEPTH seams (Film.tsx). They belong here or a storyboard that
 # asks for one is silently downgraded to a fade, which is the exact "built but unreachable" failure this
 # file's `transition_in` docstring was written about — and it has already cost this repo two deliveries.
 _KINETIC_TYPES = {"slide", "push", "lift", "wipe", "clock", "dissolve", "fadethrough", "drift", "blur",
                   "carry", "focus", "through-dark", "portal", "return",
-                  "container", "grow", "through-window", "punch"}
+                  "container", "grow", "through-window", "punch", "cut"}
+# THE CUTS THAT ARE NOT MARKS. A marked seam is punctuation and is budgeted (2-3 a film); a hard cut is the absence
+# of a transition — the film's default grammar on a film whose energy asks for it (seam_plan.py) — and must not
+# spend that budget or set off the "too many marks" warnings.
+HARD_CUT_TYPES = {"cut"}
 # The seams that take hold of a marked element (runtime/carry `data-carry`) and need to be told which one.
 ANCHORED_TYPES = {"container", "grow", "through-window"}
 # A match_cut's shapes, in the order the corner rounds (Film.tsx containerSpec).
@@ -143,10 +151,11 @@ def _caption_for_eye(text):
 
 
 # WORDS THAT NAME A DELIBERATE NON-MARK, and the html tier's spelling of the default. `transition_style` is
-# shared with the html tier, where `dip` IS the default seam and `cut`/`none` mean "no seam at all". They
-# resolve to no remotion mark, which is correct — but they are KNOWN, so `validate.py` must not report them
-# as words this renderer cannot draw.
-_UNMARKED_WORDS = {"cut", "none", "hard-cut", "dip", "fade"}
+# shared with the html tier, where `dip` IS the default seam and `none` means "no seam at all". They resolve to no
+# remotion mark, which is correct — but they are KNOWN, so `validate.py` must not report them as words this renderer
+# cannot draw. (`cut` and `hard-cut` were here too, and drew the default cross-fade: the tier had no hard cut. They
+# resolve to the `cut` seam now.)
+_UNMARKED_WORDS = {"none", "dip", "fade"}
 
 
 def seam_word_known(word):
@@ -165,6 +174,18 @@ def seam_type(word):
         return w
     mapped = _TRANSITION_STYLE.get(w)
     return mapped["type"] if mapped else None
+
+
+def is_mark(slide):
+    """Does this beat's incoming seam spend the MARKED-seam budget? Any resolved seam except a hard cut."""
+    ti = _transition_in(slide)
+    return bool(ti) and ti.get("type") not in HARD_CUT_TYPES
+
+
+def is_hard_cut(slide):
+    """Is this beat's incoming seam the plain hard cut (`cut`)?"""
+    ti = _transition_in(slide)
+    return bool(ti) and ti.get("type") in HARD_CUT_TYPES
 
 
 def _transition_in(slide, travel=None, prev=None):
@@ -472,6 +493,9 @@ def _split_caption(text):
             merged.append(c)
     return merged
 
+_CJK_CUE = re.compile(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+
+
 def _srt_ts(t):
     ms = int(round(max(0.0, t) * 1000)); h, ms = divmod(ms, 3600000); m, ms = divmod(ms, 60000); s, ms = divmod(ms, 1000)
     return "%02d:%02d:%02d,%03d" % (h, m, s, ms)
@@ -505,6 +529,17 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
     # Film.tsx's splitCaption (including its decimal guard) and its length-weighted chunk timing here.
     half = tr // 2
     lines, n = [], 0
+    # A CJK CUE IS BROKEN AT WORD BOUNDARIES (scripts/caption_breaks_qa.srt_lines: the film's own captionBreak.ts in
+    # node, 16 glyphs a line, balanced, kinsoku) — a player wraps Chinese between any two characters, which is how the
+    # burned caption came to read 「交回成 / 片」. Without node the cues stay one line each, as before.
+    _all = [c for sc in scenes if sc.get("caption") for c in _split_caption(sc["caption"])]
+    try:
+        import caption_breaks_qa as _cbq
+        _broken = _cbq.srt_lines(_all) if any(_CJK_CUE.search(c) for c in _all) else None
+    except Exception as e:                                  # noqa: BLE001 — a sidecar is never worth a failed render
+        print("[render_remotion] out.srt: CJK cues left unbroken (%s)" % e)
+        _broken = None
+    _lines_of = dict(zip(_all, _broken)) if _broken else {}
     for i, sc in enumerate(scenes):
         cap = sc.get("caption")
         if not cap:
@@ -523,7 +558,8 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
             cum += L
             f1 = a + span * (cum / tot)
             n += 1
-            lines.append("%d\n%s --> %s\n%s\n" % (n, _srt_ts(f0 / fps), _srt_ts(max(f0 / fps + 0.3, f1 / fps - 0.02)), c))
+            text = "\n".join(_lines_of.get(c) or [c])
+            lines.append("%d\n%s --> %s\n%s\n" % (n, _srt_ts(f0 / fps), _srt_ts(max(f0 / fps + 0.3, f1 / fps - 0.02)), text))
     with open(os.path.join(out_dir, "out.srt"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     if shutil.which("ffmpeg") and os.path.exists(out_mp4):   # per-scene keyframes for the shot-critic
@@ -791,6 +827,10 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     zone = safe_zone(meta, aspect)
     if zone:
         props["safe"] = zone
+        # the margin ECHO (Film.tsx SafeEcho: the beat itself, blurred, behind its 0.8 frame) costs a second rendering
+        # of every register — measured 1.7-1.9x the frame time on a 9:16 probe — so a board may refuse it
+        if meta.get("safe_echo") is False:
+            props["safeEcho"] = False
     if isinstance(meta.get("brand"), dict) and meta["brand"].get("logo"):
         props["brand"] = meta["brand"]     # served from out_dir via --public-dir; drawn as a persistent corner bug
     theme = meta.get("theme")                 # the per-topic atmosphere WORLD (motif + palette) behind every shot

@@ -269,6 +269,20 @@ def boundaries(durF, joined, tr, close_on_arrival=False):
     return out
 
 
+def close_is_cut(slides):
+    """Is the seam INTO the last beat a hard cut (`cut`)? Then the close's picture changes on that seam's middle frame
+    like any other cut's, and its boundary is timed there — `close_on_arrival` times the close by the frame the beat
+    MOUNTS because the closing impact lands there for every other seam, and on a hard cut the impact moves to the cut's
+    frame with it (sfx.plan_cues). Resolved by render_remotion's one seam resolver, aliases included."""
+    if not slides or len(slides) < 2:
+        return False
+    try:
+        import render_remotion as _rr
+    except Exception:                                   # noqa: BLE001 — no renderer, no remotion seam to read
+        return False
+    return _rr.is_hard_cut(slides[-1])
+
+
 def film_frames(durF, joined, tr):
     cuts = sum(1 for k in range(1, len(durF)) if not joined[k])
     return max(1, sum(int(d) for d in durF) - cuts * tr)
@@ -821,7 +835,8 @@ def music_for_render(out_dir, slides, scenes, meta, tr=None, log=print):
     import stage_runs as _sr
     joined = _sr.joined_flags(scenes)
     durF = [int(sc["durF"]) for sc in scenes]
-    bnd = boundaries(durF, joined, tr, close_on_arrival=True)
+    arrive = not close_is_cut(slides)
+    bnd = boundaries(durF, joined, tr, close_on_arrival=arrive)
     cuts = [b["frame"] / float(FILM_FPS) for b in bnd]
     doc = read(out_dir)
     k, rel = climax_boundary(slides)
@@ -876,7 +891,8 @@ def plan_film(slides, meta, bgm_path=None, slack=None, log=print):
     durations = [float(s.get("duration") or 0.0) for s in slides]
     joined = _sr.joined_flags(slides)
     durF = [dur_frames(d, fps) for d in durations]
-    bnd = boundaries(durF, joined, tr, close_on_arrival=True)
+    arrive = not close_is_cut(slides)
+    bnd = boundaries(durF, joined, tr, close_on_arrival=arrive)
     cuts = [b["frame"] / float(fps) for b in bnd]
     mu = (meta or {}).get("music") or {}
     snap = (mu.get("snap") if isinstance(mu, dict) else None) or "beat"
@@ -911,12 +927,12 @@ def plan_film(slides, meta, bgm_path=None, slack=None, log=print):
                            source="author" if pinned else "synth", frame_locked=pinned is None)
     if windows is None:
         new = list(durations)
-        _, report = snap_pads(durations, joined, grid, tr=tr, max_add_s=0.0, max_trim_s=0.0, close_on_arrival=True)
+        _, report = snap_pads(durations, joined, grid, tr=tr, max_add_s=0.0, max_trim_s=0.0, close_on_arrival=arrive)
         for r in report:
             if not r["snapped"]:
                 r["why"] = "meta.music.snap is off: measured, not moved (%.0f ms off the beat)" % r["err_after_ms"]
     else:
-        new, report = snap_pads(durations, joined, grid, tr=tr, slack=slack, close_on_arrival=True)
+        new, report = snap_pads(durations, joined, grid, tr=tr, slack=slack, close_on_arrival=arrive)
     newF = [dur_frames(d, fps) for d in new]
     doc = {"version": 1, "grid": grid.to_dict(), "snap": snap, "fps": fps, "seam_frames": tr,
            "bgm": bgm_path and os.path.basename(bgm_path) or "auto", "bgm_skip_s": skip,

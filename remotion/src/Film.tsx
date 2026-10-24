@@ -44,7 +44,8 @@ import {FilmDither} from './runtime/dither';
 import {OpticContext, opticState, normalizeOptic, dnaLight, SeamLeak, type OpticDecl, type OpticSpec} from './runtime/optics';
 import {litMediumGround} from './runtime/material';
 import {CarryContext} from './runtime/carry';
-import {container, grow, throughWindow, punch, SeamCopyContext} from './seams';
+import {container, grow, throughWindow, punch, cut, SeamCopyContext} from './seams';
+import {splitCaption, fitCaption, advanceFor, cjkCaptionLines, captionBox, CAP_PAD_X} from './captionBreak';
 
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
 // luminance override; falls back to the measured shotLuma map). Future phases grow this schema (accent,
@@ -67,7 +68,7 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
   transitionIn?: {type: 'fade' | 'slide' | 'push' | 'lift' | 'wipe' | 'clock' | 'dissolve' | 'fadethrough'
     | 'drift' | 'blur' | 'carry' | 'focus' | 'through-dark' | 'portal' | 'return'
-    | 'container' | 'grow' | 'through-window' | 'punch'; direction?: string;
+    | 'container' | 'grow' | 'through-window' | 'punch' | 'cut'; direction?: string;
     /** `return` only: the pan across the film's board, as fractions of the frame's LONG side. Computed by
      *  `scripts/film_board.py`, which is the one place that knows where two beats sit. */
     dx?: number; dy?: number;
@@ -156,6 +157,46 @@ export const joinedAt = (scenes: SceneSpec[], i: number) =>
 const SAFE_EDGE = `${(ACTION_SAFE_FRAC * 100).toFixed(1)}%`, SAFE_EDGE_FAR = `${(100 - ACTION_SAFE_FRAC * 100).toFixed(1)}%`;
 const SAFE_FRAME_MASK = `linear-gradient(90deg, transparent 0%, #000 ${SAFE_EDGE}, #000 ${SAFE_EDGE_FAR}, transparent 100%), ` +
   `linear-gradient(180deg, transparent 0%, #000 ${SAFE_EDGE}, #000 ${SAFE_EDGE_FAR}, transparent 100%)`;
+// THE MARGIN IS THE BEAT ITSELF. A platform-safe film draws every register in a frame scaled by k (0.8) with feathered
+// edges, so on 9:16 every beat was a panel floating on the film's ground — "every beat becomes a panel on black", the
+// first of a 9:16 launch benchmark's findings (2026-10-24), and the DNA's own gradient and vignette drew the panel's
+// edge as a visible seam. The margin is now filled the way vertical video fills one: with an ECHO of the same register,
+// drawn behind the scaled frame, scaled up about the frame's own centre until it covers the canvas, heavily blurred and
+// a little dimmed. What shows through the feathered edge is the beat's own picture going soft, not a second ground.
+//
+// IT IS NOT A SECOND BEAT TO ANY INSTRUMENT. `data-echo="margin"` + `aria-hidden`: every text gate already skips an
+// echo (runtime/textSafe.tsx `isEcho` — safety, collisions, the glide and sync censuses; runtime/titleProbe.tsx), the
+// seams' anchor lookups skip a margin echo (seams.tsx `anchorIn`), it mounts no optic (no BeatOptic) and plays no
+// sound (SeamCopyContext: Film's beat voice reads it; every film video in runtime/screen.tsx is already muted). Inside a
+// container seam's copy of the beat it is not drawn at all. Only a platform-safe film has one, so every other film's
+// tree — and every pixel — is what it was (`safeEcho: false` switches it off for a proof).
+const ECHO_COVER = 1.36;      // the echo's scale over the canvas, about the scaled frame's centre: 1.14 covers exactly
+                              // (k 0.8, y0 0.03), and a blur fades whatever it has no pixels past to transparent — at
+                              // 1.22 the bottom 77px of overscan was not enough and the frame's foot went grey (looked)
+const ECHO_BLUR_FRAC = 0.036; // of the frame's short side — 39px at 1080: no edge of the register's type survives it
+const ECHO_DIM = 0.85;        // brightness under the sharp frame on a DARK beat, so the panel stays the thing to look at.
+                              // A LIGHT beat is not dimmed: 0.78 on a paper beat drew a grey frame round a white card,
+                              // the panel this layer exists to remove (looked, 9:16 probe frame 34)
+const SafeEcho: React.FC<{W: number; H: number; k: number; y0: number; light: boolean; children: React.ReactNode}> = ({
+  W, H, k, y0, light, children}) => {
+  if (React.useContext(SeamCopyContext)) return null;
+  const cy = y0 + (k * H) / 2;
+  const blur = Math.round(Math.min(W, H) * ECHO_BLUR_FRAC);
+  // the cover a profile NEEDS: reach both frame edges from cy, plus three blur radii of pixels past each edge (a
+  // Gaussian's reach) — 1.26 for `social`. ECHO_COVER is what was looked at; a profile needing more gets more.
+  const need = Math.max(1 + (6 * blur) / W, (2 * Math.max(cy, H - cy) + 6 * blur) / H);
+  const cover = Math.max(ECHO_COVER, need);
+  const tx = W / 2 - (cover * W) / 2, ty = cy - (cover * H) / 2;
+  return (
+    <AbsoluteFill aria-hidden data-echo="margin" style={{overflow: 'hidden', pointerEvents: 'none',
+      filter: light ? `blur(${blur}px)` : `blur(${blur}px) brightness(${ECHO_DIM})`}}>
+      <AbsoluteFill style={{transformOrigin: '0 0', transform: `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${cover})`}}>
+        <SeamCopyContext.Provider value={true}>{children}</SeamCopyContext.Provider>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
 // A REGISTER WHOSE GROUND IS A PROP: its one measured row (shotLuma) describes its DEFAULT only. LitMedium paints its
 // medium's colour, so a water beat read as the default paper and its caption was inked dark on dark water.
 const PROP_GROUND: Record<string, (props: Record<string, unknown> | undefined, dna?: never) => string | null> = {
@@ -205,83 +246,10 @@ export const WORKBUDDY_SCENES: SceneSpec[] = WB_SHOTS.map((shot, i) => ({
   shot, props: WB_PROPS[i] ?? {}, durF: Math.round(WB_SEC[i] * 30), caption: CAPTIONS[i], transitionIn: WB_TRANS[i],
 }));
 
-// Split a caption into progressively-shown chunks. Splits on sentence enders — ASCII (.!?) AND CJK (。！？) —
-// so a 中文 caption chunks per sentence too (not one block). Short LATIN fragments merge into their neighbour
-// (the 22-char floor is a Latin measure); CJK sentences each stand alone (a full sentence is few chars but a
-// complete thought, and merging them by a Latin char-count would collapse them). Never empty. Deterministic.
-const isCJKText = (s: string): boolean => /[㐀-鿿぀-ヿ가-힯]/.test(s);
-const splitCaption = (text: string): string[] => {
-  // A DECIMAL POINT is not a sentence end. The splitter treats `.` as a terminator, so "19.3 到 28.9%"
-  // broke into "19." / "3 到 28." / "9%。" and the caption on screen read 「pass@k 最多掉 19.」 — a
-  // number cut in half, on the beat carrying the film's headline figure. Shield digit-dot-digit behind a
-  // sentinel for the split, then restore it. Applies to any figure: 0.833, 2.39, 19.3.
-  const DEC = '\u0000';
-  const guarded = text.replace(/(\d)\.(\d)/g, `$1${DEC}$2`);
-  const chunks = guarded.match(/[^.!?。！？—]+[.!?。！？]?(\s*—)?/g)
-    ?.map((c) => c.trim().split(DEC).join('.')).filter(Boolean) ?? [text];
-  const merged: string[] = [];
-  for (const c of chunks) {
-    const prev = merged[merged.length - 1];
-    if (prev && !isCJKText(c) && !isCJKText(prev) && (prev.length < 22 || c.length < 22)) merged[merged.length - 1] += ' ' + c;
-    else merged.push(c);
-  }
-  return merged;
-};
-
-// FIT THE CAPTION TO THE BAND IT WAS GIVEN — not the other way round.
-//
-// The band reserves CAPTION_LINES lines. A single long SENTENCE is one chunk however long it is, so a
-// 100-character line wrapped to THREE lines, overflowed the two-line reserve, and climbed into the picture:
-// a delivered frame had the caption printed straight through the shot's own subtitle. Widening the measure
-// alone does not fix it, because there is always a longer sentence.
-//
-// So an over-long chunk is split at its best CLAUSE boundary (comma / semicolon / dash — a place a reader
-// already pauses), nearest the middle so neither half is a scrap. Capacity is estimated from the type size
-// and the measure: Latin advance averages ~0.52em, CJK is monospaced at 1em. The estimate is calibrated
-// against real renders — a 100-char Latin caption at 56px in a 1400px measure is predicted 3 lines and
-// rendered 3 lines. Deterministic, and it degrades to the original chunk when there is no boundary to cut on.
-// THE ADVANCE BELONGS TO THE FONT, not to one font. Both estimates below were calibrated on Inter and
-// then applied to whatever face the film's DNA supplies. Measured on this renderer at 56px: this film's
-// IBM Plex Sans averages 0.452-0.478 em on real prose — so 0.52 is conservative and safe — but the
-// `terminal` DNA sets ALL type to JetBrains Mono, where the same sentence measures 0.588. There the
-// estimate UNDER-counts, the caption wraps to more lines than the fit assumed, and it overflows the band
-// it was supposed to be guaranteed to fit. CJK measures 0.995 in a PROPORTIONAL face, so 1.0 was right for
-// the faces this was written against — and wrong for a terminal DNA, whose caption is set in the mono
-// stack, where a Han glyph is two cells. `cjkAdvance` asks the face, exactly as `latinAdvance` does.
-const advanceFor = (text: string, fontStack?: string, uniform?: boolean): number =>
-  isCJKText(text) ? cjkAdvance(fontStack, uniform) : latinAdvance(fontStack, uniform);
-
-const CLAUSE = /[,;，；、]|\s—\s/g;
-const fitCaption = (chunks: string[], size: number, measure: number, lines: number,
-                    fontStack?: string, uniform?: boolean): string[] => {
-  const out: string[] = [];
-  const cap = (t: string) => Math.max(8, Math.floor(measure / (size * advanceFor(t, fontStack, uniform))));
-  const split = (t: string, depth: number): void => {
-    const budget = cap(t) * lines;
-    if (t.length <= budget || depth > 2) { out.push(t); return; }
-    const mid = t.length / 2;
-    let best = -1;
-    CLAUSE.lastIndex = 0;
-    for (let m = CLAUSE.exec(t); m; m = CLAUSE.exec(t)) {
-      // A SEPARATOR INSIDE A NUMBER IS NOT A CLAUSE BOUNDARY. `378,140` and `19.3` carry a thousands
-      // separator and a decimal point, and cutting there guillotines the figure across two lines —
-      // "the register today counts 378," / "140 residents". This is the same defect as the one already
-      // guarded in splitCaption above, reproduced here because the two functions scan for different
-      // things and only one of them knew. A digit on both sides means it belongs to the number.
-      if (/\d/.test(t[m.index - 1] ?? '') && /\d/.test(t[m.index + m[0].length] ?? '')) continue;
-      const at = m.index + m[0].length;
-      if (at > 4 && at < t.length - 4 && (best < 0 || Math.abs(at - mid) < Math.abs(best - mid))) best = at;
-    }
-    if (best < 0) { out.push(t); return; }          // nothing to cut on — better one long chunk than a word sliced
-    split(t.slice(0, best).trim(), depth + 1);
-    split(t.slice(best).trim(), depth + 1);
-  };
-  chunks.forEach((c) => split(c, 0));
-  return out;
-};
+// The caption's CHUNKS (splitCaption, fitCaption) and a CJK chunk's LINES live in captionBreak.ts, which the gate
+// scripts/caption_breaks_qa.py runs in node — one definition for what is burned and what is checked.
 
 const CAP_PAD = 4;   // clean-gap frames inside each scene's sole-visible window → guarantees exit-before-enter
-const CAP_PAD_X = 60; // the caption block's own side padding, inside its measure (border-box)
 const CAP_FADE = 3;  // tiny in/out ramp WITHIN the window (never across a transition, so captions never double)
 // FRAME-CRAFT FLOOR. An earlier version scaled the WHOLE world to 0.86 to pull edge content inside action-safe —
 // but that shrank each shot's OWN full-bleed background too, so a ~14% margin of the near-black atmosphere showed
@@ -317,7 +285,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // phone-sized window. The gap is paid for out of the reserved BAND now instead of out of the type.
   // on a platform-safe film a size larger: vertical-video guidance starts captions around 55-65px at 1080 wide
   // (references/craft-research.md §2), and the caption no longer competes with the bottom of the picture
-  const capSize = Math.round(Math.min(width, height) * CAPTION_SIZE_FRAC * (safe ? SAFE_CAPTION_SCALE : 1));
+  const {capSize, capMeasure, capTextW} = captionBox(width, height, safe);
   const capMargin = Math.round(Math.min(width, height) * CAPTION_MARGIN_FRAC);
   const starts = sceneStarts(scenes);
   let active = -1, ws = 0, we = 0;
@@ -344,9 +312,6 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // the third climbing out of the band onto the shot's own words.
   // on a platform-safe film the LINES end short of the button column (runtime/safeZone `right`), centred — a full
   // line of a 1080-wide caption ran to x 960, under the buttons from 929; 8 px of air
-  const capMeasure = Math.min(1600, width - 120,
-    safe ? Math.floor(width * (1 - 2 * safe.right)) - 8 + 2 * CAP_PAD_X : Infinity);
-  const capTextW = capMeasure - 2 * CAP_PAD_X;
   const merged = fitCaption(splitCaption(sc.caption), capSize, capTextW, CAPTION_LINES, dnaFontBody, dnaUniform);
   // WEIGHT each chunk's on-screen time by its LENGTH (not equal slices) — else a 3-word chunk lingers while a
   // 20-word chunk races the voice. Advance idx by cumulative char-fraction of the caption.
@@ -444,7 +409,10 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   const capBand = safe ? Math.round(safe.k * captionBand(width, height)) : captionBand(width, height);
   const capBottom = safe ? Math.round(height - captionBottomY(height, safe, capMargin)) : capMargin;
   const perLine = Math.max(8, Math.floor(capTextW / (capSize * advanceFor(capText, dnaFontBody, dnaUniform))));
-  const capLines = Math.max(1, Math.ceil(capText.length / perLine));
+  // A CJK CAPTION IS DRAWN IN THE LINES captionBreak DECIDES — at word boundaries, never in front of closing
+  // punctuation, balanced — one block per line. The browser broke it between any two characters: 「交回成 / 片」.
+  const cjkLines = isCJK ? cjkCaptionLines(capText, capSize, capTextW, dnaFontBody, dnaUniform) : null;
+  const capLines = cjkLines ? Math.max(1, cjkLines.length) : Math.max(1, Math.ceil(capText.length / perLine));
   const fitSize = Math.max(12, Math.min(capSize, Math.floor((capBand - capMargin) / (capLead * capLines))));
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
@@ -467,7 +435,25 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
             an unknown ground: the lit half is exactly the ink the pick above chose, and the half still to
             come is the same ink held back. A coloured highlight is offered on top of that, and only when
             the DNA's accent is actually readable on this frame's ground — never instead of it. */}
-        {lit < 0 ? capText : (() => {
+        {cjkLines && cjkLines.length ? (() => {
+          // one block per decided line; the spoken/unspoken split is the same offset, found inside each line. A line
+          // the advance estimate got too wide is the one case left to the browser: `keep-all` holds its words
+          // together and only a line with no other way to fit breaks anywhere (the block's overflow-wrap)
+          const cut = lit < 0 ? capText.length : Math.max(0, Math.min(capText.length, lit - at[idx].a));
+          let cur = 0;
+          return cjkLines.map((ln, li) => {
+            const f = capText.indexOf(ln, cur);
+            const a = f >= 0 ? f : cur;
+            cur = a + ln.length;
+            const c = Math.max(0, Math.min(ln.length, cut - a));
+            return (
+              <div key={li} style={{wordBreak: 'keep-all', lineBreak: 'strict'} as React.CSSProperties}>
+                <span>{ln.slice(0, c)}</span>
+                {c < ln.length ? <span style={{opacity: lit < 0 ? 1 : 0.42}}>{ln.slice(c)}</span> : null}
+              </div>
+            );
+          });
+        })() : lit < 0 ? capText : (() => {
           const cut = Math.max(0, Math.min(capText.length, lit - at[idx].a));
           return (<>
             <span>{capText.slice(0, cut)}</span>
@@ -876,6 +862,8 @@ const dnaDefaultSeam = (dna: DesignDNA | null, W: number, H: number): Transition
     if (d === 'wipe') return wipe({direction: (dir as any) ?? 'from-bottom'});
     if (d === 'clock') return clockWipe({width: W, height: H});
     if (d === 'dissolve') return fade();
+    // a world whose native cut is the plain hard cut — every unmarked seam changes picture on one frame
+    if (d === 'cut') return cut();
   }
   if (dna.seam?.type === 'fade') return null;      // an explicit, deliberate plain cut
   switch (dna.id) {
@@ -969,7 +957,15 @@ const seamDrawn = (prev: SceneSpec, next: SceneSpec, dna: DesignDNA | null,
   // dark stage card carried into a light figure. A fade with an element in it, not a flash. `grow`, `through-window` and `punch` are
   // deliberately NOT here: a growing shape or a window of a bright beat opening on a dark one is the portal's
   // brightness jump, and a punch is a hard cut with a flash on it.
-  const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark', 'drift', 'blur', 'container']);
+  // `cut` (seams.tsx) earns it by the through-dark's own argument taken to its limit: the two beats never share a
+  // frame at all, so no frame can add a bright picture to a dark one or move a bright edge across a dark field — the
+  // two things this guard exists to refuse. What a crossing cut DOES is a step: measured on a dark beat cut to a light
+  // one (tests/test_hard_cut.py), the frame mean holds the dark beat's value to the cut's frame and the light beat's
+  // from it — one step, inside both beats' range, never back. A step is half of what photosensitivity guidance calls a
+  // flash (ITU-R BT.1702: a PAIR of opposing changes, harmful past three in one second); a cut every beat cannot make
+  // three in a second. Whether a dark/light smash cut suits THIS film is the planner's call (seam_plan.py plans cuts
+  // only on films whose energy asks for them), not this guard's.
+  const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark', 'drift', 'blur', 'container', 'cut']);
   const t = (harsh && !CANNOT_FLASH.has(want)) ? 'fade' : want;
   return {t, harsh};
 };
@@ -1078,6 +1074,8 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     case 'through-window': return throughWindow({seam, from: needAnchor(next, 'through-window').from,
       ground: groundFill(nextG), W, H, lead, n: TR});
     case 'punch': return punch({paper: paperOf(dna, nextG), W, H, n: TR, seam, lead});
+    // the hard cut: the picture changes on the seam's middle frame, both voices keep the seam's overlap (seams.tsx)
+    case 'cut': return cut();
     default: return fade();
   }
 };
@@ -1202,11 +1200,14 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string;
   // the delivery dither (runtime/dither): render_remotion asks for it; a still for a gate or a test does not
   dither?: boolean;
+  // `safeEcho: false` switches a platform-safe film's margin echo off (SafeEcho) — for its proofs. Never set by a film.
+  safeEcho?: boolean;
   // `optics: false` switches every beat's optic off — for scripts/determinism_qa.py's layer attribution and the
   // optics identity proofs. Never set by a film.
   optics?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
-    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe, dither = false, optics = true}) => {
+    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe, dither = false, optics = true,
+    safeEcho = true}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -1317,6 +1318,18 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                   band lands where the caption is, above the platform's UI, and nothing in it is re-laid-out */}
               {/* …and its edges dissolve into the beat's ground: a register that paints its own atmosphere showed the
                   scaled frame as a hard-edged panel */}
+              {regFrame && safeEcho ? (
+                <SafeEcho W={width} H={height} k={regFrame.k} y0={regFrame.y0}
+                  light={((edgeGround(sc, 'in')?.y ?? dnaGroundY(sc.shot, activeDna)) ?? 0) > LIGHT_KEY_Y}>
+                  <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
+                    <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
+                      <CarryContext.Provider value={arrived[i] ?? null}>
+                        <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : null}</BeatClock>
+                      </CarryContext.Provider>
+                    </ObjectIdleContext.Provider>
+                  </CueContext.Provider>
+                </SafeEcho>
+              ) : null}
               <AbsoluteFill data-beat={String(i)} style={regFrame ? {transformOrigin: '0 0',
                 transform: `translate(${regFrame.x0}px, ${regFrame.y0}px) scale(${regFrame.k})`,
                 WebkitMaskImage: SAFE_FRAME_MASK, maskImage: SAFE_FRAME_MASK,
