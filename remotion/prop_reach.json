@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 207,
+  "_universe": 212,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -223,7 +223,12 @@
     "WordRoll": "2aab3fb33cfc0e9b",
     "EquationMorph": "6a4902424a9f2df3",
     "FunctionPlot": "c105daa04a9bcc72",
-    "GrowingFigure": "90402c71172deeb8"
+    "GrowingFigure": "90402c71172deeb8",
+    "FlowCounter": "c90a0163fc9d4ce8",
+    "FlightArcs": "9309071933e3d324",
+    "FlowSankey": "40c53268658148a2",
+    "GlobeFocus": "8d949f10e58136f7",
+    "RankRace": "84cf953e4b2ddbbe"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -432,7 +437,12 @@
     "WordRoll": "2708792f68f18fee",
     "EquationMorph": "b2117e2df586042d",
     "FunctionPlot": "f094a34bcaf51cfa",
-    "GrowingFigure": "b658680bad3ac44b"
+    "GrowingFigure": "b658680bad3ac44b",
+    "FlowCounter": "7693b34f97dc3fb7",
+    "FlightArcs": "41eaea94b76b81fe",
+    "FlowSankey": "1b4dc4851855d918",
+    "GlobeFocus": "8fe392bef7bfd45d",
+    "RankRace": "65d48938c5ccb4c1"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -1261,6 +1271,26 @@
     },
     "WorksThrough": {
       "reach": 0.269,
+      "prop_diff": 1.0
+    },
+    "FlightArcs": {
+      "reach": 0.145,
+      "prop_diff": 0.75
+    },
+    "FlowCounter": {
+      "reach": 0.385,
+      "prop_diff": 1.0
+    },
+    "FlowSankey": {
+      "reach": 0.278,
+      "prop_diff": 0.75
+    },
+    "GlobeFocus": {
+      "reach": 0.044,
+      "prop_diff": 1.0
+    },
+    "RankRace": {
+      "reach": 0.122,
       "prop_diff": 1.0
     }
   }

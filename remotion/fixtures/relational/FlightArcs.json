@@ -1,0 +1,5 @@
+{"_why": "FlightArcs's routes name place ids and every place needs real coordinates; the structure is the register's demo (three places, two routes), only the copy paths get the fixture's words. See cjk_type_qa.relational_props.",
+ "props": {"title": "t", "note": "n",
+  "places": [{"id": "a", "label": "a", "lon": -0.13, "lat": 51.5}, {"id": "b", "label": "b", "lon": 55.3, "lat": 25.3}, {"id": "c", "label": "c", "lon": 139.7, "lat": 35.7}],
+  "routes": [{"from": "a", "to": "b"}, {"from": "b", "to": "c"}]},
+ "copy": ["title", "note", "places[].label"]}

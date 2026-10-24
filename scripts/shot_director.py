@@ -21,13 +21,16 @@ import argparse, json, os, sys
 # N Isometric · O Urban/signage · P Dimensional/experimental type (type as living/physical material:
 # variable-axis morph, inflated, elastic) · Q Anti-design/maximalist · R AI/neural · S Scientific/molecular ·
 # T Circuit/hardware ·
-# U Audio/music · V Cosmic/space · W Organic/botanical · X Weather/atmosphere · Y Fire/energy · Z Textile/fabric.
+# U Audio/music · V Cosmic/space · W Organic/botanical · X Weather/atmosphere · Y Fire/energy · Z Textile/fabric ·
+# GE Geography (where / route / scale — offline Natural Earth projected in code: GlobeFocus, FlightArcs).
 # Mirrors LIBRARY.md. (A–Z full; open AA+ if needed.) Boundary: F=physical liquids/light; K=computed algorithmic
 # fields — so a "generative" beat is never ambiguous. Post-audit (2026-08-15): VoiceSignal F→U (audio waveform),
 # IsometricAssembly G→N (all iso shots together), VariableTypeMorph J→P (J retired, one-shot subset of P).
 FAMILY = {
     "EquationMorph": "MA",
     "FunctionPlot": "MA",
+    "GlobeFocus": "GE",
+    "FlightArcs": "GE",
     "GazetteerEntry": "JA",
     "StatedBy": "JA",
     "ProfileGrowth": "J",
@@ -65,6 +68,9 @@ FAMILY = {
     "PointerTour": "B",
     "CrashZoom": "B", "TerrainFly": "B",
     "OverlapSeparation": "D", "SharedBlindspot": "H",
+    "RankRace": "D",
+    "FlowCounter": "D",
+    "FlowSankey": "D",
     "WeightedWheel": "D",
     "OrbitClockGain": "D",
     "Escalation": "D",
@@ -161,6 +167,11 @@ PROVENANCE = {
     "FunctionPlot":            'scientific',
     "GrowingFigure":           'scientific',
     "EquationMorph":           'scientific',
+    "RankRace":                'data-viz',
+    "FlowCounter":             'data-viz',
+    "FlowSankey":              'data-viz',
+    "FlightArcs":              'motion-graphics',
+    "GlobeFocus":              'motion-graphics',
     "CroppedType":             'motion-graphics',
     "TypeOnPath":              'motion-graphics',
     "WordRoll":                'motion-graphics',
@@ -385,10 +396,10 @@ CANDIDATES = {
                  "IsoWorld", "ComicPanels", "CircuitTrace", "CodeCompose", "DeviceDemo"],
     "structure": ["CollaborativeCursors", "KnowledgeGraph", "CrashZoom", "MapRoutes", "DataOrrery", "WireGlobe",
                   "BlueprintGrid", "CubeRotate", "BentoReveal", "IsoWorld", "NeuralField", "CircuitTrace", "DNAHelix",
-                  "PositioningMatrix", "DataMonolith", "VoxelBuild", "CardStack3D", "IsometricAssembly"],
+                  "PositioningMatrix", "DataMonolith", "VoxelBuild", "CardStack3D", "IsometricAssembly", "FlightArcs", "GlobeFocus"],
     # mostly family A; cross-family options (I/G/E) so two ADJACENT list beats don't both land in A.
     "list": ["BlockAssembly", "TemporalAccelerate", "CursorStory", "AnswerStream", "SplitFlap", "CardStack3D", "PhysicsStack", "HandDrawn"],
-    "metric": ["OdometerRoll", "ChartLive", "ChartRace", "GaugeCluster", "DataMonolith", "PhysicsStack", "BlueprintGrid", "BeforeAfterSlider"],
+    "metric": ["OdometerRoll", "ChartLive", "ChartRace", "GaugeCluster", "DataMonolith", "PhysicsStack", "BlueprintGrid", "BeforeAfterSlider", "FlowCounter", "RankRace", "FlowSankey"],
     # contrast/before-after — cross-family so two adjacent contrast beats differ (H comparison + I + E + C).
     "contrast": ["BeforeAfterSlider", "VersusSplit", "QuadSplit", "SharedBlindspot", "PositioningMatrix", "CardFlip3D", "SplitFlap"],
 }

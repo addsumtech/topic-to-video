@@ -622,6 +622,61 @@ def _declared_keys(ty, src):
     return {k for k in re.findall(r"([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:", body)}
 
 
+# A RELATION IS NOT COPY, AND A FIXTURE CANNOT INVENT ONE. A flow diagram's links name its nodes' ids and every
+# interior node must balance; a globe's regions are names the atlas carries; a place has a longitude between -180
+# and 180; a race has one value per period. A fixture that shapes props from the TYPE alone hands those registers a
+# link to a sentence, a region called 交付可验收的成果 and a latitude of 96 — and each correctly refuses, so the
+# sweep records a hole it made itself. The AverageHides precedent above is the answer generalised: the register's
+# own valid instance supplies the STRUCTURE (ids, references, numbers, coordinates, atlas names), and the fixture
+# puts Chinese only on the string paths the sidecar names as copy. Sidecar: remotion/fixtures/relational/<Id>.json,
+# {"props": {...a valid instance...}, "copy": ["nodes[].label", "title", ...]}. Nothing here touches a register
+# without one.
+_RELATIONAL_DIR = os.path.join(_REMOTION, "fixtures", "relational")
+
+
+def relational_props(name, offset=0):
+    """The register's sidecar instance with CJK on its copy paths, or None when it has no sidecar."""
+    import copy as _copy
+    import json as _json
+    fp = os.path.join(_RELATIONAL_DIR, name + ".json")
+    if not os.path.exists(fp):
+        return None
+    with open(fp, encoding="utf-8") as fh:
+        spec = _json.load(fh)
+    props = _copy.deepcopy(spec["props"])
+    k, seen = [offset], set()
+
+    def pick(field):
+        # no two copy leaves carry one string: the census matches elements by their text
+        for tries in range(12):
+            v = _string_for(field, None, "", k[0] + tries)
+            if v not in seen:
+                break
+        k[0] += 1
+        seen.add(v)
+        return v
+
+    def fill(node, parts):
+        head, rest = parts[0], parts[1:]
+        arr = head.endswith("[]")
+        key = head[:-2] if arr else head
+        if not isinstance(node, dict) or key not in node:
+            return
+        if arr and rest:
+            for row in node[key]:
+                fill(row, rest)
+        elif arr:
+            node[key] = [pick(key) for _ in node[key]]
+        elif rest:
+            fill(node[key], rest)
+        else:
+            node[key] = pick(key)
+
+    for path in spec.get("copy", []):
+        fill(props, path.split("."))
+    return props
+
+
 def cjk_props(name, offset=0):
     """(props, untestable) — CJK copy shaped to this register's own signature.
 
@@ -629,6 +684,9 @@ def cjk_props(name, offset=0):
     are identically SHAPED and carry entirely different words. That is what `scripts/prop_reach.py` renders
     twice: a register whose picture barely moves between them is one whose picture is furniture, and the
     film only ever authored a caption on it. Default 0, so every existing caller is byte-identical."""
+    rel = relational_props(name, offset)
+    if rel is not None:
+        return rel, []
     sig, src = prop_signature(name)
     props, untestable, seen = {}, [], set()
     scalars = offset
