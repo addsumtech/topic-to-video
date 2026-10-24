@@ -186,11 +186,14 @@ export const targetCam = (f: Framing, lay: Map<string, Placed>, v: View, zone: Z
     throw new Error(`${where}: the camera frames "${f.frame}", which is not an object of the world (objects: ` +
       `${[...lay.keys()].join(', ') || 'none'})`);
   }
-  // `cover`: the thing fills the whole FRAME (a photograph that is the picture), centred on the frame; `contain` (the
-  // default): it fits the content zone, between the title and the caption band
+  // `cover`: the thing fills the PICTURE — the frame's width and everything above the caption band (a photograph that
+  // is the shot). Not the band: the burned caption sits on the world's own space there, and a photograph's feathered
+  // edge falls off into it (bench-aurora: a full-bleed photo puts its content under the caption by construction).
+  // `contain` (the default): it fits the content zone, between the title and the caption band.
   const cover = f.fit === 'cover';
+  const coverH = Math.max(1, zone.y1);
   const S = cover ? {x: v.W / 2 + (Array.isArray(f.offset) && finite(f.offset[0]) ? f.offset[0] * v.W : 0),
-    y: v.H / 2 + (Array.isArray(f.offset) && finite(f.offset[1]) ? f.offset[1] * v.H : 0)} : aimAt(zone, f);
+    y: coverH / 2 + (Array.isArray(f.offset) && finite(f.offset[1]) ? f.offset[1] * coverH : 0)} : aimAt(zone, f);
   const fill = finite(f.fill) && f.fill > 0 ? f.fill : cover ? 1 : DEFAULT_FILL;
   const zw = zone.x1 - zone.x0, zh = zone.y1 - zone.y0;
   const yaw = finite(f.yaw) ? f.yaw * D2R : 0;
@@ -221,7 +224,7 @@ export const targetCam = (f: Framing, lay: Map<string, Placed>, v: View, zone: Z
     const dist = Math.max(v.P * 0.05, -q[2]);
     return camAt(o, v, S, prev.yaw, prev.pitch, dist);
   }
-  const k = cover ? fill * Math.max(v.W / Math.max(1e-6, o.w), v.H / Math.max(1e-6, o.h))
+  const k = cover ? fill * Math.max(v.W / Math.max(1e-6, o.w), coverH / Math.max(1e-6, o.h))
     : fill * Math.min(zw / Math.max(1e-6, o.w), zh / Math.max(1e-6, o.h));
   if (kind === 'scale-zoom' && prev) {
     // a zoom keeps the lens's turn: only its scale and its place across the plane change

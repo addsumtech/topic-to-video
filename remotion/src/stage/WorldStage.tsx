@@ -114,7 +114,8 @@ export const WorldStage: React.FC<Record<string, unknown>> = () => {
     : Math.max(safeP ? Math.round(safeP.top * H) : 0, U * 0.06);
   const safeCapTop = safeP ? captionBottomY(H, safeP, Math.round(U * CAPTION_MARGIN_FRAC))
     - CAPTION_LINES * Math.round(U * CAPTION_SIZE_FRAC * SAFE_CAPTION_SCALE) * CAPTION_LEAD_CJK : null;
-  const zoneBot = (safeCapTop ?? contentBottom(W, H)) - U * 0.02;
+  const capTop = safeCapTop ?? contentBottom(W, H);          // where the caption band begins
+  const zoneBot = capTop - U * 0.02;
   const zx0 = W * 0.05, zx1 = W * (1 - (safeP && portrait ? Math.max(0.05, safeP.right) : 0.05));
   const zone: Zone = {x0: zx0, y0: zoneTop, x1: zx1, y1: zoneBot};
   const view: View = {W, H, P: U * PERSP_FRAC};
@@ -231,6 +232,22 @@ export const WorldStage: React.FC<Record<string, unknown>> = () => {
     const tx = s.sx - (m * Lw) / 2, ty = s.sy - (m * Lh) / 2;
     const fid = `wb-${uid}-${s.o.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
     const blur = s.blur ? {sx: s.blur.sx / m, sy: s.blur.sy / m} : null;
+    // THE CAPTION SITS ON THE WORLD'S OWN SPACE: an object that reaches down into the caption band falls off into the
+    // ground there, measured in screen px (a photograph framed to cover the picture overflows below it; a glowing
+    // layer's halo hangs into it). Stars are the space itself and stay. Not a strip laid over the band — nothing is
+    // drawn there; the world's things simply end at it, as type does at the zone.
+    // A LONG, EASED fall-off: a short linear one read as a straight cut across a wide frame (a horizon that is not
+    // there); spread over a fifth of the short side and eased at both ends it reads as the world dimming into space
+    const fallTop = capTop - U * 0.16, fallBot = capTop + U * 0.04;
+    const reaches = kind !== 'stars' && ty + m * Lh > fallTop;
+    const fall = reaches ? (() => {
+      const pc = (v: number) => `${((((v - ty) / m) / Lh) * 100).toFixed(3)}%`;   // a screen y in the object's own %
+      const stops = [0, 0.2, 0.4, 0.6, 0.8, 1].map((u) => {
+        const a = 1 - u * u * (3 - 2 * u);                                         // smoothstep, 1 → 0
+        return `rgba(0,0,0,${a.toFixed(3)}) ${pc(fallTop + (fallBot - fallTop) * u)}`;
+      });
+      return `linear-gradient(180deg, #000 0%, ${stops.join(', ')}, transparent 100%)`;
+    })() : undefined;
     const body = drawObject(o, kind, Lw, Lh, s, fid);
     return (
       <div key={s.o.id} data-world-object={s.o.id} style={{position: 'absolute', left: 0, top: 0, width: Lw, height: Lh,
@@ -244,7 +261,7 @@ export const WorldStage: React.FC<Record<string, unknown>> = () => {
             </filter>
           </svg>
         ) : null}
-        {body}
+        {fall ? <div style={{position: 'absolute', inset: 0, WebkitMaskImage: fall, maskImage: fall}}>{body}</div> : body}
       </div>
     );
   };

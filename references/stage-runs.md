@@ -102,7 +102,8 @@ units are the frame's short side (1 = 1080 px at every aspect); +x right, +y DOW
 | `bloom`, `color`, `color2`, `dof` | light it spills on screen; its colours (DNA tokens or #hex); how strongly it defocuses (stars: 0.15) |
 
 **The camera.** Each keyframe's `camera` frames one object: `{frame, fill?, fit?, offset?, yaw?, pitch?, move?}` —
-`fill` its share of the content zone (`fit: "cover"`: it fills the whole frame), `offset` [dx, dy] in shares of the
+`fill` its share of the content zone (`fit: "cover"`: it fills the picture — the frame's width and everything above
+the caption band, which stays the world's own space for the caption), `offset` [dx, dy] in shares of the
 zone, `yaw`/`pitch` degrees round it (+pitch looks up). `move` is how this keyframe's camera gets there:
 
 | move | what it does | parallax |
@@ -120,8 +121,11 @@ step's `move` times a step's. Give a camera move 1.5–4 s: the defaults (0.8 s,
 **How it is drawn.** Every object is a plane that FACES the lens (a multiplane camera), so it projects to an exact
 scale and translate and is painted as a flat 2D element at its final size: photographs and words stay sharp at any
 distance. Depth of field comes from each plane's distance to what the camera frames (restrained, ~5 px at 1080);
-motion blur from each object's own speed on screen; the camera breathes while it holds (`drift: 0` stops it). A
-plane the lens comes too close to gives way as it passes (line art sooner than pictures).
+motion blur from each object's own speed on screen (capped near 13 px at 1080); the camera breathes while it holds
+(`drift: 0` stops it). A plane the lens comes too close to gives way as it passes (line art sooner than pictures).
+The caption sits on the world's own space: anything but the stars dims into it over the fifth of the short side
+above the caption band (eased, so it reads as distance, not a cut) — no strip is laid over the band, the world's
+things simply end there.
 
 **Type in the world** is a `type` object (it scales with its distance, fades out before it is under the type floor
 and as it leaves the content zone) or a `label` (a reading size, kept in the content zone, off the other labels).

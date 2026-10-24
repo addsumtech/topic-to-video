@@ -72,9 +72,10 @@ def test_a_framing_puts_its_object_where_it_says():
     assert abs(r["contain"]["x"] - r["S"]["x"]) < 1e-6 and abs(r["contain"]["y"] - r["S"]["y"]) < 1e-6
     assert abs(r["contain"]["w"] - 0.5 * min(zw, zh)) < 1e-6, r["contain"]
     assert abs(r["off"]["x"] - (r["S"]["x"] + 0.2 * zw)) < 1e-6 and abs(r["off"]["y"] - (r["S"]["y"] - 0.1 * zh)) < 1e-6
-    # cover: the whole FRAME is covered, centred on the frame
-    assert abs(r["cover"]["x"] - 960) < 1e-6 and abs(r["cover"]["y"] - 540) < 1e-6
-    assert r["cover"]["w"] >= 1920 - 1e-6 and r["cover"]["h"] >= 1080 - 1e-6
+    # cover: the picture ABOVE the caption band is covered (the frame's width, the top down to the zone's bottom),
+    # centred there — the band stays the world's own space for the burned caption
+    assert abs(r["cover"]["x"] - 960) < 1e-6 and abs(r["cover"]["y"] - 850 / 2) < 1e-6
+    assert r["cover"]["w"] >= 1920 - 1e-6 and r["cover"]["h"] >= 850 - 1e-6
 
 
 @needs_node
