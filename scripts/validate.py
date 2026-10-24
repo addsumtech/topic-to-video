@@ -4725,6 +4725,9 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _note = _ta.mismatch(data)
         if _note:
             warnings.append("tier: " + _note)
+        _mnote = _ta.music_note(data)
+        if _mnote:
+            warnings.append("music: " + _mnote)
     except Exception as _e:                                  # noqa: BLE001 — advice must not break validation,
         warnings.append("tier: the tier advice could not run (%s) — the purpose/tier fit was NOT checked"
                         % type(_e).__name__)                  # ...and it must not fail SILENTLY either

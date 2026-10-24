@@ -2,7 +2,7 @@
 """WHICH TIER, FOR WHAT — recommend a renderer from what the video is FOR and what it is ABOUT.
 
     python3 scripts/tier_advice.py --purpose teach [--deck] [--keep-deck] [--data-dense yes|no]
-    python3 scripts/tier_advice.py --check <out_dir>        # does the chosen tier fight the stated purpose?
+    python3 scripts/tier_advice.py --check <out_dir>        # does the chosen tier (or the music) fight the purpose?
 
 WHY THIS EXISTS. The tier question used to be asked as a choice between three LOOKS, and the purpose question
 right beside it only set the narrative arc — so nothing connected "what is this video for" to "which renderer
@@ -87,6 +87,56 @@ PURPOSE_TIER = {
 }
 
 
+# WHETHER THE FILM IS SCORED, by the same purpose. A teaching voice is the content: a bed under an explainer is
+# one more thing competing with the sentence the viewer is trying to follow, and the user heard it as wrong on a
+# science film ("科普引入背景音乐就不太合适"). A launch or promo runs on pace, and the score is what carries the
+# cuts. pitch / overview are decided by the material, like the tier: a story or brand film is scored, an
+# evidence-heavy one is not. "none" is a DEFAULT, never a ban: an author who sets meta.bgm on an explainer is
+# told once (validate), not overridden.
+PURPOSE_MUSIC = {
+    "teach": "none",
+    "howto": "none",
+    "research": "none",
+    "launch": "score",
+    "promo": "score",
+    "pitch": None,
+    "overview": None,
+}
+
+
+def music_for(purpose, data_dense=None):
+    """'score' | 'none' — whether a film for this purpose gets background music by default."""
+    p = canonical_purpose(purpose)
+    m = PURPOSE_MUSIC.get(p) if p else None
+    if m is None:
+        # pitch / overview / unknown: a story or brand film is scored; evidence, or an unassessed topic, is not
+        return "score" if (p in ("pitch", "overview") and data_dense is False) else "none"
+    return m
+
+
+def music_note(board):
+    """A one-time note when the board's music fights its stated purpose, else None. Advice, never a block."""
+    meta = board.get("meta") or {}
+    p = canonical_purpose(meta.get("purpose"))
+    if not p:
+        return None
+    bgm = meta.get("bgm")
+    zh = str(meta.get("language") or "zh").lower().startswith("zh")
+    if bgm and PURPOSE_MUSIC.get(p) == "none":
+        return ("目的是「%s」，却配了背景音乐（meta.bgm）：讲解类的口播本身就是内容，音乐会和要听懂的那句话抢注意力。"
+                "确实想要就保留；否则去掉 meta.bgm。" % p) if zh else (
+                "Purpose is %r but the film is scored (meta.bgm): in an explainer the voice IS the content, and a "
+                "bed competes with the sentence the viewer is following. Keep it if intended; otherwise drop "
+                "meta.bgm." % p)
+    if not bgm and PURPOSE_MUSIC.get(p) == "score" and chosen_tier(board) == "remotion":
+        return ("目的是「%s」，但没有配乐：发布/宣传片的节奏靠音乐托着剪辑点。加 meta.sound_design: true 和 "
+                "meta.bgm: \"auto\"（按节拍网格生成），或给一条有授权的音轨。" % p) if zh else (
+                "Purpose is %r but the film is unscored: a launch/promo cut rides on its music. Set "
+                "meta.sound_design: true and meta.bgm: \"auto\" (generated on the beat grid), or a licensed "
+                "track." % p)
+    return None
+
+
 def canonical_purpose(raw):
     """The canonical purpose key for whatever the interview recorded, or None."""
     s = str(raw or "").strip().lower()
@@ -126,7 +176,7 @@ def recommend(purpose, has_deck=False, keep_deck=False, data_dense=None, remotio
 
     def out(tier, why_zh, why_en, trade_zh, trade_en, runner, basis):
         return {"tier": tier, "why": why_zh if zh else why_en, "trade": trade_zh if zh else trade_en,
-                "runner_up": runner, "basis": basis}
+                "runner_up": runner, "basis": basis, "music": music_for(purpose, data_dense)}
 
     # 1. A finished deck the user wants voiced as it is. Nothing to redesign, nothing to install.
     if has_deck and keep_deck:
@@ -239,6 +289,8 @@ def main(argv):
         note = mismatch(board)
         print("[tier_advice] chosen tier: %s" % chosen_tier(board))
         print("  note : " + note if note else "  ok   : the chosen tier fits the stated purpose (or none was recorded)")
+        mnote = music_note(board)
+        print("  music: " + mnote if mnote else "  music: fits the stated purpose (or none was recorded)")
         return 0
     if not a.purpose and not a.keep_deck:
         ap.error("--purpose is required (or --deck --keep-deck)")

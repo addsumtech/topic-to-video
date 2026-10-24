@@ -191,6 +191,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     measures banding on the delivered file (an advisory delivery gate on both tiers). Stage surfaces take a layered
     key-light shadow, a sheen as they turn and motion blur when they move fast; push / slide / lift / return seams ease
     in and out with shutter blur.
+  - **Music follows the purpose** (`tier_advice.PURPOSE_MUSIC`): teach / how-to / research films are NOT scored by
+    default (the voice is the content), launch / promo are, pitch / overview follow the material. `tier_advice.py`
+    returns `music`, and validate notes a board whose `meta.bgm` fights its purpose (advice, never a block).
   - **Sound.** `meta.sound_design:true` is an opt-in SFX bed. `meta.bgm` (a path or `"auto"`) scores the film, and a scored
     film also ships `out.nobgm.mp4`; the music ducks under the voice (sidechain, ≥10 LU under speech). `"auto"` is a
     generated score on the film's BEAT GRID (`scripts/score.py`): `tts.py` picks the grid and stretches each scene's tail
@@ -381,7 +384,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      |---|---|---|
      | **原样配音 / Voice my deck as-is** — FREE | a finished deck that just needs a voice; nothing redesigned | no new design; points do not appear as they are spoken |
      | **Designed HTML** — FREE (+AI backdrops: PAID) | explainers, how-tos, research briefings, data-heavy material: each point appears **the moment it is said** (`data-cue` on the spoken word) and any table/chart/code/equation is laid out as the content needs; **editing one beat re-renders one beat**; needs only Chrome | less cinematic motion |
-     | **Cinematic (Remotion)** — FREE of money, NOT of machine | launches, promos, story and brand: 213 hand-designed shot languages, cinematic seams, one design DNA | points animate on the shot's own clock, not the voice (only the registers that import `runtime/cue` time items to it); **a visual edit re-renders that beat and the next** (43 s on a 37-beat film, against 6:20 for the whole film) but **a narration edit re-renders every later beat**; the first render costs ~25% more than one pass (7:55 vs 6:20); needs Node + its own Chrome + real memory (the same film's one-pass render failed repeatedly at ~1 GB free — per beat, a failure keeps the finished beats) |
+     | **Cinematic (Remotion)** — FREE of money, NOT of machine | launches, promos, story and brand: 218 hand-designed shot languages, cinematic seams, one design DNA | points animate on the shot's own clock, not the voice (only the registers that import `runtime/cue` time items to it); **a visual edit re-renders that beat and the next** (43 s on a 37-beat film, against 6:20 for the whole film) but **a narration edit re-renders every later beat**; the first render costs ~25% more than one pass (7:55 vs 6:20); needs Node + its own Chrome + real memory (the same film's one-pass render failed repeatedly at ~1 GB free — per beat, a failure keeps the finished beats) |
 
      **How to recommend (do this before showing the menu):** ① is on the same screen, so infer the likely
      purpose from the user's request and material, then ask the rule rather than restating it:

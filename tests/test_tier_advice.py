@@ -188,3 +188,45 @@ def test_every_stated_library_size_is_the_registrys():
     assert found, "the pattern no longer finds the library size in the docs — update it with the wording"
     wrong = [(d, k) for d, k in found if k != n]
     assert not wrong, "these documents state a library size that is not the registry's %d: %s" % (n, wrong)
+
+
+# ── whether the film is scored, by the same purpose ────────────────────────────────────────────────────
+@pytest.mark.parametrize("purpose,dense,music", [
+    ("teach", None, "none"), ("科普", None, "none"), ("howto", None, "none"), ("research", None, "none"),
+    ("launch", None, "score"), ("promo", None, "score"), ("发布", None, "score"),
+    ("pitch", False, "score"), ("pitch", True, "none"), ("overview", None, "none"), (None, None, "none"),
+])
+def test_music_follows_the_purpose(purpose, dense, music):
+    """The user heard a bed under a science film as wrong. An explainer's voice is its content; a launch rides
+    on its score; a pitch or overview follows its material, and an unassessed or unknown one stays unscored."""
+    assert ta.music_for(purpose, dense) == music
+
+
+def test_the_recommendation_carries_the_music_default():
+    assert ta.recommend("teach")["music"] == "none"
+    assert ta.recommend("launch")["music"] == "score"
+
+
+@pytest.mark.parametrize("renderer,purpose,bgm,fires", [
+    ("remotion", "teach", "auto", True),      # an explainer that was scored
+    ("remotion", "teach", None, False),
+    ("remotion", "launch", None, True),       # a launch with no music at all
+    ("remotion", "launch", "auto", False),
+    ("html", "launch", None, False),          # html has no scored path to suggest
+    ("remotion", "pitch", None, False),       # material-decided: never lectured
+])
+def test_the_music_note_fires_exactly_when_the_music_fights_the_purpose(renderer, purpose, bgm, fires):
+    b = _board(renderer, purpose, "slide")
+    if bgm:
+        b["meta"]["bgm"] = bgm
+    assert bool(ta.music_note(b)) is fires, (renderer, purpose, bgm)
+
+
+def test_validate_surfaces_the_music_note():
+    import validate as v
+    board = {"meta": {"language": "zh", "renderer": "remotion", "purpose": "科普", "sound_design": True,
+                      "bgm": "auto"},
+             "slides": [{"index": 1, "type": "slide", "image": "frames/01.png", "shot": "TermTable",
+                         "narration": "一句话。", "duration": 4.0}]}
+    r = v.evaluate(board, _HERE)
+    assert [w for w in r["warnings"] if w.startswith("music:")], r["warnings"][:6]
