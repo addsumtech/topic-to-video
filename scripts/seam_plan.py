@@ -16,13 +16,17 @@ never built, and this is the second time that exact shape has cost a delivery.
 So the intent the storyboard ALREADY carries is translated into seams here. Every beat declares a
 `relation` to the one before it; that is the argument, and a cut is a claim about the same relationship:
 
-  new-topic  → `clock`     the frame opens outward onto a different subject — a chapter break
+  new-topic  → `push`      the camera moves on to a different subject — a chapter break (eased, shutter-blurred)
   payoff     → `dissolve`  setup and result share the screen for a moment: THIS became THAT
-  close      → `carry`     the last move reads as continuity, not as one more swap
+  close      → `focus`     attention lets go of one thing and settles on the last — continuity in depth
+
+(`clock` and `carry` used to be the new-topic and close words. A benchmark film read both as the cheapest moments
+in it: the clock is the stock radial wipe a slideware transition menu offers, and the carry collapses a photograph
+to a line like an old TV switching off. Both stay in the vocabulary for an author who means them.)
 
 ...and across a dark↔light boundary, where the plane seams are refused, each relation keeps its claim in a
 seam that cannot flash: a `payoff` becomes `focus`, a `new-topic` becomes `through-dark` (out through black
-and in again, which is what a chapter break is saying), everything else the `carry`.
+and in again, which is what a chapter break is saying), everything else `focus`.
 
 `continuation` is marked only by the one seam that reads as no seam at all — a CONTAINER, when the two beats'
 registers draw the same anchor (scripts/carry_anchors.py): the element stays on screen and is re-framed, which is
@@ -198,9 +202,9 @@ def ground_gap(a, b):
 # relation → the cut that makes that claim. `continuation` is deliberately absent: it is the one relation
 # whose honest cut is no cut at all.
 SEAM_BY_RELATION = {
-    "new-topic": {"type": "clock"},
+    "new-topic": {"type": "push", "direction": "from-right"},
     "payoff": {"type": "dissolve"},
-    "close": {"type": "carry"},
+    "close": {"type": "focus"},
 }
 # THE SEAMS ALLOWED TO CROSS A DARK↔LIGHT BOUNDARY, and why each is allowed.
 #
@@ -212,7 +216,7 @@ SEAM_BY_RELATION = {
 # the gap that put it here. Measured against the video-shotcraft library (218 shots, same stack), three of
 # its six hand-off recipes are built on depth and this tier had none — every seam we shipped moved pixels
 # sideways or faded them, and a film whose cuts are all planar reads as pages replacing pages.
-CROSSING_SEAM = {"type": "carry"}
+CROSSING_SEAM = {"type": "focus"}
 # A CROSSING seam on a `payoff`, where a dissolve would be forced back to a plain fade: the argument lands,
 # and the focus carrying from one frame to the next is a stronger claim than a cross-fade anyway.
 CROSSING_PAYOFF_SEAM = {"type": "focus"}

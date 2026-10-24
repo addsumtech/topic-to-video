@@ -218,7 +218,7 @@ def test_a_new_topic_out_of_a_window_goes_through_it_and_out_of_a_thing_grows():
     got = sp.plan(sl, "product")
     assert got[10]["type"] == "through-window" and got[10]["carry"] == "window", got
     sl[9] = {"shot": "ObjectStage"}
-    assert sp.plan(sl, "product")[10]["type"] == "clock", "a grow onto the SAME ground would be invisible"
+    assert sp.plan(sl, "product")[10]["type"] == "push", "a grow onto the SAME ground would be invisible"
     sl[10]["ground"] = "#26324d"
     got = sp.plan(sl, "product")
     assert got[10] == {"type": "grow", "carry": "figure", "why": got[10]["why"]}, got

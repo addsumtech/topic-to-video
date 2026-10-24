@@ -82,7 +82,9 @@ def test_a_crossing_new_topic_routes_to_the_flight_instead_of_collapsing_to_the_
     CONTINUITY, which is the opposite of what a chapter break across a light boundary says."""
     assert seam_plan.CROSSING_NEW_TOPIC_SEAM == {"type": "through-dark"}
     assert seam_plan.CROSSING_PAYOFF_SEAM == {"type": "focus"}, "the payoff route moved"
-    assert seam_plan.CROSSING_SEAM == {"type": "carry"}, "the fallback route moved"
+    # the fallback is the rack focus now, not the carry: a benchmark film (bench-aurora) read the carry's collapse to a
+    # line as an old TV switching off; a focus hand-off cannot flash either, and it happens in depth
+    assert seam_plan.CROSSING_SEAM == {"type": "focus"}, "the fallback route moved"
 
 
 # ── the two moves themselves ──────────────────────────────────────────────────────────────────────────
