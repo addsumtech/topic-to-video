@@ -258,6 +258,11 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
                     name, gain, prio = SEAM_CUE[ti["type"]]
                     at = SEAM_PEAK[ti["type"]] * seam_frames - (0.0 if name == "impact" else 1.0)
                     seam_cue = (t0 + max(0.0, at) / fps, name, gain, prio)
+                elif ti and ti.get("type") == "cut":
+                    # A HARD CUT MAKES NO SOUND OF ITS OWN. Nothing moves across it, so a whoosh would be the sound
+                    # of a motion the picture does not make; on a scored film the music's beat — which beatgrid.py
+                    # has snapped this cut onto — is its sound, and on an unscored one the cut is silent, as cuts are.
+                    seam_cue = None
                 elif ti and ti.get("type") == "carry":
                     seam_cue = (tt, "whoosh", 0.32, 1)      # a gentle match-cut swell (softer than a hard cut)
                 elif ti:                            # slide / wipe / clock — a motion whoosh
@@ -267,6 +272,12 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
                 seam_cue = (tt, "whoosh", 0.5, 0)
         if si == n - 1 and shots:
             land = t0 + float(shots[-1].get("startFrame") or 0) / fps
+            # A HARD CUT INTO THE CLOSE lands where its picture changes — the seam's middle frame (SEAM_PEAK.cut) —
+            # not on the frame the beat mounts, six frames (200 ms) earlier, while the leaving beat is still the
+            # whole picture: an impact heard before the cut it hits reads as a glitch. beatgrid.boundaries times the
+            # same boundary by the same frame, so the score's downbeat and the impact stay one hit.
+            if si > 0 and (sc.get("transitionIn") or {}).get("type") == "cut" and not shots[-1].get("startFrame"):
+                land = t0 + SEAM_PEAK["cut"] * seam_frames / fps
             # The film's real caller lands the close on the last scene's ARRIVAL (its one shot starts at frame
             # 0), which puts the impact ON the seam. Then the riser IS that seam's sound — build across the cut,
             # land — and a whoosh two frames before an impact would be two sounds for one move. Dropped.

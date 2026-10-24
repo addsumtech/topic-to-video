@@ -16,6 +16,16 @@ import unicodedata
 from html.parser import HTMLParser
 
 
+
+def _rr_cut(slide):
+    """Is this beat's incoming seam the hard cut? (render_remotion.is_hard_cut — imported lazily, like every other
+    remotion check here, so an html-only board never loads the renderer module)"""
+    try:
+        import render_remotion as _rr
+        return _rr.is_hard_cut(slide)
+    except Exception:                                  # noqa: BLE001 — a check that cannot ask answers "not a cut"
+        return False
+
 def _disp_width(s):
     """Display width of a string for FIXED-WIDTH box lints: a full/wide east-asian glyph (W/F) counts as 2,
     since it fills a fixed-px box twice as fast as a Latin 'i'. A codepoint count under-fires on CJK decks."""
@@ -1801,7 +1811,7 @@ def _camera_handoffs(slides, errors, warnings):
             warnings.append("%s: camera.handoff into a beat whose relation is %r — a move that carries across the cut "
                             "says the thought continues; across a %s it argues against the board"
                             % (tag, rel, rel))
-        if nxt.get("transition_in") or nxt.get("transition_style"):
+        if (nxt.get("transition_in") or nxt.get("transition_style")) and not _rr_cut(nxt):
             warnings.append("%s: camera.handoff across a MARKED seam (beat %d) — the seam moves the frame itself, and "
                             "a camera carrying through it adds a second motion to the one cut meant to be read"
                             % (tag, i + 2))
@@ -2016,8 +2026,10 @@ def _film_language(meta, slides, errors, warnings, skips=None):
         return                                  # too short for punctuation to mean anything
     # from beat 1: there is no seam before the first shot, so a mark there counts nothing and made the
     # message read "20 of 19 cuts are MARKED"
+    # a HARD CUT is not a mark: it is the absence of a transition, the default grammar of a film whose energy asks
+    # for it (seam_plan.py plans them), and counting it here reported a launch film's cuts as "too many marks"
     marked = [i for i, s in enumerate(slides)
-              if i > 0 and (s.get("transition_in") or s.get("transition_style"))]
+              if i > 0 and (s.get("transition_in") or s.get("transition_style")) and not _rr_cut(s)]
     # `meta.design_dna` is EITHER an inline DNA object OR a preset NAME — both are documented, both are
     # accepted by coerceDna() on the TS side, and the string form is validated a few hundred lines below.
     # This check read it as a dict unconditionally and crashed the whole gate with an AttributeError the
@@ -2044,7 +2056,7 @@ def _film_language(meta, slides, errors, warnings, skips=None):
         warnings.append(
             "%d of %d cuts are MARKED — a marked seam is punctuation and only reads as punctuation while it "
             "is rare. Budget ~2-3 per film and let the rest be the default cut." % (len(marked), n - 1))
-    seam_vocab = {"wipe", "slide", "clock", "dissolve", "screen-clear", "fade"}
+    seam_vocab = {"wipe", "slide", "clock", "dissolve", "screen-clear", "fade", "cut"}
     if native and native not in seam_vocab:
         warnings.append(
             "meta.design_dna.seam.type '%s' is not one of %s — Film.tsx silently falls back to the preset "
@@ -3087,13 +3099,22 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         pass
     try:                                                   # marked-seam BUDGET: most seams ride the safe fade
         import render_remotion as _rr
-        marked = sum(1 for s in slides[1:] if _rr._transition_in(s))   # scene 0 has no incoming seam
+        marked = sum(1 for s in slides[1:] if _rr.is_mark(s))   # scene 0 has no incoming seam; a hard cut is no mark
         seams = max(0, len(slides) - 1)
         budget = max(3, seams // 3)
         if marked > budget:
             warnings.append(f"remotion: {marked} of {seams} seams are MARKED with a kinetic transition (budget "
                             f"~{budget}) — most seams should ride the luminance-safe default fade; marking them "
                             f"all is as monotonous as marking none (shot-director Rule 5)")
+    except Exception:
+        pass
+    try:                                                   # the HARD-CUT RATE, measured from the board
+        # a launch/promo or scored film whose every seam dissolves reads as slides changing (seam_plan.py plans the
+        # cuts; `cut_shortfall` measures the share and the rate against the film's tempo and says which bound)
+        import seam_plan as _sp3
+        _short = _sp3.cut_shortfall(slides, meta)
+        if _short:
+            warnings.append("remotion: " + _short)
     except Exception:
         pass
     try:                                                   # color-arc: a dark<->light STROBE across the film

@@ -44,7 +44,7 @@ import {FilmDither} from './runtime/dither';
 import {OpticContext, opticState, normalizeOptic, dnaLight, SeamLeak, type OpticDecl, type OpticSpec} from './runtime/optics';
 import {litMediumGround} from './runtime/material';
 import {CarryContext} from './runtime/carry';
-import {container, grow, throughWindow, punch, SeamCopyContext} from './seams';
+import {container, grow, throughWindow, punch, cut, SeamCopyContext} from './seams';
 
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
 // luminance override; falls back to the measured shotLuma map). Future phases grow this schema (accent,
@@ -67,7 +67,7 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
   transitionIn?: {type: 'fade' | 'slide' | 'push' | 'lift' | 'wipe' | 'clock' | 'dissolve' | 'fadethrough'
     | 'drift' | 'blur' | 'carry' | 'focus' | 'through-dark' | 'portal' | 'return'
-    | 'container' | 'grow' | 'through-window' | 'punch'; direction?: string;
+    | 'container' | 'grow' | 'through-window' | 'punch' | 'cut'; direction?: string;
     /** `return` only: the pan across the film's board, as fractions of the frame's LONG side. Computed by
      *  `scripts/film_board.py`, which is the one place that knows where two beats sit. */
     dx?: number; dy?: number;
@@ -876,6 +876,8 @@ const dnaDefaultSeam = (dna: DesignDNA | null, W: number, H: number): Transition
     if (d === 'wipe') return wipe({direction: (dir as any) ?? 'from-bottom'});
     if (d === 'clock') return clockWipe({width: W, height: H});
     if (d === 'dissolve') return fade();
+    // a world whose native cut is the plain hard cut — every unmarked seam changes picture on one frame
+    if (d === 'cut') return cut();
   }
   if (dna.seam?.type === 'fade') return null;      // an explicit, deliberate plain cut
   switch (dna.id) {
@@ -969,7 +971,15 @@ const seamDrawn = (prev: SceneSpec, next: SceneSpec, dna: DesignDNA | null,
   // dark stage card carried into a light figure. A fade with an element in it, not a flash. `grow`, `through-window` and `punch` are
   // deliberately NOT here: a growing shape or a window of a bright beat opening on a dark one is the portal's
   // brightness jump, and a punch is a hard cut with a flash on it.
-  const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark', 'drift', 'blur', 'container']);
+  // `cut` (seams.tsx) earns it by the through-dark's own argument taken to its limit: the two beats never share a
+  // frame at all, so no frame can add a bright picture to a dark one or move a bright edge across a dark field — the
+  // two things this guard exists to refuse. What a crossing cut DOES is a step: measured on a dark beat cut to a light
+  // one (tests/test_hard_cut.py), the frame mean holds the dark beat's value to the cut's frame and the light beat's
+  // from it — one step, inside both beats' range, never back. A step is half of what photosensitivity guidance calls a
+  // flash (ITU-R BT.1702: a PAIR of opposing changes, harmful past three in one second); a cut every beat cannot make
+  // three in a second. Whether a dark/light smash cut suits THIS film is the planner's call (seam_plan.py plans cuts
+  // only on films whose energy asks for them), not this guard's.
+  const CANNOT_FLASH = new Set(['carry', 'focus', 'through-dark', 'drift', 'blur', 'container', 'cut']);
   const t = (harsh && !CANNOT_FLASH.has(want)) ? 'fade' : want;
   return {t, harsh};
 };
@@ -1078,6 +1088,8 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     case 'through-window': return throughWindow({seam, from: needAnchor(next, 'through-window').from,
       ground: groundFill(nextG), W, H, lead, n: TR});
     case 'punch': return punch({paper: paperOf(dna, nextG), W, H, n: TR, seam, lead});
+    // the hard cut: the picture changes on the seam's middle frame, both voices keep the seam's overlap (seams.tsx)
+    case 'cut': return cut();
     default: return fade();
   }
 };

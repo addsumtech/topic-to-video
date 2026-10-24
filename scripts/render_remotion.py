@@ -50,13 +50,21 @@ _TRANSITION_STYLE = {
     "grow": {"type": "grow"}, "expand": {"type": "grow"},
     "through-window": {"type": "through-window"}, "zoom-through": {"type": "through-window"},
     "punch": {"type": "punch"}, "push-cut": {"type": "punch"}, "pushcut": {"type": "punch"},
+    # THE HARD CUT (remotion/src/seams.tsx `cut`): the picture changes on the seam's middle frame and the audio keeps
+    # the seam's overlap. `cut` was an html word only ("no seam at all") and resolved to the default cross-fade here,
+    # because this tier had no picture for it — so a board that asked for a hard cut got a dissolve.
+    "cut": {"type": "cut"}, "hard-cut": {"type": "cut"},
 }
 # `focus`, `through-dark` and `portal` are the DEPTH seams (Film.tsx). They belong here or a storyboard that
 # asks for one is silently downgraded to a fade, which is the exact "built but unreachable" failure this
 # file's `transition_in` docstring was written about — and it has already cost this repo two deliveries.
 _KINETIC_TYPES = {"slide", "push", "lift", "wipe", "clock", "dissolve", "fadethrough", "drift", "blur",
                   "carry", "focus", "through-dark", "portal", "return",
-                  "container", "grow", "through-window", "punch"}
+                  "container", "grow", "through-window", "punch", "cut"}
+# THE CUTS THAT ARE NOT MARKS. A marked seam is punctuation and is budgeted (2-3 a film); a hard cut is the absence
+# of a transition — the film's default grammar on a film whose energy asks for it (seam_plan.py) — and must not
+# spend that budget or set off the "too many marks" warnings.
+HARD_CUT_TYPES = {"cut"}
 # The seams that take hold of a marked element (runtime/carry `data-carry`) and need to be told which one.
 ANCHORED_TYPES = {"container", "grow", "through-window"}
 # A match_cut's shapes, in the order the corner rounds (Film.tsx containerSpec).
@@ -143,10 +151,11 @@ def _caption_for_eye(text):
 
 
 # WORDS THAT NAME A DELIBERATE NON-MARK, and the html tier's spelling of the default. `transition_style` is
-# shared with the html tier, where `dip` IS the default seam and `cut`/`none` mean "no seam at all". They
-# resolve to no remotion mark, which is correct — but they are KNOWN, so `validate.py` must not report them
-# as words this renderer cannot draw.
-_UNMARKED_WORDS = {"cut", "none", "hard-cut", "dip", "fade"}
+# shared with the html tier, where `dip` IS the default seam and `none` means "no seam at all". They resolve to no
+# remotion mark, which is correct — but they are KNOWN, so `validate.py` must not report them as words this renderer
+# cannot draw. (`cut` and `hard-cut` were here too, and drew the default cross-fade: the tier had no hard cut. They
+# resolve to the `cut` seam now.)
+_UNMARKED_WORDS = {"none", "dip", "fade"}
 
 
 def seam_word_known(word):
@@ -165,6 +174,18 @@ def seam_type(word):
         return w
     mapped = _TRANSITION_STYLE.get(w)
     return mapped["type"] if mapped else None
+
+
+def is_mark(slide):
+    """Does this beat's incoming seam spend the MARKED-seam budget? Any resolved seam except a hard cut."""
+    ti = _transition_in(slide)
+    return bool(ti) and ti.get("type") not in HARD_CUT_TYPES
+
+
+def is_hard_cut(slide):
+    """Is this beat's incoming seam the plain hard cut (`cut`)?"""
+    ti = _transition_in(slide)
+    return bool(ti) and ti.get("type") in HARD_CUT_TYPES
 
 
 def _transition_in(slide, travel=None, prev=None):

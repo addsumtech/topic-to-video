@@ -44,7 +44,9 @@ export const SeamCopyContext = React.createContext<boolean>(false);
 //   grow            the middle of its easeInOutCubic over [GROW_FILL, GROW_END] = (0.25 + 0.8) / 2
 //   container       Material's standard curve cubic-bezier(0.4, 0, 0.2, 1) is fastest at x = 0.302 (computed from
 //                   the curve; its largest step at 12 frames is frames 3->4)
-export const SEAM_PEAK = {punch: 5 / 12, 'through-window': 0.5, grow: 0.525, container: 0.3};
+//   cut             the hard cut's ONE frame (CUT_AT): no motion at all, so this is where the picture changes, and
+//                   sfx.py makes no cue for it — on a scored film the music's own beat is a cut's sound
+export const SEAM_PEAK = {punch: 5 / 12, 'through-window': 0.5, grow: 0.525, container: 0.3, cut: 0.5};
 
 // ── measuring an anchor ───────────────────────────────────────────────────────────────────────────────────────
 // `outline`: the anchor element draws a box of its own (a fill, a border, a declared radius, or content inside it).
@@ -658,3 +660,33 @@ const PunchPresentation = ({presentationProgress: p, presentationDirection, chil
 
 /** A push cut: the payoff's one hard landing. `paper` is the film's lightest ground ink, `n` the seam's frames. */
 export const punch = (spec: PunchSpec): TransitionPresentation<any> => ({component: PunchPresentation, props: spec});
+
+// ── cut ───────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE HARD CUT. The picture changes on ONE frame and nothing moves, fades or flashes: the leaving beat is the whole
+// frame up to it and the arriving beat is the whole frame from it. Every other word in this vocabulary — the plain
+// cross-fade included — superimposes two pictures for at least part of 12 frames, and a film whose every cut does
+// that reads as slides changing (three benchmark films, 2026-10-24: "the strongest slides signal").
+//
+// THE FRAME IS THE SEAM'S MIDDLE (CUT_AT of 12 = frame 6), because that is the frame every other part of the film
+// already calls a cut's picture moment: scripts/beatgrid.py snaps it onto the beat (`start + tr // 2`), the caption
+// HUD hands over on it (Film.tsx CaptionTrack `half`), and sfx.py times a seam's cue from it. The two beats still
+// OVERLAP by the whole seam — both are mounted and both voices play — so the narration breath the seam rides is
+// exactly what it was: only the picture is hard.
+//
+// OPACITY, NOT VISIBILITY, and the beat stays MOUNTED. `visibility: hidden` is inherited, so a register that sets an
+// element `visibility: visible` (the container's copy does) would show through a hidden beat; an opacity of 0 on
+// this wrapper cannot be undone by anything inside it. Unmounting the hidden half would remount it on the other side
+// of the cut and restart whatever it measures in a layout effect.
+//
+// E17: the wrapper runs on every frame of both beats, not only on the seam's. Outside its seam the leaving half sits
+// at progress 0 (< CUT_AT: shown) and the arriving half at 1 (>= CUT_AT: shown), so it draws each beat as a beat.
+export const CUT_AT = 0.5;
+
+const CutPresentation = ({presentationProgress: p, presentationDirection, children}: any) => {
+  const isEnter = presentationDirection === 'entering';
+  const shown = isEnter ? p >= CUT_AT - 1e-9 : p < CUT_AT - 1e-9;
+  return <AbsoluteFill style={shown ? undefined : {opacity: 0}}>{children}</AbsoluteFill>;
+};
+
+/** The hard cut: the picture changes on the seam's middle frame; the audio keeps the seam's overlap. */
+export const cut = (): TransitionPresentation<any> => ({component: CutPresentation, props: {}});

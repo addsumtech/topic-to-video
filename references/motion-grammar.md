@@ -317,6 +317,34 @@ a different ground → `grow`; a `payoff` that is the climax or at `peak` → `p
 peaks on its seam's fastest frame, read from `seams.tsx` `SEAM_PEAK` — the punch's impact on its cut, a whoosh on
 the window's cut and the grow's mid-growth, a soft swell where the container's curve is fastest.
 
+### The hard cut — `cut` (remotion, 2026-10-24)
+
+`transition_in: {"type": "cut"}` (or `transition_style: "cut"` / `"hard-cut"`, which used to draw the default
+cross-fade here) changes the picture on ONE frame — the seam's middle frame, `start + 6`, which is where
+`beatgrid.py` already puts a cut's picture moment and the caption HUD already hands over — and nothing moves, fades or
+flashes (`remotion/src/seams.tsx` `CutPresentation`). The two beats still overlap by the whole 12-frame seam, so both
+voices play through it and the narration breath is exactly what it was. It makes no sound of its own (`sfx.py`): on a
+scored film the music's beat, which the pads are snapped onto, is its sound. It is NOT a mark — it spends none of the
+2-3 marked-seam budget (`render_remotion.is_mark`), because it is the absence of a transition.
+
+It crosses a dark↔light boundary (it is in `CANNOT_FLASH`): the two beats never share a frame, so nothing bright is
+ever added to or moved across a dark frame — measured on a dark→light pair, the frame mean held 17.4 to the cut and
+read 237.9 from it, one step inside both beats' range (tests/test_hard_cut.py). Whether a smash cut to light suits a
+film is the planner's call, not the guard's.
+
+**`seam_plan.py` plans it on UNMARKED seams by the film's tempo** (`seam_plan.film_tempo`; `meta.cuts` names it
+outright): `kinetic` (a launch or promo, or `meta.intensity: bold`) cuts every unmarked seam; `scored` (a film with
+music) cuts half its seams, never into a `low`-energy beat or the close, ranked peak → high → medium; `calm` (a
+teach/howto/research film without a score) plans none — the dissolve is its breath. A seam a camera hand-off, a
+`return`, a `match_cut` or a stage run owns is never cut. Planned cuts carry `"by": "seam_plan"`, so a re-run re-plans
+them and leaves an author's cut alone. The planner prints the hard-cut share and RATE measured from the board (and
+what the beat lengths allow at most — Apple's launch film cuts 27.8 a minute, launch-film-study.md; a seam planner
+cannot shorten a beat), and `validate.py` warns when a kinetic film is under half hard or a scored one under 0.4.
+
+Known limit: `useT` holds the arriving beat at its composed skeleton (`ENTRY_T`) for the seam's whole 12 frames, so
+after a cut the picture holds still for 6 frames (0.2 s) before its reveal starts. Letting it run from the cut frame is
+a `runtime/motion.ts` change (every register's manifest), not done.
+
 ### The camera hand-off — a push that survives a cut
 
 A move that rests before every cut is a camera that stops for each edit. `camera: {move: 'push', handoff: true}`
