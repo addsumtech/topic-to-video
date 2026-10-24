@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 212,
+  "_universe": 213,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -228,7 +228,8 @@
     "FlightArcs": "9309071933e3d324",
     "FlowSankey": "40c53268658148a2",
     "GlobeFocus": "8d949f10e58136f7",
-    "RankRace": "84cf953e4b2ddbbe"
+    "RankRace": "84cf953e4b2ddbbe",
+    "LitMedium": "432e31072d142588"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -442,7 +443,8 @@
     "FlightArcs": "41eaea94b76b81fe",
     "FlowSankey": "1b4dc4851855d918",
     "GlobeFocus": "8fe392bef7bfd45d",
-    "RankRace": "65d48938c5ccb4c1"
+    "RankRace": "65d48938c5ccb4c1",
+    "LitMedium": "525a26476c373eb6"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -673,9 +675,21 @@
       "reach": 0.724,
       "prop_diff": 1.0
     },
+    "FlightArcs": {
+      "reach": 0.145,
+      "prop_diff": 0.75
+    },
+    "FlowCounter": {
+      "reach": 0.385,
+      "prop_diff": 1.0
+    },
     "FlowField": {
       "reach": 0.317,
       "prop_diff": 1.0
+    },
+    "FlowSankey": {
+      "reach": 0.278,
+      "prop_diff": 0.75
     },
     "FocalIsolation": {
       "reach": 0.253,
@@ -723,6 +737,10 @@
     },
     "GlitchDatamosh": {
       "reach": 0.629,
+      "prop_diff": 1.0
+    },
+    "GlobeFocus": {
+      "reach": 0.044,
       "prop_diff": 1.0
     },
     "GlowPick": {
@@ -863,6 +881,10 @@
     },
     "LiquidMorph": {
       "reach": 0.058,
+      "prop_diff": 1.0
+    },
+    "LitMedium": {
+      "reach": 0.162,
       "prop_diff": 1.0
     },
     "LowPolyForm": {
@@ -1048,6 +1070,10 @@
     "RangeSpheres": {
       "reach": 0.401,
       "prop_diff": 0.89
+    },
+    "RankRace": {
+      "reach": 0.122,
+      "prop_diff": 1.0
     },
     "RansomZine": {
       "reach": 0.817,
@@ -1271,26 +1297,6 @@
     },
     "WorksThrough": {
       "reach": 0.269,
-      "prop_diff": 1.0
-    },
-    "FlightArcs": {
-      "reach": 0.145,
-      "prop_diff": 0.75
-    },
-    "FlowCounter": {
-      "reach": 0.385,
-      "prop_diff": 1.0
-    },
-    "FlowSankey": {
-      "reach": 0.278,
-      "prop_diff": 0.75
-    },
-    "GlobeFocus": {
-      "reach": 0.044,
-      "prop_diff": 1.0
-    },
-    "RankRace": {
-      "reach": 0.122,
       "prop_diff": 1.0
     }
   }
