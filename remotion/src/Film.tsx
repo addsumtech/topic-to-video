@@ -157,6 +157,46 @@ export const joinedAt = (scenes: SceneSpec[], i: number) =>
 const SAFE_EDGE = `${(ACTION_SAFE_FRAC * 100).toFixed(1)}%`, SAFE_EDGE_FAR = `${(100 - ACTION_SAFE_FRAC * 100).toFixed(1)}%`;
 const SAFE_FRAME_MASK = `linear-gradient(90deg, transparent 0%, #000 ${SAFE_EDGE}, #000 ${SAFE_EDGE_FAR}, transparent 100%), ` +
   `linear-gradient(180deg, transparent 0%, #000 ${SAFE_EDGE}, #000 ${SAFE_EDGE_FAR}, transparent 100%)`;
+// THE MARGIN IS THE BEAT ITSELF. A platform-safe film draws every register in a frame scaled by k (0.8) with feathered
+// edges, so on 9:16 every beat was a panel floating on the film's ground — "every beat becomes a panel on black", the
+// first of a 9:16 launch benchmark's findings (2026-10-24), and the DNA's own gradient and vignette drew the panel's
+// edge as a visible seam. The margin is now filled the way vertical video fills one: with an ECHO of the same register,
+// drawn behind the scaled frame, scaled up about the frame's own centre until it covers the canvas, heavily blurred and
+// a little dimmed. What shows through the feathered edge is the beat's own picture going soft, not a second ground.
+//
+// IT IS NOT A SECOND BEAT TO ANY INSTRUMENT. `data-echo="margin"` + `aria-hidden`: every text gate already skips an
+// echo (runtime/textSafe.tsx `isEcho` — safety, collisions, the glide and sync censuses; runtime/titleProbe.tsx), the
+// seams' anchor lookups skip a margin echo (seams.tsx `anchorIn`), it mounts no optic (no BeatOptic) and plays no
+// sound (SeamCopyContext: Film's beat voice reads it; every film video in runtime/screen.tsx is already muted). Inside a
+// container seam's copy of the beat it is not drawn at all. Only a platform-safe film has one, so every other film's
+// tree — and every pixel — is what it was (`safeEcho: false` switches it off for a proof).
+const ECHO_COVER = 1.36;      // the echo's scale over the canvas, about the scaled frame's centre: 1.14 covers exactly
+                              // (k 0.8, y0 0.03), and a blur fades whatever it has no pixels past to transparent — at
+                              // 1.22 the bottom 77px of overscan was not enough and the frame's foot went grey (looked)
+const ECHO_BLUR_FRAC = 0.036; // of the frame's short side — 39px at 1080: no edge of the register's type survives it
+const ECHO_DIM = 0.85;        // brightness under the sharp frame on a DARK beat, so the panel stays the thing to look at.
+                              // A LIGHT beat is not dimmed: 0.78 on a paper beat drew a grey frame round a white card,
+                              // the panel this layer exists to remove (looked, 9:16 probe frame 34)
+const SafeEcho: React.FC<{W: number; H: number; k: number; y0: number; light: boolean; children: React.ReactNode}> = ({
+  W, H, k, y0, light, children}) => {
+  if (React.useContext(SeamCopyContext)) return null;
+  const cy = y0 + (k * H) / 2;
+  const blur = Math.round(Math.min(W, H) * ECHO_BLUR_FRAC);
+  // the cover a profile NEEDS: reach both frame edges from cy, plus three blur radii of pixels past each edge (a
+  // Gaussian's reach) — 1.26 for `social`. ECHO_COVER is what was looked at; a profile needing more gets more.
+  const need = Math.max(1 + (6 * blur) / W, (2 * Math.max(cy, H - cy) + 6 * blur) / H);
+  const cover = Math.max(ECHO_COVER, need);
+  const tx = W / 2 - (cover * W) / 2, ty = cy - (cover * H) / 2;
+  return (
+    <AbsoluteFill aria-hidden data-echo="margin" style={{overflow: 'hidden', pointerEvents: 'none',
+      filter: light ? `blur(${blur}px)` : `blur(${blur}px) brightness(${ECHO_DIM})`}}>
+      <AbsoluteFill style={{transformOrigin: '0 0', transform: `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${cover})`}}>
+        <SeamCopyContext.Provider value={true}>{children}</SeamCopyContext.Provider>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
 // A REGISTER WHOSE GROUND IS A PROP: its one measured row (shotLuma) describes its DEFAULT only. LitMedium paints its
 // medium's colour, so a water beat read as the default paper and its caption was inked dark on dark water.
 const PROP_GROUND: Record<string, (props: Record<string, unknown> | undefined, dna?: never) => string | null> = {
@@ -1160,11 +1200,14 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string;
   // the delivery dither (runtime/dither): render_remotion asks for it; a still for a gate or a test does not
   dither?: boolean;
+  // `safeEcho: false` switches a platform-safe film's margin echo off (SafeEcho) — for its proofs. Never set by a film.
+  safeEcho?: boolean;
   // `optics: false` switches every beat's optic off — for scripts/determinism_qa.py's layer attribution and the
   // optics identity proofs. Never set by a film.
   optics?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
-    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe, dither = false, optics = true}) => {
+    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe, dither = false, optics = true,
+    safeEcho = true}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -1275,6 +1318,18 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                   band lands where the caption is, above the platform's UI, and nothing in it is re-laid-out */}
               {/* …and its edges dissolve into the beat's ground: a register that paints its own atmosphere showed the
                   scaled frame as a hard-edged panel */}
+              {regFrame && safeEcho ? (
+                <SafeEcho W={width} H={height} k={regFrame.k} y0={regFrame.y0}
+                  light={((edgeGround(sc, 'in')?.y ?? dnaGroundY(sc.shot, activeDna)) ?? 0) > LIGHT_KEY_Y}>
+                  <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
+                    <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
+                      <CarryContext.Provider value={arrived[i] ?? null}>
+                        <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : null}</BeatClock>
+                      </CarryContext.Provider>
+                    </ObjectIdleContext.Provider>
+                  </CueContext.Provider>
+                </SafeEcho>
+              ) : null}
               <AbsoluteFill data-beat={String(i)} style={regFrame ? {transformOrigin: '0 0',
                 transform: `translate(${regFrame.x0}px, ${regFrame.y0}px) scale(${regFrame.k})`,
                 WebkitMaskImage: SAFE_FRAME_MASK, maskImage: SAFE_FRAME_MASK,

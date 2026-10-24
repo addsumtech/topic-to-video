@@ -111,6 +111,17 @@ const Plain: React.FC<{seam: string; half: string; children: React.ReactNode; la
 const halfRoot = (seam: string, half: 'exiting' | 'entering'): HTMLElement | null =>
   document.querySelector(`[data-seam="${seam}"][data-seam-half="${half}"]`);
 
+/** The anchor `id` inside `scope` — never one inside a platform-safe film's MARGIN ECHO (Film.tsx SafeEcho: a blurred
+ *  second rendering of the beat behind its scaled frame), which carries the same `data-carry` marks one level earlier
+ *  in document order, so a plain querySelector measured the blurred copy's rect instead of the beat's. */
+const anchorIn = (scope: ParentNode | null | undefined, id: string): Element | null => {
+  if (!scope) return null;
+  for (const el of Array.from(scope.querySelectorAll(`[data-carry="${id}"]`))) {
+    if (!el.closest('[data-echo="margin"]')) return el;
+  }
+  return null;
+};
+
 /** The corner radius an anchor is drawn with, in FRAME px: a declared `data-carry-radius` (in the element's own layout
  *  px, like its CSS), else its own CSS radius. `scale` is frame px per layout px; a percentage resolves on the box. */
 const radiusOf = (el: Element, scale: number, w: number, h: number): number => {
@@ -148,7 +159,7 @@ const anchorBox = (seam: string, half: 'exiting' | 'entering', id: string, W: nu
   if (!root) throw new Error(`seam ${seam}: the ${half} half is not mounted — cannot measure '${id}'`);
   const layer = root.querySelector(':scope > [data-seam-layer="rest"]') as HTMLElement | null;
   if (!layer) throw new Error(`seam ${seam}: the ${half} half has no rest layer`);
-  const el = layer.querySelector(`[data-carry="${id}"]`);
+  const el = anchorIn(layer, id);
   if (!el) {
     throw new Error(`a ${where} seam needs the anchor '${id}' (data-carry="${id}") on the ${half === 'exiting' ?
       'leaving' : 'arriving'} beat, and that beat's frame has none. The register does not draw it, or it is hidden ` +
@@ -183,7 +194,7 @@ const anchorBox = (seam: string, half: 'exiting' | 'entering', id: string, W: nu
   // reads runtime/carry `useCarried` and draws the anchor in place. Read on the copy layer when there is one (the
   // rest layer hides a container's anchor on purpose), else on the rest layer itself.
   const copy = root.querySelector(':scope > [data-seam-layer="copy"]');
-  const probe = copy ? copy.querySelector(`[data-carry="${id}"]`) : el;
+  const probe = copy ? anchorIn(copy, id) : el;
   const shown = probe ? shownOpacity(probe, copy ?? layer) : 0;
   sheets.forEach((sh) => { sh.disabled = false; });
   if (shown < 0.5) {
@@ -466,7 +477,7 @@ export const inkRoom = (ink: Uint8Array, w: number, h: number): {i: number; d: n
 const glyphOf = (seam: string, id: string, W: number): Glyph | null => {
   const root = halfRoot(seam, 'exiting');
   const layer = root?.querySelector(':scope > [data-seam-layer="rest"]') as HTMLElement | null;
-  const el = layer?.querySelector(`[data-carry="${id}"]`) as HTMLElement | null;
+  const el = anchorIn(layer, id) as HTMLElement | null;
   if (!root || !layer || !el || !el.hasAttribute('data-carry-glyph')) return null;
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   let tn: Node | null = walker.nextNode();

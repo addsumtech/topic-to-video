@@ -827,6 +827,10 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     zone = safe_zone(meta, aspect)
     if zone:
         props["safe"] = zone
+        # the margin ECHO (Film.tsx SafeEcho: the beat itself, blurred, behind its 0.8 frame) costs a second rendering
+        # of every register — measured 1.7-1.9x the frame time on a 9:16 probe — so a board may refuse it
+        if meta.get("safe_echo") is False:
+            props["safeEcho"] = False
     if isinstance(meta.get("brand"), dict) and meta["brand"].get("logo"):
         props["brand"] = meta["brand"]     # served from out_dir via --public-dir; drawn as a persistent corner bug
     theme = meta.get("theme")                 # the per-topic atmosphere WORLD (motif + palette) behind every shot
