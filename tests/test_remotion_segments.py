@@ -143,7 +143,9 @@ _KNOWN_READS = Counter({
     "scenes.reduce": 2,            # filmDuration (cuts, then frames) -> the outro, last segment only (its frames
                                    # are in the key)
     "scenes.length": 3,            # sceneStarts' bound, the caption loop's bound and closing window
-    "scenes.map": 1,               # sceneStarts: relative offsets, translation-invariant
+    "scenes.map": 3,               # sceneStarts: relative offsets, translation-invariant; and two per-beat tables
+                                   # (`arrived`, `camPlan`) filled below — each entry is written only from the
+                                   # beat itself and the one before it
     "scenes[i]": 3,                # joinedAt (twice): beat i's own run; the caption loop: the active beat's length
     "scenes[i-1]": 1,              # joinedAt: the run of the beat before -> `prev`, and the whole run when joined
     "scenes[active]": 1,
@@ -153,9 +155,18 @@ _KNOWN_READS = Counter({
                                    # groups beats into units — a unit is one beat or one stage run (`run` in the key)
     "scenes[0]": 1,                # the root fill -> the film-wide key's `root`
     "scenes[scenes.length-1]": 1,  # the outro veil -> the last segment's own scene
-    "scenes.slice": 1,             # a stage run's beats, all drawn by one component -> every run segment's `run`
-    "scenes[u.first]": 1,          # one Sequence per lone beat
-    "scenes[u.last]": 1,           # the seam out of a unit -> the next segment's `prev`
+    "scenes.slice": 2,             # a stage run's beats, all drawn by one component -> every run segment's `run`;
+                                   # and the leaving unit's frame count handed to its seam (the seam's frames are
+                                   # the next segment's, whose key holds `prev`)
+    "scenes[u.first]": 4,          # one Sequence per lone beat; the anchored seams: whether the cut INTO this unit is
+                                   # a container (`arrived`, `inContainer`) — read from this beat and the one before
+                                   # it, both in this segment's key (`cur`, `prev`)
+    "scenes[u.last]": 2,           # the seam out of a unit -> the next segment's `prev`; a hand-off's OUT half, read
+                                   # from the beat's own camera (`cur`)
+    "scenes[units[ui-1].last]": 3,  # the anchored seams look one beat BACK: the leaving beat of the cut into this
+                                   # unit -> this segment's `prev` (its whole scene, so its ground, key and seam)
+    "scenes[nu.first]": 1,         # a hand-off's IN half is written for the NEXT beat from this beat's camera and
+                                   # length -> the next segment's `prev` holds both (it may also refuse: throws)
     "scenes[units[ui+1].first]": 1,  # the seam into the NEXT unit -> that segment's `prev`
 })
 # joinedAt(scenes, i + 1) — the caption window and sceneStarts look one beat AHEAD at its run. That is true only

@@ -291,7 +291,10 @@ def test_film_wraps_the_register_and_not_the_voice():
     src = open(os.path.join(_ROOT, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
     m = re.search(r"<BeatClock warp=\{sc\.warp\}>(.*?)</BeatClock>", src, re.S)
     assert m and "<C " in m.group(1) and "Audio" not in m.group(1)
-    assert re.search(r"<Audio src=\{staticFile\(sc\.mp3\)\} />", src)
+    # the voice plays outside the warp, through BeatAudio (which only stays silent in a seam's second rendering of the
+    # beat — seams.tsx container — so the first words are not heard twice)
+    assert re.search(r"<BeatAudio src=\{sc\.mp3\} />", src)
+    assert re.search(r"const BeatAudio[^;]*<Audio src=\{staticFile\(src\)\} />", src, re.S)
     # the runtime map and the python one are the same map (it lives in runtime/cue, which Film imports)
     cue = open(os.path.join(_ROOT, "remotion", "src", "runtime", "cue.ts"), encoding="utf-8").read()
     assert "if (!warp || warp.length < 2 || f <= warp[0][0] || f >= warp[warp.length - 1][0]) return f;" in cue

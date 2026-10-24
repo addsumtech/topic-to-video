@@ -403,9 +403,14 @@ def test_the_seam_guard_and_the_veil_read_the_beats_ground_not_the_films():
     obsolete."""
     film = _src(FILM_TSX)
     # the seam is between UNITS now (a beat, or a whole stage run): `next` is the first beat across the cut
+    # (through cutGrounds, which the anchored seams share: the leaving beat's OUT ground and the arriving beat's IN
+    # ground, each falling back to the film's DNA only when the beat has none of its own)
     assert re.search(r"pickPresentation\(sc, next, width, height, activeDna,\s*\n?\s*"
-                     r"edgeGround\(sc, 'out'\)", film), \
+                     r"\.\.\.cutGrounds\(sc, next\)", film), \
         "pickPresentation is no longer given the two beats' resolved grounds"
+    assert re.search(r"const cutGrounds = \(a: SceneSpec, b: SceneSpec\) =>\s*"
+                     r"\[edgeGround\(a, 'out'\) \?\? activeDna, edgeGround\(b, 'in'\) \?\? activeDna\]", film), \
+        "cutGrounds no longer resolves the two beats' own grounds"
     assert "dnaGroundY(prev.shot, prevG)" in film and "dnaGroundY(next.shot, nextG)" in film, \
         "the seam luminance gap is still measured against the film-wide ground"
     assert "const veilBg = outro > intro" in film, "the intro/outro veil is not the first/last beat's ground"
