@@ -9,7 +9,7 @@
 // still says the medium; hide the light's motion and it is a texture swatch.
 //
 // THE MEDIUM IS THE FILM'S. `material` comes from the beat, else the film's DNA (`dna.material.kind`); the base
-// colour from `base`, else the medium's own. The type is set ON the material, so its ink is picked against the
+// colour from `mediumColor`, else the medium's own. The type is set ON the material, so its ink is picked against the
 // material's MEASURED shade span (MATERIAL_SPAN: the 2nd and 98th percentile of the lit ground, rendered), not its
 // base colour alone — a lit ground is a range, and a reader sees its worst end.
 import React from 'react';
@@ -36,11 +36,11 @@ export const LitMedium: React.FC<{
   /** the medium: paper | water | metal | clay — the film's, else the DNA's `material.kind` */
   material?: MaterialKind;
   /** the medium's colour (#rrggbb); default the medium's own */
-  base?: string;
+  mediumColor?: string;
   kicker?: string;
   title?: string;
   note?: string;
-}> = ({material: matIn, base: baseIn, kicker = 'THE MEDIUM', title = 'Said on its own surface',
+}> = ({material: matIn, mediumColor: baseIn, kicker = 'THE MEDIUM', title = 'Said on its own surface',
        note = 'one light, moving slowly across it'} = {}) => {
   const dna = useDNA();
   const t = useT();
@@ -64,7 +64,7 @@ export const LitMedium: React.FC<{
   }
   if (worst < 4.5) {
     throw new Error(`LitMedium: no ink reads on ${material} ${base} across its lit span (best ${worst.toFixed(2)}:1, ` +
-      'needs 4.5:1 for the note) — pass a lighter or darker `base`.');
+      'needs 4.5:1 for the note) — pass a lighter or darker `mediumColor`.');
   }
   const U = Math.min(W, H), portrait = W < H;
   const x0 = Math.round(W * (portrait ? 0.08 : 0.09)), colW = Math.round(W * (portrait ? 0.84 : 0.62));
@@ -83,9 +83,12 @@ export const LitMedium: React.FC<{
             textTransform: 'uppercase'}}>{kicker}</div>
         ) : null}
         <div style={{opacity: tin, transform: `translateY(${Math.round((1 - tin) * U * 0.02)}px)`, color: INK,
-          font: `700 ${titlePx}px/1.08 ${DISPLAY}`, letterSpacing: '-0.01em'}}>{title}</div>
+          font: `700 ${titlePx}px/1.08 ${DISPLAY}`, letterSpacing: '-0.01em', textWrap: 'balance'} as React.CSSProperties}>{title}</div>
         {note ? (
-          <div style={{opacity: nin, color: DIM, font: `500 ${NOTE}px/1.35 ${BODY}`, maxWidth: colW}}>{note}</div>
+          // balanced: Chinese breaks between any two glyphs, and unbalanced the 9:16 note left «件» alone on its last
+          // line (scripts/cjk_type_qa.py)
+          <div style={{opacity: nin, color: DIM, font: `500 ${NOTE}px/1.35 ${BODY}`, maxWidth: colW,
+            textWrap: 'balance'} as React.CSSProperties}>{note}</div>
         ) : null}
       </div>
     </AbsoluteFill>

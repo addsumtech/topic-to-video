@@ -364,7 +364,7 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 92. **FractalTree** — a recursive tree GROWS from the ground, branches splitting depth by depth, then blossoms bloom at the tips. *Use: grow / branch out / "from one root, everything" (techno-natural).*
 
 ## X · Weather / atmosphere
-229. **LitMedium** — a statement set on the topic's own MEDIUM — paper, water, brushed metal or clay — the surface still and ONE light drifting across it (runtime/material.tsx), so the medium reads by how it answers light; the ink is picked against the lit ground's measured span. *Use: what something is made of or where it lives — "it started on paper", "the harbour decides", "milled from one block", "shaped by hand".* `material, base, kicker, title, note`
+229. **LitMedium** — a statement set on the topic's own MEDIUM — paper, water, brushed metal or clay — the surface still and ONE light drifting across it (runtime/material.tsx), so the medium reads by how it answers light; the ink is picked against the lit ground's measured span. *Use: what something is made of or where it lives — "it started on paper", "the harbour decides", "milled from one block", "shaped by hand".* `material, mediumColor, kicker, title, note`
 93. **RainGlass** — a message behind a rain-blurred glass pane: droplets slide + streak while the soft-focus scene SHARPENS and the title resolves. *Use: a moody, atmospheric, material interlude.*
 
 ## Y · Fire / energy

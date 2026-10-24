@@ -643,8 +643,11 @@ def cjk_props(name, offset=0):
         # sentence as the colour of every bar.
         # `d` is an SVG path's DATA (TypeOnPath draws its words along the film's own route): geometry, never copy.
         # Fed a Chinese sentence it is refused by name, and the register read as a coverage hole at every aspect.
+        # `mediumColor` is LitMedium's medium as a #rrggbb colour — fed a sentence, LitGround refuses it by name and
+        # the register read as a coverage hole at every aspect (`base`, the obvious name, is StrataColumn's COPY);
+        # `material` NAMES the medium (paper | water | metal | clay), a closed set like `page`, never copy.
         if prop in ("accent", "accent2", "imageAspect", "aspect", "dna", "page",
-                    "face", "d") or re.match(r"^src[A-Z]?", prop):
+                    "face", "d", "mediumColor", "material") or re.match(r"^src[A-Z]?", prop):
             # colours / images / plumbing, not copy. The `src` test is a PREFIX: KSpaceAnatomy declares
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.
