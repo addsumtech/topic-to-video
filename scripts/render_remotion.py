@@ -960,7 +960,27 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         import stage_runs as _sr
         _events = _sr.sound_events(scenes)          # a stage's clicks, on the words that name them
         _clicks = any(_events) and meta.get("stage_sounds", True) is not False
-        if meta.get("sound_design") or _clicks:     # opt-in SFX(+BGM) bed, post-render — or just the stage's clicks
+        # THE PICTURE'S OWN SOUNDS (scripts/shot_sounds.py): each register's declared SOUNDS on the frames its picture
+        # makes them, and the board's `slide.sounds` on their words. They ride with the SFX bed (`sound_design`), or
+        # alone with `meta.shot_sounds: true`; a board's `sounds: "none"` silences the beat under the whole bed.
+        import shot_sounds as _ss
+        _shot_on = bool(meta.get("sound_design")) or meta.get("shot_sounds") is True
+        _own, _silent = [[] for _ in scenes], [False] * len(scenes)
+        if _shot_on:
+            for k, sc in enumerate(scenes):
+                try:
+                    _own[k] = _ss.scene_events(sc, fps, out_dir)
+                    _b = _ss.board_events(slides[k] if k < len(slides) else {}, out_dir, fps)
+                except (_ss.SoundDeclError, SystemExit) as e:
+                    print("[render_remotion] WARNING: beat %d's own sounds cannot be placed (%s) — the beat plays "
+                          "without them; validate.py names the same defect" % (k + 1, e))
+                    continue
+                if _b == "none":
+                    _silent[k] = True
+                else:
+                    _own[k] = _own[k] + _b
+        if meta.get("sound_design") or _clicks or any(_own):     # opt-in SFX(+BGM) bed, post-render — or a stage's
+            # clicks / the shots' own sounds alone
             try:
                 import sfx
                 tr = _REMOTION2_TR                      # feed durationInFrames = durF-TR so cue times land on the
@@ -969,7 +989,8 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
                 sfx_scenes = [{"durationInFrames": max(1, sc["durF"] - (0 if k + 1 < len(scenes) and _jn[k + 1]
                                                                          else tr)),
                                "transitionIn": sc.get("transitionIn"),
-                               "events": _events[k] if _clicks else []}
+                               "events": (_events[k] if _clicks else []) + _own[k],
+                               "silent": _silent[k]}
                               for k, sc in enumerate(scenes)]   # overlap-compressed timeline
                 if sfx_scenes:                          # the closing sentence lands on the last beat's arrival
                     sfx_scenes[-1]["shots"] = [{"startFrame": 0}]

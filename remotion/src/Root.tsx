@@ -16,6 +16,9 @@ import {KineticProbe, DURATION as KPD} from './runtime/__probe_kinetic';
 import {MathProbe, DURATION as MPD} from './runtime/__probe_math';
 import {KineticHoldAudit, KineticHoldContext, HoldReport} from './runtime/kinetic';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {NebulaField, DURATION as D_NEBULAFIELD} from './shots/NebulaField';
+import {LightShafts, DURATION as D_LIGHTSHAFTS} from './shots/LightShafts';
+import {AuroraCurtain, DURATION as D_AURORACURTAIN} from './shots/AuroraCurtain';
 import {FunctionPlot, DURATION as D_FUNCTIONPLOT} from './shots/FunctionPlot';
 import {GrowingFigure, DURATION as D_GROWINGFIGURE} from './shots/GrowingFigure';
 import {EquationMorph, DURATION as D_EQUATIONMORPH} from './shots/EquationMorph';
@@ -25,6 +28,7 @@ import {FlowSankey, DURATION as D_FLOWSANKEY} from './shots/FlowSankey';
 import {FlightArcs, DURATION as D_FLIGHTARCS} from './shots/FlightArcs';
 import {GlobeFocus, DURATION as D_GLOBEFOCUS} from './shots/GlobeFocus';
 import {OpticsProbe, DURATION as OPD} from './runtime/__probe_optics';
+import {VolumeProbe, DURATION as VPD} from './runtime/__probe_volume';
 import {OpticContext, opticState} from './runtime/optics';
 import {LitMedium, DURATION as D_LITMEDIUM} from './shots/LitMedium';
 import {CroppedType, DURATION as D_CROPPEDTYPE} from './shots/CroppedType';
@@ -515,6 +519,7 @@ export const RemotionRoot: React.FC = () => (
     {F('KineticProbe', KineticProbe, KPD)}
     {F('MathProbe', MathProbe, MPD)}
     {F('OpticsProbe', OpticsProbe, OPD)}
+    {F('VolumeProbe', VolumeProbe, VPD)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
     {F('CommandSummon', CommandSummon, CS)}
     {F('TemporalAccelerate', TemporalAccelerate, TA)}
@@ -728,6 +733,9 @@ export const RemotionRoot: React.FC = () => (
     {F('FlowCounter', FlowCounter, D_FLOWCOUNTER)}
     {F('RankRace', RankRace, D_RANKRACE)}
     {F('LitMedium', LitMedium, D_LITMEDIUM)}
+    {F('AuroraCurtain', AuroraCurtain, D_AURORACURTAIN)}
+    {F('LightShafts', LightShafts, D_LIGHTSHAFTS)}
+    {F('NebulaField', NebulaField, D_NEBULAFIELD)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}

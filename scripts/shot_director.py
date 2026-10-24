@@ -138,8 +138,11 @@ FAMILY = {
     "CircuitTrace": "T",
     "SpectrumPulse": "U", "VoiceSignal": "U",
     "StarfieldWarp": "V",
+    "NebulaField": "V",
     "FractalTree": "W",
     "RainGlass": "X",
+    "LightShafts": "X",
+    "AuroraCurtain": "X",
     "LitMedium": "X",
     "EmberFlame": "Y",
     "ClothWave": "Z",
@@ -165,6 +168,9 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "NebulaField":             'natural-world',
+    "LightShafts":             'natural-world',
+    "AuroraCurtain":           'natural-world',
     "FunctionPlot":            'scientific',
     "GrowingFigure":           'scientific',
     "EquationMorph":           'scientific',

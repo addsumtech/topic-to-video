@@ -58,8 +58,19 @@ def _norm(x):
 
 # ── the synthesized cue library (deterministic) ──────────────────────────────────────────────────────
 # every cue is a short mono float array in [-1,1]; the ffmpeg highpass 800 shapes it into the SFX band.
-# gains for the sounds a board's own events ask for (plan_cues `events`)
-EVENT_GAIN = {"click": 0.6}
+# gains for the sounds a beat's own events ask for (plan_cues `events`): a stage's clicks, a register's declared
+# SOUNDS and a board's `slide.sounds` (scripts/shot_sounds.py). One per runtime/sound.ts SOUND_KINDS — a kind the
+# runtime offers and this table lacks is a test failure, never a silent no-op.
+EVENT_GAIN = {"click": 0.6, "tick": 0.45, "strike": 0.7, "whoosh": 0.45, "chime": 0.38, "swell": 0.5}
+# A register's sounds are the picture's own, but a picture that strikes forty times in a beat would machine-gun: two
+# of its events closer than this are one sound (the first is kept). 0.12 s is under the ~150 ms at which two clicks
+# start to read as a flam rather than a double (U).
+SHOT_SOUND_MIN_GAP_S = 0.12
+# THE CLOSE. `meta.close_sound`: full = riser -> impact -> sparkle (the launch-film sentence below); soft = ONE settle,
+# a low bloom with no build and no glitter; none = the film ends on its picture and its voice. Default from
+# seam_plan.film_tempo — a calm film settles, a kinetic or scored one lands (bench-rams: "the automatic riser ->
+# impact -> sparkle ending fights a restrained film").
+CLOSE_MODES = ("full", "soft", "none")
 
 def cue(name):
     if np is None:
@@ -145,6 +156,34 @@ def cue(name):
         x = sum(np.sin(2 * np.pi * f * t + i) * (0.7 ** i) * (1 + 0.35 * np.sin(2 * np.pi * (5.5 + i) * t))
                 for i, f in enumerate(parts))
         return _norm(x * np.exp(-t / 0.45) * _env(n, 0.01, 1.0)) * 0.42
+    # ── THE PICTURE'S OWN SOUNDS (runtime/sound.ts SOUND_KINDS: a register or a board names them; shot_sounds.py) ──
+    # Every one keeps its energy in the two bands the SFX bus passes (above 800 Hz, below 110 Hz — the voice owns the
+    # middle), and peaks where the picture acts: build_sfx_track aligns a cue by its envelope's peak.
+    if name == "strike":                           # a hard contact: a stamp, a pencil landing, a hammer — crack + knock
+        n = int(0.22 * SR); t = np.arange(n) / SR
+        crack = np.convolve(rng.standard_normal(n), np.array([1.0, -0.9]), mode="same") * _env(n, 0.0004, 0.006)
+        ring = (np.sin(2 * np.pi * 1850 * t) * np.exp(-t / 0.010) + 0.6 * np.sin(2 * np.pi * 3300 * t) * np.exp(-t / 0.006))
+        knock = np.sin(2 * np.pi * (58 + 30 * np.exp(-t / 0.02)) * t) * _env(n, 0.001, 0.05)
+        return _norm(0.8 * crack + 0.45 * ring + 0.9 * knock) * 0.9
+    if name == "chime":                            # a small bright arrival: three inharmonic partials ringing out
+        n = int(0.9 * SR); t = np.arange(n) / SR
+        x = sum(np.sin(2 * np.pi * f * t) * a * np.exp(-t / d)
+                for f, a, d in ((1568.0, 1.0, 0.32), (2349.0, 0.5, 0.22), (3951.0, 0.25, 0.12)))
+        return _norm(x * _env(n, 0.003, 10.0)) * 0.6
+    if name == "swell":                            # light rising: air and a low bloom that crest TOGETHER, then ebb
+        n = int(1.4 * SR); t = np.arange(n) / SR
+        peak = 0.85
+        shape = np.where(t < peak, (t / peak) ** 2.2, np.exp(-(t - peak) / 0.22))
+        x = rng.standard_normal(n)
+        air = np.convolve(x, np.ones(6) / 6, mode="same") - np.convolve(x, np.ones(40) / 40, mode="same")
+        low = np.sin(2 * np.pi * 52 * t) + 0.4 * np.sin(2 * np.pi * 78 * t)
+        return _norm((0.55 * air + 0.8 * low) * shape) * 0.7
+    if name == "settle":                           # the SOFT close: one low bloom, no crack, no build, no glitter
+        n = int(1.6 * SR); t = np.arange(n) / SR
+        body = np.sin(2 * np.pi * (44 + 10 * np.exp(-t / 0.3)) * t) * _env(n, 0.07, 0.55)
+        air = np.convolve(rng.standard_normal(n), np.ones(5) / 5, mode="same")
+        air = (air - np.convolve(air, np.ones(30) / 30, mode="same")) * _env(n, 0.05, 0.25) * 0.18
+        return _norm(body + air) * 0.8
     if name == "reveal":                           # the hero / brand landing (a soft bell)
         n = int(0.95 * SR); t = np.arange(n) / SR
         parts = [880.0, 1320.0, 1760.0, 2640.0]
@@ -220,7 +259,7 @@ def _on_the_beat(t_cue, t_cut, grid, fps):
     return max(0.0, best)
 
 
-def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
+def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None, close="full"):
     """Given a scene list (each with durationInFrames; optional shots[].startFrame), return a cue list
     [(t_seconds, cue_name, gain)] aligned to beats: a whoosh at each MARKED scene transition (anticipatory,
     −2 frames; a plain cross-fade seam stays QUIET so the ear marks the same ~2-3 seams the eye does — the
@@ -231,7 +270,16 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
 
     `grid` (scripts/beatgrid.BeatGrid, a scored film only): each marked seam's whoosh is quantised to the grid
     inside its one-frame tolerance (`_on_the_beat`). The tts stage has already snapped the cuts to the beat, so
-    the peak lands on the cut AND the beat; an unsnapped cut keeps its whoosh on the cut."""
+    the peak lands on the cut AND the beat; an unsnapped cut keeps its whoosh on the cut.
+
+    `scenes[k]["events"]`: the beat's own sounds, {"t": seconds into the scene, "name", "gain"?, "src"?}. A stage's
+    click and a BOARD's sound ("src": "board") are never dropped; a REGISTER's ("src": "shot") is thinned to one per
+    SHOT_SOUND_MIN_GAP_S and takes its place in the density cap beside the marked seams. `scenes[k]["silent"]`: no
+    cue at all whose peak falls inside that beat (a board's `sounds: "none"`).
+
+    `close` (CLOSE_MODES): "full" — the riser -> impact -> sparkle sentence; "soft" — one `settle`; "none"."""
+    if close not in CLOSE_MODES:
+        raise ValueError("close is one of %s, got %r" % (", ".join(CLOSE_MODES), close))
     cues = []                                       # (t, name, gain, priority) — lower priority dropped first
     # AUTHORED EVENTS — a stage run's click lands on the word that names it (scenes[k]["events"], seconds into the
     # scene: scripts/stage_runs.py `sound_events`). They are the film's own actions, not decoration, so the density
@@ -240,8 +288,12 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
     t0 = 0.0
     n = len(scenes)
     land = None                                     # the closing landing, in seconds — set by the last scene
+    shot_evs = []                                   # a register's own sounds: thinned, then capped beside the seams
+    silent = []                                     # [t0, t1) spans no cue may land in
     for si, sc in enumerate(scenes):
         dur = float(sc.get("durationInFrames") or 0) / fps
+        if sc.get("silent"):
+            silent.append((t0, t0 + dur))
         shots = sc.get("shots") or []
         seam_cue = None
         if si > 0:                                  # scene transition — sound only the MARKED seams
@@ -281,7 +333,9 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
             # The film's real caller lands the close on the last scene's ARRIVAL (its one shot starts at frame
             # 0), which puts the impact ON the seam. Then the riser IS that seam's sound — build across the cut,
             # land — and a whoosh two frames before an impact would be two sounds for one move. Dropped.
-            if seam_cue is not None and abs(land - t0) <= 3.0 / fps:
+            # (Only under the FULL close: a soft settle is a landing, not a build across the cut, and with no close
+            # sound the seam's own whoosh is the cut's only sound.)
+            if close == "full" and seam_cue is not None and abs(land - t0) <= 3.0 / fps:
                 seam_cue = None
         if seam_cue is not None:
             cues.append(seam_cue)
@@ -290,8 +344,18 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
             if k > 0:                               # camera arrives on a new subject — focus
                 cues.append((t0 + sf / fps, "focus", 0.42, 2))
         for ev in (sc.get("events") or []):
-            if isinstance(ev, dict) and isinstance(ev.get("t"), (int, float)) and ev.get("name") in EVENT_GAIN:
-                authored.append((t0 + float(ev["t"]), ev["name"], EVENT_GAIN[ev["name"]], -1))
+            if not (isinstance(ev, dict) and isinstance(ev.get("t"), (int, float))):
+                continue
+            if ev.get("name") not in EVENT_GAIN:
+                # a kind with no synthesis is a defect upstream (shot_sounds checks kinds against runtime/sound.ts),
+                # never a sound skipped in silence
+                raise ValueError("sfx: event %r has no synthesised cue (EVENT_GAIN: %s)"
+                                 % (ev.get("name"), ", ".join(sorted(EVENT_GAIN))))
+            g = EVENT_GAIN[ev["name"]] * float(ev.get("gain", 1.0))
+            if ev.get("src") == "shot":
+                shot_evs.append((t0 + float(ev["t"]), ev["name"], g, 0))
+            else:
+                authored.append((t0 + float(ev["t"]), ev["name"], g, -1))
         if events_only:
             t0 += dur
             continue
@@ -302,9 +366,23 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
         t0 += dur
     total = t0 or 1.0
     sentence = []
+    # a register's own sounds, thinned: two closer than SHOT_SOUND_MIN_GAP_S are one (the first kept)
+    kept = []
+    for ev in sorted(shot_evs, key=lambda c: c[0]):
+        if kept and ev[0] - kept[-1][0] < SHOT_SOUND_MIN_GAP_S:
+            continue
+        kept.append(ev)
+    shot_evs = kept
+
+    def audible(c):
+        return not any(a <= c[0] < b for a, b in silent)
     if events_only:
-        return [(t, name, g) for (t, name, g, _p) in sorted(authored, key=lambda c: c[0])]
-    if land is not None:
+        return [(t, name, g) for (t, name, g, _p) in sorted(filter(audible, authored + shot_evs), key=lambda c: c[0])]
+    cues = cues + shot_evs
+    if land is not None and close == "soft":
+        # ONE settle on the landing — no build before it, no glitter after it
+        sentence.append((land, "settle", 0.55, 0))
+    elif land is not None and close == "full":
         # THE CLOSING SENTENCE — riser → impact → sparkle, the film's one big landing. The peer library's
         # template pins it at f945 → f980 → f1005 (a 35f build, a 25f afterglow) and records it as the one
         # passage never changed after the sound direction was set: build, land, glow, in that order, the
@@ -330,8 +408,26 @@ def plan_cues(scenes, fps, events_only=False, seam_frames=12, grid=None):
     if len(cues) > cap:                             # restraint: drop lowest-priority (highest number) first
         cues.sort(key=lambda c: (c[3], c[0]))
         cues = cues[:cap]
-    cues = sorted(cues + sentence + authored, key=lambda c: c[0])
+    cues = sorted(filter(audible, cues + sentence + authored), key=lambda c: c[0])
     return [(t, name, g) for (t, name, g, _p) in cues]
+
+
+def close_mode(meta):
+    """(mode, basis): how the film ends — `meta.close_sound` when it says, else from its tempo (seam_plan.film_tempo):
+    a calm film settles (soft), a kinetic or scored one lands (full). An unknown value is refused (validate says it
+    first), never read as one of the three."""
+    m = meta if isinstance(meta, dict) else {}
+    v = m.get("close_sound")
+    if v is not None:
+        if v not in CLOSE_MODES:
+            raise ValueError("meta.close_sound is one of %s, got %r" % (", ".join(CLOSE_MODES), v))
+        return v, "meta.close_sound"
+    try:
+        import seam_plan as _sp
+        tempo, basis = _sp.film_tempo(m)
+    except Exception as e:                            # noqa: BLE001 — said aloud below, and the old close kept
+        return "full", "tempo unreadable (%s)" % e
+    return ("soft" if tempo == "calm" else "full"), "%s film (%s)" % (tempo, basis)
 
 
 def _peak_seconds(c):
@@ -632,7 +728,7 @@ def _score_stems(sdir, dur, music, cues, meta, fps, lat):
     import score
     grid = music["grid"]
     climax = music.get("climax_s")
-    land = [t for (t, name, _g) in cues if name == "impact"]
+    land = [t for (t, name, _g) in cues if name in ("impact", "settle")]
     # the SFX closing sentence already builds into the close (riser -> impact): a score riser on the same landing
     # would be a second build on one hit, so the score only rises into a payoff that is NOT the close
     rise = climax is not None and not any(abs(climax - t) <= 2.0 / fps for t in land)
@@ -696,7 +792,10 @@ def mix(out_dir, mp4, scenes, meta, fps, events_only=False, music=None):
         music = {"grid": beatgrid.fit_to_cuts(cuts), "climax_s": cuts[-1] if cuts else None, "bgm_skip_s": 0.0}
         print("[sfx] no beat grid handed in — the score is fitted to the cuts as they are (%s)" % music["grid"])
     grid = (music or {}).get("grid") if not events_only else None
-    cues = plan_cues(scenes, fps, events_only=events_only, grid=grid)
+    close, close_basis = close_mode(meta)
+    if not events_only:
+        print("[sfx] close: %s — %s" % (close, close_basis))
+    cues = plan_cues(scenes, fps, events_only=events_only, grid=grid, close=close)
     sdir = os.path.join(out_dir, ".sfx"); os.makedirs(sdir, exist_ok=True)
     sfx_wav = os.path.join(sdir, "_sfx.wav")
     if not cues:

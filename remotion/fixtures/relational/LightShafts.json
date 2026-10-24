@@ -1,0 +1,3 @@
+{"_why": "LightShafts' `color` is a #rrggbb light and `occluder` a closed set (clouds | canopy | slats); fed a sentence each is refused by name. The structure is fixed here (clouds, the break at 0.45), only the copy paths get the fixture's words. See cjk_type_qa.relational_props.",
+ "props": {"title": "t", "kicker": "k", "note": "n", "occluder": "clouds", "breakAt": 0.45},
+ "copy": ["title", "kicker", "note"]}

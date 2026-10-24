@@ -9,7 +9,7 @@
 //
 // THE STATE (each beat's shot_props, and each of its `steps`, say what changes — runtime/stageRun.tsx):
 //   world.objects {id: {...}}   the world: each object `kind` image | globe | disc | field | stream | stars | band |
-//                               glow | type, standing `at` [x, y, z] (world units: 1 = the frame's short side; +y is
+//                               glow | volume (runtime/volume: `form` curtain | shafts | nebula | flame | layer) | type, standing `at` [x, y, z] (world units: 1 = the frame's short side; +y is
 //                               DOWN, +z toward the viewer) with width `w`, or nested `in` a parent (`uv` its centre
 //                               on the parent, `span` its width as a share of the parent's, `dz` its depth in its own
 //                               widths). `on` 0..1 fades it; `label` names it (shown while `labels` lists it).
@@ -45,6 +45,7 @@ import {PERSP_FRAC} from '../runtime/stage3d';
 import {Earth} from '../runtime/earth';
 import {resFor} from '../runtime/geo';
 import {useStageRun, State} from '../runtime/stageRun';
+import {Volume, type VolumeSpec, type VolumeForm} from '../runtime/volume';
 import {blurOf} from './surface';
 import {layoutWorld, targetCam, framingOf, camAtFrame, project, defocus, nestFade, passFade, ancestors, D2R, type Cam, type CamKey,
   type Framing, type ObjSpec, type Placed, type View, type Zone, type V3} from './worldCore';
@@ -59,6 +60,9 @@ type Obj = ObjSpec & {
   ring?: {lon: number; lat: number; radius: number; color?: string; width?: number} | null;
   obstacle?: number[]; seed?: number; count?: number; speed?: number; sun?: 'left' | 'right'; rays?: boolean;
   imageZoom?: number; labelAt?: number[]; credit?: string;
+  /** a `volume` object: runtime/volume's form and its knobs */
+  form?: VolumeForm; intensity?: number; bands?: VolumeSpec['bands']; sheets?: number; source?: [number, number];
+  occluder?: VolumeSpec['occluder']; open?: number; star?: [number, number]; base?: [number, number]; spread?: number;
 };
 
 const objectsOf = (st: State): Record<string, Obj> => {
@@ -252,7 +256,10 @@ export const WorldStage: React.FC<Record<string, unknown>> = () => {
     return (
       <div key={s.o.id} data-world-object={s.o.id} style={{position: 'absolute', left: 0, top: 0, width: Lw, height: Lh,
         transformOrigin: '0 0', transform: `matrix(${m}, 0, 0, ${m}, ${tx}, ${ty})`, opacity: s.alpha,
-        filter: blur ? `url(#${fid}-b)` : undefined}}>
+        filter: blur ? `url(#${fid}-b)` : undefined,
+        // light ADDS to the world behind it: the blend sits on this, the outermost wrapper — its opacity and blur make
+        // it an isolated group, inside which a screen would meet nothing and land as an opaque black box
+        mixBlendMode: kind === 'volume' || kind === 'band' ? 'screen' : undefined}}>
         {blur ? (
           <svg width={0} height={0} style={{position: 'absolute'}} aria-hidden>
             <filter id={`${fid}-b`} x={-(3 * blur.sx) / Lw} y={-(3 * blur.sy) / Lh} width={1 + (6 * blur.sx) / Lw}
@@ -411,41 +418,27 @@ export const WorldStage: React.FC<Record<string, unknown>> = () => {
         })}
       </svg>;
     }
-    if (kind === 'band') {
-      // a layer of the sky glowing in its own colour: soft at both edges, with faint rays that drift
-      const rays = o.rays !== false;
-      return <div style={{position: 'absolute', inset: 0,
-        background: `linear-gradient(180deg, ${c1}00 0%, ${c1}55 30%, ${c1}aa 52%, ${c1}55 72%, ${c1}00 100%)`,
-        WebkitMaskImage: 'linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%)',
-        maskImage: 'linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%)'}}>
-        {/* rays: soft vertical folds, each fading toward both its ends and blurred, of uneven width and spacing,
-            drifting slowly — hard-edged equal bars read as a barcode (bench-aurora's curtain) */}
-        {rays ? <svg width={Lw} height={Lh} style={{position: 'absolute', inset: 0, mixBlendMode: 'screen'}}>
-          <defs>
-            <linearGradient id={`${fid}-ray`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor={mix(c1, '#ffffff', 0.3)} stopOpacity="0" />
-              <stop offset="0.45" stopColor={mix(c1, '#ffffff', 0.3)} stopOpacity="1" />
-              <stop offset="1" stopColor={mix(c1, '#ffffff', 0.3)} stopOpacity="0" />
-            </linearGradient>
-            <filter id={`${fid}-soft`} x="-50%" y="-10%" width="200%" height="120%" colorInterpolationFilters="sRGB">
-              <feGaussianBlur stdDeviation={`${Lw * 0.006} ${Lh * 0.02}`} />
-            </filter>
-          </defs>
-          <g filter={`url(#${fid}-soft)`}>
-            {Array.from({length: 14}, (_, i) => {
-              const x = ((hash01(i * 7 + 1) * Lw + sec * Lw * 0.01 * (hash01(i) - 0.5)) % Lw + Lw) % Lw;
-              const h = Lh * (0.5 + 0.35 * hash01(i * 11));
-              return <rect key={i} x={x} y={(Lh - h) * (0.3 + 0.4 * hash01(i * 13))} width={Lw * (0.008 + 0.03 * hash01(i * 3))}
-                height={h} fill={`url(#${fid}-ray)`} fillOpacity={0.08 + 0.14 * hash01(i * 5)} />;
-            })}
-          </g>
-        </svg> : null}
-      </div>;
+    if (kind === 'band' || kind === 'volume') {
+      // LIGHT IN A VOLUME (runtime/volume). A `band` is a glowing layer of the sky — once a blurred striped rectangle
+      // (the WorldStage probe's bands read as one), now the volume's `layer` form: soft wandering edges, faint
+      // field-aligned rays, ragged ends. A `volume` is any form — a curtain hung in the world, a nebula, shafts, a
+      // flame — drawn at about its size on screen (a far plane is not drawn at full resolution, a near one is capped).
+      const form: VolumeForm = kind === 'band' ? 'layer' : (o.form as VolumeForm);
+      const spec: VolumeSpec = {form, seed: typeof o.seed === 'number' ? o.seed : 3,
+        ...(typeof o.intensity === 'number' ? {intensity: o.intensity} : {}),
+        ...(o.color || kind === 'band' ? {colors: o.color2 ? [c1, c2] : [c1]} : {}),
+        ...(o.bands ? {bands: o.bands} : {}), ...(typeof o.sheets === 'number' ? {sheets: o.sheets} : {}),
+        ...(o.source ? {source: o.source} : {}), ...(o.occluder ? {occluder: o.occluder} : {}),
+        ...(typeof o.open === 'number' ? {open: o.open} : {}), ...(o.star ? {star: o.star} : {}),
+        ...(o.base ? {base: o.base} : {}), ...(typeof o.spread === 'number' ? {spread: o.spread} : {}),
+        ...(now.reduced ? {speed: 0} : {})};
+      const res = Math.max(0.2, Math.min(1.5, s.pw / Lw, 2048 / Lw));
+      return <Volume spec={spec} width={Lw} height={Lh} res={res} blend="none" soft where={`${where} object "${s.o.id}"`} />;
     }
     if (kind === 'type') return null;           // drawn in the type layer (flat, over the world)
     if (kind === 'frame') return null;          // a place to frame and to nest in, with nothing of its own to draw
     throw new Error(`${where}: object "${s.o.id}" has kind "${kind}" — image, globe, disc, field, stream, stars, band, ` +
-      'glow, type or frame');
+      'glow, volume, type or frame');
   };
 
   // ── type IN the world: a word on a plane facing the lens. It scales with its distance, and it is only drawn while

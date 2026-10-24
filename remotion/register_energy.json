@@ -213,7 +213,10 @@
     "FlowSankey": "40c53268658148a2",
     "GlobeFocus": "8d949f10e58136f7",
     "RankRace": "84cf953e4b2ddbbe",
-    "LitMedium": "432e31072d142588"
+    "LitMedium": "432e31072d142588",
+    "AuroraCurtain": "7adab837b8d1eb2f",
+    "LightShafts": "95972b80271d961b",
+    "NebulaField": "85b7b75140d97bb6"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -242,7 +245,7 @@
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 213,
+  "_universe": 216,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -292,6 +295,13 @@
       "luma_range": 0.013,
       "seconds": 5.2,
       "footprint": 0.162
+    },
+    "AuroraCurtain": {
+      "motion_p75": 0.0011,
+      "ink_median": 0.047,
+      "luma_range": 0.029,
+      "seconds": 6.0,
+      "footprint": 0.685
     },
     "AuroraFlow": {
       "motion_p75": 0.0055,
@@ -958,6 +968,13 @@
       "seconds": 5.0,
       "footprint": 1.0
     },
+    "LightShafts": {
+      "motion_p75": 0.0002,
+      "ink_median": 0.013,
+      "luma_range": 0.031,
+      "seconds": 5.5,
+      "footprint": 0.938
+    },
     "LightShellOrbit": {
       "motion_p75": 0.0109,
       "ink_median": 0.075,
@@ -1104,6 +1121,13 @@
       "luma_range": 0.021,
       "seconds": 6.5,
       "footprint": 0.578
+    },
+    "NebulaField": {
+      "motion_p75": 0.001,
+      "ink_median": 0.055,
+      "luma_range": 0.081,
+      "seconds": 6.0,
+      "footprint": 1.0
     },
     "NeonGrid": {
       "motion_p75": 0.0002,

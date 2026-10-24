@@ -15,7 +15,7 @@
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 213,
+  "_universe": 216,
   "_source": {
     "AcceptanceStamp": "9aa8257547959ce8",
     "Aliasing": "4ba43ae79892f212",
@@ -229,7 +229,10 @@
     "FlowSankey": "40c53268658148a2",
     "GlobeFocus": "8d949f10e58136f7",
     "RankRace": "84cf953e4b2ddbbe",
-    "LitMedium": "432e31072d142588"
+    "LitMedium": "432e31072d142588",
+    "LightShafts": "95972b80271d961b",
+    "NebulaField": "85b7b75140d97bb6",
+    "AuroraCurtain": "7adab837b8d1eb2f"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -444,7 +447,10 @@
     "FlowSankey": "1b4dc4851855d918",
     "GlobeFocus": "8fe392bef7bfd45d",
     "RankRace": "65d48938c5ccb4c1",
-    "LitMedium": "525a26476c373eb6"
+    "LitMedium": "525a26476c373eb6",
+    "LightShafts": "72e8db4e6e0657c5",
+    "NebulaField": "70552a8bcb98f72f",
+    "AuroraCurtain": "12fe4972e0d76f62"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -474,6 +480,10 @@
     "AtomOrbital": {
       "reach": 0.523,
       "prop_diff": 1.0
+    },
+    "AuroraCurtain": {
+      "reach": 0.305,
+      "prop_diff": 0.67
     },
     "AuroraFlow": {
       "reach": 0.254,
@@ -855,6 +865,10 @@
       "reach": 0.582,
       "prop_diff": 1.0
     },
+    "LightShafts": {
+      "reach": 0.091,
+      "prop_diff": 0.6
+    },
     "LightShellOrbit": {
       "reach": 0.143,
       "prop_diff": 0.91
@@ -937,6 +951,10 @@
     },
     "NearTheLine": {
       "reach": 0.088,
+      "prop_diff": 1.0
+    },
+    "NebulaField": {
+      "reach": 0.075,
       "prop_diff": 1.0
     },
     "NeonGrid": {

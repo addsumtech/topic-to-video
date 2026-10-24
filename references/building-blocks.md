@@ -183,6 +183,55 @@ names the film's medium with `material: {kind}`.
 **Smallest real use:** `<LitGround material="water" base="#173f5a" light={dnaLight(dna)} travel={[0.66, 0.96]} />`
 **Exports:** `LitGround`, `MATERIALS`, `MATERIAL_BASE`, `MATERIAL_SPAN`, `materialShades`, `isMaterial`.
 
+### `volume` (+ `volumeCore`)
+Light IN a volume, drawn as the line-of-sight integral a real one is, by a WebGL fragment shader: `curtain` (an
+aurora — one folded sheet; for each pixel the sheet's crossings of its column, each weighted by 1/|dX/ds|, so a fold
+turned edge-on brightens itself; a sharp lower border where the emission stops, faint tops, field-aligned rays that
+travel along the arc, the far end receding; coloured by ALTITUDE from `bands`), `shafts` (the sky round a source seen
+through an occluder's gaps — `clouds` · `canopy` · `slats`, `open` 0..1 — averaged along each line toward it, so each
+shaft IS a gap), `nebula` (domain-warped emission, H-alpha red to [O III] teal toward the ionising `star`, dust lanes,
+stars), `flame` (heat advected up, a blackbody temperature ramp) and `layer` (one glowing stratum — WorldStage's
+`band`). Physics colours are declared and sourced in `volumeCore` (`AURORA_BANDS`: NASA's 100-200 km oxygen green,
+>=200 km oxygen red, <=100 km nitrogen pink; `NEBULA_EMISSION`; `blackbody`) — the hexes are display approximations.
+WHY A SHADER: bench-aurora rebuilt an SVG curtain four times and shipped "barcode rays on a flat wall" — N rects are N
+bars however soft; the integral is per pixel. DETERMINISM: ONE shared context per tab (a context per canvas meets
+Chrome's live-context limit on a long film and the oldest goes blank), every uniform set on every draw (arrays
+zero-padded — a uniform keeps the last volume's value), the 2D copy's state reset every draw, time = frame / fps.
+Measured on `--gl=angle`: VolumeProbe (all five forms, one context, one frame) and AuroraCurtain / LightShafts /
+NebulaField each bit-identical (0/255) twice, at concurrency 1 vs 3, and cold vs after their predecessors; the probe's
+`stateLeak` control fails (cold and concurrency, up to 248/255) and is blamed on that layer. No WebGL context is a
+loud error. NEVER OVER TYPE: `keepOut` rects clear the light to `VOLUME_KEEP_FLOOR` (18%) inside the type, feathering
+back over max(90 px, half the rect's long side) — a 90 px feather alone cut a hard dark ellipse out of the sky.
+**Reach for it:** the subject IS light in a volume — an aurora, a sunbeam, a nebula, fire, plasma. Not as a backdrop
+to a beat about something else (the effect must encode the content). Registers: `AuroraCurtain`, `LightShafts`,
+`NebulaField`; a world holds one as `{"kind": "volume", "form": …}` (references/stage-runs.md).
+**Smallest real use:** `<Volume spec={{form: 'curtain', bands, seed: 7}} curtain={{yTop, yLow}} keepOut={[titleRect]} />`
+(put it on a dark ground: the canvas is SCREEN-blended — light adds, it does not paint over). `curtainFit(yTop, yLow,
+lowKm, topKm).yOf(km)` is the projection a ruler beside the curtain must use.
+**Exports:** `Volume`, `drawVolume`, `VOLUME_FORMS`, `checkVolume`, `checkBands`, `curtainFit`, `colourAt`,
+`keepOutRows`, `keepOutAt`, `AURORA_BANDS`, `NEBULA_EMISSION`, `blackbody`, `VOLUME_MAX_INTENSITY`.
+
+### `sound`
+SHOT-OWNED SOUND: a register declares the sounds its own picture makes, as a LITERAL
+`export const SOUNDS = [{kind, at, to?, each?, gain?}] as const` — `kind` one of `SOUND_KINDS` (click · tick · strike ·
+whoosh · chime · swell, each synthesised in scripts/sfx.py), `at` a point on the register's clock (0..1) or the NAME of
+a prop holding one (no prop: no event — and that prop has no default, so no picture event either), `each` a list prop
+(one per item, spread from `at` to `to`). scripts/shot_sounds.py reads it (no render: chosen over a DOM census
+because a census is a full extra pass, the segment cache would skip reused beats, and a static declaration is checked
+by validate before anything renders), maps each t to the frame useT reaches it on and through the beat's sync warp,
+and sfx.plan_cues mixes it peak-aligned, gain-staged under the voice, thinned to one per 0.12 s and inside the density
+cap. The register times its picture FROM the same declaration (`soundT` / `soundTs`), so the two cannot drift.
+A board adds its own: `slide.sounds: [{kind, at: <seconds> | {"cue": "<words>"}, gain?}]` (never dropped) or `"none"`
+(nothing under that beat); a stage step: `"sound": "chime"`. They ride with `meta.sound_design`, or alone with
+`meta.shot_sounds: true`. THE CLOSE: `meta.close_sound` — `full` (riser → impact → sparkle), `soft` (one low settle),
+`none`; default from `seam_plan.film_tempo` (calm → soft, kinetic / scored → full).
+**Reach for it:** a picture that makes a sound when it acts — a needle landing on a station, a stamp, a pencil strike,
+a substorm brightening (`AuroraCurtain.surgeAt`), light breaking through (`LightShafts.breakAt`). Restraint: a sound
+per meaning, not per element.
+**Smallest real use:** `export const SOUNDS = [{kind: 'strike', at: 'landAt'}] as const;` then
+`const landT = soundT(SOUNDS, 'strike', {landAt});` drives the landing.
+**Exports:** `SOUND_KINDS`, `soundTs`, `soundT`, `SoundDecl`.
+
 ### `fonts`
 Loads the DNA's typefaces for the Film and for every standalone still — the reason the faces a DNA names are the
 faces that render.
