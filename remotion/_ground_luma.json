@@ -199,7 +199,11 @@
   "OrbitClockGain": "bg",
   "ReplyWindow": "bg",
   "WeightedWheel": "bg",
-  "ForkingAnswers": "bg"
+  "ForkingAnswers": "bg",
+  "LitMedium": [
+   "accent",
+   "accent2"
+  ]
  },
  "unclassified": [
   "KineticManifesto",
@@ -207,7 +211,7 @@
   "PaperSlot"
  ],
  "failed": {},
- "universe": 200,
+ "universe": 201,
  "_source": {
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "4ba43ae79892f212",
@@ -252,14 +256,14 @@
   "DataMonolith": "48fc8b0f7350c551",
   "DataOrrery": "90ad3cbf869cc539",
   "DeviceDemo": "3b1eb86f293ade78",
-  "DeviceHero": "bead5f68b74d6746",
+  "DeviceHero": "10f0ccf363d51c77",
   "DiffusionDenoise": "23d3b1eb7bd34fe1",
   "DollyZoom": "3dfe8f413947b0bb",
   "EdCompare": "9ccb76b5e7ccbc70",
   "EdStat": "05c44481b3ebaf9c",
   "EdTimeline": "e07a8ae454bf0ea1",
   "ElasticType": "39f51d8b9c118f8a",
-  "EmberFlame": "8f88e60ae5e8fe3f",
+  "EmberFlame": "3e0f46278cf3562e",
   "Escalation": "35021cefef5fb078",
   "ExplodedSchematic": "b069556b83c75794",
   "FallbackPath": "6892bfe3965cc4a9",
@@ -360,8 +364,8 @@
   "SpinningProton": "8173db1aa50dfbbb",
   "SpinsAlign": "109bccdd737c713b",
   "SplitFlap": "131b8b82f17a43e1",
-  "SpotlightStage": "ff07b2beb320b9b4",
-  "StarfieldWarp": "6a222efafc84c645",
+  "SpotlightStage": "d4fd0735e675b6c3",
+  "StarfieldWarp": "de8366853f4f5c4c",
   "StateSheet": "9ebfa3303acc3b06",
   "StatedBy": "eb19bfde521dba10",
   "StrataColumn": "b52724ad79dca9e8",
@@ -405,6 +409,7 @@
   "OrbitClockGain": "2c9b9952a2f6c6a2",
   "ReplyWindow": "c07e34231966400d",
   "WeightedWheel": "4573018ced610633",
-  "ForkingAnswers": "031e14d03e9face9"
+  "ForkingAnswers": "031e14d03e9face9",
+  "LitMedium": "2f835061fb23ebe1"
  }
 }

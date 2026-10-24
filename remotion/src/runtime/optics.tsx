@@ -68,6 +68,15 @@ export const LEAK_FRAMES = 10;              // the leak's visible life, inside t
 export const OPTIC_MAX: Record<OpticKind, number> = {bloom: 0.3, halation: 0.15, sweep: 0.3, aberration: 2, leak: 0.5};
 export const OPTIC_DEFAULT: Record<OpticKind, number> = {bloom: 0.24, halation: 0.12, sweep: 0.22, aberration: 1.5,
   leak: 0.4};
+/**
+ * IMPLIED OPTICS, a DNA field that lives here rather than in runtime/dna.tsx (every register imports dna.tsx, and a
+ * field added there re-keyed every register's measured manifest rows). `'auto'`: a beat that declares no `optic`
+ * takes its register's first anchored optic that `finish.light` admits. Absent or `'none'`: only a beat's own
+ * declaration draws one. NO preset sets it, so every preset film renders exactly what it rendered before optics.
+ */
+export type OpticsDNA = DesignDNA & {optics?: 'auto' | 'none'};
+export const dnaOptics = (dna?: DesignDNA | null): 'auto' | 'none' | undefined => (dna as OpticsDNA | null | undefined)?.optics;
+
 /** Which optics a DNA light key admits under `optics: 'auto'`. */
 export const LIGHT_ADMITS: Record<'top' | 'bottom' | 'none', readonly OpticKind[]> = {
   top: ['bloom', 'halation', 'sweep', 'aberration'],
@@ -104,7 +113,7 @@ export const dnaLight = (dna?: DesignDNA | null): 'top' | 'bottom' | 'none' => {
 
 /** The state a beat provides: its own declaration, and whether the DNA opted into implied optics. */
 export const opticState = (decl: OpticDecl, dna?: DesignDNA | null, where?: string): OpticState => ({
-  spec: normalizeOptic(decl, where), auto: dna?.optics === 'auto', light: dnaLight(dna),
+  spec: normalizeOptic(decl, where), auto: dnaOptics(dna) === 'auto', light: dnaLight(dna),
   declared: decl !== undefined && decl !== null,
 });
 

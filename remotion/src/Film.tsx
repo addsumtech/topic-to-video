@@ -41,7 +41,7 @@ import {CAPTIONS} from './captions';
 import {FilmMotifLayer} from './runtime/motif';
 import {FilmFinishLayer} from './runtime/finish';
 import {FilmDither} from './runtime/dither';
-import {OpticContext, opticState, normalizeOptic, dnaLight, SeamLeak, type OpticDecl, type OpticSpec} from './runtime/optics';
+import {OpticContext, opticState, normalizeOptic, dnaLight, dnaOptics, SeamLeak, type OpticDecl, type OpticSpec} from './runtime/optics';
 import {litMediumGround} from './runtime/material';
 import {CarryContext} from './runtime/carry';
 import {container, grow, throughWindow, punch, cut, SeamCopyContext} from './seams';
@@ -1192,7 +1192,7 @@ const StageBeatMark: React.FC<{first: number; beats: StageBeat[]; children: Reac
 // it always was.
 const BeatOptic: React.FC<{decl: OpticDecl; dna: DesignDNA | null; where: string; children: React.ReactNode}> = ({
   decl, dna, where, children}) => {
-  if (decl === undefined && dna?.optics !== 'auto') return <>{children}</>;
+  if (decl === undefined && dnaOptics(dna) !== 'auto') return <>{children}</>;
   return <OpticContext.Provider value={opticState(decl, dna, where)}>{children}</OpticContext.Provider>;
 };
 

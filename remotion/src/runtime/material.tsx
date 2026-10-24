@@ -22,6 +22,11 @@ import {useCurrentFrame, useVideoConfig} from 'remotion';
 
 export const MATERIALS = ['paper', 'water', 'metal', 'clay'] as const;
 export type MaterialKind = (typeof MATERIALS)[number];
+/** THE FILM'S GROUND MATERIAL, a DNA field that lives here rather than in runtime/dna.tsx (a field added there
+ *  re-keyed every register's measured manifest rows): the topic's own medium as a lit surface, read by registers that
+ *  draw a material ground (LitMedium) when the beat names none. A DNA without it is unchanged. */
+export const dnaMaterial = (dna?: unknown): MaterialKind | undefined =>
+  (dna as {material?: {kind?: MaterialKind}} | null | undefined)?.material?.kind;
 
 type Recipe = {
   /** feTurbulence */
@@ -96,7 +101,7 @@ export const litMediumGround = (props: Record<string, unknown> | undefined,
   dna?: {material?: {kind?: unknown}} | null): string | null => {
   const c = props?.mediumColor;
   if (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) return c;
-  const m = props?.material ?? dna?.material?.kind ?? 'paper';
+  const m = props?.material ?? dnaMaterial(dna) ?? 'paper';
   return isMaterial(m) ? MATERIAL_BASE[m] : null;
 };
 

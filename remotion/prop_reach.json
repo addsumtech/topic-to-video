@@ -65,7 +65,7 @@
     "EdStat": "05c44481b3ebaf9c",
     "EdTimeline": "e07a8ae454bf0ea1",
     "ElasticType": "39f51d8b9c118f8a",
-    "EmberFlame": "8f88e60ae5e8fe3f",
+    "EmberFlame": "3e0f46278cf3562e",
     "Escalation": "35021cefef5fb078",
     "ExplodedSchematic": "b069556b83c75794",
     "FallbackPath": "6892bfe3965cc4a9",
@@ -168,8 +168,8 @@
     "SpinningProton": "8173db1aa50dfbbb",
     "SpinsAlign": "109bccdd737c713b",
     "SplitFlap": "131b8b82f17a43e1",
-    "SpotlightStage": "ff07b2beb320b9b4",
-    "StarfieldWarp": "6a222efafc84c645",
+    "SpotlightStage": "d4fd0735e675b6c3",
+    "StarfieldWarp": "de8366853f4f5c4c",
     "StateSheet": "9ebfa3303acc3b06",
     "StatedBy": "eb19bfde521dba10",
     "StrataColumn": "b52724ad79dca9e8",
@@ -203,7 +203,7 @@
     "WorksThrough": "e2ad62366962a853",
     "SameStuffChanged": "a3d68fd218d23828",
     "DeviceDemo": "3b1eb86f293ade78",
-    "DeviceHero": "bead5f68b74d6746",
+    "DeviceHero": "10f0ccf363d51c77",
     "ObjectCompare": "e364bc7973b51306",
     "ObjectPath": "651e254ddce83e91",
     "ObjectStage": "8a80b24255ad99b1",
@@ -229,7 +229,7 @@
     "FlowSankey": "40c53268658148a2",
     "GlobeFocus": "8d949f10e58136f7",
     "RankRace": "84cf953e4b2ddbbe",
-    "LitMedium": "432e31072d142588"
+    "LitMedium": "2f835061fb23ebe1"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",

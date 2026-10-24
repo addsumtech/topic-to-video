@@ -97,18 +97,6 @@ export type DesignDNA = {
    * system's voice, and the null-DNA rule keeps machinery out of the original look.
    */
   finish?: import('./finish').FilmFinish | 'none';
-  /**
-   * IMPLIED OPTICS (runtime/optics.tsx). `'auto'`: a beat that declares no `optic` takes its register's first
-   * anchored optic that `finish.light` admits. Absent or `'none'`: only a beat's own declaration draws one. NO preset
-   * sets it, so every preset film renders exactly what it rendered before optics existed.
-   */
-  optics?: 'auto' | 'none';
-  /**
-   * THE FILM'S GROUND MATERIAL — the topic's own medium as a LIT surface (runtime/material.tsx): paper for a
-   * letter, water for a coastline, brushed metal for a machine, clay for a craft. Read by registers that draw a
-   * material ground (LitMedium) when the beat names none; nothing else reads it, so a DNA without it is unchanged.
-   */
-  material?: {kind: import('./material').MaterialKind};
   // THE FILM'S GROUNDS. A film had exactly one, and it was near-black in all eight presets (the brightest,
   // editorial, is Y=0.0053), so a 30-beat film painted one identical ground thirty times: measured library
   // luminance range 0.013 against Figma's 0.903. A beat names one of these by index and the whole frame

@@ -17,7 +17,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic} from '../runtime/motion';
 import {useDNA, readableOnAll, contrastOf, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitBlockPx} from '../runtime/layout';
-import {LitGround, isMaterial, MATERIALS, MATERIAL_BASE, materialShades, type MaterialKind} from '../runtime/material';
+import {LitGround, isMaterial, MATERIALS, MATERIAL_BASE, materialShades, dnaMaterial, type MaterialKind} from '../runtime/material';
 import {dnaLight} from '../runtime/optics';
 
 export const DURATION = 165; // 5.5s — long enough for the light to be seen to travel
@@ -45,7 +45,7 @@ export const LitMedium: React.FC<{
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
-  const material = matIn ?? dna?.material?.kind ?? 'paper';
+  const material = matIn ?? dnaMaterial(dna) ?? 'paper';
   if (!isMaterial(material)) {
     throw new Error(`LitMedium: material must be one of ${MATERIALS.join(', ')} (got ${JSON.stringify(material)}).`);
   }

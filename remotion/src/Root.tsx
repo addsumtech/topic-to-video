@@ -25,7 +25,7 @@ import {FlowSankey, DURATION as D_FLOWSANKEY} from './shots/FlowSankey';
 import {FlightArcs, DURATION as D_FLIGHTARCS} from './shots/FlightArcs';
 import {GlobeFocus, DURATION as D_GLOBEFOCUS} from './shots/GlobeFocus';
 import {OpticsProbe, DURATION as OPD} from './runtime/__probe_optics';
-import {OpticContext, opticState} from './runtime/optics';
+import {OpticContext, opticState, dnaOptics} from './runtime/optics';
 import {LitMedium, DURATION as D_LITMEDIUM} from './shots/LitMedium';
 import {CroppedType, DURATION as D_CROPPEDTYPE} from './shots/CroppedType';
 import {TypeOnPath, DURATION as D_TYPEONPATH} from './shots/TypeOnPath';
@@ -452,7 +452,7 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   // `optic` — the beat's optic for a register rendered on its own (runtime/optics.tsx), as the Film provides it per
   // beat. Absent, no provider is mounted and the register renders exactly what it always did. With a DNA that says
   // `optics: 'auto'` the provider is mounted for it too, so a still shows what the film would.
-  const shot = optic !== undefined || (active && active.optics === 'auto')
+  const shot = optic !== undefined || (active && dnaOptics(active) === 'auto')
     ? <OpticContext.Provider value={opticState(optic as never, active, 'optic')}>{unlocked}</OpticContext.Provider>
     : unlocked;
   if (!active) return shot;
