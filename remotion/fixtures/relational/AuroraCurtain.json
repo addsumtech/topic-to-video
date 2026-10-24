@@ -1,0 +1,6 @@
+{"_why": "AuroraCurtain's bands are altitude spans (numbers that may not overlap) with colours, and its ruler draws only the film's own ticks; the structure is fixed here (the sourced emission key: pink 80-100, green 100-200, red 200-320 km, ticks 100/200/300) so the sweep measures the RULED layout, and only the copy paths get the fixture's words. See cjk_type_qa.relational_props.",
+ "props": {"title": "t", "kicker": "k", "unit": "u", "ticks": [100, 200, 300], "surgeAt": 0.7,
+  "bands": [{"label": "a", "note": "n", "from": 80, "to": 100, "color": "#ff7ab8", "gain": 0.55},
+            {"label": "b", "note": "n", "from": 100, "to": 200, "color": "#5dff8e"},
+            {"label": "c", "note": "n", "from": 200, "to": 320, "color": "#ff3d45", "gain": 1.1}]},
+ "copy": ["title", "kicker", "unit", "bands[].label", "bands[].note"]}

@@ -180,6 +180,16 @@ def step_problems(steps, narration=None):
         cur = st.get("cursor")
         if isinstance(cur, dict) and not all(isinstance(cur.get(k), (int, float)) and 0 <= cur[k] <= 1 for k in "uv"):
             probs.append("step %d's cursor needs `u` and `v`, a place on the face, 0..1" % (j + 1))
+        snd = st.get("sound")
+        if snd is not None:
+            import shot_sounds as _ss
+            kinds = _ss.sound_kinds()
+            kind = snd if isinstance(snd, str) else snd.get("kind") if isinstance(snd, dict) else None
+            g = snd.get("gain", 1.0) if isinstance(snd, dict) else 1.0
+            if kind not in kinds or (isinstance(snd, dict) and (set(snd) - {"kind", "gain"} or isinstance(g, bool)
+                                                                or not isinstance(g, (int, float)) or not 0 < g <= 1)):
+                probs.append("step %d's sound must be one of %s, or {\"kind\": …, \"gain\": (0, 1]} (got %r)"
+                             % (j + 1, ", ".join(kinds), snd))
     return probs
 
 
@@ -200,6 +210,16 @@ def sound_events(scenes):
                 cur = st.get("cursor") if isinstance(st, dict) else None
                 if isinstance(cur, dict) and cur.get("click") and isinstance(st.get("t"), (int, float)):
                     evs.append({"t": float(st["t"]), "name": "click"})
+                # A STEP'S OWN SOUND (runtime/sound.ts SOUND_KINDS): `"sound": "chime"` or {"kind", "gain"} lands on
+                # the step's arrival — the frame the stage lands it on (a curtain brightening, a world object
+                # arriving). Checked by `check` below; a kind no cue synthesises never reaches the mix.
+                snd = st.get("sound") if isinstance(st, dict) else None
+                if snd is not None and isinstance(st.get("t"), (int, float)):
+                    kind = snd if isinstance(snd, str) else snd.get("kind") if isinstance(snd, dict) else None
+                    ev = {"t": float(st["t"]), "name": kind}
+                    if isinstance(snd, dict) and isinstance(snd.get("gain"), (int, float)):
+                        ev["gain"] = float(snd["gain"])
+                    evs.append(ev)
         out.append(evs)
     return out
 

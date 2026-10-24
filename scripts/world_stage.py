@@ -20,7 +20,24 @@ runtime/stageRun.tsx merges them (objects field by field, `null` removes) and na
 import os
 import re
 
-KINDS = ("image", "globe", "disc", "field", "stream", "stars", "band", "glow", "type", "frame")
+KINDS = ("image", "globe", "disc", "field", "stream", "stars", "band", "glow", "type", "frame", "volume")
+# a `volume` object's forms (runtime/volumeCore.ts VOLUME_FORMS, read from there so the two cannot drift)
+_VOLUME_CORE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "runtime",
+                            "volumeCore.ts")
+
+
+def volume_forms():
+    src = open(_VOLUME_CORE, encoding="utf-8").read()
+    m = re.search(r"export const VOLUME_FORMS = \[([^\]]*)\]", src)
+    if not m:
+        raise RuntimeError("runtime/volumeCore.ts no longer exports VOLUME_FORMS")
+    return tuple(re.findall(r"'(\w+)'", m.group(1)))
+
+
+def _max_intensity():
+    src = open(_VOLUME_CORE, encoding="utf-8").read()
+    m = re.search(r"export const VOLUME_MAX_INTENSITY = ([0-9.]+);", src)
+    return float(m.group(1)) if m else 1.6
 MOVES = ("dolly", "crane", "tilt", "orbit", "scale-zoom")
 
 
@@ -82,6 +99,15 @@ def layout_problems(objects, where):
         kind = o.get("kind", "image")
         if kind not in KINDS:
             probs.append("%s: world object %r has kind %r — the stage draws %s" % (where, oid, kind, ", ".join(KINDS)))
+        if kind == "volume":
+            forms = volume_forms()
+            if o.get("form") not in forms:
+                probs.append("%s: volume object %r needs `form`: one of %s (got %r)" % (where, oid, ", ".join(forms),
+                                                                                       o.get("form")))
+            it = o.get("intensity")
+            if it is not None and not (_num(it) and 0 < it <= _max_intensity()):
+                probs.append("%s: volume object %r intensity must be in (0, %s] — past it the volume clips to a white "
+                             "sheet" % (where, oid, _max_intensity()))
         if kind == "type" and not (isinstance(o.get("text"), str) and o["text"].strip()):
             probs.append("%s: type object %r has no `text`" % (where, oid))
         if kind == "image" and not (isinstance(o.get("image"), str) and o["image"].strip()):

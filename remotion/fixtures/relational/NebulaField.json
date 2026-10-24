@@ -1,0 +1,3 @@
+{"_why": "NebulaField's `colors` are #rrggbb emission colours; fed a sentence they are refused by name. The structure is the register's own defaults (the declared emission lines), only the copy paths get the fixture's words. See cjk_type_qa.relational_props.",
+ "props": {"title": "t", "kicker": "k", "note": "n"},
+ "copy": ["title", "kicker", "note"]}

@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (215 design languages)
+# Remotion2 — Bespoke Shot Library (218 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -17,9 +17,9 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 215 registers across 29 families.** D×35 · A×26 · C×20 · B×14 · F×11 · G×11 · H×11 · L×10 · E×9 · I×9 · S×8 · K×6 · J×5 · JA×5 · M×5 · P×5 · U×5 · N×4 · GE×2 · MA×2 · R×2 · X×2 · Z×2 · O×1 · Q×1 · T×1 · V×1 · W×1 · Y×1
+**Family census — 218 registers across 29 families.** D×35 · A×26 · C×20 · B×14 · F×11 · G×11 · H×11 · L×10 · E×9 · I×9 · S×8 · K×6 · J×5 · JA×5 · M×5 · P×5 · U×5 · N×4 · X×4 · GE×2 · MA×2 · R×2 · V×2 · Z×2 · O×1 · Q×1 · T×1 · W×1 · Y×1
 
-**11 families hold two registers or fewer: GE, MA, O, Q, R, T, V, W, X, Y, Z.** That is a BUILD signal, not a menu. When a beat's
+**10 families hold two registers or fewer: GE, MA, O, Q, R, T, V, W, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
 `register_shot.py` — settling for the only member is how a film ends up with a beat whose design is
 merely adjacent to its meaning. The big families (D, A, C, G) are where a director drifts by default;
@@ -364,12 +364,15 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 37. **VoiceSignal** — the beat's own narration drawn as a mirrored waveform (`runtime/voice` → `@remotion/media-utils`), with a phase label naming what is being said; the gaps between phrases are gaps on screen. *Use: voice / listening / speech / an agent thinking out loud.* `phases[{at,label,state}]` · REQUIRES at least one phase; standalone renders get a synthetic voice that also pauses. · a phase is green only with `state: 'done'` (red with 'failed'), never because it is last.
 
 ## V · Cosmic / space
+236. **NebulaField** — a glowing emission nebula in deep space: runtime/volume's domain-warped gas, hydrogen red turning [O III] teal toward the ionising star that lights it, dust lanes in front, stars in and behind it, under a slow push; the colours are the film's or the declared emission lines. *Use: where stars are born, gas lit by a star, vast and slow — the subject IS a nebula or interstellar gas.* `title, kicker, note, colors, star, seed`
 87. **StarfieldWarp** — stars accelerate outward into a hyperspace streak, then DECELERATE as a wordmark blooms from the core light. *Use: launch / "the next era" / into the future.*
 
 ## W · Organic / botanical
 92. **FractalTree** — a recursive tree GROWS from the ground, branches splitting depth by depth, then blossoms bloom at the tips. *Use: grow / branch out / "from one root, everything" (techno-natural).*
 
 ## X · Weather / atmosphere
+235. **LightShafts** — light arriving: shafts the gaps of an occluder (clouds, a canopy, blind slats) send through the air toward the lens — runtime/volume's scattering march, so each shaft IS a gap; `breakAt` opens the occluder and owns a `swell` (runtime/sound). *Use: "a gap is enough", light breaking through, morning arriving, hope after a cover.* `title, kicker, note, occluder, source, color, breakAt, seed`
+234. **AuroraCurtain** — an aurora as a folded curtain of light in a night sky (runtime/volume's line-of-sight integral: edge-on folds brighten, a sharp lower border, faint tops), coloured by altitude — the film's `bands` drawn as a ruler on the shader's own projection, else the sourced emission physics with no numbers; `surgeAt` brightens it and owns a `swell`. *Use: the aurora itself, colour as height, light in the upper atmosphere.* `title, kicker, bands, ticks, unit, surgeAt, sheets, seed`
 229. **LitMedium** — a statement set on the topic's own MEDIUM — paper, water, brushed metal or clay — the surface still and ONE light drifting across it (runtime/material.tsx), so the medium reads by how it answers light; the ink is picked against the lit ground's measured span. *Use: what something is made of or where it lives — "it started on paper", "the harbour decides", "milled from one block", "shaped by hand".* `material, mediumColor, kicker, title, note`
 93. **RainGlass** — a message behind a rain-blurred glass pane: droplets slide + streak while the soft-focus scene SHARPENS and the title resolves. *Use: a moody, atmospheric, material interlude.*
 

@@ -217,7 +217,10 @@
   "MagicMoveType": "bg",
   "RankRace": "bg",
   "TypeOnPath": "bg",
-  "WordRoll": "bg"
+  "WordRoll": "bg",
+  "AuroraCurtain": "#0b090f",
+  "LightShafts": "#1d1d1f",
+  "NebulaField": "#221617"
  },
  "unclassified": [
   "KineticManifesto",
@@ -225,7 +228,7 @@
   "PaperSlot"
  ],
  "failed": {},
- "universe": 215,
+ "universe": 218,
  "_source": {
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "4ba43ae79892f212",
@@ -438,6 +441,9 @@
   "MagicMoveType": "34858444d7e5b610",
   "RankRace": "691d0926ff6a470f",
   "TypeOnPath": "ab7e4359f251690e",
-  "WordRoll": "c4265d6d1317287a"
+  "WordRoll": "c4265d6d1317287a",
+  "AuroraCurtain": "40a5d607aa60f568",
+  "LightShafts": "93ed031b5f2015c7",
+  "NebulaField": "52fda247f5c1a0b4"
  }
 }

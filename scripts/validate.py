@@ -3177,6 +3177,24 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         else:
             warnings.append("remotion: sound_design is on — the pipeline CANNOT hear the SFX/BGM mix; AUDITION "
                             "out.mp4 before delivery (a wrong or absent bed ships silently).")
+    # THE PICTURE'S OWN SOUNDS and HOW THE FILM ENDS (scripts/shot_sounds.py, sfx.close_mode): a register's SOUNDS
+    # literal that cannot be read, a board `sounds` that is malformed, a cue phrase the beat never says, a close mode
+    # that is not one — each would otherwise surface only after the render, as a warning in the mix log.
+    _cs = meta.get("close_sound")
+    if _cs is not None and _cs not in ("full", "soft", "none"):
+        errors.append("remotion: meta.close_sound=%r — full (riser, impact, sparkle), soft (one settle) or none" % (_cs,))
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import shot_sounds as _ss
+        errors.extend("remotion: " + m for m in _ss.problems(slides, out_dir))
+        if not meta.get("sound_design") and meta.get("shot_sounds") is not True and any(
+                _ss.register_sounds(sl.get("shot") or "", out_dir) or isinstance(sl.get("sounds"), list)
+                for sl in slides if isinstance(sl, dict)):
+            warnings.append("remotion: some beats declare their own sounds (a register's SOUNDS or slide.sounds) and "
+                            "the film has no sound_design — they will not play; set meta.shot_sounds: true to play "
+                            "them alone, or meta.sound_design: true for the whole bed")
+    except Exception as e:                          # noqa: BLE001 — said aloud, never a silent pass
+        errors.append("remotion: shot sounds could not be checked (%s: %s)" % (type(e).__name__, e))
     _asp = str(meta.get("aspect") or "16:9")
     # READ, not restated. "keep in sync with Root.tsx ASPECTS" was a comment, and a comment is not a
     # mechanism: this set and the renderer's table could drift in either direction — a ratio the renderer

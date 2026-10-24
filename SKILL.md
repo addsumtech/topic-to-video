@@ -200,6 +200,12 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     loudness-normalised to -14 LUFS / -2 dBTP at 48 kHz, every cue aligned by its PEAK (≤1 frame early), and `check_av`
     refuses a delivery over 48 kHz. The pipeline cannot hear, so **audition it before delivery**.
     `python3 scripts/sfx.py --calibrate` measures the cue offset through the real filtergraph and exits non-zero past half a frame.
+    A register can own its sounds (`export const SOUNDS`, runtime/sound.ts; a board's `slide.sounds` or `"none"`; a stage
+    step's `sound`), and `meta.close_sound: full | soft | none` sets how the film ends — a calm film settles (soft) by
+    default (references/building-blocks.md `sound`).
+  - **Light in a volume.** An aurora, a sunbeam, a nebula, fire: `runtime/volume` draws it as a line-of-sight integral
+    (WebGL, one pinned backend, bit-identical by determinism_qa) — `AuroraCurtain`, `LightShafts`, `NebulaField`, or a
+    WorldStage `volume` object (references/building-blocks.md `volume`).
   - **Devices.** `DeviceDemo`/`DeviceHero` show the product's own screens. The step script goes in `shot_props.steps` and is
     checked by `scripts/device_script.py` (format: `remotion/cards/DeviceDemo.md` "Step script").
   - **Sync.** `render_remotion` warps each beat so register entrances land on their words (`sync_warp.json`). A board or slide
