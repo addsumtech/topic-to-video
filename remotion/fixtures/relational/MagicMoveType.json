@@ -1,0 +1,3 @@
+{"_why": "MagicMoveType refuses two consecutive phrases that share no letter (nothing would travel), and a fixture that puts unrelated words on each phrase builds exactly that. So the phrases are a fixed Chinese pair that shares its words (the structure), and only the kicker and note get the fixture's words. See cjk_type_qa.relational_props.",
+ "props": {"kicker": "k", "note": "n", "phrases": ["少，但更好", "更好，但更少"]},
+ "copy": ["kicker", "note"]}

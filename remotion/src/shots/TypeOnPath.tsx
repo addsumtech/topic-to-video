@@ -14,13 +14,17 @@
 // rises through its mask where the path leaves room.
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
+import {useT, useAnimSpan, seg, clamp01, easeOutCubic} from '../runtime/motion';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 import {useDNA, readableOn, dimOn, contrastOf, mix} from '../runtime/dna';
 import {drawOn} from '../runtime/draw';
 import {useKinetic, KineticText, kineticPathLength} from '../runtime/kinetic';
+import {KineticWord} from '../runtime/kineticWord';
 
 export const DURATION = 180; // 6s
+// THE PACE IS IN SECONDS (validate.py reads this): the travel onto the path is a duration (2.2 s, shrunk on a short
+// beat to half its span, never under 1 s) and a ring's turn is a speed, so a short beat holds less, not faster.
+export const PACE = 'seconds';
 
 const BG_D0 = '#0b0e12', FG_D0 = '#eef1f5', DIM_D0 = '#8c94a4', ACC_D0 = '#5ee0b4';
 const DISPLAY = 'var(--f-display, Inter, "Noto Sans SC", system-ui, sans-serif)';
@@ -92,7 +96,8 @@ export const TypeOnPath: React.FC<{
        path = 'wave', d, accent: accIn} = {}) => {
   const dna = useDNA();
   const t = useT();
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, fps} = useVideoConfig();
+  const spanF = useAnimSpan();
   if (!d && !SHAPES.includes(path)) {
     throw new Error(`TypeOnPath's \`path\` is one of ${SHAPES.join(', ')}, got "${String(path)}" — or pass the film's own \`d\`.`);
   }
@@ -154,6 +159,9 @@ export const TypeOnPath: React.FC<{
   const headY = ring ? Math.round(cyRing - titleH / 2) : zoneTop + kickH;
 
   const drawIn = easeOutCubic(clamp01(seg(t, 0.08, 0.34)));
+  // the travel onto the path: its natural 2.2 s, or half the beat's span when that is shorter (never under 1 s) — at
+  // a 3 s beat the full travel took the whole span and the phrase came to rest on the last frame
+  const travelS = Math.max(1, Math.min(2.2, (spanF / fps) * 0.5));
   const ruleW = Math.max(2, Math.round(U * 0.0032));
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? BG}}>
@@ -167,7 +175,8 @@ export const TypeOnPath: React.FC<{
             ease: 'power3', cueKeys: ['kicker'], until: 0.36}}} />
       ) : kick.anchor}
       {title ? (
-        <KineticText k={head} x={headX} y={headY} color={FG} id="title"
+        // the title is the `word` carry anchor (runtime/kineticWord) — the path's letters are turned, never a window
+        <KineticWord k={head} x={headX} y={headY} color={FG} id="title"
           motion={{mask: 'line', from: {ymask: 1.02, blur: 0.03}, enter: {by: 'line', at: 0.12, stagger: 0.14,
             dur: 0.9, ease: 'expo', cueKeys: ['title'], until: 0.5}}} />
       ) : head.anchor}
@@ -176,7 +185,7 @@ export const TypeOnPath: React.FC<{
         motion={{from: {opacity: 0, blur: 0.12},
           enter: {by: 'grapheme', at: 0.16, stagger: 0.03, dur: 0.5, ease: 'power3', cueKeys: ['phrase'], until: 0.5},
           path: {d: PD, at: rest, travel: moving ? 0 : Math.min(len * 0.45, Math.max(0, rest + textW)),
-            enter: {at: 0.14, dur: 2.2, ease: 'power3'}, speed, repeatGap: ring ? KICK * 2.5 : undefined,
+            enter: {at: 0.14, dur: travelS, ease: 'power3'}, speed, repeatGap: ring ? KICK * 2.5 : undefined,
             lift: -Math.round((words.layout?.size ?? U * 0.07) * 0.18)}}} />
     </AbsoluteFill>
   );

@@ -203,7 +203,21 @@
   "LitMedium": [
    "accent",
    "accent2"
-  ]
+  ],
+  "CroppedType": "bg",
+  "EquationMorph": "bg",
+  "FlightArcs": "bg",
+  "FlowCounter": "bg",
+  "FlowSankey": "bg",
+  "FunctionPlot": "bg",
+  "GlobeFocus": "bg",
+  "GrowingFigure": "bg",
+  "HeadlineReveal": "bg",
+  "LandscapeWell": "bg",
+  "MagicMoveType": "bg",
+  "RankRace": "bg",
+  "TypeOnPath": "bg",
+  "WordRoll": "bg"
  },
  "unclassified": [
   "KineticManifesto",
@@ -211,7 +225,7 @@
   "PaperSlot"
  ],
  "failed": {},
- "universe": 201,
+ "universe": 215,
  "_source": {
   "AcceptanceStamp": "9aa8257547959ce8",
   "Aliasing": "4ba43ae79892f212",
@@ -410,6 +424,20 @@
   "ReplyWindow": "c07e34231966400d",
   "WeightedWheel": "4573018ced610633",
   "ForkingAnswers": "031e14d03e9face9",
-  "LitMedium": "2f835061fb23ebe1"
+  "LitMedium": "2f835061fb23ebe1",
+  "CroppedType": "45e2468214621ac2",
+  "EquationMorph": "e0a8fc30f42bd936",
+  "FlightArcs": "c3998b01f8863045",
+  "FlowCounter": "03339dae799b6c34",
+  "FlowSankey": "7e8783f475b92e98",
+  "FunctionPlot": "538034889283a554",
+  "GlobeFocus": "494bde9ad61c6ceb",
+  "GrowingFigure": "2098131854d28c06",
+  "HeadlineReveal": "8e98ffe12fcb314c",
+  "LandscapeWell": "2af45c6247b9c3b9",
+  "MagicMoveType": "34858444d7e5b610",
+  "RankRace": "691d0926ff6a470f",
+  "TypeOnPath": "ab7e4359f251690e",
+  "WordRoll": "c4265d6d1317287a"
  }
 }

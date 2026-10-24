@@ -42,7 +42,7 @@ import {KIN_ALIGN, KIN_ALT, KIN_GLYPH, KIN_LINE, KIN_READ, KIN_ROOT, KINETIC_HOL
   facesReady} from './kineticDom';
 import {
   clamp01, easeOf, EaseName, graphemes, langOf, orderRank, Order, parseRuns, permutation, rangeCoverage,
-  RangeSelector, scrambleChar, secToT, swapTimes, tAtFrame, tToSec, wordCount, wordIds, longestRun,
+  RangeSelector, scrambleGlyph, ScrambleGlyph, secToT, swapTimes, tAtFrame, tToSec, wordCount, wordIds, longestRun,
 } from './kineticCore';
 
 export type {RangeSelector, Order, EaseName} from './kineticCore';
@@ -670,10 +670,27 @@ export type KMotion = {
     wght?: number;
     /** a rule under the run, drawn left to right as the colour lands (em) */
     underline?: {color: string; thickness?: number; offset?: number}};
+  /** HELD TYPE STAYS ALIVE: what a line does once it has landed, eased in over 0.8 s from its landing (+ `delay` s).
+   *  Every part is continuous in time and marks the glyph moving, so the baseline unlock (runtime/glide) is on and
+   *  nothing steps a whole pixel. Restraint is the point — the defaults are a breath, not an animation. */
+  idle?: KIdle;
+};
+export type KIdle = {
+  /** tracking that swells and settles, em at the peak (0.004–0.012 reads as breath; more reads as a wobble) */
+  breathe?: number;
+  /** seconds per breath */
+  period?: number;
+  /** a light passing along the landed line: the ink lifts toward `color` under a band `width` (a share of the line)
+   *  wide, crossing in `dur` s, once every `every` s, at most `strength` (0..1) */
+  light?: {color: string; every?: number; dur?: number; width?: number; strength?: number};
+  /** a slow travel once landed, em per second, its velocity eased in (no jolt) */
+  drift?: {x?: number; y?: number};
+  /** seconds after the line lands before any of it starts */
+  delay?: number;
 };
 
 type GState = {x: number; y: number; scale: number; sy: number; rotate: number; opacity: number; blur: number;
-  track: number; wght: number; wdth: number; mix: number; xmix: number; emix: number; vis: number; show: string;
+  track: number; wght: number; wdth: number; mix: number; xmix: number; emix: number; vis: number; scr: ScrambleGlyph | null; lmix: number;
   moving: boolean;
   px: number; py: number; pr: number; onPath: boolean};
 
@@ -722,7 +739,7 @@ const frameState = (lay: KLayout, m: KMotion, ctx: Ctx): GState[][] => {
   return lay.alts.map((alt, ai) => {
     const N = alt.glyphs.length;
     const out: GState[] = alt.glyphs.map(() => ({x: 0, y: 0, scale: 1, sy: 1, rotate: 0, opacity: 1, blur: 0, track: 0,
-      wght: 0, wdth: 0, mix: 0, xmix: 0, emix: 0, vis: 1, show: '', moving: false, px: 0, py: 0, pr: 0, onPath: true}));
+      wght: 0, wdth: 0, mix: 0, xmix: 0, emix: 0, vis: 1, scr: null, lmix: 0, moving: false, px: 0, py: 0, pr: 0, onPath: true}));
     const from = m.from ?? {};
     const boxes = m.mask || m.swap ? maskBoxes(lay, ai, m) : null;
     const land: number[] = new Array(N).fill(-Infinity);
@@ -826,14 +843,15 @@ const frameState = (lay: KLayout, m: KMotion, ctx: Ctx): GState[][] => {
           if (s.sy <= 0.001) s.opacity = 0;
           s.opacity *= 0.55 + 0.45 * s.sy;
         } else {
-          // scramble: random glyphs of the copy's own script, resolving left to right
+          // scramble: stand-ins that can never spell a word (kineticCore scrambleGlyph — blocks or the right glyph at
+          // another weight for CJK, symbols for everything else), resolving left to right
           const step = Math.floor(ctx.frameNo / 2);
           const resolved = tIn === -Infinity || t >= tIn + r * stg + turn * 0.7;
           const arrived = tIn === -Infinity || t >= tIn + r * stg * 0.4;
           if (!arrived) s.opacity = 0;
-          if (!resolved && !g.sp) s.show = scrambleChar(POOL(lay), (sw.seed ?? 7) + ai, i, step);
+          if (!resolved && !g.sp) s.scr = scrambleGlyph(g.g, (sw.seed ?? 7) + ai, i, step);
           if (pout > 0) {
-            if (!g.sp && pout < 1) s.show = scrambleChar(POOL(lay), (sw.seed ?? 7) + ai + 50, i, step);
+            if (!g.sp && pout < 1) s.scr = scrambleGlyph(g.g, (sw.seed ?? 7) + ai + 50, i, step);
             s.opacity *= clamp01(1 - pout * 1.6);
           }
         }
@@ -853,6 +871,44 @@ const frameState = (lay: KLayout, m: KMotion, ctx: Ctx): GState[][] => {
     if (m.drift && !reduced) {
       const sec = tToSec(t, ctx.spanF, ctx.fps);
       out.forEach((s) => { s.x += (m.drift!.x ?? 0) * sec; s.y += (m.drift!.y ?? 0) * sec; s.moving = true; });
+    }
+    // 6. HELD TYPE STAYS ALIVE (m.idle): once its LINE has landed (the latest of its glyphs), a micro tracking
+    //    breathe, a light passing along it and a drift, each eased in — one line moves as one, never glyph by glyph
+    if (m.idle && !reduced) {
+      const I = m.idle, sec = tToSec(t, ctx.spanF, ctx.fps);
+      const lineLand: number[] = [];
+      alt.glyphs.forEach((g, i) => { lineLand[g.line] = Math.max(lineLand[g.line] ?? -Infinity, land[i]); });
+      const per = Math.max(0.5, I.period ?? 3.2), RAMP = 0.8;
+      const lw = Math.max(0.05, I.light?.width ?? 0.22), ldur = Math.max(0.2, I.light?.dur ?? 1.1);
+      const every = Math.max(ldur, I.light?.every ?? 3.0);
+      // the unlock's SPAN is the whole shot for a line that breathes or drifts (runtime/glide: switched on with the
+      // motion itself, the type would jump from whole-pixel to quarter-pixel on the frame the idle starts)
+      const span = Boolean(I.breathe || I.drift);
+      alt.glyphs.forEach((g, i) => {
+        const s = out[i];
+        if (span) s.moving = true;
+        const L0 = lineLand[g.line];
+        const since = sec - (Number.isFinite(L0) ? tToSec(L0, ctx.spanF, ctx.fps) : 0) - (I.delay ?? 0.15);
+        if (since <= 0) return;
+        const r = since >= RAMP ? 1 : (since / RAMP) * (since / RAMP) * (3 - 2 * (since / RAMP));
+        if (I.breathe) {
+          s.track += I.breathe * r * (0.5 - 0.5 * Math.cos((2 * Math.PI * since) / per));
+        }
+        if (I.drift) {
+          const d = since < RAMP ? (since * since) / (2 * RAMP) : since - RAMP / 2;   // the velocity ramps in
+          s.x += (I.drift.x ?? 0) * d; s.y += (I.drift.y ?? 0) * d;
+        }
+        if (I.light && !g.sp) {
+          const L = alt.lines[g.line];
+          const u = (g.left + g.adv / 2 - L.left) / Math.max(1, L.right - L.left);
+          const cyc = since % every;
+          if (cyc < ldur) {
+            const pos = -lw + (cyc / ldur) * (1 + 2 * lw);
+            const k = clamp01(1 - Math.abs(u - pos) / lw);
+            s.lmix = clamp01(I.light.strength ?? 0.5) * k * k * (3 - 2 * k) * r;
+          }
+        }
+      });
     }
     if (m.path) {
       const P = m.path;
@@ -956,15 +1012,14 @@ const maskBoxes = (lay: KLayout, ai: number, m: KMotion) => {
   return v;
 };
 
-const POOLS = new Map<string, string[]>();
-const POOL = (lay: KLayout): string[] => {
-  const hit = POOLS.get(lay.key);
-  if (hit) return hit;
-  const set = new Set<string>();
-  lay.alts.forEach((a) => a.glyphs.forEach((g) => { if (!g.sp && !/[\p{P}\p{S}]/u.test(g.g)) set.add(g.g); }));
-  const pool = Array.from(set).sort();
-  POOLS.set(lay.key, pool);
-  return pool;
+/** A scramble block inside a CJK glyph's ideographic em box (baseline - 0.88 em to baseline + 0.12 em, inset 7%), in
+ *  holder px: full, lower half, upper half, outline (drawn as a border), left half. */
+const scrambleBlock = (shape: number, w: number, base: number, sz: number) => {
+  const left = w * 0.07, top = base - 0.88 * sz + sz * 0.07, bw = w * 0.86, bh = sz * 0.86;
+  if (shape === 1) return {left, top: top + bh / 2, width: bw, height: bh / 2};
+  if (shape === 2) return {left, top, width: bw, height: bh / 2};
+  if (shape === 4) return {left, top, width: bw / 2, height: bh};
+  return {left, top, width: bw, height: bh};
 };
 
 /** The box a glyph is visible inside under its mask: its line's, word's or own, padded so nothing at REST is cut. */
@@ -1074,7 +1129,7 @@ export const KineticText: React.FC<KineticTextProps> = ({k, x, y, color, emphCol
       const st = frameState(lay, m, {t: tf, fps, spanF, reduced, paraShift, swapT,
         frameNo: Math.round(((tf - 0.06) / 0.94) * spanF)});
       lay.alts.forEach((alt, ai) => {
-        const ok = (g: KGlyph, s: GState) => g.sp || (s.opacity >= 0.5 && s.vis >= 0.5 && !s.show && s.sy >= 0.5);
+        const ok = (g: KGlyph, s: GState) => g.sp || (s.opacity >= 0.5 && s.vis >= 0.5 && !s.scr && s.sy >= 0.5);
         alts[ai].push(alt.glyphs.every((g, i) => ok(g, st[ai][i])));
         if (lay.alts.length === 1) {
           alt.lines.forEach((L, li) => {
@@ -1135,6 +1190,7 @@ export const KineticText: React.FC<KineticTextProps> = ({k, x, y, color, emphCol
     frameState(lay, m, {t, fps, spanF, reduced, paraShift, swapT, frameNo, pathShift: c * ringPeriod}));
   const st = sts[0];
   const fromColor = m.from?.color;
+  const lightColor = m.idle?.light?.color;
   const exitColor = m.exit?.to.color;
   const ec = emphColor ?? color;
   const nodes: React.ReactNode[] = [];
@@ -1158,8 +1214,13 @@ export const KineticText: React.FC<KineticTextProps> = ({k, x, y, color, emphCol
           advs.push(a);
           w += a;
         }
-        const restW = L.right - L.left;
-        const start = lay.align === 'center' ? L.left + (restW - w) / 2 : lay.align === 'right' ? L.right - w : L.left;
+        // re-laid from the line's own REST pens: the change in width is shared out by the alignment, so with nothing
+        // changed every glyph is exactly where it rests. (Measured from the ink extent instead, a centred line with a
+        // trailing space jumped half that space the moment any glyph's advance moved off its rest value.)
+        let wRest = 0;
+        for (let i = L.first; i <= L.last; i++) wRest += alt.glyphs[i].adv;
+        const p0 = alt.glyphs[L.first]?.left ?? L.left;
+        const start = lay.align === 'center' ? p0 + (wRest - w) / 2 : lay.align === 'right' ? p0 + (wRest - w) : p0;
         let p = start;
         for (let i = L.first; i <= L.last; i++) { pen[i] = p; p += advs[i - L.first]; }
       });
@@ -1185,7 +1246,21 @@ export const KineticText: React.FC<KineticTextProps> = ({k, x, y, color, emphCol
       let ink = ink0;
       if (fromColor && s.mix > 0) ink = `color-mix(in oklab, ${fromColor} ${(s.mix * 100).toFixed(1)}%, ${ink0})`;
       if (exitColor && s.xmix > 0) ink = `color-mix(in oklab, ${exitColor} ${(s.xmix * 100).toFixed(1)}%, ${ink})`;
+      if (lightColor && s.lmix > 0.001) ink = `color-mix(in oklab, ${lightColor} ${(s.lmix * 100).toFixed(1)}%, ${ink})`;
       const blurPx = s.blur * sz;
+      // a scramble's stand-in: a block drawn as a box inside the glyph's own em (never a character), the right glyph
+      // at another weight, or a symbol centred on the glyph's advance (kineticCore scrambleGlyph)
+      const sc = s.scr;
+      const face: React.ReactNode = !sc ? g.g : sc.kind === 'weight' ? g.g : sc.kind === 'symbol' ? (
+        <span style={{display: 'inline-block', width: Math.max(1, g.adv), textAlign: 'center'}}>{sc.ch}</span>
+      ) : (
+        <span style={{display: 'inline-block', position: 'relative', width: Math.max(1, g.w), height: 0,
+          verticalAlign: 'top'}}>
+          <span style={{position: 'absolute', ...scrambleBlock(sc.shape, g.w, g.base, sz), background:
+            sc.shape === 3 ? undefined : 'currentColor', border: sc.shape === 3 ? `${Math.max(1.5, sz * 0.06)
+            .toFixed(2)}px solid currentColor` : undefined, boxSizing: 'border-box'}} />
+        </span>
+      );
       const under = Math.max(0.05, Math.abs(s.scale * s.sy));
       const attrs: Record<string, string> = {[KIN_LINE]: String(g.line),
         [KIN_GLYPH]: String(i + copy * alt.glyphs.length)};
@@ -1196,11 +1271,11 @@ export const KineticText: React.FC<KineticTextProps> = ({k, x, y, color, emphCol
           transform: tf || undefined, opacity: s.opacity >= 0.999 ? undefined : s.opacity,
           filter: blurPx > 0.05 ? `blur(${blurPx.toFixed(2)}px)` : undefined}}>
           <span {...attrs} style={{display: 'block', color: ink,
-            fontWeight: s.wght ? restW + s.wght : g.emph ? lay.emphWeight : undefined,
+            fontWeight: sc?.kind === 'weight' ? sc.weight : s.wght ? restW + s.wght : g.emph ? lay.emphWeight : undefined,
             fontStretch: s.wdth ? `${lay.stretch + s.wdth}%` : undefined,
             transform: glide(undefined, allowed && s.moving, under),
             ...({textSpacingTrim: g.trim ? 'trim-start' : 'space-all'} as React.CSSProperties)}}>
-            {s.show || g.g}
+            {face}
           </span>
         </span>
       );

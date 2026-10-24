@@ -441,8 +441,8 @@ export const windowAt = (p: number, a: Box, W: number, H: number) =>
 // INSIDE the ink with the most room around it — the centre of the thickest stroke, found by a distance transform of
 // the word drawn to a canvas — and goes until the disc of that room covers the frame: then the frame is inside a
 // letter, and every pixel of it is the next beat.
-type Glyph = {text: string; font: string; family: string; weight: string; style: string; size: number;
-  spacing: number; x: number; baseline: number; px: number; py: number; clear: number};
+type GlyphRun = {text: string; font: string; spacing: number; x: number; baseline: number};
+type Glyph = {runs: GlyphRun[]; px: number; py: number; clear: number; w: number; h: number};
 
 /** Two-pass chamfer (3-4) distance to the nearest non-ink pixel — the room around each ink pixel. */
 export const inkRoom = (ink: Uint8Array, w: number, h: number): {i: number; d: number} => {
@@ -473,38 +473,59 @@ export const inkRoom = (ink: Uint8Array, w: number, h: number): {i: number; d: n
   return {i: best, d: bd / 3};
 };
 
-/** The glyph window of the anchor `id` on the leaving half, or null when the anchor is not marked as one. */
+/** The text nodes a glyph anchor DRAWS: non-empty, and not faded out — a kinetic register sets each grapheme in its
+ *  own holder (runtime/kinetic), and a swap keeps its other alternatives in the tree at opacity 0, so "every text
+ *  node" would be every alternative's letters laid over one another. */
+const drawnTextNodes = (el: HTMLElement): Text[] => {
+  const out: Text[] = [];
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let tn = walker.nextNode(); tn; tn = walker.nextNode()) {
+    if (!(tn.textContent ?? '').trim() || !tn.parentElement) continue;
+    // up to the anchor, NOT including it: the seam itself fades the anchor's own opacity as the next beat fills the
+    // letters (WindowPresentation's style), and a filter that read it would lose the word mid-seam
+    let op = 1, hidden = false;
+    for (let e: HTMLElement | null = tn.parentElement; e && e !== el; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      op *= parseFloat(cs.opacity || '1');
+      if (cs.visibility === 'hidden' || cs.display === 'none') hidden = true;
+    }
+    if (!hidden && op >= 0.5) out.push(tn as Text);
+  }
+  return out;
+};
+
+/** The glyph window of the anchor `id` on the leaving half, or null when the anchor is not marked as one. One text
+ *  node (a plain title) or many (kinetic type: one holder per grapheme) — either way ONE line, drawn into the clip run
+ *  by run where the HTML drew each, so the window is the letterforms the viewer is looking at. */
 const glyphOf = (seam: string, id: string, W: number): Glyph | null => {
   const root = halfRoot(seam, 'exiting');
   const layer = root?.querySelector(':scope > [data-seam-layer="rest"]') as HTMLElement | null;
   const el = anchorIn(layer, id) as HTMLElement | null;
   if (!root || !layer || !el || !el.hasAttribute('data-carry-glyph')) return null;
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-  let tn: Node | null = walker.nextNode();
-  while (tn && !(tn.textContent ?? '').trim()) tn = walker.nextNode();
-  if (!tn || !tn.parentElement) throw new Error(`the glyph anchor '${id}' holds no text — a word window needs a word`);
+  const nodes = drawnTextNodes(el);
+  if (!nodes.length) throw new Error(`the glyph anchor '${id}' holds no text — a word window needs a word`);
   const saved = layer.style.transform;
   layer.style.transform = 'none';
   const frame = root.getBoundingClientRect();
-  const range = document.createRange();
-  range.selectNodeContents(tn);
-  const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
+  const k = W / frame.width;
   const elW = el.getBoundingClientRect().width;
+  const scale = el.offsetWidth > 0 ? (elW / el.offsetWidth) * k : k;       // frame px per layout px
+  const raw = nodes.map((tn) => {
+    const range = document.createRange();
+    range.selectNodeContents(tn);
+    const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
+    const cs = getComputedStyle(tn.parentElement as HTMLElement);
+    return {tn, rects, cs};
+  }).filter((r) => r.rects.length);
   layer.style.transform = saved;
-  if (!rects.length) throw new Error(`the glyph anchor '${id}' draws its text nowhere on the frame`);
-  if (new Set(rects.map((r) => Math.round(r.top))).size > 1) {
+  if (!raw.length) throw new Error(`the glyph anchor '${id}' draws its text nowhere on the frame`);
+  const all = raw.flatMap((r) => r.rects);
+  const tops = all.map((r) => r.top), hs = all.map((r) => r.height);
+  if (Math.max(...tops) - Math.min(...tops) > 0.5 * Math.min(...hs)) {
     throw new Error(`the glyph anchor '${id}' wraps to more than one line — a word window is one line of type`);
   }
-  const k = W / frame.width;
-  const left = Math.min(...rects.map((r) => r.left)), top = Math.min(...rects.map((r) => r.top));
-  const right = Math.max(...rects.map((r) => r.right)), bottom = Math.max(...rects.map((r) => r.bottom));
-  const cs = getComputedStyle(tn.parentElement);
-  const scale = el.offsetWidth > 0 ? (elW / el.offsetWidth) * k : k;       // frame px per layout px
-  const size = parseFloat(cs.fontSize) * scale;
-  const spacing = (parseFloat(cs.letterSpacing) || 0) * scale;
-  let text = (tn.textContent ?? '').trim();
-  if (cs.textTransform === 'uppercase') text = text.toUpperCase();
-  const font = `${cs.fontStyle} ${cs.fontWeight} ${size.toFixed(2)}px ${cs.fontFamily}`;
+  const left = Math.min(...all.map((r) => r.left)), top = Math.min(...tops);
+  const right = Math.max(...all.map((r) => r.right)), bottom = Math.max(...all.map((r) => r.bottom));
   const x = (left - frame.left) * k, y0 = (top - frame.top) * k, w = (right - left) * k, h = (bottom - top) * k;
   // the word, drawn the same way into a canvas at a working scale, to find the stroke with the most room
   const ds = Math.min(1, 480 / Math.max(1, w));
@@ -513,27 +534,46 @@ const glyphOf = (seam: string, id: string, W: number): Glyph | null => {
   cv.width = cw; cv.height = ch;
   const ctx = cv.getContext('2d');
   if (!ctx) throw new Error('no 2D canvas to measure the glyph window with');
-  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${(size * ds).toFixed(2)}px ${cs.fontFamily}`;
-  (ctx as any).letterSpacing = `${(spacing * ds).toFixed(2)}px`;
-  const asc = ctx.measureText(text).fontBoundingBoxAscent;
   ctx.fillStyle = '#000';
-  ctx.fillText(text, 2, 2 + asc);
+  const runs: GlyphRun[] = raw.map(({tn, rects, cs}) => {
+    const size = parseFloat(cs.fontSize) * scale;
+    const spacing = (parseFloat(cs.letterSpacing) || 0) * scale;
+    let text = (tn.textContent ?? '').trim();
+    if (cs.textTransform === 'uppercase') text = text.toUpperCase();
+    const font = `${cs.fontStyle} ${cs.fontWeight} ${size.toFixed(2)}px ${cs.fontFamily}`;
+    const r0 = rects[0];
+    const rx = (Math.min(...rects.map((r) => r.left)) - frame.left) * k, ry = (r0.top - frame.top) * k;
+    ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${(size * ds).toFixed(2)}px ${cs.fontFamily}`;
+    (ctx as any).letterSpacing = `${(spacing * ds).toFixed(2)}px`;
+    const asc = ctx.measureText(text).fontBoundingBoxAscent;
+    ctx.fillText(text, 2 + (rx - x) * ds, 2 + (ry - y0) * ds + asc);
+    return {text, font, spacing, x: rx, baseline: ry + asc / ds};
+  });
   const img = ctx.getImageData(0, 0, cw, ch).data;
   const ink = new Uint8Array(cw * ch);
   for (let i = 0; i < cw * ch; i++) ink[i] = img[i * 4 + 3] > 127 ? 1 : 0;
   const room = inkRoom(ink, cw, ch);
   if (room.i < 0 || room.d < 1) throw new Error(`the glyph anchor '${id}' has no ink to look through`);
   const ix = room.i % cw, iy = Math.floor(room.i / cw);
-  return {text, font, family: cs.fontFamily, weight: cs.fontWeight, style: cs.fontStyle, size, spacing, x,
-    baseline: y0 + asc / ds, px: x + (ix - 2) / ds, py: y0 + (iy - 2) / ds, clear: room.d / ds};
+  return {runs, px: x + (ix - 2) / ds, py: y0 + (iy - 2) / ds, clear: room.d / ds, w, h};
 };
+
+/** The arriving beat's scale inside the window at push scale `k` of `K`. In a BOX window it is sized to the box as the
+ *  box grows (`k / K`). A WORD window is pushed until one stroke's room covers the frame, so K is the frame's
+ *  half-diagonal over half a stroke — measured on bench-rams, a 99 px Noto Sans SC 少 put K so high that the next
+ *  beat sat in the letters as a ~120 px thumbnail for most of the push and popped to full size at the cut. So in a
+ *  word it is never smaller than the WORD covers: the next beat fills the word's own box as seen at that moment (cover
+ *  fit), reaching WINDOW_OVER — and staying there — once the word is as large as the frame. At the cut both are
+ *  WINDOW_OVER, so the hand-off is unchanged. */
+export const windowInnerScale = (k: number, K: number, word: {w: number; h: number} | null, W: number, H: number) =>
+  WINDOW_OVER * Math.min(1, word ? Math.max(k / K, (k * Math.max(word.w / W, word.h / H))) : k / K);
 
 const WindowPresentation = ({presentationProgress: p, presentationDirection, children, passedProps}: any) => {
   const P = passedProps as WindowSpec;
   const isEnter = presentationDirection === 'entering';
   const half = isEnter ? 'entering' : 'exiting';
   const layer = React.useRef<HTMLDivElement>(null), inner = React.useRef<HTMLDivElement>(null);
-  const word = React.useRef<SVGTextElement>(null);
+  const word = React.useRef<SVGClipPathElement>(null);
   const clipId = `seam-glyph-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const glide = useGlide();
   const on = useInSeam(isEnter, p, P.lead, P.n);
@@ -560,16 +600,25 @@ const WindowPresentation = ({presentationProgress: p, presentationDirection, chi
     // before it: the window is the anchor carried by the leaving beat's push (its box, or its letterforms), and the
     // arriving beat sits inside it at the scale that reaches WINDOW_OVER exactly as the window fills the frame,
     // centred on the point the push aims at
-    const s = WINDOW_OVER * k / K;
+    const s = windowInnerScale(k, K, g, P.W, P.H);
     const fx = g ? tx + k * g.px : tx + k * (a.x + a.w / 2), fy = g ? ty + k * g.py : ty + k * (a.y + a.h / 2);
     const ox = fx - s * P.W / 2, oy = fy - s * P.H / 2;
     if (g && word.current) {
-      const t = word.current;
-      t.textContent = g.text;
-      t.setAttribute('x', f2(g.x));
-      t.setAttribute('y', f2(g.baseline));
-      t.setAttribute('transform', `matrix(${k.toFixed(5)} 0 0 ${k.toFixed(5)} ${f2(tx)} ${f2(ty)})`);
-      t.setAttribute('style', `font: ${g.font}; letter-spacing: ${g.spacing.toFixed(2)}px; font-kerning: normal`);
+      // one <text> per run, each where the HTML drew it (a kinetic word is one run per grapheme) — direct children of
+      // the clipPath, which takes text and shapes but not a group
+      const cp = word.current;
+      while (cp.childNodes.length > g.runs.length) cp.removeChild(cp.lastChild as ChildNode);
+      while (cp.childNodes.length < g.runs.length) {
+        cp.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'text'));
+      }
+      g.runs.forEach((run, i) => {
+        const t = cp.childNodes[i] as SVGTextElement;
+        t.setAttribute('transform', `matrix(${k.toFixed(5)} 0 0 ${k.toFixed(5)} ${f2(tx)} ${f2(ty)})`);
+        t.textContent = run.text;
+        t.setAttribute('x', f2(run.x));
+        t.setAttribute('y', f2(run.baseline));
+        t.setAttribute('style', `font: ${run.font}; letter-spacing: ${run.spacing.toFixed(2)}px; font-kerning: normal`);
+      });
       if (layer.current) layer.current.style.clipPath = `url(#${clipId})`;
     } else if (layer.current) {
       const wx = tx + k * a.x, wy = ty + k * a.y, ww = k * a.w, wh = k * a.h;
@@ -606,7 +655,7 @@ const WindowPresentation = ({presentationProgress: p, presentationDirection, chi
     <AbsoluteFill data-seam={P.seam} data-seam-half={half}>
       {/* the word window's letterforms (used only when the anchor is a glyph; an empty clipPath clips nothing in) */}
       <svg width={0} height={0} style={{position: 'absolute'}} aria-hidden="true">
-        <defs><clipPath id={clipId} clipPathUnits="userSpaceOnUse"><text ref={word} /></clipPath></defs>
+        <defs><clipPath ref={word} id={clipId} clipPathUnits="userSpaceOnUse" /></defs>
       </svg>
       <div ref={layer} data-seam-layer="window" style={{position: 'absolute', inset: 0, opacity: op}}>
         {/* the window shows the next beat's own ground first, so a beat smaller than the window sits on its ground */}

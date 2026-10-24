@@ -8,6 +8,7 @@
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
+| `kicker` | a small label over the figure | context, never a second claim |
 | `states` | 2–4 `{label, shape?, count?, d?}` | `shape`: `dot`, `circle`, `ellipse`, `square`, `triangle`, `diamond`, `pentagon`, `hexagon`, `star`, `line`, `ring`; `count` 1–6 repeats it side by side (a division is `circle` then `circle ×2`); `d` is the film's own outline in a 0–1000 square, any SVG commands |
 | `filled` | body on (default) or outline only | outline-only reads as a diagram, filled as a thing |
 | `title`, `kicker` | the heading | the demo's title belongs to the demo's states |

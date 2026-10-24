@@ -201,19 +201,21 @@
     "ReplyWindow": "c07e34231966400d",
     "WeightedWheel": "4573018ced610633",
     "ForkingAnswers": "031e14d03e9face9",
-    "CroppedType": "2e217990a72980f0",
-    "HeadlineReveal": "aac02d1f8d1eea00",
-    "TypeOnPath": "85c24dca794c6cda",
-    "WordRoll": "2aab3fb33cfc0e9b",
-    "EquationMorph": "6a4902424a9f2df3",
-    "FunctionPlot": "c105daa04a9bcc72",
-    "GrowingFigure": "90402c71172deeb8",
-    "FlightArcs": "9309071933e3d324",
-    "FlowCounter": "c90a0163fc9d4ce8",
-    "FlowSankey": "40c53268658148a2",
-    "GlobeFocus": "8d949f10e58136f7",
-    "RankRace": "84cf953e4b2ddbbe",
-    "LitMedium": "2f835061fb23ebe1"
+    "CroppedType": "45e2468214621ac2",
+    "HeadlineReveal": "8e98ffe12fcb314c",
+    "TypeOnPath": "ab7e4359f251690e",
+    "WordRoll": "c4265d6d1317287a",
+    "EquationMorph": "e0a8fc30f42bd936",
+    "FunctionPlot": "538034889283a554",
+    "GrowingFigure": "2098131854d28c06",
+    "FlightArcs": "c3998b01f8863045",
+    "FlowCounter": "03339dae799b6c34",
+    "FlowSankey": "7e8783f475b92e98",
+    "GlobeFocus": "494bde9ad61c6ceb",
+    "RankRace": "691d0926ff6a470f",
+    "LitMedium": "2f835061fb23ebe1",
+    "LandscapeWell": "2af45c6247b9c3b9",
+    "MagicMoveType": "34858444d7e5b610"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -242,7 +244,7 @@
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 213,
+  "_universe": 215,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -504,11 +506,11 @@
       "footprint": 0.345
     },
     "CroppedType": {
-      "motion_p75": 0.0128,
-      "ink_median": 0.128,
-      "luma_range": 0.053,
+      "motion_p75": 0.0107,
+      "ink_median": 0.127,
+      "luma_range": 0.051,
       "seconds": 5.5,
-      "footprint": 0.537
+      "footprint": 0.523
     },
     "CubeRotate": {
       "motion_p75": 0.0046,
@@ -812,11 +814,11 @@
       "footprint": 0.522
     },
     "HeadlineReveal": {
-      "motion_p75": 0.0009,
-      "ink_median": 0.068,
-      "luma_range": 0.042,
+      "motion_p75": 0.0015,
+      "ink_median": 0.067,
+      "luma_range": 0.041,
       "seconds": 5.5,
-      "footprint": 0.273
+      "footprint": 0.275
     },
     "HeldInstant": {
       "motion_p75": 0.0003,
@@ -944,6 +946,13 @@
       "seconds": 5.5,
       "footprint": 0.165
     },
+    "LandscapeWell": {
+      "motion_p75": 0.0005,
+      "ink_median": 0.028,
+      "luma_range": 0.004,
+      "seconds": 8.0,
+      "footprint": 0.213
+    },
     "LarmorPrecession": {
       "motion_p75": 0.0021,
       "ink_median": 0.016,
@@ -1041,6 +1050,13 @@
       "luma_range": 0.107,
       "seconds": 5.5,
       "footprint": 0.609
+    },
+    "MagicMoveType": {
+      "motion_p75": 0.0001,
+      "ink_median": 0.04,
+      "luma_range": 0.023,
+      "seconds": 7.0,
+      "footprint": 0.2
     },
     "MagnetizationTip": {
       "motion_p75": 0.0016,
@@ -1715,7 +1731,7 @@
       "footprint": 0.24
     },
     "WordRoll": {
-      "motion_p75": 0.0005,
+      "motion_p75": 0.0008,
       "ink_median": 0.035,
       "luma_range": 0.018,
       "seconds": 7.0,

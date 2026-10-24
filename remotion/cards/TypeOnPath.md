@@ -19,6 +19,8 @@
 - A wave is one wavelength on a narrow frame and one and a half on a wide one, so the steepest tilt a letter takes stays readable.
 - The title's room is RESERVED rather than measured: the path sits below it and the phrase is fitted to the path's length, and a path that waited on the title's measured height re-specced the phrase after the first measurement.
 - QUIET by construction: measured 0.0024 motion, 7.1% ink (product DNA, the wave) against 0.0037 / 12%. Intercut with a dense register.
+- PACED IN SECONDS: the travel onto the path is 2.2 s, or half the beat's span when that is shorter (never under 1 s) — at a 3 s beat the full travel took the whole span and the phrase came to rest on the last frame.
+- The title is the `word` carry anchor (`runtime/kineticWord`); the path's own letters are turned, so they are never a window.
 
 **Refuses:** an empty `phrase`; a `path` that is not one of the four; a `d` that is not absolute M/L/C/Q.
 

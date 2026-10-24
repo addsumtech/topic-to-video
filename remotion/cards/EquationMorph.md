@@ -8,6 +8,7 @@
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
+| `kicker` | a small label over the equation | context for the derivation, never a second claim |
 | `steps` | 1–4 forms `{tex, label}`, in order | `\class{name}{…}` names a term — the same name in two forms is matched as the same term; two DIFFERENT names never trade a glyph (the square's exponent 2 will not fly into a ±2 the film named as another term). Label every form or none |
 | `highlight` | `{term, label}` — a class of the LAST form, and what it is | the frame + swell + accent; the label takes the label line |
 | `live` | `{term, from, to}` — a `\class{live…}{00.0}` slot in the last form, and the film's two values | the settled frame prints `to` exactly; the template must be as wide as the widest value (wider throws) |

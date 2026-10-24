@@ -8,11 +8,16 @@
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
+| `kicker` | a small label over the title | context, never a second claim |
+| `title` | the plot's headline | the film's own; the demo's title belongs to the demo data |
 | `points` | the film's samples `[[x, y], …]`, at least 2, x increasing | the curve is the polyline through them — nothing fitted, nothing smoothed; dense samples draw a smooth curve |
 | `tex` | the function's formula, in TeX | written in the top-right corner; a formula that only fits under 3% of the short side an em throws |
-| `xRange`, `yRange` | the axes' spans | default exactly the data's; the ends are printed as written; a dashed zero line when 0 is inside |
-| `xLabel`, `yLabel` | what each axis measures | under the x axis / in the plot's top-left |
-| `xName`, `yName` | the readout's variable names | default `x`, `y` |
+| `xRange` | the x axis's span | default exactly the data's; the ends are printed as written |
+| `yRange` | the y axis's span | default exactly the data's; a dashed zero line when 0 is inside |
+| `xLabel` | what the x axis measures | under the x axis |
+| `yLabel` | what the y axis measures | in the plot's top-left |
+| `xName` | the readout's x variable name | default `x` |
+| `yName` | the readout's y variable name | default `y` |
 
 **Known traps:**
 - A readout interpolated between samples would print values the film never supplied; it shows the last sample passed, as written (`figureText`), and the dot rides the drawn line between them.

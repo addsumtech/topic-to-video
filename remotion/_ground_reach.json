@@ -558,7 +558,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.913046875,
+   "moved": 0.9179166666666667,
    "ok": true,
    "why": []
   },
@@ -1189,7 +1189,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9705658143939394,
+   "moved": 0.9703314393939394,
    "ok": true,
    "why": []
   },
@@ -1460,6 +1460,20 @@
    ]
   },
   {
+   "shot": "LandscapeWell",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0009105809731408954
+   },
+   "moved": 0.9976988636363636,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "LarmorPrecession",
    "bandY": {
     "light": 0.8879231810569763,
@@ -1672,6 +1686,20 @@
     "dark": 0.0012141079641878605
    },
    "moved": 0.7985961174242424,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "MagicMoveType",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 1.0,
+    "dark": 0.0
+   },
+   "moved": 0.9855823863636364,
    "ok": true,
    "why": []
   },
@@ -3072,7 +3100,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9732220643939394,
+   "moved": 0.9739086174242424,
    "ok": true,
    "why": []
   },
@@ -3306,22 +3334,24 @@
   "ReplyWindow": "c07e34231966400d",
   "WeightedWheel": "4573018ced610633",
   "ForkingAnswers": "031e14d03e9face9",
-  "HeadlineReveal": "aac02d1f8d1eea00",
-  "WordRoll": "2aab3fb33cfc0e9b",
-  "TypeOnPath": "85c24dca794c6cda",
-  "CroppedType": "2e217990a72980f0",
-  "EquationMorph": "6a4902424a9f2df3",
-  "GrowingFigure": "90402c71172deeb8",
-  "FunctionPlot": "c105daa04a9bcc72",
-  "GlobeFocus": "8d949f10e58136f7",
-  "FlightArcs": "9309071933e3d324",
-  "FlowSankey": "40c53268658148a2",
-  "FlowCounter": "c90a0163fc9d4ce8",
-  "RankRace": "84cf953e4b2ddbbe",
-  "LitMedium": "2f835061fb23ebe1"
+  "HeadlineReveal": "8e98ffe12fcb314c",
+  "WordRoll": "c4265d6d1317287a",
+  "TypeOnPath": "ab7e4359f251690e",
+  "CroppedType": "45e2468214621ac2",
+  "EquationMorph": "e0a8fc30f42bd936",
+  "GrowingFigure": "2098131854d28c06",
+  "FunctionPlot": "538034889283a554",
+  "GlobeFocus": "494bde9ad61c6ceb",
+  "FlightArcs": "c3998b01f8863045",
+  "FlowSankey": "7e8783f475b92e98",
+  "FlowCounter": "03339dae799b6c34",
+  "RankRace": "691d0926ff6a470f",
+  "LitMedium": "2f835061fb23ebe1",
+  "LandscapeWell": "2af45c6247b9c3b9",
+  "MagicMoveType": "34858444d7e5b610"
  },
  "failed": {},
- "universe": 213,
+ "universe": 215,
  "inkRefused": {
   "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
   "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",

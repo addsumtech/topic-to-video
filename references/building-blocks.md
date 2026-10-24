@@ -370,7 +370,14 @@ as it lands. Moving glyphs carry the baseline unlock inside any blur. Every type
 **Reach for it:** any type that enters, swaps, travels or morphs by the unit — and never hand-roll a per-character
 split again (`display: inline-block` per letter measured 8.1% wider than the text it splits, 11% for Chinese).
 **Smallest real use:** `const h = useKinetic({text: lines, font: {family: DISPLAY, size: U * 0.12, minSize: U * 0.05}, w, h: room, fit: 'box'}); <KineticText k={h} x={x} y={y} color={ink} motion={{mask: 'line', from: {ymask: 1.02}, enter: {by: 'line', at: 0.1, stagger: 0.16, dur: 0.9, ease: 'expo', cueKeys: lines.map((_, i) => 'lines.' + i)}}} />`
-**Exports:** `useKinetic`, `KineticText`, `KSpec`, `KFont`, `KMotion`, `KState`, `KTiming`, `KSwap`, `KPath`, `KLayout`, `KineticHandle`, `emphBoxes`, `kineticPathLength`, `KineticHoldContext`, `KineticHoldAudit`, `HoldReport`, `HoldRecord`.
+**Exports:** `useKinetic`, `KineticText`, `KSpec`, `KFont`, `KMotion`, `KState`, `KTiming`, `KSwap`, `KPath`, `KLayout`, `KineticHandle`, `emphBoxes`, `kineticPathLength`, `KineticHoldContext`, `KineticHoldAudit`, `HoldReport`, `HoldRecord`, `KIdle`, `KineticTextProps`.
+**Held type stays alive** — `motion.idle` (`KIdle`): once a LINE has landed (the latest of its glyphs), a micro tracking
+`breathe` (em at the peak; 0.004–0.012 reads as breath), a `light` passing along it in a colour every few seconds, and a
+`drift` whose velocity eases in — each eased in over 0.8 s, continuous in time, and with the baseline unlock on for the
+whole shot when anything moves (the span rule), so a held line never steps a pixel. The kinetic registers turn it on with
+`hold: 'alive'` (their default); `'still'` is a slide's hold. **A scramble never spells a word**: its stand-ins are a
+block drawn as a box or the right glyph at another weight for CJK, a symbol for everything else (kineticCore's
+scrambleGlyph) — drawn from the copy's own glyphs, 大模型 flashed 大模刑 (bench-launch).
 The register must render the handle's KineticText (or `handle.anchor`) in the same commit as the hook — the face is
 read off it; without it the render cancels at once, naming the hook. Two KineticTexts take two handles (a cache hit).
 `read={false}` marks type that is texture (a ring of repeated words, cropped big type) rather than copy that must be
@@ -385,7 +392,40 @@ graphemes and words (zh/ja segmented), the `*…*` emphasis markup (`parseRuns`)
 **Reach for it:** a register that must reason about the same schedule its KineticText runs (WordRoll's underline
 follows `swapTimes`), or needs a reading time.
 **Smallest real use:** `const T = swapTimes(options.length, 0.3, 0.74, cued, times);`
-**Exports:** `rangeCoverage`, `RangeSelector`, `orderRank`, `permutation`, `EASES`, `cubicBezier`, `easeOf`, `graphemes`, `wordIds`, `wordCount`, `langOf`, `parseRuns`, `plainText`, `swapTimes`, `scrambleChar`, `readingSeconds`, `secToT`, `tToSec`, `tAtFrame`, `longestRun`.
+**Exports:** `rangeCoverage`, `RangeSelector`, `orderRank`, `permutation`, `EASES`, `cubicBezier`, `easeOf`, `graphemes`, `wordIds`, `wordCount`, `langOf`, `parseRuns`, `plainText`, `swapTimes`, `scrambleGlyph`, `ScrambleGlyph`, `SCRAMBLE_SYMBOLS`, `SCRAMBLE_BLOCKS`, `SCRAMBLE_WEIGHTS`, `readingSeconds`, `secToT`, `tToSec`, `tAtFrame`, `longestRun`.
+
+### `kineticMove`
+MAGIC MOVE: a list of SETTINGS (each a useKinetic handle with its own copy, box, size and place), and at each move
+the glyphs two consecutive settings share TRAVEL from where the first set them to where the second does — leaving
+glyphs lift and fade first, travellers cross on arcs (rightward over the line, leftward under it, at most
+`MOVE_ROOM_EM` off it) word by word in landing order, arrivals rise in last. The first setting may assemble out of a
+seeded `scatter` or rise in glyph by glyph. Every glyph is drawn where `kinetic`'s reference node laid it out and carries
+its DOM marks (each setting an alternative), so the type gates read it as lines and the hold gate gets one record per
+setting through `KineticHoldContext`. Its root is the `word` carry anchor, boxed on the LAST setting (a glyph window
+when that is one line).
+**Reach for it:** one statement becoming another made of the same letters — a kept word, an anagram, a reorder, a
+layout (a stack of words) becoming a line. Not for two statements that share nothing (that is a cross-fade).
+**Smallest real use:** `<KineticMove settings={[{k: a, x, y}, {k: b, x, y}]} starts={moveSchedule(need, spanS, 1, 0.9)} dur={1} color={FG} />`
+**Exports:** `KineticMove`, `KineticMoveProps`, `MoveSetting`, `moveSchedule`, `MOVE_ROOM_EM`.
+
+### `kineticMoveCore`
+The pure half of `kineticMove`: `matchGlyphs` (the longest common subsequence first, so a shared word travels as a
+body; the rest by identity, nearest first; spaces never travel), `arcAt` (the bowed path, capped), `scatterOf` (a
+seeded start), and the move's timing (`moveTiming`, `travelWindow`, `leaveWindow`, `arriveWindow`, seconds from the
+move's start).
+**Reach for it:** a register that reasons about the same pairing or schedule the move runs.
+**Smallest real use:** `const {pairs, leave, arrive} = matchGlyphs(Array.from(a), Array.from(b));`
+**Exports:** `matchGlyphs`, `Match`, `arcAt`, `scatterOf`, `Scatter`, `MoveTiming`, `MOVE_DEFAULT`, `moveTiming`, `travelWindow`, `leaveWindow`, `arriveWindow`.
+
+### `kineticWord`
+A KineticText a seam can take hold of: wrapped in an element marked `data-carry="word"` whose box is the type's own
+measured extent (the last alternative's lines, for a swap), with `data-carry-glyph` when the copy is one line — so a
+`through-window` looks through the letterforms (`seams.tsx` reads every drawn glyph holder, one clip run per
+grapheme) and a `container` / `grow` takes hold of the type itself. It moves nothing: the glyphs land where they would
+unwrapped. `carry_anchors.py` credits `word` to any register that draws `<KineticWord`.
+**Reach for it:** the line in a kinetic register that a seam should be able to carry or push into.
+**Smallest real use:** `<KineticWord k={head} x={x} y={y} color={FG} motion={m} id="headline" />`
+**Exports:** `KineticWord`, `kineticExtent`.
 
 ### `kineticDom`
 The attributes a KineticText writes and the census reads, in one module both import — so a writer and a reader

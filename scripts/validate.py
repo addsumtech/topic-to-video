@@ -2339,9 +2339,16 @@ def _shot_truncation(meta, slides, errors, warnings):
     need = {}
     for f in _glob.glob(os.path.join(shots_dir, "*.tsx")):
         try:
-            m = re.search(r"export const DURATION\s*=\s*(\d+)", open(f, encoding="utf-8").read())
+            src = open(f, encoding="utf-8").read()
         except OSError:
             continue
+        # A REGISTER PACED IN SECONDS is not rushed by a short clip: its moves are durations with floors and only its
+        # holds shrink (`export const PACE = 'seconds'` — the kinetic registers). This warning fired "2.1–2.4x faster"
+        # on them at 3–4 s beats (bench-launch) while their entrances ran at their own speed; what a short beat
+        # really costs them is reading time, and shot_proof's hold gate measures that per line.
+        if re.search(r"export const PACE\s*=\s*['\"]seconds['\"]", src):
+            continue
+        m = re.search(r"export const DURATION\s*=\s*(\d+)", src)
         if m:
             need[os.path.basename(f)[:-4]] = int(m.group(1))
     if not need:
