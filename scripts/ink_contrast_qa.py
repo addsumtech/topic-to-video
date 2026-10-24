@@ -209,7 +209,7 @@ def _still(shot, dna, out_png, props=None, frame=None, serve=None):
         json.dump(payload, fh, ensure_ascii=False)
         pf = fh.name
     try:
-        r = subprocess.run(["npx", "remotion", "still", serve or "src/index.ts", shot, out_png,
+        r = _c.run_render(subprocess.run, ["npx", "remotion", "still", serve or "src/index.ts", shot, out_png,
                             "--frame=%d" % (settled_frame(shot) if frame is None else frame), "--gl=angle", "--log=error", "--props=" + pf],
                            cwd=_REM, capture_output=True, text=True, timeout=900)
         return r

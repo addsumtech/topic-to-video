@@ -130,6 +130,21 @@ def test_a_hold_under_reading_time_is_an_error_and_under_must_read_a_warning():
     assert len(warns) == 1 and "a line that is read once" in warns[0]
 
 
+def test_a_mixed_line_reads_each_character_at_its_own_scripts_rate():
+    """「装技能：npx skills add …」 (4 CJK + 37 Latin) was held to Chinese's 9 cps — 4.56 s — while the same command alone
+    needed 1.95 s, so an author deleted 装技能 to pass. Each character now reads at its own script's rate."""
+    cmd = "npx skills add addsumtech/topic-to-video"
+    mixed = {"text": "装技能：" + cmd, "chars": 41, "words": 5, "lang": "zh"}
+    once, _ = sp.reading_seconds(mixed)
+    alone, _ = sp.reading_seconds({"text": cmd, "chars": 37, "words": 4, "lang": "en"})
+    assert abs(once - (4 / 9 + 37 / 20)) < 1e-9 and once < 2.5, once
+    assert abs(alone - 37 / 20) < 1e-9
+    # the defect a per-line rate exists to catch stays caught: an all-Chinese line still reads at 9 cps, Japanese at 4
+    assert abs(sp.reading_seconds({"text": "这是一句很长的中文标题需要时间", "chars": 15, "lang": "zh"})[0] - 15 / 9) < 1e-9
+    assert abs(sp.reading_seconds({"text": "見出しですよね", "chars": 7, "lang": "ja"})[0] - 7 / 4) < 1e-9
+    assert sp.reading_seconds({"chars": 18, "lang": "zh"})[0] == 2.0       # a record with no text: the line's rate
+
+
 def test_the_reading_table_is_the_caption_rule_s_numbers():
     """runtime/readingSpec.json paces kinetic type (TS) and judges it (shot_proof); validate.py's caption rule holds
     the same three published figures as constants. Two homes for one number is how they drift — so they are equal."""

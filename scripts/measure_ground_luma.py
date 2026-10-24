@@ -292,7 +292,7 @@ def _measure_under(shot, td, fixtures, dna):
         scene["props"] = ev
     json.dump({"scenes": [scene], "dna": dna,
                "captions": False, "camera": 0}, open(props, "w"))
-    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "Film", png,
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", "Film", png,
                         "--frame=110", "--gl=angle", "--timeout=90000", "--props=" + props],
                        cwd=_REMOTION, capture_output=True, text=True)
     # ...AND THE PNG, NOT JUST THE EXIT CODE: `border_luminance` on a file that was never written raises out
@@ -343,7 +343,7 @@ def measure_own(shot, td, fixtures=None, durs=None):
     if frame is None:
         return None, ("no `export const DURATION` — the settled frame is derived from it, and a fixed "
                       "frame is past the end of any register shorter than it")
-    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png,
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png,
                         "--frame=%d" % frame, "--gl=angle", "--timeout=90000"] + extra,
                        cwd=_REMOTION, capture_output=True, text=True)
     if not os.path.exists(png):

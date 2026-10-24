@@ -343,6 +343,27 @@ def words(text, digits=True):
     return [w for w in toks if (_HAS_LETTER.search(w) or (digits and re.search(r"\d", w)))]
 
 
+_CLIP_BREAK = re.compile(r"[\s,.;:!?()\[\]{}<>\"“”«»—–/\\|…·、，。！？；：（）【】《》「」『』]")
+_LATIN_RUN = re.compile(r"[A-Za-z0-9À-ɏЀ-ӿ'’+.-]")
+
+
+def clip_text(text, n, ellipsis="…"):
+    """`text` cut to at most `n` characters at a BOUNDARY — a space, a punctuation mark, or between two CJK glyphs —
+    never inside a Latin or Cyrillic word or a number. `t[:n]` printed "镜头像在看一张 NAS…" and the wordmark
+    "DIETER RAMS 少，但更好 WENI" into contest samples. The ellipsis is added only when something was cut."""
+    t = " ".join(str(text or "").split())
+    if len(t) <= n:
+        return t
+    room = max(1, n - len(ellipsis))
+    cut = 0
+    for i in range(1, room + 1):
+        a, b = t[i - 1], t[i] if i < len(t) else " "
+        if _CLIP_BREAK.match(b) or _CLIP_BREAK.match(a) or not (_LATIN_RUN.match(a) and _LATIN_RUN.match(b)):
+            cut = i
+    head = t[:cut].rstrip(" ,.;:—–-/|·、，。；：") if cut else t[:room]
+    return head + ellipsis
+
+
 def substance(text):
     """How much a justification says: words (any script) + CJK characters / 2."""
     t = str(text or "")
@@ -389,7 +410,208 @@ class render_lock:
 
 
 def run_render(run, *args, **kw):
-    """`run(*args, **kw)` — one `npx remotion …` render — under the machine-wide render lock. `run` is the CALLER's
-    own `subprocess.run`, looked up at the call, so a test that replaces a module's subprocess still intercepts it."""
+    """`run(*args, **kw)` — one `npx remotion …` render — under the machine-wide render lock, WATCHED (`watched_run`):
+    a render whose process tree stops working is killed and retried once. `run` is the CALLER's own
+    `subprocess.run`, looked up at the call, so a test that replaces a module's subprocess still intercepts it
+    (a replaced `run` is called as given — the watch is for real renders)."""
     with render_lock():
+        if run is _REAL_RUN:
+            return watched_run(*args, **kw)
         return run(*args, **kw)
+
+
+# ── A RENDER THAT STOPS WORKING IS KILLED, NOT WAITED ON ──────────────────────────────────────────────────────────
+# `remotion still --gl=angle` has hung on this machine at 0% CPU — one sat 2 h 18 min holding a render slot — and no
+# caller passed a timeout, so one hung still stalled a whole gate run until something outside killed it. A wall clock
+# cannot tell a hang from a slow film render, so the watch is on WORK: the CPU the render's whole process TREE spends.
+#   * The TREE, not the process group. Remotion launches Chrome `detached` (@remotion/renderer
+#     dist/browser/BrowserRunner.js: `detached: process.platform !== 'win32'`), so the browser — where a still
+#     spends most of its CPU — leads a process group of its own. A group-only watch sees node idling while Chrome
+#     works and kills a working render; a group KILL leaves that Chrome running as an orphan (seven orphaned
+#     browsers, 33 processes and ~1.5 GB, were found on this machine, the oldest 13 h old).
+#   * Summed as per-process DELTAS. A total over the LIVING processes falls each time one exits, so a high-water
+#     mark on it calls a busy run of short renders "no progress" — reproduced: a command at 100% CPU throughout, as
+#     one 20 s child then 2 s children, was killed 60 s in by such a watch.
+RENDER_IDLE_S = 120.0       # no work for this long = hung (TOPIC_VIDEO_RENDER_IDLE_S overrides)
+_IDLE_CPU_PER_S = 0.01      # "no work": under 1% of one core across the tree, averaged over the idle window
+_POLL_S = 2.0
+_REAL_RUN = subprocess.run
+
+
+def _cpu_seconds(txt):
+    """ps `time` -> seconds. macOS prints `M:SS.ss`, `H:MM:SS.ss` or `D-HH:MM:SS`; Linux `[DD-]HH:MM:SS`."""
+    days = 0
+    if "-" in txt:
+        d, txt = txt.split("-", 1)
+        days = int(d)
+    sec = 0.0
+    for part in txt.split(":"):
+        sec = sec * 60 + float(part)
+    return days * 86400 + sec
+
+
+def _proc_table():
+    """{pid: (ppid, pgid, cpu_seconds, stat, command)} of every process on the machine (one `ps`)."""
+    out = _REAL_RUN(["ps", "-A", "-o", "pid=,ppid=,pgid=,time=,stat=,command="],
+                    capture_output=True, text=True).stdout
+    table = {}
+    for line in out.splitlines():
+        parts = line.split(None, 5)
+        if len(parts) < 5:
+            continue
+        try:
+            table[int(parts[0])] = (int(parts[1]), int(parts[2]), _cpu_seconds(parts[3]), parts[4],
+                                    parts[5] if len(parts) > 5 else "")
+        except ValueError:
+            continue
+    return table
+
+
+def _proc_tree(table, root):
+    """`root` and every descendant of it, by parent pid — which follows a child into a process group or session of
+    its own, where a group walk loses it."""
+    kids = {}
+    for pid, row in table.items():
+        kids.setdefault(row[0], []).append(pid)
+    tree, todo = [], [root]
+    while todo:
+        pid = todo.pop()
+        if pid in table and pid not in tree:
+            tree.append(pid)
+            todo.extend(kids.get(pid, []))
+    return tree
+
+
+def _kill_tree(table, pids):
+    """SIGKILL every process of the tree, and the whole group of any group leader inside it (Chrome's GPU and
+    renderer processes are in the browser's group). Never this process's own group."""
+    import signal
+    own = os.getpgrp()
+    for g in {table[p][1] for p in pids if p in table and table[p][1] in pids and table[p][1] != own}:
+        try:
+            os.killpg(g, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+    for p in pids:
+        try:
+            os.kill(p, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+
+def _hang_dir():
+    import tempfile
+    import time
+    d = os.path.join(tempfile.gettempdir(), "topic-to-video-render-hangs", time.strftime("%Y%m%d-%H%M%S"))
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _record_hang(table, pids, cmd, idle_s, work, err_tail):
+    """Write what the hung tree looked like — each process's state and CPU, and on macOS a `sample` of the node and
+    Chrome processes — so the NEXT hang says where it waited. Returns the folder (or None)."""
+    try:
+        d = _hang_dir()
+        rows = ["%7d %7d %7d %10.2f %-5s %s" % ((p,) + table[p][:2] + (table[p][2], table[p][3], table[p][4][:220]))
+                for p in pids if p in table]
+        with open(os.path.join(d, "tree.txt"), "w", encoding="utf-8") as fh:
+            fh.write("command: %s\nidle window: %.0f s, CPU spent in it: %.2f s\n\n    pid    ppid    pgid    cpu(s) stat  "
+                     "command\n%s\n\nstderr tail:\n%s\n" % (" ".join(map(str, cmd)), idle_s, work, "\n".join(rows),
+                                                             err_tail))
+        if sys.platform == "darwin" and shutil.which("sample"):
+            for p in pids:
+                exe = os.path.basename((table.get(p, ("", "", 0, "", ""))[4].split(" ") or [""])[0])
+                if exe in ("node", "remotion") or exe.startswith("chrome-headless-shell"):
+                    try:
+                        _REAL_RUN(["sample", str(p), "1", "-file", os.path.join(d, "sample_%d.txt" % p)],
+                                  capture_output=True, timeout=30)
+                    except (subprocess.TimeoutExpired, OSError):
+                        pass
+        return d
+    except OSError:
+        return None
+
+
+def _say_cmd(cmd):
+    """A render command as a reader names it: the verb and the composition, never a 2 KB props path."""
+    words = [str(x) for x in cmd if not str(x).startswith("--props")]
+    return " ".join(words[:7])[:200]
+
+
+def _watch_once(cmd, idle_s, timeout, feed, kw):
+    """One watched attempt: (returncode, stdout, stderr, hang) — `hang` is None, or (CPU-s in the idle window,
+    processes in the tree, diagnostics folder) when the tree stopped working and was killed."""
+    import time
+    proc = subprocess.Popen(cmd, **kw)
+    t0 = time.time()
+    seen, work, window = {}, 0.0, [(t0, 0.0)]
+    while True:
+        try:
+            out, err = proc.communicate(input=feed, timeout=_POLL_S)
+            return proc.returncode, out, err, None
+        except subprocess.TimeoutExpired:
+            feed = None                                  # communicate() keeps what it was given the first time
+        table = _proc_table()
+        tree = _proc_tree(table, proc.pid)
+        for pid in tree:
+            cpu, prev = table[pid][2], seen.get(pid)
+            work += cpu if prev is None else max(0.0, cpu - prev)
+            seen[pid] = cpu
+        now = time.time()
+        window.append((now, work))
+        while len(window) > 1 and now - window[1][0] >= idle_s:
+            window.pop(0)
+        spent = work - window[0][1]
+        hung = now - window[0][0] >= idle_s and spent < idle_s * _IDLE_CPU_PER_S
+        late = timeout is not None and now - t0 > timeout
+        if not (hung or late):
+            continue
+        where = _record_hang(table, tree, cmd, idle_s, spent, "") if hung else None
+        _kill_tree(table, tree)
+        try:
+            out, err = proc.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            out, err = proc.communicate()
+        if late:
+            raise subprocess.TimeoutExpired(cmd, timeout, output=out, stderr=err)
+        return 124, out, err, (spent, len(tree), where)
+
+
+def watched_run(cmd, idle_s=None, retries=1, **kw):
+    """`subprocess.run(cmd, **kw)` for one renderer call, KILLED when its whole process tree stops working: less than
+    1% of a core for `idle_s` seconds (default RENDER_IDLE_S; env TOPIC_VIDEO_RENDER_IDLE_S). The tree is killed —
+    detached Chrome included — the hang is said LOUDLY on stderr with a diagnostics folder, and the call is retried
+    `retries` times. A render that hangs every time comes back as returncode 124 with a `RenderHangError:` line in its
+    stderr (raised as CalledProcessError under check=True), so a caller's "render failed: <reason>" names the hang
+    instead of waiting on it; a retry that worked carries the same line, so the hang is never silent.
+    `timeout` keeps subprocess.run's meaning: a wall-clock cap that raises TimeoutExpired."""
+    idle_s = float(os.environ.get("TOPIC_VIDEO_RENDER_IDLE_S") or idle_s or RENDER_IDLE_S)
+    timeout = kw.pop("timeout", None)
+    check = kw.pop("check", False)
+    if kw.pop("capture_output", False):
+        kw["stdout"] = kw["stderr"] = subprocess.PIPE
+    feed = kw.pop("input", None)
+    if feed is not None:
+        kw["stdin"] = subprocess.PIPE
+    said = []
+    for attempt in range(retries + 1):
+        rc, out, err, hang = _watch_once(cmd, idle_s, timeout, feed, kw)
+        if hang is None:
+            break
+        spent, n, where = hang
+        said.append("RenderHangError: `%s` made no CPU progress for %.0f s (%.2f CPU-s across its %d processes) and "
+                    "was killed (attempt %d of %d)%s" % (_say_cmd(cmd), idle_s, spent, n, attempt + 1, retries + 1,
+                                                         "; diagnostics in " + where if where else ""))
+        sys.stderr.write("[render] %s%s\n" % (said[-1], "; retrying once" if attempt < retries
+                                                else "; not retried again: reported as a failed render"))
+        sys.stderr.flush()
+    if said:
+        note = "\n".join(said) + "\n"
+        if isinstance(err, bytes):
+            err = err + note.encode()
+        elif isinstance(err, str):
+            err = err + "\n" + note
+    if check and rc:
+        raise subprocess.CalledProcessError(rc, cmd, out, err)
+    return subprocess.CompletedProcess(cmd, rc, out, err)

@@ -77,6 +77,26 @@ def beat_window(out_dir, beat):
     raise SystemExit("[settled_frame] unreachable")
 
 
+def clear_window(out_dir, beat):
+    """(start, end) of the part of `beat` NO SEAM TOUCHES: after the dissolve in from the beat before, before the one
+    out to the beat after. "90% of the beat" is only clear of the seam on a long beat — on a 3.07 s beat with a 0.4 s
+    seam it is 0.3 s from the end, inside the dissolve: two "settled" frames of the launch benchmark were mid-seam,
+    one a blank light frame. contest_sample's settled still was fixed for the same reason."""
+    s, e = beat_window(out_dir, beat)
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    slides = board.get("slides") or []
+    import render_remotion as rr
+    import stage_runs as _sr
+    seam = rr._REMOTION2_TR / float((board.get("meta") or {}).get("fps") or 30)
+    joined = _sr.joined_flags(slides)
+    k = beat - 1
+    a = s + (seam if k > 0 and not joined[k] else 0.0)
+    b = e - (seam if k + 1 < len(slides) and not joined[k + 1] else 0.0)
+    if b <= a:                                   # a beat shorter than its two seams: there is no clear frame
+        return s, e
+    return a, b
+
+
 def main():
     ap = argparse.ArgumentParser(description="Pull the settled frame out of a clip.")
     ap.add_argument("clip", help="an mp4, or with --beat a film's out_dir or its out.mp4")
@@ -100,7 +120,7 @@ def main():
         raise SystemExit("[settled_frame] no out.mp4 in %s — render the film first" % out_dir)
     if not os.path.exists(os.path.join(out_dir, "storyboard.json")):
         raise SystemExit("[settled_frame] --beat needs the film's storyboard.json beside %s" % mp4)
-    s, e = beat_window(out_dir, a.beat)
+    s, e = clear_window(out_dir, a.beat)                 # the fraction is of the part no seam touches
     png = a.out if a.out.endswith(".png") else os.path.join(a.out, "beat%02d.png" % a.beat)
     os.makedirs(os.path.dirname(os.path.abspath(png)) or ".", exist_ok=True)
     at = s + (e - s) * a.at
@@ -108,7 +128,7 @@ def main():
                         "-vframes", "1", png], capture_output=True, text=True)
     if r.returncode != 0 or not os.path.exists(png):
         raise SystemExit("[settled_frame] ffmpeg failed:\n%s" % r.stderr.strip())
-    print("[settled_frame] beat %d spans %.2f–%.2fs; grabbed %.2fs (%.0f%%) -> %s"
+    print("[settled_frame] beat %d is clear of its seams %.2f–%.2fs; grabbed %.2fs (%.0f%% of that) -> %s"
           % (a.beat, s, e, at, a.at * 100, png))
 
 

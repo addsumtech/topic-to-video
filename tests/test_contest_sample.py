@@ -140,3 +140,76 @@ def test_the_still_is_the_hero_before_the_seam_and_a_shot_may_set_its_length():
     assert m.settled_frame(p) == int((120 - m.TR_F) * 0.9) < 120 - m.TR_F
     one = m.build_props_conceived(_spec(shots=[["OrbitPulse", {}]]), "GPS")
     assert m.settled_frame(one) == int(m.SCENE_F * 0.9), "a lone hero has no seam to avoid"
+
+
+def _board(tmp_path, meta, narr=("极光是太阳风吹出来的光。", "它在八十到五百公里的高空亮起。")):
+    import json
+    slides = [{"index": i + 1, "narration": t} for i, t in enumerate(narr)]
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": meta, "slides": slides}, ensure_ascii=False),
+                                              encoding="utf-8")
+    return str(tmp_path)
+
+
+def test_a_sample_is_drawn_in_the_films_own_frame(tmp_path):
+    """Three benchmark films (9:16, 1:1) got 16:9 samples, and every sample drifted on a camera bed the delivered film
+    never has (render_remotion passes `cameraBed: meta.camera_bed is True`; the Film's own default is on)."""
+    m = _mod()
+    tall = tmp_path / "tall"
+    tall.mkdir()
+    frame, _ = m.film_frame(_board(tall, {"aspect": "9:16"}))
+    p = m.build_props_conceived(_spec(dna="editorial"), "介绍飞书", frame)
+    assert (p["aspect"], p.get("safe"), p["cameraBed"]) == ("9:16", "social", False), p
+    sq = tmp_path / "sq"
+    sq.mkdir()
+    frame, _ = m.film_frame(_board(sq, {"aspect": "1:1", "camera_bed": True}))
+    assert (frame["aspect"], frame.get("safe"), frame["cameraBed"]) == ("1:1", None, True), frame
+    empty = tmp_path / "none"
+    empty.mkdir()
+    assert m.film_frame(str(empty), "4:5")[0]["aspect"] == "4:5"     # before there is a board: --aspect
+    assert m.film_frame(str(empty))[0]["aspect"] == "16:9"
+    import pytest
+    with pytest.raises(SystemExit):
+        m.film_frame(str(empty), "21:9")
+
+
+def test_a_sample_captions_the_films_words_not_the_pitch(tmp_path):
+    m = _mod()
+    out = _board(tmp_path, {"aspect": "16:9"})
+    pitch = "镜头像在看一张 NASA 的长曝光照片，暗部压低，只留一道绿光在天上慢慢地展开然后再收回到地平线之下去"
+    p = m.build_props_conceived(_spec(dna="editorial", pitch=pitch), "极光是怎么形成的", m.film_frame(out)[0],
+                                m.film_lines(out))
+    caps = [s["caption"] for s in p["scenes"]]
+    assert caps == ["极光是太阳风吹出来的光。", "它在八十到五百公里的高空亮起。"], caps
+    assert not any("NASA" in c for c in caps)
+    q = m.build_props_conceived(_spec(dna="editorial", pitch=pitch), "Dieter Rams on less but better design " * 3)
+    assert all(not c.endswith(("Dieter…", "Ram…", "Dieter Ra…")) and len(c) <= 70 for c in
+               (s["caption"] for s in q["scenes"])), [s["caption"] for s in q["scenes"]]
+
+
+def test_a_seed_wordmark_is_cut_at_a_boundary_not_mid_word():
+    """`t.upper()[:22]` made the Dieter Rams film's seed wordmark "DIETER RAMS 少，但更好 WENI"."""
+    import sys
+    sys.path.insert(0, _SCRIPTS)
+    import _common as c
+    import shot_templates as st
+    _hero, props = st.contest_still("kinetic-editorial", "Dieter Rams 少，但更好 Weniger, aber besser")
+    assert props["word"] == "DIETER RAMS 少，但更好", props
+    assert c.clip_text("镜头像在看一张 NASA 的照片", 12, ellipsis="") == "镜头像在看一张 NASA"
+    assert c.clip_text("镜头像在看一张 NASA 的照片", 11) == "镜头像在看一张…"
+    assert c.clip_text("short", 40) == "short"
+
+
+def test_a_board_from_the_plan_declares_the_frame_of_its_aspect(tmp_path):
+    """`storyboard.py --from-plan aspect=9:16` wrote meta.width 1920 / height 1080 (two benchmark films fixed it by
+    hand)."""
+    import sys
+    sys.path.insert(0, _SCRIPTS)
+    import pytest
+    import storyboard as sb
+    for asp, wh in (("9:16", (1080, 1920)), ("1:1", (1080, 1080)), ("4:5", (1080, 1350)), ("16:9", (1920, 1080))):
+        m = sb.new_storyboard({"aspect": asp})["meta"]
+        assert (m["width"], m["height"]) == wh, (asp, m)
+    assert sb.new_storyboard()["meta"]["width"] == 1920
+    assert sb.new_storyboard({"aspect": "9:16", "width": 720, "height": 1280})["meta"]["width"] == 720
+    with pytest.raises(SystemExit):
+        sb.new_storyboard({"aspect": "21:9"})

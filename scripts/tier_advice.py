@@ -17,12 +17,13 @@ The tiers are not three looks. They are three different trade-offs, and every on
 
   html     one authored page per beat, rendered by headless Chrome. Two capabilities the cinematic tier does
            not have: a multi-point page MUST bind each point to the word that names it (`data-cue`, fired on
-           the edge-tts word timings), so a point appears as it is SPOKEN — 0 of the 185 cinematic registers
-           read word timings; they animate on their own clock. And a one-beat edit re-renders one beat: the
+           the edge-tts word timings), so a point appears as it is SPOKEN — most cinematic registers animate
+           on their own clock (only the few that import runtime/cue time their items to the voice; counted
+           from the registry by library_counts()). And a one-beat edit re-renders one beat: the
            per-slide clip cache, plus a whole-film `--preview`. Any table, chart, code block or equation is
            laid out as the content needs rather than fitted to a register's capacity.
 
-  remotion the bespoke-shot library — 185 hand-designed shot languages, luminance-safe seams, a carry
+  remotion the bespoke-shot library — every register in remotion/src/registry.ts, luminance-safe seams, a carry
            match-cut, a design DNA for the whole film. The strongest register for launch, promo and story.
            It renders PER BEAT and keeps the beats an edit did not touch (remotion_segments.py): a VISUAL edit
            re-renders that beat and the next, but a NARRATION edit changes a beat's length and so re-renders
@@ -40,6 +41,26 @@ import json
 import os
 import re
 import sys
+
+_CUE_IMPORT = re.compile(r"""from\s+['"](?:\.\./runtime|@runtime)/cue['"]""")
+
+
+def library_counts():
+    """(registered shots, of which time items to the voice) — DERIVED from remotion/src/registry.ts and each
+    register's imports, never typed: three documents said 185, 194 and 204 for the same library (213 when this was
+    written), and "0 of the 185 registers read word timings" stayed in this file after registers began importing
+    runtime/cue."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import dna_audit as _da
+    ids = _da.registered_shots()
+    shots = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "shots")
+    cued = 0
+    for i in ids:
+        try:
+            cued += bool(_CUE_IMPORT.search(open(os.path.join(shots, i + ".tsx"), encoding="utf-8").read()))
+        except OSError:
+            pass
+    return len(ids), cued
 
 TIERS = ("slides", "html", "remotion")
 
@@ -143,7 +164,7 @@ def recommend(purpose, has_deck=False, keep_deck=False, data_dense=None, remotio
         return out("html", "这个目的最适合电影感分支，但这台机器没装 remotion；html 能做，只是少了镜头语言库。",
                    "This purpose suits the cinematic tier, but remotion is not installed here; html can do it "
                    "without the shot-language library.",
-                   "没有 185 种镜头语言和电影化接缝。", "No shot-language library, no cinematic seams.",
+                   "没有 %d 种镜头语言和电影化接缝。" % library_counts()[0], "No shot-language library, no cinematic seams.",
                    None, basis + "+remotion-missing")
 
     if tier == "html":
@@ -155,9 +176,10 @@ def recommend(purpose, has_deck=False, keep_deck=False, data_dense=None, remotio
                    "少了电影感的镜头语言和接缝。", "Less cinematic motion and fewer designed seams.",
                    "remotion" if remotion_ok else "slides", basis)
     return out("remotion",
-               "发布、宣传和讲故事靠的是镜头语言和节奏：185 种设计好的镜头、电影化接缝、统一的品牌 DNA。",
-               "Launch, promo and story run on shot language and pace: 185 designed shots, cinematic seams, one "
-               "brand DNA across the film.",
+               "发布、宣传和讲故事靠的是镜头语言和节奏：%d 种设计好的镜头、电影化接缝、统一的品牌 DNA。"
+               % library_counts()[0],
+               "Launch, promo and story run on shot language and pace: %d designed shots, cinematic seams, one "
+               "brand DNA across the film." % library_counts()[0],
                "要点不会随口播逐条出现；改一拍的画面只重渲这一拍和下一拍，但改口播会让它后面的拍全部重渲；"
                "也更吃内存和时间。",
                "Points do not appear as they are spoken; a visual edit re-renders that beat and the next, but a "

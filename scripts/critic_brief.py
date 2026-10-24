@@ -78,17 +78,29 @@ def _run(script, out_dir, *args, timeout=240):
 # The check before the review-depth question (`--gates`) runs every delivery gate, and the brief that follows on the
 # same render ran them all again: a remotion film's census gates, the CJK sweep and the energy decode, two to three
 # and a half minutes, re-measuring a film nobody had touched. Each run now leaves its results in GATE_RUNS with the
-# render id and a fingerprint of everything the gates read; a later run on the same render with the same inputs
-# prints the recorded verdict and exit code instead of re-running. What counts as an input is decided by EXCLUSION —
-# the review's and the gates' own outputs (every `_`/`.`-prefixed name, the delivered files the render id already
-# covers) — so a file nobody thought to list is an input, and an unexpected one costs a re-run, never a stale pass.
+# render id and, PER GATE, a key over what that gate reads; a later run on the same render whose key for a gate is
+# unchanged prints that gate's recorded verdict and exit code instead of re-running it.
+#
+# WHAT A GATE READS. The film folder is decided by EXCLUSION — the review's and the gates' own outputs (every `_`/`.`
+# name, the delivered files the render id already covers), so a file nobody thought to list is an input and costs a
+# re-run, never a stale pass. Two exclusions were missing and cost 13-minute re-gates on unchanged renders (three
+# benchmark films): a run's NOTES or a contact sheet saved beside the film (a top-level document or picture that the
+# board does not name — no gate opens one), and `meta.script_review` / `script_review.json` (written by the script
+# critic; no gate reads either). The SKILL side was every file under scripts/ and remotion/src, so another agent
+# merging a branch into the skill mid-run re-ran every gate on a render nothing had touched. It is now each gate's own
+# CODE CLOSURE — the script, every scripts/ module it imports (transitively) and every scripts/ file it names by
+# literal — plus the renderer's source for a gate whose closure renders or reads it. Wide where it is cheap (all of
+# remotion/src, not one register's imports), narrow where the saving is (check_av does not re-run for a workshop edit).
 GATE_RUNS = "_gate_runs.json"
-_CACHE = None              # main() sets {"render", "inputs", "gates": {name: {exit, blocking, output}}}
+_CACHE = None              # main() sets {"render", "files", "old", "gates": {name: {exit, output, key}}}
 _NOT_INPUTS = {"out.mp4", "out.srt", "sample.mp4", "preview.mp4", "audition.mp3", "NOT_DELIVERED.md", "qa",
-               "voice_samples"}
-_REVIEW_ONLY_KEYS = ("review", "review_waiver")   # written between `--gates` and the brief; no gate reads them
+               "voice_samples", "script_review.json"}
+_REVIEW_ONLY_KEYS = ("review", "review_waiver", "script_review")   # no gate reads them
+# a top-level file with one of these extensions is a NOTE or a picture of the run unless the board names it
+_DOC_EXT = (".md", ".txt", ".log", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".mov", ".pdf", ".html")
 _SKILL_INPUTS = (("scripts", None), (os.path.join("remotion", "src"), None), ("remotion", ".json"),
                  (os.path.join("assets", "html"), None))
+_OUTPUT_KEEP = 20000       # characters of a gate's output kept in the record (a FAILURE's too: its reason)
 
 
 def _skipped(name, film):
@@ -100,8 +112,18 @@ def _skipped(name, film):
     return name.startswith(".") or name in ("__pycache__", "node_modules")
 
 
-def _hash_tree(h, base, label, ext=None, top_skip=()):
+def _board_text(out_dir):
+    try:
+        return open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8").read()
+    except OSError:
+        return ""
+
+
+def _manifest_tree(base, label, ext=None, top_skip=(), named=None):
+    """{"<label>:<rel>": sha256} of the files under `base` that are inputs. `named` (film only) is the board's text: a
+    top-level _DOC_EXT file it does not name is a note or a picture of the run, not an input."""
     film = label == "film"
+    out = {}
     for dp, dns, fns in os.walk(base):
         dns[:] = sorted(d for d in dns if not _skipped(d, film) and not (dp == base and d in top_skip))
         if ext and dp != base:
@@ -110,9 +132,11 @@ def _hash_tree(h, base, label, ext=None, top_skip=()):
             if _skipped(f, film) or (dp == base and f in top_skip) or (ext and not f.endswith(ext)) or \
                     f.endswith(".pyc"):
                 continue
+            if film and dp == base and f.lower().endswith(_DOC_EXT) and f not in (named or ""):
+                continue
             path = os.path.join(dp, f)
             rel = os.path.relpath(path, base)
-            if label == "film" and rel == "storyboard.json":
+            if film and rel == "storyboard.json":
                 try:
                     b = json.load(open(path, encoding="utf-8"))
                     meta = {k: v for k, v in (b.get("meta") or {}).items() if k not in _REVIEW_ONLY_KEYS}
@@ -121,8 +145,8 @@ def _hash_tree(h, base, label, ext=None, top_skip=()):
                     data = _read_or_marker(path)
             else:
                 data = _read_or_marker(path)
-            h.update(("\n%s:%s:" % (label, rel)).encode("utf-8"))
-            h.update(hashlib.sha256(data).digest())
+            out[("film:" if film else label + "/") + rel.replace(os.sep, "/")] = hashlib.sha256(data).hexdigest()
+    return out
 
 
 def _read_or_marker(path):
@@ -134,55 +158,147 @@ def _read_or_marker(path):
         return ("<unreadable: %s>" % type(e).__name__).encode()
 
 
-def gate_inputs(out_dir):
-    """A fingerprint of everything a delivery gate reads apart from the render itself: the film folder minus the
-    review's and the gates' outputs (and the review answer, which no gate reads), plus the skill's own code."""
-    h = hashlib.sha256()
-    _hash_tree(h, out_dir, "film", top_skip=_NOT_INPUTS)
+def input_files(out_dir):
+    """{"film:<rel>" | "skill:<sub>/<rel>": sha256} — every file a delivery gate may read apart from the render
+    itself: the film folder minus the review's and the gates' outputs and the run's notes, plus the skill's code."""
+    files = _manifest_tree(out_dir, "film", top_skip=_NOT_INPUTS, named=_board_text(out_dir))
     root = os.path.join(_HERE, "..")
     for sub, ext in _SKILL_INPUTS:
-        _hash_tree(h, os.path.join(root, sub), "skill:" + sub + (ext or ""), ext=ext)
+        files.update(_manifest_tree(os.path.join(root, sub), "skill:" + sub.replace(os.sep, "/"), ext=ext))
+    return files
+
+
+def gate_inputs(out_dir):
+    """One fingerprint over input_files() — every gate's inputs together."""
+    h = hashlib.sha256()
+    for k, v in sorted(input_files(out_dir).items()):
+        h.update(("%s=%s\n" % (k, v)).encode("utf-8"))
     return h.hexdigest()
 
 
-def _load_gate_runs(out_dir, rid, inputs):
-    """The gate results recorded on this render with these inputs ({name: {exit, blocking, output}}), else {}."""
+_IMPORT_RE = re.compile(r"^\s*(?:from\s+([A-Za-z_]\w*)|import\s+([A-Za-z_][\w ,]*))", re.M)
+_LITERAL_RE = re.compile(r"""['"]([A-Za-z_][\w-]*\.(?:py|cjs|mjs|js|swift))['"]""")
+# a closure file that runs the renderer or reads its source: the gate depends on remotion/src (and assets/html)
+_RENDERER_RE = re.compile(r"""['"](?:npx|src|shots|runtime)['"]|remotion[/\\]src""")
+_CLOSURES = {}
+
+
+def _code_closure(script):
+    """(frozenset of "skill:scripts/<f>", renders?) — `script`, every scripts/ module it imports (any depth, function-
+    local imports too) and every scripts/ file it names by literal ("glide_frames.cjs", a sibling gate run as a
+    subprocess). Static, so it is wide on purpose: a name the scan cannot resolve is not dropped, it is simply absent
+    from a closure that already holds every module the gate's own imports reach."""
+    if (_HERE, script) in _CLOSURES:
+        return _CLOSURES[(_HERE, script)]
+    seen, todo, renders = set(), [script], False
+    while todo:
+        f = todo.pop()
+        if f in seen:
+            continue
+        path = os.path.join(_HERE, f)
+        if not os.path.isfile(path):
+            continue
+        seen.add(f)
+        if not f.endswith(".py"):
+            continue
+        src = open(path, encoding="utf-8", errors="replace").read()
+        renders = renders or bool(_RENDERER_RE.search(src))
+        for a, b in _IMPORT_RE.findall(src):
+            for n in ([a] if a else [x.strip().split(" ")[0] for x in b.split(",")]):
+                todo.append(n + ".py")
+        todo.extend(_LITERAL_RE.findall(src))
+    out = (frozenset("skill:scripts/" + f for f in seen), renders)
+    _CLOSURES[(_HERE, script)] = out
+    return out
+
+
+def gate_key(script, args, files):
+    """The key a gate's recorded verdict is reused under: its name, the film's inputs, its own code closure and — for a
+    gate that renders or reads the renderer's source — all of remotion/src, remotion/*.json and assets/html."""
+    closure, renders = _code_closure(script)
+    h = hashlib.sha256(("%s %s\n" % (script, " ".join(args))).encode("utf-8"))
+    for k in sorted(files):
+        if k.startswith("film:") or k in closure or (renders and k.startswith(("skill:remotion", "skill:assets"))):
+            h.update(("%s=%s\n" % (k, files[k])).encode("utf-8"))
+    for k in sorted(closure - set(files)):
+        h.update(("%s=<missing>\n" % k).encode("utf-8"))
+    return h.hexdigest()
+
+
+def _changed(script, old_files, files):
+    """The inputs of `script` that differ between two manifests (added, removed or edited), sorted."""
+    closure, renders = _code_closure(script)
+    mine = lambda k: k.startswith("film:") or k in closure or (renders and k.startswith(("skill:remotion",
+                                                                                          "skill:assets")))
+    keys = {k for k in set(old_files) | set(files) if mine(k)}
+    return sorted(k for k in keys if old_files.get(k) != files.get(k))
+
+
+def _say_changed(paths, n=4):
+    shown = [p.split(":", 1)[1] for p in paths[:n]]
+    return ", ".join(shown) + (" (+%d more)" % (len(paths) - n) if len(paths) > n else "")
+
+
+def _load_gate_runs(out_dir, rid):
+    """(gates, files) recorded on THIS render — {name: {exit, output, key}} and the input manifest they were keyed on —
+    else ({}, {}). A record in an older format (one fingerprint for all gates) has no keys, so nothing in it is reused."""
     try:
         rec = json.load(open(os.path.join(out_dir, GATE_RUNS), encoding="utf-8"))
     except (OSError, ValueError):
-        return {}
-    if not isinstance(rec, dict) or rec.get("render") != rid or rec.get("inputs") != inputs:
-        return {}
-    return rec.get("gates") if isinstance(rec.get("gates"), dict) else {}
+        return {}, {}
+    if not isinstance(rec, dict) or rec.get("render") != rid or not isinstance(rec.get("gates"), dict):
+        return {}, {}
+    return ({k: g for k, g in rec["gates"].items() if isinstance(g, dict)},
+            rec.get("files") if isinstance(rec.get("files"), dict) else {})
 
 
 def _gate_run(script, out_dir, args=(), timeout=240):
-    """Run one delivery gate — or, when main() found it recorded on this render with nothing it reads changed, hand
-    back that run's verdict and exit code. Only a real exit code is kept: a timeout or a gate that could not start is
-    run again next time."""
+    """Run one delivery gate — or, when main() found it PASSED on this render under the same key (nothing it reads has
+    changed), hand back that run's verdict and exit code. Every run is recorded, a failure with its output (the reason
+    it failed is otherwise only in a console); only a pass is ever reused."""
     import critic_ledger as _cl
     name = _cl.gate_name(script, args)
     cache = _CACHE
-    if cache is not None and name in cache.get("hit", {}):
-        g = cache["hit"][name]
-        cache["gates"][name] = g
+    if cache is None:
+        return _run(script, out_dir, *args, timeout=timeout)
+    key = gate_key(script, args, cache["files"])
+    was = cache["old"].get(name)
+    if was and was.get("exit") == 0 and was.get("key") == key:
+        cache["gates"][name] = was
         return GateOutput("(not re-run: recorded on this render by an earlier critic_brief.py run, and nothing it "
-                          "reads has changed since — this is that run's verdict)\n" + str(g.get("output", "")),
-                          g.get("exit"))
+                          "reads has changed since — this is that run's verdict)\n" + str(was.get("output", "")),
+                          was.get("exit"))
+    if was:
+        what = _changed(script, cache["old_files"], cache["files"])
+        print("[critic_brief] %s re-run on this render: %s" % (
+            name, ("its recorded run exited %s, and only a pass is reused" % was.get("exit")) if was.get("exit") != 0
+            else ("changed since its recorded pass: " + _say_changed(what)) if what
+            else "its key changed (a record from an older critic_brief)"))
     out = _run(script, out_dir, *args, timeout=timeout)
     code = getattr(out, "code", None)
-    # ONLY A PASS IS KEPT. A failure can come from the environment (a browser that flaked, a missing tool), which
-    # the fingerprint cannot see — replaying it would hold the film failed after the cause was fixed.
-    if cache is not None and code == 0:
-        cache["gates"][name] = {"exit": code, "output": str(out)}
+    if code is None:
+        return out
+    # A FAILURE IS RECORDED, NEVER REPLAYED. It can come from the environment (a browser that flaked, a missing tool),
+    # which no key can see — replaying it would hold the film failed after the cause was fixed. It is kept so the
+    # record says what happened on every gate of the run, with the gate's own words.
+    cache["gates"][name] = {"exit": code, "output": str(out)[-_OUTPUT_KEEP:], "key": key}
+    if was and was.get("exit") == 0 and code != 0:
+        what = _changed(script, cache["old_files"], cache["files"])
+        print("[critic_brief] !! %s PASSED on this same render in an earlier run and now FAILS (exit %s). %s"
+              % (name, code, ("What it reads changed in between: %s." % _say_changed(what)) if what else
+                 "NOTHING it reads changed in between, so suspect the environment (a starved or killed render, a lock "
+                 "wait past the gate's timeout) and re-run this gate alone before changing the film."))
     return out
 
 
 def _save_gate_runs(out_dir):
+    """Write the record. A gate this run did not reach keeps its earlier entry on this render (its key says whether it
+    is still reusable), so an interrupted run never leaves a record with fewer gates than it found."""
     if _CACHE is None or not _CACHE.get("render"):
         return
+    gates = dict(_CACHE["old"], **_CACHE["gates"])
     try:
-        json.dump({"render": _CACHE["render"], "inputs": _CACHE["inputs"], "gates": _CACHE["gates"]},
+        json.dump({"render": _CACHE["render"], "files": _CACHE["files"], "gates": gates},
                   open(os.path.join(out_dir, GATE_RUNS), "w", encoding="utf-8"), ensure_ascii=False)
     except OSError as e:
         print("[critic_brief] gate results not kept for reuse (%s) — the next run re-runs them" % e)
@@ -915,13 +1031,15 @@ def main(argv):
             made = "NOT BUILT (%s) — any older sheet was removed" % e
     global _CACHE
     if sheet_ok:
-        rid, inputs = _cl.render_id(out_dir), gate_inputs(out_dir)
-        _CACHE = {"render": rid, "inputs": inputs, "gates": {},
-                  "hit": {k: g for k, g in _load_gate_runs(out_dir, rid, inputs).items()
-                          if isinstance(g, dict) and g.get("exit") == 0}}     # a recorded failure is re-run
-        if _CACHE["hit"]:
-            print("[critic_brief] %d gate result(s) recorded on this render with unchanged inputs — reused, not re-run"
-                  % len(_CACHE["hit"]))
+        rid, files = _cl.render_id(out_dir), input_files(out_dir)
+        old, old_files = _load_gate_runs(out_dir, rid)
+        _CACHE = {"render": rid, "files": files, "gates": {}, "old": old, "old_files": old_files}
+        reuse = sum(1 for _l, sc, ar, _t, _b in _gate_rows(out_dir)
+                    if (old.get(_cl.gate_name(sc, ar)) or {}).get("exit") == 0
+                    and old[_cl.gate_name(sc, ar)].get("key") == gate_key(sc, ar, files))
+        if old:
+            print("[critic_brief] %d gate result(s) recorded on this render with nothing they read changed — reused, "
+                  "not re-run" % reuse)
     try:
         if gates_only:
             return _gates_only(out_dir, tier, ran, sheet_ok, made)

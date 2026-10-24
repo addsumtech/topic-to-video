@@ -149,14 +149,32 @@ def kinetic_capable(shot, out_dir=None):
     return bool(re.search(r"""from\s+['"](?:\.\./runtime|@runtime)/kinetic['"]""", src))
 
 
+_HANGUL = re.compile(r"[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]")
+_KANA = re.compile(r"[\u3040-\u30ff\u31f0-\u31ff]")
+_HAN = re.compile(r"[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]")
+
+
 def reading_seconds(rec):
     """(read once, read to be understood) in seconds for one hold record: the published rate per script for the
-    first, ~0.6 s a word for the second (never below the first)."""
+    first, ~0.6 s a word for the second (never below the first).
+
+    EACH CHARACTER AT ITS OWN SCRIPT'S RATE. The rate used to be chosen once, by the line's language, so a mixed line
+    was timed as all one script: 「装技能：npx skills add …」 (3 Han + 38 Latin) was held to 9 characters a second —
+    4.56 s — while the same command without its three Han characters needed 1.95 s, and the author deleted 装技能 to
+    pass. Han and CJK punctuation read at the zh rate (ja on a Japanese line), kana at ja, Hangul at ko, everything
+    else at the Latin rate; the sum is the line's time. A record with no text keeps the per-line rate."""
     lang = str(rec.get("lang") or "")
     c = _READING["cps"]
-    cps = c["ja"] if lang.startswith("ja") else c["zh"] if lang.startswith("zh") else c["ko"] if lang.startswith("ko") \
-        else c["latin"]
-    once = max(_READING["minSeconds"], float(rec.get("chars") or 0) / cps)
+    text = "".join(str(rec.get("text") or "").split())
+    if text:
+        han = c["ja"] if lang.startswith("ja") else c["zh"]
+        t = sum(1.0 / (c["ko"] if _HANGUL.match(ch) else c["ja"] if _KANA.match(ch) else han if _HAN.match(ch)
+                       else c["latin"]) for ch in text)
+        once = max(_READING["minSeconds"], t)
+    else:
+        cps = c["ja"] if lang.startswith("ja") else c["zh"] if lang.startswith("zh") else c["ko"] \
+            if lang.startswith("ko") else c["latin"]
+        once = max(_READING["minSeconds"], float(rec.get("chars") or 0) / cps)
     return once, max(once, float(rec.get("words") or 0) * MUST_READ_S_PER_WORD)
 
 

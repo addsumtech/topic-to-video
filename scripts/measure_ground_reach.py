@@ -243,7 +243,7 @@ def render(shot, key, dna, td, fixtures=None):
         scene["props"] = fixtures[shot]                  # its artefact, or it draws furniture around a hole
     json.dump({"scenes": [scene], "dna": dna, "captions": False, "camera": 0},
               open(props, "w"))
-    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", "Film", png,
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", "Film", png,
                         "--frame=%d" % PROBE_FRAME, "--gl=angle", "--timeout=90000",
                         "--scale=%s" % PROBE_SCALE, "--log=error", "--props=" + props],
                        cwd=_REMOTION, capture_output=True, text=True)

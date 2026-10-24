@@ -261,7 +261,47 @@ def settled_frame(props):
     return max(0, int(clear * 0.9))
 
 
-def build_props_conceived(spec, topic):
+def film_frame(out_dir, aspect=None):
+    """(props, meta): what decides WHAT FRAME a sample is — the film's aspect, platform-safe zone, camera, camera bed,
+    captions and dither — read from <out_dir>/storyboard.json by the RENDERER's own rules (render_remotion.film_props),
+    so the direction the user picks is drawn in the frame the film will be. The samples used to carry none of it: a
+    9:16 and a 1:1 film had all three directions rendered at 1920x1080, and the Film's own `cameraBed` default (on)
+    put a drift under every sample that the delivered film (render_remotion passes `meta.camera_bed is True`) never
+    has — the judge measured a 12 px needle drift and called it a craft defect in the shot. `aspect` (the CLI's
+    --aspect) wins over the board, for a contest run before there is one."""
+    import render_remotion as _rr
+    meta = {}
+    try:
+        meta = (json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8")) or {}).get("meta") or {}
+    except (OSError, ValueError, AttributeError):
+        meta = {}
+    if aspect:
+        meta = dict(meta, aspect=aspect)
+    asp = str(meta.get("aspect") or "16:9")
+    from _caption_band import aspect_table
+    if asp not in aspect_table():
+        raise SystemExit("[contest_sample] aspect %r is not one the renderer draws (%s)"
+                         % (asp, ", ".join(sorted(aspect_table()))))
+    props = {"aspect": asp, "camera": _rr._camera_amp(meta), "cameraBed": meta.get("camera_bed") is True,
+             "captions": bool(meta.get("captions", True)), "dither": meta.get("dither") is not False}
+    zone = _rr.safe_zone(meta, asp)
+    if zone:
+        props["safe"] = zone
+    return props, meta
+
+
+def film_lines(out_dir, n=3):
+    """The film's own first narration lines (storyboard.json), the caption a sample burns — never the direction's
+    pitch, which is a note to the judge and was burned into every sample as if the film said it."""
+    try:
+        slides = (json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8")) or {}).get("slides") or []
+    except (OSError, ValueError, AttributeError):
+        return []
+    return [str(s.get("narration")).strip() for s in slides if isinstance(s, dict) and str(s.get("narration") or "")
+            .strip()][:n]
+
+
+def build_props_conceived(spec, topic, frame=None, lines=None):
     """A Film props dict for a direction the AUTHOR conceived, rendered through the same path as a seed.
 
     Without this, conceiving a direction had no way to reach the screen, so the catalogue's fallback padding
@@ -285,9 +325,10 @@ def build_props_conceived(spec, topic):
         raise SystemExit("[contest_sample] conceived direction %r has no `shots` — a direction that cannot be "
                          "rendered is a pitch, and the whole point of the contest is that the user SEES it."
                          % spec.get("key"))
-    pitch = spec.get("pitch") or "a conceived direction"
-    # the user's own language only: the key and an English tagline used to be burned into a Chinese film's samples
-    caps = [pitch[:70], topic[:70]]
+    # THE FILM'S OWN WORDS, cut at a boundary. The pitch is a note to the judge, and `pitch[:70]` burned it into every
+    # sample as the film's caption — mid-word ("镜头像在看一张 NAS…"); the judge had to be told to ignore it.
+    import _common as _c
+    caps = [_c.clip_text(x, 70) for x in (lines or []) if str(x).strip()] or [_c.clip_text(topic, 70)]
     scenes = [{"shot": sid, "props": props, "durF": dur, "caption": caps[i % len(caps)]}
               for i, (sid, props, dur) in enumerate(shots)]
     seam = spec.get("seam") or {"type": "dissolve"}
@@ -296,6 +337,7 @@ def build_props_conceived(spec, topic):
     if len(scenes) > 1:
         scenes[1]["transitionIn"] = dict(seam)
     props = {"camera": 0, "scenes": scenes}
+    props.update(frame or {})
     dna = spec.get("dna")
     if isinstance(dna, dict):
         props["dna"] = dna                      # the conceived look itself — the Film coerces a partial one
@@ -316,6 +358,8 @@ def main():
                          "[{key, pitch, ideal, palette_source:[{colour, from}], dna, seam, "
                          "shots:[[BuiltHero, {props}], [ShotId, {props}], ...]}] — the hero BUILT in this film's "
                          "workshop. A catalogue seed is material for a direction, never one.")
+    ap.add_argument("--aspect", default=None,
+                    help="the film's aspect when there is no storyboard yet (default: storyboard meta.aspect, else 16:9)")
     a = ap.parse_args()
     width = a.n if a.n is not None else stpl.contest_width(a.audacity)
     if width <= 0:
@@ -364,13 +408,18 @@ def main():
         print("[contest_sample] no designed direction to render — pass --conceived <file.json>")
         sys.exit(2)
     env = _ws.run_kwargs(out_dir)             # the film's workshop in the bundle: the heroes are built there
-    first = build_props_conceived(cands[0][1], a.route)
+    frame, _meta = film_frame(out_dir, a.aspect)
+    lines = film_lines(out_dir)
+    print("[contest_sample] frame: %s%s, camera %s, camera bed %s — the film's own (storyboard meta%s)"
+          % (frame["aspect"], " · safe " + frame["safe"] if frame.get("safe") else "", frame["camera"],
+             "on" if frame["cameraBed"] else "off", ", --aspect" if a.aspect else ""))
+    first = build_props_conceived(cands[0][1], a.route, frame, lines)
     total_f = sum(sc["durF"] for sc in first["scenes"]) - (len(first["scenes"]) - 1) * TR_F
     print("[contest_sample] %d direction sample(s) for %r → _contest_<key>.mp4 (~%.1fs each) + _contest_<key>.png:"
           % (len(cands), a.route, total_f / FPS))
     made = []
     for k, spec in cands:
-        props = build_props_conceived(spec, a.route)
+        props = build_props_conceived(spec, a.route, frame, lines)
         pjson = os.path.join(out_dir, "_contest_%s.props.json" % k)
         with open(pjson, "w") as f:
             json.dump(props, f, ensure_ascii=False)

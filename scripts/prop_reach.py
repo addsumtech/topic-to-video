@@ -121,7 +121,7 @@ def _still(name, props, out_png, frame, dna):
     pf = out_png + ".props.json"
     with open(pf, "w", encoding="utf-8") as fh:
         json.dump(dict(props, dna=dna), fh, ensure_ascii=False)
-    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", name, out_png,
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", name, out_png,
                         "--frame=%d" % frame, "--gl=angle", "--log=error", "--props=" + pf],
                        cwd=_REMOTION, capture_output=True, text=True)
     if r.returncode == 0 and os.path.exists(out_png):

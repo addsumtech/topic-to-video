@@ -481,7 +481,11 @@ def render_segment(seg, last, props_path, public_dir, cache, cli_flags, run=subp
            + ([] if serve else ["--public-dir=" + os.path.abspath(public_dir)]) + list(cli_flags))
     # NO RETRY HERE. A retry on another backend inside one segment is how a film came to mix backends; a GL
     # failure propagates to render_film, which re-renders the whole film on the fallback (see FALLBACK_GL).
-    run(cmd, cwd=REMOTION, check=True, **_wk(env))
+    # A HANG is the exception, retried once on the SAME backend: the real render is WATCHED (_common.watched_run) —
+    # a segment whose process tree stops working is killed, said, and re-run; one that hangs twice fails like any
+    # other render (exit 124), so it falls back like one.
+    import _common as _c
+    (_c.watched_run if run is _c._REAL_RUN else run)(cmd, cwd=REMOTION, check=True, **_wk(env))
     got, want = video_frames(tmp), seg["b"] - seg["a"] + 1
     if got != want:
         os.remove(tmp)

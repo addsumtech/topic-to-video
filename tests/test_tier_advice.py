@@ -170,3 +170,21 @@ def test_a_long_slide_gets_advice_the_user_can_act_on(tmp_path):
                     str(tmp_path))["warnings"]
     hold = [w for w in ws if "12.0s" in w]
     assert hold and "trim the narration" in hold[0] and "can't be split" in hold[0], ws
+
+
+def test_every_stated_library_size_is_the_registrys():
+    """README said 194, SKILL.md and tier_advice 185, LIBRARY.md's census 204 — for one library. The size is
+    derived from remotion/src/registry.ts (tier_advice.library_counts); every document that states one must agree."""
+    import re
+    import tier_advice as ta
+    n, _cued = ta.library_counts()
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    pat = re.compile(r"(\d{3}) (?:hand-built shot designs|designs \(|hand-designed shot languages|designed shots)|"
+                     r"(\d{3}) 种(?:手工|镜头|设计好的镜头)")
+    found = []
+    for doc in ("README.md", "README_CN.md", "SKILL.md"):
+        for m in pat.finditer(open(os.path.join(root, doc), encoding="utf-8").read()):
+            found.append((doc, int(m.group(1) or m.group(2))))
+    assert found, "the pattern no longer finds the library size in the docs — update it with the wording"
+    wrong = [(d, k) for d, k in found if k != n]
+    assert not wrong, "these documents state a library size that is not the registry's %d: %s" % (n, wrong)

@@ -377,3 +377,17 @@ def test_a_census_that_fails_renders_unwarped_and_says_so(tmp_path, monkeypatch)
     plan = sq.derive_warps(str(tmp_path), board, props, slides, log=said.append)
     assert plan[0][0] == "needed" and "warp" not in props["scenes"][0]
     assert said and "could not measure" in said[0] and "probe" in said[0]
+
+
+def test_a_word_made_with_a_light_character_is_a_mention():
+    """实用 = 实 + 用, and 用 was a stop character: 「实用」 never got a cue and the Dieter Rams dial ran a station
+    ahead of the voice. A light character (用 更 能 最 中 上) is half of a real word; a PARTICLE (的 了 们) is not."""
+    sp = _spoken("好的设计是创新的，好的设计是实用的，而且更好看，最好是可能的")
+    for word in ("实用", "更好", "最好", "可能"):
+        assert sq.best_match(sq.units(word), sp) is not None, word
+    s0, _L, _t0 = sq.best_match(sq.units("实用"), sp)
+    assert "".join(u[1] for u in sp[s0:s0 + 2]) == "实用"
+    # ...and the defect the stop list was written for stays caught: a particle and one content character
+    assert sq.best_match(sq.units("松散的粉"), _spoken("磨好的粉倒进手柄的滤碗")) is None
+    # two light characters are still not content (不用 / 有用 are said everywhere)
+    assert sq.best_match(sq.units("不用"), _spoken("你不用担心")) is None

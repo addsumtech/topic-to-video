@@ -95,6 +95,7 @@ sys.path.insert(0, _HERE)
 _ROOT = os.path.dirname(_HERE)
 _REMOTION = os.path.join(_ROOT, "remotion")
 from onscreen_text_qa import _strip_comments   # the ONE comment stripper
+import _common as _c                            # run_render: the render lock + the hang watch
 _SHOTS = os.path.join(_REMOTION, "src", "shots")
 TAG = "TYPE-COLLISIONS "
 DEFAULT_DNA = "product"
@@ -1751,7 +1752,7 @@ def _default_ink(shot, frame, tmp, dna, aspect):
     with open(pf, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False)
     png = tmp + ".base.png"
-    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
                         "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
                         "--public-dir=" + PUBLIC_DIR],
                        cwd=_REMOTION, capture_output=True, text=True, **_wk())
@@ -1832,7 +1833,7 @@ def _fed_missing(shot, props, frame, tmp, dna, aspect, fed):
     with open(pf, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, allow_nan=False)
     png = tmp + ".fed.png"
-    r = subprocess.run(["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame,
                         "--gl=angle", "--log=error", "--props=" + os.path.abspath(pf),
                         "--public-dir=" + PUBLIC_DIR],
                        cwd=_REMOTION, capture_output=True, text=True, **_wk())
@@ -1924,7 +1925,7 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None, why=None):
     # that dies under a loaded sweep, the failure mode `text_safe_qa.audit_shot` already retries for. One
     # retry, and what survives it is reported with its own message.
     for _attempt in (1, 2):
-        r = subprocess.run(cmd, cwd=_REMOTION, capture_output=True, text=True, **_wk())
+        r = _c.run_render(subprocess.run, cmd, cwd=_REMOTION, capture_output=True, text=True, **_wk())
         err = (r.stderr or "") + (r.stdout or "")
         if TAG in err or r.returncode == 0:
             break
