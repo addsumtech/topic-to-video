@@ -1150,8 +1150,13 @@ def test_a_required_index_is_fed_because_the_register_says_it_is_one():
         "these registers REFUSE to render without a numeric index and the gate does not feed them one, so "
         "it cannot measure them at all: %r (fed: %r)" % (missing, fed))
 
-    # ...AND NOT EVERY NUMBER. An optional selector left unset is the state a film that omits it gets.
+    # ...AND NOT EVERY NUMBER. An optional selector left unset is the state a film that omits it gets. A register
+    # with a relational SIDECAR is fed that curated instance whole (AuroraCurtain's sidecar sets `surgeAt`, a
+    # moment in the beat, so the sweep measures the surge too): those numbers are an authored fixture, not the
+    # generic path guessing an index, so only the generic path is held to this.
     for n, got in fed.items():
+        if os.path.exists(os.path.join(c._RELATIONAL_DIR, n + ".json")):
+            continue
         for prop in got:
             src = open(os.path.join(_ROOT, "remotion", "src", "shots", n + ".tsx"), encoding="utf-8").read()
             assert re.search(r"pass `%s`" % re.escape(prop), src) or re.search(
