@@ -142,6 +142,7 @@ export const MagicMoveType: React.FC<{
   const hs = Array.from({length: MAX_PHRASES}, (_, j) =>
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useKinetic(settingSpecs[j] ?? {text: ' ', w: 10, fit: 'none', font: fixed}));
+  // @truncates: only the unused hooks go; PH itself never exceeds MAX_PHRASES (that throws above)
   const handles = hs.slice(0, PH.length);
   const sub = useKinetic({text: note || ' ', w: Math.min(colW, Math.round(U * 1.1)), h: noteMaxH || NOTE * 2,
     fit: 'box', maxLines: 2, align, wrap: 'balance',
