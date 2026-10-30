@@ -124,16 +124,13 @@ def scan_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
 
 
 def main(argv):
-    as_json = "--json" in argv
-    every = DEFAULT_EVERY
-    for a in argv:
-        if a.startswith("--every="):
-            every = max(1, int(a.split("=", 1)[1]))
-    args = [a for a in argv if not a.startswith("--")]
-    if not args:
-        print(__doc__.strip())
-        return 2
-    out_dir = args[0]
+    import argparse
+    ap = argparse.ArgumentParser(description="Is any picture on screen magnified past its own pixels?")
+    ap.add_argument("out_dir")
+    ap.add_argument("--every", type=int, default=DEFAULT_EVERY, help="sample every Nth frame (default %(default)s)")
+    ap.add_argument("--json", action="store_true")
+    a = ap.parse_args(argv)
+    out_dir, every, as_json = a.out_dir, max(1, a.every), a.json
     r = scan_film(out_dir, every=every)
     if as_json:
         print(json.dumps(r, ensure_ascii=False, indent=1))
