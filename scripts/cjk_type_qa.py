@@ -1772,6 +1772,37 @@ FED_TAG = "FED-TEXT "
 # would report numbers from the broken instrument and look exactly like a normal run. This happened. The
 # mutator holds this sentinel; every render refuses while it is there, loudly, instead of returning a lie.
 _MUTATING = os.path.join(_REMOTION, ".textsafe-mutating")
+# ...and the mutator's copy of the ORIGINAL source, beside it. A `finally` does not run under SIGKILL: the render
+# lock's hang watchdog killed the mutating test mid-render, the mutant stayed on disk with the sentinel, and every
+# later render test in the suite failed on the sentinel (and would have measured the mutant without it). With the
+# original kept here, a sentinel whose owner is DEAD is recovered from, loudly, instead of poisoning the run.
+_MUTATING_ORIG = _MUTATING + ".orig"
+_TEXTSAFE_SRC = os.path.join(_REMOTION, "src", "runtime", "textSafe.tsx")
+
+
+def _pid_alive(pid):
+    try:
+        os.kill(int(pid), 0)
+    except (ValueError, ProcessLookupError):
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _recover_abandoned_mutation(owner):
+    """Restore textSafe.tsx when the process that mutated it is gone. True when it recovered."""
+    if not owner or _pid_alive(owner) or not os.path.exists(_MUTATING_ORIG):
+        return False
+    original = open(_MUTATING_ORIG, encoding="utf-8").read()
+    with open(_TEXTSAFE_SRC, "w", encoding="utf-8") as fh:
+        fh.write(original)
+    for f in (_MUTATING_ORIG, _MUTATING):
+        if os.path.exists(f):
+            os.remove(f)
+    sys.stderr.write("[cjk_type] RECOVERED: pid %s died while textSafe.tsx was deliberately mutated; the original "
+                     "source was restored from %s before this render\n" % (owner, os.path.basename(_MUTATING_ORIG)))
+    return True
 
 # The film's workshop environment for the renders of ONE film-mode sweep (scripts/workshop.py) — None outside it,
 # so a library sweep never bundles a film's workshop.
@@ -1791,11 +1822,12 @@ def _refuse_if_instrument_is_mutated():
         owner = open(_MUTATING, encoding="utf-8").read().strip()
     except OSError:
         return
-    if owner != str(os.getpid()):
+    if owner != str(os.getpid()) and not _recover_abandoned_mutation(owner):
         raise RuntimeError(
             "remotion/src/runtime/textSafe.tsx is deliberately mutated right now — pid %s holds %s — so a "
             "render started here would measure the broken instrument and look like a normal run. Wait for "
-            "that run to finish, or delete the sentinel if a crash left it behind."
+            "that run to finish; if its owner is dead and no .orig copy is beside the sentinel, restore the file "
+            "with `git checkout -- remotion/src/runtime/textSafe.tsx` and delete the sentinel."
             % (owner or "?", _MUTATING))
 
 

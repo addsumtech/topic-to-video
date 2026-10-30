@@ -425,6 +425,8 @@ def test_the_rotation_guard_is_load_bearing_in_both_directions():
     # Announce the mutation: any OTHER run of this gate refuses while the sentinel is there rather than
     # quietly reporting numbers taken from the broken instrument. `_probe_leading` is called through the
     # same `audit()`, so the sentinel is dropped for the two renders that are meant to see the mutant.
+    with open(c._MUTATING_ORIG, "w", encoding="utf-8") as fh:     # first: a kill can land between the two
+        fh.write(src)
     with open(c._MUTATING, "w", encoding="utf-8") as fh:
         fh.write(str(os.getpid()))
     try:
@@ -434,8 +436,9 @@ def test_the_rotation_guard_is_load_bearing_in_both_directions():
         blind_bad = _probe_leading("TiltedTypeCollisionProbe")
     finally:
         open(_TEXTSAFE, "w", encoding="utf-8").write(src)
-        if os.path.exists(c._MUTATING):
-            os.remove(c._MUTATING)
+        for f in (c._MUTATING, c._MUTATING_ORIG):
+            if os.path.exists(f):
+                os.remove(f)
     assert blind_clean, "without the guard the clean tilted probe must report a (false) collision"
     assert not blind_bad, "without the guard the mis-set tilted probe must be MISSED"
 
@@ -1341,3 +1344,24 @@ export const Mirror: React.FC<{
     props, untestable = c.cjk_props("Mirror")
     assert "shared" not in props and "shared" not in untestable, (props, untestable)
     assert "title" in props, props
+
+
+def test_a_mutation_abandoned_by_a_killed_process_is_recovered(tmp_path, monkeypatch):
+    """SIGKILL skips `finally`: the hang watchdog killed the mutating test mid-render, and the mutant plus its
+    sentinel poisoned every later render in the suite. A dead owner with the original kept beside the sentinel
+    is restored; a LIVE owner still refuses; a dead owner with no original still refuses (nothing to restore)."""
+    import subprocess as sp
+    src, sent = tmp_path / "textSafe.tsx", tmp_path / ".textsafe-mutating"
+    monkeypatch.setattr(c, "_TEXTSAFE_SRC", str(src))
+    monkeypatch.setattr(c, "_MUTATING", str(sent))
+    monkeypatch.setattr(c, "_MUTATING_ORIG", str(sent) + ".orig")
+    dead = sp.Popen(["true"]); dead.wait()
+    src.write_text("MUTANT"); sent.write_text(str(dead.pid)); (tmp_path / ".textsafe-mutating.orig").write_text("ORIGINAL")
+    c._refuse_if_instrument_is_mutated()
+    assert src.read_text() == "ORIGINAL" and not sent.exists()
+    sent.write_text(str(os.getppid()))                                  # alive, not us
+    with pytest.raises(RuntimeError):
+        c._refuse_if_instrument_is_mutated()
+    sent.write_text(str(dead.pid))                                      # dead, but no original kept
+    with pytest.raises(RuntimeError):
+        c._refuse_if_instrument_is_mutated()

@@ -25,6 +25,7 @@ import {CONTENT_TOP, TITLE_Y, contentBottom, fitBlockPx, wrapLines} from '../run
 import {Volume, curtainFit, checkBands, AURORA_BANDS, AURORA_LOWER_KM, AURORA_TOP_KM, type Band,
   type Rect} from '../runtime/volume';
 import {soundT, type SoundDecl} from '../runtime/sound';
+import {rows} from '../runtime/rows';
 
 export const DURATION = 180; // 6s — long enough for the rays to be seen travelling along the arc
 export const SOUNDS: readonly SoundDecl[] = [
@@ -51,7 +52,7 @@ export const AuroraCurtain: React.FC<{
   /** how many parallel sheets (1-3) */
   sheets?: number;
   seed?: number;
-}> = ({title = 'Light in the upper atmosphere', kicker = '', bands: bandsIn, ticks, unit = 'km', surgeAt, sheets = 2,
+}> = ({title = 'Light in the upper atmosphere', kicker = '', bands: bandsRaw, ticks: ticksRaw, unit = 'km', surgeAt, sheets = 2,
        seed = 7} = {}) => {
   const dna = useDNA();
   const t = useT();
@@ -60,6 +61,10 @@ export const AuroraCurtain: React.FC<{
   const ground = darkGround(dna?.bg, '#03060c');
   const ink = readableOn(ground, dna?.fg ?? '#eef3f8', '#eef3f8', '#0b0d12');
   const dim = mix(ink, ground, 0.38);
+  // a list prop is checked BEFORE any array method touches it (runtime/rows): a film that sends one band as an
+  // object gets a sentence naming the prop, not `bandsIn.some is not a function`
+  const bandsIn = bandsRaw == null ? undefined : rows<FilmBand>(bandsRaw, 'bands', 'AuroraCurtain');
+  const ticks = ticksRaw == null ? undefined : rows<number>(ticksRaw, 'ticks', 'AuroraCurtain');
   const bands: FilmBand[] = bandsIn ? (checkBands(bandsIn, 'AuroraCurtain') as FilmBand[]) : AURORA_BANDS;
   const ruled = !!bandsIn && (bandsIn.some((b) => b.label) || (ticks?.length ?? 0) > 0);
   if (ticks && !ticks.every((k) => Number.isFinite(k))) throw new Error('AuroraCurtain: ticks are altitudes in km');
