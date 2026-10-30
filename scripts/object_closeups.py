@@ -149,10 +149,6 @@ def build_sheet(items, frame_files, out_path):
             W, H = im.size
             c = im.convert("RGB").crop(crop_box(it["box"], W, H))
         tiles.append((it, c))
-    sizes = [(max(c.width, 360), c.height + LABEL_H) for _, c in tiles]
-    pos, (sw, sh) = pack(sizes)
-    sheet = Image.new("RGB", (sw, sh), (24, 26, 30))
-    d = ImageDraw.Draw(sheet)
     font = None
     for path in LABEL_FONTS:                     # a CJK face: an object's name may be in the film's language
         try:
@@ -163,6 +159,11 @@ def build_sheet(items, frame_files, out_path):
     if font is None:
         print("[object_closeups] note: no CJK font found (%s) — labels in the default face" % ", ".join(LABEL_FONTS))
         font = ImageFont.load_default()
+    # a tile is as wide as its crop or its label, whichever is wider: a label never runs into the next tile
+    sizes = [(max(c.width, int(font.getlength(it["label"])) + 12), c.height + LABEL_H) for it, c in tiles]
+    pos, (sw, sh) = pack(sizes)
+    sheet = Image.new("RGB", (sw, sh), (24, 26, 30))
+    d = ImageDraw.Draw(sheet)
     for (it, c), (x, y) in zip(tiles, pos):
         d.text((x, y + 6), it["label"], fill=(235, 238, 242), font=font)
         sheet.paste(c, (x, y + LABEL_H))

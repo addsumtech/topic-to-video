@@ -70,7 +70,7 @@ def test_the_sheet_shows_the_delivered_pixels_at_100_percent(tmp_path):
     sheet = np.asarray(Image.open(out).convert("RGB"))
     x0, y0, x1, y1 = oc.crop_box(item["box"], W, H)
     crop = px[y0:y1, x0:x1]
-    ox, oy = oc.pack([(max(crop.shape[1], 360), crop.shape[0] + oc.LABEL_H)])[0][0]
+    ox, oy = oc.pack([(crop.shape[1], crop.shape[0] + oc.LABEL_H)])[0][0]
     got = sheet[oy + oc.LABEL_H:oy + oc.LABEL_H + crop.shape[0], ox:ox + crop.shape[1]]
     assert got.shape == crop.shape and np.array_equal(got, crop)
 
