@@ -67,3 +67,17 @@ def test_a_vector_keeps_its_rendered_width(monkeypatch):
     got = _search(monkeypatch, {"thumburl": "u.png", "url": "u.svg", "mime": "image/svg+xml", "width": 512,
                                 "height": 512, "thumbwidth": 2400, "thumbheight": 2400})
     assert got["width"] == 2400
+
+
+def test_one_dom_path_in_two_beats_is_two_lines(tmp_path):
+    # two beats drawn by registers of one shape give their lines one DOM path; keyed by path alone a beat-2 kicker's
+    # pop was reported under beat 4's copy and number
+    path = str(tmp_path / "pan.mp4")
+    census = jq.synth("pan", path, n=30)
+    for f, row in census.items():
+        for ln in row.get("lines") or []:
+            ln["b"] = 1 if f < 15 else 3
+            ln["t"] = "first" if f < 15 else "second"
+    tracks, _skip, meta = jq.measure_census(path, census)
+    assert set(tracks) == {"/line", "/line#b3"}, set(tracks)
+    assert meta["/line"]["b"] == 1 and meta["/line#b3"]["b"] == 3

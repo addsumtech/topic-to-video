@@ -337,6 +337,7 @@ def measure_census(video, census):
     """Per line, the track of [(f, true dx, true dy, measured dx, measured dy, conf, change)] — and the skip table."""
     W, H, _fps = probe(video) if not os.path.isdir(video) else (None, None, None)
     tracks, skip, meta = {}, {}, {}
+    beat_of = {}                     # DOM path -> the beat its first track belongs to
     todo = None
     prev = None
     last = -1
@@ -375,8 +376,13 @@ def measure_census(video, census):
                         skip.get("correlation too weak (conf < %.0f)" % MIN_CONF, 0) + 1
                     continue
                 ch = aligned_change(a, b, dx, dy) if max(abs(mx), abs(my)) < STILL_PX * frame_scale(W, H) else None
-                tracks.setdefault(key, []).append((i - 1, mx, my, dx, dy, conf, ch))
-                meta[key] = {"t": text, "fl": fl, "b": beat}
+                # ONE TRACK PER LINE, NOT PER DOM PATH: two beats drawn by registers of the same shape give their
+                # lines the same path, and keyed by path alone a beat-2 kicker's pop was reported under beat 4's
+                # copy and beat number (meta took the LAST frame's). A path seen in a second beat starts its own track.
+                first = beat_of.setdefault(key, beat)
+                tkey = key if beat == first else "%s#b%s" % (key, beat)
+                tracks.setdefault(tkey, []).append((i - 1, mx, my, dx, dy, conf, ch))
+                meta[tkey] = {"t": text, "fl": fl, "b": beat}
         prev = fr
         last = i
     # THE CENSUS AND THE PICTURE MUST BE THE SAME FILM. A census of the current board read against an out.mp4 from
