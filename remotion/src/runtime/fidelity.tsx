@@ -62,6 +62,28 @@ const leavesOf = (el: Element): Element[] => {
   return all.length ? all.slice(0, 400) : [el];
 };
 
+// A STROKE IS INK THE GEOMETRY BOX LEAVES OUT. getBoundingClientRect() of an SVG shape is its geometry: a horizontal
+// rung, a basket's floor, a level wire is a box ZERO pixels tall however thick it is stroked, and the probe read
+// every such part as "declared and not drawn" (DNAHelix's base pairs, PuckInSection's floor). A stroked shape's box
+// is widened by half its stroke width as rendered; a node whose own box is flat is measured by its leaves.
+type Rect = {left: number; top: number; width: number; height: number};
+const inked = (el: Element, win: Window): Rect => {
+  const r = el.getBoundingClientRect();
+  const geo = (win as unknown as {SVGGeometryElement?: typeof SVGGeometryElement}).SVGGeometryElement;
+  if (!geo || !(el instanceof geo)) return r;
+  const cs = win.getComputedStyle(el);
+  if (!cs.stroke || cs.stroke === 'none') return r;
+  const m = (el as SVGGraphicsElement).getScreenCTM();
+  const pad = ((parseFloat(cs.strokeWidth) || 0) * (m ? Math.hypot(m.a, m.b) : 1)) / 2;
+  return {left: r.left - pad, top: r.top - pad, width: r.width + 2 * pad, height: r.height + 2 * pad};
+};
+const unionOf = (rs: Rect[]): Rect | null => {
+  if (!rs.length) return null;
+  const l = Math.min(...rs.map((q) => q.left)), t = Math.min(...rs.map((q) => q.top));
+  const r = Math.max(...rs.map((q) => q.left + q.width)), b = Math.max(...rs.map((q) => q.top + q.height));
+  return {left: l, top: t, width: r - l, height: b - t};
+};
+
 const visibleOpacity = (el: Element, win: Window): number => {
   let o = 1;
   for (let n: Element | null = el; n; n = n.parentElement) {
@@ -91,22 +113,22 @@ export const FidelityProbe: React.FC = () => {
         const doc = host.ownerDocument;
         const win = doc.defaultView as Window;
         const c = host.getBoundingClientRect();
-        const rel = (r: DOMRect): Box => ({x: r.left - c.left, y: r.top - c.top, w: r.width, h: r.height});
+        const rel = (r: Rect): Box => ({x: r.left - c.left, y: r.top - c.top, w: r.width, h: r.height});
         const parts: PartReport['parts'] = {};
         doc.querySelectorAll(`[${PART_ATTR}]`).forEach((el) => {
           const name = (el.getAttribute(PART_ATTR) || '').trim();
           if (!name) return;
           const slot = parts[name] ?? (parts[name] = {boxes: [], leaves: [], hidden: 0});
-          const r = el.getBoundingClientRect();
+          const leaves = leavesOf(el).filter((leaf) => visibleOpacity(leaf, win) > 0.02).map((leaf) => inked(leaf, win))
+            .filter((q) => q.width > 0.5 || q.height > 0.5);
+          let r: Rect = inked(el, win);
+          if (!(r.width > 0.5 && r.height > 0.5)) r = unionOf(leaves) ?? r;
           if (!(r.width > 0.5 && r.height > 0.5 && visibleOpacity(el, win) > 0.02)) {
             slot.hidden += 1;
             return;
           }
           slot.boxes.push(rel(r));
-          for (const leaf of leavesOf(el)) {
-            const q = leaf.getBoundingClientRect();
-            if ((q.width > 0.5 || q.height > 0.5) && visibleOpacity(leaf, win) > 0.02) slot.leaves.push(rel(q));
-          }
+          for (const q of leaves) slot.leaves.push(rel(q));
         });
         const obj = doc.querySelector('[data-fidelity-object]');
         const rec: PartReport = {f: frame, canvas: {w: c.width, h: c.height}, object: obj ? rel(obj.getBoundingClientRect()) : null,

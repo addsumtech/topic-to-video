@@ -1853,6 +1853,12 @@ def still_plan(out_dir, name, props=None, host="ObjectStage", aspect=None, slot=
                 raise WorkshopError(["%s has several: %s — pass --slot" % (host, ", ".join(top))])
             payload = {use_slot: dict({"id": name}, **({"props": props} if props else {}))}
         dur = _required_duration(src, host)
+    elif name in library_shot_names():
+        # a LIBRARY register drawn as it is (its fidelity sheet — scripts/fidelity.py register_fidelity): `props`
+        # are its own props, given or none
+        comp = name
+        payload = dict(props) if props is not None else {}
+        dur = _required_duration(shot_source(out_dir, name), name)
     else:
         raise WorkshopError(["%s is not in this film's workshop or the library's objects" % name])
     # `dna` (a contest direction's look, resolved by `direction_dna`) wins over the board's: before a direction is

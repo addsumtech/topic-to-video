@@ -144,6 +144,42 @@ def test_every_library_object_declares_a_valid_record(name):
         assert set(rec["parts"]) <= names, "every declared part is marked data-part in the source"
 
 
+def _registers_with_a_record():
+    out = []
+    for n in sorted(ws.library_shot_names()):
+        src = open(os.path.join(ws.LIB_SHOTS, n + ".tsx"), encoding="utf-8").read()
+        if re.search(r"export\s+const\s+FIDELITY\b", src):
+            out.append(n)
+    return out
+
+
+def test_a_library_register_declares_its_record_as_an_exported_fidelity():
+    """A library register that draws a real thing inline has no build-list entry and no META: it exports FIDELITY,
+    read with the same comment- and URL-aware scanner, and the sheet finds it by name."""
+    src = ("export const DURATION = 90;\nexport const FIDELITY = {subject: 'x', depicts: 'abstract', // a note\n"
+           "  references: [{kind: 'spec', source: 'https://example.org/a//b'}],};\nexport const X = () => null;\n")
+    rec, why = fid.register_fidelity(src)
+    assert why is None and rec["references"][0]["source"] == "https://example.org/a//b"
+    assert fid.register_fidelity("export const DURATION = 90;\n") == (None, None)
+    assert fid.register_fidelity("export const FIDELITY = {subject: f()};")[1]
+    regs = _registers_with_a_record()
+    assert regs, "at least one library register declares FIDELITY (references/object-audit.md)"
+    rec, base, _src, where, kind = fid.record_for("/nonexistent-film", regs[0])
+    assert kind == "shot" and base == fid.SKILL and where == "remotion/src/shots/%s.tsx" % regs[0]
+
+
+@pytest.mark.parametrize("name", _registers_with_a_record())
+def test_every_library_register_that_declares_a_record_declares_a_valid_one(name):
+    src = open(os.path.join(ws.LIB_SHOTS, name + ".tsx"), encoding="utf-8").read()
+    rec, why = fid.register_fidelity(src)
+    assert why is None and isinstance(rec, dict), "%s: FIDELITY is unreadable (%s)" % (name, why)
+    probs = fid.problems(rec, fid.SKILL, name, fid.source_part_names(src))
+    assert fid.errors_of(probs) == [], probs
+    if rec["depicts"] == "real":
+        names, _dyn = fid.source_part_names(src)
+        assert set(rec["parts"]) <= names, "every declared part is marked data-part in the source"
+
+
 def test_a_workshop_object_without_a_record_is_a_check_problem(tmp_path):
     d = tmp_path / "workshop" / "objects"
     d.mkdir(parents=True)
