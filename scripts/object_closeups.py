@@ -39,6 +39,9 @@ MIN_OPACITY = 0.5        # fainter than this it is arriving or leaving
 PAD = 0.06               # the crop's margin around the box, of its larger side
 SHEET_W = 2400           # crops are packed into rows no wider than this (a wider crop gets a row of its own)
 LABEL_H = 34
+LABEL_FONTS = ("/System/Library/Fonts/PingFang.ttc", "/System/Library/Fonts/Hiragino Sans GB.ttc",
+               "/System/Library/Fonts/STHeiti Medium.ttc", "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+               "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc")
 
 
 def film_sha(path):
@@ -150,9 +153,15 @@ def build_sheet(items, frame_files, out_path):
     pos, (sw, sh) = pack(sizes)
     sheet = Image.new("RGB", (sw, sh), (24, 26, 30))
     d = ImageDraw.Draw(sheet)
-    try:
-        font = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 20)
-    except OSError:
+    font = None
+    for path in LABEL_FONTS:                     # a CJK face: an object's name may be in the film's language
+        try:
+            font = ImageFont.truetype(path, 20)
+            break
+        except OSError:
+            continue
+    if font is None:
+        print("[object_closeups] note: no CJK font found (%s) — labels in the default face" % ", ".join(LABEL_FONTS))
         font = ImageFont.load_default()
     for (it, c), (x, y) in zip(tiles, pos):
         d.text((x, y + 6), it["label"], fill=(235, 238, 242), font=font)

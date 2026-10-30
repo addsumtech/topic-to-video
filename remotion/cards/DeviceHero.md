@@ -27,7 +27,7 @@
 - An object that declares a `META.aspect` narrower or wider than the screen is letterboxed inside it, on the screen's own black — a 16:9 object on a phone screen fills about a quarter of its height.
 - A `tablet` with an object screen never turns to landscape: `_oriented` reads a screenshot's or recording's own file to decide, and an object has no file — it stays whatever `device` says (portrait, by default).
 
-**Measured:** 7.1% ink (clip median) · 46.3% footprint · 0.0 motion (register_energy, re-measured with the model-proportioned devices, 2026-10-30; the settled-frame ink of 8.7% is from before them and was not re-measured). Measured on the register's own demo — a laptop showing skeleton rows — so the numbers describe the device, not a film's screen, which is what fills it in a film.
+**Measured:** 5.3% ink (clip median) · 24.8% footprint · 0.0 motion (register_energy, re-measured with the laptop drawn as one 3D object — its deck now below the lid, so the machine stands smaller in the zone — 2026-10-30; the settled-frame ink of 8.7% is from before them and was not re-measured). Measured on the register's own demo — a laptop showing skeleton rows — so the numbers describe the device, not a film's screen, which is what fills it in a film.
 
 **Reference:** `remotion/src/shots/DeviceHero.tsx`
 

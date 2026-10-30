@@ -46,7 +46,7 @@
 - A recording is spread from `from` to `to` over its screen's time: at most 2× speed and never backwards (refused), under 0.5× said as slow motion.
 - After `tts.py`, `python3 scripts/validate.py <out_dir>` checks all of it — shape, files, text targets, time — and names every problem before a render.
 
-**Measured:** 2.9% ink (clip median) · 16.4% footprint · 0.0 motion (register_energy, re-measured with the model-proportioned devices, 2026-10-30; the settled-frame ink of 3.2% is from before them and was not re-measured). Measured on the register's own demo — one phone of skeleton rows and a single tap, no screenshot — so the numbers describe the empty stage: in a film the density is the product's own screens.
+**Measured:** 2.9% ink (clip median) · 16.4% footprint · 0.0 motion (register_energy, re-measured with the laptop drawn as one 3D object and the push-in capped at the screenshot's pixels, 2026-10-30; the settled-frame ink of 3.2% is from before them and was not re-measured). Measured on the register's own demo — one phone of skeleton rows and a single tap, no screenshot — so the numbers describe the empty stage: in a film the density is the product's own screens.
 
 **Reference:** `remotion/src/shots/DeviceDemo.tsx`
 
