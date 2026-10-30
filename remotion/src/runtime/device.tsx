@@ -16,6 +16,9 @@ import {CONTENT_TOP, contentBottom} from './layout';
 import {mix, type DesignDNA} from './dna';
 import {keyOf} from './light';
 import {CarryAnchor} from './carry';
+import {laptopCamera, laptopScreenTransform, laptopBounds, LaptopBody, LaptopDefs, type LaptopPose} from './laptop3d';
+
+export type {LaptopPose} from './laptop3d';
 
 export type DeviceKind = 'phone' | 'watch' | 'tablet' | 'tablet-landscape' | 'laptop' | 'monitor';
 export type DeviceLook = 'flat' | 'real' | 'screen';
@@ -245,7 +248,16 @@ const MetalGrad: React.FC<{id: string; hi: string; mid: string; lo: string; deep
     );
   };
 
-export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: React.ReactNode}> = ({g, dna, children}) => {
+/** `pose` turns a LAPTOP (runtime/laptop3d.tsx): a laptop is one 3D object, so it is turned by its own camera — the
+ *  deck, the hinge, the lid and the screen content on it together — never by a CSS rotate of its flat picture, which
+ *  slanted the lid while the base stayed a front-on line. Other devices are slabs and ignore it. */
+/** `turned` is for a SLAB (phone, tablet, watch) that the CALLER turns with a CSS rotateX/rotateY: a slab has a
+ *  thickness, and turned its near edge shows — the published case depth (caseMm[2]) drawn as the swept outline on the
+ *  side the turn brings toward the viewer, so a turned phone is not a sheet of paper. Same degrees as the caller's
+ *  rotateY (yaw) and rotateX (pitch). */
+export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; pose?: LaptopPose;
+  turned?: {yaw?: number; pitch?: number}; children?: React.ReactNode}> =
+  ({g, dna, pose, turned, children}) => {
   const uid = useSvgId();
   const ink = dna?.fg ?? INK_D0;
   const bg = dna?.bg ?? BG_D0;
@@ -257,12 +269,33 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
   const body = g.body;
   const isWatch = g.kind === 'watch';
   const isLaptop = g.kind === 'laptop';
+  // a laptop's ONE camera: the body is drawn by it, and the screen's DOM is put on the lid by the same projection
+  const lc = isLaptop && g.look !== 'screen' ? laptopCamera(g, pose) : null;
+  const lb = lc ? laptopBounds(lc) : null;
   // The case outline: continuous curvature at the case's own radius (screen radius + bezel — concentric).
   const caseR = g.outerRadius;
   const rim = g.look === 'screen' ? 0
     : Math.max(1, Math.round(s.w * ((P.rim as Record<string, number>)[baseKind(g.kind)] ?? 0.006)));
   const casePath = roundRectPath(face.x, face.y, face.w, face.h, caseR, true, false, -body.x, -body.y);
   const glassR = Math.max(0, caseR - rim);
+  // a turned slab's edge (`turned`): the back outline sits T·tan(turn) behind the face on the near side, T the case's
+  // published depth; the wall between is swept in steps a pixel or two apart
+  const edgeSweep: string[] = [];
+  if (turned && !isLaptop && g.look !== 'screen') {
+    const pub = g.model ? MODELS[g.model]?.published : MODELS[KINDS[baseKind(g.kind)]?.like ?? '']?.published;
+    const depth = pub?.caseMm?.[2];
+    if (depth) {
+      const across = g.kind === 'tablet-landscape' ? pub!.caseMm[1] : pub!.caseMm[0];
+      const k = face.w / across;
+      const ex = -depth * k * Math.tan(((turned.yaw ?? 0) * Math.PI) / 180);
+      const ey = depth * k * Math.tan(((turned.pitch ?? 0) * Math.PI) / 180);
+      const n = Math.min(24, Math.max(1, Math.ceil(Math.hypot(ex, ey) / 1.5)));
+      for (let i = n; i >= 1; i--) {
+        edgeSweep.push(roundRectPath(face.x + (ex * i) / n, face.y + (ey * i) / n, face.w, face.h, caseR, true, false,
+          -body.x, -body.y));
+      }
+    }
+  }
   const glassPath = roundRectPath(face.x + rim, face.y + rim, face.w - 2 * rim, face.h - 2 * rim, glassR, true, false,
     -body.x, -body.y);
   const screenClip = roundRectPath(0, 0, s.w, s.h, g.radius, g.smoothScreen, g.topRoundOnly || Boolean(g.strip));
@@ -291,8 +324,16 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
     return out;
   };
 
-  const svgBody = g.look === 'screen' ? null : (
-    <svg data-carry-part="device" data-device-body={g.kind} width={body.w} height={body.h}
+  const svgBody = g.look === 'screen' ? null : lc && lb ? (
+    <svg data-carry-part="device" data-device-body={g.kind} data-device-model={g.model ?? g.kind}
+      width={Math.ceil(lb.w)} height={Math.ceil(lb.h)}
+      style={{position: 'absolute', left: Math.floor(lb.x), top: Math.floor(lb.y), overflow: 'visible'}}>
+      <LaptopDefs uid={uid} c={lc} ox={Math.floor(lb.x)} oy={Math.floor(lb.y)} metal={{hi, mid, lo, deep}} />
+      <LaptopBody g={g} c={lc} real={real} ink={ink} bg={bg} ox={Math.floor(lb.x)} oy={Math.floor(lb.y)} uid={uid}
+        metal={{hi, mid, lo, deep}} />
+    </svg>
+  ) : (
+    <svg data-carry-part="device" data-device-body={g.kind} data-device-model={g.model ?? g.kind} width={body.w} height={body.h}
       style={{position: 'absolute', left: body.x, top: body.y, overflow: 'visible'}}>
       <defs>
         <MetalGrad id={id('m')} hi={hi} mid={mid} lo={lo} deep={deep} />
@@ -402,6 +443,8 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
         {g.sideButton ? part(g.sideButton, Math.min(g.sideButton.w, g.sideButton.h) / 2,
           real ? `url(#${id('mv')})` : ink, 'side') : null}
         {g.buttons.map((b, i) => part(b, Math.min(b.w, b.h) / 2, real ? `url(#${id('mh')})` : ink, 'btn' + i))}
+        {/* the case's EDGE where a turn shows it: the outline swept back by the case's depth, darker than its face */}
+        {edgeSweep.map((d, i) => <path key={'edge' + i} d={d} fill={real ? (i === edgeSweep.length - 1 ? lo : deep) : mix(ink, bg, 0.15)} />)}
         {/* the case: the metal, brushed, its polished edge lit from the upper left */}
         <path d={casePath} fill={real ? `url(#${id('m')})` : ink} />
         {real ? (
@@ -417,20 +460,6 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
           </>
         ) : null}
       </g>
-      {g.base && isLaptop ? (
-        <g>
-          {/* the hinge, then the base: wider than the lid, its front lip lit, a thumb scoop at its centre */}
-          <rect x={g.face.x - body.x + g.face.w * 0.03} y={g.base.y - body.y} width={g.face.w * 0.94} height={g.base.h * 0.3}
-            fill={real ? deep : ink} />
-          <path d={`M0 ${g.base.y - body.y + g.base.h * 0.25} L${body.w} ${g.base.y - body.y + g.base.h * 0.25} ` +
-            `L${body.w * 0.985} ${g.base.y - body.y + g.base.h} L${body.w * 0.015} ${g.base.y - body.y + g.base.h} Z`}
-            fill={real ? `url(#${id('mv')})` : ink} />
-          <path d={`M${body.w * 0.43} ${g.base.y - body.y + g.base.h * 0.25} Q${body.w * 0.5} ${g.base.y - body.y + g.base.h * 0.85} ` +
-            `${body.w * 0.57} ${g.base.y - body.y + g.base.h * 0.25} Z`} fill={real ? 'rgba(0,0,0,0.35)' : alpha(bg, 0.3)} />
-          {real ? <line x1={0} x2={body.w} y1={g.base.y - body.y + g.base.h * 0.26} y2={g.base.y - body.y + g.base.h * 0.26}
-            stroke="rgba(255,255,255,0.55)" strokeWidth={1} /> : null}
-        </g>
-      ) : null}
       {g.base && g.kind === 'monitor' ? (
         <g>
           <rect x={g.base.w * 0.44} y={g.base.y - body.y} width={g.base.w * 0.12} height={g.base.h * 0.82}
@@ -466,8 +495,19 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
       <div data-carry="screen" data-carry-part="device" data-device-screen={g.model ?? g.kind}
         style={{position: 'absolute', left: s.x, top: s.y, width: s.w, height: s.h, overflow: 'hidden',
           borderRadius: g.strip ? `0 0 ${g.radius}px ${g.radius}px` : (g.topRoundOnly ? `${g.radius}px ${g.radius}px 0 0` : g.radius),
-          clipPath: g.strip ? undefined : `path('${screenClip}')`, background: '#000'}}>
+          clipPath: g.strip ? undefined : `path('${screenClip}')`, background: '#000',
+          transformOrigin: '0 0', transform: lc ? laptopScreenTransform(g, lc) : undefined}}>
         {children}
+        {g.notch ? (
+          // the notch is ON the screen: drawn inside it, so a turned laptop carries it with the display
+          <div data-carry-part="device" style={{position: 'absolute', left: g.notch.x - s.x, top: 0, width: g.notch.w,
+            height: g.notch.h + (g.notch.y - s.y), borderRadius: `0 0 ${g.notch.h * 0.32}px ${g.notch.h * 0.32}px`,
+            background: real ? GLASS : ink}}>
+            {real ? <span style={{position: 'absolute', left: g.notch.w / 2 - g.notch.h * 0.17, top: g.notch.h * 0.33,
+              width: g.notch.h * 0.34, height: g.notch.h * 0.34, borderRadius: '50%',
+              background: 'radial-gradient(circle at 35% 35%, #26304a, #050608 70%)'}} /> : null}
+          </div>
+        ) : null}
         {real ? (
           // the glass over the display: one soft reflection from the key, and a faint lit band along its top edge
           <div style={{position: 'absolute', inset: 0, pointerEvents: 'none',
@@ -481,14 +521,6 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
           boxShadow: real ? 'inset 0 0 0 0.5px rgba(255,255,255,0.08)' : undefined}}>
           {real ? <span style={{position: 'absolute', right: g.island.h * 0.32, top: g.island.h * 0.3, width: g.island.h * 0.4,
             height: g.island.h * 0.4, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #2a3550, #07090d 70%)'}} /> : null}
-        </div>
-      ) : null}
-      {g.notch ? (
-        <div data-carry-part="device" style={{position: 'absolute', left: g.notch.x, top: g.notch.y - 1, width: g.notch.w,
-          height: g.notch.h + 1, borderRadius: `0 0 ${g.notch.h * 0.32}px ${g.notch.h * 0.32}px`, background: real ? GLASS : ink}}>
-          {real ? <span style={{position: 'absolute', left: g.notch.w / 2 - g.notch.h * 0.17, top: g.notch.h * 0.33,
-            width: g.notch.h * 0.34, height: g.notch.h * 0.34, borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 35%, #26304a, #050608 70%)'}} /> : null}
         </div>
       ) : null}
     </>

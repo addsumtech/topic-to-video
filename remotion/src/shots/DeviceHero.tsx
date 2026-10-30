@@ -12,6 +12,7 @@ import {deviceGeometry, defaultLook, Device, type DeviceKind, type DeviceLook, t
 import {ScreenImage, ScreenVideo, type VideoSpan} from '../runtime/screen';
 import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
 import {useCarried} from '../runtime/carry';
+import {laptopCamera, laptopBounds, laptopScreenFrameTransform} from '../runtime/laptop3d';
 import {useBeatOptic, GlowCopy, LightSweep, ofKind, useFrameAtT} from '../runtime/optics';
 
 export const DURATION = 150;
@@ -57,7 +58,17 @@ export const DeviceHero: React.FC<{
   const turn = lk === 'real' ? TURN_FROM - (TURN_FROM - TURN_TO) * enter : 0;
   const persp = Math.round(W * 1.2);
   const b = g.body, ox = b.x + b.w / 2, oy = b.y + b.h;
-  const fit = lk === 'real' ? persp / (persp + (b.w / 2) * Math.sin((TURN_FROM * Math.PI) / 180)) : 1;
+  // A LAPTOP IS ONE 3D OBJECT (runtime/laptop3d.tsx): it turns by its own camera — deck, hinge, lid and the screen
+  // on it together — never by a CSS rotate of its flat picture (the lid slanted while the base stayed a front-on
+  // line). Its fit is measured: the turned machine's own bounds, at the widest turn, kept inside the body.
+  const lap = g.kind === 'laptop' && lk !== 'screen';
+  const lapPose = lap && turn ? {yaw: turn} : undefined;
+  const lapFit = lap && lk === 'real' ? (() => {
+    const bb = laptopBounds(laptopCamera(g, {yaw: TURN_FROM}));
+    return Math.min(1, (b.w / 2) / Math.max(ox - bb.x, bb.x + bb.w - ox), b.h / Math.max(1, oy - bb.y));
+  })() : 1;
+  const fit = lap ? lapFit : lk === 'real' ? persp / (persp + (b.w / 2) * Math.sin((TURN_FROM * Math.PI) / 180)) : 1;
+  const glowT = lap ? laptopScreenFrameTransform(g, laptopCamera(g, lapPose)) : undefined;
   const k = fit * (0.94 + 0.06 * enter);
   const optic = useBeatOptic(OPTICS);
   // the sweep crosses the glass while the turn comes to rest: the entrance (seg ENTRY_T..0.32) is ~70% done here
@@ -96,11 +107,13 @@ export const DeviceHero: React.FC<{
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? '#eef1f4', perspective: persp,
       perspectiveOrigin: `${ox}px ${oy}px`}}>
       <AbsoluteFill style={{opacity: enter, transformOrigin: `${ox}px ${oy}px`,
-        transform: `scale(${k}) rotateY(${turn}deg)`}}>
-        <Device g={g} dna={dna}>{content}<LightSweep optic={ofKind(optic, 'sweep')} start={sweepStart} frames={24} /></Device>
-        <GlowCopy optic={ofKind(optic, 'bloom')} rect={s} radius={g.strip ? `0 0 ${g.radius}px ${g.radius}px` : g.radius}>
-          {content}
-        </GlowCopy>
+        transform: lap ? `scale(${k})` : `scale(${k}) rotateY(${turn}deg)`}}>
+        <Device g={g} dna={dna} pose={lapPose} turned={!lap && lk === 'real' ? {yaw: turn} : undefined}>{content}<LightSweep optic={ofKind(optic, 'sweep')} start={sweepStart} frames={24} /></Device>
+        <div style={{position: 'absolute', left: 0, top: 0, width: W, height: H, transformOrigin: '0 0', transform: glowT}}>
+          <GlowCopy optic={ofKind(optic, 'bloom')} rect={s} radius={g.strip ? `0 0 ${g.radius}px ${g.radius}px` : g.radius}>
+            {content}
+          </GlowCopy>
+        </div>
       </AbsoluteFill>
       {kicker ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: TITLE_Y, textAlign: 'center', color: dna?.dim ?? '#5b6472',

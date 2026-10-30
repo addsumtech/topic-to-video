@@ -317,7 +317,20 @@ no spec publishes — crown, band, buttons, Dynamic Island, notch — under `des
 directly — never a hand-drawn slab (validate warns: scripts/device_fidelity_qa.py).
 **Smallest real use:** `const g = deviceGeometry('watch', 'real', W, H, 'center', false, 'watch-s12-46'); <Device g={g} dna={dna}>…</Device>`
 **Exports:** `Device`, `deviceGeometry`, `deviceFace`, `defaultLook`, `isTouch`, `proportions`, `roundRectPath`,
-`modelNames`, `DeviceKind`, `DeviceLook`, `DeviceGeom`, `Rect`.
+`modelNames`, `DeviceKind`, `DeviceLook`, `DeviceGeom`, `Rect`. A laptop turns by `pose` (its own camera, `laptop3d`);
+a slab the caller turns with a CSS rotate passes `turned={{yaw, pitch}}` so its case's edge shows on the near side.
+
+### `laptop3d`
+A laptop as ONE 3D object: lid and base joined at the hinge, one camera for the deck (keys, trackpad, speaker grilles,
+thumb scoop, chamfered aluminium edge), the hinge, the lid's edge and the screen on it. `Device` draws every laptop
+through it; at rest the lid faces the camera square, so the screen is exactly the device geometry's screen rect. To TURN a
+laptop, pass `pose={{yaw, pitch, open}}` to `Device` — never a CSS rotate of its picture (that slanted the lid over a
+front-on base). Measured deck layout: deviceSpec.json `models.*.body3d`.
+**Reach for it:** a shot that turns a laptop toward something; `laptopCamera(g, pose)` + `laptopBounds` to place a
+label or a light on the turned machine (its `screenQuad`, its projection, its `lid` points).
+**Smallest real use:** `<Device g={g} dna={dna} pose={{yaw: -24, pitch: 15}}>{screen}</Device>`
+**Exports:** `laptopCamera`, `laptopBounds`, `laptopScreenTransform`, `laptopScreenFrameTransform`, `laptopDims`,
+`LaptopBody`, `LaptopDefs`, `LaptopPose`, `L3D`.
 
 ### `deviceSpec.json`
 The device layer's numbers, read by the TypeScript and the Python alike: the real `models` (each with its source
@@ -630,7 +643,9 @@ against the drawn box, by object-fit, with the CSS blur and opacity it is seen t
 that every picture you place is judged by it at the peak of any camera push, so draw rasters at or below their own
 pixels and rebuild UI natively instead of scaling a small screenshot up.
 **Smallest real use:** (rendered with `mediaRes: true` on the Film by `scripts/media_res_qa.py`)
-**Exports:** `MediaResAudit`, `censusMedia`, `MEDIA_RES_TAG`.
+The same census reports every OBJECT's box (`censusObjects`: each kit device, each screen on one, each element marked
+`data-object="<name>"`) for `scripts/object_closeups.py`'s 100% close-up sheet — mark every built thing a shot draws.
+**Exports:** `MediaResAudit`, `censusMedia`, `censusObjects`, `MEDIA_RES_TAG`.
 
 ### `fidelity`
 Whether a built thing that depicts a real thing is TRUE to it (references/object-authoring.md rule 7): the

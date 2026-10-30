@@ -232,9 +232,16 @@ export const DeviceDemo: React.FC<{
   // A step's push-in — its zoom and the point it frames — or null when its text is legible at rest (or was not
   // measured). A DRAG is framed whole, both ends inside the view whatever the legibility zoom asks: centred on its
   // `from`, the finger left the zoomed view within five frames and the drop was never seen.
-  const framing = (st: Step): {zoom: number; x: number; y: number} | null => {
+  // NEVER PAST THE SCREENSHOT'S OWN PIXELS: a screen image is drawn s.w wide at rest, so a push-in of z draws it at
+  // z·s.w — a 1206 px iPhone screenshot pushed 4x into a 370 px screen was drawn at 1.22x its pixels and read as a
+  // soft screen grab. The zoom is capped at imageW / s.w for the image the step shows (its own, else the last
+  // screen before it); text the cap leaves under caption size is still the sharpest the source can give.
+  const shown: (Step | null)[] = [];
+  steps.reduce<Step | null>((last, st) => { const cur = st.screen?.image && st.imageW ? st : last; shown.push(cur); return cur; }, null);
+  const framing = (st: Step, i: number): {zoom: number; x: number; y: number} | null => {
     if (!st.focus || !st.textFrac || !st.captionPx) return null;
-    let zoom = Math.min(spec.maxZoom, Math.max(1, st.captionPx / (st.textFrac * s.w)));
+    const native = shown[i]?.imageW ? Math.max(1, shown[i]!.imageW! / s.w) : spec.maxZoom;   // never a pull-out
+    let zoom = Math.min(spec.maxZoom, native, Math.max(1, st.captionPx / (st.textFrac * s.w)));
     let fx = st.focus[0], fy = st.focus[1];
     if (st.drag) {
       const [ax, ay] = st.drag.from, [bx, by] = st.drag.to;
@@ -246,7 +253,7 @@ export const DeviceDemo: React.FC<{
   };
   if (camera !== 'still' && !reduced) {
     steps.forEach((st, i) => {
-      const fr = framing(st);
+      const fr = framing(st, i);
       if (!fr) return;
       const f = onDevice(fr.x, fr.y, fr.zoom, deviceFace(g), W, VIEW_H);
       const last = keys[keys.length - 1];
@@ -256,7 +263,7 @@ export const DeviceDemo: React.FC<{
       // Back to rest unless the NEXT step pushes in too: a next step that needs no zoom (a button whose fill
       // measured caption-tall) used to leave the camera holding this push-in to the end of the beat.
       const next = steps[i + 1];
-      if (!next || !framing(next)) key(Math.min(1, st.t1! + (st.ta! - st.t0!)), W / 2, VIEW_H / 2, 1);
+      if (!next || !framing(next, i + 1)) key(Math.min(1, st.t1! + (st.ta! - st.t0!)), W / 2, VIEW_H / 2, 1);
     });
   }
   const cam = clampToPage(camAt(keys, t, easeInOutCubic), W, VIEW_H, W, VIEW_H);

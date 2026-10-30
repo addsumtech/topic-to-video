@@ -602,13 +602,18 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
             measured += 1
             st.update(focus=[x, y], textFrac=text_px / f["w"], captionPx=caption)
             need = caption / (text_px * screen_w / f["w"])
+            # DeviceDemo never pushes a screenshot past its own pixels (zoom <= imageW / screen width): the cap
+            # predicted here is the one the shot applies, so a push the shot will not make is not reported as soft
+            cap = min(float(SPEC["maxZoom"]), max(1.0, f["w"] / float(screen_w)))
             if props.get("camera") != "still":
-                z = min(max(1.0, need), float(SPEC["maxZoom"]))
+                z = min(max(1.0, need), cap)
                 if z > zoom_of.get(cur_path, (where, 1.0))[1]:
                     zoom_of[cur_path] = (where, z)
-            if need > SPEC["maxZoom"] and props.get("camera") != "still":
-                warns.append("%s: the text there needs a %.1fx push-in to reach caption size; the cap is %.0fx — "
-                             "use a tighter screenshot or a larger device" % (where, need, SPEC["maxZoom"]))
+            if need > cap and props.get("camera") != "still":
+                warns.append("%s: the text there needs a %.1fx push-in to reach caption size; the cap is %.2gx (%s) — "
+                             "use a tighter screenshot or a larger device"
+                             % (where, need, cap, "the screenshot's own pixels" if cap < float(SPEC["maxZoom"])
+                                else "the device layer's maximum"))
     for path, (where, z) in sorted(zoom_of.items()):
         rp, rw = fq.resolution_findings(screen_w, facts[path]["w"], z, where)
         probs += rp

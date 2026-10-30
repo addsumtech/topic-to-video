@@ -395,7 +395,31 @@
    "topRoundOnly": true,
    "scale": [
     2
-   ]
+   ],
+   "body3d": {
+    "_provenance": {
+     "published": "case 304.1 x 215.0 x 11.3 mm (caseMm) — https://www.apple.com/macbook-air/specs/",
+     "design": "NOT measured on an Air: the 14-inch Pro's measured deck layout (keyboard well, trackpad, scoop, hinge) scaled to the Air's published width and depth; no speaker grilles are drawn beside the keyboard rather than inventing the Air's; lid thickness 3.6 mm of the published 11.3 is not published"
+    },
+    "lidMm": 3.6,
+    "cornerMm": 6.0,
+    "rimMm": 0.8,
+    "well": [
+     14.2,
+     17.2,
+     275.7,
+     109.2
+    ],
+    "trackpad": [
+     127.0,
+     131.7,
+     78.1,
+     4.0
+    ],
+    "scoopMm": 52.2,
+    "grille": null,
+    "hingeInsetMm": 36.0
+   }
   },
   "macbook-pro-14": {
    "kind": "laptop",
@@ -430,7 +454,38 @@
    "topRoundOnly": true,
    "scale": [
     2
-   ]
+   ],
+   "body3d": {
+    "_provenance": {
+     "published": "case 312.6 x 221.2 x 15.5 mm (caseMm), 78/79 keys incl. 12 full-height function keys, Force Touch trackpad — https://www.apple.com/macbook-pro/specs/, read 2026-10-30",
+     "derived": "measured on https://commons.wikimedia.org/wiki/File:A_2021_14-inch_Silver_MacBook_Pro.jpg (CC BY-SA 4.0, Oops4321): the deck's four corners fitted to the published 312.6 x 221.2 mm and every other point mapped through that homography (±3 mm). keyboard well 14.6 mm in from each side, 17.7..130.1 mm from the back edge; trackpad 130.5 mm wide, 135.5..215.9 mm; thumb scoop 53.7 mm wide; speaker grilles 1.6..12.9 mm in from each side along the well; the deck's plan corner ~6 mm; the hinge slot ~37 mm in from each side. Cross-check: the screen's width on the same photo measures 302.0 mm against the published 3024 px / 254 ppi = 302.4 mm.",
+     "design": "the lid's thickness (4.9 mm of the published 15.5) is not published; the aluminium rim round the lid's black glass (0.8 mm) is drawn to read as the photo; the key layout is the ANSI MacBook Pro row pattern (14.5 units a row, full-height function row, inverted-T arrows) — legends as drawn on the photo",
+     "notch": "its height is the menu bar's: 3.5% of the display height (parts.notch.h) — a developer measured safeAreaInsets.top = 34 pt on a 14-inch M2 Pro (https://developer.apple.com/forums/thread/779268); Apple publishes no notch width, and the product draws a 200 pt stand-in when it cannot read the hardware's (src/crates/host/README.md), so the width stays design (parts.notch.w)"
+    },
+    "lidMm": 4.9,
+    "cornerMm": 6.0,
+    "rimMm": 0.8,
+    "well": [
+     14.6,
+     17.7,
+     283.4,
+     112.4
+    ],
+    "trackpad": [
+     130.5,
+     135.5,
+     80.4,
+     4.0
+    ],
+    "scoopMm": 53.7,
+    "grille": [
+     1.6,
+     20.0,
+     11.3,
+     108.0
+    ],
+    "hingeInsetMm": 37.0
+   }
   }
  },
  "kinds": {
@@ -491,8 +546,26 @@
    "taper": 0.1
   },
   "laptopTopBezelOfSide": 1.0,
-  "laptopBase": 0.035,
-  "laptopOverhang": 0.06
+  "laptopBase": 0.246,
+  "laptopOverhang": 0.0755,
+  "laptop3d": {
+   "_doc": "design — the laptop's ONE camera (runtime/laptop3d.tsx). At rest it looks down restPitchDeg onto a lid opened to 90 + restPitchDeg, so the lid faces it square and the screen is exactly deviceGeometry's rect; cameraOfWidth is the camera's distance in case widths (a long lens: the deck's front edge draws ~11% wider than its back). The hinge offsets (the lid's chin drops 8 mm behind the base at the hinge: the photo shows ~10 mm of chin above the deck), key gap, lid's bottom corner and the light are drawn to read as the Wikimedia photo of a 14-inch MacBook Pro (refs in models.macbook-pro-14.body3d), not measured. maxYaw/maxPitch: the drawing orders the deck before the lid, which holds only while the camera is in front of the machine.",
+   "restPitchDeg": 12,
+   "cameraOfWidth": 5.5,
+   "hinge": {
+    "liftMm": -8.0,
+    "backMm": 4.0
+   },
+   "light": [
+    -0.45,
+    0.75,
+    0.5
+   ],
+   "lidCornerBottomMm": 1.5,
+   "keyGapMm": 2.6,
+   "maxYaw": 50,
+   "maxPitch": 40
+  }
  },
  "inferTolerance": 0.004
 }
