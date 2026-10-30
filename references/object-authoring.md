@@ -109,7 +109,9 @@ the send button lights when it is done. The recipient, the draft and the button 
 ![ChromeMachine on ObjectStage](object-examples/ChromeMachine.png)
 
 Gradients and a highlight dressing up an espresso machine. It is clip-art, it shows no mechanism, and it competes
-with the real machine a documentary image would show. **It passes every gate.**
+with the real machine a documentary image would show. **It passed every gate until rule 7:** its record says it
+depicts an espresso machine and names no reference, so `workshop.py check` now refuses it — but references alone
+would not make it a mechanism; that stays the critic's.
 
 ### Words written into the object — `LabeledPuck`
 ![LabeledPuck on ObjectStage](object-examples/LabeledPuck.png)
@@ -123,7 +125,7 @@ The bed and the water are named in Chinese in the code, so every film prints Chi
 A turning spiral in coffee colours: on topic by colour and by nothing else. Hide the caption — it says nothing about
 extraction. **It passes every gate.**
 
-Two of the three bad objects pass every machine check. A gate measures type, words and geometry; it cannot measure
+One of the three bad objects (SwirlOfCoffee) still passes every machine check. A gate measures type, words and geometry; it cannot measure
 meaning. That is why the shot-critic judges every built thing on its rendered frames (`agents/shot-critic.md` S15),
 and why the build list states `means` and `accept` before anything is drawn.
 

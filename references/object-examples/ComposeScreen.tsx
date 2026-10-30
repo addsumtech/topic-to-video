@@ -7,7 +7,9 @@ import {clamp01, seg} from '@runtime/motion';
 import {mix} from '@runtime/dna';
 import {onAccentInk} from '@runtime/onAccent';
 
-export const META: ObjectMeta = {aspect: 9 / 19.5, provenance: 'product-ui'};
+export const META: ObjectMeta & {fidelity: object} = {aspect: 9 / 19.5, provenance: 'product-ui',
+  fidelity: {subject: 'a compose screen for an app that does not exist yet (the device around it is runtime/deviceSpec.json)',
+    depicts: 'abstract'}};
 
 export const ComposeScreen: React.FC<ObjectProps & {to?: string; draft?: string; send?: string}> =
   ({w, h, t, dna, to = '', draft = '', send = ''}) => {
