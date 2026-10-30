@@ -69,6 +69,11 @@ STILL_PX = 0.05                # px a frame: below this a line is not moving
 FAST_PX = 6.0                  # px a frame: above this the error is masked and the window leaves the line
 SCALE_STEP = 0.03              # relative growth in one frame above which a translation estimate is not trusted
 MIN_CONF = 12.0                # correlation peak over the field's spread: below it the shift is a guess
+CONF_REF = 25.0                # a line whose median peak is under this is judged against thresholds raised by
+                               #     CONF_REF/conf: the estimator's own noise grows as the texture it reads shrinks.
+                               #     Measured on the Agent HUD film: the one line under it is a lone 12px glyph
+                               #     (conf 18) that read 0.21, 0.12 and 0.155px across three renders of fixes whose
+                               #     other 30 lines all read 0.02-0.06 — noise, where the old render's 0.50 was not
 GLIDE_MIN_OPACITY = 0.5        # fainter than this the line is arriving, not read
 OPACITY_STEP = 0.06            # an opacity change larger than this in one frame is a fade or a seam, not a move
 PAD = 8                        # px of margin round a line's box in the correlation window
@@ -374,7 +379,8 @@ def judge_track(track):
     """{"rms", "a", "b", "pop", "pop_f", "shimmer", "pairs", "moving"} for one line: the worst window's error RMS
     (px) and where it is, the largest single-pair error on a line that otherwise glides, and the shimmer level."""
     best = {"rms": 0.0, "a": None, "b": None, "pop": 0.0, "pop_f": None, "shimmer": 0.0, "shimmer_f": None,
-            "pairs": len(track), "moving": 0}
+            "pairs": len(track), "moving": 0,
+            "conf": float(np.median([r[5] for r in track])) if track else None}
     for run in _runs(track):
         e = np.array([[r[3] - r[1], r[4] - r[2]] for r in run])
         # JITTER IS THE ERROR THAT CHANGES FROM FRAME TO FRAME. A slow, smooth bias — the estimator reading a growing
@@ -411,7 +417,8 @@ def judge_track(track):
 
 
 def level_of(j):
-    if j["rms"] >= JIT_RMS_ERROR or j["pop"] >= POP_PX or j["shimmer"] >= SHIMMER_REL:
+    raise_ = max(1.0, CONF_REF / j["conf"]) if j.get("conf") else 1.0
+    if j["rms"] >= JIT_RMS_ERROR * raise_ or j["pop"] >= POP_PX * raise_ or j["shimmer"] >= SHIMMER_REL:
         return "error"
     if j["rms"] >= JIT_RMS_WARN:
         return "warn"
@@ -440,6 +447,8 @@ def describe(m, j, fps=30.0, label=None):
     if j["shimmer"] >= SHIMMER_REL:
         bits.append("shimmers in place (%.2f of its edge energy) from frame %d" % (j["shimmer"], j["shimmer_f"]))
     where = "composited layer" if "c" in (m.get("fl") or "") else "2D"
+    if j.get("conf") and j["conf"] < CONF_REF:
+        where += ", low texture: conf %.0f, thresholds x%.2f" % (j["conf"], CONF_REF / j["conf"])
     return "%s%r (%s): %s" % ((label + ": ") if label else "", (m.get("t") or "")[:40], where,
                               "; ".join(bits) or "glides (worst window %.2fpx RMS)" % j["rms"])
 

@@ -131,3 +131,15 @@ def test_a_census_of_another_render_is_refused_not_compared(tmp_path):
     census[12] = census[11]                       # one frame more than the video has
     with pytest.raises(RuntimeError, match="not the same render"):
         jq.measure_census(path, census)
+
+
+def test_a_low_texture_line_is_judged_against_a_raised_threshold_and_says_so():
+    """A lone small glyph gives the estimator little to read: its noise is the threshold's business, not a finding.
+    The raise is proportional — a real staircase on the same glyph is still an error."""
+    rows = [(f, 0.0, 0.37, 0.0, 0.37 + (0.19 if f % 2 else -0.19), 18.0, None) for f in range(20)]
+    j = jq.judge_track(rows)
+    assert j["conf"] == pytest.approx(18.0) and j["rms"] > jq.JIT_RMS_ERROR
+    assert jq.level_of(j) == "warn"
+    assert "low texture" in jq.describe({"t": "1"}, j)
+    stair = [(f, 0.0, 0.37, 0.0, 0.37 + (0.5 if f % 2 else -0.5), 18.0, None) for f in range(20)]
+    assert jq.level_of(jq.judge_track(stair)) == "error"

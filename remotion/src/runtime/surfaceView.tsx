@@ -93,7 +93,11 @@ export const SurfaceView: React.FC<{
     return (
       <div data-surface-view="raster" style={{position: 'absolute', left: 0, top: 0, width: w * raster,
         height: h * raster, transformOrigin: '0 0', transform: surfaceRasterTransform(k, x, y, raster), ...style}}>
-        <div style={{position: 'absolute', left: 0, top: 0, width: w, height: h, zoom: raster}}>{children}</div>
+        {/* the unlock INSIDE the layer too: anything that animates within the panel (a button pressed, a badge
+            counting) is re-drawn into this one raster, and under a plain matrix there it would snap — measured on a
+            film's approve button, a 0.6px dip and back on the press frame with the raster and no unlock */}
+        <div style={{position: 'absolute', left: 0, top: 0, width: w, height: h, zoom: raster, transformOrigin: '0 0',
+          transform: allowed && !still ? unlockFor(1) : undefined}}>{children}</div>
       </div>
     );
   }
