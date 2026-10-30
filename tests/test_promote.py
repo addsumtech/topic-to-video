@@ -430,3 +430,79 @@ def test_a_resumed_batch_finds_its_own_promotion_whatever_the_title_ends_in(tmp_
     assert pr._promoted_from(str(tmp_path), "Obj", "100%")
     assert not pr._promoted_from(str(tmp_path), "Foo", "GPS")
     assert pr._promoted_from(str(tmp_path), "Foo", "GPS 2")
+
+
+# ── a REAL object's fidelity references move with it ───────────────────────────────────────────────────────────────
+REAL_OBJ = """import React from 'react';
+import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
+export const META: ObjectMeta = {aspect: 1, provenance: 'industrial',
+  fidelity: {subject: 'a 58 mm espresso puck', depicts: 'real',
+    references: [
+      {kind: 'photo', source: 'media/refs/puck.jpg', note: 'the real puck, top'},
+      {kind: 'drawing', source: "media/puck-section.png", note: 'a section'},
+      {kind: 'spec', source: 'https://example.com/puck-spec', note: 'dimensions'},
+    ],
+    proportions: {height_to_diameter: {value: 0.2, source: ['media/refs/puck.jpg', 'https://example.com/puck-spec']}},
+    parts: ['bed', 'rim'], materials: ['coffee']}};
+export const %(name)s: React.FC<ObjectProps> = ({w, h}) => (
+  <div style={{width: w, height: h}}><div data-part="bed" /><div data-part="rim" /></div>
+);
+"""
+
+
+def _refs(out):
+    os.makedirs(os.path.join(out, "media", "refs"), exist_ok=True)
+    from PIL import Image
+    Image.new("RGB", (64, 64), (90, 60, 40)).save(os.path.join(out, "media", "refs", "puck.jpg"))
+    Image.new("RGB", (64, 64), (200, 200, 200)).save(os.path.join(out, "media", "puck-section.png"))
+    json.dump({"license": "CC BY 4.0", "source": "https://commons.example/puck.jpg", "title": "Puck"},
+              open(os.path.join(out, "media", "refs", "puck.jpg.json"), "w"))
+
+
+def test_a_real_objects_local_references_are_copied_beside_the_library_and_its_paths_rewritten(tmp_path, sandbox,
+                                                                                                   monkeypatch):
+    """A promoted real object with RELATIVE reference paths resolved against nothing in the library: the library-record
+    test (test_fidelity: every library object's record, resolved against the skill root) failed on it."""
+    import fidelity as fid
+    lib, _calls = sandbox
+    monkeypatch.setattr(pr, "OBJECT_REFS_ROOT", str(lib))
+    out = _film(tmp_path, name="EspressoPuck", src=REAL_OBJ)
+    _refs(out)
+    os.utime(os.path.join(out, "out.mp4"))                          # rendered after the references were fetched
+    plan = pr.promote(out, "EspressoPuck")
+    got = os.path.join(str(lib), "references", "object-refs", "EspressoPuck")
+    assert sorted(os.listdir(got)) == ["puck-section.png", "puck.jpg", "puck.jpg.json"]
+    assert len(plan["refs"]) == 3
+    src = open(str(lib / "objects" / "EspressoPuck.tsx"), encoding="utf-8").read()
+    assert "'references/object-refs/EspressoPuck/puck.jpg'" in src and "media/refs" not in src
+    assert '"references/object-refs/EspressoPuck/puck-section.png"' in src
+    assert "https://example.com/puck-spec" in src                    # a URL stays a URL
+    # the library-record check, exactly as test_fidelity runs it on the real library — with the sandbox as root
+    rec, why = fid.object_fidelity(src)
+    assert why is None
+    assert fid.errors_of(fid.problems(rec, str(lib), "EspressoPuck", fid.source_part_names(src))) == []
+
+
+def test_without_the_copy_the_same_record_fails_the_library_check(tmp_path):
+    """The control: the record as the workshop wrote it, resolved against the library root, has dangling references."""
+    import fidelity as fid
+    rec, _why = fid.object_fidelity(REAL_OBJ % {"name": "EspressoPuck"})
+    errs = fid.errors_of(fid.problems(rec, str(tmp_path), "EspressoPuck"))
+    assert any("does not exist" in e for e in errs), errs
+
+
+def test_a_missing_reference_or_a_clashing_library_file_refuses_the_promotion(tmp_path, sandbox, monkeypatch):
+    lib, _calls = sandbox
+    monkeypatch.setattr(pr, "OBJECT_REFS_ROOT", str(lib))
+    out = _film(tmp_path, name="EspressoPuck", src=REAL_OBJ)
+    with pytest.raises(pr.PromoteError) as e:                        # no media at all
+        pr.promote(out, "EspressoPuck")
+    assert any("puck.jpg does not exist" in p for p in e.value.problems)
+    _refs(out)
+    clash = os.path.join(str(lib), "references", "object-refs", "EspressoPuck")
+    os.makedirs(clash)
+    open(os.path.join(clash, "puck.jpg"), "wb").write(b"another picture")
+    with pytest.raises(pr.PromoteError) as e:
+        pr.promote(out, "EspressoPuck")
+    assert any("already holds a different" in p for p in e.value.problems)
+    assert not os.path.exists(str(lib / "objects" / "EspressoPuck.tsx")), "a refusal writes nothing"
