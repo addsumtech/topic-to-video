@@ -1126,6 +1126,26 @@ def _dna_hues(board):
     return out
 
 
+def fidelity_sheet_findings(out_dir):
+    """OBJECT FIDELITY (references/object-authoring.md rule 7): every built thing whose record says it depicts a
+    real thing owes the critic a CURRENT, clean fidelity sheet (S16). This gate does not render the sheet — two
+    renders per thing, made by its author while drawing — it says which are missing, stale or report problems."""
+    try:
+        import fidelity as _fid
+        real = _fid.real_built_things(out_dir)
+    except Exception as e:                                    # noqa: BLE001 — report, never mask
+        return ["fidelity: the real built things could not be listed (%s)" % e]
+    out = []
+    for n, _k in real:
+        st = _fid.sheet_status(out_dir, n)
+        if st != "ok":
+            out.append("%s depicts a real thing and its fidelity sheet is %s — python3 scripts/workshop.py %s "
+                       "fidelity %s, then LOOK at it beside its references" % (
+                           n, {"errors": "reporting problems (%s/%s.json)" % (_fid.SHEET_DIR, n)}.get(st, st),
+                           out_dir, n))
+    return out
+
+
 def main(argv):
     if not argv:
         print(__doc__.strip())
@@ -1174,6 +1194,7 @@ def _prove(argv, out_dir, board, ws_durs):
     beats = board.get("slides", []) or []
     unmeasured, exempt = [], []
     errors, warns = static_checks(board, skips=unmeasured, exempt=exempt)
+    errors += fidelity_sheet_findings(out_dir)
     # Hoisted out of the rendered-checks branch below: the tonal summary reads them unconditionally, so
     # defining them only when stills are rendered made `--no-stills` — the fast path this file's own usage
     # line recommends while authoring — die with an UnboundLocalError.

@@ -33,8 +33,8 @@ each scene in `storyboard.json`. You do NOT change facts, narration, or beat ord
    **props** (the Generalization table). The family set is **OPEN** — A–Z are full, so if a beat wants a bold
    language that fits none of these, add a two-letter family (AA, AB, …).
 3. **`references/building-blocks.md`** and **`references/object-authoring.md`** — what a film's own objects and
-   shots are drawn WITH (every runtime module, six recipes) and how an object is made to MEAN its beat (five rules,
-   three good and three bad rendered examples). Read them before the first build.
+   shots are drawn WITH (every runtime module, six recipes) and how an object is made to MEAN its beat and to be
+   TRUE to the thing it depicts (seven rules, three good and three bad rendered examples). Read them before the first build.
 
 ## Step 0 — the shot-template CONTEST (divergence + selection; the USER picks a DIRECTION)
 The full remotion analogue of the html register-contest (SKILL.md 3.55) — **divergence AND selection**, not just
@@ -303,6 +303,15 @@ the test it must pass are written while the need is fresh:
  "accept": "caption hidden, a viewer still sees water pushed through a packed bed"}
 ```
 
+**A built thing that depicts a REAL thing is true to it** (references/object-authoring.md rule 7): before it is
+drawn, collect its references — a real photo (`scripts/imagefetch.py`) or the product's own asset, and a spec or
+drawing you read — and write its `fidelity` record: the key proportions with their source, the defining parts
+(each drawn on `data-part="<name>"`, attached where the real one is) and its materials. An object keeps it in
+`META.fidelity`; a built SHOT on its entry — `"fidelity": {"subject": "...", "depicts": "abstract"}` for a chart or
+a metaphor, the full record for a real thing (validate.py refuses a shot entry without one). Stylised is allowed;
+inaccurate is not: true proportions and every defining part. Then `workshop.py <out_dir> fidelity <Name>` and LOOK
+at the sheet beside its references.
+
 and every beat that uses it says so: `shot_fit = {"verdict": "build", "ref": "EspressoPuck", "why": "…"}`. An object
 held by more than one template lists them all — `"slot": ["ObjectStage", "ObjectCompare"]` — since one object is
 meant to serve several beats; a shot's `slot` is always `"own"`.
@@ -315,6 +324,7 @@ python3 scripts/workshop.py <out_dir> new-object EspressoPuck --means "water for
 python3 scripts/workshop.py <out_dir> new-shot ExtractionFlow --means "pressure, flow and time on one frame"
 python3 scripts/workshop.py <out_dir> still EspressoPuck      # LOOK at it, caption hidden, before it enters the film
 python3 scripts/workshop.py <out_dir> check                   # type-check, imports, content contract, words from props
+python3 scripts/workshop.py <out_dir> fidelity EspressoPuck   # a real thing: its references beside it, every part at 100%
 ```
 
 **Object or shot?** Build an OBJECT when a template's frame is right and only its subject is missing — the stage,

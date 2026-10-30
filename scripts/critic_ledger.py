@@ -953,6 +953,38 @@ def _route_rows(out_dir, led, by_id, warns):
     return errs
 
 
+def _fidelity_rows(out_dir, declared, by_id):
+    """OBJECT FIDELITY (agents/shot-critic.md, the FIDELITY dimension; scripts/fidelity.py). When the film built a
+    thing that depicts a real thing, that dimension is never N/A, its verdict cites every such thing's sheet
+    (`_fidelity/<id>.png`), and it cannot PASS over a sheet that is missing, stale or reports problems."""
+    sid = next((i for i, t in declared if t.upper().startswith("FIDELITY")), None)
+    r = by_id.get(sid) if sid else None
+    if r is None:
+        return []
+    try:
+        import fidelity as _fid
+        real = _fid.real_built_things(out_dir)
+    except Exception as e:                                    # noqa: BLE001 — report, never mask
+        return ["%s: the film's real built things could not be listed (%s)" % (sid, e)]
+    if not real:
+        return []
+    v, ev, errs = str(r.get("verdict", "")).strip().lower(), str(r.get("evidence", "")), []
+    names = ", ".join(n for n, _k in real)
+    if v == "na":
+        return ["%s is N/A, but the film built %s, which its fidelity record says depicts a real thing — judge each "
+                "on its sheet" % (sid, names)]
+    for n, _k in real:
+        sheet = "%s/%s.png" % (_fid.SHEET_DIR, n)
+        if sheet not in ev.replace(os.sep, "/"):
+            errs.append("%s does not cite %s — every real built thing is judged on its fidelity sheet" % (sid, sheet))
+        status = _fid.sheet_status(out_dir, n)
+        if v == "pass" and status != "ok":
+            errs.append("%s passes while %s's fidelity sheet is %s — run python3 scripts/workshop.py %s fidelity %s "
+                        "and judge what it shows" % (sid, n, {"errors": "reporting problems"}.get(status, status),
+                                                     out_dir, n))
+    return errs
+
+
 def _waiver_rows(out_dir, led, by_id, warns):
     """Every machine-gate finding the board waives (gate_waivers) needs a `waivers` row from the critic —
     {key, holds: true|false, evidence} — saying whether the waiver's stated reason is TRUE of the rendered film. A
@@ -1237,6 +1269,9 @@ def validate(out_dir, final=False):
 
     # ── the machine-gate findings the board waived: is each waiver's reason true of the film? ──────────────────
     errs.extend(_waiver_rows(out_dir, led, by_id, warns))
+
+    # ── the built things that depict a real thing: judged on their fidelity sheets (S16) ──────────────────────
+    errs.extend(_fidelity_rows(out_dir, declared, by_id))
 
     # ── the machine gates the brief ran on THIS render: a PASS cannot deliver a film they refuse ──────────────
     if not unpinned:
