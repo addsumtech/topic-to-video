@@ -314,8 +314,10 @@ def film_census(out_dir, video):
     # THE PROGRAMMATIC SCENES, on their settled span (E18: a structure the census cannot read is handed to the pixels,
     # not skipped): their tiles are truly still there, so a pop or a shimmer is judged; the reveal before it is not
     settled = settled_scenes(video, {p: (a, b) for p, (a, b, _k, _i) in programmatic.items()})
+    floor = cap_top if cap_top is not None else H          # below it: the burned caption (overlay, or its band)
     for pos, (a, b, kind, idx) in programmatic.items():
         f0, tiles = settled[pos]
+        tiles = [t for t in tiles if t[3] <= floor]
         if a < f0:
             no("in the reveal of a programmatic scene (%s): drawn by PIL at whole pixels, no geometry to read" % kind,
                f0 - a)
