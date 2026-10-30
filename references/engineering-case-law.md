@@ -260,6 +260,21 @@ look at the first and last frame of a cut, not only its middle.
 > looked for its partner on its beat's first frame and found nothing.
 > **Ask yourself:** On a frame where this beat is not in this seam at all, what does this presentation draw?
 
+
+**E18 · A STRUCTURE A GATE CANNOT JUDGE IS HANDED TO ONE THAT CAN — NEVER SKIPPED.** When a gate meets something its
+model does not describe (a composited layer, an unknown kind, a renderer path it cannot read), it names it and passes
+it to an instrument that measures the OUTPUT, and that instrument is on the delivery path. A `continue` with a comment
+is a silent pass.
+
+> **Precedent — `6fd5ab8`:** the type-glide census listed every line of type on a 3D or will-change layer with flag
+> `c` and judged none of them ("listed for pixel checks, not judged" — no pixel check existed). A product film put its
+> whole UI panel inside a 3D screen and re-laid it out at the camera's size every frame; every gate was green, and the
+> viewer saw the type tremble. Measured from the delivered pixels against the census's own geometry: 0.2-0.6px RMS on
+> every line of two beats, against 0.002px for the film's 2D type. The same panel drawn flat stepped exactly as much —
+> the layer did not cause the defect, it hid it. `jitter_qa.py` now judges every line on every layer from the pixels.
+> **Ask yourself:** Which items does this gate `continue` past? For each, which instrument judges it instead — and is
+> that instrument a blocking gate, or a comment?
+
 ---
 
 ## Run-time case notes — why the workflow says what it says

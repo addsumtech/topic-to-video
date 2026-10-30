@@ -85,6 +85,16 @@ WebGL).
 **Smallest real use:** `<Stage3D cam={pose}><Surface pose={p} w={400} h={300}>…</Surface></Stage3D>`
 **Exports:** `Stage3D`, `Surface`, `Pose`, `matrixOf`, `inverseOf`, `fitStage`, `fitSurfaces`, `projectPose`, `faceShade`, `useStage`.
 
+### `surfaceView`
+A camera over a panel — a screen, a page, a product's UI redrawn in DOM — on a flat frame or inside a 3D `Surface`:
+the panel is laid out ONCE in its own units and the view is one transform carrying the baseline unlock, so its type
+glides while the camera pans and pushes. Re-laying the panel out at the view's size every frame (`left: x*k`,
+`font-size: size*k`) made a delivered film's type tremble 0.2-0.6px; `scripts/jitter_qa.py` measures it.
+**Reach for it:** any shot whose camera moves ACROSS a panel (a screen you push into, a page you scroll over); a
+device's live screen. Anything that moves INSIDE the panel moves by a transform (glide's place helper), never `left`/`top`.
+**Smallest real use:** `<SurfaceView w={1000} h={486} k={innerW / (vw * 1000)} x={-u0 * imgW} y={-v0 * imgH}>…</SurfaceView>`
+**Exports:** `SurfaceView`, `surfaceViewTransform`.
+
 ### `project3d`
 Projects a 3D point to the frame — the arithmetic for drawing your own 3D (an object that turns) or for anchoring real
 type to a thing in space.
