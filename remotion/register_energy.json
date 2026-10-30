@@ -32,7 +32,7 @@
     "CodeRain": "1ee1ebf7bf47a456",
     "CollaborativeCursors": "97ca7b39850d3d36",
     "ComicPanels": "7bd3fb72ac55c742",
-    "CommandSummon": "e73caf7f3768d6cf",
+    "CommandSummon": "551f51982067b757",
     "CompanionCard": "59cc1b8135f56f8c",
     "CompressedSensingEq": "802878ab61ea4364",
     "ConveyorBelt": "851fa970be9e86e6",
@@ -171,7 +171,7 @@
     "TermGitLog": "ea123fccabe39f79",
     "TermLog": "bbfab5d737973c46",
     "TermSpace": "e19bdf24efb67747",
-    "TermTable": "1fba24fdcea34b90",
+    "TermTable": "26304e168f402d1f",
     "TermThink": "15c8259747554a7c",
     "TermTree": "1e8af4ce6e859aea",
     "TerrainFly": "100aa89b83e9c5ad",
@@ -186,15 +186,15 @@
     "WireGlobe": "35cefda9d7f78392",
     "WordTunnel": "d5498450e7ba5c60",
     "WorksThrough": "e2ad62366962a853",
-    "DeviceDemo": "3b1eb86f293ade78",
-    "DeviceHero": "10f0ccf363d51c77",
+    "DeviceDemo": "be4586977aaedbfd",
+    "DeviceHero": "b7bc5a98e3acae98",
     "ObjectCompare": "e364bc7973b51306",
     "ObjectPath": "651e254ddce83e91",
     "ObjectStage": "8a80b24255ad99b1",
     "ObjectTurntable": "b4d2fbc05181e626",
     "KSpaceToPicture": "88d3dc0421382833",
     "ExtractionFlow": "262b21edd1024d6c",
-    "PourSync": "a55bfc0a3400f240",
+    "PourSync": "6f27f04eb68f6b7b",
     "RangeSpheres": "893ee5cc19a84db8",
     "LightShellOrbit": "178b8d29477b4216",
     "OrbitClockGain": "2c9b9952a2f6c6a2",
@@ -559,17 +559,17 @@
     },
     "DeviceDemo": {
       "motion_p75": 0.0,
-      "ink_median": 0.038,
+      "ink_median": 0.029,
       "luma_range": 0.0,
       "seconds": 6.0,
-      "footprint": 0.16
+      "footprint": 0.164
     },
     "DeviceHero": {
       "motion_p75": 0.0,
-      "ink_median": 0.097,
-      "luma_range": 0.049,
+      "ink_median": 0.071,
+      "luma_range": 0.03,
       "seconds": 5.0,
-      "footprint": 0.484
+      "footprint": 0.463
     },
     "DiffusionDenoise": {
       "motion_p75": 0.0001,
@@ -1322,7 +1322,7 @@
     },
     "PourSync": {
       "motion_p75": 0.0014,
-      "ink_median": 0.047,
+      "ink_median": 0.045,
       "luma_range": 0.007,
       "seconds": 14.0,
       "footprint": 0.438

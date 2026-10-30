@@ -19,6 +19,8 @@ import {CarryAnchor} from './carry';
 
 export type DeviceKind = 'phone' | 'watch' | 'tablet' | 'tablet-landscape' | 'laptop' | 'monitor';
 export type DeviceLook = 'flat' | 'real' | 'screen';
+/** a key of deviceSpec.json `models` — a named type, not `string`: a prop of it is plumbing, never copy */
+export type DeviceModel = string;
 export type Placement = 'center' | 'left' | 'right';
 export type Rect = {x: number; y: number; w: number; h: number};
 export type Bezels = {l: number; r: number; t: number; b: number};
@@ -358,8 +360,8 @@ export const Device: React.FC<{g: DeviceGeom; dna: DesignDNA | null; children?: 
           if (!top) {
             // the sizing holes: a row along the strap's centre, from just inside its end toward the case
             for (let k = 0; k < 7; k++) {
-              const cy = far - b.w * (0.55 + k * 0.3);
-              if (cy < near + face.h * 0.45) break;
+              const cy = far - b.w * (0.45 + k * 0.22);
+              if (cy < near + face.h * 0.3) break;
               holes.push(<ellipse key={k} cx={bx + b.w / 2} cy={cy} rx={b.w * 0.05} ry={b.w * 0.045}
                 fill={real ? '#07080a' : alpha(bg, 0.7)} stroke={real ? 'rgba(255,255,255,0.12)' : 'none'} strokeWidth={0.8} />);
             }

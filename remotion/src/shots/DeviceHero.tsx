@@ -8,7 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic, ENTRY_T} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
 import {TITLE_Y} from '../runtime/layout';
-import {deviceGeometry, defaultLook, Device, type DeviceKind, type DeviceLook, type Placement} from '../runtime/device';
+import {deviceGeometry, defaultLook, Device, type DeviceKind, type DeviceLook, type DeviceModel, type Placement} from '../runtime/device';
 import {ScreenImage, ScreenVideo, type VideoSpan} from '../runtime/screen';
 import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
 import {useCarried} from '../runtime/carry';
@@ -26,7 +26,7 @@ type HeroScreen = {image?: string; imageW?: number; imageH?: number; video?: str
 
 export const DeviceHero: React.FC<{
   device?: DeviceKind;   // phone | watch | tablet | tablet-landscape | laptop | monitor
-  model?: string | null; // a real model (deviceSpec.json `models`) — scripts/device_script.py infers it from the screenshot
+  model?: DeviceModel | null; // a real model (deviceSpec.json `models`) — scripts/device_script.py infers it from the screenshot
   look?: DeviceLook;     // flat | real | screen — absent: real on a dark beat, flat on a light one
   screen?: HeroScreen;   // the screenshot, recording, or screen the film drew, prepared by scripts/device_script.py
   placement?: Placement; // center | left | right

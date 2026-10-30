@@ -707,8 +707,10 @@ def cjk_props(name, offset=0):
         # `mediumColor` is LitMedium's medium as a #rrggbb colour — fed a sentence, LitGround refuses it by name and
         # the register read as a coverage hole at every aspect (`base`, the obvious name, is StrataColumn's COPY);
         # `material` NAMES the medium (paper | water | metal | clay), a closed set like `page`, never copy.
+        # `model` NAMES a real device (runtime/deviceSpec.json `models`), a closed set read off the screenshot — fed a
+        # sentence, the device layer refuses it by name and prop_reach read DeviceDemo / DeviceHero as NOT MEASURED.
         if prop in ("accent", "accent2", "imageAspect", "aspect", "dna", "page",
-                    "face", "d", "tex", "mediumColor", "material") or re.match(r"^src[A-Z]?", prop):
+                    "face", "d", "tex", "mediumColor", "material", "model") or re.match(r"^src[A-Z]?", prop):
             # colours / images / plumbing, not copy. The `src` test is a PREFIX: KSpaceAnatomy declares
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.

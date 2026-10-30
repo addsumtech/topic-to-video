@@ -354,7 +354,8 @@
    },
    "design": {
     "displayRadiusMm": "not published: 11.5 mm",
-    "camera": "a dot centred on the long edge's bezel"
+    "camera": "a dot centred on the long edge's bezel",
+    "buttons": "not drawn: the iPad's top and volume buttons stand under half a millimetre proud of a 179.5 mm case — invisible at any size a film draws it"
    },
    "displayRadiusMm": 11.5,
    "scale": [
@@ -471,7 +472,7 @@
   },
   "buttonOut": {
    "phone": 0.01,
-   "tablet": 0.004
+   "tablet": 0
   },
   "crown": {
    "y": 0.3,

@@ -48,7 +48,7 @@
     "CodeRain": "1ee1ebf7bf47a456",
     "CollaborativeCursors": "97ca7b39850d3d36",
     "ComicPanels": "7bd3fb72ac55c742",
-    "CommandSummon": "e73caf7f3768d6cf",
+    "CommandSummon": "551f51982067b757",
     "CompanionCard": "59cc1b8135f56f8c",
     "CompressedSensingEq": "802878ab61ea4364",
     "ConveyorBelt": "851fa970be9e86e6",
@@ -186,7 +186,7 @@
     "TermGitLog": "ea123fccabe39f79",
     "TermLog": "bbfab5d737973c46",
     "TermSpace": "e19bdf24efb67747",
-    "TermTable": "1fba24fdcea34b90",
+    "TermTable": "26304e168f402d1f",
     "TermThink": "15c8259747554a7c",
     "TermTree": "1e8af4ce6e859aea",
     "TerrainFly": "100aa89b83e9c5ad",
@@ -202,15 +202,13 @@
     "WordTunnel": "d5498450e7ba5c60",
     "WorksThrough": "e2ad62366962a853",
     "SameStuffChanged": "a3d68fd218d23828",
-    "DeviceDemo": "3b1eb86f293ade78",
-    "DeviceHero": "10f0ccf363d51c77",
     "ObjectCompare": "e364bc7973b51306",
     "ObjectPath": "651e254ddce83e91",
     "ObjectStage": "8a80b24255ad99b1",
     "ObjectTurntable": "b4d2fbc05181e626",
     "KSpaceToPicture": "88d3dc0421382833",
     "ExtractionFlow": "262b21edd1024d6c",
-    "PourSync": "a55bfc0a3400f240",
+    "PourSync": "6f27f04eb68f6b7b",
     "RangeSpheres": "893ee5cc19a84db8",
     "LightShellOrbit": "178b8d29477b4216",
     "OrbitClockGain": "2c9b9952a2f6c6a2",
@@ -234,7 +232,9 @@
     "MagicMoveType": "3677e7b47d1e489c",
     "AuroraCurtain": "381fe26085549b44",
     "LightShafts": "93ed031b5f2015c7",
-    "NebulaField": "52fda247f5c1a0b4"
+    "NebulaField": "52fda247f5c1a0b4",
+    "DeviceDemo": "be4586977aaedbfd",
+    "DeviceHero": "b7bc5a98e3acae98"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -422,8 +422,6 @@
     "WordTunnel": "eec2973d2fc8dcb6",
     "WorksThrough": "f62d819aea214f09",
     "SameStuffChanged": "2a38e543f0976890",
-    "DeviceDemo": "06d58b283ec3de16",
-    "DeviceHero": "921666e8c8995ee6",
     "ObjectCompare": "e53ddce0b8f1d353",
     "ObjectPath": "fc562b2332d8c98f",
     "ObjectStage": "3054bdc2c957d88c",
@@ -454,7 +452,9 @@
     "MagicMoveType": "196f1e0f70b03fbd",
     "AuroraCurtain": "12fe4972e0d76f62",
     "LightShafts": "72e8db4e6e0657c5",
-    "NebulaField": "70552a8bcb98f72f"
+    "NebulaField": "70552a8bcb98f72f",
+    "DeviceDemo": "06d58b283ec3de16",
+    "DeviceHero": "921666e8c8995ee6"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -634,11 +634,11 @@
       "prop_diff": 1.0
     },
     "DeviceDemo": {
-      "reach": 0.05,
+      "reach": 0.046,
       "prop_diff": 0.2
     },
     "DeviceHero": {
-      "reach": 0.051,
+      "reach": 0.047,
       "prop_diff": 0.25
     },
     "DiffusionDenoise": {
@@ -1070,7 +1070,7 @@
       "prop_diff": 1.0
     },
     "PourSync": {
-      "reach": 0.075,
+      "reach": 0.074,
       "prop_diff": 0.75
     },
     "ProfileGrowth": {
