@@ -44,7 +44,51 @@ def _before_source(name):
     src = re.sub(r"from '\./(\w+)'", r"from '@shots/\1'", src)
     src = re.sub(r"\bexport const %s\b" % name, "export const %sBefore" % name, src)
     src = re.sub(r"^export default %s;\s*$" % name, "", src, flags=re.M)
-    return src + "\nexport const GROUND = 'bg';\n"
+    return _since_slots(name, src) + "\nexport const GROUND = 'bg';\n"
+
+
+def _swap(src, old, new, name):
+    assert src.count(old) == 1, "%s: the reference's anchor for an intended change is gone: %r" % (name, old[:60])
+    return src.replace(old, new)
+
+
+def _since_slots(name, src):
+    """INTENDED CHANGES SINCE BEFORE THAT ARE NOT SLOTS — applied to the reference too, so the comparison still asks
+    only whether an EMPTY SLOT changed the picture. Each is a decision recorded with its commit; an anchor that is
+    no longer found fails loudly (a reference silently left without the change would fail every frame instead).
+      * DeviceDemo, the push-in capped at the screenshot's own pixels (agenthud-film 40835dd, ported to int4).
+      * DeviceHero, the laptop turned by its own camera (runtime/laptop3d: no CSS rotate of its flat picture),
+        fitted and centred in its body; a slab turned by CSS shows its case's edge (`turned`)."""
+    if name == "DeviceDemo":
+        src = _swap(src, "  const framing = (st: Step): {zoom: number; x: number; y: number} | null => {",
+                    "  const shown: (Step | null)[] = [];\n"
+                    "  steps.reduce<Step | null>((last, st) => { const cur = st.screen?.image && st.imageW ? st : last; "
+                    "shown.push(cur); return cur; }, null);\n"
+                    "  const framing = (st: Step, i: number): {zoom: number; x: number; y: number} | null => {", name)
+        src = _swap(src, "    let zoom = Math.min(spec.maxZoom, Math.max(1, st.captionPx / (st.textFrac * s.w)));",
+                    "    const native = shown[i]?.imageW ? Math.max(1, shown[i]!.imageW! / s.w) : spec.maxZoom;\n"
+                    "    let zoom = Math.min(spec.maxZoom, native, Math.max(1, st.captionPx / (st.textFrac * s.w)));", name)
+        src = _swap(src, "      const fr = framing(st);", "      const fr = framing(st, i);", name)
+        src = _swap(src, "if (!next || !framing(next))", "if (!next || !framing(next, i + 1))", name)
+    elif name == "DeviceHero":
+        src = "import {laptopCamera, laptopBounds} from '@runtime/laptop3d';\n" + src
+        src = _swap(src, "  const fit = lk === 'real' ? persp / (persp + (b.w / 2) * Math.sin((TURN_FROM * Math.PI) / 180)) : 1;",
+                    "  const lap = g.kind === 'laptop' && lk !== 'screen';\n"
+                    "  const lapPose = lap && turn ? {yaw: turn} : undefined;\n"
+                    "  const lapBox = lap ? laptopBounds(laptopCamera(g, lapPose)) : null;\n"
+                    "  const lapFit = lapBox ? Math.min(1, b.w / lapBox.w, b.h / lapBox.h) : 1;\n"
+                    "  const lapOrigin = lapBox ? `${lapBox.x + lapBox.w / 2}px ${lapBox.y + lapBox.h / 2}px` : undefined;\n"
+                    "  const lapT = lapBox ? `translate(${b.x + b.w / 2 - (lapBox.x + lapBox.w / 2)}px, "
+                    "${b.y + b.h / 2 - (lapBox.y + lapBox.h / 2)}px) ` + `scale(${lapFit})` : undefined;\n"
+                    "  const fit = lap ? 1 : lk === 'real' ? persp / (persp + (b.w / 2) * Math.sin((TURN_FROM * Math.PI) / 180)) : 1;",
+                    name)
+        src = _swap(src, "        transform: `scale(${k}) rotateY(${turn}deg)`}}>\n        <Device g={g} dna={dna}>{content}</Device>",
+                    "        transform: lap ? `scale(${k})` : `scale(${k}) rotateY(${turn}deg)`}}>\n"
+                    "        <div style={{position: 'absolute', left: 0, top: 0, width: W, height: H, transformOrigin: lapOrigin, "
+                    "transform: lapT}}>\n"
+                    "          <Device g={g} dna={dna} pose={lapPose} turned={!lap && lk === 'real' ? {yaw: turn} : undefined}>"
+                    "{content}</Device>\n        </div>", name)
+    return src
 
 
 def _screenshot(path, h):
