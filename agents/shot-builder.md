@@ -77,3 +77,7 @@ its own pixels. A product's UI from a small demo GIF is REBUILT natively (DOM/SV
 labelled sample data) or rendered from the product's own code/vectors at 2-3x — never scaled up. Logos from the
 source's largest PNG/SVG; frame sequences as PNG, never JPEG. `scripts/media_res_qa.py <out_dir>` measures it
 on the rendered Film and blocks delivery past 1.25x.
+A camera that pans or pushes across such a rebuilt panel is a `<SurfaceView>` (runtime/surfaceView.tsx): the panel is
+laid out ONCE in its own units and the view is its one transform — never `left`/`top`/`font-size` recomputed from the
+view each frame, which trembles the type (字体抖动) on a flat frame and inside a 3D screen alike;
+`scripts/jitter_qa.py <out_dir>` measures it from the pixels and blocks delivery.

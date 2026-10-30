@@ -238,6 +238,10 @@ DELIVERY_GATES = {
         # text that appears seconds after the voice names it (or long before): the same census, read against
         # audio/NN.words.json (scripts/sync_qa.py)
         ("TEXT lands with the voice (every frame, census)", "text_safe_qa.py", ("--sync",), 240, True, None),
+        # type that TREMBLES against its own geometry, judged from the delivered PIXELS on every layer — the census
+        # cannot judge type a compositor moves (3D surfaces, will-change) and handed it over; a product film's UI
+        # panel inside a 3D screen trembled with every gate green (scripts/jitter_qa.py)
+        ("TYPE trembles in the pixels (every frame, every layer incl. 3D)", "jitter_qa.py", (), 600, True, None),
         ("CJK type holds together in this film's registers", "cjk_type_qa.py", (), 600, True, _cjk_copy),
         # A PICTURE magnified past its own pixels — every type gate measures text, none of them an image's pixels; a
         # product film shipped its hero UI at 2.9x and its bots row at 2.0x with all of them green (scripts/media_res_qa.py)

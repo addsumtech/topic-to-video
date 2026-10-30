@@ -721,7 +721,11 @@ def judge_glide(frames):
     for f in sorted(frames):
         for ln in frames[f].get("lines") or []:
             if "c" in (ln.get("fl") or ""):
-                continue                                  # a composited layer: listed for pixel checks, not judged
+                # a COMPOSITED layer (3D, will-change): rasterised into a layer and moved by the compositor, a path the
+                # DOM does not describe, so the baseline rule cannot judge it. It is NOT clean: scripts/jitter_qa.py
+                # judges these lines from the delivered pixels (a delivery gate), and the census counts them as
+                # handed over (`composited_lines`) so the hand-off is printed, never silent.
+                continue
             if ln.get("g"):
                 # A KINETIC LINE (runtime/kinetic.tsx): every glyph is its own run of type under its own matrix, so
                 # each is judged on its own track — `<line key>#<grapheme>` — and the runs are folded back into ONE
@@ -841,6 +845,21 @@ def _composited(frames):
     """The most lines any one frame drew on a 3D or will-change layer — type the census cannot read (it is
     rasterised once and moved by the compositor), so it is named as unread rather than counted as clean."""
     return max((int(rec.get("z") or 0) for rec in frames.values()), default=0)
+
+
+def composited_lines(frames):
+    """(distinct lines, line-frames) on a 3D or will-change layer — what the census hands to the pixel gate."""
+    keys, n = set(), 0
+    for rec in frames.values():
+        for ln in rec.get("lines") or []:
+            if "c" in (ln.get("fl") or ""):
+                keys.add(ln.get("k"))
+                n += 1
+    return len(keys), n
+
+
+COMPOSITED_HANDOFF = ("NOT judged by the census (a compositor moves them, the DOM cannot say how) — judged from "
+                      "the delivered pixels by scripts/jitter_qa.py, a blocking delivery gate")
 
 
 def _glide_measured(slot, want_frames):
@@ -974,7 +993,8 @@ def scan_film_glide(out_dir, concurrency=None):
             (errors if level == "error" else warns).append(line)
     return {"errors": errors, "warns": warns, "excused": excused, "frames": total,
             "logged": len(res["frames"]), "unmeasured": [why] if why else [], "beats": len(slides),
-            "composited": _composited(res["frames"]), "seconds": time.time() - t0}
+            "composited": _composited(res["frames"]), "composited_lines": composited_lines(res["frames"]),
+            "seconds": time.time() - t0}
 
 
 # ── THE SYNC AUDIT (`--sync`) ────────────────────────────────────────────────────────────────────────────────
@@ -1201,7 +1221,8 @@ def main_glide(argv):
             print("[text_safe] NOT MEASURED %s: %s" % (n, result[n]["unmeasured"]))
         for n in sorted(n for n, v in result.items() if v["composited"]):
             print("[text_safe] note %s: up to %d line(s) a frame on a 3D or will-change layer — not read by the "
-                  "census" % (n, result[n]["composited"]))
+                  "census; measure them from the pixels (scripts/jitter_qa.py --clip <render> --truth=<census>)"
+                  % (n, result[n]["composited"]))
         js = _c.argflag(argv, "json")
         if js:
             with open(js, "w", encoding="utf-8") as fh:
@@ -1236,8 +1257,9 @@ def main_glide(argv):
     for x in rep["unmeasured"]:
         print("[text_safe] NOT MEASURED: %s" % x)
     if rep["composited"]:
-        print("[text_safe] note: up to %d line(s) a frame on a 3D or will-change layer — not read by the census"
-              % rep["composited"])
+        nl, nf = rep.get("composited_lines") or (0, 0)
+        print("[text_safe] composited: %d line(s) on a 3D or will-change layer (%d line-frames, up to %d a frame) — %s"
+              % (nl, nf, rep["composited"], COMPOSITED_HANDOFF))
     print("[text_safe] glide %s  %d staircase(s), %d tick(s) — %d of %d frames of %d beats · %.0fs"
           % ("FAIL" if rep["errors"] else "OK", len(rep["errors"]), len(rep["warns"]), rep["logged"], rep["frames"],
              rep["beats"], rep["seconds"]))
