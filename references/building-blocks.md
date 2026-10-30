@@ -299,16 +299,24 @@ The film's own narration as a signal a shot can draw — real levels from the be
 ## Devices
 
 ### `device`
-The phone, tablet, laptop or monitor a device beat is performed on — its geometry and its three looks.
-**Reach for it:** through `DeviceDemo` / `DeviceHero`; a film's own device shot can use `Device` directly.
-**Smallest real use:** `const g = deviceGeometry('phone', 'flat', W, H, 'center', false); <Device g={g} dna={dna}>…</Device>`
-**Exports:** `Device`, `deviceGeometry`, `deviceFace`, `defaultLook`, `isTouch`, `DeviceKind`, `DeviceLook`, `Rect`.
+The phone, watch, tablet, laptop or monitor a device beat is performed on — its geometry and its three looks. A
+`model` (deviceSpec.json's models table: Apple's published pixels, ppi and case) draws THAT device: its screen is its own
+pixels, its bezel the published case around them, every corner concentric (case = screen + bezel), with the parts
+no spec publishes — crown, band, buttons, Dynamic Island, notch — under `design`.
+**Reach for it:** through `DeviceDemo` / `DeviceHero`; a film's own shot that shows a device's capture uses `Device`
+directly — never a hand-drawn slab (validate warns: scripts/device_fidelity_qa.py).
+**Smallest real use:** `const g = deviceGeometry('watch', 'real', W, H, 'center', false, 'watch-s12-46'); <Device g={g} dna={dna}>…</Device>`
+**Exports:** `Device`, `deviceGeometry`, `deviceFace`, `defaultLook`, `isTouch`, `proportions`, `roundRectPath`,
+`modelNames`, `DeviceKind`, `DeviceLook`, `DeviceGeom`, `Rect`.
 
 ### `deviceSpec.json`
-The device layer's numbers, read by the TypeScript and the Python alike: screen ratios, bezels, minimum step times.
-**Reach for it:** never to change a number for one film; read it to know the limits (`screenRatio`, `minSeconds`).
+The device layer's numbers, read by the TypeScript and the Python alike: the real `models` (each with its source
+URL and date; `derived` and `design` values said as such), the generic `kinds`, screen ratios, `parts`, minimum
+step times.
+**Reach for it:** never to change a number for one film; read it to know the limits (`screenRatio`, `minSeconds`)
+and which captures name a model (`models.*.published.px`; `python3 scripts/device_models.py <image>`).
 **Smallest real use:** `import spec from '@runtime/deviceSpec.json'; const [rw, rh] = spec.screenRatio.phone;`
-**Exports:** `screenRatio`, `minSeconds`, `maxZoom`.
+**Exports:** `models`, `kinds`, `parts`, `screenRatio`, `minSeconds`, `maxZoom`.
 
 ### `screen`
 What a device's screen shows: a screenshot (a long one scrolls), a recording, with the scroll bounded by the image's

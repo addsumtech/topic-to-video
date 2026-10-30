@@ -25,18 +25,19 @@ type HeroScreen = {image?: string; imageW?: number; imageH?: number; video?: str
   page?: 'demo'; object?: ObjectRef};
 
 export const DeviceHero: React.FC<{
-  device?: DeviceKind;   // phone | tablet | tablet-landscape | laptop | monitor
+  device?: DeviceKind;   // phone | watch | tablet | tablet-landscape | laptop | monitor
+  model?: string | null; // a real model (deviceSpec.json `models`) — scripts/device_script.py infers it from the screenshot
   look?: DeviceLook;     // flat | real | screen — absent: real on a dark beat, flat on a light one
   screen?: HeroScreen;   // the screenshot, recording, or screen the film drew, prepared by scripts/device_script.py
   placement?: Placement; // center | left | right
   kicker?: string;       // an optional spaced label above the device
-}> = ({device = 'laptop', look, screen, placement = 'center', kicker = ''} = {}) => {
+}> = ({device = 'laptop', model, look, screen, placement = 'center', kicker = ''} = {}) => {
   const SCREEN: HeroScreen = screen ?? {page: 'demo'};   // null is absent, as scripts/device_script.py reads it
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const lk: DeviceLook = look ?? defaultLook(dna);
-  const g = deviceGeometry(device, lk, W, H, placement, Boolean(kicker));
+  const g = deviceGeometry(device, lk, W, H, placement, Boolean(kicker), model ?? null);
   const s = g.screen;
   // A CONTAINER SEAM THAT CARRIES THE SCREEN IN IS THE DEVICE'S ENTRANCE (runtime/carry): the device is already
   // standing where the seam lands it, rather than landing it and then rising out of nothing a second time.

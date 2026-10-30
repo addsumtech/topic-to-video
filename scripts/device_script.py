@@ -18,7 +18,7 @@ SPEC_PATH = os.path.join(_HERE, "..", "remotion", "src", "runtime", "deviceSpec.
 
 STEP_KINDS = ("screen", "type", "tap", "click", "scroll", "drag", "mark")
 GESTURES = ("type", "tap", "click", "scroll", "drag", "mark")
-DEVICE_KINDS = ("phone", "tablet", "tablet-landscape", "laptop", "monitor")
+DEVICE_KINDS = ("phone", "watch", "tablet", "tablet-landscape", "laptop", "monitor")
 LOOKS = ("flat", "real", "screen")
 VIAS = ("push", "fade")
 PLACEMENTS = ("center", "left", "right")
@@ -104,7 +104,31 @@ def _frame_problems(props):
         probs.append("`camera` is absent or \"still\" (got %r)" % (props.get("camera"),))
     if props.get("placement", "center") not in PLACEMENTS:
         probs.append("`placement` is one of %s (got %r)" % (", ".join(PLACEMENTS), props.get("placement")))
+    model = props.get("model")
+    if model is not None:
+        ms = {k: v for k, v in SPEC["models"].items() if not k.startswith("_")}
+        if model not in ms:
+            probs.append("`model` is one of %s (got %r)" % (", ".join(ms), model))
+        elif "device" in props and props["device"] in DEVICE_KINDS:
+            want = "tablet" if props["device"] == "tablet-landscape" else props["device"]
+            if ms[model]["kind"] != want:
+                probs.append("`model` %s is a %s, not a %s — name the device it is, or drop `device`"
+                             % (model, ms[model]["kind"], props["device"]))
     return probs
+
+
+def screen_ratio(device, model=None):
+    """(w, h) of the screen a device draws: the model's own pixels (a tablet turned with the device), or the
+    generic kind's proportion."""
+    if model:
+        m = SPEC["models"].get(model)
+        if not m or model.startswith("_"):
+            raise DeviceScriptError(["unknown model %r" % (model,)])
+        pw, ph = m["published"]["px"]
+        return (ph, pw) if device == "tablet-landscape" else (pw, ph)
+    if device not in SPEC["screenRatio"]:
+        raise DeviceScriptError(["unknown device %r — one of %s" % (device, ", ".join(sorted(SPEC["screenRatio"])))])
+    return tuple(SPEC["screenRatio"][device])
 
 
 _PAGE_REFUSAL = "the register's own preview, never a film's — give an image, a video, or a screen the film drew"
@@ -233,6 +257,11 @@ def check_shape(props):
         elif on_object and _text_target(st, k):
             probs.append("%s (%s): a text target needs a screenshot to find the text in — on a film-drawn screen, "
                          "target [x, y]" % (where, k))
+        elif k == "type" and props.get("device") == "watch":
+            # A WATCH HAS NO KEYBOARD a viewer would believe: words arrive on it by dictation or a reply chosen from
+            # a list. A key-by-key type on a 40 mm screen is an interaction the product does not have.
+            probs.append("%s (type): a watch has no keyboard — show the dictated or chosen reply as its own "
+                         "screen, or type on the phone" % where)
         elif k == "type":
             if isinstance(st["type"], list) and not all(isinstance(v, str) for v in st["type"]):
                 probs.append("%s: a `type` list is the chunks as strings (got %r)" % (where, st["type"]))
@@ -359,15 +388,15 @@ def _line_ink(path, hit):
     return near
 
 
-def _viewport(y_img, image_w, image_h, device, acc):
+def _viewport(y_img, image_w, image_h, device, acc, model=None):
     """Image fraction y -> fraction of the VISIBLE screen, after `acc` of the overflow has been scrolled."""
-    rw, rh = SPEC["screenRatio"][device]
+    rw, rh = screen_ratio(device, model)
     disp_over_screen = (float(image_h) / image_w) * (float(rw) / rh)       # displayed image height / screen height
     return y_img * disp_over_screen - acc * max(0.0, disp_over_screen - 1.0)
 
 
-def _image_y(y_view, image_w, image_h, device, acc):
-    rw, rh = SPEC["screenRatio"][device]
+def _image_y(y_view, image_w, image_h, device, acc, model=None):
+    rw, rh = screen_ratio(device, model)
     d = (float(image_h) / image_w) * (float(rw) / rh)
     return (y_view + acc * max(0.0, d - 1.0)) / d
 
@@ -404,10 +433,23 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
     import screen_media as sm
     import screen_text as stx
     import device_geometry as dg
+    import device_fidelity_qa as fq
+    probs, warns = [], []
+    # THE MODEL: the real device the first screen was captured on (deviceSpec.json `models`), named by `model` or
+    # read off the capture's pixel size — the device is drawn in THAT model's proportions, so the capture fills its
+    # screen exactly. A beat that names no `device` takes the model's.
+    if not _frame_problems(props):
+        props, fprobs, fwarns = fq.resolve(props, shot, out_dir)
+        probs += fprobs
+        warns += fwarns
     device = _oriented(props.get("device", "phone" if shot == "DeviceDemo" else "laptop"), shot, props, out_dir)
     if device != props.get("device", device):
         props = dict(props, device=device)
-    probs, warns = [], []
+    model = props.get("model")
+    look = props.get("look") or "flat"
+    if not _frame_problems(props):
+        g = dg.geometry(device, look, W, H, props.get("placement") or "center", bool(props.get("kicker")), model)
+        probs += fq.concentric_findings(g, device)
     if shot == "DeviceHero":
         # The frame props are checked the way DeviceDemo's are — a `look` of 'bogus' used to reach the render and
         # crash inside the geometry, un-named. And a `screen` the author WROTE must say what it shows: `{}` is
@@ -416,19 +458,29 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
         if probs:
             raise DeviceScriptError(probs)
         src = dict(props["screen"])
+        hero_w = g["screen"]["w"]
         p = os.path.join(out_dir, str(src.get("image") or src.get("video") or ""))
         if src.get("image"):
             if not os.path.isfile(p):
                 raise DeviceScriptError(["the screen image %s does not exist" % src["image"]])
             f = sm.image_facts(p)
-            sm.fit_kind(f, device)
+            sm.fit_kind(f, device, model)
             src.update(imageW=f["w"], imageH=f["h"])
+            warns += fq.aspect_findings(f, device, model, "`screen`")
+            rp, rw = fq.resolution_findings(hero_w, f["w"], 1.0, "`screen`")
+            probs += rp
+            warns += rw
         elif src.get("video"):
             if not os.path.isfile(p):
                 raise DeviceScriptError(["the recording %s does not exist" % src["video"]])
             f = sm.video_facts(p)
             frm, to = float(src.get("from", 0)), float(src.get("to", f["duration"]))
-            probs += sm.check_video(f, device, frm, to)
+            probs += sm.check_video(f, device, frm, to, model)
+            if not sm.check_video(f, device, frm, to, model):
+                warns += fq.aspect_findings(f, device, model, "`screen`", video=True)
+            rp, rw = fq.resolution_findings(hero_w, f["w"], 1.0, "`screen`")
+            probs += rp
+            warns += rw
             beat_s = dur_frames / float(fps)
             if (to - frm) / beat_s > SPEC["maxVideoRate"] + 1e-6:
                 probs.append("the recording's %.1f s would play at %.1fx to fit a %.1f s beat — trim it (the cap is %.0fx)"
@@ -447,8 +499,8 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
     rec = recognizer or (lambda path: stx.recognize(path, cache_dir=os.path.join(out_dir, ".cache")))
     steps = [dict(s) for s in props["steps"]]
     cur, cur_path, acc, facts, cur_fit = None, None, 0.0, {}, None
-    screen_w = dg.geometry(device, props.get("look") or "flat", W, H, props.get("placement") or "center",
-                           bool(props.get("kicker")))["screen"]["w"]
+    screen_w = g["screen"]["w"]
+    zoom_of = {}                         # screenshot path -> the deepest push-in onto it
     caption = sm.caption_ink_px(lang, W, H)
     measured, gestures = 0, 0
     for i, st in enumerate(steps):
@@ -464,8 +516,10 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                     continue
                 try:
                     f = facts[cur_path] = sm.image_facts(cur_path)
-                    cur_fit = sm.fit_kind(f, device)
+                    cur_fit = sm.fit_kind(f, device, model)
                     st.update(imageW=f["w"], imageH=f["h"])
+                    warns += fq.aspect_findings(f, device, model, where)
+                    zoom_of.setdefault(cur_path, (where, 1.0))
                 except DeviceScriptError as e:
                     probs += ["%s: %s" % (where, p) for p in e.problems]
             elif "video" in src:
@@ -475,8 +529,10 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                     probs.append("%s: the recording %s does not exist" % (where, src["video"]))
                 else:
                     f = sm.video_facts(vp)
-                    probs += ["%s: %s" % (where, p) for p in
-                              sm.check_video(f, device, float(src.get("from", 0)), float(src["to"]))]
+                    vprobs = sm.check_video(f, device, float(src.get("from", 0)), float(src["to"]), model)
+                    probs += ["%s: %s" % (where, p) for p in vprobs]
+                    if not vprobs:
+                        warns += fq.aspect_findings(f, device, model, where, video=True)
             else:
                 cur_path = None
             continue
@@ -501,7 +557,7 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                 except DeviceScriptError as e:
                     probs += ["%s: %s" % (where, p) for p in e.problems]
                     continue
-                y = _viewport(hit["y"], f["w"], f["h"], device, acc)
+                y = _viewport(hit["y"], f["w"], f["h"], device, acc, model)
                 if not 0 <= y <= 1:
                     probs.append("%s: %r is out of view at this point in the scroll — scroll first" % (where, tg["text"]))
                     continue
@@ -527,7 +583,7 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
         else:
             st[key] = resolved[0][0]
         (x, y), text_h = resolved[0]
-        y_img = _image_y(y, f["w"], f["h"], device, acc)
+        y_img = _image_y(y, f["w"], f["h"], device, acc, model)
         text_px = text_h if text_h else sm.text_band_px(cur_path, x, y_img)
         gestures += 1
         if k == "type":
@@ -537,8 +593,8 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
                 probs += ["%s: at [%.2f, %.2f] on the screen, %s" % (where, x, y, p) for p in e.problems]
                 continue
             b = fld["box"]
-            st["field"] = {"box": [b[0], _viewport(b[1], f["w"], f["h"], device, acc), b[2],
-                                   _viewport(b[3], f["w"], f["h"], device, acc)],
+            st["field"] = {"box": [b[0], _viewport(b[1], f["w"], f["h"], device, acc, model), b[2],
+                                   _viewport(b[3], f["w"], f["h"], device, acc, model)],
                            "bg": fld["bg"], "ink": fld["ink"],
                            "textFrac": (fld["textPx"] / f["w"]) if fld["textPx"] else None}
             text_px = fld["textPx"] or text_px
@@ -546,9 +602,17 @@ def prepare(props, *, shot, out_dir, dur_frames, fps, W, H, lang, recognizer=Non
             measured += 1
             st.update(focus=[x, y], textFrac=text_px / f["w"], captionPx=caption)
             need = caption / (text_px * screen_w / f["w"])
+            if props.get("camera") != "still":
+                z = min(max(1.0, need), float(SPEC["maxZoom"]))
+                if z > zoom_of.get(cur_path, (where, 1.0))[1]:
+                    zoom_of[cur_path] = (where, z)
             if need > SPEC["maxZoom"] and props.get("camera") != "still":
                 warns.append("%s: the text there needs a %.1fx push-in to reach caption size; the cap is %.0fx — "
                              "use a tighter screenshot or a larger device" % (where, need, SPEC["maxZoom"]))
+    for path, (where, z) in sorted(zoom_of.items()):
+        rp, rw = fq.resolution_findings(screen_w, facts[path]["w"], z, where)
+        probs += rp
+        warns += rw
     if probs:
         raise DeviceScriptError(probs)
     steps = schedule(steps, dur_frames, fps)

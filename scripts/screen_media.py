@@ -38,25 +38,30 @@ def image_facts(path):
                                     % (os.path.basename(path), str(e)[:120])])
 
 
-def _screen_aspect(device):
-    ratio = ds.SPEC["screenRatio"].get(device)
-    if not ratio:
-        raise ds.DeviceScriptError(["unknown device %r — one of %s" % (device, ", ".join(sorted(ds.SPEC["screenRatio"])))])
-    rw, rh = ratio
+def _screen_aspect(device, model=None):
+    rw, rh = ds.screen_ratio(device, model)
     return float(rw) / float(rh)
 
 
-def fit_kind(facts, device):
-    """"fit" (within the tolerance of the screen's proportion), "long" (taller: it scrolls), or an error."""
+def fit_kind(facts, device, model=None):
+    """"fit" (within the tolerance of the screen's proportion), "long" (taller: it scrolls), or an error. The screen
+    is the model's own (its published pixels) when one is drawn, else the generic kind's."""
     if facts["w"] <= 0 or facts["h"] <= 0:
         raise ds.DeviceScriptError(["a %dx%d screenshot has no picture" % (facts["w"], facts["h"])])
-    a, s, tol = facts["w"] / float(facts["h"]), _screen_aspect(device), float(ds.SPEC["aspectTolerance"])
+    a, s, tol = facts["w"] / float(facts["h"]), _screen_aspect(device, model), float(ds.SPEC["aspectTolerance"])
     if a > s * (1 + tol):
+        import device_models as dm
+        named = dm.candidates(facts["w"], facts["h"])
         fits = [k for k in ds.SPEC["screenRatio"] if abs(a / _screen_aspect(k) - 1) <= tol]
-        hint = ("its proportion is a %s's screen — use device \"%s\"" % (fits[0], fits[0]) if fits else
-                "crop it to the %s screen's proportion, or show it on a device whose screen it fits" % device)
+        if named:
+            k = dm.kind_for(named[0][0], facts["w"], facts["h"])
+            hint = "it is a %s capture — use device \"%s\"" % (dm.models()[named[0][0]]["name"], k)
+        elif fits:
+            hint = "its proportion is a %s's screen — use device \"%s\"" % (fits[0], fits[0])
+        else:
+            hint = "crop it to the %s screen's proportion, or show it on a device whose screen it fits" % device
         raise ds.DeviceScriptError(["a %dx%d screenshot is wider than a %s screen allows (%.3f against %.3f) — %s"
-                                    % (facts["w"], facts["h"], device, a, s, hint)])
+                                    % (facts["w"], facts["h"], model or device, a, s, hint)])
     return "long" if a < s * (1 - tol) else "fit"
 
 
@@ -95,12 +100,12 @@ def video_facts(path):
     return {"duration": dur, "fps": fps, "w": int(st["width"]), "h": int(st["height"])}
 
 
-def check_video(facts, device, frm, to):
+def check_video(facts, device, frm, to, model=None):
     probs = []
-    a, s, tol = facts["w"] / float(max(1, facts["h"])), _screen_aspect(device), float(ds.SPEC["aspectTolerance"])
+    a, s, tol = facts["w"] / float(max(1, facts["h"])), _screen_aspect(device, model), float(ds.SPEC["aspectTolerance"])
     if abs(a - s) > s * tol:
         probs.append("a %dx%d recording does not have a %s screen's proportion (%.3f against %.3f)"
-                     % (facts["w"], facts["h"], device, a, s))
+                     % (facts["w"], facts["h"], model or device, a, s))
     if to > facts["duration"] + 1e-3:
         probs.append("`to` %.2f s is longer than the recording (%.2f s)" % (to, facts["duration"]))
     if frm < 0 or frm >= to:

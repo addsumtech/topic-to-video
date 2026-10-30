@@ -46,6 +46,13 @@ export type Violation = {
    * and the caption burns straight through the title. Type has a box; ask the box.
    */
   band?: number;
+  /**
+   * px of this text set ON a device the kit drew (runtime/device.tsx marks its case, band and crown
+   * `data-device-body`): a label on the product's band or bezel. A launch film set "Apple Watch" across its watch's
+   * strap and nothing measured it — the strap is a picture, so no type gate saw a collision. Text ON the screen
+   * (inside `data-device-screen`) is the product's own and is not counted.
+   */
+  device?: number;
   text: string;
   tag: string;
   cls: string;
@@ -1459,6 +1466,8 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
   const out: Violation[] = [];
   let title: {el: Element; text: string; px: number; r: DOMRect | {left: number; top: number; right: number;
     bottom: number}} | null = null;
+  const devices = Array.from(root.querySelectorAll('[data-device-body]')).map((d) => d.getBoundingClientRect())
+    .filter((d) => d.width > 0 && d.height > 0);
   const judge = (el: Element, text: string, r: DOMRect, tag?: string) => {
     if (typeSize && composedOpacity(el) >= 0.5) {
       const tpx = renderedPx(el, win.getComputedStyle(el));
@@ -1482,16 +1491,27 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
     const bandTop = frame.bottom - captionBand(frame.width, frame.height);
     const intoBand = r.bottom - bandTop;
     const band = intoBand > floor ? Math.round(Math.min(intoBand, r.height)) : 0;
+    // ON A DEVICE: the overlap of the text's box with a device body's, in its smaller dimension — a glyph-scaled
+    // floor, so a label that grazes a crown's box is not a finding and one set across the band is.
+    let device = 0;
+    if (devices.length && !el.closest?.('[data-device-screen]') && !el.closest?.('[data-device-body]')) {
+      devices.forEach((d) => {
+        const ow = Math.min(r.right, d.right) - Math.max(r.left, d.left);
+        const oh = Math.min(r.bottom, d.bottom) - Math.max(r.top, d.top);
+        if (ow > floor && oh > floor) device = Math.max(device, Math.round(Math.min(ow, oh)));
+      });
+    }
     const short = Math.min(frame.width, frame.height);
     let small = 0;
     if (typeSize && !el.closest?.('[data-small]') && composedOpacity(el) >= 0.5) {
       const px = renderedPx(el, cs);
       if (px > 0 && px < TYPE_WARN_FRAC * short) small = Math.round(px * 10) / 10;
     }
-    if (!Object.keys(sides).length && !band && !small) return;
+    if (!Object.keys(sides).length && !band && !small && !device) return;
     out.push({
       out: sides,
       ...(band ? {band} : {}),
+      ...(device ? {device} : {}),
       text: text.length > 48 ? text.slice(0, 48) + '…' : text,
       tag: tag ?? el.tagName.toLowerCase(),
       cls: (el.getAttribute('class') ?? '').slice(0, 40),

@@ -1,6 +1,6 @@
 # DeviceDemo
 
-**Identity:** a phone, tablet, laptop or monitor showing the product's OWN screens — the user's screenshots or recording — or a screen the film drew, and performing one operation on them: type into a field, tap, scroll, drag. Each step happens on the word the narration says; the camera pushes in wherever a screenshot's text would be too small to read.
+**Identity:** a phone, watch, tablet, laptop or monitor showing the product's OWN screens — the user's screenshots or recording — or a screen the film drew, and performing one operation on them: type into a field, tap, scroll, drag. Each step happens on the word the narration says; the camera pushes in wherever a screenshot's text would be too small to read.
 
 **Use when:** the beat's claim is how an interface is USED — "search, open, scroll to it" — shown on the product's real screens, or on a screen the film draws for an interface that does not exist yet. **Not when:** not a list of features in one place (`PointerTour`); not the product as an object with nothing done on it (`DeviceHero`).
 
@@ -8,7 +8,8 @@
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
-| `device` | phone, tablet, laptop or monitor (a tablet turns to landscape when its first screen is a landscape capture) | touch devices tap with a ring; laptop and monitor move a cursor |
+| `device` | phone, watch, tablet, laptop or monitor (a tablet turns to landscape when its first screen is a landscape capture) | touch devices (a watch too) tap with a ring; laptop and monitor move a cursor |
+| `model` | a real device (`runtime/deviceSpec.json` `models`) — absent: read off the first screen's pixel size | drawn in that model's published proportions; see DeviceHero's card for the sizes |
 | `look` | flat, real or screen | absent: real on a dark beat, flat on a light one; `screen` drops the body entirely |
 | `steps` | the script — `screen` (a screenshot, a recording, or `{"object": …}`: a screen the film drew), `type`, `tap`/`click`, `scroll`, `drag`, `mark` — prepared by `scripts/device_script.py` | each step on its cue; too many for the beat is a refusal in seconds, never a squeeze |
 | `camera` | `"still"` turns the push-in off | the whole device stays in frame; small text stays small |
@@ -16,6 +17,8 @@
 | `kicker` | a spaced label above the device | moves the device below the title band |
 
 **Known traps:**
+- A watch has no keyboard: a `type` step on `device: "watch"` is refused — show the dictated or chosen reply as its own screen. Tap and scroll work.
+- The device is the real model the first screen came from (DeviceHero's card lists the sizes); an unknown size is drawn generic with a WARN, and a capture a little off the screen's proportion has its crop or pad said in percent — never silent.
 - A text target that is not in the screenshot, or is there twice without `nth`, is refused with the text that WAS recognised — the ring must land on what the film names.
 - A `type` step paints the field's own colour over the field's INNER box before typing — without that the placeholder and the typed words both show — so an icon inside the field (a search magnifier, a mic) is hidden while typing. Neither geometry nor OCR tells an icon from placeholder text (OCR reads a magnifier as "Q"), and a placeholder word left beside typed text is the worse failure.
 - A push-in near the device's edge stays on the device: the zoomed view keeps inside the device's face — its screen and bezel, not a laptop's base or a monitor's stand — along any axis the face is larger than the view, and centres on it along the other.

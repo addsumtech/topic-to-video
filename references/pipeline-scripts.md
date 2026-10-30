@@ -268,7 +268,15 @@ finding it prints that you do not understand.
   in the screenshot on a Mac; too many steps for a beat is refused in seconds). The step format — targets as
   fractions of the visible screen or recognised words, cues, the time each step needs, what a recording allows —
   is the **Step script** section of `remotion/cards/DeviceDemo.md`. Spec:
-  `docs/superpowers/specs/2026-09-26-device-layer-design.md`.
+  `docs/superpowers/specs/2026-09-26-device-layer-design.md`. **The device is the real model**:
+  `scripts/device_models.py <image>` names the model a capture came from by its exact pixel size (416x496 = a 46 mm
+  Apple Watch Series 12, 1206x2622 = a 6.3-inch iPhone; sources in `runtime/deviceSpec.json` `models`), and the
+  beat draws that model's proportions; an unknown size is drawn on the generic kind with a WARN naming it.
+  `scripts/device_fidelity_qa.py <out_dir>` (and validate, through `device_script.check_slide`) checks the model
+  against a named `model`, the crop or pad inside the aspect tolerance, the capture's magnification at the
+  media_res_qa scales, concentric corners and even bezels, a picture that is already a mockup, and a workshop shot
+  that draws a known device's capture without the kit. A label set ON the device is `text_safe_qa`'s finding
+  ("ON THE DEVICE", runtime/textSafe `device`).
   **THE CUT IS PART OF THE DESIGN — and it has to be authored, not assumed.** The tier implements five seams:
   `clock` `slide` `wipe` `dissolve` and **`carry`**, a collapse-to-line match-cut that reads as CONTINUITY
   rather than a swap and is the one seam allowed to cross a dark↔light boundary (its neutral bridge line IS
