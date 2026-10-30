@@ -312,3 +312,18 @@ def test_an_undeclared_marked_part_bridges_declared_ones_and_pieces_are_reported
     rep["parts"]["band"]["leaves"] = [dict(zip("xywh", b)) for b in ((350, 0, 300, 150), (350, 850, 300, 150))]
     msgs = [m for _lv, m in fid.dom_problems(rep, ["case", "band"], "W")]
     assert len(msgs) == 1 and "2 pieces" in msgs[0], msgs
+
+
+@pytest.mark.skipif(not os.environ.get("FIDELITY_RENDER"), reason="renders: set FIDELITY_RENDER=1")
+@pytest.mark.parametrize("aspect", ["9:16", "1:1"])
+def test_the_sheet_of_a_library_object_at_portrait_and_square(tmp_path, aspect):
+    """E6/E8: the sheet was made and tested at 16:9 only. At 9:16 and 1:1 the film-size frame is the film's own
+    shape, every declared part is found and attached, and the scope names the aspect it measured."""
+    from PIL import Image
+    (tmp_path / "storyboard.json").write_text(json.dumps(
+        {"meta": {"renderer": "remotion", "aspect": aspect, "design_dna": "product"}, "slides": []}))
+    res = fid.sheet(str(tmp_path), "GpsSatellite")
+    assert fid.errors_of(res["problems"]) == [], res["problems"]
+    want = {"9:16": (1080, 1920), "1:1": (1080, 1080)}[aspect]
+    assert Image.open(os.path.join(str(tmp_path), "_fidelity", "GpsSatellite.film.png")).size == want
+    assert any(aspect in ln for ln in res["scope"]) and res["scope"][0].startswith("MEASURED")

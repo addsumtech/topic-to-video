@@ -1983,6 +1983,8 @@ def main(argv=None):
             res = _fid.sheet(a.out_dir, a.name, props, host=a.host, slot=a.slot, dna=direction_dna(a.dna))
             for lv, m in res["problems"]:
                 print("  %s: %s" % ("PROBLEM" if lv == "ERROR" else "warning", m))
+            for ln in res.get("scope") or []:
+                print("  scope: " + ln)
             n = len(_fid.errors_of(res["problems"]))
             print("[workshop] fidelity sheet %s — %s" % (res["png"], "%d problem(s)" % n if n else "no problem"))
             print("NEXT: open it and LOOK — beside its references, is it the thing: proportions, every part present "

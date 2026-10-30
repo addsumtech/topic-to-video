@@ -946,12 +946,33 @@ def sheet(out_dir, name, props=None, host="ObjectStage", slot=None, dna=None):
     png = os.path.join(outd, name + ".png")
     compose(png, name, rec, base, hero_png, hero_parts, film_png, film_parts, findings,
             "on %s, frame %d" % (comp, frame))
+    scope = scope_lines(declared, kind, comp, frame, payload.get("aspect") or "16:9", hero_parts, film_parts)
     report = {"name": name, "kind": kind, "record": rec, "hero": hero_parts, "film": film_parts,
-              "film_host": comp, "frame": frame, "problems": [{"level": lv, "message": m} for lv, m in findings]}
+              "film_host": comp, "frame": frame, "aspect": payload.get("aspect") or "16:9", "scope": scope,
+              "problems": [{"level": lv, "message": m} for lv, m in findings]}
     jp = os.path.join(outd, name + ".json")
     with open(jp, "w", encoding="utf-8") as fh:
         json.dump(report, fh, ensure_ascii=False, indent=1)
-    return {"png": png, "json": jp, "problems": findings}
+    return {"png": png, "json": jp, "problems": findings, "scope": scope}
+
+
+def scope_lines(declared, kind, host, frame, aspect, hero_parts, film_parts):
+    """What the sheet MEASURED and what it leaves to the eye — printed with every sheet (E4)."""
+    out = []
+    renders = (["hero size"] if kind == "object" else []) + ["%s at %s, frame %d" % (host, aspect, frame)]
+    got = [r for r, p in zip(renders, ([hero_parts] if kind == "object" else []) + [film_parts]) if p is not None]
+    if declared and got:
+        out.append("MEASURED — %d declared part(s) for presence (MISSING) and attachment (DETACHED, %d%% of the "
+                   "drawing's diagonal) in the rendered DOM: %s" % (len(declared), round(DETACH_TOL * 100),
+                                                                    "; ".join(got)))
+    elif declared:
+        out.append("NOT MEASURED — no render logged a part report: presence and attachment are unchecked (an ERROR "
+                   "above says so)")
+    else:
+        out.append("NOT MEASURED — the record declares no parts: presence and attachment were not checked")
+    out.append("NOT MEASURED, left to the eye — likeness to the references, proportions (shown as recorded, not "
+               "measured off the render), materials, detail at 100%: the sheet sets them side by side for a person")
+    return out
 
 
 def real_built_things(out_dir):
