@@ -49,6 +49,13 @@ LIBRARY = os.path.join(REMOTION, "LIBRARY.md")
 OBJECTS_ANCHOR = "<!-- OBJECTS (scripts/promote.py appends below) -->"
 KITS = os.path.join(REMOTION, "src", "kits")         # helper modules promoted items share (a film's workshop helpers)
 HTML_COMPONENTS_DOC = os.path.join(SKILL, "references", "html-components.md")
+# AN OBJECT'S FIDELITY REFERENCES MOVE WITH IT. A library object's reference paths resolve against the skill root
+# (fidelity.problems(rec, fidelity.SKILL, ...)); a workshop object's resolve against its film. Promoted as written, a
+# real object's `media/ref.jpg` pointed at nothing in the library and the library-record test failed on it. Its local
+# references (and each one's imagefetch sidecar) are copied to OBJECT_REFS_DIR/<Name>/ and the source's paths
+# rewritten to them; a URL stays a URL.
+OBJECT_REFS_ROOT = SKILL
+OBJECT_REFS_DIR = "references/object-refs"
 HTML_COMPONENTS_HEAD = """# HTML components (the page tier's library)
 
 Custom elements a film built in its own workshop (`scripts/workshop.py new-component`) and the user chose to keep
@@ -221,6 +228,47 @@ def library_source(text, kind, name, out_dir=None, src_dir=None, batch=frozenset
     if kind == "shot":
         out = re.sub(r"(?:^[ \t]*//[^\n]*\n)*^export const (?:GROUND|PROVENANCE)\b[^\n]*\n", "", out, flags=re.M)
     return out, probs
+
+
+def object_references(out_dir, name, text):
+    """(text, {library path: film path}, problems): every LOCAL fidelity reference of an object, and its imagefetch
+    sidecar, placed under OBJECT_REFS_DIR/<name>/, and the source's string literals naming it rewritten to that path
+    — references and the proportions that cite them alike, so a citation still matches its reference exactly."""
+    import filecmp
+    import fidelity as fid
+    rec, why = fid.object_fidelity(text)
+    if why:
+        return text, {}, ["%s: %s" % (name, why)]
+    if not isinstance(rec, dict):
+        return text, {}, []
+    copies, probs, done = {}, [], set()
+    for r in rec.get("references") or []:
+        if not isinstance(r, dict):
+            continue
+        src = str(r.get("source") or "").strip()
+        if not src or fid._is_url(src) or src in done:
+            continue
+        done.add(src)
+        path = fid.resolve(src, out_dir)
+        if not os.path.isfile(path):
+            probs.append("%s: fidelity reference %s does not exist (resolved against the film: %s)" % (name, src, path))
+            continue
+        rel = "%s/%s/%s" % (OBJECT_REFS_DIR, name, os.path.basename(path))
+        pairs = [(os.path.join(OBJECT_REFS_ROOT, rel), path)]
+        if os.path.isfile(path + ".json"):
+            pairs.append((os.path.join(OBJECT_REFS_ROOT, rel) + ".json", path + ".json"))
+        for dest, frm in pairs:
+            if copies.get(dest) not in (None, frm):
+                probs.append("%s: two references are both named %s — rename one" % (name, os.path.basename(dest)))
+            elif os.path.isfile(dest) and not filecmp.cmp(dest, frm, shallow=False):
+                probs.append("%s: the library already holds a different %s — rename the film's reference"
+                             % (name, os.path.relpath(dest, OBJECT_REFS_ROOT)))
+            else:
+                copies[dest] = frm
+        if rel != src:
+            for q in ("'", '"', "`"):
+                text = text.replace(q + src + q, q + rel + q)
+    return text, copies, probs
 
 
 def kit_sources(out_dir, kits, batch):
@@ -505,6 +553,10 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
                                  batch=frozenset(batch or ()), kits=kits)
     kit_files, kit_probs = kit_sources(out_dir, kits, batch or ())
     probs += kit_probs
+    ref_files = {}
+    if kind == "object":
+        text, ref_files, ref_probs = object_references(out_dir, name, text)
+        probs += ref_probs
     types, docs = prop_docs(src, name)
     # A PROP'S DOCUMENTATION MAY LIVE ON THE BUILD LIST: `props_doc: {prop: "what it sets — the feel of turning it"}`.
     # Writing it into the source after the render would make the source newer than the film and refuse the item
@@ -525,15 +577,22 @@ def promote(out_dir, name, family=None, use_when=None, motion=None, dry_run=Fals
     if probs:
         raise PromoteError(probs)
     plan = {"kind": kind, "to": os.path.join(dest_dir, name + ".tsx"), "kits": sorted(kit_files),
+            "refs": sorted(ref_files),
             "measure": measurements(name) if kind == "shot" else []}
     if dry_run:
-        log("[promote] would move %s (%s) into %s%s" % (name, kind, plan["to"],
-            "; then register and measure it" if kind == "shot" else "; then index and catalogue it"))
+        log("[promote] would move %s (%s) into %s%s%s" % (name, kind, plan["to"],
+            "; then register and measure it" if kind == "shot" else "; then index and catalogue it",
+            "; its fidelity references to %s" % ", ".join(os.path.relpath(r, OBJECT_REFS_ROOT) for r in plan["refs"])
+            if plan["refs"] else ""))
         return plan
     for dest, ktext in kit_files.items():
         if not os.path.isfile(dest):
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             _write(dest, ktext)
+    import shutil
+    for dest, frm in ref_files.items():
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.copyfile(frm, dest)
     _write(plan["to"], text)
     if kind == "shot":
         _register(name, family, use_when, provenance)

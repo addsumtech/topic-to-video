@@ -13,8 +13,10 @@ import {continueRender, delayRender, useCurrentFrame} from 'remotion';
 
 export const MEDIA_RES_TAG = 'MEDIA-RES ';
 
-// below this on-screen size an image is an icon-sized mark, not a picture to read
-const MIN_DRAWN_PX = 48;
+// below this on-screen size an image is an icon-sized mark, not a picture to read — at a 1080 px short side, and
+// scaled with the frame (a mark is a share of the picture, not a pixel count: E8). scripts/media_res_qa.py
+// MIN_DRAWN_REF_PX holds the same number.
+export const MIN_DRAWN_PX = 48;
 
 const blurOf = (el: Element | null): number => {
   // the largest CSS blur on the element or any ancestor: a picture drawn blurred on purpose cannot look soft
@@ -52,12 +54,13 @@ type Row = [string, string, number, number, number, number, string, number, numb
  *  a rotated or tilted picture reads somewhat larger than it is (its bounding box): it can only over-report. */
 export const censusMedia = (root: HTMLElement, frame: DOMRect): {n: number; m: Row[]} => {
   const dpr = window.devicePixelRatio || 1;
+  const minPx = MIN_DRAWN_PX * Math.min(frame.width, frame.height) / 1080;
   const rows: Row[] = [];
   let n = 0;
   const consider = (el: Element, kind: string, src: string, nw: number, nh: number) => {
     if (!nw || !nh) return;
     const r = el.getBoundingClientRect();
-    if (r.width < MIN_DRAWN_PX && r.height < MIN_DRAWN_PX) return;
+    if (r.width < minPx && r.height < minPx) return;
     const ix = Math.min(r.right, frame.right) - Math.max(r.left, frame.left);
     const iy = Math.min(r.bottom, frame.bottom) - Math.max(r.top, frame.top);
     if (ix <= 0 || iy <= 0) return;

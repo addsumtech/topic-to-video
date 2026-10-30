@@ -404,3 +404,49 @@ def test_a_user_may_waive_the_critic_but_only_for_the_render_they_watched(tmp_pa
     errs, _ = critic_ledger.validate(plain, final=True)
     assert errs and "no %s" % critic_ledger.LEDGER_NAME in errs[0], errs
     assert len(critic_ledger.coverage(plain)["missing"]) == len(critic_ledger.dimensions())
+
+
+# ── the pixel and picture gates: a scope line on every run, and an unmeasured path that is reachable ───────────────
+# jitter_qa, media_res_qa and the fidelity sheet each print what they MEASURED and what they did NOT, and each has a
+# path on which it looked at nothing — which must be reachable and must not read as a pass.
+
+def test_every_new_gate_prints_what_it_measured_and_what_it_did_not():
+    import jitter_qa as jq
+    import media_res_qa as mr
+    import fidelity as fid
+    j = jq.judge_track([(f, 0.0, 0.37, 0.0, 0.37, 50.0, None) for f in range(12)])
+    rep = {"lines": [("clean", "x", {}, j, "/a")], "skip": {"fading": 3}, "universe": 15, "measured": 12,
+           "composited": 0, "size": (1920, 1080), "scale": 1.0, "seconds": 0.0, "tier": "html",
+           "scope": ["NOT judged — programmatic scene(s) 03 title: drawn by PIL at whole pixels"]}
+    jl = jq.scope_lines(rep)
+    assert any(ln.startswith("scope: MEASURED") for ln in jl) and any("NOT MEASURED" in ln for ln in jl)
+    assert any("programmatic" in ln for ln in jl), "a tier's own exclusions reach the scope"
+    r = {"errors": [], "warns": [], "excused": [], "frames": 90, "sampled": 30, "every": 3, "pictures": 4,
+         "unmeasured": [], "source": "the Film composition"}
+    ml = mr.scope_lines(r)
+    assert any(ln.startswith("scope: MEASURED") for ln in ml) and any(ln.startswith("scope: NOT MEASURED")
+                                                                       for ln in ml)
+    fl = fid.scope_lines(["bus", "wing"], "object", "ObjectStage", 60, "9:16", {"parts": {}}, {"parts": {}})
+    assert fl[0].startswith("MEASURED") and "9:16" in fl[0] and any(ln.startswith("NOT MEASURED") for ln in fl)
+
+
+def test_every_new_gates_unmeasured_path_is_reachable_and_is_not_a_pass():
+    import jitter_qa as jq
+    import media_res_qa as mr
+    import fidelity as fid
+    rep = {"lines": [], "skip": {"correlation too weak": 40}, "universe": 40, "measured": 0, "composited": 0,
+           "size": (1920, 1080), "scale": 1.0, "seconds": 0.0}
+    assert jq.verdict(rep) == ("UNMEASURED", 2)
+    r = {"errors": [], "warns": [], "excused": [], "frames": 90, "sampled": 12, "every": 3, "pictures": 2,
+         "unmeasured": ["only 12 of 30 frames logged a census"]}
+    assert mr.verdict(r) == ("UNMEASURED", 2)
+    # the fidelity sheet: a render that logged no part report measured nothing — an ERROR, and the scope says so
+    probs = fid.dom_problems(None, ["bus"], "GpsSatellite at hero size")
+    assert probs and probs[0][0] == "ERROR" and "nothing was measured" in probs[0][1]
+    fl = fid.scope_lines(["bus"], "object", "ObjectStage", 60, "16:9", None, None)
+    assert fl[0].startswith("NOT MEASURED") and "no render logged a part report" in fl[0]
+
+
+def test_the_html_tier_carries_the_pixel_jitter_gate_as_blocking():
+    rows = [r for r in critic_ledger.DELIVERY_GATES["html"] if r[1] == "jitter_qa.py"]
+    assert rows and rows[0][4] is True, "the HTML tier's type is judged from the delivered pixels too"

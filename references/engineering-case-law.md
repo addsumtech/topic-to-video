@@ -275,6 +275,20 @@ is a silent pass.
 > **Ask yourself:** Which items does this gate `continue` past? For each, which instrument judges it instead — and is
 > that instrument a blocking gate, or a comment?
 
+**E19 · A MEASUREMENT THAT FINDS A CONFIDENT ANSWER IN THE NOISE HAS MEASURED THE NOISE.** Before a reading is
+believed, the thing it reads must be shown to be there: a correlation needs the signal's edges above the grain, a
+census needs the frames to be the frames that were stored. A strong peak, or a matching count, is not that proof.
+
+> **Precedent — `21c8784`:** `jitter_qa` read a line drawn at the ground's own grey — no type at all — as 29 pairs
+> CLEAN: the film's static ±2 dither does not move, so the phase correlation locked onto it with a confident peak, and
+> the detrend took the resulting constant error out. Faint type 4 grey levels over its ground half-read the dither the
+> same way and measured 4.3 px of travel against a census that said 10.7 — also clean. The repair gates every window
+> on its band-passed edges clearing the grain (skipped and counted otherwise) and reports a line whose pixels do not
+> follow its geometry. The same sitting found the decoder's default constant-rate output inventing a frame at a
+> clip seam (360 stored, 361 decoded), which would have compared every later pair with the wrong frame.
+> **Ask yourself:** Feed the instrument an input that holds NO signal (a blank line, a grey frame, a census of another
+> render). What does it say — and is that word distinguishable from "clean"?
+
 ---
 
 ## Run-time case notes — why the workflow says what it says

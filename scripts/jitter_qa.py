@@ -5,7 +5,12 @@
     python3 scripts/jitter_qa.py <out_dir> --census=PATH.gz    # ...with a census kept by text_safe_qa --sync --census
     python3 scripts/jitter_qa.py <out_dir> --video=old.mp4     # ...a different render of the same film (a before)
     python3 scripts/jitter_qa.py --clip <file.mp4|png_dir> [--truth=census.json.gz]   # any clip; no census: tiles
-    python3 scripts/jitter_qa.py --calibrate                   # the synthetic controls, with their separation
+    python3 scripts/jitter_qa.py --calibrate [--aspect=9:16]   # the synthetic controls, with their separation
+
+BOTH TIERS. A remotion film's census is its Film composition's (text_safe_qa); an HTML-tier film's is built per scene
+by scripts/jitter_html.py (the pages' own DOM on the capture plan, the image slides' Ken Burns geometry). EXIT 0 OK or
+NOTHING TO JUDGE (said in those words) · 1 a line trembles · 2 UNMEASURED (no out.mp4, a census of another render,
+or type that was found and could not be judged). Every run prints `scope:` lines.
 
 WHY A PIXEL GATE. The type-glide census (text_safe_qa --glide) reads the DOM: it knows where each line of type truly
 is on every frame, and it judges whether Skia will snap that line's baseline. It CANNOT judge type inside a
@@ -82,6 +87,32 @@ DETREND_PAIRS = 9              # the span of the slow error taken out before jud
                                #     period at any crawl a staircase shows at, so the steps stay in the residual
 MAX_WIN = 640                  # px: a wider line is measured on its first MAX_WIN px (FFT cost, and a wide box
                                #     holds more than one layout run)
+# EVERY px THRESHOLD ABOVE IS STATED AT A 1080 px SHORT SIDE — the size every renderer here delivers at every aspect
+# (1920x1080, 1080x1920, 1080x1080, 1440x1080). What a viewer sees is a fraction of the picture, so a clip of another
+# size is judged against the thresholds scaled by its short side over REF_SHORT (frame_scale); below MIN_SCALE the
+# estimator's own floor (~0.06 px on the controls) would sit at the threshold, so the scale stops there and says so.
+REF_SHORT = 1080
+MIN_SCALE = 0.5
+# A WINDOW MUST HOLD THE LINE, NOT THE GRAIN. On a dithered dark film a line can sit under the film's own static ±2
+# dither: the correlation then locks onto the dither — which does not move — and reads "still" with a confident
+# peak, and the detrend takes the constant error out: a line nobody can see measured CLEAN (found by the ink-18 control:
+# no text at all, 29 pairs, clean). A window whose band-passed edges reach no more than MIN_EDGE grey levels (99th
+# percentile) is skipped as too faint, and said so. Measured: the dither's own grain reads 1.1; type 4 grey levels
+# over its ground reads 2.35 and is measured; 2 levels reads 1.5 and is not.
+MIN_EDGE = 2.0
+# A LINE WHOSE PIXELS DO NOT FOLLOW ITS GEOMETRY. The census says it travelled; the window's content did not (or went
+# elsewhere). A frozen layer, an opaque overlay the census does not list, or a census of another render — each is
+# worth a look and none of them is "clean" (the detrend would remove exactly this). Judged over a run of at least
+# JIT_WINDOW pairs that truly travels FOLLOW_MIN_PX: a WARN when the measured travel is off by more than FOLLOW_REL.
+FOLLOW_MIN_PX = 2.0
+FOLLOW_REL = 0.5
+
+
+def frame_scale(W, H):
+    """The factor this frame's px thresholds are scaled by: its short side over REF_SHORT, floored at MIN_SCALE."""
+    if not W or not H or W <= 0 or H <= 0:
+        raise ValueError("frame_scale: a frame has a positive size (got %rx%r)" % (W, H))
+    return max(MIN_SCALE, min(W, H) / float(REF_SHORT))
 
 
 # ── DECODING ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -105,8 +136,11 @@ def frames(path):
             yield i, np.asarray(Image.open(os.path.join(path, n)).convert("L"), dtype=np.float32)
         return
     W, H, _fps = probe(path)
-    p = subprocess.Popen(["ffmpeg", "-v", "error", "-i", path, "-f", "rawvideo", "-pix_fmt", "gray", "-"],
-                         stdout=subprocess.PIPE)
+    # -fps_mode passthrough: every decoded frame once, as stored. The default constant-rate output DUPLICATES a frame
+    # where a stream's timestamps hiccup — measured on an HTML-tier film concatenated from per-scene clips with
+    # `-c copy`: 360 frames stored, 361 decoded, and every pair after the seam compared with the wrong frame.
+    p = subprocess.Popen(["ffmpeg", "-v", "error", "-i", path, "-fps_mode", "passthrough", "-f", "rawvideo",
+                          "-pix_fmt", "gray", "-"], stdout=subprocess.PIPE)
     n, i = W * H, 0
     try:
         while True:
@@ -213,6 +247,7 @@ def _box(ln):
 def pairs_from_census(census, W, H):
     """{f: [(key, text, box0, box1, flags)]} — every line judged between frame f and f+1, and {reason: count} of
     every line-pair that is NOT judged."""
+    fast = FAST_PX * frame_scale(W, H)
     skip = {}
     out = {}
 
@@ -261,8 +296,8 @@ def pairs_from_census(census, W, H):
                 no("partly clipped or off frame")
                 continue
             mx, my = moves[k]
-            if max(abs(mx), abs(my)) > FAST_PX:
-                no("faster than %.0fpx a frame" % FAST_PX)
+            if max(abs(mx), abs(my)) > fast:
+                no("faster than %.1fpx a frame" % fast)
                 continue
             if abs(w1 / w0 - 1) > SCALE_STEP or abs(h1 / h0 - 1) > SCALE_STEP:
                 no("growing faster than %d%% a frame" % round(SCALE_STEP * 100))
@@ -330,12 +365,16 @@ def measure_census(video, census):
                 c1x, c1y = b1[0] + b1[2] / 2, b1[1] + b1[3] / 2
                 mx = c1x + (px - c0x) * (b1[2] / b0[2]) - px
                 my = c1y + (py - c0y) * (b1[3] / b0[3]) - py
+                if float(np.percentile(np.abs(_band(a)), 99)) < MIN_EDGE:
+                    why = "too faint in the pixels (edges under %.0f grey levels: the grain, not the type)" % MIN_EDGE
+                    skip[why] = skip.get(why, 0) + 1
+                    continue
                 dx, dy, conf = (float(v) for v in shift(a, b))
                 if conf < MIN_CONF:
                     skip["correlation too weak (conf < %.0f)" % MIN_CONF] = \
                         skip.get("correlation too weak (conf < %.0f)" % MIN_CONF, 0) + 1
                     continue
-                ch = aligned_change(a, b, dx, dy) if max(abs(mx), abs(my)) < STILL_PX else None
+                ch = aligned_change(a, b, dx, dy) if max(abs(mx), abs(my)) < STILL_PX * frame_scale(W, H) else None
                 tracks.setdefault(key, []).append((i - 1, mx, my, dx, dy, conf, ch))
                 meta[key] = {"t": text, "fl": fl, "b": beat}
         prev = fr
@@ -375,23 +414,38 @@ def _local_mean(e, n):
     return out
 
 
-def judge_track(track):
-    """{"rms", "a", "b", "pop", "pop_f", "shimmer", "pairs", "moving"} for one line: the worst window's error RMS
-    (px) and where it is, the largest single-pair error on a line that otherwise glides, and the shimmer level."""
+def judge_track(track, scale=1.0):
+    """{"rms", "a", "b", "pop", "pop_f", "shimmer", "pairs", "moving", "windowed", "popped"} for one line: the worst
+    window's error RMS (px) and where it is, the largest single-pair error on a line that otherwise glides, the
+    shimmer level — and how many of its pairs each test could JUDGE: `windowed` pairs sit in a run of at least
+    JIT_WINDOW (the jitter window), `popped` in a run of at least 5 (the pop test's neighbourhood). A line seen for
+    fewer consecutive pairs than that is tracked and not judged, and the coverage says so (a 1 s beat that fades in
+    and out leaves a short run). `scale` is frame_scale() of the clip."""
     best = {"rms": 0.0, "a": None, "b": None, "pop": 0.0, "pop_f": None, "shimmer": 0.0, "shimmer_f": None,
-            "pairs": len(track), "moving": 0,
+            "pairs": len(track), "moving": 0, "windowed": 0, "popped": 0, "scale": scale,
             "conf": float(np.median([r[5] for r in track])) if track else None}
     for run in _runs(track):
         e = np.array([[r[3] - r[1], r[4] - r[2]] for r in run])
+        if len(run) >= JIT_WINDOW:
+            tt = np.array([sum(r[1] for r in run), sum(r[2] for r in run)])
+            mt = np.array([sum(r[3] for r in run), sum(r[4] for r in run)])
+            t_len = float(np.hypot(*tt))
+            if t_len >= FOLLOW_MIN_PX * scale and float(np.hypot(*(mt - tt))) > FOLLOW_REL * t_len \
+                    and (best.get("stall") is None or t_len > best["stall"][0]):
+                best["stall"] = (t_len, float(np.hypot(*mt)), run[0][0], run[-1][0])
         # JITTER IS THE ERROR THAT CHANGES FROM FRAME TO FRAME. A slow, smooth bias — the estimator reading a growing
         # line's displacement a fraction off, the true path a hair off the box centre — moves the drawing smoothly
         # and no viewer sees it; a staircase, a wobble and a pop all live in the frame-to-frame part. So the error
         # is judged after its own local mean (DETREND_PAIRS) is taken out.
         e = e - _local_mean(e, DETREND_PAIRS)
         en = np.hypot(e[:, 0], e[:, 1])
-        mv = np.array([max(abs(r[1]), abs(r[2])) >= STILL_PX for r in run])
+        mv = np.array([max(abs(r[1]), abs(r[2])) >= STILL_PX * scale for r in run])
         best["moving"] += int(mv.sum())
         n = len(run)
+        if n >= JIT_WINDOW:
+            best["windowed"] += n
+        if n >= 5:
+            best["popped"] += n
         if n >= JIT_WINDOW:
             c = np.concatenate([[0.0], np.cumsum(en ** 2)])
             rms = np.sqrt((c[JIT_WINDOW:] - c[:-JIT_WINDOW]) / JIT_WINDOW)
@@ -403,9 +457,9 @@ def judge_track(track):
             for j in range(n):
                 lo, hi = max(0, j - 4), min(n, j + 5)
                 others = np.delete(en[lo:hi], j - lo)
-                if en[j] >= POP_PX and en[j] > 4 * (np.median(others) + 0.03) and en[j] > best["pop"]:
+                if en[j] >= POP_PX * scale and en[j] > 4 * (np.median(others) + 0.03) and en[j] > best["pop"]:
                     best.update(pop=float(en[j]), pop_f=run[j][0])
-        ch = [(r[6], r[0]) for r in run if r[6] is not None and max(abs(r[3]), abs(r[4])) < 0.15]
+        ch = [(r[6], r[0]) for r in run if r[6] is not None and max(abs(r[3]), abs(r[4])) < 0.15 * scale]
         if len(ch) >= JIT_WINDOW:
             vals = np.array([v for v, _f in ch])
             # the median over a window: a line that keeps changing, not one odd frame (that is a POP)
@@ -416,21 +470,24 @@ def judge_track(track):
     return best
 
 
-def level_of(j):
+def level_of(j, scale=None):
+    """'error' | 'warn' | 'clean' — against the thresholds at this clip's frame_scale (the judgment's own, when it
+    carries one)."""
+    sc = scale if scale is not None else j.get("scale", 1.0)
     raise_ = max(1.0, CONF_REF / j["conf"]) if j.get("conf") else 1.0
-    if j["rms"] >= JIT_RMS_ERROR * raise_ or j["pop"] >= POP_PX * raise_ or j["shimmer"] >= SHIMMER_REL:
+    if j["rms"] >= JIT_RMS_ERROR * sc * raise_ or j["pop"] >= POP_PX * sc * raise_ or j["shimmer"] >= SHIMMER_REL:
         return "error"
-    if j["rms"] >= JIT_RMS_WARN:
+    if j["rms"] >= JIT_RMS_WARN * sc or j.get("stall"):
         return "warn"
     return "clean"
 
 
-def judge(tracks, meta, beat_of=None, label_of=None):
+def judge(tracks, meta, beat_of=None, label_of=None, scale=1.0):
     """[(level, line description, judgment)] worst first, one per line."""
     out = []
     for key, tr in tracks.items():
-        j = judge_track(tr)
-        lv = level_of(j)
+        j = judge_track(tr, scale)
+        lv = level_of(j, scale)
         m = meta.get(key, {})
         out.append((lv, key, m, j))
     order = {"error": 0, "warn": 1, "clean": 2}
@@ -439,11 +496,17 @@ def judge(tracks, meta, beat_of=None, label_of=None):
 
 def describe(m, j, fps=30.0, label=None):
     bits = []
-    if j["rms"] >= JIT_RMS_WARN and j["a"] is not None:
+    sc = j.get("scale", 1.0)
+    if j["rms"] >= JIT_RMS_WARN * sc and j["a"] is not None:
         bits.append("trembles %.2fpx RMS against its own geometry over frames %d-%d (%.2f-%.2fs)"
                     % (j["rms"], j["a"], j["b"], j["a"] / fps, j["b"] / fps))
-    if j["pop"] >= POP_PX:
+    if j["pop"] >= POP_PX * sc:
         bits.append("pops %.2fpx at frame %d (%.2fs)" % (j["pop"], j["pop_f"], j["pop_f"] / fps))
+    if j.get("stall"):
+        t_len, m_len, fa, fb = j["stall"]
+        bits.append("does not follow its geometry: the census moves it %.1fpx over frames %d-%d, the pixels %.1fpx "
+                    "(a frozen layer, an overlay the census does not list, or another render — look at it)"
+                    % (t_len, fa, fb, m_len))
     if j["shimmer"] >= SHIMMER_REL:
         bits.append("shimmers in place (%.2f of its edge energy) from frame %d" % (j["shimmer"], j["shimmer_f"]))
     where = "composited layer" if "c" in (m.get("fl") or "") else "2D"
@@ -454,38 +517,110 @@ def describe(m, j, fps=30.0, label=None):
 
 
 # ── THE FILM ────────────────────────────────────────────────────────────────────────────────────────────────────
+def clip_size(path):
+    """(W, H) of a video, or of the first PNG of a frame directory."""
+    if os.path.isdir(path):
+        from PIL import Image
+        names = sorted(n for n in os.listdir(path) if n.lower().endswith(".png"))
+        if not names:
+            raise RuntimeError("%s holds no PNG frames" % path)
+        return Image.open(os.path.join(path, names[0])).size
+    W, H, _fps = probe(path)
+    return W, H
+
+
+def film_tier(out_dir):
+    """'remotion' | 'html' | None — critic_ledger's (validate's) one definition."""
+    import critic_ledger as cl
+    return cl.film_tier(out_dir)
+
+
 def scan_film(out_dir, video=None, census_path=None):
+    """The judgment of a delivered film: its census (where every line of type truly is on every frame) read against
+    out.mp4. A remotion film's census is the Film composition's own (text_safe_qa); an HTML-tier film's is built per
+    scene by jitter_html (the page's DOM on the capture plan, the image slides' Ken Burns geometry)."""
     import time
     t0 = time.time()
     video = video or os.path.join(out_dir, "out.mp4")
     if not os.path.isfile(video):
-        raise RuntimeError("no %s to measure" % video)
-    segs, labels = None, None
+        raise RuntimeError("no %s to measure — render the film first; a gate with no picture has measured nothing"
+                           % video)
+    tier = "remotion" if census_path else film_tier(out_dir)
+    extra_skip, scope = {}, []
     if census_path:
         census = load_census(census_path)
+    elif tier == "remotion":
+        census, _segs = film_census(out_dir)
     else:
-        census, segs = film_census(out_dir)
+        # the HTML tier, and a board with no authored page (supplied slides with Ken Burns, programmatic scenes):
+        # render.py drew both, and jitter_html reads both
+        import jitter_html
+        census, extra_skip, scope = jitter_html.film_census(out_dir, video)
+        tier = tier or "local (no authored page)"
     try:
         board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
-        labels = ["scene %02d (%s)" % (s.get("index", i + 1), s.get("shot") or "?")
+        labels = ["scene %02d (%s)" % (s.get("index", i + 1), s.get("shot") or s.get("type") or "?")
                   for i, s in enumerate(board.get("slides", []))]
     except (OSError, ValueError):
         labels = None
     tracks, skip, meta = measure_census(video, census)
-    _W, _H, fps = probe(video)
+    for why, n in extra_skip.items():
+        skip[why] = skip.get(why, 0) + n
+    W, H, fps = probe(video)
+    sc = frame_scale(W, H)
 
     def label(m):
         b = m.get("b")
         if labels and b is not None and str(b).isdigit() and int(b) < len(labels):
             return labels[int(b)]
         return "film chrome" if b is None else "beat %s" % b
-    lines = judge(tracks, meta)
+    lines = judge(tracks, meta, scale=sc)
     universe = sum(1 for f in census for ln in (census[f].get("lines") or []) if (f + 1) in census)
+    universe += sum(extra_skip.values())
     measured = sum(len(t) for t in tracks.values())
     comp = sum(len(t) for k, t in tracks.items() if "c" in (meta.get(k, {}).get("fl") or ""))
     return {"lines": [(lv, describe(m, j, fps, label(m)), m, j, k) for lv, k, m, j in lines], "skip": skip,
-            "universe": universe, "measured": measured, "composited": comp, "fps": fps,
+            "universe": universe, "measured": measured, "composited": comp, "fps": fps, "tier": tier,
+            "size": (W, H), "scale": sc, "scope": scope,
             "seconds": time.time() - t0, "tracks": tracks, "meta": meta}
+
+
+def verdict(rep):
+    """'FAIL' | 'UNMEASURED' | 'NOTHING TO JUDGE' | 'OK', and the exit code (1 | 2 | 0 | 0).
+
+    NOTHING TO JUDGE is a census that read every frame and found no type on any of them — a measured absence, said in
+    those words, not an OK. UNMEASURED is type the census found and the pixels could not judge: every line-pair skipped
+    (a dithered dark film whose correlation is too weak to believe, type that only ever fades), or every tracked line
+    seen for fewer consecutive pairs than any test needs. That is exit 2 — a gate that looked at nothing has not
+    passed anything."""
+    errors = [r for r in rep["lines"] if r[0] == "error"]
+    if errors:
+        return "FAIL", 1
+    if not rep["universe"]:
+        return "NOTHING TO JUDGE", 0
+    judged = sum(r[3].get("popped", 0) for r in rep["lines"])
+    if not rep["measured"] or not judged:
+        return "UNMEASURED", 2
+    return "OK", 0
+
+
+def scope_lines(rep):
+    """What this run measured, and what it did not and why — printed by every run (E4: a count is coverage)."""
+    W, H = rep.get("size") or (0, 0)
+    windowed = sum(r[3].get("windowed", 0) for r in rep["lines"])
+    popped = sum(r[3].get("popped", 0) for r in rep["lines"])
+    short = rep["measured"] - popped
+    out = ["scope: MEASURED — %d of %d line-pairs of type (%s tier, %dx%d, thresholds x%.2f of the 1080p ones), "
+           "%d of them inside a jitter window of %d pairs, %d within reach of the pop test, %d on composited/3D layers"
+           % (rep["measured"], rep["universe"], rep.get("tier") or "?", W, H, rep.get("scale", 1.0), windowed,
+              JIT_WINDOW, popped, rep["composited"])]
+    if short > 0:
+        out.append("scope: tracked but NOT JUDGED — %d pair(s) on lines seen for fewer than 5 consecutive pairs "
+                   "(a 1 s beat that fades in and out leaves runs this short)" % short)
+    out.append("scope: NOT MEASURED, by design — pictures and non-type motion (media_res_qa, shake_qa judge those); "
+               "kinetic per-glyph type (text_safe_qa --glide); the line-pairs listed under coverage, each with why")
+    out.extend("scope: " + x for x in rep.get("scope") or [])
+    return out
 
 
 def report(rep, out=sys.stdout):
@@ -499,16 +634,27 @@ def report(rep, out=sys.stdout):
               % (TAG, rep["measured"], rep["universe"], rep["composited"]))
     for why, n in sorted(rep["skip"].items(), key=lambda kv: -kv[1]):
         out.write("    %6d  %s\n" % (n, why))
+    for ln in scope_lines(rep):
+        out.write("%s %s\n" % (TAG, ln))
+    word, code = verdict(rep)
     out.write("%s %s  %d line(s) jitter, %d warn — %d lines tracked · %.0fs\n"
-              % (TAG, "FAIL" if errors else "OK", len(errors), len(warns), len(rep["lines"]), rep["seconds"]))
-    return 1 if errors else 0
+              % (TAG, word, len(errors), len(warns), len(rep["lines"]), rep["seconds"]))
+    if word == "UNMEASURED":
+        out.write("%s NOT MEASURED — the film has type and none of it could be judged from the pixels (see coverage); "
+                  "this is not a pass\n" % TAG)
+    elif word == "NOTHING TO JUDGE":
+        out.write("%s the census read every frame and found no type on any of them — nothing to tremble\n" % TAG)
+    return code
 
 
 # ── NO CENSUS: tiles ────────────────────────────────────────────────────────────────────────────────────────────
-def tiles_of(fr, tw=160, th=64, keep=12):
-    """The `keep` most edge-dense tiles of a frame (x0, y0, x1, y1): where there is type, or something like it."""
+def tiles_of(fr, tw=None, th=None, keep=12, gap=0):
+    """The `keep` most edge-dense tiles of a frame (x0, y0, x1, y1): where there is type, or something like it. The
+    tile is 160x64 at a 1080 short side and scales with the frame (a line of type does)."""
     b = np.abs(_band(fr))
     H, W = fr.shape
+    sc = frame_scale(W, H)
+    tw, th = int(tw or round(160 * sc)), int(th or round(64 * sc))
     cand = []
     for y in range(0, H - th, th // 2):
         for x in range(0, W - tw, tw // 2):
@@ -516,7 +662,7 @@ def tiles_of(fr, tw=160, th=64, keep=12):
     cand.sort(key=lambda c: -c[0])
     out = []
     for e, t in cand:
-        if all(t[2] <= o[0] or t[0] >= o[2] or t[3] <= o[1] or t[1] >= o[3] for o in out):
+        if all(t[2] + gap <= o[0] or t[0] >= o[2] + gap or t[3] + gap <= o[1] or t[1] >= o[3] + gap for o in out):
             out.append(t)
         if len(out) >= keep:
             break
@@ -530,10 +676,11 @@ def measure_clip(path, truth=None, keep=12):
         tracks, skip, meta = measure_census(path, truth)
         return tracks, meta
     from scipy.signal import savgol_filter
-    pos, raw, prev = None, {}, None
+    pos, raw, prev, sc = None, {}, None, 1.0
     for i, fr in frames(path):
         H, W = fr.shape
         if pos is None:
+            sc = frame_scale(W, H)
             pos = {n: [float(t[0]), float(t[1]), t[2] - t[0], t[3] - t[1]] for n, t in enumerate(tiles_of(fr, keep=keep))}
         else:
             for n, (x, y, w, h) in pos.items():
@@ -556,7 +703,7 @@ def measure_clip(path, truth=None, keep=12):
             d = np.array([[r[1], r[2]] for r in run])
             sm = savgol_filter(d, SMOOTH_PAIRS, 2, axis=0)
             for r, s in zip(run, sm):
-                still = max(abs(s[0]), abs(s[1])) < STILL_PX
+                still = max(abs(s[0]), abs(s[1])) < STILL_PX * sc
                 tracks.setdefault("tile%d" % n, []).append((r[0], float(s[0]), float(s[1]), r[1], r[2], r[3],
                                                              r[4] if still else None))
         meta["tile%d" % n] = {"t": "tile %d" % n, "fl": ""}
@@ -564,9 +711,33 @@ def measure_clip(path, truth=None, keep=12):
 
 
 # ── CALIBRATION ────────────────────────────────────────────────────────────────────────────────────────────────
-def synth(kind, path, n=60, W=640, H=360, seed=3):
+# THE CONTROLS ARE DRAWN AT THE DELIVERED SIZE. They were first drawn in a 640x360 frame — a third of the frame every
+# threshold is stated in (E8): the estimator's own noise floor is in pixels, so a control drawn at 360p and a film at
+# 1080p are not the same experiment. Now the frame is any W x H (1920x1080 by default; the tests also run 1080x1920
+# and 1080x1080), the line is placed by FRACTIONS of the frame, and only the region the line can reach is resampled
+# (a full-frame resample per frame at 1080p is what made the 1080p controls cost minutes).
+LATIN_TEXT = "Spark 5h  92%  14:32"
+CJK_TEXT = "当前会话 92% · 每周限制"
+_LATIN_FONTS = ("/System/Library/Fonts/Supplemental/Arial Bold.ttf", "/System/Library/Fonts/Supplemental/Arial.ttf",
+                "/Library/Fonts/Arial.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
+_CJK_FONTS = ("/System/Library/Fonts/Hiragino Sans GB.ttc", "/System/Library/Fonts/STHeiti Medium.ttc",
+              "/System/Library/Fonts/PingFang.ttc", "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+              "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc")
+
+
+def _font_for(text):
+    cjk = any("\u3400" <= c <= "\u9fff" for c in text)
+    for p in (_CJK_FONTS if cjk else _LATIN_FONTS):
+        if os.path.exists(p):
+            return p
+    raise RuntimeError("no %s font found for the synthetic clips (looked in: %s)"
+                       % ("CJK" if cjk else "Latin", ", ".join(_CJK_FONTS if cjk else _LATIN_FONTS)))
+
+
+def synth(kind, path, n=60, W=1920, H=1080, seed=3, text=LATIN_TEXT, px=26, ink=235, ground=18):
     """A synthetic clip of type with a KNOWN true path, encoded the way the films are (x264 yuv420p, plus the film's
-    ±2 static dither), and its census (the TRUE path). kinds:
+    ±2 static dither), and its census (the TRUE path). `text` may be Latin or CJK; `ink`/`ground` set the contrast (a
+    dithered DARK film is ink 40 on ground 18). kinds:
       still     type that does not move
       pan       a 0.37 px/frame vertical crawl, placed exactly (the glide)
       push      a 0.25%/frame zoom about the line's centre, placed exactly
@@ -579,37 +750,37 @@ def synth(kind, path, n=60, W=640, H=360, seed=3):
                 the drawing changes in place while nothing moves"""
     from PIL import Image, ImageDraw, ImageFont
     from scipy.ndimage import map_coordinates, uniform_filter, zoom as nzoom
-    rng = np.random.default_rng(seed)
-    S = 8                                                   # the master's supersampling
-    font_path = next((p for p in ["/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-                                  "/System/Library/Fonts/Supplemental/Arial.ttf",
-                                  "/Library/Fonts/Arial.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
-                      if os.path.exists(p)), None)
-    if font_path is None:
-        raise RuntimeError("no font found for the synthetic clips")
     if kind not in CAL_KINDS:
         raise ValueError("synth: unknown kind %r" % kind)
-    text = "Spark 5h  92%  14:32"
+    rng = np.random.default_rng(seed)
+    S = 8                                                   # the master's supersampling
     dither = rng.integers(-2, 3, size=(H, W)).astype(np.float32)
     # ONE master drawing of the line, S times finer than the frame and box-filtered over S, so a frame is a pure
     # resampling of it: any place and any scale is exact (PIL places glyphs on its own grid and sizes fonts in
     # whole units, which by themselves put a 0.1px error on every frame — the size of what is being measured)
-    font = ImageFont.truetype(font_path, 26 * S)
+    font = ImageFont.truetype(_font_for(text), px * S)
     bb = ImageDraw.Draw(Image.new("L", (8, 8))).textbbox((0, 0), text, font=font)
     mw, mh = bb[2] - bb[0] + 8 * S, bb[3] - bb[1] + 8 * S
     m = Image.new("L", (mw, mh), 0)
-    ImageDraw.Draw(m).text((4 * S - bb[0], 4 * S - bb[1]), text, font=font, fill=217)
-    master = uniform_filter(np.asarray(m, np.float32), S)
+    ImageDraw.Draw(m).text((4 * S - bb[0], 4 * S - bb[1]), text, font=font, fill=255)
+    master = uniform_filter(np.asarray(m, np.float32), S) * ((ink - ground) / 255.0)
     mcx, mcy = mw / 2.0, mh / 2.0
+    tw, th = (bb[2] - bb[0]) / float(S), (bb[3] - bb[1]) / float(S)     # the line's own box at scale 1
+    cx0, cy0 = float(round(W * 0.516)), float(round(H * 0.453))
+    if tw * 1.2 + 40 > W or th * 1.2 + 0.37 * n + 40 > H:
+        raise ValueError("synth: a %dpx line of %r does not fit a %dx%d frame" % (px, text, W, H))
+    # the region the line can reach over the clip (pan, push, wobble, the pop's raster grid), with a margin
+    hw, hh = tw * 0.6 * 1.2 + 24, th * 0.6 * 1.2 + 0.37 * n + 24
+    X0, X1 = max(0, int(cx0 - hw)), min(W, int(cx0 + hw) + 1)
+    Y0, Y1 = max(0, int(cy0 - hh)), min(H, int(cy0 + hh) + 1)
+    ys, xs = np.mgrid[Y0:Y1, X0:X1].astype(np.float32)
 
     def place(cx, cy, s):
-        """The line centred on (cx, cy) at scale s: each frame pixel's centre read off the master."""
-        ys, xs = np.mgrid[0:H, 0:W].astype(np.float32)
+        """The ROI with the line centred on (cx, cy) at scale s: each pixel's centre read off the master."""
         u = mcx + (xs + 0.5 - cx) * S / s - 0.5
         v = mcy + (ys + 0.5 - cy) * S / s - 0.5
-        return 18.0 + map_coordinates(master, [v, u], order=1, cval=0.0)
+        return float(ground) + map_coordinates(master, [v, u], order=1, cval=0.0)
     lines, raw = [], []
-    cx0, cy0 = 330.0, 163.0
     for f in range(n):
         cx, cy, s = cx0, cy0, 1.0
         if kind in ("pan", "snapped", "wobble"):
@@ -624,16 +795,19 @@ def synth(kind, path, n=60, W=640, H=360, seed=3):
             rs = 1.0 + 0.0025 * (f - f % 4)                 # the raster's scale, refreshed every 4th frame
             k = s / rs                                      # the compositor's remaining scale, about the centre
             r = place(cx0 + 0.31, float(np.round(cy0 * rs)) / rs, rs)   # whole pixels in the raster's own grid
-            ys, xs = np.mgrid[0:H, 0:W].astype(np.float32)
-            a = map_coordinates(r, [cy0 + (ys - cy0) / k, cx0 + (xs - cx0) / k], order=1, mode="nearest")
+            a = map_coordinates(r, [cy0 + (ys - cy0) / k - Y0, cx0 + (xs - cx0) / k - X0], order=1, mode="nearest")
         elif kind == "shimmer":
             a = place(cx, cy, s)
             if f % 2:
-                a = nzoom(nzoom(a, 0.5, order=1), 2.0, order=1)[:H, :W]
+                a = nzoom(nzoom(a, 0.5, order=1), 2.0, order=1)
+                a = np.pad(a, ((0, max(0, ys.shape[0] - a.shape[0])), (0, max(0, ys.shape[1] - a.shape[1]))),
+                           mode="edge")[:ys.shape[0], :ys.shape[1]]
         else:
             a = place(cx, cy, s)
-        raw.append(np.clip(a + dither, 0, 255).astype(np.uint8))
-        bw, bh = 300 * s, 26 * s
+        fr = np.full((H, W), float(ground), np.float32)
+        fr[Y0:Y1, X0:X1] = a
+        raw.append(np.clip(fr + dither, 0, 255).astype(np.uint8))
+        bw, bh = tw * s, th * s
         lines.append({"lines": [{"k": "/line", "t": text, "x": cx - bw / 2, "y": cy - bh / 2, "w": bw, "h": bh,
                                  "o": 1, "fl": "c"}]})
     p = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", "%dx%d" % (W, H),
@@ -642,23 +816,29 @@ def synth(kind, path, n=60, W=640, H=360, seed=3):
     for a in raw:
         p.stdin.write(a.tobytes())
     p.stdin.close()
-    p.wait()
+    if p.wait() != 0:
+        raise RuntimeError("ffmpeg could not encode the synthetic clip %s" % path)
     return {f: v for f, v in enumerate(lines)}
 
 
 CAL_KINDS = ("still", "pan", "push", "snapped", "wobble", "pop", "shimmer")
 CAL_BAD = ("snapped", "wobble", "pop", "shimmer")
+# the frames the controls are drawn in: the three shapes the renderers deliver (every one 1080 on its short side)
+CAL_FRAMES = {"16:9": (1920, 1080), "9:16": (1080, 1920), "1:1": (1080, 1080), "4:3": (1440, 1080)}
 
 
-def calibrate(work):
+def calibrate(work, aspect="16:9", text=LATIN_TEXT, ink=235, kinds=CAL_KINDS):
+    """{kind: (level, judgment)} for the synthetic controls drawn at `aspect`."""
     os.makedirs(work, exist_ok=True)
+    W, H = CAL_FRAMES[aspect]
     rows = {}
-    for kind in CAL_KINDS:
-        path = os.path.join(work, "cal_%s.mp4" % kind)
-        census = synth(kind, path)
+    for kind in kinds:
+        path = os.path.join(work, "cal_%s_%s.mp4" % (aspect.replace(":", "x"), kind))
+        census = synth(kind, path, W=W, H=H, text=text, ink=ink)
         tracks, _skip, meta = measure_census(path, census)
-        j = judge_track(tracks.get("/line", []))
-        rows[kind] = (level_of(j), j)
+        sc = frame_scale(W, H)
+        j = judge_track(tracks.get("/line", []), scale=sc)
+        rows[kind] = (level_of(j, scale=sc), j)
     return rows
 
 
@@ -670,29 +850,41 @@ def main(argv):
     ap.add_argument("--clip", help="any clip (mp4 or PNG directory); no film needed")
     ap.add_argument("--truth", help="with --clip: a census for the clip (json.gz)")
     ap.add_argument("--calibrate", action="store_true", help="the synthetic controls and their separation")
+    ap.add_argument("--aspect", default="16:9", choices=sorted(CAL_FRAMES),
+                    help="with --calibrate: the frame the controls are drawn in (default %(default)s)")
     ap.add_argument("--json", help="write the judgment (and every line's track) here")
     ap.add_argument("--work", help="where --calibrate writes its clips (default: a temp dir)")
     a = ap.parse_args(argv)
     if a.calibrate:
         import tempfile
         work = a.work or tempfile.mkdtemp(prefix="jitter_cal_")
-        rows = calibrate(work)
+        rows = calibrate(work, aspect=a.aspect)
         bad_ok = all(rows[k][0] == "error" for k in CAL_BAD)
         good_ok = all(rows[k][0] == "clean" for k in CAL_KINDS if k not in CAL_BAD)
         for k in CAL_KINDS:
             lv, j = rows[k]
-            print("%s cal %-8s %-5s rms %.3fpx  pop %.2fpx  shimmer %.3f  (%d pairs)"
-                  % (TAG, k, lv, j["rms"], j["pop"], j["shimmer"], j["pairs"]))
+            print("%s cal %s %-8s %-5s rms %.3fpx  pop %.2fpx  shimmer %.3f  (%d pairs)"
+                  % (TAG, a.aspect, k, lv, j["rms"], j["pop"], j["shimmer"], j["pairs"]))
         print("%s calibration %s" % (TAG, "OK — every control on its side" if bad_ok and good_ok else "FAILED"))
         return 0 if bad_ok and good_ok else 1
     if a.clip:
-        truth = None
-        if a.truth:
-            truth = load_census(a.truth)
-        tracks, meta = measure_clip(a.clip, truth)
-        lines = judge(tracks, meta)
+        try:
+            W, H = clip_size(a.clip)
+            sc = frame_scale(W, H)
+            truth = load_census(a.truth) if a.truth else None
+            tracks, meta = measure_clip(a.clip, truth)
+        except (RuntimeError, OSError, ValueError) as e:
+            print("%s NOT MEASURED — %s" % (TAG, e))
+            return 2
+        lines = judge(tracks, meta, scale=sc)
         for lv, k, m, j in lines:
             print("%s %-5s %s" % (TAG, lv.upper(), describe(m, j)))
+        print("%s scope: %s, %dx%d (thresholds x%.2f); %d track(s) — %s" % (
+            TAG, "census truth" if truth is not None else "NO census: edge-dense tiles against their own smoothed "
+            "motion (sees steps and wobble; would call a designed shake smooth)", W, H, sc, len(lines),
+            "judged" if lines else "NOTHING was tracked: not a pass"))
+        if not lines:
+            return 2
         return 1 if any(lv == "error" for lv, *_ in lines) else 0
     if not a.out_dir:
         ap.error("an out_dir, --clip or --calibrate")
@@ -701,12 +893,14 @@ def main(argv):
         rep = scan_film(out_dir, a.video, a.census)
     except (RuntimeError, OSError, ValueError) as e:
         print("%s NOT MEASURED — %s" % (TAG, e))
+        print("%s scope: nothing was measured (exit 2 is not a pass)" % TAG)
         return 2
     code = report(rep)
     if a.json:
         with open(a.json, "w", encoding="utf-8") as fh:
             json.dump({"lines": [{"level": lv, "text": t, "key": k, "judgment": j} for lv, t, _m, j, k in rep["lines"]],
-                       "tracks": rep["tracks"], "meta": rep["meta"], "skip": rep["skip"]}, fh, ensure_ascii=False)
+                       "tracks": rep["tracks"], "meta": rep["meta"], "skip": rep["skip"],
+                       "verdict": verdict(rep)[0]}, fh, ensure_ascii=False)
     return code
 
 

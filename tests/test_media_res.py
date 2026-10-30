@@ -76,3 +76,102 @@ def test_the_runner_reads_the_census_tag():
     assert m.TAG.replace(" ", "_").replace("_", " ") == "MEDIA-RES "
     runtime = open(os.path.join(_ROOT, "remotion", "src", "runtime", "mediaRes.tsx"), encoding="utf-8").read()
     assert "export const MEDIA_RES_TAG = '%s'" % m.TAG in runtime
+
+
+# ── the edges: every outcome is said in words, and an unmeasured census is never an ok ─────────────────────────────
+def _finish(tmp_path, frames, want, why=None, mp4=True):
+    import time
+    out = str(tmp_path)
+    open(os.path.join(out, "storyboard.json"), "w").write("{}")
+    if mp4:
+        time.sleep(0.01)
+        open(os.path.join(out, "out.mp4"), "wb").write(b"\0")
+    res = {"frames": frames}
+    return m.finish(res, want, why, lambda f: 0, [1], ["PhotoPlate"], out, want * 3, 3, 1, time.time())
+
+
+def test_a_film_with_no_raster_is_nothing_to_judge_said_in_those_words(tmp_path, capsys):
+    r = _finish(tmp_path, {f: {"n": 0, "m": []} for f in range(0, 30, 3)}, 10)
+    assert m.verdict(r) == ("NOTHING TO JUDGE", 0)
+    assert r["sampled"] == 10 and r["pictures"] == 0 and not r["unmeasured"]
+
+
+def test_a_census_that_lost_frames_is_unmeasured_exit_2_even_with_no_finding(tmp_path):
+    """A frame-count mismatch between the census and the film: the frames it never logged are not clean."""
+    r = _finish(tmp_path, {f: {"n": 1, "m": []} for f in range(0, 15, 3)}, 10)
+    assert m.verdict(r) == ("UNMEASURED", 2) and "only 5 of 10" in r["unmeasured"][0]
+    r = _finish(tmp_path, {}, 10, why="render FAILED: boom")
+    assert m.verdict(r) == ("UNMEASURED", 2)
+
+
+def test_an_error_outranks_an_unmeasured_tail(tmp_path):
+    frames = {f: {"n": 1, "m": [_row("a.png", 2.0)]} for f in (0, 3, 6)}
+    r = _finish(tmp_path, frames, 10)
+    assert m.verdict(r) == ("FAIL", 1)
+
+
+def test_the_scope_says_what_was_measured_and_where_from(tmp_path):
+    r = _finish(tmp_path, {f: {"n": 1, "m": []} for f in range(0, 30, 3)}, 10, mp4=False)
+    lines = m.scope_lines(r)
+    assert any("MEASURED" in ln and "10 of 30 frames" in ln for ln in lines)
+    assert any("NOT MEASURED" in ln and "background-image" in ln for ln in lines)
+    assert "no out.mp4 yet" in r["source"]
+    r = _finish(tmp_path, {f: {"n": 1, "m": []} for f in range(0, 30, 3)}, 10)
+    assert "not older than the board" in r["source"]
+
+
+def test_a_board_that_cannot_be_read_is_unmeasured_not_a_crash(tmp_path, capsys):
+    assert m.main([str(tmp_path)]) == 2
+    out = capsys.readouterr().out
+    assert "NOT MEASURED" in out and "scope: nothing was measured" in out
+
+
+def test_the_icon_floor_is_one_number_and_scales_with_the_frame():
+    runtime = open(os.path.join(_ROOT, "remotion", "src", "runtime", "mediaRes.tsx"), encoding="utf-8").read()
+    assert "export const MIN_DRAWN_PX = %d;" % m.MIN_DRAWN_REF_PX in runtime
+    assert "MIN_DRAWN_PX * Math.min(frame.width, frame.height) / 1080" in runtime
+
+
+# ── the census at the frames it was never run at (E6/E8): a small and a large picture at 9:16 and 1:1 ──────────────
+import json        # noqa: E402
+import subprocess  # noqa: E402
+
+import pytest      # noqa: E402
+
+_RLOCK = "/Users/donghanglyu/code_project/film_work/tools/rlock.py"
+
+
+def _photo_film(out, aspect, size):
+    from PIL import Image, ImageDraw
+    os.makedirs(os.path.join(out, "media"), exist_ok=True)
+    os.makedirs(os.path.join(out, "audio"), exist_ok=True)
+    im = Image.new("RGB", size, (40, 60, 90))
+    d = ImageDraw.Draw(im)
+    for x in range(0, size[0], max(4, size[0] // 60)):          # detail, so the picture is a picture
+        d.line([(x, 0), (x, size[1])], fill=(200, 210, 220), width=1)
+    im.save(os.path.join(out, "media", "photo.png"))
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", "3",
+                    os.path.join(out, "audio", "01.wav")], check=True)
+    board = {"meta": {"renderer": "remotion", "language": "en", "aspect": aspect},
+             "slides": [{"index": 1, "type": "slide", "shot": "PhotoPlate", "narration": "Look at the photograph.",
+                         "duration": 3.0, "audio": "audio/01.wav",
+                         "shot_props": {"src": "media/photo.png", "title": "The photograph", "marks": []}}]}
+    json.dump(board, open(os.path.join(out, "storyboard.json"), "w"))
+    return out
+
+
+@pytest.mark.skipif(not os.environ.get("GATE_RENDER"), reason="renders the census: set GATE_RENDER=1")
+@pytest.mark.parametrize("aspect", ["9:16", "1:1"])
+def test_a_small_picture_is_soft_and_a_large_one_is_not_at_portrait_and_square(tmp_path, aspect):
+    res = {}
+    for name, size in (("small", (480, 320)), ("large", (3000, 2000))):
+        out = _photo_film(str(tmp_path / name), aspect, size)
+        cmd = [sys.executable, os.path.join(_ROOT, "scripts", "media_res_qa.py"), out]
+        if os.path.exists(_RLOCK) and not os.environ.get("RLOCK_HELD"):
+            cmd = [sys.executable, _RLOCK, "--"] + cmd
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=_ROOT)
+        res[name] = (r.returncode, r.stdout)
+    assert res["small"][0] == 1 and "ERROR" in res["small"][1] and "480x320" in res["small"][1], res["small"]
+    assert res["large"][0] == 0 and " ok " in res["large"][1], res["large"]
+    for _code, out in res.values():
+        assert "scope: MEASURED" in out and "scope: NOT MEASURED" in out
