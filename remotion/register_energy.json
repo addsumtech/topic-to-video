@@ -40,7 +40,7 @@
     "CrashZoom": "882b5cf0f58cb296",
     "CubeRotate": "0db1129b0b4fd388",
     "CursorStory": "f837b08fa2d17e62",
-    "DNAHelix": "b63011104bbc9419",
+    "DNAHelix": "3095204a540c9041",
     "DataMonolith": "48fc8b0f7350c551",
     "DataOrrery": "90ad3cbf869cc539",
     "DiffusionDenoise": "23d3b1eb7bd34fe1",
@@ -62,7 +62,7 @@
     "GameOfLife": "28940f52688aa102",
     "GaugeCluster": "322cebd072360798",
     "GazetteerEntry": "53080a50357d611a",
-    "GearTrain": "1ab7e2c43256743d",
+    "GearTrain": "efe89eda2a130a88",
     "GlitchDatamosh": "c6492c245862561d",
     "GlowPick": "bb9b38efccde56e7",
     "GradientTilt": "93dc579f25a937fc",
@@ -104,7 +104,7 @@
     "MapRoutes": "214d51b670349fb3",
     "MaterialHero": "776e77d9e036dd8e",
     "MetaballMerge": "37a851f4df6b1a2a",
-    "MoleculeBallStick": "7587ce72099b696e",
+    "MoleculeBallStick": "bd9bc53674efd532",
     "MorphForms": "627b508b0b49a3a1",
     "MuseumLabel": "06f4c4dfda7b7138",
     "NearTheLine": "5f83a016d733840a",
@@ -196,8 +196,8 @@
     "ExtractionFlow": "262b21edd1024d6c",
     "PourSync": "6f27f04eb68f6b7b",
     "RangeSpheres": "893ee5cc19a84db8",
-    "LightShellOrbit": "178b8d29477b4216",
-    "OrbitClockGain": "2c9b9952a2f6c6a2",
+    "LightShellOrbit": "ab5d351640cdbb60",
+    "OrbitClockGain": "638b69621eaeaa4e",
     "ReplyWindow": "c07e34231966400d",
     "WeightedWheel": "4573018ced610633",
     "ForkingAnswers": "031e14d03e9face9",
@@ -537,9 +537,9 @@
       "footprint": 0.239
     },
     "DNAHelix": {
-      "motion_p75": 0.0059,
-      "ink_median": 0.07,
-      "luma_range": 0.027,
+      "motion_p75": 0.0035,
+      "ink_median": 0.047,
+      "luma_range": 0.02,
       "seconds": 5.3,
       "footprint": 0.223
     },
@@ -754,11 +754,11 @@
       "footprint": 0.251
     },
     "GearTrain": {
-      "motion_p75": 0.0088,
-      "ink_median": 0.046,
-      "luma_range": 0.015,
+      "motion_p75": 0.0108,
+      "ink_median": 0.051,
+      "luma_range": 0.019,
       "seconds": 5.2,
-      "footprint": 0.288
+      "footprint": 0.267
     },
     "GlitchDatamosh": {
       "motion_p75": 0.0034,
@@ -985,11 +985,11 @@
       "footprint": 0.938
     },
     "LightShellOrbit": {
-      "motion_p75": 0.0109,
-      "ink_median": 0.075,
+      "motion_p75": 0.011,
+      "ink_median": 0.074,
       "luma_range": 0.051,
       "seconds": 5.0,
-      "footprint": 0.991
+      "footprint": 1.0
     },
     "LightTrails": {
       "motion_p75": 0.0031,
@@ -1112,7 +1112,7 @@
     },
     "MoleculeBallStick": {
       "motion_p75": 0.0016,
-      "ink_median": 0.02,
+      "ink_median": 0.021,
       "luma_range": 0.017,
       "seconds": 5.2,
       "footprint": 0.212
@@ -1209,8 +1209,8 @@
       "footprint": 0.21
     },
     "OrbitClockGain": {
-      "motion_p75": 0.0039,
-      "ink_median": 0.086,
+      "motion_p75": 0.0038,
+      "ink_median": 0.087,
       "luma_range": 0.006,
       "seconds": 7.0,
       "footprint": 0.512

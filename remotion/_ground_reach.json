@@ -615,10 +615,10 @@
     "dark": 0.0019786106422543526
    },
    "fieldY": {
-    "light": 0.21021263301372528,
+    "light": 0.20409567654132843,
     "dark": 0.004724034573882818
    },
-   "moved": 0.7599384469696969,
+   "moved": 0.7573697916666666,
    "ok": false,
    "why": [
     "field light reads mid"
@@ -1058,9 +1058,9 @@
    },
    "fieldY": {
     "light": 1.0,
-    "dark": 0.0003035269910469651
+    "dark": 0.0
    },
-   "moved": 0.9843513257575758,
+   "moved": 0.9750307765151515,
    "ok": true,
    "why": []
   },
@@ -1544,14 +1544,14 @@
   {
    "shot": "LightShellOrbit",
    "bandY": {
-    "light": 0.7649337649345398,
+    "light": 0.7650666832923889,
     "dark": 0.012719810009002686
    },
    "fieldY": {
-    "light": 0.8002081513404846,
-    "dark": 0.019330546259880066
+    "light": 0.8007716536521912,
+    "dark": 0.019256705418229103
    },
-   "moved": 0.9354805871212121,
+   "moved": 0.9475923295454546,
    "ok": true,
    "why": []
   },
@@ -1821,7 +1821,7 @@
     "light": 0.921582043170929,
     "dark": 0.005051969550549984
    },
-   "moved": 0.9803693181818182,
+   "moved": 0.9818394886363636,
    "ok": true,
    "why": []
   },
@@ -2029,7 +2029,7 @@
     "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9914464962121212,
+   "moved": 0.9930610795454545,
    "ok": true,
    "why": []
   },
@@ -3227,7 +3227,7 @@
   "CrashZoom": "33e734463fb17d0a",
   "CubeRotate": "0db1129b0b4fd388",
   "CursorStory": "3817b69e5992d9f4",
-  "DNAHelix": "b63011104bbc9419",
+  "DNAHelix": "3095204a540c9041",
   "DataMonolith": "48fc8b0f7350c551",
   "DataOrrery": "90ad3cbf869cc539",
   "DiffusionDenoise": "415e2f8473771964",
@@ -3249,7 +3249,7 @@
   "GameOfLife": "8e3b3b98a9df9b03",
   "GaugeCluster": "322cebd072360798",
   "GazetteerEntry": "53080a50357d611a",
-  "GearTrain": "1ab7e2c43256743d",
+  "GearTrain": "efe89eda2a130a88",
   "GlitchDatamosh": "5daca1e9a672222f",
   "GlowPick": "bb9b38efccde56e7",
   "GradientTilt": "93dc579f25a937fc",
@@ -3291,7 +3291,7 @@
   "MapRoutes": "214d51b670349fb3",
   "MaterialHero": "776e77d9e036dd8e",
   "MetaballMerge": "37a851f4df6b1a2a",
-  "MoleculeBallStick": "274d8560d6cf6b00",
+  "MoleculeBallStick": "f422ff6642d5819d",
   "MorphForms": "c3f3cafac1233ce4",
   "MuseumLabel": "06f4c4dfda7b7138",
   "NearTheLine": "5f83a016d733840a",
@@ -3383,8 +3383,8 @@
   "ExtractionFlow": "29bbb9488fa18ae3",
   "PourSync": "f8b5e4aa198e7bf9",
   "RangeSpheres": "893ee5cc19a84db8",
-  "LightShellOrbit": "178b8d29477b4216",
-  "OrbitClockGain": "2c9b9952a2f6c6a2",
+  "LightShellOrbit": "ab5d351640cdbb60",
+  "OrbitClockGain": "638b69621eaeaa4e",
   "ReplyWindow": "c07e34231966400d",
   "WeightedWheel": "4573018ced610633",
   "ForkingAnswers": "031e14d03e9face9",
