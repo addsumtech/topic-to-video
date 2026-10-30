@@ -14,7 +14,8 @@ import {mix, relLum} from '../runtime/dna';
 import {hex6} from '../runtime/hexColor';
 
 export const DEMO_ID = 'DemoForm';
-export const META: ObjectMeta = {aspect: 1, turns: true, demo: true, provenance: 'motion-graphics'};
+export const META: ObjectMeta & {fidelity: object} = {aspect: 1, turns: true, demo: true, provenance: 'motion-graphics',
+  fidelity: {subject: "stacked slabs — a stage's own preview form, never a film's picture", depicts: 'abstract'}};
 
 const SURF_D0 = '#e9edf3', ACC_D0 = '#3563e9', INK_D0 = '#1c2230';
 // the camera, fitted so the whole stack stays inside its box at any yaw (half-height 2.3 units at the aim)
