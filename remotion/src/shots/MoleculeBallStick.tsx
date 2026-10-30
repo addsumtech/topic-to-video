@@ -27,6 +27,22 @@ import {bottomInset} from '../runtime/layout';
 import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
+export const FIDELITY = {
+  subject: 'a ball-and-stick model of a molecule: the atoms, elements and bonds are the film\'s (`molecule`); with none, a generic ring of neutral atoms that names no element',
+  depicts: 'real',
+  references: [
+    {kind: 'drawing', source: 'references/object-refs/MoleculeBallStick/ball-and-stick.png', note: 'a ball-and-stick rendering (Wikimedia Commons, public domain): CPK colours, hydrogens smaller, every stick passing in front of or behind the balls by its own depth'},
+    {kind: 'spec', source: 'https://en.wikipedia.org/wiki/CPK_coloring', note: 'typical CPK: H white, C black, N blue, O red, F and Cl green, Br dark red, I dark violet, S yellow, P orange, B beige, Na and K violet, Mg and Ca dark green, Fe dark orange'},
+    {kind: 'spec', source: 'https://en.wikipedia.org/wiki/Van_der_Waals_radius', note: 'Bondi radii: H 1.2, C 1.7, N 1.55, O 1.52 Å'},
+  ],
+  proportions: {
+    hydrogen_to_heavy_atom_radius: {value: '1.2 / 1.7 = 0.71 (H : C)', drawn: '18 / 26 = 0.69', source: 'https://en.wikipedia.org/wiki/Van_der_Waals_radius'},
+    element_colours: {value: 'CPK', drawn: 'CPK, carbon lifted to slate grey and Mg/Ca to a light green so they read on a dark ground', source: 'https://en.wikipedia.org/wiki/CPK_coloring'},
+    depth_order: {value: 'sticks and balls occlude each other by depth', drawn: 'one far-to-near order for both', source: 'references/object-refs/MoleculeBallStick/ball-and-stick.png'},
+  },
+  parts: ['atom', 'bond'],
+  materials: ['balls in the CPK colour of their element, lit from the upper left', 'sticks in one neutral ink'],
+};
 const BG_D0 = '#070a14';
 const POOL_D0 = '#101430';        // the lit core of the ground, a LIFT off this register's own night
 const BOND_D0 = '#9fb0d0', BOND_OP_D0 = 0.5;
@@ -164,16 +180,22 @@ export const MoleculeBallStick: React.FC<{title?: string; tagline?: string; mole
   return (
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 42%, ${POOL}, ${BG} 74%)`, overflow: 'hidden'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
-        {/* bonds (behind) */}
-        {bonds.map(([a, b], i) => {
-          const A = pa[a].s, B = pa[b].s;
-          return <line key={'b' + i} x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke={BOND}
-            strokeWidth={7 * ((A.persp + B.persp) / 2)} strokeLinecap="round" opacity={BOND_OP * build} />;
-        })}
-        {/* atoms (depth-sorted) */}
-        {[...pa].map((at, i) => ({at, i})).sort((u, v) => u.at.s.z - v.at.s.z).map(({at, i}) => {
+        {/* BONDS AND ATOMS IN ONE DEPTH ORDER. Every bond used to be drawn behind every atom, so a bond running
+            from a front atom back to a far one was hidden by any ball nearer than its far end, and a front bond
+            vanished behind a back ball — while this header promised depth-sorted sticks. A stick now sits at the
+            mean depth of its two ends, among the balls, far to near. */}
+        {[
+          ...bonds.map(([a, b], i) => ({z: (pa[a].s.z + pa[b].s.z) / 2 - 1e-3, key: 'b' + i, bond: [a, b] as [number, number], i: -1})),
+          ...pa.map((at, i) => ({z: at.s.z, key: 'a' + i, bond: null as null | [number, number], i})),
+        ].sort((u, v) => u.z - v.z).map((it) => {
+          if (it.bond) {
+            const A = pa[it.bond[0]].s, B = pa[it.bond[1]].s;
+            return <line key={it.key} data-part="bond" x1={A.x} y1={A.y} x2={B.x} y2={B.y} stroke={BOND}
+              strokeWidth={7 * ((A.persp + B.persp) / 2)} strokeLinecap="round" opacity={BOND_OP * build} />;
+          }
+          const at = pa[it.i];
           const depth = clamp01((at.s.z + 1) / 2);
-          return <g key={'a' + i} opacity={clamp01(build)}>
+          return <g key={it.key} data-part="atom" opacity={clamp01(build)}>
             {/* The bloom is a dark-ground device — it is the ring the gate flagged on ball after ball: on paper
                 it is a wash of the element's colour lying between the ball and the page, dissolving the very
                 edge it is meant to lift. Lit, the edge is DRAWN instead, which is also what carries a white

@@ -16,10 +16,73 @@ import {useDNA, dnaPalette, mix, readableOn, separated, TONE_MIN_STEP} from '../
 import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
+export const FIDELITY = {
+  subject: 'a train of equal spur gears with standard full-depth involute teeth, meshing',
+  depicts: 'real',
+  references: [
+    {kind: 'drawing', source: 'references/object-refs/GearTrain/spur-gears.png',
+      note: 'two external involute spur gears meshed on a carrier (Wikimedia Commons, CC BY-SA 4.0): each tip runs into the other gear\'s gap, the two root circles never touch'},
+    {kind: 'spec', source: 'https://khkgears.net/new/gear_knowledge/gear_technical_reference/calculation_gear_dimensions.html',
+      note: 'KHK Table 4.1, standard spur gear: centre distance a = (z1 + z2) m / 2; reference diameter d = z m; tip diameter d + 2m; root diameter d - 2.5m'},
+    {kind: 'spec', source: 'https://khkgears.net/new/gear_knowledge/gear_technical_reference/involute_gear_profile.html',
+      note: 'KHK 3.1: addendum 1.00 m, dedendum 1.25 m, whole depth 2.25 m; pressure angle usually 20°'},
+  ],
+  proportions: {
+    centre_distance: {value: '(z1 + z2) m / 2 — for equal gears, z m', drawn: 'SPACING = TEETH × m',
+      source: 'https://khkgears.net/new/gear_knowledge/gear_technical_reference/calculation_gear_dimensions.html'},
+    tip_and_root_radius: {value: 'r ± (1.00 m, 1.25 m)', drawn: 'r + 1.00 m, r − 1.25 m',
+      source: ['https://khkgears.net/new/gear_knowledge/gear_technical_reference/calculation_gear_dimensions.html',
+        'https://khkgears.net/new/gear_knowledge/gear_technical_reference/involute_gear_profile.html']},
+    pressure_angle: {value: '20°', drawn: '20° (straight flanks: the rack form of the involute)',
+      source: 'https://khkgears.net/new/gear_knowledge/gear_technical_reference/involute_gear_profile.html'},
+    mesh: {value: 'a tip enters the other gear\'s gap; the bodies never overlap', drawn: 'tip clearance 0.25 m',
+      source: 'references/object-refs/GearTrain/spur-gears.png'},
+  },
+  parts: ['teeth', 'gear-body'],
+  materials: ['machined gear blanks (the film\'s tones)', 'spokes and a rim on the web'],
+};
 const BG_D0 = '#0b0c11';
 const TONES0 = ['#5b8cff', '#f6a531', '#ff5b7f', '#22c197'];
-const R = 156, TEETH = 12, SPACING = 278;
+// THE TEETH MESH (FIDELITY above). The gears were 12 square tabs centred on r = 156 round a 150 px disc, with the
+// centres 278 apart — so the two DISCS overlapped by 22 px and every tooth at the mesh vanished inside its
+// neighbour's body: no tooth ever entered a gap. They are standard spur gears now: centre distance = z·m (equal
+// gears), so the module is SPACING / TEETH; tips at r + m, roots at r − 1.25 m, flanks at the 20° pressure angle,
+// and a tip meets the other gear's root with the standard 0.25 m clearance. `R` stays the OUTER (tip) radius the
+// layout below was fitted to: 16 teeth put the tip at 156.4, where it already was.
+const TEETH = 16, SPACING = 278;
+const MODULE = SPACING / TEETH;                      // equal gears: a = z m
+const RP = SPACING / 2;                              // reference (pitch) radius
+const R = RP + MODULE;                               // tip radius (156.4)
+const R_ROOT = RP - 1.25 * MODULE;                   // root radius (117.3)
+const PRESSURE = (20 * Math.PI) / 180;
 export const MAX_GEARS = 4;
+
+/** One gear's toothed outline about (0, 0): straight flanks at the pressure angle (the rack form of the involute),
+ *  the tooth πm/2 thick on the reference circle. */
+const TOOTH_PATH = (() => {
+  // the flank widens toward the root down to the BASE circle (r·cos α), where the involute begins; below it the
+  // flank runs radially into the root, so the space between two teeth stays open at the root as a real gear's does
+  const RB = RP * Math.cos(PRESSURE);
+  const halfAbove = (r: number) => ((Math.PI * MODULE) / 4 + (RP - r) * Math.tan(PRESSURE)) / r;
+  const half = (r: number) => (r >= RB ? halfAbove(r) : halfAbove(RB));
+  const pts: string[] = [];
+  for (let j = 0; j < TEETH; j++) {
+    const c = (j / TEETH) * Math.PI * 2;
+    const pitch = (Math.PI * 2) / TEETH;
+    const P = (r: number, a: number) => `${(Math.cos(a) * r).toFixed(2)} ${(Math.sin(a) * r).toFixed(2)}`;
+    pts.push(`${j ? 'L' : 'M'}${P(R_ROOT, c - pitch / 2)}`);
+    pts.push(`L${P(R_ROOT, c - half(R_ROOT))}`);
+    pts.push(`L${P(RB, c - half(RB))}`);
+    pts.push(`L${P(RP, c - half(RP))}`);
+    pts.push(`L${P(R, c - half(R))}`);
+    pts.push(`A${R.toFixed(2)} ${R.toFixed(2)} 0 0 1 ${P(R, c + half(R))}`);
+    pts.push(`L${P(RP, c + half(RP))}`);
+    pts.push(`L${P(RB, c + half(RB))}`);
+    pts.push(`L${P(R_ROOT, c + half(R_ROOT))}`);
+    pts.push(`A${R_ROOT.toFixed(2)} ${R_ROOT.toFixed(2)} 0 0 1 ${P(R_ROOT, c + pitch / 2)}`);
+  }
+  return pts.join(' ') + ' Z';
+})();
 
 // A GEAR IS AN OBJECT ON THE FILM'S GROUND, not a black disc with its own night. Its body, its dead-tooth
 // grey and its two inner highlights were literals, so on a film grounded paper three black discs sat on white
@@ -27,19 +90,14 @@ export const MAX_GEARS = 4;
 // than by design. `body`/`dead`/`ink` are passed in so the Gear stays a pure function of its props.
 const Gear: React.FC<{cx: number; cy: number; angle: number; tone: string; live: boolean;
   body: string; dead: string; spoke: string; rim: string}> = ({cx, cy, angle, tone, live, body, dead, spoke, rim}) => (
-  <g transform={`rotate(${angle} ${cx} ${cy})`}>
-    {[...Array(TEETH)].map((_, j) => {
-      const a = (j / TEETH) * Math.PI * 2;
-      const tx = cx + Math.cos(a) * R, ty = cy + Math.sin(a) * R;
-      return <rect key={j} x={tx - 20} y={ty - 20} width={40} height={40} rx={7}
-        fill={live ? tone : dead} transform={`rotate(${(a * 180) / Math.PI} ${tx} ${ty})`} />;
-    })}
-    <circle cx={cx} cy={cy} r={R - 6} fill={body} stroke={live ? tone : dead} strokeWidth={4} />
-    <circle cx={cx} cy={cy} r={R - 58} fill="none" stroke={rim} strokeWidth={10} />
+  <g transform={`translate(${cx} ${cy}) rotate(${angle})`}>
+    <path data-part="teeth" d={TOOTH_PATH} fill={live ? tone : dead} strokeLinejoin="round" />
+    <circle data-part="gear-body" cx={0} cy={0} r={R_ROOT - 3} fill={body} stroke={live ? tone : dead} strokeWidth={4} />
+    <circle cx={0} cy={0} r={R_ROOT - 38} fill="none" stroke={rim} strokeWidth={10} />
     {[...Array(6)].map((_, s) => {
       const a = (s / 6) * Math.PI * 2;
-      return <line key={s} x1={cx + Math.cos(a) * 40} y1={cy + Math.sin(a) * 40}
-        x2={cx + Math.cos(a) * (R - 60)} y2={cy + Math.sin(a) * (R - 60)}
+      return <line key={s} x1={Math.cos(a) * 40} y1={Math.sin(a) * 40}
+        x2={Math.cos(a) * (R_ROOT - 40)} y2={Math.sin(a) * (R_ROOT - 40)}
         stroke={spoke} strokeWidth={12} strokeLinecap="round" />;
     })}
   </g>
@@ -78,8 +136,7 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
   if (!Array.isArray(ITEMS) || ITEMS.length < 2 || ITEMS.length > MAX_GEARS) {
     throw new Error(
       `GearTrain needs 2-${MAX_GEARS} \`items\` (got ${Array.isArray(ITEMS) ? ITEMS.length : typeof ITEMS}). Each step ` +
-      'is one gear driving the next and the LAST gear carries the payoff, so no step can be dropped; a fifth ' +
-      'gear runs off the frame. Merge steps down to four, or use a sequence register for a longer chain.');
+      'is one gear driving the next and the LAST gear carries the payoff, so no step can be dropped; a fifth gear runs off the frame. Merge steps down to four, or use a sequence register for a longer chain.');
   }
   const gears = ITEMS;
   const n = gears.length;
