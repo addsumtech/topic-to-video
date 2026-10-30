@@ -306,15 +306,18 @@ export const LaptopBody: React.FC<{g: DeviceGeom; c: LaptopCamera; real: boolean
           out.push(<polygon key={key} points={pts(q, ox, oy)} fill={keyC}
             stroke={real ? 'rgba(255,255,255,0.07)' : 'none'} strokeWidth={0.6} />);
           if (legend && lab) {
-            // the legend lies on the key: an affine map of the key's own box, from three of its projected corners
+            // the legend lies on the key: an affine map of the key's own box, from three of its projected corners.
+            // It is drawn as a MARK, not as type: at the sizes a film draws a keyboard a legend is 2-5 px — texture,
+            // never copy — and real glyphs there would be words on the frame no prop supplied
             const pa = P(a), pb = P(bR), pc = P(cL);
             const kwm = bR[0] - a[0], kdm = cL[2] - a[2];
             const m = [(pb.x - pa.x) / kwm, (pb.y - pa.y) / kwm, (pc.x - pa.x) / kdm, (pc.y - pa.y) / kdm, pa.x - ox, pa.y - oy];
             const word = lab.length > 2;
-            out.push(<text key={key + 't'} transform={`matrix(${m.map((v) => v.toFixed(4)).join(',')})`}
-              x={word ? kwm * 0.12 : kwm / 2} y={word ? kdm * 0.8 : kdm * 0.62} textAnchor={word ? 'start' : 'middle'}
-              fontSize={word ? 2.1 : (ri === 0 ? 2.0 : 3.3)} fontFamily="Inter, 'SF Pro Text', system-ui, sans-serif"
-              fill={real ? 'rgba(236,238,242,0.78)' : bg}>{lab}</text>);
+            const lw = word ? Math.min(kwm * 0.62, 0.62 * lab.length) : (ri === 0 ? 1.3 : 1.7);
+            const lh = word ? 0.55 : (ri === 0 ? 0.9 : 1.6);
+            out.push(<rect key={key + 't'} transform={`matrix(${m.map((v) => v.toFixed(4)).join(',')})`}
+              x={word ? kwm * 0.12 : (kwm - lw) / 2} y={word ? kdm * 0.72 : kdm * 0.42 - lh / 2} width={lw} height={lh}
+              rx={lh * 0.3} fill={real ? 'rgba(236,238,242,0.62)' : bg} />);
           }
         });
         x += kw;
