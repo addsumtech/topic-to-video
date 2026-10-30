@@ -180,8 +180,8 @@ def test_a_recording_without_a_picture_or_a_frame_rate_is_refused(tmp_path, monk
 
 def test_fit_kind_refuses_an_unknown_device_and_an_empty_image():
     with pytest.raises(ds.DeviceScriptError) as e:
-        sm.fit_kind({"w": 1080, "h": 2400}, "watch")
-    assert "unknown device 'watch'" in str(e.value)
+        sm.fit_kind({"w": 1080, "h": 2400}, "toaster")      # `watch` became a real kind with the device kit
+    assert "unknown device 'toaster'" in str(e.value)
     with pytest.raises(ds.DeviceScriptError):
         sm.fit_kind({"w": 1080, "h": 0}, "phone")
 
