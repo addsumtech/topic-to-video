@@ -124,7 +124,23 @@ def _get(url, timeout, what):
 
 
 def _strip_html(s):
-    return re.sub(r"<[^>]+>", "", s or "").strip()
+    import html as _html
+    return re.sub(r"\s+", " ", _html.unescape(re.sub(r"<[^>]+>", "", s or ""))).strip()
+
+
+def _artist(s):
+    """The author's name off a Commons Artist field. The field often carries a template box after the name (a
+    "valid SVG" badge, an "own work" table): its text is not the author, and attribution_line printed it on screen
+    ("Fred the Oyster iThe source code of this SVG is valid..."). The name comes before the first block element."""
+    return _strip_html(re.split(r"(?i)<(?:div|table)\b", s or "", maxsplit=1)[0])
+
+
+def _real_size(ii, mime, axis):
+    """The pixels a candidate can really deliver on `axis`: its thumb's, capped by the original's on a raster."""
+    thumb, orig = ii.get("thumb" + axis), ii.get(axis)
+    if "svg" in (mime or "") or not orig:
+        return thumb or orig
+    return min(thumb, orig) if thumb else orig
 
 
 def _license_ok(lic):
@@ -199,11 +215,13 @@ def search(query, limit=10, width=1600, depicts=None):
             "url": ii.get("thumburl") or ii.get("url"),
             "mime": mime,
             "license": _strip_html((em.get("LicenseShortName") or {}).get("value", "")),
-            "artist": _strip_html((em.get("Artist") or {}).get("value", "")),
+            "artist": _artist((em.get("Artist") or {}).get("value", "")),
             "credit": _strip_html((em.get("Credit") or {}).get("value", "")),
             "source": ii.get("descriptionurl"),
-            "width": ii.get("thumbwidth") or ii.get("width"),
-            "height": ii.get("thumbheight") or ii.get("height"),
+            # a raster's thumb is never larger than its original: Commons reports thumbwidth = the REQUESTED
+            # width even so (a 417 px file came back as 2400 and passed min_width=800). A vector renders at any size.
+            "width": _real_size(ii, mime, "width"),
+            "height": _real_size(ii, mime, "height"),
         })
     return out
 
