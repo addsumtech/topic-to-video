@@ -63,13 +63,22 @@ export const DeviceHero: React.FC<{
   // line). Its fit is measured: the turned machine's own bounds, at the widest turn, kept inside the body.
   const lap = g.kind === 'laptop' && lk !== 'screen';
   const lapPose = lap && turn ? {yaw: turn} : undefined;
-  // the turned machine's own bounds, fitted into the body and centred on it, every frame of the turn — so the
-  // entrance's growth about the body's bottom edge (below) never carries any of it out of the body
+  // the turned machine's own bounds, kept inside the body every frame of the turn — so the entrance's growth about
+  // the body's bottom edge (below) never carries any of it out of the body. Only what OVERFLOWS is corrected (shrunk
+  // about its centre, then nudged in by the overhang): a machine that already fits is not moved at all, so at rest
+  // its screen stays exactly on deviceGeometry's rect, the rect every gate judges. Re-centring it every frame moved
+  // a flat laptop's screen 2 px off that rect (tests/test_device_object_screen.py).
   const lapBox = lap ? laptopBounds(laptopCamera(g, lapPose)) : null;
   const lapFit = lapBox ? Math.min(1, b.w / lapBox.w, b.h / lapBox.h) : 1;
   const lapOrigin = lapBox ? `${lapBox.x + lapBox.w / 2}px ${lapBox.y + lapBox.h / 2}px` : undefined;
-  const lapT = lapBox ? `translate(${b.x + b.w / 2 - (lapBox.x + lapBox.w / 2)}px, ${b.y + b.h / 2 - (lapBox.y + lapBox.h / 2)}px) ` +
-    `scale(${lapFit})` : undefined;
+  const nudge = (lo: number, len: number, c: number, blo: number, blen: number) => {
+    const a = c - (c - lo) * lapFit, z = c + (lo + len - c) * lapFit;   // the fitted extent on this axis
+    return a < blo - 1 ? blo - a : z > blo + blen + 1 ? blo + blen - z : 0;
+  };
+  const lapT = lapBox
+    ? `translate(${nudge(lapBox.x, lapBox.w, lapBox.x + lapBox.w / 2, b.x, b.w)}px, ` +
+      `${nudge(lapBox.y, lapBox.h, lapBox.y + lapBox.h / 2, b.y, b.h)}px) scale(${lapFit})`
+    : undefined;
   const fit = lap ? 1 : lk === 'real' ? persp / (persp + (b.w / 2) * Math.sin((TURN_FROM * Math.PI) / 180)) : 1;
   const glowT = lap ? laptopScreenFrameTransform(g, laptopCamera(g, lapPose)) : undefined;
   const k = fit * (0.94 + 0.06 * enter);

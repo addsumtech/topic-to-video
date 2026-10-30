@@ -58,7 +58,7 @@ def _since_slots(name, src):
     no longer found fails loudly (a reference silently left without the change would fail every frame instead).
       * DeviceDemo, the push-in capped at the screenshot's own pixels (agenthud-film 40835dd, ported to int4).
       * DeviceHero, the laptop turned by its own camera (runtime/laptop3d: no CSS rotate of its flat picture),
-        fitted and centred in its body; a slab turned by CSS shows its case's edge (`turned`)."""
+        kept in its body by the least correction (identity when it fits); a slab turned by CSS shows its case's edge (`turned`)."""
     if name == "DeviceDemo":
         src = _swap(src, "  const framing = (st: Step): {zoom: number; x: number; y: number} | null => {",
                     "  const shown: (Step | null)[] = [];\n"
@@ -78,8 +78,12 @@ def _since_slots(name, src):
                     "  const lapBox = lap ? laptopBounds(laptopCamera(g, lapPose)) : null;\n"
                     "  const lapFit = lapBox ? Math.min(1, b.w / lapBox.w, b.h / lapBox.h) : 1;\n"
                     "  const lapOrigin = lapBox ? `${lapBox.x + lapBox.w / 2}px ${lapBox.y + lapBox.h / 2}px` : undefined;\n"
-                    "  const lapT = lapBox ? `translate(${b.x + b.w / 2 - (lapBox.x + lapBox.w / 2)}px, "
-                    "${b.y + b.h / 2 - (lapBox.y + lapBox.h / 2)}px) ` + `scale(${lapFit})` : undefined;\n"
+                    "  const nudge = (lo: number, len: number, c: number, blo: number, blen: number) => {\n"
+                    "    const a = c - (c - lo) * lapFit, z = c + (lo + len - c) * lapFit;\n"
+                    "    return a < blo - 1 ? blo - a : z > blo + blen + 1 ? blo + blen - z : 0;\n"
+                    "  };\n"
+                    "  const lapT = lapBox ? `translate(${nudge(lapBox.x, lapBox.w, lapBox.x + lapBox.w / 2, b.x, b.w)}px, "
+                    "${nudge(lapBox.y, lapBox.h, lapBox.y + lapBox.h / 2, b.y, b.h)}px) scale(${lapFit})` : undefined;\n"
                     "  const fit = lap ? 1 : lk === 'real' ? persp / (persp + (b.w / 2) * Math.sin((TURN_FROM * Math.PI) / 180)) : 1;",
                     name)
         src = _swap(src, "        transform: `scale(${k}) rotateY(${turn}deg)`}}>\n        <Device g={g} dna={dna}>{content}</Device>",
