@@ -1070,8 +1070,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    (modelled on slide-maker's post-build review question). When every machine gate is green —
    `python3 scripts/critic_brief.py <out_dir> --gates` exits 0: it runs the tier's delivery gates once on this render
    (remotion: validate, check_av, keyframe_qa_remotion, text_safe incl. `--glide`/`--sync`, jitter_qa, cjk_type_qa on a CJK film,
-   film_energy_qa, shake_qa, rhythm_qa, pedagogy_qa, shot_proof; HTML: keyframe_qa, validate, check_av, rhythm_qa,
-   pedagogy_qa) and records each exit code against the render id, and `critic_ledger.py --final` refuses a render
+   film_energy_qa, shake_qa, rhythm_qa, pedagogy_qa, shot_proof; HTML: keyframe_qa, validate, check_av, jitter_qa,
+   rhythm_qa, pedagogy_qa) and records each exit code against the render id, and `critic_ledger.py --final` refuses a render
    whose record is missing a gate or holds a failure, on every path, `none` included — FIRST hand the film over
    — `python3 scripts/deliver.py <out_dir>` and give the user that path — THEN ask ONE question
    (`AskUserQuestion`; on a host with no choice UI, one typed question in the user's language, listing the four

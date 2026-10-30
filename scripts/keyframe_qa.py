@@ -421,11 +421,26 @@ _GLIDE_JS_TMPL = r"""(function(nFrames, plist){
       if (r.width < 1 || r.height < 1) continue;
       var ly = 0, oe = el;
       while (oe){ ly += oe.offsetTop || 0; oe = oe.offsetParent; }
+      // tx/ty/tw/th: the box of the element's OWN text (its text nodes' ranges, every transform applied) — the
+      // true path scripts/jitter_html.py reads each line's pixels against. Not the element's box: a centred line
+      // in a full-width block would put the measuring window on empty ground. (The glide judge reads only y.)
+      var tb = null, rg = document.createRange();
+      for (var tn = 0; tn < el.childNodes.length; tn++){
+        var cn2 = el.childNodes[tn];
+        if (cn2.nodeType !== 3 || !(cn2.nodeValue || '').trim()) continue;
+        rg.selectNodeContents(cn2);
+        var qr = rg.getBoundingClientRect();
+        if (qr.width < 0.5 || qr.height < 0.5) continue;
+        tb = tb ? {l: Math.min(tb.l, qr.left), t: Math.min(tb.t, qr.top), r: Math.max(tb.r, qr.right),
+                   b: Math.max(tb.b, qr.bottom)} : {l: qr.left, t: qr.top, r: qr.right, b: qr.bottom};
+      }
       var rec = {k: domPath(el), y: Math.round(r.top * 1e4) / 1e4, o: Math.round(op * 100) / 100,
                  t: text.length > 96 ? text.slice(0, 96) + '…' : text,
                  ly: Math.round(ly), px: Math.round((parseFloat(selfCs.fontSize) || 0) * 100) / 100};
       var vis = Math.max(0, cr - cl) * Math.max(0, cb - ct) / (r.width * r.height);
       if (vis < 0.995) rec.v = Math.round(vis * 100) / 100;
+      if (tb){ rec.tx = Math.round(tb.l * 1e4) / 1e4; rec.ty = Math.round(tb.t * 1e4) / 1e4;
+               rec.tw = Math.round((tb.r - tb.l) * 1e4) / 1e4; rec.th = Math.round((tb.b - tb.t) * 1e4) / 1e4; }
       var fl = steps ? 's' : '';
       // Skia's own test (textSafe.tsx `snapsBaseline`): the composed skewY entry rounds to zero at
       // 1/1024 -> the baseline snaps to the device pixel. `M === null` (a matrix3d ancestor) is

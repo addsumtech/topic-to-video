@@ -252,3 +252,36 @@ def test_every_unmeasured_path_is_reachable_and_reported():
     assert jq.verdict(_rep([("error", "x", {}, j_err, "/a")], 20, 20))[1] == 1
     assert jq.verdict(_rep([], 10, 0)) == ("UNMEASURED", 2)            # type found, none measured
     assert jq.verdict(_rep([], 0, 0)) == ("NOTHING TO JUDGE", 0)
+
+
+@pytest.mark.skipif(not os.environ.get("GATE_RENDER"), reason="renders SlabTypeProbe: set GATE_RENDER=1")
+def test_the_slab_probe_at_9x16_splits_a_per_frame_layout_from_a_surface_view(tmp_path):
+    """The probe the thresholds were set on (16:9: layout 0.54-0.65 px, SurfaceView 0.05-0.08), rendered at 9:16
+    through the real renderer: the same split must hold on a portrait frame."""
+    import subprocess
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    rem = os.path.join(root, "remotion")
+    bundle = str(tmp_path / "bundle")
+    r = subprocess.run(["npx", "remotion", "bundle", "src/index.ts", "--out-dir=" + bundle, "--log=error"], cwd=rem,
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr[-800:]
+    variants = {k: {"content": k, "move": "pan", "aspect": "9:16"} for k in ("layout", "surface")}
+    for k, props in variants.items():
+        pf = str(tmp_path / (k + ".json"))
+        open(pf, "w").write(__import__("json").dumps(props))
+        r = subprocess.run(["npx", "remotion", "render", bundle, "SlabTypeProbe", str(tmp_path / k), "--sequence",
+                            "--image-format=png", "--frames=0-119", "--gl=angle", "--log=error", "--props=" + pf],
+                           cwd=rem, capture_output=True, text=True, timeout=900)
+        assert r.returncode == 0, (r.stdout + r.stderr)[-800:]
+    res = tq.glide_run([{"tag": k, "id": "SlabTypeProbe", "props": dict(v, typeGlide=True)}
+                        for k, v in variants.items()], bundle)
+    worst = {}
+    for k in variants:
+        census = {int(f): v for f, v in res[k]["frames"].items() if int(f) < 120}
+        clip = str(tmp_path / k)
+        assert jq.clip_size(clip) == (1080, 1920)
+        tracks, _skip, meta = jq.measure_census(clip, census)
+        lines = jq.judge(tracks, meta, scale=1.0)
+        assert lines, k
+        worst[k] = {lv for lv, *_ in lines}
+    assert worst["layout"] == {"error"} and worst["surface"] == {"clean"}, worst

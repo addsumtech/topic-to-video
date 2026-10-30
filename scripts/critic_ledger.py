@@ -265,6 +265,10 @@ DELIVERY_GATES = {
         ("keyframes, blank/overflow/caption zone, glide + sync audit", "keyframe_qa.py", (), 900, True, None),
         ("validate", "validate.py", (), 240, True, None),
         ("A/V", "check_av.py", (), 240, True, None),
+        # type that TREMBLES in the delivered pixels: keyframe_qa's glide audit judges a RULE (will Chrome snap this
+        # baseline?) and nothing read the encoded film — a page's own camera, a matrix3d reveal, the image slides'
+        # Ken Burns. jitter_qa reads each line against its true path (scripts/jitter_html.py builds the census)
+        ("TYPE trembles in the pixels (pages + Ken Burns, every frame)", "jitter_qa.py", (), 600, True, None),
         ("rhythm", "rhythm_qa.py", (), 240, True, None),
         ("teaching order", "pedagogy_qa.py", (), 240, True, None),
         ("voice (ADVISORY — always exits 0)", "voice_qa.py", (), 240, False, None),

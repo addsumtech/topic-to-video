@@ -5,7 +5,12 @@
     python3 scripts/jitter_qa.py <out_dir> --census=PATH.gz    # ...with a census kept by text_safe_qa --sync --census
     python3 scripts/jitter_qa.py <out_dir> --video=old.mp4     # ...a different render of the same film (a before)
     python3 scripts/jitter_qa.py --clip <file.mp4|png_dir> [--truth=census.json.gz]   # any clip; no census: tiles
-    python3 scripts/jitter_qa.py --calibrate                   # the synthetic controls, with their separation
+    python3 scripts/jitter_qa.py --calibrate [--aspect=9:16]   # the synthetic controls, with their separation
+
+BOTH TIERS. A remotion film's census is its Film composition's (text_safe_qa); an HTML-tier film's is built per scene
+by scripts/jitter_html.py (the pages' own DOM on the capture plan, the image slides' Ken Burns geometry). EXIT 0 OK or
+NOTHING TO JUDGE (said in those words) · 1 a line trembles · 2 UNMEASURED (no out.mp4, a census of another render,
+or type that was found and could not be judged). Every run prints `scope:` lines.
 
 WHY A PIXEL GATE. The type-glide census (text_safe_qa --glide) reads the DOM: it knows where each line of type truly
 is on every frame, and it judges whether Skia will snap that line's baseline. It CANNOT judge type inside a
@@ -131,8 +136,11 @@ def frames(path):
             yield i, np.asarray(Image.open(os.path.join(path, n)).convert("L"), dtype=np.float32)
         return
     W, H, _fps = probe(path)
-    p = subprocess.Popen(["ffmpeg", "-v", "error", "-i", path, "-f", "rawvideo", "-pix_fmt", "gray", "-"],
-                         stdout=subprocess.PIPE)
+    # -fps_mode passthrough: every decoded frame once, as stored. The default constant-rate output DUPLICATES a frame
+    # where a stream's timestamps hiccup — measured on an HTML-tier film concatenated from per-scene clips with
+    # `-c copy`: 360 frames stored, 361 decoded, and every pair after the seam compared with the wrong frame.
+    p = subprocess.Popen(["ffmpeg", "-v", "error", "-i", path, "-fps_mode", "passthrough", "-f", "rawvideo",
+                          "-pix_fmt", "gray", "-"], stdout=subprocess.PIPE)
     n, i = W * H, 0
     try:
         while True:
@@ -541,14 +549,14 @@ def scan_film(out_dir, video=None, census_path=None):
     extra_skip, scope = {}, []
     if census_path:
         census = load_census(census_path)
-    elif tier == "html":
-        import jitter_html
-        census, extra_skip, scope = jitter_html.film_census(out_dir, video)
     elif tier == "remotion":
         census, _segs = film_census(out_dir)
     else:
-        raise RuntimeError("this film has no authored page (film_tier None: supplied slides or programmatic scenes "
-                           "only) — the census has nothing to read; nothing here was measured")
+        # the HTML tier, and a board with no authored page (supplied slides with Ken Burns, programmatic scenes):
+        # render.py drew both, and jitter_html reads both
+        import jitter_html
+        census, extra_skip, scope = jitter_html.film_census(out_dir, video)
+        tier = tier or "local (no authored page)"
     try:
         board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
         labels = ["scene %02d (%s)" % (s.get("index", i + 1), s.get("shot") or s.get("type") or "?")
@@ -640,7 +648,7 @@ def report(rep, out=sys.stdout):
 
 
 # ── NO CENSUS: tiles ────────────────────────────────────────────────────────────────────────────────────────────
-def tiles_of(fr, tw=None, th=None, keep=12):
+def tiles_of(fr, tw=None, th=None, keep=12, gap=0):
     """The `keep` most edge-dense tiles of a frame (x0, y0, x1, y1): where there is type, or something like it. The
     tile is 160x64 at a 1080 short side and scales with the frame (a line of type does)."""
     b = np.abs(_band(fr))
@@ -654,7 +662,7 @@ def tiles_of(fr, tw=None, th=None, keep=12):
     cand.sort(key=lambda c: -c[0])
     out = []
     for e, t in cand:
-        if all(t[2] <= o[0] or t[0] >= o[2] or t[3] <= o[1] or t[1] >= o[3] for o in out):
+        if all(t[2] + gap <= o[0] or t[0] >= o[2] + gap or t[3] + gap <= o[1] or t[1] >= o[3] + gap for o in out):
             out.append(t)
         if len(out) >= keep:
             break
