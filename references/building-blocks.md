@@ -605,6 +605,15 @@ read by its left edge.
 **Smallest real use:** (rendered with `titleProbe: true` by `scripts/text_safe_qa.py` `title_of`)
 **Exports:** `TitleProbe`, `pickTitle`, `isReadout`, `TITLE_PROBE_TAG`.
 
+### `mediaRes`
+How far each raster on a frame (img, video, canvas) is drawn past its own pixels, read from the DOM: natural size
+against the drawn box, by object-fit, with the CSS blur and opacity it is seen through.
+**Reach for it:** never in a register (no register may import it — it would re-key the measured manifests); know
+that every picture you place is judged by it at the peak of any camera push, so draw rasters at or below their own
+pixels and rebuild UI natively instead of scaling a small screenshot up.
+**Smallest real use:** (rendered with `mediaRes: true` on the Film by `scripts/media_res_qa.py`)
+**Exports:** `MediaResAudit`, `censusMedia`, `MEDIA_RES_TAG`.
+
 ## Recipes
 
 ### A mechanism in cutaway
