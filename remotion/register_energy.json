@@ -187,7 +187,7 @@
     "WordTunnel": "d5498450e7ba5c60",
     "WorksThrough": "e2ad62366962a853",
     "DeviceDemo": "cc31204936f9b782",
-    "DeviceHero": "c6e164acddcfb90a",
+    "DeviceHero": "7a1e2168f10a8c3e",
     "ObjectCompare": "e364bc7973b51306",
     "ObjectPath": "651e254ddce83e91",
     "ObjectStage": "8a80b24255ad99b1",
@@ -566,10 +566,10 @@
     },
     "DeviceHero": {
       "motion_p75": 0.0,
-      "ink_median": 0.053,
-      "luma_range": 0.035,
+      "ink_median": 0.07,
+      "luma_range": 0.056,
       "seconds": 5.0,
-      "footprint": 0.248
+      "footprint": 0.408
     },
     "DiffusionDenoise": {
       "motion_p75": 0.0001,
