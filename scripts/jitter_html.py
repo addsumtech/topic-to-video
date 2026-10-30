@@ -161,7 +161,13 @@ def kenburns_scene(out_dir, meta, s, nf, W, H):
     return out
 
 
-SETTLED_DIFF = 0.6    # mean |grey difference| from the scene's last interior frame under which a frame is settled
+# A frame is SETTLED when no region of it still differs from the scene's last interior frame: the 99.9th percentile
+# of |difference| under SETTLED_P999 grey levels (a static picture through x264 decodes within 1-2). A whole-frame MEAN
+# was the first criterion and let a title's subtitle, still fading in over a few hundred pixels, read as settled —
+# its tile then "trembled" 0.28 px. A tile must also carry real type: band energy at least TILE_MIN_SHARE of the
+# densest tile's (the twelfth-densest tile of a title card is mostly ground).
+SETTLED_P999 = 4.0
+TILE_MIN_SHARE = 0.25
 
 
 def _frame_at(video, n):
@@ -191,14 +197,18 @@ def settled_scenes(video, spans):
     for i, fr in jq.frames(video):
         for pos, (a, b) in spans.items():
             if a <= i <= b:
-                diffs[pos][i] = float(np.abs(fr - last[pos]).mean())
+                diffs[pos][i] = float(np.percentile(np.abs(fr - last[pos]), 99.9))
     out = {}
     for pos, (a, b) in spans.items():
         f = b
-        while f - 1 >= a and diffs[pos].get(f - 1, 1e9) < SETTLED_DIFF:
+        while f - 1 >= a and diffs[pos].get(f - 1, 1e9) < SETTLED_P999:
             f -= 1
         first[pos] = f
-        out[pos] = (f, jq.tiles_of(last[pos], gap=2 * jq.PAD + 4))
+        tiles = jq.tiles_of(last[pos], gap=2 * jq.PAD + 4)
+        band = np.abs(jq._band(last[pos]))
+        energy = [float(band[y0:y1, x0:x1].mean()) for x0, y0, x1, y1 in tiles]
+        top = max(energy) if energy else 0.0
+        out[pos] = (f, [t for t, e in zip(tiles, energy) if top > 0 and e >= TILE_MIN_SHARE * top])
     return out
 
 

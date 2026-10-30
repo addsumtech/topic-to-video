@@ -100,7 +100,7 @@ def _film(tmp_path, scenes, **kw):
 
 @needs_render
 @pytest.mark.parametrize("kw", [{}, {"aspect": "9:16"}, {"W": 1080, "H": 1080}], ids=["16x9", "9x16", "1x1"])
-def test_a_snapped_crawl_fails_and_a_gliding_one_and_a_ken_burns_pass(tmp_path, kw):
+def test_a_snapped_crawl_fails_a_gliding_one_passes_and_every_scene_is_judged(tmp_path, kw):
     out = _film(tmp_path, ["snapped", "smooth", "kenburns", "still", "title"], **kw)
     code, worst, stdout = _verdict(out)
     assert code == 1, stdout
