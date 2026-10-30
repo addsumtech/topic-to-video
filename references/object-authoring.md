@@ -40,7 +40,8 @@ that has a slot for one — `ObjectStage`, `ObjectCompare`, `ObjectPath`, `Objec
 7. **It is TRUE to the thing, and finely made.** Anything an object draws that depicts a real thing — a satellite,
    a gear train, an espresso puck, an organ, a vehicle, a building, a plant, a tool, a device — is held to the
    thing itself, and declares how in `META.fidelity` (a workshop SHOT that draws a real thing inline declares the
-   same record on its `meta.build_list` entry):
+   same record on its `meta.build_list` entry, and a LIBRARY register does as `export const FIDELITY = {…}` beside its
+   `DURATION` — `references/object-audit.md` is the library's triage of which registers owe one):
    ```ts
    fidelity: {subject: 'GPS Block IIF satellite', depicts: 'real',          // 'abstract': a chart, a metaphor shape
      references: [{kind: 'drawing', source: 'refs/gps-iif.jpg', note: '…'},  // photo | spec | drawing | asset

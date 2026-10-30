@@ -5,16 +5,17 @@
 // helical antennas that broadcasts "where I am, and when I sent this" to the whole Earth below. So the object is
 // always posed with that nadir face toward the bottom of its box and turned enough that the array is SEEN —
 // hide the caption and a viewer still finds the thing that talks to the ground. The rest is anatomy drawn so it
-// reads as a satellite and not as an icon in a box: a box body wrapped in crinkled gold insulation foil, two
-// wings of three panels each on short booms, ruled into solar cells, and a silver radiator on the faces the
-// booms leave.
+// reads as a satellite and not as an icon in a box: a box body wrapped in crinkled gold insulation foil on every
+// face, two wings each ONE continuous array of three butted panels on a short yoke, ruled into solar cells, the
+// helices standing on a dark frame under the nadir face, and the boom-mounted antenna hanging beside the right
+// wing root — every part as both drawings in META.fidelity show it.
 //
 // HOW. Drawn in 3D (corners rotated by yaw/pitch/roll and projected with a mild perspective), every face painted
 // far to near, faces turned away culled by their normals, and a texture laid in each face's OWN (u, v) so foil
 // facets and cell rows foreshorten with the face. Three LOOKS share that geometry:
 //   engraved — line only, in the film's accent, on the film's ground: foil drawn as crinkle facets, shadow as
 //              hatching, the strokes drawing themselves on (a plate's engraving).
-//   lit      — the material in sunlight: faceted gold, deep-blue cells with a sheen, radiator silver.
+//   lit      — the material in sunlight: faceted gold, deep-blue cells with a sheen, a dark antenna frame.
 //   flat     — the same anatomy reduced to two tones per material, the way a phone's interface draws a thing.
 // It draws no words. It sizes to its box (fits the pose's own extent, held fixed across a turn). A pure function
 // of t: the reveal runs 0 -> 1 and holds; `yaw` from a turning stage turns it for real (META.turns).
@@ -32,26 +33,37 @@ export const META: ObjectMeta & {fidelity: object} = {aspect: 2.3, turns: true, 
   depicts: 'real',
   references: [
     {kind: 'drawing', source: 'references/object-refs/GpsSatellite/gps-iif.jpg',
-      note: "NASA artist's conception of a GPS Block IIF satellite in orbit (Wikimedia Commons, public domain)"},
+      note: 'NASA artist\'s conception of a GPS Block IIF satellite in orbit (Wikimedia Commons, public domain); the same rendering Gunter\'s Space Page credits to Boeing as "GPS-2F": three butted panels per wing, a dark V-yoke to each wing, the helices on a dark frame under the bus, an L-boom antenna by the right wing root'},
+    {kind: 'drawing', source: 'references/object-refs/GpsSatellite/navstar-2f.jpg',
+      note: 'USAF "Navstar-2F" drawing (Wikimedia Commons, public domain; the Wikipedia GPS Block IIF infobox image): three butted panels per wing on a frame yoke, helices on the nadir face, a boom antenna off the nadir edge'},
     {kind: 'spec', source: 'https://www.airforce-technology.com/projects/global-positioning-system-gps-iif-military-satellite/',
-      note: 'each satellite 2.23 m high, 2.48 m wide, 2.03 m deep; three-panel GaAs solar arrays'},
+      note: 'each satellite 2.23 m high, 2.48 m wide, 2.03 m deep; three-panel GaAs solar arrays; "thermal coatings, radiator blankets" (no radiator face is located)'},
     {kind: 'spec', source: 'https://www.airandspaceforces.com/weapons/gps',
-      note: 'GPS IIF: span including solar panels 43.1 ft (13.1 m)'},
+      note: 'GPS IIF: 9.6 x 6.5 x 12.9 ft, span including solar panels 43.1 ft (13.1 m) — the box disagrees with airforce-technology and names no axes'},
     {kind: 'spec', source: 'https://patents.google.com/patent/US7388559B1/en',
       note: 'the GPS navigation array antenna: an inner ring of four helix elements and an outer ring of eight'},
+    {kind: 'spec', source: 'https://space.skyrocket.de/doc_sdat/navstar-2f.htm',
+      note: "Gunter's Space Page: 2 deployable solar arrays; its GPS-2F picture [Boeing] is the NASA rendering above"},
   ],
   proportions: {
-    span_to_body_width: {value: 5.3, drawn: 5.2, source: ['https://www.airandspaceforces.com/weapons/gps',
+    span_to_body_width: {value: 5.3, drawn: 5.28, source: ['https://www.airandspaceforces.com/weapons/gps',
       'https://www.airforce-technology.com/projects/global-positioning-system-gps-iif-military-satellite/']},
-    panels_per_wing: {value: 3, drawn: 3,
-      source: 'https://www.airforce-technology.com/projects/global-positioning-system-gps-iif-military-satellite/'},
+    panels_per_wing: {value: '3, butted into one array', drawn: '3, butted (seams, no gaps)',
+      source: ['https://www.airforce-technology.com/projects/global-positioning-system-gps-iif-military-satellite/',
+        'references/object-refs/GpsSatellite/gps-iif.jpg', 'references/object-refs/GpsSatellite/navstar-2f.jpg']},
     helix_elements: {value: '4 inner + 8 outer', drawn: '4 inner + 8 outer',
       source: 'https://patents.google.com/patent/US7388559B1/en'},
-    body_w_h_d: {value: '2.48 : 2.23 : 2.03 (wide : high : deep)', drawn: '1.10 : 1.20 : 1.00 (along the wings : Earth axis : depth)',
+    // UNSETTLED: the axes. airforce-technology gives 2.48 wide x 2.23 high x 2.03 deep and does not say which axis
+    // points at Earth; Air & Space Forces gives 9.6 x 6.5 x 12.9 ft, which matches neither and names no axes. Drawn
+    // with "wide" along the wings and "high" on the Earth axis, the way both drawings pose the craft; the span
+    // ratio above is taken against the same 2.48 m, so the two records agree with each other.
+    body_w_h_d: {value: '2.48 : 2.23 : 2.03 (wide : high : deep)', drawn: '1.22 : 1.10 : 1.00 (along the wings : Earth axis : depth)',
       source: 'https://www.airforce-technology.com/projects/global-positioning-system-gps-iif-military-satellite/'},
+    wing_chord_to_body_height: {value: '~0.6 (read off the drawing, foreshortened — no spec gives the chord)', drawn: 0.65,
+      source: 'references/object-refs/GpsSatellite/gps-iif.jpg'},
   },
-  parts: ['bus', 'solar-array', 'wing-boom', 'helix-array'],
-  materials: ['gold insulation foil on the bus', 'dark-blue solar cells', 'pale helix elements on a disc (the drawing)'],
+  parts: ['bus', 'solar-array', 'wing-boom', 'helix-array', 'boom-antenna'],
+  materials: ['gold insulation foil on every face of the bus (both drawings; the spec names "radiator blankets" but locates none, so no radiator face is drawn)', 'dark-blue solar cells', 'bronze helix elements on a dark frame (the NASA/Boeing drawing)', 'a pale boom and collar carrying a bronze cylinder (the NASA/Boeing drawing)'],
 }};
 
 export type SatLook = 'engraved' | 'lit' | 'flat';
@@ -62,16 +74,29 @@ type V3 = [number, number, number];
 // draws in the film's accent instead, because an engraving is one ink.
 const FOIL_LIGHT = '#f6d27a', FOIL = '#d9a441', FOIL_DARK = '#8a5a17', FOIL_EDGE = '#5b3a0c';
 const CELL = '#1d3a8f', CELL_DEEP = '#0f1f55', CELL_LINE = '#6f8fd8', PANEL_BACK = '#c9cdd4';
-const RADIATOR = '#dfe4ea', RADIATOR_DARK = '#8c96a3', HELIX = '#e9ecef', HELIX_DARK = '#7d8590';
+const RIB = '#8c96a3';                              // the wing's back structure
+const FRAME = '#2b2622', FRAME_LIGHT = '#4a4038';     // the antenna frame under the bus (dark, the NASA/Boeing drawing)
+const HELIX = '#d9b77c', HELIX_DARK = '#6b4c22';     // bronze helices (the same drawing)
+const BOOM_PALE = '#e3e6ea', CAN = '#b0834c', CAN_DARK = '#6e4c22';   // the boom antenna: pale boom + collar, bronze can
+const YOKE = '#4d525c';                              // the wing yoke: dark struts (the same drawing)
 const ENG_INK_D0 = '#d9a54a', ENG_GROUND_D0 = '#0b1530';
 
 // GEOMETRY, in body units: +x along the wings, +y zenith (away from Earth), −y nadir (toward Earth), +z toward
 // the viewer before the pose turns it.
-const HX = 0.55, HY = 0.6, HZ = 0.5;              // the body's half-sizes
-const BOOM = 0.34;                                // root of the wing past the body side
-const PANELS = 3, PW = 0.62, PGAP = 0.05, PH = 0.46;
-const DISC_R = 0.44, DISC_Y = -HY - 0.03;          // the antenna disc on the nadir face
-const HELIX_LEN = 0.23, HELIX_R = 0.032;
+// The body is 2.48 (along the wings) : 2.23 (Earth axis) : 2.03 (depth) m — META.fidelity.body_w_h_d, which says
+// what is and is not settled about those axes. The wing tip sits where span / body width = 13.1 / 2.48.
+const HX = 0.611, HY = 0.549, HZ = 0.5;           // the body's half-sizes
+const BOOM = 0.34;                                // root of the wing past the body side (the yoke)
+const PANELS = 3, PH = 0.36;                      // three panels BUTTED into one array; PH = half the chord
+const TIP = HX * 5.28;                            // span / body width 5.28 (13.1 m / 2.48 m)
+const PW = (TIP - HX - BOOM) / PANELS;
+const FX = 0.44, FZ = 0.38, FD = 0.12;            // the antenna frame: half-sizes under the nadir face, its depth
+const DISC_Y = -HY - FD;                          // the frame's underside, where the helices stand
+const HELIX_LEN = 0.27, HELIX_R = 0.032;
+// the boom antenna: out from the −x face by that wing root, then down; a collar and a can on its end. The drawing
+// shows it by the root of the wing nearer the viewer; which side of the real craft that is, one drawing cannot say.
+const BA0: V3 = [-HX, -HY * 0.72, HZ * 0.55], BA1: V3 = [-HX - 0.3, -HY * 0.72, HZ * 0.55], BA2: V3 = [-HX - 0.3, -HY * 0.95, HZ * 0.55];
+const CAN_LEN = 0.4, CAN_R = 0.075;
 const F = 12;                                     // perspective: the camera stands F units in front of the origin
 
 const rotY = (p: V3, a: number): V3 => [p[0] * Math.cos(a) + p[2] * Math.sin(a), p[1], -p[0] * Math.sin(a) + p[2] * Math.cos(a)];
@@ -84,19 +109,18 @@ const unit = (a: V3): V3 => {
   return [a[0] / l, a[1] / l, a[2] / l];
 };
 
-type Quad = {key: string; c: [V3, V3, V3, V3]; n: V3; kind: 'foil' | 'radiator' | 'cells'; depth?: number};
+type Quad = {key: string; c: [V3, V3, V3, V3]; n: V3; kind: 'foil' | 'frame' | 'cells'; depth?: number};
 
 /** Every point the pose can carry to the box's edge — what the fit is measured on. */
 const extentPoints = (wingTilt: number): V3[] => {
   const pts: V3[] = [];
   for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) pts.push([sx * HX, sy * HY, sz * HZ]);
-  const tip = HX + BOOM + PANELS * PW + (PANELS - 1) * PGAP;
   for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-    pts.push([sx * tip, sy * PH * Math.cos(wingTilt), sy * PH * Math.sin(wingTilt)]);
+    pts.push([sx * TIP, sy * PH * Math.cos(wingTilt), sy * PH * Math.sin(wingTilt)]);
   }
-  for (let k = 0; k < 8; k++) {
-    const a = (k / 8) * Math.PI * 2;
-    pts.push([Math.cos(a) * DISC_R, DISC_Y - HELIX_LEN - 0.04, Math.sin(a) * DISC_R]);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) pts.push([sx * FX, DISC_Y - HELIX_LEN - 0.04, sz * FZ]);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    pts.push([BA2[0] + sx * CAN_R, BA2[1] - CAN_LEN, BA2[2] + sz * CAN_R]);
   }
   return pts;
 };
@@ -178,13 +202,23 @@ export const GpsSatellite: React.FC<ObjectProps & {
   quads.push({key: 'bot', kind: 'foil', n: [0, -1, 0], c: [box(-1, -1, -1), box(1, -1, -1), box(1, -1, 1), box(-1, -1, 1)]});
   quads.push({key: 'front', kind: 'foil', n: [0, 0, 1], c: [box(-1, 1, 1), box(1, 1, 1), box(1, -1, 1), box(-1, -1, 1)]});
   quads.push({key: 'back', kind: 'foil', n: [0, 0, -1], c: [box(1, 1, -1), box(-1, 1, -1), box(-1, -1, -1), box(1, -1, -1)]});
-  quads.push({key: 'right', kind: 'radiator', n: [1, 0, 0], c: [box(1, 1, 1), box(1, 1, -1), box(1, -1, -1), box(1, -1, 1)]});
-  quads.push({key: 'left', kind: 'radiator', n: [-1, 0, 0], c: [box(-1, 1, -1), box(-1, 1, 1), box(-1, -1, 1), box(-1, -1, -1)]});
+  quads.push({key: 'right', kind: 'foil', n: [1, 0, 0], c: [box(1, 1, 1), box(1, 1, -1), box(1, -1, -1), box(1, -1, 1)]});
+  quads.push({key: 'left', kind: 'foil', n: [-1, 0, 0], c: [box(-1, 1, -1), box(-1, 1, 1), box(-1, -1, 1), box(-1, -1, -1)]});
+  // the antenna frame: a shallow dark box under the nadir face, the helices on its underside
+  {
+    const y0 = -HY, y1 = DISC_Y;
+    const fb = (sx: number, yy: number, sz: number): V3 => [sx * FX, yy, sz * FZ];
+    quads.push({key: 'fbot', kind: 'frame', n: [0, -1, 0], c: [fb(-1, y1, -1), fb(1, y1, -1), fb(1, y1, 1), fb(-1, y1, 1)]});
+    quads.push({key: 'ffront', kind: 'frame', n: [0, 0, 1], c: [fb(-1, y0, 1), fb(1, y0, 1), fb(1, y1, 1), fb(-1, y1, 1)]});
+    quads.push({key: 'fback', kind: 'frame', n: [0, 0, -1], c: [fb(1, y0, -1), fb(-1, y0, -1), fb(-1, y1, -1), fb(1, y1, -1)]});
+    quads.push({key: 'fright', kind: 'frame', n: [1, 0, 0], c: [fb(1, y0, 1), fb(1, y0, -1), fb(1, y1, -1), fb(1, y1, 1)]});
+    quads.push({key: 'fleft', kind: 'frame', n: [-1, 0, 0], c: [fb(-1, y0, -1), fb(-1, y0, 1), fb(-1, y1, 1), fb(-1, y1, -1)]});
+  }
   const ct = Math.cos(wingTilt), st = Math.sin(wingTilt);
   const wingN: V3 = [0, st, -ct];               // the cell side: toward the viewer (−z) and up to the sun
   for (const side of [-1, 1]) {
     for (let k = 0; k < PANELS; k++) {
-      const a = HX + BOOM + k * (PW + PGAP), b = a + PW;
+      const a = HX + BOOM + k * PW, b = a + PW;      // butted: one array, the panels' outlines are its seams
       const pt = (x: number, yy: number): V3 => [side * x, yy * ct, yy * st];
       quads.push({key: `w${side}${k}`, kind: 'cells', n: wingN,
         c: side > 0 ? [pt(a, PH), pt(b, PH), pt(b, -PH), pt(a, -PH)] : [pt(b, PH), pt(a, PH), pt(a, -PH), pt(b, -PH)]});
@@ -226,13 +260,27 @@ export const GpsSatellite: React.FC<ObjectProps & {
           strokeWidth={lw} strokeOpacity={0.5} />);
         for (let r = 1; r < 3; r++) {
           const p0 = uv(pc, 0, r / 3), p1 = uv(pc, 1, r / 3);
-          nodes.push(<line key={`br${r}`} x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} stroke={RADIATOR_DARK} strokeWidth={lw} />);
+          nodes.push(<line key={`br${r}`} x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} stroke={RIB} strokeWidth={lw} />);
         }
       }
       items.push({depth: f.depth, node: <g key={q.key} data-part="solar-array">{nodes}</g>});
       return;
     }
     if (!front && q.kind !== 'cells') return;     // a body face turned away is hidden by the body itself
+    if (q.kind === 'frame') {
+      // the antenna frame: dark structure, ruled into the bays the helices stand in (the NASA/Boeing drawing)
+      const fill = look === 'engraved' ? engGround : look === 'flat' ? (lightK > 0.25 ? FRAME_LIGHT : FRAME)
+        : mix(FRAME, FRAME_LIGHT, 0.2 + 0.8 * lightK);
+      nodes.push(<path key="f" d={d} fill={fill} stroke={look === 'engraved' ? engInk : outline}
+        strokeWidth={lw * (look === 'flat' ? 1.6 : 1)} strokeLinejoin="round" {...(look === 'engraved' ? drawOn(on) : {})} />);
+      for (let k = 1; k < 4; k++) {
+        const a = uv(pc, k / 4, 0.05), b = uv(pc, k / 4, 0.95);
+        nodes.push(<line key={`bay${k}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+          stroke={look === 'engraved' ? engFine : mix(fill, '#000000', 0.45)} strokeWidth={lw * 0.8} />);
+      }
+      items.push({depth: f.depth, node: <g key={q.key} data-part="helix-array">{nodes}</g>});
+      return;
+    }
     if (q.kind === 'foil') {
       // crinkled foil: a jittered grid of facets, each catching the light a little differently
       const N = s > 120 ? 6 : s > 60 ? 4 : 3;
@@ -299,16 +347,6 @@ export const GpsSatellite: React.FC<ObjectProps & {
           })}</g>);
         }
       }
-    } else if (q.kind === 'radiator') {
-      const fill = look === 'engraved' ? engGround : mix(RADIATOR_DARK, RADIATOR, 0.15 + 0.55 * lightK);
-      nodes.push(<path key="f" d={d} fill={fill} stroke={look === 'engraved' ? engInk : outline}
-        strokeWidth={lw * (look === 'flat' ? 1.6 : 1.1)} {...(look === 'engraved' ? drawOn(on) : {})} />);
-      const louvres = 5;
-      for (let k = 1; k <= louvres; k++) {
-        const a = uv(pc, 0.18, k / (louvres + 1)), b = uv(pc, 0.82, k / (louvres + 1));
-        nodes.push(<line key={`l${k}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-          stroke={look === 'engraved' ? engFine : RADIATOR_DARK} strokeWidth={lw * 0.9} />);
-      }
     } else {
       // the cells: rows and columns of the panel's face, with the sun's sheen across the lit wing
       const cols = s > 90 ? 6 : 4, rows = s > 90 ? 8 : 5;
@@ -361,7 +399,7 @@ export const GpsSatellite: React.FC<ObjectProps & {
   for (const side of [-1, 1]) {
     const a = P([side * HX, 0, 0]), b = P([side * (HX + BOOM), 0, 0]);
     const y0p = P([side * (HX + BOOM), -PH * 0.55 * ct, -PH * 0.55 * st]), y1p = P([side * (HX + BOOM), PH * 0.55 * ct, PH * 0.55 * st]);
-    const ink = look === 'engraved' ? engInk : look === 'flat' ? outline : '#b8bec7';
+    const ink = look === 'engraved' ? engInk : look === 'flat' ? outline : YOKE;
     const depth = (a.z + b.z) / 2 - 0.01;
     items.push({depth, node: (
       <g key={`boom${side}`} data-part="wing-boom">
@@ -373,22 +411,8 @@ export const GpsSatellite: React.FC<ObjectProps & {
     )});
   }
 
-  // ── the antenna array: a disc on the nadir face, twelve helices pointing at Earth (4 inner, 8 outer) ──
+  // ── the antenna array: twelve helices on the frame's underside, pointing at Earth (4 inner, 8 outer) ──
   {
-    const ring = Array.from({length: 28}, (_, k) => {
-      const a = (k / 28) * Math.PI * 2;
-      return P([Math.cos(a) * DISC_R, DISC_Y, Math.sin(a) * DISC_R]);
-    });
-    const discFace = pose([0, -1, 0], Y);
-    const discC = pose([0, DISC_Y, 0], Y);
-    const discSeen = dot(discFace, sub(discC, cam)) < 0;
-    const discDepth = discC[2] - 0.02;
-    const discFill = look === 'engraved' ? engGround : look === 'flat' ? '#f1f3f5' : mix(RADIATOR_DARK, '#f4f6f8', 0.55);
-    items.push({depth: discDepth, node: (
-      <path key="disc" data-part="helix-array" d={poly(ring)} fill={discFill} stroke={look === 'engraved' ? engInk : outline}
-        strokeWidth={lw * (look === 'flat' ? 1.6 : 1.1)} opacity={discSeen ? 1 : 0.95}
-        {...(look === 'engraved' ? drawOn(on) : {})} />
-    )});
     const spots: [number, number][] = [];
     for (let k = 0; k < 4; k++) spots.push([Math.cos(k * Math.PI / 2 + Math.PI / 4) * 0.15, Math.sin(k * Math.PI / 2 + Math.PI / 4) * 0.15]);
     for (let k = 0; k < 8; k++) spots.push([Math.cos(k * Math.PI / 4) * 0.33, Math.sin(k * Math.PI / 4) * 0.33]);
@@ -402,7 +426,7 @@ export const GpsSatellite: React.FC<ObjectProps & {
         const u = k / (turns * 2), side = k === 0 || k === turns * 2 ? 0 : (k % 2 ? 1 : -1);
         return `${k ? 'L' : 'M'}${(base.x + dx * u + nx * r * side).toFixed(1)} ${(base.y + dy * u + ny * r * side).toFixed(1)}`;
       }).join(' ');
-      const ink = look === 'engraved' ? engInk : look === 'flat' ? outline : HELIX;
+      const ink = look === 'engraved' ? engInk : HELIX;
       items.push({depth: (base.z + tip.z) / 2 - 0.05, node: (
         <g key={`hx${i}`} data-part="helix-array">
           {look === 'lit' ? <line x1={base.x} y1={base.y} x2={tip.x} y2={tip.y} stroke={HELIX_DARK} strokeWidth={Math.max(0.6, lw * 0.8)}
@@ -412,6 +436,33 @@ export const GpsSatellite: React.FC<ObjectProps & {
         </g>
       )});
     });
+  }
+
+  // ── the boom antenna: an L-boom off the −x face by the wing root, a collar, and a can hanging toward Earth ──
+  {
+    const a = P(BA0), b = P(BA1), c = P(BA2);
+    const top = P([BA2[0], BA2[1] - 0.04, BA2[2]]), bot = P([BA2[0], BA2[1] - CAN_LEN, BA2[2]]);
+    const dx = bot.x - top.x, dy = bot.y - top.y, L = Math.hypot(dx, dy) || 1;
+    const nx = -dy / L, ny = dx / L, r = CAN_R * s;
+    const can = poly([{x: top.x + nx * r, y: top.y + ny * r}, {x: bot.x + nx * r, y: bot.y + ny * r},
+      {x: bot.x - nx * r, y: bot.y - ny * r}, {x: top.x - nx * r, y: top.y - ny * r}]);
+    const ink = look === 'engraved' ? engInk : look === 'flat' ? outline : BOOM_PALE;
+    const canFill = look === 'engraved' ? engGround : CAN;
+    const bands = [0.3, 0.55, 0.8].map((u) => ({x: top.x + dx * u, y: top.y + dy * u}));
+    items.push({depth: Math.min(a.z, c.z) - 0.06, node: (
+      <g key="boomant" data-part="boom-antenna">
+        <path d={`M${a.x.toFixed(1)} ${a.y.toFixed(1)} L${b.x.toFixed(1)} ${b.y.toFixed(1)} L${c.x.toFixed(1)} ${c.y.toFixed(1)}`}
+          fill="none" stroke={ink} strokeWidth={lw * 1.6} strokeLinecap="round" strokeLinejoin="round"
+          {...(look === 'engraved' ? drawOn(on) : {})} />
+        <path d={can} fill={canFill} stroke={look === 'engraved' ? engInk : look === 'flat' ? outline : CAN_DARK}
+          strokeWidth={lw * (look === 'flat' ? 1.4 : 0.9)} strokeLinejoin="round" {...(look === 'engraved' ? drawOn(on) : {})} />
+        {bands.map((p, i) => <line key={i} x1={p.x - nx * r} y1={p.y - ny * r} x2={p.x + nx * r} y2={p.y + ny * r}
+          stroke={look === 'engraved' ? engFine : CAN_DARK} strokeWidth={lw * 0.8} />)}
+        <ellipse cx={top.x} cy={top.y} rx={r * 1.35} ry={r * 0.55} fill={look === 'engraved' ? engGround : BOOM_PALE}
+          stroke={look === 'engraved' ? engInk : look === 'flat' ? outline : '#9aa1ab'} strokeWidth={lw * 0.9}
+          transform={`rotate(${(Math.atan2(ny, nx) * 180) / Math.PI} ${top.x} ${top.y})`} />
+      </g>
+    )});
   }
 
   items.sort((a, b) => b.depth - a.depth);       // far to near

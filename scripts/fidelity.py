@@ -10,7 +10,8 @@ gate was green. A real thing has references, proportions, defining parts and mat
 declared before anything is drawn and looked at after.
 
 THE RECORD. An object declares `META.fidelity`; a workshop SHOT that draws a real thing inline declares the same
-record on its `meta.build_list` entry (`fidelity`):
+record on its `meta.build_list` entry (`fidelity`); a LIBRARY register that does declares it as
+`export const FIDELITY = {…}` (register_fidelity()):
 
     {subject, depicts: 'real' | 'abstract',
      references: [{kind: photo|spec|drawing|asset, source: url-or-path, note}],
@@ -108,10 +109,12 @@ def strip_comments(src):
 
 
 _META_DECL = re.compile(r"export\s+const\s+META\b")
+_FIDELITY_DECL = re.compile(r"export\s+const\s+FIDELITY\b")
 
 
-def meta_span(src):
-    """(start, end) of META's object literal `{…}` in `src` (comment- and string-aware), or None."""
+def meta_span(src, decl=_META_DECL):
+    """(start, end) of META's object literal `{…}` in `src` (comment- and string-aware), or None. `decl` names
+    another exported literal instead (a library register's FIDELITY)."""
     src = src or ""
     i, n = 0, len(src)
     while i < n:
@@ -122,7 +125,7 @@ def meta_span(src):
         if src[i] in "'\"`":
             i = _skip_string(src, i)
             continue
-        m = _META_DECL.match(src, i)
+        m = decl.match(src, i)
         if m and (i == 0 or not (src[i - 1].isalnum() or src[i - 1] in "_$")):
             k = src.find("=", m.end())
             if k < 0:
@@ -368,6 +371,23 @@ def object_fidelity(src):
         return parse_literal(body[v[0]:v[1]]), None
     except FidelityParseError as e:
         return None, "META.fidelity cannot be read as data: %s" % e
+
+
+def register_fidelity(src):
+    """(record, None) — a LIBRARY register's `export const FIDELITY = {…}` — or (None, None) when it declares none,
+    or (None, why) when it declares one this cannot read.
+
+    A library register that draws a real thing inline (a gear train, a double helix, a satellite over the Earth) has
+    no `meta.build_list` entry to carry the record a workshop shot would, and no META (that is an object's), so it
+    exports the same record as FIDELITY beside its DURATION. The rules (problems()) and the sheet are the same;
+    reference paths are relative to the skill root, like a library object's."""
+    try:
+        span = meta_span(src, _FIDELITY_DECL)
+        if span is None:
+            return None, None
+        return parse_literal((src or "")[span[0]:span[1]]), None
+    except FidelityParseError as e:
+        return None, "FIDELITY cannot be read as data: %s" % e
 
 
 def source_part_names(src):
@@ -663,6 +683,18 @@ def _font(size, text=""):
         return ImageFont.load_default()
 
 
+def _on_white(img):
+    """A reference image as RGB, its transparency laid on WHITE: a line drawing (an SVG render, black on transparent)
+    converted straight to RGB comes out black on black, and the sheet showed an empty reference."""
+    from PIL import Image
+    if img.mode in ("RGBA", "LA", "P", "PA") or "transparency" in img.info:
+        rgba = img.convert("RGBA")
+        bg = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+        bg.alpha_composite(rgba)
+        return bg.convert("RGB")
+    return img.convert("RGB")
+
+
 def _fit(img, max_w, max_h):
     s = min(max_w / float(img.width), max_h / float(img.height))
     return img.resize((max(1, int(img.width * s)), max(1, int(img.height * s)))), s
@@ -723,7 +755,7 @@ def compose(out_png, name, rec, base, hero_png, hero_parts, film_png, film_parts
         src = str(r.get("source") or "")
         path = None if _is_url(src) else resolve(src, base)
         if path and os.path.isfile(path) and path.lower().endswith(IMAGE_EXT) and shown < 2:
-            im, _s = _fit(Image.open(path).convert("RGB"), 640, row_h - 70)
+            im, _s = _fit(_on_white(Image.open(path)), 640, row_h - 70)
             blocks.append((im, (x, y)))
             cap = "REFERENCE · %s" % r.get("kind")
             texts.append(((x, y + im.height + 8), cap, 22, ink))
@@ -865,7 +897,14 @@ def record_for(out_dir, name):
         if why:
             raise ws.WorkshopError(["remotion/src/objects/%s.tsx: %s" % (name, why)])
         return rec, SKILL, src, "remotion/src/objects/%s.tsx" % name, "object"
-    raise ws.WorkshopError(["%s is not in this film's workshop or the library's objects" % name])
+    if name in ws.library_shot_names():
+        src = ws._read(os.path.join(ws.LIB_SHOTS, name + ".tsx"))
+        rec, why = register_fidelity(src)
+        if why:
+            raise ws.WorkshopError(["remotion/src/shots/%s.tsx: %s" % (name, why)])
+        return rec, SKILL, src, "remotion/src/shots/%s.tsx" % name, "shot"
+    raise ws.WorkshopError(["%s is not in this film's workshop, the library's objects or the library's registers"
+                            % name])
 
 
 def _render_all(out_dir, jobs):
@@ -914,7 +953,9 @@ def sheet(out_dir, name, props=None, host="ObjectStage", slot=None, dna=None):
     rec, base, src, where, kind = record_for(out_dir, name)
     if rec is None:
         raise ws.WorkshopError(["%s declares no fidelity record — %s" % (
-            where, "add `fidelity` to its META" if kind == "object" else "add `fidelity` to its build-list entry")])
+            where, "add `fidelity` to its META" if kind == "object"
+            else "export `FIDELITY` from it" if where.startswith("remotion/src/shots/")
+            else "add `fidelity` to its build-list entry")])
     findings = problems(rec, base, where, source_part_names(src) if src else None)
     outd = os.path.join(out_dir, SHEET_DIR)
     os.makedirs(outd, exist_ok=True)
