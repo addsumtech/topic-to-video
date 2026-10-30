@@ -2,6 +2,7 @@ import React from 'react';
 import {AbsoluteFill, Composition} from 'remotion';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
 import {TitleProbe, TitleProbeFixture} from './runtime/titleProbe';
+import {FidelityProbe, FidelityHero} from './runtime/fidelity';
 import {BaselineUnlockContext} from './runtime/glide';
 import {CJK_MIN_LEADING} from './runtime/cjkType';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
@@ -444,6 +445,8 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   // `titleProbe` asks where the settled frame's title sits (runtime/titleProbe.tsx) — its own pass, so the
   // text-safety walk every register imports stays untouched
   const titleProbe = (p as {titleProbe?: unknown}).titleProbe ? <TitleProbe /> : null;
+  // `fidelityParts` reports the box of every `data-part` node (runtime/fidelity.tsx) — scripts/fidelity.py's sheet
+  const fidelity = (p as {fidelityParts?: unknown}).fidelityParts ? <FidelityProbe /> : null;
   // `kineticHolds` asks every KineticText how long each must-read line stays READABLE, walked through its own clock
   // at the composition's length (pass `holdFrames` = the beat's frames) — runtime/kinetic.tsx; read by
   // scripts/shot_proof.py, which holds each hold to its reading time.
@@ -452,7 +455,7 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   const collect = React.useCallback((r: HoldReport) => { holdReports.push(r); }, [holdReports]);
   const body = holds
     ? <KineticHoldContext.Provider value={collect}><C {...rest} /></KineticHoldContext.Provider> : <C {...rest} />;
-  const inner = <ObjectsContext.Provider value={OBJECTS}>{body}{audit}{glide}{titleProbe}
+  const inner = <ObjectsContext.Provider value={OBJECTS}>{body}{audit}{glide}{titleProbe}{fidelity}
     {holds ? <KineticHoldAudit reports={holdReports} /> : null}</ObjectsContext.Provider>;
   const unlocked = unlockOff ? <BaselineUnlockContext.Provider value={false}>{inner}</BaselineUnlockContext.Provider> : inner;
   // `optic` — the beat's optic for a register rendered on its own (runtime/optics.tsx), as the Film provides it per
@@ -512,6 +515,7 @@ export const RemotionRoot: React.FC = () => (
     {F('CutOffCleanProbe', CutOffCleanProbe, 165)}
     {F('SmallTypeProbe', SmallTypeProbe, 165)}
     {F('TitleProbeFixture', TitleProbeFixture, 165)}
+    {F('FidelityHero', FidelityHero, 30)}
     {F('OrphanLineProbe', OrphanLineProbe, 165)}
     {F('BalancedLineProbe', BalancedLineProbe, 165)}
     {F('TightLeadingProbe', TightLeadingProbe, 165)}

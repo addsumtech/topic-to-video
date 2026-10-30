@@ -3261,6 +3261,32 @@ def _a_or_an(word):
     return "an" if word[:1].lower() in "aeiou" else "a"
 
 
+def _check_build_fidelity(entries, items, errors, warnings, out_dir):
+    """OBJECT FIDELITY (references/object-authoring.md rule 7; scripts/fidelity.py). A built SHOT declares on its
+    build-list entry what it depicts — `fidelity: {subject, depicts: 'real' | 'abstract', ...}` — and a real thing
+    names its references, proportions and parts; an OBJECT declares it in its META (workshop.py check reports
+    those errors; its warnings are added here). A record is never inferred."""
+    import fidelity as _fid
+    import workshop as _ws
+    for eid, e in sorted(entries.items()):
+        where = "meta.build_list `%s`" % eid
+        if e.get("kind") == "shot" and not e.get("promoted"):
+            rec = e.get("fidelity")
+            if rec is None:
+                errors.append("%s: `fidelity` is missing — say what the shot depicts: {\"subject\": ..., \"depicts\": "
+                              "\"abstract\"} for a chart or a metaphor, or \"real\" with its references, "
+                              "proportions and parts (references/object-authoring.md rule 7)" % where)
+                continue
+            src = _ws.shot_source(out_dir, eid) if out_dir and eid in items else None
+            for lv, m in _fid.problems(rec, out_dir or ".", where, _fid.source_part_names(src) if src else None):
+                (errors if lv == "ERROR" else warnings).append(m)
+        elif e.get("kind") == "object" and e.get("fidelity") is not None:
+            warnings.append("%s: an object's fidelity record lives in its META (workshop/objects/%s.tsx), not on its "
+                            "entry — this one is not read" % (where, eid))
+    if out_dir and items:
+        warnings.extend("workshop: %s" % m for m in _ws.fidelity_warnings(out_dir))
+
+
 def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
     """WHAT THE FILM BUILT (docs/superpowers/specs/2026-09-27-adaptive-build-design.md). The build list and the
     workshop agree both ways; every `shot_fit.ref` names an entry the beat really uses, and a beat that uses a
@@ -3325,6 +3351,7 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
         elif kind in ("object", "shot") and items[eid] != kind:
             errors.append("%s is listed as %s %s and the workshop holds it as %s %s"
                           % (where, _a_or_an(kind), kind, _a_or_an(items[eid]), items[eid]))
+    _check_build_fidelity(entries, items, errors, warnings, out_dir)
     for name, kind in sorted(items.items()):
         if name not in entries:
             errors.append("workshop/%ss/%s.tsx is not on meta.build_list — every built thing says what it is for "

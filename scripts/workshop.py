@@ -6,6 +6,7 @@
     python3 scripts/workshop.py <out_dir> new-shot <Name> --means "<the argument no register carries>"
     python3 scripts/workshop.py <out_dir> check                      # type-check, imports, content contract, words
     python3 scripts/workshop.py <out_dir> still <Name> [--props p.json] [--host ObjectStage] [--frame N]
+    python3 scripts/workshop.py <out_dir> fidelity <Name> [--props p.json] [--host ObjectStage]  # vs its references
     python3 scripts/workshop.py <out_dir> new-component <Name> --means "<what the viewer must see>"   # HTML tier
     python3 scripts/workshop.py <out_dir> still <Component> [--attrs a.json] [--p 0.9] [--aspect 16:9|9:16]
 
@@ -152,10 +153,19 @@ def object_meta(src):
     """An object's META as {aspect, turns, demo, provenance} (only the keys it sets), or None if it has none.
     `aspect` is None when it is DECLARED but unparseable, non-finite or not positive (`1.2.3`, `16 / 0`) — never
     raises; `names_problems`/`check` report a None aspect as a problem instead."""
-    m = _META.search(_strip_comments(src or ""))   # every declaration is read from comment-stripped source
-    if not m:
-        return None
-    body, meta = m.group(1), {}
+    # META's literal is matched bracket by bracket (scripts/fidelity.py), with its nested `fidelity` record blanked:
+    # the one-line regex stopped at the first `}`, so a META holding a record lost every key written after it.
+    import fidelity as _fid
+    try:
+        body = _fid.meta_body_without_fidelity(src or "")
+    except _fid.FidelityParseError:
+        body = None
+    if body is None:
+        m = _META.search(_strip_comments(src or ""))   # every declaration is read from comment-stripped source
+        if not m:
+            return None
+        body = m.group(1)
+    meta = {}
     a = re.search(r"\baspect\s*:\s*([0-9.]+(?:\s*/\s*[0-9.]+)?)", body)
     if a:
         num = a.group(1).replace(" ", "")
@@ -557,6 +567,30 @@ def _problems(out_dir):
                 if meta.get("demo"):
                     out.append(("%s: `demo` marks a stage's own preview object; a film's object is never one" % where,
                                 False))
+                out += [(m, False) for m in fidelity_problems(out_dir, n, src, where)[0]]
+    return out
+
+
+def fidelity_problems(out_dir, name, src, where):
+    """(errors, warnings) for an object's META.fidelity (references/object-authoring.md rule 7), as sentences: an
+    error makes `check` unclean; a warning is printed beside it. scripts/fidelity.py holds the rules."""
+    import fidelity as _fid
+    rec, why = _fid.object_fidelity(src)
+    if why:
+        return ["%s: %s" % (where, why)], []
+    if rec is None:
+        return ["%s: META.fidelity is missing — declare what it depicts: {subject, depicts: 'real' | 'abstract', "
+                "references, proportions, parts, materials} (references/object-authoring.md rule 7)" % where], []
+    probs = _fid.problems(rec, out_dir, where, _fid.source_part_names(src))
+    return [m for lv, m in probs if lv == "ERROR"], [m for lv, m in probs if lv != "ERROR"]
+
+
+def fidelity_warnings(out_dir):
+    """The fidelity WARNINGS of every workshop object — reported, never blocking."""
+    out = []
+    for n in sorted(object_names(out_dir)):
+        if NAME.match(n):
+            out += fidelity_problems(out_dir, n, object_source(out_dir, n) or "", "workshop/objects/%s.tsx" % n)[1]
     return out
 
 
@@ -1583,11 +1617,17 @@ OBJECT_SCAFFOLD = """// OBJECT · %(name)s — %(means)s
 // typed ObjectRef): ObjectStage, ObjectCompare, ObjectPath, ObjectTurntable, TechnicalPlate `art`, HudReticle
 // `object`, or a device's screen.
 import React from 'react';
-import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
+import type {ObjectProps} from '@runtime/objectSlot';
+import type {FidelityMeta} from '@runtime/fidelity';
 import {clamp01, seg, easeOutCubic} from '@runtime/motion';
 
 // provenance: the idiom world this object's look comes from — one of shot_director.IDIOM_WORLDS.
-export const META: ObjectMeta = {aspect: 1, provenance: ''};
+// fidelity (references/object-authoring.md rule 7): what it depicts. A REAL thing names its references BEFORE it
+// is drawn — a photo via scripts/imagefetch.py (with its sidecar) or the product's own asset, and a spec or drawing
+// you read — its key proportions with their source, the defining parts (each drawn on a node marked
+// data-part="<name>") and its materials. A chart or a metaphor shape is {subject, depicts: 'abstract'}.
+export const META: FidelityMeta = {aspect: 1, provenance: '', fidelity: {
+  subject: '', depicts: 'real', references: [], proportions: {}, parts: [], materials: []}};
 
 // @scaffold — replace this body with the real drawing, then delete this line.
 export const %(name)s: React.FC<ObjectProps> = ({w, h, t, dna}) => {
@@ -1749,7 +1789,27 @@ def _device_still_props(board, out_dir, name, host, src, props):
 
 def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None, slot=None, dna=None):
     """Render `name`'s settled frame on its own into <workshop>/_stills/<name>.png and return that path — a shot
-    as its own composition (props: the given ones, else its first beat's), an object on `host`.
+    as its own composition (props: the given ones, else its first beat's), an object on `host` (still_plan)."""
+    import render_remotion as rr
+    comp, payload, dur = still_plan(out_dir, name, props, host=host, aspect=aspect, slot=slot, dna=dna)
+    frame = int(round(rr.frame_at_t(dur, rr.SETTLED_T))) if frame is None else int(frame)
+    outd = os.path.join(workshop_dir(out_dir), "_stills")
+    os.makedirs(outd, exist_ok=True)
+    pf = os.path.join(outd, name + ".props.json")
+    with open(pf, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False)
+    png = os.path.join(outd, name + ".png")
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", comp, png, "--frame=%d" % frame, "--gl=angle",
+                        "--log=error", "--props=" + pf, "--public-dir=" + os.path.abspath(out_dir)],
+                       cwd=REMOTION, capture_output=True, text=True, **run_kwargs(out_dir))
+    if r.returncode != 0 or not os.path.exists(png):
+        import cjk_type_qa
+        raise WorkshopError(["the still of %s failed: %s" % (name, cjk_type_qa._why_it_refused(r.stdout + r.stderr))])
+    return png
+
+
+def still_plan(out_dir, name, props=None, host="ObjectStage", aspect=None, slot=None, dna=None):
+    """(composition, props, duration) that render `name` the way `still` does — shared with the fidelity sheet.
 
     An object's `props`, when given, is tried FIRST as the host's own full props with the object already
     placed somewhere in them (object_refs() finds a ref to `name`) — how a device screen is previewed; used
@@ -1802,20 +1862,7 @@ def still(out_dir, name, props=None, host="ObjectStage", frame=None, aspect=None
         payload.setdefault("dna", dna)
     if aspect or meta.get("aspect"):
         payload.setdefault("aspect", aspect or meta["aspect"])
-    frame = int(round(rr.frame_at_t(dur, rr.SETTLED_T))) if frame is None else int(frame)
-    outd = os.path.join(workshop_dir(out_dir), "_stills")
-    os.makedirs(outd, exist_ok=True)
-    pf = os.path.join(outd, name + ".props.json")
-    with open(pf, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, ensure_ascii=False)
-    png = os.path.join(outd, name + ".png")
-    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", comp, png, "--frame=%d" % frame, "--gl=angle",
-                        "--log=error", "--props=" + pf, "--public-dir=" + os.path.abspath(out_dir)],
-                       cwd=REMOTION, capture_output=True, text=True, **run_kwargs(out_dir))
-    if r.returncode != 0 or not os.path.exists(png):
-        import cjk_type_qa
-        raise WorkshopError(["the still of %s failed: %s" % (name, cjk_type_qa._why_it_refused(r.stdout + r.stderr))])
-    return png
+    return comp, payload, dur
 
 
 def _list(out_dir):
@@ -1867,6 +1914,13 @@ def main(argv=None):
     p.add_argument("--p", type=float, default=0.9, help="a component's progress to freeze at, 0..1 (default 0.9)")
     p.add_argument("--dna", help="the look to render in, before the board has one: a preset name, a DNA JSON file, "
                                   "or <directions.json>#<key> (a contest direction)")
+    p = sub.add_parser("fidelity", help="the fidelity sheet of a built thing that depicts a real thing: its "
+                                        "references beside its render, and a 100%% crop of every declared part")
+    p.add_argument("name")
+    p.add_argument("--props", help="a JSON file, as for `still`")
+    p.add_argument("--host", default="ObjectStage")
+    p.add_argument("--slot")
+    p.add_argument("--dna")
     a = ap.parse_args(argv)
     try:
         if a.cmd == "list":
@@ -1875,6 +1929,8 @@ def main(argv=None):
             probs = check(a.out_dir)
             for x in probs:
                 print("  PROBLEM: " + x)
+            for x in fidelity_warnings(a.out_dir):
+                print("  warning: " + x)
             print("[workshop] %s — %d problem(s)" % ("CLEAN" if not probs else "NOT CLEAN", len(probs)))
             _b = _board(a.out_dir)
             _rend = str((_b.get("meta") or {}).get("renderer") or "")
@@ -1916,6 +1972,22 @@ def main(argv=None):
             print("[workshop] %s" % png)
             print("NEXT: open it and LOOK — does it carry its build-list entry's `means` with the caption hidden?")
             return 0
+        if a.cmd == "fidelity":
+            import fidelity as _fid
+            props = None
+            if a.props:
+                try:
+                    props = json.loads(_read(a.props))
+                except (OSError, ValueError) as e:
+                    raise WorkshopError(["--props %s: %s" % (a.props, e)]) from None
+            res = _fid.sheet(a.out_dir, a.name, props, host=a.host, slot=a.slot, dna=direction_dna(a.dna))
+            for lv, m in res["problems"]:
+                print("  %s: %s" % ("PROBLEM" if lv == "ERROR" else "warning", m))
+            n = len(_fid.errors_of(res["problems"]))
+            print("[workshop] fidelity sheet %s — %s" % (res["png"], "%d problem(s)" % n if n else "no problem"))
+            print("NEXT: open it and LOOK — beside its references, is it the thing: proportions, every part present "
+                  "and attached, materials, one geometry, detail at 100%?")
+            return 1 if n else 0
         if a.cmd in ("new-object", "new-shot"):
             path = scaffold(a.out_dir, a.cmd[4:], a.name, a.means)
             print("[workshop] wrote %s" % path)
