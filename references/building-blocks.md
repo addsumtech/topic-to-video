@@ -622,6 +622,18 @@ pixels and rebuild UI natively instead of scaling a small screenshot up.
 **Smallest real use:** (rendered with `mediaRes: true` on the Film by `scripts/media_res_qa.py`)
 **Exports:** `MediaResAudit`, `censusMedia`, `MEDIA_RES_TAG`.
 
+### `fidelity`
+Whether a built thing that depicts a real thing is TRUE to it (references/object-authoring.md rule 7): the
+`Fidelity` record's type (`META.fidelity` — subject, references, sourced proportions, parts, materials), the probe
+that reads every `data-part="<name>"` node's box and its drawn leaves from the DOM, and the hero composition the
+fidelity sheet renders an object alone in.
+**Reach for it:** a workshop object types its META with `FidelityMeta`, and marks each defining part
+`data-part="crown"` on the node that draws it; never import it into a library register (it would re-key the measured
+manifests).
+**Smallest real use:** `export const META: FidelityMeta = {aspect: 1, provenance: 'industrial', fidelity: {subject: 'a gear pump', depicts: 'real', references: [...], proportions: {...}, parts: ['housing', 'gear'], materials: ['cast iron']}};`
+(the sheet: `python3 scripts/workshop.py <out_dir> fidelity <Name>`)
+**Exports:** `Fidelity`, `FidelityReference`, `FidelityMeta`, `FidelityProbe`, `FidelityHero`, `FIDELITY_TAG`, `PART_ATTR`, `PartReport`.
+
 ## Recipes
 
 ### A mechanism in cutaway

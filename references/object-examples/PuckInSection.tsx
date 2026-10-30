@@ -7,7 +7,17 @@ import {clamp01, seg, easeOutCubic, hash01} from '@runtime/motion';
 import {pointAt} from '@runtime/alongPath';
 import {mix} from '@runtime/dna';
 
-export const META: ObjectMeta = {aspect: 1, provenance: 'industrial'};
+export const META: ObjectMeta & {fidelity: object} = {aspect: 1, provenance: 'industrial', fidelity: {
+  subject: 'a tamped espresso coffee bed in a 58 mm portafilter basket, in section', depicts: 'real',
+  references: [
+    {kind: 'photo', source: 'refs/portafilter.jpg', note: 'portafilters and filter baskets (Wikimedia Commons, CC BY-SA 2.0)'},
+    {kind: 'spec', source: 'https://beanbros.co/en-dk/products/e-b-lab-precision-filter-basket-58mm',
+      note: 'E&B Lab 58 mm basket: rim 70 mm, height 24 mm, 715 holes across 49 mm, flat bottom'},
+  ],
+  proportions: {depth_to_diameter: {value: 0.41, drawn: 0.75, source: 'https://beanbros.co/en-dk/products/e-b-lab-precision-filter-basket-58mm'}},
+  parts: ['basket-wall', 'coffee-bed'],
+  materials: ['stainless-steel basket', 'compacted ground coffee'],
+}};
 
 export const PuckInSection: React.FC<ObjectProps & {packed?: number}> = ({w, h, t, dna, packed = 0.8}) => {
   if (!(typeof packed === 'number' && packed >= 0 && packed <= 1)) {
@@ -22,9 +32,9 @@ export const PuckInSection: React.FC<ObjectProps & {packed?: number}> = ({w, h, 
   const lanes = 7, passing = Math.round(lanes * (1 - 0.6 * packed));
   return (
     <svg width={w} height={h} style={{display: 'block', overflow: 'visible'}}>
-      <path d={`M ${x0} ${top} L ${x0} ${bot} L ${x1} ${bot} L ${x1} ${top}`} fill="none" stroke={ink}
+      <path data-part="basket-wall" d={`M ${x0} ${top} L ${x0} ${bot} L ${x1} ${bot} L ${x1} ${top}`} fill="none" stroke={ink}
         strokeWidth={wall} strokeLinejoin="round" />
-      <rect x={x0} y={bedTop} width={x1 - x0} height={bot - bedTop} fill={mix(paper, ink, 0.25 + 0.35 * packed)}
+      <rect data-part="coffee-bed" x={x0} y={bedTop} width={x1 - x0} height={bot - bedTop} fill={mix(paper, ink, 0.25 + 0.35 * packed)}
         opacity={bedIn} />
       {Array.from({length: grains}).map((_, i) => (   // @decor: stipple texture; its density follows `packed`
         <circle key={i} cx={x0 + (x1 - x0) * hash01(i * 2 + 1)} cy={bedTop + (bot - bedTop) * hash01(i * 2 + 2)}

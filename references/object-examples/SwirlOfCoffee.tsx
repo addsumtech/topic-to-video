@@ -3,7 +3,8 @@
 import React from 'react';
 import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
 
-export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'};
+export const META: ObjectMeta & {fidelity: object} = {aspect: 1, provenance: 'motion-graphics',
+  fidelity: {subject: 'a turning swirl in coffee colours — decoration', depicts: 'abstract'}};
 
 export const SwirlOfCoffee: React.FC<ObjectProps> = ({w, h, t}) => (
   <svg width={w} height={h} style={{display: 'block'}}>

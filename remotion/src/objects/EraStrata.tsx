@@ -22,7 +22,9 @@ import {clamp01, seg, easeOutCubic, easeInOutCubic, hash01, lerp} from '../runti
 import {mix} from '../runtime/dna';
 import {drawOn} from '../runtime/draw';
 
-export const META: ObjectMeta = {aspect: 0.85, provenance: 'survey-archive'};
+export const META: ObjectMeta & {fidelity: object} = {aspect: 0.85, provenance: 'survey-archive', fidelity: {
+  subject: "eras as layers of deposit, each as thick as the years it lasted — a metaphor, not a geological section",
+  depicts: 'abstract'}};
 
 // The column inside the object's box. The top leaves headroom for the grains of the newest layer to fall through.
 export const COLUMN = {top: 0.1, bottom: 0.97, left: 0.16, right: 0.84};

@@ -5,7 +5,9 @@
 import React from 'react';
 import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
 
-export const META: ObjectMeta = {aspect: 1, provenance: 'industrial'};
+// Its record says what it is: an espresso machine, drawn from no reference — rule 7 now refuses it.
+export const META: ObjectMeta & {fidelity: object} = {aspect: 1, provenance: 'industrial',
+  fidelity: {subject: 'an espresso machine', depicts: 'real'}};
 
 export const ChromeMachine: React.FC<ObjectProps> = ({w, h}) => (
   <svg width={w} height={h} style={{display: 'block'}}>

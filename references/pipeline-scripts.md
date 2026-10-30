@@ -792,6 +792,17 @@ agent on the beats it points at.
   (2.86x) and the bots row 2.01x — the softness the user saw — while every type gate was green. Exit 0 clean ·
   1 findings · 2 frames unmeasured. The fix is pixels (sharper source, native/vector rebuild, draw smaller), never
   the threshold. A blocking DELIVERY gate (critic_ledger.DELIVERY_GATES).
+- `scripts/workshop.py <out_dir> fidelity <Name> [--props p.json] [--host ObjectStage]` — **OBJECT FIDELITY**
+  (references/object-authoring.md rule 7; `scripts/fidelity.py`). For a built thing that depicts a real thing — a
+  workshop object or shot, or a library object — renders it at hero size (Root's `FidelityHero`) and as the film
+  shows it, with `fidelityParts` armed (runtime/fidelity.tsx logs every `data-part` node's box; the stills go
+  through `scripts/fidelity_stills.cjs`, whose renderStill sees the page's log), and composes
+  `<out_dir>/_fidelity/<Name>.png` + `.json`: the reference images beside the render with each part outlined, the
+  film-size frame, a 100% crop of every part, the record's proportions and the findings. ERROR: a declared part not
+  drawn (MISSING), a part touching no other (DETACHED, unless `exploded`), and every record error. Exit 0 clean ·
+  1 findings. The record itself (`META.fidelity`, or a shot's `meta.build_list[i].fidelity`) is checked by
+  `workshop.py check` and `validate.py`; `critic_brief.py` hands the critic each real built thing's sheet (S16) and
+  `shot_proof.py` reports a sheet that is missing, stale or has problems.
 - `scripts/banding_qa.py <out_dir> [--every SECONDS] [--json]` — **BANDING** on the DELIVERED file: CAMBI
   (libvmaf's banding index, visible past ~5) on one frame a second of `out.mp4`, judged per scene by its median.
   A dark gradient banded by the encode is invisible in every still a gate renders and in the DOM — this is the only

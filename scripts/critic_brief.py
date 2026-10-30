@@ -616,6 +616,26 @@ def build(out_dir, ran=None, codes=None):
                         "`, `".join(e["slot"]) if isinstance(e.get("slot"), list) else e.get("slot"), e.get("beats"),
                         ", promoted" if e.get("promoted") else "", e.get("means"), e.get("accept"),
                         " · settled frame: `%s`" % still if os.path.exists(os.path.join(out_dir, still)) else ""))
+        # THE REAL ONES, for S16: each judged on its fidelity sheet — references beside the render, every part at 100%
+        try:
+            import fidelity as _fid
+            _real = _fid.real_built_things(out_dir)
+        except Exception as e:                                # noqa: BLE001 — report, never mask
+            _real, _ferr = None, e
+        if _real is None:
+            L.append("**Fidelity (S16)** — the real built things could not be listed (%s)" % _ferr)
+        elif _real:
+            L.append("")
+            L.append("**Fidelity (S16)** — these built things depict a real thing; judge each on its sheet, against "
+                     "its references (cite the sheet's path in the S16 row):")
+            for n, k in _real:
+                st = _fid.sheet_status(out_dir, n)
+                L.append("- `%s` (%s) — sheet: `%s/%s.png` · %s" % (
+                    n, k, _fid.SHEET_DIR, n, {"ok": "no machine finding", "errors": "REPORTS PROBLEMS — read them",
+                                              "missing": "MISSING — run python3 scripts/workshop.py %s fidelity %s"
+                                              % (out_dir, n),
+                                              "stale": "STALE (its source changed) — re-run python3 scripts/"
+                                              "workshop.py %s fidelity %s" % (out_dir, n)}[st]))
     # THE ROUTES TO CONFIRM (S14): what validate.py credits as adapted or built, from the board. The critic says,
     # per beat, whether that route is VISIBLE in the frame — a ledger `routes` row each (critic_ledger.py).
     try:

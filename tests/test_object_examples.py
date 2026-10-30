@@ -23,6 +23,7 @@ def _film(tmp_path, names):
     d.mkdir(parents=True)
     for n in names:
         shutil.copy(os.path.join(EX, n + ".tsx"), str(d / (n + ".tsx")))
+    shutil.copytree(os.path.join(EX, "refs"), str(tmp_path / "film" / "refs"))   # the references a film carries
     return str(tmp_path / "film")
 
 
@@ -39,7 +40,16 @@ def test_words_written_into_an_object_are_refused(tmp_path):
 
 @needs_toolchain
 def test_objects_that_mean_nothing_pass_every_check_which_is_why_a_critic_looks(tmp_path):
-    assert ws.check(_film(tmp_path, BAD_MEANING)) == []
+    assert ws.check(_film(tmp_path, ["SwirlOfCoffee"])) == []
+
+
+@needs_toolchain
+def test_the_clip_art_machine_is_refused_now_for_depicting_a_real_thing_from_no_reference(tmp_path):
+    """Rule 7 (object fidelity) catches what rules 1-6 could not: ChromeMachine says it is an espresso machine and
+    names no reference. A reference alone would not make it a mechanism — that stays the critic's (S15)."""
+    probs = ws.check(_film(tmp_path, ["ChromeMachine"]))
+    assert probs and all("ChromeMachine.tsx" in p for p in probs), probs
+    assert any("names no reference" in p for p in probs), probs
 
 
 def test_the_doc_shows_every_example_rendered():

@@ -22,7 +22,9 @@ import {drawOn} from '../runtime/draw';
 import {mix} from '../runtime/dna';
 import {fitsBox} from '../runtime/layout';
 
-export const META: ObjectMeta = {aspect: 1, provenance: 'scientific'};
+export const META: ObjectMeta & {fidelity: object} = {aspect: 1, provenance: 'scientific', fidelity: {
+  subject: "a dial comparing one clock's reading with a reference, the offset as signed wedges — a measuring diagram, not a model of any real clock",
+  depicts: 'abstract'}};
 
 type Tone = 'satellite' | 'ground' | 'neutral';
 type Wedge = {turns: number; tone: Tone | 'unknown'; label?: string};

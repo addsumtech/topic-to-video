@@ -53,6 +53,13 @@ waits for a machine-wide render lock, so builders take turns rendering while the
 - Motion keeps living after the reveal (an idle, a sway, a light that moves) — a shot that settles and stops reads as
   a slide.
 - `python3 scripts/workshop.py <out_dir> check` must be clean for your shots.
+- **A real thing is TRUE to the thing** (references/object-authoring.md rule 7). Anything you draw that depicts a
+  real thing (a satellite, a gear, a watch, an organ) is drawn FROM references you collected first — a real photo
+  via `scripts/imagefetch.py` or the product's own asset, and a spec or drawing you read; never from memory — with
+  its true proportions and every defining part, each marked `data-part="<name>"` and attached where the real one is,
+  its real materials, one projection for the body and everything on it, and detail that holds at a 100% crop.
+  Stylised is fine; inaccurate is not. Record it as the entry's `fidelity` and run
+  `python3 scripts/workshop.py <out_dir> fidelity <Name>`; look at the sheet beside the references.
 
 ## The part file
 ```json
@@ -62,7 +69,8 @@ waits for a machine-wide render lock, so builders take turns rendering while the
                   "shot_fit": {"verdict": "build", "ref": "WeightedWheel", "why": "…"},
                   "shot_adaptation": {"changes": [], "kept": "…", "redesigned": "…", "topic_idea": "…", "theme_cues": "…"}}},
  "build_list": [{"id": "WeightedWheel", "kind": "shot", "beats": [12, 14], "slot": "own", "uses": ["kit/Kit"],
-                 "means": "…", "accept": "…", "props_doc": {"title": "what it sets — the feel of turning it"}}]}
+                 "means": "…", "accept": "…", "props_doc": {"title": "what it sets — the feel of turning it"},
+                 "fidelity": {"subject": "a weighted roulette wheel — a metaphor for skewed odds", "depicts": "abstract"}}]}
 ```
 `shot_fit.ideal` / `form` / `composition` are the lead's and are kept as written; you may add `verdict`, `why`, `ref`,
 `shares`. Every number you print traces to `brief.json` evidence; never invent one.

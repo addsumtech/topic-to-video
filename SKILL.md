@@ -754,7 +754,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      built thing goes on `meta.build_list` with its `means` and `accept`, is written in the film's own workshop
      (`scripts/workshop.py new-object | new-shot | still | check`; what to build with:
      `references/building-blocks.md`; how to make it mean something: `references/object-authoring.md`) and never
-     touches the library. Real imagery where the topic is concrete stays the documentary tier's. A `shot`-based
+     touches the library. **A built thing that depicts a real thing is TRUE to it** (object-authoring.md rule 7):
+     references collected first (a real photo via `imagefetch.py` or the product's own asset, and a spec or drawing
+     you read), true proportions with their source, every defining part present and attached (`data-part`), real
+     materials, one geometry, detail that holds at 100% — declared in its `fidelity` record and judged on
+     `workshop.py <out_dir> fidelity <Name>`'s sheet (critic S16). Stylised ≠ inaccurate. Real imagery where the topic is concrete stays the documentary tier's. A `shot`-based
      scene on the local renderer is a validate ERROR.
      **Type that moves by the letter, word or line is drawn with `runtime/kinetic` (`useKinetic` + `KineticText`),
      never a hand-rolled per-character split** — it keeps kerning and Chinese punctuation compression (0 px from one

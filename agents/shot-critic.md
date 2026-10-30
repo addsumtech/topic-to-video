@@ -415,3 +415,24 @@ nothing AND every beat's structure fits; say which.
 > here, write it down as the first case.
 > **Ask yourself:** Hide the caption on each built thing — what does it say, and is that its beat?
 
+**S16 · FIDELITY — is each built thing that depicts a real thing TRUE to it, and finely made?** For every built
+thing whose `fidelity` record says `depicts: "real"` (an object's `META.fidelity`, a shot's build-list entry; the
+brief lists each with its sheet), open its fidelity sheet — `<out_dir>/_fidelity/<id>.png`, made by
+`python3 scripts/workshop.py <out_dir> fidelity <id>` — and judge it AGAINST ITS REFERENCES, not against your memory
+of the thing: (a) **reference** — set beside the reference image, is it recognisably THAT thing (that model, that
+block, that species), not a generic icon of its kind? (b) **proportions** — do the drawn ratios match the record's
+sourced ones (`drawn` vs `value`) and the reference image? (c) **parts** — is every defining part present and
+ATTACHED where the real one is: nothing floating, nothing detached, no part larger than the whole? (the sheet's
+MISSING / DETACHED findings are measured from the DOM and are an automatic FAIL); (d) **materials** — are they the
+real thing's, lit by one light consistent with the film? (e) **one geometry** — one projection and transform for
+the body and everything on it: no level text on a skewed face, symmetric where the thing is, concentric radii and
+even edge thickness? (f) **detail at 100%** — in the sheet's 100% crops, does the detail hold at the size the film
+shows it, or does it smear, alias or collapse? Stylised is allowed (S15, rule 2); inaccurate is not: a diagram
+keeps the true proportions and every defining part. Every verdict CITES the sheet by path; a real built thing with
+no sheet, a stale one, or one whose findings are not empty is a FAIL (`shot_proof.py` reports which). `na` only when
+no built thing depicts a real thing — say which records say `abstract`, and whether that is the truth.
+> **Precedent — none on record.** The rule came from a user review: a film's hand-drawn Apple Watch read ugly —
+> nothing asked that a built thing be TRUE to the thing, only that it encode its beat. A device's sourced spec
+> table (`runtime/deviceSpec.json`) is the device-shaped instance of the same record.
+> **Ask yourself:** Put the render beside its reference — would someone who owns the real thing say "that is mine"?
+

@@ -24,7 +24,35 @@ import {clamp01, seg, easeOutCubic, easeOutBack, hash01} from '../runtime/motion
 import {drawOn} from '../runtime/draw';
 import {mix} from '../runtime/dna';
 
-export const META: ObjectMeta = {aspect: 2.3, turns: true, provenance: 'scientific'};
+export const META: ObjectMeta & {fidelity: object} = {aspect: 2.3, turns: true, provenance: 'scientific', fidelity: {
+  // The record's shape is the Fidelity type in runtime/fidelity.tsx, checked by scripts/fidelity.py. It is typed
+  // loosely, and this note sits INSIDE the literal, because two measured registers import from this file: a new
+  // import or a comment above META would move their source hash (scripts/register_energy.py, the preamble).
+  subject: 'GPS Block IIF navigation satellite',
+  depicts: 'real',
+  references: [
+    {kind: 'drawing', source: 'references/object-refs/GpsSatellite/gps-iif.jpg',
+      note: "NASA artist's conception of a GPS Block IIF satellite in orbit (Wikimedia Commons, public domain)"},
+    {kind: 'spec', source: 'https://www.airforce-technology.com/projects/global-positioning-system-gps-iif-military-satellite/',
+      note: 'each satellite 2.23 m high, 2.48 m wide, 2.03 m deep; three-panel GaAs solar arrays'},
+    {kind: 'spec', source: 'https://www.airandspaceforces.com/weapons/gps',
+      note: 'GPS IIF: span including solar panels 43.1 ft (13.1 m)'},
+    {kind: 'spec', source: 'https://patents.google.com/patent/US7388559B1/en',
+      note: 'the GPS navigation array antenna: an inner ring of four helix elements and an outer ring of eight'},
+  ],
+  proportions: {
+    span_to_body_width: {value: 5.3, drawn: 5.2, source: ['https://www.airandspaceforces.com/weapons/gps',
+      'https://www.airforce-technology.com/projects/global-positioning-system-gps-iif-military-satellite/']},
+    panels_per_wing: {value: 3, drawn: 3,
+      source: 'https://www.airforce-technology.com/projects/global-positioning-system-gps-iif-military-satellite/'},
+    helix_elements: {value: '4 inner + 8 outer', drawn: '4 inner + 8 outer',
+      source: 'https://patents.google.com/patent/US7388559B1/en'},
+    body_w_h_d: {value: '2.48 : 2.23 : 2.03 (wide : high : deep)', drawn: '1.10 : 1.20 : 1.00 (along the wings : Earth axis : depth)',
+      source: 'https://www.airforce-technology.com/projects/global-positioning-system-gps-iif-military-satellite/'},
+  },
+  parts: ['bus', 'solar-array', 'wing-boom', 'helix-array'],
+  materials: ['gold insulation foil on the bus', 'dark-blue solar cells', 'pale helix elements on a disc (the drawing)'],
+}};
 
 export type SatLook = 'engraved' | 'lit' | 'flat';
 type V3 = [number, number, number];
@@ -201,7 +229,7 @@ export const GpsSatellite: React.FC<ObjectProps & {
           nodes.push(<line key={`br${r}`} x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} stroke={RADIATOR_DARK} strokeWidth={lw} />);
         }
       }
-      items.push({depth: f.depth, node: <g key={q.key}>{nodes}</g>});
+      items.push({depth: f.depth, node: <g key={q.key} data-part="solar-array">{nodes}</g>});
       return;
     }
     if (!front && q.kind !== 'cells') return;     // a body face turned away is hidden by the body itself
@@ -322,7 +350,7 @@ export const GpsSatellite: React.FC<ObjectProps & {
       }
     }
     items.push({depth: f.depth, node: (
-      <g key={q.key}>
+      <g key={q.key} data-part={q.kind === 'cells' ? 'solar-array' : 'bus'}>
         <defs><clipPath id={clip}><path d={d} /></clipPath></defs>
         {nodes}
       </g>
@@ -336,7 +364,7 @@ export const GpsSatellite: React.FC<ObjectProps & {
     const ink = look === 'engraved' ? engInk : look === 'flat' ? outline : '#b8bec7';
     const depth = (a.z + b.z) / 2 - 0.01;
     items.push({depth, node: (
-      <g key={`boom${side}`}>
+      <g key={`boom${side}`} data-part="wing-boom">
         <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={ink} strokeWidth={lw * 2.2} strokeLinecap="round"
           {...(look === 'engraved' ? drawOn(on) : {})} />
         <line x1={y0p.x} y1={y0p.y} x2={y1p.x} y2={y1p.y} stroke={ink} strokeWidth={lw * 1.6} strokeLinecap="round"
@@ -357,7 +385,7 @@ export const GpsSatellite: React.FC<ObjectProps & {
     const discDepth = discC[2] - 0.02;
     const discFill = look === 'engraved' ? engGround : look === 'flat' ? '#f1f3f5' : mix(RADIATOR_DARK, '#f4f6f8', 0.55);
     items.push({depth: discDepth, node: (
-      <path key="disc" d={poly(ring)} fill={discFill} stroke={look === 'engraved' ? engInk : outline}
+      <path key="disc" data-part="helix-array" d={poly(ring)} fill={discFill} stroke={look === 'engraved' ? engInk : outline}
         strokeWidth={lw * (look === 'flat' ? 1.6 : 1.1)} opacity={discSeen ? 1 : 0.95}
         {...(look === 'engraved' ? drawOn(on) : {})} />
     )});
@@ -376,7 +404,7 @@ export const GpsSatellite: React.FC<ObjectProps & {
       }).join(' ');
       const ink = look === 'engraved' ? engInk : look === 'flat' ? outline : HELIX;
       items.push({depth: (base.z + tip.z) / 2 - 0.05, node: (
-        <g key={`hx${i}`}>
+        <g key={`hx${i}`} data-part="helix-array">
           {look === 'lit' ? <line x1={base.x} y1={base.y} x2={tip.x} y2={tip.y} stroke={HELIX_DARK} strokeWidth={Math.max(0.6, lw * 0.8)}
             strokeLinecap="round" /> : null}
           <path d={pts} fill="none" stroke={ink} strokeWidth={Math.max(0.6, lw * 0.9)} strokeLinejoin="round"

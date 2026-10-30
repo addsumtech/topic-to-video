@@ -33,7 +33,8 @@ export const %(name)s: React.FC<{fill?: string; object?: ObjectRef}> = ({fill = 
 
 OBJECT = """import React from 'react';
 import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
-export const META: ObjectMeta = {aspect: 1, provenance: 'motion-graphics'};
+export const META: ObjectMeta & {fidelity: object} = {aspect: 1, provenance: 'motion-graphics',
+  fidelity: {subject: 'a test swatch', depicts: 'abstract'}};
 export const %(name)s: React.FC<ObjectProps & {color?: string}> = ({w, h, color = '#ff0000'}) => (
   <div style={{width: w, height: h, background: color}} />
 );

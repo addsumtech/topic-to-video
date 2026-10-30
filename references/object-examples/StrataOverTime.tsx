@@ -6,7 +6,8 @@ import type {ObjectProps, ObjectMeta} from '@runtime/objectSlot';
 import {clamp01, seg, easeOutCubic} from '@runtime/motion';
 import {mix} from '@runtime/dna';
 
-export const META: ObjectMeta = {aspect: 0.8, provenance: 'survey-archive'};
+export const META: ObjectMeta & {fidelity: object} = {aspect: 0.8, provenance: 'survey-archive',
+  fidelity: {subject: 'eras as layers of deposit — a metaphor, not a geological section', depicts: 'abstract'}};
 
 export const StrataOverTime: React.FC<ObjectProps & {layers?: number[]}> = ({w, h, t, dna, layers = []}) => {
   if (!Array.isArray(layers) || layers.length < 1 || layers.some((v) => !(typeof v === 'number' && v > 0))) {
