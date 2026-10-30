@@ -15,3 +15,27 @@ def test_keyframe_qa_judges_a_square_film_on_its_own_canvas():
     assert kq.canvas({"aspect": "4:5", "width": 1080, "height": 1350}) == (1080, 1350)
     assert kq.canvas({"aspect": "9:16"}) == (1080, 1920)
     assert kq.canvas({}) == (1920, 1080)
+
+
+def _board(tmp_path, stage):
+    aud = os.path.join("audio", "00.mp3")
+    os.makedirs(os.path.join(str(tmp_path), "audio"), exist_ok=True)
+    open(os.path.join(str(tmp_path), aud), "wb").write(b"\x00")
+    s = sb.new_scene(0, "title", {"title": "Hello"}, narration="A short line.")
+    s.update(audio=aud, duration=4.0, stage=stage)
+    data = sb.new_storyboard({"renderer": "local"})
+    data["slides"] = [s]
+    sb.save(data, os.path.join(str(tmp_path), "storyboard.json"))
+    return data
+
+
+def test_the_plan_learning_stage_is_not_the_removed_stage_tier(tmp_path):
+    # storyboard.py --from-plan writes the content plan's learning stage ("hook") on every slide of every tier;
+    # validate ERRORed on it as the removed generic-scene `stage`, on every beat of an HTML film
+    r = validate.evaluate(_board(tmp_path, "hook"), str(tmp_path))
+    assert not any("carries ['stage']" in e for e in r["errors"]), r["errors"]
+
+
+def test_the_removed_stage_object_is_still_refused(tmp_path):
+    r = validate.evaluate(_board(tmp_path, {"elements": [{"kind": "text"}]}), str(tmp_path))
+    assert any("carries ['stage']" in e for e in r["errors"]), r["errors"]

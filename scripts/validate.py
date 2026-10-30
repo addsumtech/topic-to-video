@@ -800,8 +800,11 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     # NO tier — and two tests asserted such a scene passes with no errors AND no warnings, which is this
     # gate promising a render that cannot happen. Said here, the author learns at validate time instead of
     # at the end of a render.
+    # `stage` as a STRING is the content plan's learning stage (hook|ground|build|why|land), which storyboard.py
+    # --from-plan writes onto every slide on every tier and rhythm_qa reads; only the old tier's stage OBJECT is gone.
     _removed = [k for k in ("lens", "layers", "camera3d", "perspective", "planes", "stage", "shots")
-                if (s.get(k) or (s.get("props") or {}).get(k))]
+                if (s.get(k) or (s.get("props") or {}).get(k))
+                and not (k == "stage" and isinstance(s.get(k) or (s.get("props") or {}).get(k), str))]
     if _removed and not component:
         errors.append(
             f"{tag}: carries {_removed} — fields of the generic-scene tier REMOVED in the phase-3 cutover. "
