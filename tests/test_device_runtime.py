@@ -11,7 +11,7 @@ sys.path.insert(0, _HERE)
 import _tsprobe as tp               # noqa: E402
 
 needs_node = pytest.mark.skipif(not tp.available(), reason="needs the remotion toolchain")
-KINDS, LOOKS = ("phone", "tablet", "tablet-landscape", "laptop", "monitor"), ("flat", "real", "screen")
+KINDS, LOOKS = ("phone", "watch", "tablet", "tablet-landscape", "laptop", "monitor"), ("flat", "real", "screen")
 ASPECTS = [(1920, 1080), (1080, 1920), (1080, 1080), (1080, 1350)]
 
 
@@ -28,6 +28,52 @@ def test_python_and_typescript_place_every_device_identically():
         W, H = (int(v) for v in wh.split("x"))
         py = dg.geometry(k, l, W, H, p, kick == "true")
         assert {n: py[n] for n in ("body", "screen")} == {n: g[n] for n in ("body", "screen")}, key
+
+
+def _model_cases():
+    import device_models as dm
+    out = []
+    for name, m in dm.models().items():
+        kinds = ["tablet", "tablet-landscape"] if m["kind"] == "tablet" else [m["kind"]]
+        out += [(k, name) for k in kinds]
+    return out
+
+
+@needs_node
+def test_python_and_typescript_draw_every_model_identically():
+    """Every field the fidelity gate reads — body, face, screen, both radii, the bezels, the island, the notch —
+    for every model, look and aspect: the gate judges the Python copy, the film draws the TypeScript."""
+    import device_geometry as dg
+    cases = _model_cases()
+    ts = tp.run_ts("import {deviceGeometry} from %s;" % tp.mod("device"), """
+      for (const [k, m] of %s) for (const l of %s) for (const [W, H] of %s)
+        out[`${k}/${m}/${l}/${W}x${H}`] = deviceGeometry(k as any, l as any, W, H, 'center', false, m);
+    """ % ([list(c) for c in cases], list(LOOKS), [list(a) for a in ASPECTS]))
+    assert len(ts) == len(cases) * len(LOOKS) * len(ASPECTS)
+    for key, g in ts.items():
+        k, m, l, wh = key.split("/")
+        W, H = (int(v) for v in wh.split("x"))
+        py = dg.geometry(k, l, W, H, "center", False, m)
+        for n in ("body", "face", "screen", "radius", "outerRadius", "bezels", "island", "notch"):
+            assert py[n] == g[n], (key, n, py[n], g[n])
+
+
+def test_a_model_screen_is_its_own_pixels_and_its_corners_are_concentric():
+    """The screen of a model is the shape of its published pixels (no stretch), and the case corner is the screen
+    corner plus the bezel, at every aspect."""
+    import device_geometry as dg
+    import device_models as dm
+    import device_fidelity_qa as fq
+    for k, m in _model_cases():
+        pw, ph = dm.models()[m]["published"]["px"]
+        if k == "tablet-landscape":
+            pw, ph = ph, pw
+        for W, H in ASPECTS:
+            for look in ("flat", "real"):
+                g = dg.geometry(k, look, W, H, "center", False, m)
+                s = g["screen"]
+                assert abs(s["h"] / float(s["w"]) - ph / float(pw)) < 2.0 / s["w"] + 1e-9, (k, m, W, H)
+                assert fq.concentric_findings(g, k) == [], (k, m, W, H, fq.concentric_findings(g, k))
 
 
 @needs_node
@@ -131,6 +177,6 @@ def test_the_caret_is_solid_while_typing_and_blinks_in_sixteen_frame_phases():
 def test_an_unknown_device_is_named_not_a_key_error():
     import device_geometry as dg
     with pytest.raises(ValueError) as e:
-        dg.geometry("watch", "flat", 1920, 1080)
-    assert "no geometry for watch" in str(e.value) and "phone" in str(e.value)
+        dg.geometry("toaster", "flat", 1920, 1080)
+    assert "no geometry for toaster" in str(e.value) and "phone" in str(e.value)
 

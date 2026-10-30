@@ -295,6 +295,9 @@ def _describe(v):
         parts.append("CUT OFF — " + sides)
     if v.get("band"):
         parts.append("IN THE CAPTION BAND by %spx — the burned caption draws over it" % v["band"])
+    if v.get("device"):
+        parts.append("ON THE DEVICE by %spx — a label set over the product's body or band; move it off the device"
+                     % v["device"])
     return "%r %s%s" % (v.get("text", ""), "; ".join(parts),
                         "  [%s]" % v["font"] if v.get("font") else "")
 
@@ -443,7 +446,7 @@ def scan_film(out_dir, warnings=None):
                 if v.get("title"):
                     continue
                 lvl = type_size_level(v)
-                if lvl and not v.get("out") and not v.get("band"):
+                if lvl and not v.get("out") and not v.get("band") and not v.get("device"):
                     line = "scene %02d (%s, film frame %d): SMALL TYPE — %s" % (i, shot, frame, _describe_small(v))
                     if lvl == "error":
                         findings.append(line)
@@ -486,7 +489,7 @@ def scan_film(out_dir, warnings=None):
             if v.get("title"):
                 continue                                 # the walk's own "largest type" record; title_of decides
             lvl = type_size_level(v)
-            if lvl and not v.get("out") and not v.get("band"):
+            if lvl and not v.get("out") and not v.get("band") and not v.get("device"):
                 line = "scene %02d (%s): SMALL TYPE — %s" % (i, shot, _describe_small(v))
                 if lvl == "error" and shot not in own:
                     # A LIBRARY register's type size is the library's to fix (remotion/type_debt.json lists what the
@@ -605,7 +608,7 @@ def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False,
             if v.get("title"):
                 continue
             lvl = type_size_level(v)
-            if lvl and not v.get("out") and not v.get("band"):
+            if lvl and not v.get("out") and not v.get("band") and not v.get("device"):
                 findings.append("%s: SMALL TYPE (%s) — %s" % (n, lvl, _describe_small(v)))
                 continue
             findings.append("%s: %s" % (n, _describe(v)))

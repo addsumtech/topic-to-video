@@ -2806,6 +2806,13 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
             _derr, _dwarn = _dsx.check_slide(s, out_dir, dict(meta, aspect="9:16") if vertical else meta, slides)
             errors.extend(f"{tag}: {m}" for m in _derr)
             warnings.extend(f"{tag}: {m}" for m in _dwarn)
+        # A FILM'S OWN SHOT THAT DRAWS A DEVICE BY HAND — a capture of a known device's size, shown without the kit
+        # (scripts/device_fidelity_qa.py workshop_warning): the hand-drawn watch the kit's watch was built to replace.
+        elif isinstance(sp, dict) and out_dir:
+            import device_fidelity_qa as _dfq
+            _ww = _dfq.workshop_warning(s, out_dir)
+            if _ww:
+                warnings.append(f"{tag}: {_ww}")
         if isinstance(sp, dict) and shot in _demo_copy_library():
             # A PROP CAN BE SUPPLIED BY ANOTHER PROP. `PortRail` grew `groups` (items that belong to named
             # kinds) and when a board gives groups, `items` is never read — but the check saw `items` unset,

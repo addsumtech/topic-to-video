@@ -216,7 +216,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     (WebGL, one pinned backend, bit-identical by determinism_qa) — `AuroraCurtain`, `LightShafts`, `NebulaField`, or a
     WorldStage `volume` object (references/building-blocks.md `volume`).
   - **Devices.** `DeviceDemo`/`DeviceHero` show the product's own screens. The step script goes in `shot_props.steps` and is
-    checked by `scripts/device_script.py` (format: `remotion/cards/DeviceDemo.md` "Step script").
+    checked by `scripts/device_script.py` (format: `remotion/cards/DeviceDemo.md` "Step script"). A phone, **watch**,
+    tablet or laptop capture is drawn on the real model it came from (read off its pixel size; `scripts/device_models.py`)
+    — never hand-draw a device in a workshop shot: validate warns, and `scripts/device_fidelity_qa.py` says why.
   - **Sync.** `render_remotion` warps each beat so register entrances land on their words (`sync_warp.json`). A board or slide
     can set `"sync": "off"` or `{"anchors": [[voice_s, register_s], …]}`.
   - **Continuous stage.** Consecutive beats with the same `stage.run` and a stage shot (`CardStage`, `WorldStage`) are ONE

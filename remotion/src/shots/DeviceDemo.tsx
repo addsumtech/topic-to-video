@@ -18,7 +18,7 @@ import {useT, useAnimSpan, ENTRY_T, ReducedMotionContext, clamp01, seg, easeInOu
 import {useDNA, mix} from '../runtime/dna';
 import {camAt, clampToPage, camUnlock, pageCamTransform, useCamUnlock, type CamKey} from '../runtime/pageCam2D';
 import {textWidthPx, TITLE_Y, contentBottom} from '../runtime/layout';
-import {deviceGeometry, deviceFace, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type Placement, type Rect} from '../runtime/device';
+import {deviceGeometry, deviceFace, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type DeviceModel, type Placement, type Rect} from '../runtime/device';
 import {ScreenImage, ScreenVideo, scrollRangePx, flingAt, type VideoSpan} from '../runtime/screen';
 import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, TouchPoint, CursorArrow} from '../runtime/gesture';
 import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
@@ -82,13 +82,14 @@ const DemoPage: React.FC<{w: number; h: number; ink: string; ground: string}> = 
 );
 
 export const DeviceDemo: React.FC<{
-  device?: DeviceKind;   // phone | tablet | tablet-landscape | laptop | monitor
+  device?: DeviceKind;   // phone | watch | tablet | tablet-landscape | laptop | monitor
+  model?: DeviceModel | null; // a real model (deviceSpec.json `models`) — scripts/device_script.py infers it from the screenshot
   look?: DeviceLook;     // flat | real | screen — absent: real on a dark beat, flat on a light one
   steps?: Step[];        // the script, prepared by scripts/device_script.py — absent: the register's own demo
   camera?: 'still';      // turn the legibility push-in off
   placement?: Placement; // where the device stands: center | left | right
   kicker?: string;       // an optional spaced label above the device
-}> = ({device = 'phone', look, steps: STEPS = DEMO_STEPS, camera, placement = 'center', kicker = ''} = {}) => {
+}> = ({device = 'phone', model, look, steps: STEPS = DEMO_STEPS, camera, placement = 'center', kicker = ''} = {}) => {
   const t = useT();
   const span = useAnimSpan();
   const reduced = React.useContext(ReducedMotionContext);
@@ -100,7 +101,7 @@ export const DeviceDemo: React.FC<{
   }
   const steps = scheduled(STEPS, STEPS === DEMO_STEPS);
   const lk: DeviceLook = look ?? defaultLook(dna);
-  const g = deviceGeometry(device, lk, W, H, placement, Boolean(kicker));
+  const g = deviceGeometry(device, lk, W, H, placement, Boolean(kicker), model ?? null);
   const s = g.screen;
   const GROUND = dna?.bg ?? '#eef1f4';          // the film's ground: bgGrad -> bg -> this
   const INK = dna?.fg ?? '#14171c', ACC = dna?.accent ?? '#3563e9';

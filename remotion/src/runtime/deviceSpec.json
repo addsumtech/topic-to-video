@@ -1,39 +1,498 @@
 {
-  "_doc": "The device layer's numbers, defined ONCE. Read by runtime/device.tsx, runtime/screen.tsx and runtime/gesture.tsx, and by scripts/device_script.py, scripts/device_geometry.py and scripts/screen_media.py. Values come from docs/superpowers/specs/2026-09-26-device-layer-design.md and the rulings in docs/superpowers/plans/2026-09-26-device-layer.md; the durations and caps are design choices to tune on real films, not measurements.",
-  "screenRatio": {"phone": [9, 19.5], "tablet": [3, 4], "tablet-landscape": [4, 3], "laptop": [16, 10], "monitor": [16, 9]},
-  "touch": {"phone": true, "tablet": true, "tablet-landscape": true, "laptop": false, "monitor": false},
-  "body": {
-    "flat": {
-      "phone":   {"bezel": 0.045, "radius": 0.13,  "base": 0,     "overhang": 0,    "strip": 0},
-      "tablet":  {"bezel": 0.04,  "radius": 0.05,  "base": 0,     "overhang": 0,    "strip": 0},
-      "tablet-landscape": {"bezel": 0.04,  "radius": 0.05,  "base": 0,     "overhang": 0,    "strip": 0},
-      "laptop":  {"bezel": 0.022, "radius": 0.012, "base": 0.035, "overhang": 0.06, "strip": 0},
-      "monitor": {"bezel": 0.018, "radius": 0.01,  "base": 0.16,  "overhang": 0,    "strip": 0}
-    },
-    "real": {
-      "phone":   {"bezel": 0.045, "radius": 0.13,  "base": 0,     "overhang": 0,    "strip": 0},
-      "tablet":  {"bezel": 0.04,  "radius": 0.05,  "base": 0,     "overhang": 0,    "strip": 0},
-      "tablet-landscape": {"bezel": 0.04,  "radius": 0.05,  "base": 0,     "overhang": 0,    "strip": 0},
-      "laptop":  {"bezel": 0.022, "radius": 0.012, "base": 0.035, "overhang": 0.06, "strip": 0},
-      "monitor": {"bezel": 0.018, "radius": 0.01,  "base": 0.16,  "overhang": 0,    "strip": 0}
-    },
-    "screen": {
-      "phone":   {"bezel": 0, "radius": 0.11,  "base": 0, "overhang": 0, "strip": 0},
-      "tablet":  {"bezel": 0, "radius": 0.045, "base": 0, "overhang": 0, "strip": 0},
-      "tablet-landscape": {"bezel": 0, "radius": 0.045, "base": 0, "overhang": 0, "strip": 0},
-      "laptop":  {"bezel": 0, "radius": 0.012, "base": 0, "overhang": 0, "strip": 0.045},
-      "monitor": {"bezel": 0, "radius": 0.012, "base": 0, "overhang": 0, "strip": 0.04}
-    }
+ "_doc": "The device layer's numbers, defined ONCE. Read by runtime/device.tsx, runtime/screen.tsx and runtime/gesture.tsx, and by scripts/device_script.py, scripts/device_geometry.py and scripts/screen_media.py. Values come from docs/superpowers/specs/2026-09-26-device-layer-design.md and the rulings in docs/superpowers/plans/2026-09-26-device-layer.md; the durations and caps are design choices to tune on real films, not measurements.",
+ "screenRatio": {
+  "phone": [
+   9,
+   19.5
+  ],
+  "tablet": [
+   3,
+   4
+  ],
+  "tablet-landscape": [
+   4,
+   3
+  ],
+  "laptop": [
+   16,
+   10
+  ],
+  "monitor": [
+   16,
+   9
+  ],
+  "watch": [
+   416,
+   496
+  ]
+ },
+ "touch": {
+  "phone": true,
+  "tablet": true,
+  "tablet-landscape": true,
+  "laptop": false,
+  "monitor": false,
+  "watch": true
+ },
+ "body": {
+  "flat": {
+   "phone": {
+    "bezel": 0.045,
+    "radius": 0.13,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0
+   },
+   "tablet": {
+    "bezel": 0.04,
+    "radius": 0.05,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0
+   },
+   "tablet-landscape": {
+    "bezel": 0.04,
+    "radius": 0.05,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0
+   },
+   "laptop": {
+    "bezel": 0.022,
+    "radius": 0.012,
+    "base": 0.035,
+    "overhang": 0.06,
+    "strip": 0
+   },
+   "monitor": {
+    "bezel": 0.018,
+    "radius": 0.01,
+    "base": 0.16,
+    "overhang": 0,
+    "strip": 0
+   }
   },
-  "island": {"w": 0.30, "h": 0.052, "top": 0.035},
-  "zoneTopFrac": 0.05,
-  "zoneWidthFill": 0.9,
-  "placementX": {"center": 0.5, "left": 0.32, "right": 0.68},
-  "minSeconds": {"screen": 0.5, "tap": 0.6, "click": 0.6, "typeLatinKey": 0.15, "typeCjkWord": 0.35,
-                 "scroll": 0.9, "drag": 0.9, "mark": 0.6},
-  "cameraLeadSeconds": 0.35,
-  "maxZoom": 4.0,
-  "maxVideoRate": 2.0,
-  "caretPhaseFrames": 16,
-  "aspectTolerance": 0.04
+  "real": {
+   "phone": {
+    "bezel": 0.045,
+    "radius": 0.13,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0
+   },
+   "tablet": {
+    "bezel": 0.04,
+    "radius": 0.05,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0
+   },
+   "tablet-landscape": {
+    "bezel": 0.04,
+    "radius": 0.05,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0
+   },
+   "laptop": {
+    "bezel": 0.022,
+    "radius": 0.012,
+    "base": 0.035,
+    "overhang": 0.06,
+    "strip": 0
+   },
+   "monitor": {
+    "bezel": 0.018,
+    "radius": 0.01,
+    "base": 0.16,
+    "overhang": 0,
+    "strip": 0
+   }
+  },
+  "screen": {
+   "phone": {
+    "bezel": 0,
+    "radius": 0.11,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0
+   },
+   "tablet": {
+    "bezel": 0,
+    "radius": 0.045,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0
+   },
+   "tablet-landscape": {
+    "bezel": 0,
+    "radius": 0.045,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0
+   },
+   "laptop": {
+    "bezel": 0,
+    "radius": 0.012,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0.045
+   },
+   "monitor": {
+    "bezel": 0,
+    "radius": 0.012,
+    "base": 0,
+    "overhang": 0,
+    "strip": 0.04
+   }
+  }
+ },
+ "island": {
+  "w": 0.3,
+  "h": 0.052,
+  "top": 0.035
+ },
+ "zoneTopFrac": 0.05,
+ "zoneWidthFill": 0.9,
+ "placementX": {
+  "center": 0.5,
+  "left": 0.32,
+  "right": 0.68
+ },
+ "minSeconds": {
+  "screen": 0.5,
+  "tap": 0.6,
+  "click": 0.6,
+  "typeLatinKey": 0.15,
+  "typeCjkWord": 0.35,
+  "scroll": 0.9,
+  "drag": 0.9,
+  "mark": 0.6
+ },
+ "cameraLeadSeconds": 0.35,
+ "maxZoom": 4.0,
+ "maxVideoRate": 2.0,
+ "caretPhaseFrames": 16,
+ "aspectTolerance": 0.04,
+ "models": {
+  "_doc": "REAL DEVICES, keyed to the screenshot they show. Every number under `published` was read on the page in `source` on the date in `retrieved` — never filled from memory. `screenMm` is not stored: both runtime/device.tsx and scripts/device_geometry.py derive it as px / ppi x 25.4, the size of the pixels themselves. Corner radii, the Dynamic Island, the notch, buttons and band are NOT published; each sits under `design` (a craft choice, drawn to read as the object) or `derived` (with how) — honest provenance, never a number dressed as a measurement. `px` is portrait (w, h) for watch/phone/tablet and landscape for a laptop. A screenshot is matched to a model by its exact pixel size (or that size divided by the model's point scale), see scripts/device_models.py.",
+  "watch-s12-46": {
+   "kind": "watch",
+   "name": "Apple Watch Series 12, 46 mm",
+   "published": {
+    "px": [
+     416,
+     496
+    ],
+    "ppi": 326,
+    "caseMm": [
+     40,
+     46,
+     9.7
+    ],
+    "displayAreaMm2": 1196
+   },
+   "source": "https://www.apple.com/apple-watch-series-12/specs/",
+   "retrieved": "2026-10-30",
+   "derived": {
+    "bezel": "(caseMm - px/ppi*25.4)/2 per axis: 3.79 mm across, 3.68 mm down",
+    "displayRadiusMm": "6.08 mm: the transparent corner mask of a 416x496 watchOS capture is a circle of 78 px (measured row by row: 39 px in at row 10, 16 at row 30, 5 at row 50, as a 78 px circle gives), 78/326 in"
+   },
+   "design": {
+    "case": "outer corner = display corner + bezel (concentric), a continuous-curvature outline; crown at 30% of the case height, side button at 63%; sport band 60% of the case width, tapering 10%"
+   },
+   "displayRadiusMm": 6.08,
+   "scale": [
+    2
+   ],
+   "circleDisplay": true
+  },
+  "watch-s12-42": {
+   "kind": "watch",
+   "name": "Apple Watch Series 12, 42 mm",
+   "published": {
+    "px": [
+     374,
+     446
+    ],
+    "ppi": 326,
+    "caseMm": [
+     37,
+     42,
+     9.7
+    ],
+    "displayAreaMm2": 970
+   },
+   "source": "https://www.apple.com/apple-watch-series-12/specs/",
+   "retrieved": "2026-10-30",
+   "derived": {
+    "bezel": "(caseMm - px/ppi*25.4)/2 per axis: 3.93 mm across, 3.63 mm down",
+    "displayRadiusMm": "6.08 mm x 374/416 = 5.47 mm: the 46 mm display's measured corner, scaled to this display's width"
+   },
+   "design": {
+    "case": "as the 46 mm"
+   },
+   "displayRadiusMm": 5.47,
+   "scale": [
+    2
+   ],
+   "circleDisplay": true
+  },
+  "iphone-18-pro": {
+   "kind": "phone",
+   "name": "iPhone 18 Pro (6.3-inch)",
+   "published": {
+    "px": [
+     1206,
+     2622
+    ],
+    "ppi": 460,
+    "caseMm": [
+     71.9,
+     150.0,
+     8.75
+    ],
+    "diagonalIn": 6.27
+   },
+   "source": "https://www.apple.com/iphone-18-pro/specs/",
+   "retrieved": "2026-10-30",
+   "derived": {
+    "bezel": "(caseMm - px/ppi*25.4)/2: 2.65 mm across, 2.61 mm down"
+   },
+   "design": {
+    "displayRadiusMm": "corner not published: 14% of the display width, drawn to read as the product",
+    "island": "Dynamic Island named on the spec page, size not published: 31% x 9.2% of the display width, 2.8% from its top",
+    "buttons": "action + volume left, side + Camera Control right"
+   },
+   "displayRadiusMm": 9.32,
+   "island": true,
+   "scale": [
+    3
+   ]
+  },
+  "iphone-18-pro-max": {
+   "kind": "phone",
+   "name": "iPhone 18 Pro Max (6.9-inch)",
+   "published": {
+    "px": [
+     1320,
+     2868
+    ],
+    "ppi": 460,
+    "caseMm": [
+     78.0,
+     163.4,
+     8.75
+    ],
+    "diagonalIn": 6.86
+   },
+   "source": "https://www.apple.com/iphone-18-pro/specs/",
+   "retrieved": "2026-10-30",
+   "derived": {
+    "bezel": "(caseMm - px/ppi*25.4)/2: 2.56 mm across, 2.52 mm down"
+   },
+   "design": {
+    "displayRadiusMm": "14% of the display width, as the 6.3-inch",
+    "island": "as the 6.3-inch"
+   },
+   "displayRadiusMm": 10.2,
+   "island": true,
+   "scale": [
+    3
+   ]
+  },
+  "iphone-17": {
+   "kind": "phone",
+   "name": "iPhone 17 (6.3-inch)",
+   "published": {
+    "px": [
+     1206,
+     2622
+    ],
+    "ppi": 460,
+    "caseMm": [
+     71.5,
+     149.6,
+     7.95
+    ],
+    "diagonalIn": 6.27
+   },
+   "source": "https://www.apple.com/iphone-17/specs/",
+   "retrieved": "2026-10-30",
+   "derived": {
+    "bezel": "(caseMm - px/ppi*25.4)/2: 2.45 mm across, 2.41 mm down"
+   },
+   "design": {
+    "note": "same pixels as the 18 Pro, so a 1206x2622 capture infers the Pro (listed first); name `model: \"iphone-17\"` to draw this one"
+   },
+   "displayRadiusMm": 9.32,
+   "island": true,
+   "scale": [
+    3
+   ]
+  },
+  "ipad-a16": {
+   "kind": "tablet",
+   "name": "iPad 11-inch (A16)",
+   "published": {
+    "px": [
+     1640,
+     2360
+    ],
+    "ppi": 264,
+    "caseMm": [
+     179.5,
+     248.6,
+     7
+    ],
+    "diagonalIn": 10.86
+   },
+   "source": "https://www.apple.com/ipad-11/specs/",
+   "retrieved": "2026-10-30",
+   "derived": {
+    "bezel": "(caseMm - px/ppi*25.4)/2: 10.86 mm across, 10.77 mm down"
+   },
+   "design": {
+    "displayRadiusMm": "not published: 11.5 mm",
+    "camera": "a dot centred on the long edge's bezel",
+    "buttons": "not drawn: the iPad's top and volume buttons stand under half a millimetre proud of a 179.5 mm case — invisible at any size a film draws it"
+   },
+   "displayRadiusMm": 11.5,
+   "scale": [
+    2
+   ]
+  },
+  "macbook-air-13": {
+   "kind": "laptop",
+   "name": "MacBook Air 13-inch (M5)",
+   "published": {
+    "px": [
+     2560,
+     1664
+    ],
+    "ppi": 224,
+    "caseMm": [
+     304.1,
+     215.0,
+     11.3
+    ],
+    "diagonalIn": 13.6,
+    "notch": true
+   },
+   "source": "https://www.apple.com/macbook-air/specs/",
+   "retrieved": "2026-10-30",
+   "notchSource": "https://support.apple.com/en-us/102125 (MacBook Air with Liquid Retina display: camera housing built into the screen bezel)",
+   "derived": {
+    "bezel": "(304.1 - px/ppi*25.4)/2 = 6.9 mm at the sides; the lid's height is taken as the published depth (215 mm), so top + chin = 26.3 mm"
+   },
+   "design": {
+    "topBezel": "the top bezel equals the side bezel; the rest of the lid's height is the chin",
+    "displayRadiusMm": "rounded corners at the top only (published), radius not published: 2.5 mm",
+    "notch": "not sized on the page: 7% of the display width, as tall as the menu bar (3.5% of the display height)"
+   },
+   "displayRadiusMm": 2.5,
+   "notch": true,
+   "topRoundOnly": true,
+   "scale": [
+    2
+   ]
+  },
+  "macbook-pro-14": {
+   "kind": "laptop",
+   "name": "MacBook Pro 14-inch",
+   "published": {
+    "px": [
+     3024,
+     1964
+    ],
+    "ppi": 254,
+    "caseMm": [
+     312.6,
+     221.2,
+     15.5
+    ],
+    "diagonalIn": 14.2,
+    "notch": true
+   },
+   "source": "https://www.apple.com/macbook-pro/specs/",
+   "retrieved": "2026-10-30",
+   "notchSource": "https://support.apple.com/en-us/102125 (MacBook Pro with Liquid Retina XDR display)",
+   "derived": {
+    "bezel": "(312.6 - px/ppi*25.4)/2 = 5.1 mm at the sides; the lid's height is taken as the published depth (221.2 mm), so top + chin = 24.8 mm"
+   },
+   "design": {
+    "topBezel": "as the Air",
+    "displayRadiusMm": "rounded at the top only (published): 2.5 mm",
+    "notch": "as the Air"
+   },
+   "displayRadiusMm": 2.5,
+   "notch": true,
+   "topRoundOnly": true,
+   "scale": [
+    2
+   ]
+  }
+ },
+ "kinds": {
+  "_doc": "The generic kinds: a screenshot no model matches is drawn on its KIND — the screen proportion in screenRatio, every bezel, radius and part in proportion to the `like` model (design: the kind's picture is that model's, stretched to the generic screen). A generic laptop draws no notch: it would cover the top of a screenshot from a machine that has none.",
+  "phone": {
+   "like": "iphone-18-pro"
+  },
+  "watch": {
+   "like": "watch-s12-46"
+  },
+  "tablet": {
+   "like": "ipad-a16"
+  },
+  "tablet-landscape": {
+   "like": "ipad-a16",
+   "landscape": true
+  },
+  "laptop": {
+   "like": "macbook-pro-14",
+   "notch": false
+  }
+ },
+ "parts": {
+  "_doc": "design — proportions of the parts no spec page publishes, in units of the SCREEN's width (watch band: of the case's width and height). Tuned by looking at 100% crops of real-material renders.",
+  "island": {
+   "w": 0.31,
+   "h": 0.092,
+   "top": 0.028
+  },
+  "notch": {
+   "w": 0.07,
+   "h": 0.035
+  },
+  "rim": {
+   "phone": 0.012,
+   "watch": 0.035,
+   "tablet": 0.006,
+   "laptop": 0.004
+  },
+  "buttonOut": {
+   "phone": 0.01,
+   "tablet": 0
+  },
+  "crown": {
+   "y": 0.3,
+   "h": 0.17,
+   "out": 0.075,
+   "ridges": 22
+  },
+  "sideButton": {
+   "y": 0.63,
+   "h": 0.2,
+   "out": 0.022
+  },
+  "band": {
+   "w": 0.6,
+   "len": 0.62,
+   "taper": 0.1
+  },
+  "laptopTopBezelOfSide": 1.0,
+  "laptopBase": 0.035,
+  "laptopOverhang": 0.06
+ },
+ "inferTolerance": 0.004
 }

@@ -1,5 +1,6 @@
 import React from 'react';
-import {AbsoluteFill, Composition} from 'remotion';
+import {AbsoluteFill, Composition, useVideoConfig} from 'remotion';
+import {Device, deviceGeometry} from './runtime/device';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
 import {TitleProbe, TitleProbeFixture} from './runtime/titleProbe';
 import {BaselineUnlockContext} from './runtime/glide';
@@ -327,6 +328,24 @@ export const CaptionBandCleanProbe: React.FC = () => (
   </div>
 );
 
+// A LABEL SET ON THE DEVICE — runtime/textSafe.tsx's `device` question. A launch film set "Apple Watch" across its
+// watch's strap; the strap is a picture, so no type gate saw it. The kit's watch, with the label on its lower band
+// (`DeviceLabelProbe`) and beside it (`DeviceLabelCleanProbe`): the first must be reported, the second must not.
+const DeviceLabelStage: React.FC<{onBand: boolean}> = ({onBand}) => {
+  const {width: W, height: H} = useVideoConfig();
+  const g = deviceGeometry('watch', 'real', W, H, 'center', false, 'watch-s12-46');
+  const band = g.bands[1];
+  return (
+    <div style={{position: 'absolute', inset: 0, background: '#060709'}}>
+      <Device g={g} dna={null}><div style={{position: 'absolute', inset: 0, background: '#101318'}} /></Device>
+      <div style={{position: 'absolute', left: onBand ? band.x - 40 : 60, top: onBand ? band.y + band.h * 0.55 : 60,
+        color: '#aeb4bf', font: '600 40px/1.2 var(--f-body, Inter, system-ui, sans-serif)'}}>Apple Watch</div>
+    </div>
+  );
+};
+export const DeviceLabelProbe: React.FC = () => <DeviceLabelStage onBand />;
+export const DeviceLabelCleanProbe: React.FC = () => <DeviceLabelStage onBand={false} />;
+
 
 // TYPE CUT OFF BY THE CANVAS — the OTHER half of the same audit, and it had no synthetic control at all.
 //
@@ -508,6 +527,8 @@ export const RemotionRoot: React.FC = () => (
     {F('TiltedTypeCleanProbe', TiltedTypeCleanProbe, 165)}
     {F('CaptionBandProbe', CaptionBandProbe, 165)}
     {F('CaptionBandCleanProbe', CaptionBandCleanProbe, 165)}
+    {F('DeviceLabelProbe', DeviceLabelProbe, 60)}
+    {F('DeviceLabelCleanProbe', DeviceLabelCleanProbe, 60)}
     {F('CutOffProbe', CutOffProbe, 165)}
     {F('CutOffCleanProbe', CutOffCleanProbe, 165)}
     {F('SmallTypeProbe', SmallTypeProbe, 165)}
