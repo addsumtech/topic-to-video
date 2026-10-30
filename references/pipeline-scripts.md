@@ -775,6 +775,15 @@ agent on the beats it points at.
   `references/anti-ai-voice.md` before writing or revising narration. Its numbers mark where to LOOK —
   published practice says rules remove only ~40–50% of AI flavour and that over-applying them produces
   its own "rule voice", so the last pass is always a human read-aloud.
+- `scripts/media_res_qa.py <out_dir> [--every=N] [--json]` — **PICTURE RESOLUTION**, remotion tier: renders the Film
+  with `mediaRes` armed (runtime/mediaRes.tsx, a census through `glide_frames.cjs --tag=MEDIA-RES_ --every=3`) and
+  compares every img/video/canvas's natural pixels with the box it is drawn in, on every 3rd frame — seams, cameras
+  and pushes included. ERROR past 1.25x on ≥2 sampled frames, WARN past 1.08x; a CSS blur ≥2 px or opacity <0.25
+  is excused and listed; an image sequence (`f00028.jpg`…) is one picture. A tilted picture is measured by its
+  bounding box, so it can only over-report. Measured on the Agent HUD film: the hero panel 1000 px drawn 2857 px
+  (2.86x) and the bots row 2.01x — the softness the user saw — while every type gate was green. Exit 0 clean ·
+  1 findings · 2 frames unmeasured. The fix is pixels (sharper source, native/vector rebuild, draw smaller), never
+  the threshold. A blocking DELIVERY gate (critic_ledger.DELIVERY_GATES).
 - `scripts/banding_qa.py <out_dir> [--every SECONDS] [--json]` — **BANDING** on the DELIVERED file: CAMBI
   (libvmaf's banding index, visible past ~5) on one frame a second of `out.mp4`, judged per scene by its median.
   A dark gradient banded by the encode is invisible in every still a gate renders and in the DOM — this is the only

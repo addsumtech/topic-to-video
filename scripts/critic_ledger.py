@@ -239,6 +239,9 @@ DELIVERY_GATES = {
         # audio/NN.words.json (scripts/sync_qa.py)
         ("TEXT lands with the voice (every frame, census)", "text_safe_qa.py", ("--sync",), 240, True, None),
         ("CJK type holds together in this film's registers", "cjk_type_qa.py", (), 600, True, _cjk_copy),
+        # A PICTURE magnified past its own pixels — every type gate measures text, none of them an image's pixels; a
+        # product film shipped its hero UI at 2.9x and its bots row at 2.0x with all of them green (scripts/media_res_qa.py)
+        ("PICTURES at their own resolution (every 3rd frame, census)", "media_res_qa.py", (), 300, True, None),
         # the only gates that judge the FILM rather than a frame: does it move, and does it move without vibrating
         ("FILM ENERGY — motion, light, light arc (density measured)", "film_energy_qa.py", (), 300, True, None),
         ("SHAKE — travelling vs vibrating", "shake_qa.py", (), 300, True, None),

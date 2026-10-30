@@ -2,6 +2,7 @@
 // THE TYPE-GLIDE CENSUS, RENDERED — every frame of a composition walked, with no picture taken.
 //
 //   node glide_frames.cjs <remotion dir> <bundle dir> <jobs.json> <out.jsonl> [--gl=angle] [--concurrency=N]
+//                         [--tag=MEDIA-RES_] [--every=N]   (a census other than the glide; every Nth frame)
 //
 // jobs.json is [{"tag": label, "id": composition id, "props": {...}, "from": a, "to": b}] (from/to optional:
 // the composition's own first and last frame). Each job is rendered with `imageFormat: 'none'` — the renderer
@@ -27,7 +28,8 @@ const opt = (name, dflt) => {
   return hit ? hit.slice(name.length + 3) : dflt;
 };
 const R = require(require.resolve('@remotion/renderer', {paths: [remotionDir]}));
-const TAG = 'TYPE-GLIDE ';
+// `--tag=` reads another census through the same runner (runtime/mediaRes.tsx logs `MEDIA-RES `)
+const TAG = opt('tag', 'TYPE-GLIDE ').replace(/_/g, ' ');
 
 (async () => {
   const jobs = JSON.parse(fs.readFileSync(jobsPath, 'utf8'));
@@ -48,7 +50,7 @@ const TAG = 'TYPE-GLIDE ';
         const a = Math.max(0, job.from == null ? 0 : job.from);
         const b = Math.min(last, job.to == null ? last : job.to);
         await R.renderFrames({composition, serveUrl, inputProps: job.props || {}, imageFormat: 'none', outputDir: null,
-          frameRange: [a, b], concurrency, puppeteerInstance: browser, chromiumOptions, logLevel: 'error',
+          frameRange: [a, b], everyNthFrame: Number(opt('every', '1')), concurrency, puppeteerInstance: browser, chromiumOptions, logLevel: 'error',
           timeoutInMilliseconds: 120000, onStart: () => {}, onFrameUpdate: () => {},
           onBrowserLog: (log) => {
             const text = log && log.text;
@@ -57,7 +59,7 @@ const TAG = 'TYPE-GLIDE ';
               logged += 1;
             }
           }});
-        write({tag: job.tag, done: true, frames: b - a + 1, logged, ms: Date.now() - t0});
+        write({tag: job.tag, done: true, frames: Math.floor((b - a) / Number(opt('every', '1'))) + 1, logged, ms: Date.now() - t0});
       } catch (e) {
         write({tag: job.tag, error: String((e && e.message) || e).split('\n')[0].slice(0, 400), logged,
           ms: Date.now() - t0});

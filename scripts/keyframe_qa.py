@@ -156,12 +156,32 @@ _OVERFLOW_JS = (
     "var ov=!(b.right<R.left||b.left>R.right||b.bottom<R.top||b.top>R.bottom);if(!ov)return;"
     "var ins=b.left>=R.left-3&&b.right<=R.right+3&&b.top>=R.top-3&&b.bottom<=R.bottom+3;"
     "if(!ins){encl++;if(!enclEx)enclEx=(t.innerText||'').trim().slice(0,16);}});});"
+    # A PICTURE MAGNIFIED PAST ITS OWN PIXELS (scripts/media_res_qa.py is the remotion tier's census): every visible
+    # raster <img> drawn at least 48 px, unless it is blurred (>=2 px) or nearly transparent on purpose.
+    "var upW=0,upEx='';document.querySelectorAll('img').forEach(function(im){"
+    "var src=im.currentSrc||im.src||'';if(/\\.svg(\\?|$)/i.test(src)||src.indexOf('data:image/svg')===0)return;"
+    "if(!im.naturalWidth||!im.naturalHeight)return;var R=im.getBoundingClientRect();"
+    "if(R.width<48&&R.height<48)return;var e=im,bl=0,op=1;"
+    "while(e&&e!==document.documentElement){var cz=getComputedStyle(e);"
+    "var mz=/blur\\(([\\d.]+)px\\)/.exec(cz.filter||'');if(mz)bl=Math.max(bl,parseFloat(mz[1]));"
+    "var oz=parseFloat(cz.opacity);op*=isNaN(oz)?1:oz;e=e.parentElement;}"
+    "if(bl>=2||op<0.25)return;var dz=window.devicePixelRatio||1,fz=getComputedStyle(im).objectFit;"
+    "var sx=R.width*dz/im.naturalWidth,sy=R.height*dz/im.naturalHeight;"
+    "var sz=(fz==='contain'||fz==='scale-down')?Math.min(sx,sy):Math.max(sx,sy);"
+    "if(sz>upW){upW=sz;upEx=src.split('/').slice(-1)[0].slice(0,60)+' '+im.naturalWidth+'x'+im.naturalHeight;}});"
     "var bleed=!!document.querySelector('.bg-photo,.bg-soft,.bg-motif,.bg-grid');"
     "return JSON.stringify({worst:Math.round(worst),clip:Math.round(clip),textlen:t,centered:centered,"
     "ctop:Math.round(ct),cbot:Math.round(cb),cleft:Math.round(cl),cright:Math.round(cr),"
     "wcx:wsum?Math.round(wx/wsum):-1,wcy:wsum?Math.round(wy/wsum):-1,encl:encl,enclEx:enclEx,"
     "mystery:myst,mystery_ex:mystEx,nearmiss:nm,nearmiss_ex:nmEx,crowd:crowd,crowd_ex:crowdEx,"
-    "bleed:bleed,cued:!!document.querySelector('[data-cue-index]')});})()")
+    "bleed:bleed,cued:!!document.querySelector('[data-cue-index]'),"
+    "upscale:Math.round(upW*100)/100,upscale_ex:upEx});})()")
+
+# the same thresholds as the remotion tier's census (scripts/media_res_qa.py), read from it so they cannot drift
+try:
+    from media_res_qa import ERROR_SCALE as UPSCALE_ERROR, WARN_SCALE as UPSCALE_WARN
+except ImportError:                                   # run from elsewhere: the documented values
+    UPSCALE_ERROR, UPSCALE_WARN = 1.25, 1.08
 
 # Reveal-count probe (evaluated at EACH frozen p-state): how many reveal elements are visible now.
 # Used for the STAGGER advisory — on a PACED page (no data-cue-index) a proper stagger makes this rise
@@ -715,6 +735,14 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     if _blank:
                         issues.append(_blank)
                     issues.extend(_geometry_issues(info, meta, W, H))   # overflow + intra-box clip + caption occlusion
+                    _up = float(info.get("upscale") or 0)
+                    if _up > UPSCALE_ERROR:
+                        issues.append(f"a picture is drawn {_up:.2f}x past its own pixels "
+                                      f"({info.get('upscale_ex', '')}) — visibly soft. Use a sharper source, "
+                                      f"rebuild UI natively, or draw it smaller (scripts/media_res_qa.py)")
+                    elif _up > UPSCALE_WARN:
+                        advisories.append(f"a picture is drawn {_up:.2f}x past its own pixels "
+                                          f"({info.get('upscale_ex', '')}) — soft to a careful eye")
                     if info.get("encl", 0) > 0:
                         advisories.append(f"{info['encl']} text block(s) SPILL past an enclosure "
                                           f"(e.g. \u300c{info.get('enclEx','')}\u300d) — a ring asserts "

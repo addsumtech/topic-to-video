@@ -694,6 +694,13 @@ the narration names, each with `"at": {"cue": "<the words>"}`. Target by text wh
 each action's words about 0.75 s or more into its line. On a recording, only `mark`. The whole format is the
 **Step script** section of `remotion/cards/DeviceDemo.md`. Cast `DeviceHero` for "this is the product" with one
 screen. Never invent a screen: with no real screenshots, choose an interface register instead and say so.
+
+**Every picture at its own resolution.** Before casting a raster (screenshot, recording, README GIF, photo), know
+its pixels and the box it will be drawn in at the peak of any camera push: it may never be drawn larger than
+its own pixels. A product's UI from a small demo GIF is REBUILT natively (DOM/SVG with the demo's own values,
+labelled sample data) or rendered from the product's own code/vectors at 2-3x — never scaled up. Logos from the
+source's largest PNG/SVG; frame sequences as PNG, never JPEG. `scripts/media_res_qa.py <out_dir>` measures it
+on the rendered Film and blocks delivery past 1.25x.
 After `tts.py`, `python3 scripts/validate.py <out_dir>` checks every device beat the way the render will meet
 it — the script's shape, its screenshots, every text target, the time each step needs — and names every
 problem before a render.

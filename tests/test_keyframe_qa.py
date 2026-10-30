@@ -277,3 +277,37 @@ def test_fill_verdict_uses_the_real_zone_not_160_1600():
     old = (info["cbot"] - info["ctop"]) / (1600 - 160)
     new = kq._fill_fraction(info, 1080, 1920)
     assert old >= 0.50 and new < 0.50
+
+
+def test_probe_measures_a_picture_drawn_past_its_own_pixels(tmp_path):
+    """The html tier's half of scripts/media_res_qa.py, asked of a real page: a 200 px image drawn 600 px wide is
+    3x; the same image at its own size, blurred, or an SVG is not judged."""
+    import base64
+    import io
+    import pytest
+    from PIL import Image
+    import scenes
+    try:
+        import _cdp
+        chrome_bin = scenes._chrome_bin({})
+    except Exception as e:                                       # noqa: BLE001
+        pytest.skip("no Chrome: %s" % e)
+    if not chrome_bin:
+        pytest.skip("no Chrome")
+    buf = io.BytesIO()
+    Image.new("RGB", (200, 100), (200, 40, 40)).save(buf, "PNG")
+    uri = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+    def probe(body):
+        page = tmp_path / "p.html"
+        page.write_text("<html><body style='margin:0'>%s</body></html>" % body, encoding="utf-8")
+        with _cdp.Chrome(chrome_bin, 1920, 1080) as c:
+            c.shot(page.as_uri(), str(tmp_path / "p.png"))
+            return kq._dom_probe(c)
+
+    big = probe("<img src='%s' style='width:600px;height:300px'>" % uri)
+    assert big["upscale"] == pytest.approx(3.0, abs=0.01) and "200x100" in big["upscale_ex"]
+    native = probe("<img src='%s' style='width:200px;height:100px'>" % uri)
+    assert native["upscale"] <= 1.0
+    blurred = probe("<img src='%s' style='width:600px;height:300px;filter:blur(8px)'>" % uri)
+    assert blurred["upscale"] == 0

@@ -35,6 +35,7 @@ import {STAGES, STAGE_GROUND} from './stage';
 import {StageRunContext, type StageBeat} from './runtime/stageRun';
 import {BlurFilter, blurOf} from './stage/surface';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
+import {MediaResAudit} from './runtime/mediaRes';
 import {TitleProbe} from './runtime/titleProbe';
 import {safeProfile, SafeZoneContext, SafeProfile, registerFrame, captionBottomY, SAFE_CAPTION_SCALE} from './runtime/safeZone';
 import {CAPTIONS} from './captions';
@@ -1198,6 +1199,7 @@ const BeatOptic: React.FC<{decl: OpticDecl; dna: DesignDNA | null; where: string
 
 export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
   typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string;
+  mediaRes?: boolean;
   // the delivery dither (runtime/dither): render_remotion asks for it; a still for a gate or a test does not
   dither?: boolean;
   // `safeEcho: false` switches a platform-safe film's margin echo off (SafeEcho) — for its proofs. Never set by a film.
@@ -1206,7 +1208,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   // optics identity proofs. Never set by a film.
   optics?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
-    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, safe, dither = false, optics = true,
+    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, safe, dither = false, optics = true,
     safeEcho = true}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
@@ -1463,6 +1465,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
       {/* The type-glide census (runtime/textSafe.tsx): per frame, every line of type that can snap, with its true
           position — read across frames by scripts/text_safe_qa.py --glide. Absent unless asked for. */}
       {typeGlide ? <TypeGlideAudit /> : null}
+      {/* The media-resolution census (runtime/mediaRes.tsx): per frame, every raster and how far it is magnified
+          past its own pixels — judged by scripts/media_res_qa.py. Absent unless asked for. */}
+      {mediaRes ? <MediaResAudit /> : null}
       <DesignDNAContext.Provider value={activeDna}>
       {/* THE ATMOSPHERE MUST BELONG TO THIS FILM. With no explicit `theme` it fell back to its own
           defaults — a near-black field with a cyan/violet dot lattice, the palette of the MRI films this

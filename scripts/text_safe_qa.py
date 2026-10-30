@@ -658,7 +658,7 @@ def glide_bundle(dest, public_dir=None, env=None):
     return dest
 
 
-def glide_run(jobs, bundle_dir, concurrency=None):
+def glide_run(jobs, bundle_dir, concurrency=None, extra=()):
     """Render every job's frames with the census armed. Returns {tag: {"frames": {f: record}, "done": dict | None,
     "error": str | None}} — a job with no `done` line was not measured, whatever its frames say."""
     import tempfile
@@ -669,7 +669,7 @@ def glide_run(jobs, bundle_dir, concurrency=None):
         with open(jobs_path, "w", encoding="utf-8") as fh:
             json.dump(jobs, fh, ensure_ascii=False, allow_nan=False)
         cmd = ["node", _GLIDE_RUNNER, _REMOTION, bundle_dir, jobs_path, out_path, "--gl=" + _rs.default_gl(),
-               "--concurrency=%d" % (concurrency or glide_concurrency())]
+               "--concurrency=%d" % (concurrency or glide_concurrency())] + list(extra)   # e.g. another census's tag
         # Run from the remotion project, where the renderer keeps its browser (node_modules/.remotion): from
         # anywhere else it downloads a second copy into the caller's directory. And bounded: a register that
         # throws on every frame must come back as a failure, not hold the census forever.

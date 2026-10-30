@@ -159,6 +159,12 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     missing/unknown `shot`, and on a partly-filled beat that leaves a copy prop at its demo default
     (`scripts/demo_copy_qa.py <out_dir>` lists them). The evidence registers PhotoPlate/ScanReconstruct/RealVersus/MuseumLabel
     refuse to render without a real image. A label beside a point is clamped into its box with `placeLabel()` (`runtime/layout`).
+  - **Every picture at its own resolution.** A raster (screenshot, product UI, photo, frame sequence) is never drawn
+    larger than its own pixels, including at the peak of a camera push. Product UI is REBUILT natively in the
+    register (DOM/SVG, sharp at any size) or rendered from the product's own vector/code at 2-3x, not scaled up from
+    a README GIF; logos come from the source's largest PNG/SVG; frame sequences are PNG, never JPEG.
+    `scripts/media_res_qa.py <out_dir>` (a blocking delivery gate) measures every picture on every 3rd frame of
+    the Film and ERRORS past 1.25x — a film shipped its hero UI at 2.9x with every type gate green.
   - **Authoring.** Each scene gets `shot_fit` `{ideal, form, verdict: fit|adapt|build, why, ref?, shares?}` — the ideal
     picture FIRST (no register named), then the route; `shares` on every as-is beat — plus `shot` (a register id or a
     workshop shot) + `shot_props` + `shot_adaptation` `{changes: [{aspect: layout|encoding|structure, what, why}], kept,

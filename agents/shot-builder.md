@@ -70,3 +70,10 @@ waits for a machine-wide render lock, so builders take turns rendering while the
 ## Report
 For each shot: the beats it renders, the three frames you looked at (paths), what you fixed after looking, and anything
 the lead must decide (a kit gap, a beat whose ideal you could not reach). Keep it short; the lead reads the frames.
+
+**Every picture at its own resolution.** Before casting a raster (screenshot, recording, README GIF, photo), know
+its pixels and the box it will be drawn in at the peak of any camera push: it may never be drawn larger than
+its own pixels. A product's UI from a small demo GIF is REBUILT natively (DOM/SVG with the demo's own values,
+labelled sample data) or rendered from the product's own code/vectors at 2-3x — never scaled up. Logos from the
+source's largest PNG/SVG; frame sequences as PNG, never JPEG. `scripts/media_res_qa.py <out_dir>` measures it
+on the rendered Film and blocks delivery past 1.25x.
