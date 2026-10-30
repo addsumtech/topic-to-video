@@ -82,8 +82,13 @@ export const renderedPx = (el: Element, cs: CSSStyleDeclaration): number => {
   const win = el.ownerDocument?.defaultView;
   let scale = 1;
   for (let n: Element | null = el; n && win; n = n.parentElement) {
-    const M = selfMatrix(win.getComputedStyle(n));
+    const ncs = win.getComputedStyle(n);
+    const M = selfMatrix(ncs);
     if (M) scale *= Math.sqrt(Math.abs(M[0] * M[3] - M[1] * M[2]));
+    // CSS `zoom` scales layout and type but not the computed font-size: a panel laid out once at its largest scale
+    // (runtime/surfaceView.tsx `raster`) read as 8px type drawn at 24+
+    const z = parseFloat((ncs as unknown as {zoom?: string}).zoom || '1');
+    if (z > 0 && isFinite(z)) scale *= z;
   }
   return fs * scale;
 };
