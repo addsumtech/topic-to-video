@@ -67,6 +67,16 @@ def test_big_zoom_is_warning_not_error(tmp_path):
     assert r["ok"] is True and any("zoom delta" in w for w in r["warnings"])
 
 
+def test_a_board_setting_the_retired_motion_ss_is_warned(tmp_path):
+    """meta.motion_ss supersampled the old zoompan Ken Burns; the move is a float resample now and the key does
+    nothing — a board that sets it (to cure a shiver) is told so, not left believing it worked."""
+    data = _board(str(tmp_path), [_slide_scene(tmp_path, 0)])
+    assert not any("motion_ss" in w for w in validate.evaluate(data, str(tmp_path))["warnings"])
+    data["meta"]["motion_ss"] = 4
+    r = validate.evaluate(data, str(tmp_path))
+    assert r["ok"] is True and any("motion_ss is retired and IGNORED" in w for w in r["warnings"])
+
+
 def test_long_hold_is_warning(tmp_path):
     s = _slide_scene(tmp_path, 0, duration=20.0)
     data = _board(str(tmp_path), [s])

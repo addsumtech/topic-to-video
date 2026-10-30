@@ -188,7 +188,7 @@ One word on its own line: either `PASS` or `REVISE`.
 - Do NOT suggest re-rendering or running any script.
 - Do NOT rewrite full narration paragraphs — point to the specific sentence or phrase to fix.
 - Do NOT comment on visual aesthetics — colour choices, layout polish, animation styling. (You MAY flag a
-  *technical* motion defect, e.g. a Ken Burns zoom delta > 0.20 that will cause zoompan jitter.)
+  *technical* motion defect, e.g. a Ken Burns zoom delta > 0.20 that will read as a lurch.)
 - Keep the EDITS list skimmable: one bullet per issue, keyed to slide index (or `meta`).
 - If `duration` is null/missing (tts.py not yet run), skip R3 for that slide and note it (R3 is owned
   by `agents/critic-content.md` in any case — do not duplicate it here).

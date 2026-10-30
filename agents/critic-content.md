@@ -319,7 +319,7 @@ One word on its own line: either `PASS` or `REVISE`.
 - Do NOT suggest re-rendering or running any script.
 - Do NOT rewrite full narration paragraphs — point to the specific sentence or phrase to fix.
 - Do NOT comment on visual aesthetics — colour choices, layout polish, animation styling. (You MAY flag a
-  *technical* motion defect, e.g. a Ken Burns zoom delta > 0.20 that will cause zoompan jitter, per
+  *technical* motion defect, e.g. a Ken Burns zoom delta > 0.20 that will read as a lurch, per
   `references/motion-grammar.md`.)
 - Keep the EDITS list skimmable: one bullet per issue, keyed to slide index (or `meta`).
 - Factual accuracy of spoken narration (R0) and subtitle text errors (R7) are owned by

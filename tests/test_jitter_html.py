@@ -55,7 +55,7 @@ def test_the_ken_burns_geometry_follows_the_move_and_a_reduced_motion_film_holds
     assert b["w"] == pytest.approx(a["w"] * (1 + 0.12 * 59 / 60), rel=1e-6), "the tile grows with the zoom"
     assert (a["x"], a["y"]) != (b["x"], b["y"])
     still = _kb(tmp_path, True)
-    assert still[0][0] == still[59][0], "reduced motion: zoompan's move is held, so the truth is a still"
+    assert still[0][0] == still[59][0], "reduced motion: the Ken Burns move is held, so the truth is a still"
 
 
 def test_ken_burns_tiles_are_found_in_a_portrait_frame(tmp_path):
@@ -106,7 +106,9 @@ def test_a_snapped_crawl_fails_a_gliding_one_passes_and_every_scene_is_judged(tm
     assert code == 1, stdout
     assert worst.get(1) == "error", (worst, stdout)
     assert worst.get(2) == "clean" and worst.get(4) == "clean", (worst, stdout)
-    assert 3 in worst, "the Ken Burns slide is judged (its verdict is the zoompan's own: see the module docstring)"
+    # the Ken Burns slide is judged AND reads clean: its move is a float-window resample (render._kenburns_frames).
+    # The zoompan chain it replaced read every tile ERROR (0.22-0.59 px RMS on the proof films) at motion_ss 2.
+    assert worst.get(3) == "clean", (worst, stdout)
     assert worst.get(5) == "clean" and "judged on its settled span" in stdout, (worst, stdout)
     assert "scope: MEASURED" in stdout
 
@@ -121,7 +123,7 @@ def test_cjk_and_dark_type_on_pages(tmp_path):
 
 @needs_render
 def test_a_reduced_motion_film_with_captions_and_one_second_beats(tmp_path):
-    """Reduced motion: the page crawls are held by reduced-motion.css, the Ken Burns by zoompan — nothing moves,
+    """Reduced motion: the page crawls are held by reduced-motion.css, the Ken Burns by render — nothing moves,
     nothing trembles; captions burn over the page and their zone is left out; 1 s beats keep frames between seams."""
     out = _film(tmp_path, ["snapped", "kenburns", "still"], seconds=1.0, reduced_motion=True, captions=True)
     code, worst, stdout = _verdict(out)

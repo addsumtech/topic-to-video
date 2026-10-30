@@ -5046,7 +5046,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             if dz > MAX_ZOOM_DELTA and not reduced:
                 warnings.append(f"{tag}: zoom delta {dz:.2f} > {MAX_ZOOM_DELTA} — the zoom will lurch")
             if m["to"][2] > 1.25 and not reduced:
-                warnings.append(f"{tag}: zoom ends at {m['to'][2]:.2f}× (> 1.25) — fine text softens at zoompan's scale limit")
+                warnings.append(f"{tag}: zoom ends at {m['to'][2]:.2f}× (> 1.25) — fine text softens past the 1.25× scale limit (the fitted frame is upsampled)")
             # motivated motion: a callout should be framed by where the camera settles — flag
             # whenever motion.to is far from the callout center (a static centered hold OR a
             # pan aimed somewhere else both leave the highlight unframed).
@@ -5209,6 +5209,13 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                         f"Author the rhythm: mark 2-3 section seams (a `dip`) and set the rest to hard "
                         f"cuts (meta.transition:'none', or per-scene 'none'). The design plan's per-beat "
                         f"`transition` is what carries this — make sure it reached the storyboard.")
+
+    # meta.motion_ss supersampled the old zoompan Ken Burns; the move is a float-window resample now and the knob does
+    # nothing. Said aloud, so a board that raises it to "fix" a shiver is not left believing it did.
+    if "motion_ss" in meta:
+        warnings.append("meta.motion_ss is retired and IGNORED — an image slide's Ken Burns move is resampled at a "
+                        "float window every frame (render._kenburns_frames), which is jitter-clean without "
+                        "supersampling; delete the key (a shiver on a slide is a jitter_qa.py finding to report)")
 
     # Transition-STYLE discipline (motion-grammar "the style is the deck's LOOK"): ONE style per deck,
     # chosen from the register's motion personality; a per-scene override marks at most one special

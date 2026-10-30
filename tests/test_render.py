@@ -353,16 +353,13 @@ def test_callout_time_untimed_is_zero():
 
 
 # ── D: reduced-motion tier — static Ken Burns ────────────────────────────────────────
-def test_motion_exprs_static_under_reduced_motion():
+def test_motion_params_static_under_reduced_motion():
     m = {"from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.12]}
-    z, x, y = render._motion_exprs(m, 100, reduced_motion=True)
-    assert z == "1.0+(1.0-1.0)*on/100"                        # to==from -> constant zoom (no move)
-    assert x == "0.5+(0.5-0.5)*on/100" and y == "0.5+(0.5-0.5)*on/100"
+    assert render._motion_params(m, reduced_motion=True) == (0.5, 0.5, 1.0, 0.5, 0.5, 1.0)   # to==from: no move
 
-def test_motion_exprs_preserves_move_by_default():
+def test_motion_params_preserves_move_by_default():
     m = {"from": [0.5, 0.5, 1.0], "to": [0.4, 0.5, 1.12]}
-    z, x, _ = render._motion_exprs(m, 100, reduced_motion=False)
-    assert "1.12" in z and "0.4" in x                         # the real Ken Burns move is kept (amp=1.0)
+    assert render._motion_params(m) == (0.5, 0.5, 1.0, 0.4, 0.5, 1.12)       # the real Ken Burns move is kept
 
 
 def test_intensity_amp_dial():
@@ -373,32 +370,25 @@ def test_intensity_amp_dial():
     assert render._intensity_amp({"intensity": "balanced"}, {"intensity": "bold"}) > 1.0  # per-scene overrides
 
 
-def test_motion_exprs_amp_scales_move_but_keeps_start():
+def test_motion_params_amp_scales_move_but_keeps_start():
     # authored delta 0.10 leaves headroom under the 0.20 cap, so amp is visible un-clamped
     m = {"from": [0.5, 0.5, 1.0], "to": [0.4, 0.5, 1.10]}
-    zb, xb, _ = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "bold"}))
-    zs, xs, _ = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "subtle"}))
-    assert "1.0+(" in zb and "1.0+(" in zs                                    # same start anchor
-    import re
-    bz = float(re.search(r"1\.0\+\(([\d.]+)-1\.0\)", zb).group(1))
-    sz = float(re.search(r"1\.0\+\(([\d.]+)-1\.0\)", zs).group(1))
-    assert bz > 1.10 > sz > 1.0                                               # bold amplifies, subtle damps
+    bold = render._motion_params(m, amp=render._intensity_amp({"intensity": "bold"}))
+    subtle = render._motion_params(m, amp=render._intensity_amp({"intensity": "subtle"}))
+    assert bold[:3] == subtle[:3] == (0.5, 0.5, 1.0)                           # same start anchor
+    assert bold[5] > 1.10 > subtle[5] > 1.0                                   # bold amplifies, subtle damps
     # reduced motion still overrides everything to static regardless of amp
-    zr, _, _ = render._motion_exprs(m, 100, reduced_motion=True, amp=2.0)
-    assert zr == "1.0+(1.0-1.0)*on/100"
+    assert render._motion_params(m, reduced_motion=True, amp=2.0)[5] == 1.0
 
-def test_motion_exprs_amp_clamped_to_caps():
-    # authored move sits EXACTLY at the caps (delta 0.20, ends 1.20); a bold amp (×1.5) would push
+def test_motion_params_amp_clamped_to_caps():
+    # authored move sits EXACTLY at the caps (delta 0.20, ends 1.20); a bold amp (x1.5) would push
     # the effective zoom to 1.30 (delta 0.30, abs 1.30) — the lurch/soft-text the validate gate forbids.
     m = {"from": [0.9, 0.5, 1.0], "to": [0.1, 0.5, 1.20]}
-    z, x, y = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "bold"}))
-    import re
-    z1 = float(re.search(r"1\.0\+\(([\d.]+)-1\.0\)", z).group(1))
+    z1 = render._motion_params(m, amp=render._intensity_amp({"intensity": "bold"}))[5]
     assert z1 <= render._MAX_ZOOM_ABS + 1e-9                                  # abs zoom capped at 1.25
     assert (z1 - 1.0) <= render._MAX_ZOOM_DELTA + 1e-9                        # delta capped at 0.20
     # a huge raw multiplier can't pan the anchor off-canvas either
-    _, x2, _ = render._motion_exprs(m, 100, amp=render._intensity_amp({"intensity": "9"}))
-    tx = float(re.search(r"0\.9\+\(([-\d.]+)-0\.9\)", x2).group(1))
+    tx = render._motion_params(m, amp=render._intensity_amp({"intensity": "9"}))[3]
     assert 0.0 <= tx <= 1.0
 
 def test_reduced_motion_in_fingerprint():

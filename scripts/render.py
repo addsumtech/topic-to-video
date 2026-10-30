@@ -1,7 +1,7 @@
 """storyboard.json -> out.mp4 (+ out.srt). ffmpeg-direct, no moviepy.
 
 Captions are burned in with PIL (a bundled font), composited as an overlay
-*after* zoompan so they stay fixed while the slide gently zooms. This avoids
+*after* the Ken Burns move so they stay fixed while the slide gently zooms. This avoids
 any dependency on an ffmpeg built with libass.
 """
 import argparse, json, math, os, re, tempfile, time
@@ -667,6 +667,8 @@ def _has_long_cued_anim(slide, meta):
     return False
 
 
+_LEGACY_SS = 2   # the retired meta.motion_ss default, kept only as a constant cache-key slot (see render())
+
 def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     """A short hash of everything that affects a slide's rendered clip, so a re-render can
     skip slides that didn't change (the cache key). Includes the image/audio file
@@ -741,6 +743,10 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     # the same bytes, so only html scenes are salted.
     if slide.get("type") == "html":
         fp["range"] = "tv1"
+    # an image slide's Ken Burns move is a float-window Lanczos resample now (_kenburns_frames), not zoompan's whole-
+    # pixel crop: its pixels changed, so its key does — and only its key (html/programmatic clips stay cached)
+    if slide.get("type", "slide") == "slide":
+        fp["kb"] = "lanczos-float1+grain"
     # a platform-safe portrait film draws every clip differently (scaled page, caption, bug) — keyed by the geometry
     # it was drawn with, so a change to safeZone.ts re-renders it too. Absent on every other film, whose keys (and
     # cached clips) stay exactly as they were.
@@ -901,7 +907,7 @@ def _karaoke_hl_rgb(out, band_bg, base):
 # imported from validate — validate imports render, not the reverse) so the intensity dial can't push
 # the EFFECTIVE move past them. Keep in sync with validate.MAX_ZOOM_DELTA / its 1.25 check.
 _MAX_ZOOM_DELTA = 0.20   # a bigger zoom delta reads as a lurch, not a Ken Burns
-_MAX_ZOOM_ABS = 1.25     # fine text softens past zoompan's scale limit
+_MAX_ZOOM_ABS = 1.25     # fine text softens magnified past 1.25x (the fitted frame is upsampled)
 
 # Visual-ENERGY amplitude dial (baoyu "mood"/comic "tone"): scales the Ken Burns MOVE so a bold beat
 # pushes harder + a subtle one drifts. meta.intensity sets the deck default; a per-scene slide.intensity
@@ -914,10 +920,10 @@ def _intensity_amp(meta, slide=None):
     except (TypeError, ValueError):
         return _INTENSITY.get(str(key).lower(), 1.0)
 
-def _motion_exprs(m, frames, reduced_motion=False, amp=1.0):
-    """The zoompan z / x-pan / y-pan expressions for a slide's Ken Burns move. With reduced_motion,
-    force to==from so every expression is constant (a static frame — no zoom/pan). `amp` scales the MOVE
-    (zoom-delta + pan) around the start point by the visual-energy dial (bold pushes more, subtle less)."""
+def _motion_params(m, reduced_motion=False, amp=1.0):
+    """(fx, fy, z0, tx, ty, z1): a slide's Ken Burns move as it is DRAWN — the authored from/to, held still under
+    reduced_motion (to==from: no zoom, no pan), and scaled around the start anchor by the visual-energy dial `amp`
+    (bold pushes more, subtle less) inside the caps validate enforces."""
     fx, fy, z0 = m["from"]; tx, ty, z1 = m["to"]
     if reduced_motion:
         tx, ty, z1 = fx, fy, z0
@@ -932,9 +938,96 @@ def _motion_exprs(m, frames, reduced_motion=False, amp=1.0):
         z1 = min(_MAX_ZOOM_ABS, max(1.0, z0 + dz))
         tx = min(1.0, max(0.0, tx))
         ty = min(1.0, max(0.0, ty))
-    return (f"{z0}+({z1}-{z0})*on/{frames}",
-            f"{fx}+({tx}-{fx})*on/{frames}",
-            f"{fy}+({ty}-{fy})*on/{frames}")
+    return fx, fy, z0, tx, ty, z1
+
+def _kenburns_window(params, frames, on, W, H):
+    """(left, top, width, height) of the Ken Burns crop on frame `on`, in px of the W x H fitted frame — FLOATS,
+    never rounded. The curve is linear in `on` over `frames` (zoom, then each pan anchor), held at its end past it;
+    the anchor (x, y in 0..1) is the point of the frame that stays put as the window shrinks:
+    left = (W - W/z) * x. The window is resampled to W x H whole (render._kenburns_frames)."""
+    fx, fy, z0, tx, ty, z1 = params
+    k = min(max(on, 0), frames) / float(frames) if frames > 0 else 0.0
+    z = z0 + (z1 - z0) * k
+    xp = fx + (tx - fx) * k
+    yp = fy + (ty - fy) * k
+    # held inside the picture as zoompan held it: zoom in [1, 10], the window's corner in [0, W - w] (an anchor
+    # authored outside 0..1 pins to the edge rather than showing what lies beyond the frame)
+    z = min(10.0, max(1.0, z))
+    w, h = W / z, H / z
+    return min(W - w, max(0.0, (W - w) * xp)), min(H - h, max(0.0, (H - h) * yp)), w, h
+
+def _kenburns_frames(src_png, W, H, params, frames, count, workers=None):
+    """Yield `count` rgb24 frames (bytes) of the Ken Burns move over the fitted frame `src_png`: frame `on` is the
+    window _kenburns_window(on) resampled whole to W x H by Pillow (Lanczos by default) with a FLOAT box — the
+    window lands where the curve says to a fraction of a pixel, so a slow push or pan glides instead of stepping.
+    Frames are resampled ahead on a few threads (Pillow releases the GIL while it resamples) and yielded in order,
+    with a bounded look-ahead, so memory stays a few frames whatever the clip's length. A move that does not move
+    (reduced motion, from == to) resamples once and repeats those bytes."""
+    from collections import deque
+    from concurrent.futures import ThreadPoolExecutor
+    src = Image.open(src_png).convert("RGB")
+    if src.size != (W, H):
+        raise ValueError("Ken Burns source %s is %dx%d, not the %dx%d frame it is fitted to" % (src_png, *src.size, W, H))
+
+    def draw(on):
+        l, t, w, h = _kenburns_window(params, frames, on, W, H)
+        if (l, t, w, h) == (0.0, 0.0, float(W), float(H)):
+            return src.tobytes()                       # the window IS the frame: no resample, no softening
+        return src.resize((W, H), Image.LANCZOS, box=(l, t, l + w, t + h)).tobytes()
+
+    fx, fy, z0, tx, ty, z1 = params
+    if (fx, fy, z0) == (tx, ty, z1):
+        still = draw(0)
+        for _ in range(count):
+            yield still
+        return
+    workers = workers or max(1, min(4, (os.cpu_count() or 2) - 1))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        ahead = deque()
+        nxt = 0
+        while nxt < count or ahead:
+            while nxt < count and len(ahead) < 2 * workers:
+                ahead.append(ex.submit(draw, nxt)); nxt += 1
+            yield ahead.popleft().result()
+
+# THE ENCODER CAN STEP A GLIDE TOO. With the resample exact (0.004 px RMS on a slow pan over a photo, measured
+# losslessly), x264's defaults at crf 18 put back 0.09-0.10 px (jitter_qa WARN): on smooth content it codes a slow move
+# as motion vectors on its quarter-pel grid and drops the residual, so the picture moves in quarter-pixel steps.
+# `-tune grain` keeps that residual (smaller deadzones, no DCT decimation, psy-trellis, flatter I/P/B quality):
+# 0.040 px on the same pan, +8% bytes. It also lowers the chroma QP offset written into the PPS (-2 -> -4), and a clip
+# whose PPS differs from the film's other clips would be decoded with the FIRST clip's by the `-c copy` concat — so
+# chroma-qp-offset=2 puts it back: the SPS/PPS stay byte-identical to every other clip's
+# (tests/test_kenburns_subpixel.py holds that, and the concat).
+_KB_X264 = ["-tune", "grain", "-x264-params", "chroma-qp-offset=2"]
+
+def _run_fed(cmd, chunks):
+    """Run `cmd` (an ffmpeg reading rawvideo from stdin) and feed it `chunks`; raise CalledProcessError, as
+    _common.run does, when it fails. ffmpeg may stop reading once it has what `-t` asks for: a closed pipe after
+    that is the end of the feed, not an error — its exit status decides. stderr goes to a file (a pipe left
+    unread would fill and stall ffmpeg while it is being fed)."""
+    import subprocess
+    with tempfile.TemporaryFile() as err:
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=err)
+        try:
+            for c in chunks:
+                proc.stdin.write(c)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except BaseException:
+            proc.kill(); proc.wait()
+            raise
+        finally:
+            close = getattr(chunks, "close", None)
+            if close:
+                close()                                # a generator's look-ahead threads end here, not at GC
+            try:
+                proc.stdin.close()
+            except (BrokenPipeError, OSError):
+                pass
+        rc = proc.wait()
+        if rc != 0:
+            err.seek(0)
+            raise subprocess.CalledProcessError(rc, cmd, None, err.read().decode("utf-8", "replace")[-4000:])
 
 def _fade_filter(meta, dur, slide=None):
     """A gentle dip-to-bg at both clip edges (video only — audio + duration untouched, so the
@@ -1494,19 +1587,18 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     m = slide["motion"]
     # x/y are normalized pan anchors in 0..1 (0.5 = centered); map each to the crop
     # window's top-left so the chosen point stays put as we zoom in.
-    zexpr, xpan, ypan = _motion_exprs(m, frames, meta.get("reduced_motion"), amp=_intensity_amp(meta, slide))
-    # Anti-jitter: run zoompan in a SUPERSAMPLED space then scale back down. zoompan floors
-    # its crop x/y to whole *input* pixels, so at native size every step is a full output
-    # pixel = visible 'shivering'. Working at ss× makes each step 1/ss of an output pixel and
-    # the final downscale anti-aliases it away. A `scale` filter MUST precede zoompan (a
-    # looped image fed straight in makes zoompan mis-place/shrink the frame).
-    ss = max(1, int(meta.get("motion_ss", 2)))    # 2 = smooth + practical; raise to 3 if needed
-    bw, bh = W * ss, H * ss
-    vf = (f"scale={bw}:{bh}:flags=lanczos,"
-          f"zoompan=z='{zexpr}'"
-          f":x='(iw-iw/zoom)*({xpan})':y='(ih-ih/zoom)*({ypan})'"
-          f":d={frames}:s={bw}x{bh}:fps={fps},"
-          f"scale={W}:{H}:flags=lanczos")
+    # THE MOVE IS RESAMPLED, NOT CROPPED. Every frame is the curve's float window (_kenburns_window) resampled whole to
+    # W x H by Pillow's Lanczos and fed to ffmpeg as rawvideo, so the picture lands where the curve says to a fraction
+    # of a pixel. The old chain — scale to motion_ss x W, zoompan, scale back — put zoompan's crop at whole
+    # SUPERSAMPLED pixels: a slow push or pan held, then jumped 1/motion_ss px, and jitter_qa read every tile of a
+    # Ken Burns slide at 0.22-0.59 px RMS (ERROR) at motion_ss 2, 0.10-0.14 (WARN) even at 8. The float resample is
+    # exact before the encode (0.004 px), is sharper at rest (frame 0 of a push IS the fitted frame) and renders ~4-5x
+    # faster than ss 2; the encode keeps it under the WARN line with _KB_X264 (bench: references/ffmpeg-recipes.md §1).
+    # The ffmpeg frame count is unchanged (-t dur -r fps); two frames past it are offered and ffmpeg stops reading
+    # when it has enough.
+    params = _motion_params(m, meta.get("reduced_motion"), _intensity_amp(meta, slide))
+    feed = _kenburns_frames(frame, W, H, params, frames, int(math.ceil(dur * fps - 1e-6)) + 2)
+    vf = "null"
 
     # Overlays, in order: one static callout layer (whole slide) + one caption layer per
     # narration segment, each enabled only during its spoken window — so the subtitle
@@ -1549,7 +1641,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
                                                  os.path.join(workdir, f"safe_{i:02d}.png"), bg_label=fill_src)
         parts.extend(sp); extra_inputs += si
     # Brand bug — an ffmpeg overlay input (like callouts), NOT a paste into the source frame: the
-    # frame rides zoompan, so a baked-in bug would zoom/pan with the Ken Burns move. Composited here,
+    # frame rides the Ken Burns move, so a baked-in bug would zoom/pan with it. Composited here,
     # BEFORE _edge_filter in both caption modes, so the bug dips/travels with the seam.
     if _bug_wanted(meta, slide):
         bug_png = os.path.join(workdir, f"bug_{i:02d}.png")
@@ -1588,12 +1680,13 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     vlabel = _limited_range(parts, vlabel)
     fcomplex = ";".join(parts)
 
-    cmd = ["ffmpeg", "-y", "-loop", "1", "-i", frame, "-i",
+    cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-framerate", str(fps),
+           "-i", "pipe:0", "-i",
            os.path.join(meta["_out"], slide["audio"])] + extra_inputs + [
         "-filter_complex", fcomplex, "-map", f"[{vlabel}]", "-map", "1:a",
         "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
-        "-c:v", "libx264", "-crf", "18", "-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
-    _common.run(cmd)
+        "-c:v", "libx264", "-crf", "18"] + _KB_X264 + ["-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
+    _run_fed(cmd, feed)
     return out_clip
 
 def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False, preview=False):
@@ -1614,7 +1707,9 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
     vertical = vertical or meta.get("aspect") == "9:16"
     W, H = _canvas(meta, vertical)
     burn = bool(meta.get("captions", True))
-    ss = max(1, int(meta.get("motion_ss", 2)))
+    # the fingerprint's old supersample slot, frozen at the old default: the Ken Burns move no longer supersamples (a
+    # slide's key carries "kb" instead), and a constant here keeps every other scene's cached clip valid
+    ss = _LEGACY_SS
     # first/last scene indices for the brand bug's skip rule (bug + authored cover/endcard lockup
     # on one frame is a double-brand) — also honoured by a --sample of an edge scene
     if data["slides"]:

@@ -81,21 +81,28 @@ are never guessed or estimated. If your video feels out of sync:
 
 ---
 
-## Zoompan Jitter
+## Ken Burns jitter (an image slide shivers during the zoom or pan)
 
-Fast zoom jumps appear as jitter in the rendered clip.
+**How it is drawn.** Every frame of an image slide's move is the curve's FLOAT crop window
+(`render._kenburns_window`) resampled whole to the frame by Pillow's Lanczos and streamed to ffmpeg as rawvideo
+(`render._kenburns_frames`) — the picture lands where the curve says to a fraction of a pixel. There is no zoompan
+and no supersampling in this path any more.
 
-**Cause:** Large zoom delta between `motion.from[2]` and `motion.to[2]`.
+**Why it changed.** The old chain (scale to `meta.motion_ss`× → `zoompan` → scale back) placed zoompan's crop at
+whole SUPERSAMPLED pixels, so a slow push or pan held and then jumped: `jitter_qa.py` read every tile of a Ken Burns
+slide at 0.22–0.59 px RMS at the default `motion_ss` 2 (ERROR) and 0.10–0.14 px even at 8 (WARN). The float resample
+is exact before the encode (0.004 px on a slow pan, measured losslessly); x264's defaults then put back ~0.1 px on
+smooth content (quarter-pel motion vectors with the residual dropped), so image-slide clips are encoded with
+`-tune grain` (its PPS chroma offset pinned back, so the `-c copy` concat still holds) — clean on the bench at 16:9
+and 1:1 and on the fixture films at all three aspects; the 9:16 bench's remaining findings sit on featureless or
+aperture-limited windows (`ffmpeg-recipes.md` §1).
+`meta.motion_ss` is retired: it is ignored, and `validate.py` warns on a board that still sets it.
 
-**Fix:** Keep zoom delta ≤ 0.20. The default (1.0 → 1.12, delta = 0.12) is
-safe. Exceeding 0.25 often produces visible stepping at 30 fps with ffmpeg's
-`zoompan`.
-
-Note: `render.py` already applies `meta.motion_ss` (default 2) supersampling to reduce stepping
-(scale up → zoompan → scale back down with lanczos). If jitter persists at the default delta,
-raise `meta.motion_ss` to 3 before reducing the zoom delta.
-Measured: the default move at `motion_ss` 2 shows a continuous 0.1–0.3 px RMS ripple and no staircase. Type that
-steps a pixel at a time on the remotion or HTML tier is a different defect — see `text_safe_qa.py --glide`.
+**If a slide still shivers:** run `python3 scripts/jitter_qa.py <out_dir>` — it judges every image slide's tiles
+against the exact move. A finding there is a renderer defect to report, not a knob to turn. A zoom delta above 0.20
+still reads as a lurch and an end zoom above 1.25× still softens fine text (validate warns on both): those are
+about the move, not jitter.
+Type that steps a pixel at a time on the remotion or HTML tier is a different defect — see `text_safe_qa.py --glide`.
 
 ---
 

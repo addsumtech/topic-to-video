@@ -55,7 +55,7 @@ backlog isn't lost — it is a reference, not part of the runtime pipeline.
    `skills/hyperframes-animation/adapters/gsap-timeline-and-labels.md`.
 2. **Pre-render validation gate.** ✅ Done — see "Already adopted".
 3. **Coordinate-target zoom replaces blind Ken Burns.** ✅ Done — see "Already adopted". (Note:
-   the slide tier frames via the zoompan anchor, not GSAP's inverse-translate; the full
+   the slide tier frames via the Ken Burns anchor, not GSAP's inverse-translate; the full
    measure-once-and-translate version arrives with #1.) Ref:
    `skills/hyperframes-animation/rules/coordinate-target-zoom.md`.
 

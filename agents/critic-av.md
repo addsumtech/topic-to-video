@@ -87,8 +87,8 @@ The renderer burns captions derived from `narration` into the video. Check the r
 - **FAIL** if any on-screen glyph renders as tofu (□□□) — Latin, CJK, or symbol — indicating a missing
   font.
 - **WARN** if motion (Ken Burns pan/zoom, animated scene transitions) appears jittery or stutters
-  noticeably in the rendered frames (possible zoompan delta issue — flag the slide index and approximate
-  timestamp).
+  noticeably in the rendered frames (flag the slide index and approximate timestamp; on an image slide a
+  zoom delta > 0.20 reads as a lurch, and a sub-pixel shiver is what `jitter_qa.py` measures).
 - PASS on fine visual aesthetics: exact colour palette, micro-spacing, and animation style are NOT your
   concern — only technical rendering failures AND the squint/player-chrome checks below.
 - **Brand bug (only when `meta.brand.placement` includes `"bug"`)** — you are the ONLY gate whose
@@ -130,7 +130,7 @@ Example bullets:
 - Slide 5, ~18 s (R7, caption clipped): burned caption "…and this yields a significantly improved reconstruction" is cut at the right edge. Fix: reduce caption font size or widen the safe-zone margin in the render config.
 - Slide 2, ~6 s (R7, tofu): CJK caption "重建质量" renders as □□□. Fix: ensure the CJK font (e.g. NotoSansCJK) is installed and referenced in the caption renderer.
 - Slide 7 (visual rendering, blank): frame at ~34 s shows an unstyled white page — the theme was not applied to slide 7. Fix: verify the slide path in `storyboard.json` and re-render.
-- Slide 4, ~22 s (visual rendering, motion jitter): zoompan stutter visible — Ken Burns delta likely > 0.20. Check `motion.to` zoom value in `storyboard.json` and re-render.
+- Slide 4, ~22 s (visual rendering, motion jitter): Ken Burns lurch visible — zoom delta likely > 0.20. Check `motion.to` zoom value in `storyboard.json` and re-render.
 
 If there are no issues, write:
 ```

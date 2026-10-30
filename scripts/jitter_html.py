@@ -7,7 +7,7 @@ WHY. jitter_qa judges type against its own geometry from the delivered pixels; o
 the Film composition's census. The HTML tier had nothing in that place: its glide audit (keyframe_qa) reads the DOM
 and judges whether Chrome WILL snap a baseline — a rule — and nothing read the encoded film. Every way this tier
 moves type that the rule does not model went unjudged: a page's own camera or Ken Burns, a reveal under a
-transform the rule cannot decompose (matrix3d), the image slides' zoompan, the encode.
+transform the rule cannot decompose (matrix3d), the image slides' Ken Burns resample, the encode.
 
 WHERE EACH SCENE'S GEOMETRY COMES FROM.
   html    the page itself, on the frames that SHIP: the same capture plan render_html captures on
@@ -15,8 +15,8 @@ WHERE EACH SCENE'S GEOMETRY COMES FROM.
           same in-page census keyframe_qa's glide audit runs (its _GLIDE_JS_TMPL), which reports each line's own TEXT
           box (its text ranges, every transform applied). A reduced-motion film is censused on the page with
           reduced-motion.css injected, as it is rendered.
-  slide   an image with a Ken Burns move: the move is render._motion_exprs, applied by zoompan in a supersampled
-          space, so the true place of any point of the fitted image on frame `on` is known exactly. The image has no
+  slide   an image with a Ken Burns move: frame `on` is render._kenburns_window(on), a float window resampled whole,
+          so the true place of any point of the fitted image on frame `on` is known exactly. The image has no
           DOM, so the census tracks its edge-dense tiles (jitter_qa.tiles_of) through that move.
   other   programmatic scenes (title, keypoints, timeline, chart, compare) are drawn by PIL at whole pixels from
           their own arithmetic and have no geometry to read. They SETTLE, though: after the last frame that differs
@@ -129,9 +129,10 @@ def html_scene(chrome, out_dir, meta, s, nf, fps, url):
     return frames
 
 
-def kenburns_scene(out_dir, meta, s, nf, W, H):
-    """{frame in scene: [tile line]} — the image's edge-dense tiles carried through the zoompan move exactly as
-    render._render_slide drives it (supersampled by meta.motion_ss, crop x/y = (iw - iw/zoom) * pan)."""
+def kenburns_scene(out_dir, meta, s, nf, W, H, within=None):
+    """{frame in scene: [tile line]} — the image's edge-dense tiles carried through the Ken Burns move exactly as
+    render._render_slide draws it: frame `on` is the float window render._kenburns_window(on) resampled whole to
+    W x H, so a point (x, y) of the fitted frame lands at ((x - left) * z, (y - top) * z), z = W / window width."""
     import render as R
     import jitter_qa as jq
     from PIL import Image
@@ -142,22 +143,27 @@ def kenburns_scene(out_dir, meta, s, nf, W, H):
         g = np.asarray(Image.open(fit).convert("L"), dtype=np.float32)
     # apart by more than two window margins: under a zoom every tile moves differently, and a window that reaches its
     # neighbour is skipped as crowded (600 of 1335 pairs on the first Ken Burns fixture)
-    tiles = jq.tiles_of(g, gap=2 * jq.PAD + 4)
+    # `within` (x0, y0, x1, y1 in px of the fitted frame): where the picture is judged — on a platform-safe film the
+    # frame's interior, inside its dissolving border. Tiles are chosen THERE, at the film's own tile size, so a slide
+    # whose densest type sits along an edge is still judged rather than left with no tile at all.
+    if within is not None:
+        a, b, c, d = (int(round(v)) for v in within)
+        sc = jq.frame_scale(W, H)
+        tiles = [(x0 + a, y0 + b, x1 + a, y1 + b) for x0, y0, x1, y1 in
+                 jq.tiles_of(g[b:d, a:c], tw=round(160 * sc), th=round(64 * sc), gap=2 * jq.PAD + 4)]
+    else:
+        tiles = jq.tiles_of(g, gap=2 * jq.PAD + 4)
     m = s.get("motion") or {"from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.0]}
-    ze, xe, ye = R._motion_exprs(m, nf, meta.get("reduced_motion"), amp=R._intensity_amp(meta, s))
-    ss = max(1, int(meta.get("motion_ss", 2)))
-    bw, bh = W * ss, H * ss
+    params = R._motion_params(m, meta.get("reduced_motion"), R._intensity_amp(meta, s))
+    # the curve's length is the render's own (round(duration x fps), render._render_slide), not the clip's frame count
+    fps = float(meta.get("fps", 30) or 30)
+    frames = max(1, int(round(float(s.get("duration") or nf / fps) * fps)))
     out = {}
     for on in range(nf):
-        env = {"on": float(on)}
-        z, xp, yp = (float(eval(e, {"__builtins__": {}}, env)) for e in (ze, xe, ye))   # noqa: S307 — our own arithmetic
-        cx, cy = (bw - bw / z) * xp, (bh - bh / z) * yp                                 # the crop's corner, ss px
-        lines = []
-        for n, (x0, y0, x1, y1) in enumerate(tiles):
-            X, Y = (x0 * ss - cx) * z / ss, (y0 * ss - cy) * z / ss
-            lines.append({"k": "/tile%d" % n, "t": "image tile %d" % n, "x": X, "y": Y, "w": (x1 - x0) * z,
-                          "h": (y1 - y0) * z, "o": 1})
-        out[on] = lines
+        left, top, w, _h = R._kenburns_window(params, frames, on, W, H)
+        z = W / w
+        out[on] = [{"k": "/tile%d" % n, "t": "image tile %d" % n, "x": (x0 - left) * z, "y": (y0 - top) * z,
+                    "w": (x1 - x0) * z, "h": (y1 - y0) * z, "o": 1} for n, (x0, y0, x1, y1) in enumerate(tiles)]
     return out
 
 
@@ -240,6 +246,12 @@ def film_census(out_dir, video):
     cap_top = None
     if meta.get("captions", True) and not band:
         cap_top = (safe["cap_bottom"] - safe["cap_room"]) if safe else H - caption_band_px(W, H)
+    # on a platform-safe film the page dissolves into the margin across its action-safe border (render._safe_keep_mask,
+    # a STATIC ramp): a window reaching into it holds still ink-to-ground edges while the page moves under them, and
+    # reads that as a tremble — found on a 9:16 screenshot pan, whose densest tile sat on the top border (2.7 px "RMS",
+    # every other tile 0.005-0.08). Lines there are left out and counted; the frame's interior is judged as before.
+    inner = ((safe["x0"] + safe["fade_x"], safe["y0"] + safe["fade_y"], safe["x0"] + safe["fw"] - safe["fade_x"],
+              safe["y0"] + safe["fh"] - safe["fade_y"]) if safe else None)
     census, skip, scope = {}, {}, []
     programmatic = {}
     judged_scenes, not_judged = [], []
@@ -270,7 +282,13 @@ def film_census(out_dir, video):
                         raise RuntimeError("no CDP Chrome to read the pages' geometry")
                 per = html_scene(chrome, out_dir, meta, s, nf, fps, _page_url(out_dir, meta, s, temp_pages))
             elif kind == "slide" and s.get("image"):
-                per = kenburns_scene(out_dir, meta, s, nf, W, H)
+                # the interior in page px, one tile-window margin further in (the move carries a tile outward)
+                within = None
+                if safe:
+                    kx, ky = safe["fw"] / float(W), safe["fh"] / float(H)
+                    mx, my = safe["fade_x"] / kx + 4 * jq.PAD, safe["fade_y"] / ky + 4 * jq.PAD
+                    within = (mx, my, W - mx, H - my)
+                per = kenburns_scene(out_dir, meta, s, nf, W, H, within)
             if per is not None:
                 judged_scenes.append(s.get("index", pos + 1))
             elif nf - tail - lead < 2:
@@ -292,6 +310,12 @@ def film_census(out_dir, video):
                     if pins and any(not (x + w < p0 or x > p2 or y + h < p1 or y > p3) for p0, p1, p2, p3 in pins):
                         if (i + 1) < nf:
                             no("under a callout drawn over the moving picture (a static layer would pin the window)")
+                        continue
+                    if inner is not None and (x - jq.PAD < inner[0] or y - jq.PAD < inner[1] or
+                                              x + w + jq.PAD > inner[2] or y + h + jq.PAD > inner[3]):
+                        if (i + 1) < nf:
+                            no("under the platform-safe frame's dissolving border (a static mask over the moving "
+                               "page would pin the window)")
                         continue
                     if cap_top is not None and y + h > cap_top:
                         if (i + 1) < nf:
