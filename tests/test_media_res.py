@@ -76,3 +76,57 @@ def test_the_runner_reads_the_census_tag():
     assert m.TAG.replace(" ", "_").replace("_", " ") == "MEDIA-RES "
     runtime = open(os.path.join(_ROOT, "remotion", "src", "runtime", "mediaRes.tsx"), encoding="utf-8").read()
     assert "export const MEDIA_RES_TAG = '%s'" % m.TAG in runtime
+
+
+# ── the edges: every outcome is said in words, and an unmeasured census is never an ok ─────────────────────────────
+def _finish(tmp_path, frames, want, why=None, mp4=True):
+    import time
+    out = str(tmp_path)
+    open(os.path.join(out, "storyboard.json"), "w").write("{}")
+    if mp4:
+        time.sleep(0.01)
+        open(os.path.join(out, "out.mp4"), "wb").write(b"\0")
+    res = {"frames": frames}
+    return m.finish(res, want, why, lambda f: 0, [1], ["PhotoPlate"], out, want * 3, 3, 1, time.time())
+
+
+def test_a_film_with_no_raster_is_nothing_to_judge_said_in_those_words(tmp_path, capsys):
+    r = _finish(tmp_path, {f: {"n": 0, "m": []} for f in range(0, 30, 3)}, 10)
+    assert m.verdict(r) == ("NOTHING TO JUDGE", 0)
+    assert r["sampled"] == 10 and r["pictures"] == 0 and not r["unmeasured"]
+
+
+def test_a_census_that_lost_frames_is_unmeasured_exit_2_even_with_no_finding(tmp_path):
+    """A frame-count mismatch between the census and the film: the frames it never logged are not clean."""
+    r = _finish(tmp_path, {f: {"n": 1, "m": []} for f in range(0, 15, 3)}, 10)
+    assert m.verdict(r) == ("UNMEASURED", 2) and "only 5 of 10" in r["unmeasured"][0]
+    r = _finish(tmp_path, {}, 10, why="render FAILED: boom")
+    assert m.verdict(r) == ("UNMEASURED", 2)
+
+
+def test_an_error_outranks_an_unmeasured_tail(tmp_path):
+    frames = {f: {"n": 1, "m": [_row("a.png", 2.0)]} for f in (0, 3, 6)}
+    r = _finish(tmp_path, frames, 10)
+    assert m.verdict(r) == ("FAIL", 1)
+
+
+def test_the_scope_says_what_was_measured_and_where_from(tmp_path):
+    r = _finish(tmp_path, {f: {"n": 1, "m": []} for f in range(0, 30, 3)}, 10, mp4=False)
+    lines = m.scope_lines(r)
+    assert any("MEASURED" in ln and "10 of 30 frames" in ln for ln in lines)
+    assert any("NOT MEASURED" in ln and "background-image" in ln for ln in lines)
+    assert "no out.mp4 yet" in r["source"]
+    r = _finish(tmp_path, {f: {"n": 1, "m": []} for f in range(0, 30, 3)}, 10)
+    assert "not older than the board" in r["source"]
+
+
+def test_a_board_that_cannot_be_read_is_unmeasured_not_a_crash(tmp_path, capsys):
+    assert m.main([str(tmp_path)]) == 2
+    out = capsys.readouterr().out
+    assert "NOT MEASURED" in out and "scope: nothing was measured" in out
+
+
+def test_the_icon_floor_is_one_number_and_scales_with_the_frame():
+    runtime = open(os.path.join(_ROOT, "remotion", "src", "runtime", "mediaRes.tsx"), encoding="utf-8").read()
+    assert "export const MIN_DRAWN_PX = %d;" % m.MIN_DRAWN_REF_PX in runtime
+    assert "MIN_DRAWN_PX * Math.min(frame.width, frame.height) / 1080" in runtime

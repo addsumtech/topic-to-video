@@ -40,6 +40,7 @@ MIN_FRAMES = 2           # sampled frames a magnification must hold before it is
 BLUR_EXCUSE_PX = 2.0     # drawn blurred on purpose
 MIN_OPACITY = 0.25       # fainter than this the picture is arriving or leaving, not being looked at
 TAG = "MEDIA-RES "
+MIN_DRAWN_REF_PX = 48    # runtime/mediaRes.tsx MIN_DRAWN_PX: an icon-sized mark, not a picture (tests hold them equal)
 DEFAULT_EVERY = 3        # every 3rd frame: a camera push is smooth, so its peak is never more than 2 frames away
 
 
@@ -116,11 +117,50 @@ def scan_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
                 return k
         return len(segs) - 1
 
-    out = judge(res["frames"], beat_of, labels, shots)
-    pictures = sum(r.get("n", 0) for r in res["frames"].values())
-    out.update(frames=total, sampled=len(res["frames"]), every=every, pictures=pictures,
-               unmeasured=[why] if why else [], beats=len(slides), seconds=time.time() - t0)
+    return finish(res, want, why, beat_of, labels, shots, out_dir, total, every, len(slides), t0)
+
+
+def finish(res, want, why, beat_of, labels, shots, out_dir, total, every, beats, t0):
+    """The judgment of a census `res` (glide_run's slot) — split from scan_film so its edges are testable without a
+    render: a census that lost frames is UNMEASURED; one that read every frame and met no picture is NOTHING TO
+    JUDGE, said in those words."""
+    frames = res.get("frames") or {}
+    if not why and len(frames) < want:
+        why = "only %d of %d sampled frames reported a census" % (len(frames), want)
+    out = judge(frames, beat_of, labels, shots)
+    pictures = sum(r.get("n", 0) for r in frames.values())
+    mp4 = os.path.join(out_dir, "out.mp4")
+    board = os.path.join(out_dir, "storyboard.json")
+    if not os.path.isfile(mp4):
+        source = "the Film composition as storyboard.json renders it NOW — there is no out.mp4 yet"
+    elif os.path.isfile(board) and os.path.getmtime(board) > os.path.getmtime(mp4):
+        source = "the Film composition as storyboard.json renders it NOW — the board is newer than out.mp4, so the " \
+                 "delivered file may differ; re-render before trusting this for delivery"
+    else:
+        source = "the Film composition from storyboard.json (out.mp4 is not older than the board)"
+    out.update(frames=total, sampled=len(frames), every=every, pictures=pictures, source=source,
+               unmeasured=[why] if why else [], beats=beats, seconds=time.time() - t0)
     return out
+
+
+def verdict(r):
+    """('FAIL' | 'UNMEASURED' | 'NOTHING TO JUDGE' | 'ok', exit code)."""
+    if r["errors"]:
+        return "FAIL", 1
+    if r["unmeasured"]:
+        return "UNMEASURED", 2
+    if not r["pictures"]:
+        return "NOTHING TO JUDGE", 0
+    return "ok", 0
+
+
+def scope_lines(r):
+    return ["scope: MEASURED — every raster <img>, <video> and <canvas> at least %d px (at a 1080 short side; scaled "
+            "with the frame) and inside the frame, on %d of %d frames (every %d), in %s"
+            % (MIN_DRAWN_REF_PX, r["sampled"], r["frames"], r["every"], r.get("source") or "the Film composition"),
+            "scope: NOT MEASURED — vector pictures (SVG: no pixels to run out of); CSS background-image and SVG "
+            "<image> rasters (the census does not read them: no register draws a picture that way today); frames "
+            "between samples; softness that is not magnification (a source already blurred or JPEG-damaged)"]
 
 
 def main(argv):
@@ -131,7 +171,12 @@ def main(argv):
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
     out_dir, every, as_json = a.out_dir, max(1, a.every), a.json
-    r = scan_film(out_dir, every=every)
+    try:
+        r = scan_film(out_dir, every=every)
+    except (OSError, ValueError, RuntimeError) as e:
+        print("[media_res] NOT MEASURED — %s: %s" % (type(e).__name__, e))
+        print("[media_res] scope: nothing was measured (exit 2 is not a pass)")
+        return 2
     if as_json:
         print(json.dumps(r, ensure_ascii=False, indent=1))
     else:
@@ -143,15 +188,16 @@ def main(argv):
             print("[media_res] excused " + x)
         for u in r["unmeasured"]:
             print("[media_res] NOT MEASURED: " + u)
-        verdict = "FAIL" if r["errors"] else ("UNMEASURED" if r["unmeasured"] else "ok")
+        for ln in scope_lines(r):
+            print("[media_res] " + ln)
+        word, _code = verdict(r)
         print("[media_res] %s  %d ERROR(s), %d WARN(s) — %d of %d frames sampled (every %d), %d picture "
-              "measurement(s), %d beats · %.0fs" % (verdict, len(r["errors"]), len(r["warns"]), r["sampled"],
+              "measurement(s), %d beats · %.0fs" % (word, len(r["errors"]), len(r["warns"]), r["sampled"],
                                                    r["frames"], r["every"], r["pictures"], r["beats"], r["seconds"]))
-        if r["sampled"] and not r["pictures"]:
-            print("[media_res] note: no raster picture is drawn anywhere in this film — nothing to be soft")
-    if r["errors"]:
-        return 1
-    return 2 if r["unmeasured"] else 0
+        if word == "NOTHING TO JUDGE":
+            print("[media_res] the census read every sampled frame and no raster picture is drawn on any of them — "
+                  "nothing to be soft (a measured absence, not an ok)")
+    return verdict(r)[1]
 
 
 if __name__ == "__main__":
