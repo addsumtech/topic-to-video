@@ -654,10 +654,19 @@ def _shipped_url(out_dir, s, url, p=1.0):
     return url + f"?p={p}&cues={plan['cue_param']}&dur={frames / float(fps):.3f}"
 
 
+def canvas(meta):
+    """The canvas the film is RENDERED at (render._canvas): 9:16 is 1080x1920; any other aspect carries its own
+    width and height (storyboard.py writes them), so a 1:1 / 4:5 / 4:3 page is judged at its own size. Every
+    shape but 9:16 used to be judged on 1920x1080: a 1:1 film's pages were laid out in a frame they never ship in."""
+    if meta.get("aspect") == "9:16":
+        return 1080, 1920
+    return int(meta.get("width") or 1920), int(meta.get("height") or 1080)
+
+
 def run(out_dir, ps=DEFAULT_PS, as_json=False):
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
     meta = data["meta"]; meta["_out"] = out_dir
-    W, H = (1080, 1920) if meta.get("aspect") == "9:16" else (1920, 1080)
+    W, H = canvas(meta)
     kf = os.path.join(out_dir, "_keyframes"); os.makedirs(kf, exist_ok=True)
     html = [s for s in data.get("slides", []) if s.get("type") == "html"]
     if not html:
