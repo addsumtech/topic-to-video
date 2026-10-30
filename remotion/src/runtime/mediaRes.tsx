@@ -81,6 +81,27 @@ export const censusMedia = (root: HTMLElement, frame: DOMRect): {n: number; m: R
   return {n, m: rows};
 };
 
+type ORow = [string, number, number, number, number, number];
+
+/** THE OBJECT CENSUS (scripts/object_closeups.py): the box of every OBJECT on the frame — every device the kit draws
+ *  (`data-device-body`, named by its model), every screen on one (`data-device-screen`), and every element a shot
+ *  marks `data-object="<name>"` — as [name, x, y, w, h, opacity], clipped to nothing: the sheet clips. A film's
+ *  close-up sheet crops each at the frame where it is largest, so no object escapes a look at 100%. */
+export const censusObjects = (root: HTMLElement): ORow[] => {
+  const rows: ORow[] = [];
+  const add = (el: Element, name: string) => {
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return;
+    rows.push([name, Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height),
+      Math.round(opacityOf(el) * 100) / 100]);
+  };
+  root.querySelectorAll('[data-device-body]').forEach((el) =>
+    add(el, 'device:' + (el.getAttribute('data-device-model') || el.getAttribute('data-device-body'))));
+  root.querySelectorAll('[data-device-screen]').forEach((el) => add(el, 'screen:' + el.getAttribute('data-device-screen')));
+  root.querySelectorAll('[data-object]').forEach((el) => add(el, el.getAttribute('data-object') || 'object'));
+  return rows;
+};
+
 export const MediaResAudit: React.FC = () => {
   const frame = useCurrentFrame();
   const ref = React.useRef<HTMLDivElement>(null);
@@ -101,7 +122,8 @@ export const MediaResAudit: React.FC = () => {
         await new Promise((res) => requestAnimationFrame(() => res(null)));
       }
       if (!released && ref.current) {
-        const rec = censusMedia(ref.current.ownerDocument.body, ref.current.getBoundingClientRect());
+        const rec = {...censusMedia(ref.current.ownerDocument.body, ref.current.getBoundingClientRect()),
+          o: censusObjects(ref.current.ownerDocument.body)};
         // eslint-disable-next-line no-console
         console.log(MEDIA_RES_TAG + JSON.stringify({f: frame, ...rec}));
       }

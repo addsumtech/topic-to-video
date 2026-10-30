@@ -293,6 +293,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   `--gates` runs only the tier's delivery gates, records their exit codes for this render and exits 1 on a failure —
   the check before the review-depth question, and the record a `none` answer is delivered on. A later brief of the
   same render reuses those results while nothing they read has changed (`_gate_runs.json`), instead of re-running them.
+- `scripts/object_closeups.py <out_dir>`: `_object_closeups.png` — EVERY object in the film (each device the kit
+  draws, each screen on one, each element a shot marks `data-object="<name>"`) at the frame where it is largest,
+  cropped at 100% from out.mp4 and labelled with its beat and timecode. Mark every real or built thing a shot draws
+  with `data-object`. The maker looks at it before delivery, the critic gives every object on it a verdict (S16), and
+  device_fidelity_qa reads its screen boxes for the DEAD-SCREEN warning (a device showing nothing).
 - `scripts/settled_frame.py <clip.mp4|out_dir> <out.png|dir/> [--at 0.90] [--beat N]`: the frame to JUDGE a design on.
   Always sample late at a fixed fraction, because mid-clip grabs show animation in flight and produce confident wrong
   readings. Use `--beat N`, since the board's running duration is not the film's clock.
@@ -1073,7 +1078,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    film_energy_qa, shake_qa, rhythm_qa, pedagogy_qa, shot_proof; HTML: keyframe_qa, validate, check_av, rhythm_qa,
    pedagogy_qa) and records each exit code against the render id, and `critic_ledger.py --final` refuses a render
    whose record is missing a gate or holds a failure, on every path, `none` included — FIRST hand the film over
-   — `python3 scripts/deliver.py <out_dir>` and give the user that path — THEN ask ONE question
+   — and, on a remotion film, BEFORE handing it over run `python3 scripts/object_closeups.py <out_dir>` and LOOK at
+   `_object_closeups.png` yourself: every object in the film (each device, each screen, each `data-object`) at its
+   largest, cropped at 100%; fix what is not refined and accurate, or name it to the user — then
+   `python3 scripts/deliver.py <out_dir>` and give the user that path — THEN ask ONE question
    (`AskUserQuestion`; on a host with no choice UI, one typed question in the user's language, listing the four
    options with their text below):
 

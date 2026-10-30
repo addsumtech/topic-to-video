@@ -636,6 +636,8 @@ def build(out_dir, ran=None, codes=None):
                                               % (out_dir, n),
                                               "stale": "STALE (its source changed) — re-run python3 scripts/"
                                               "workshop.py %s fidelity %s" % (out_dir, n)}[st]))
+    L.append("")
+    L.extend(closeup_lines(out_dir))
     # THE ROUTES TO CONFIRM (S14): what validate.py credits as adapted or built, from the board. The critic says,
     # per beat, whether that route is VISIBLE in the frame — a ledger `routes` row each (critic_ledger.py).
     try:
@@ -688,6 +690,28 @@ def build(out_dir, ran=None, codes=None):
 # gates whose findings are signals, never a refusal: voice_qa always exits 0 by design; frame_safe_qa's border-ink
 # measure is known to be inverted (critic_ledger.DELIVERY_GATES says why). Recorded, but `blocking: false`. Derived
 # from that list, so a gate cannot be advisory here and blocking at --final.
+def closeup_lines(out_dir):
+    """The brief's lines for the OBJECT CLOSE-UP sheet (S16): every object in the film at its largest, at 100%. The
+    critic must give each one a verdict; a missing or stale sheet is said, with the command that makes it."""
+    import object_closeups as oc
+    st = oc.status(out_dir)
+    cmd = "python3 scripts/object_closeups.py %s" % out_dir
+    if st == "missing":
+        return ["**Object close-ups (S16)** — `%s` is MISSING: run `%s`, then judge every object on it. An object "
+                "nobody looked at at 100%% is the one that ships wrong." % (oc.SHEET, cmd)]
+    if st == "stale":
+        return ["**Object close-ups (S16)** — `%s` is STALE (out.mp4 changed since it was made): re-run `%s` and "
+                "judge the sheet of THIS render." % (oc.SHEET, cmd)]
+    objs = oc.objects(out_dir)
+    out = ["**Object close-ups (S16)** — `%s`: give EVERY object below a verdict in the S16 row (name, PASS/FAIL, "
+           "what you see at 100%%):" % oc.SHEET]
+    out += ["- `%s` · beat %s (%s) · t=%.2fs · %dx%d px" % (o["name"], o["beat"], o.get("shot", "?"), o["t"],
+                                                             o["box"][2], o["box"][3]) for o in objs]
+    if not objs:
+        out.append("- (no object is drawn large enough to look at in this film — say whether that is the truth)")
+    return out
+
+
 def _advisory():
     import critic_ledger as _cl
     return {s for rows in _cl.DELIVERY_GATES.values() for _l, s, _a, _t, blocking, _ap in rows if not blocking}

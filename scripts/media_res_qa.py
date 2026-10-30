@@ -86,12 +86,13 @@ def judge(frames, beat_of, labels, shots):
     return {"errors": errors, "warns": warns, "excused": ex}
 
 
-def scan_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
+def census_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
+    """(census, segs, slides, total frames) — the Film rendered once with the census armed: per sampled frame its
+    pictures (`m`, judged here) and its objects (`o`, scripts/object_closeups.py's)."""
     import remotion_segments as _rs
     import render_remotion as rr
     import text_safe_qa as ts
     import workshop as _ws
-    t0 = time.time()
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     props, slides = rr.film_props(out_dir, board)
     props = dict(props, mediaRes=True)
@@ -105,6 +106,13 @@ def scan_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
                            extra=("--tag=" + TAG.replace(" ", "_"), "--every=%d" % every))["film"]
     finally:
         shutil.rmtree(work, ignore_errors=True)
+    return res, segs, slides, total
+
+
+def scan_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
+    import text_safe_qa as ts
+    t0 = time.time()
+    res, segs, slides, total = census_film(out_dir, every, concurrency)
     want = (total - 1) // every + 1
     why = ts._glide_measured(res, want)
     labels = [s.get("index", i + 1) for i, s in enumerate(slides)]

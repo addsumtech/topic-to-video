@@ -20,6 +20,9 @@ used it:
               a second device
   workshop    a film's own shot that draws a capture of a known device size without the kit gets a WARN
               suggesting the kit
+  dead screen (the RENDERED film, once object_closeups.py has run) a device whose screen shows nothing — flat, or
+              only a wallpaper gradient: almost no luminance edges — on most of its sampled frames is a WARN: the
+              screen says nothing; show the product's real UI or justify it
 
 The sixth fidelity question — a film label or caption set ON the device — is asked of the DOM by
 runtime/textSafe.tsx (`device` in a violation, reported by text_safe_qa.py), because only the layout engine knows
@@ -243,6 +246,103 @@ def workshop_warning(slide, out_dir):
     return None
 
 
+# ── DEAD SCREEN — asked of the RENDERED film (object_closeups.py's census) ──
+# A product film's MacBook stood beside the watch for its whole scene showing a dark wallpaper gradient: a screen
+# that says nothing reads as a placeholder, and on a product film it is the product that is missing. A device's
+# screen is judged by its EDGES: real UI (type, rows, icons, a chart) is full of sharp luminance steps; an empty
+# screen, a flat colour or a wallpaper gradient has almost none, however bright or colourful it is.
+DEAD_GRAD = 14           # a step of this much luminance (0-255) between neighbouring pixels is an edge
+DEAD_EDGE = 0.006        # a screen with fewer than this share of its pixels on an edge shows nothing on that frame
+DEAD_SHARE = 0.5         # ...on more than this share of its sampled frames is a dead screen
+DEAD_INSET = 0.08        # the box's margin left out: a turned screen's bounding box takes in some bezel
+DEAD_MIN_PX = 60         # a screen drawn smaller than this is not read
+DEAD_SAMPLES = 12        # frames read per screen per beat
+
+
+def edge_density(gray):
+    """The share of a screen crop's pixels (a 2D uint8/float array) on a luminance edge stronger than DEAD_GRAD."""
+    import numpy as np
+    a = np.asarray(gray, dtype=float)
+    h, w = a.shape
+    iy, ix = int(h * DEAD_INSET), int(w * DEAD_INSET)
+    a = a[iy:h - iy, ix:w - ix]
+    if a.shape[0] < 3 or a.shape[1] < 3:
+        return 0.0
+    gx = np.abs(np.diff(a, axis=1))[:-1, :]
+    gy = np.abs(np.diff(a, axis=0))[:, :-1]
+    return float((np.maximum(gx, gy) > DEAD_GRAD).mean())
+
+
+def dead_verdict(densities):
+    """(dead, share) — the screen says nothing when more than DEAD_SHARE of its frames are under DEAD_EDGE."""
+    if not densities:
+        return False, 0.0
+    share = sum(1 for d in densities if d < DEAD_EDGE) / float(len(densities))
+    return share > DEAD_SHARE, share
+
+
+def _read_frame_gray(video, frame, fps):
+    import numpy as np
+    import subprocess
+    import tempfile
+    from PIL import Image
+    with tempfile.TemporaryDirectory(prefix="deadscr_") as tmp:
+        p = os.path.join(tmp, "f.png")
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.4f" % ((frame + 0.5) / fps), "-i", video,
+                            "-frames:v", "1", p], capture_output=True, text=True)
+        if r.returncode != 0 or not os.path.isfile(p):
+            return None
+        with Image.open(p) as im:
+            return np.asarray(im.convert("L"))
+
+
+def dead_screens(out_dir, read=None):
+    """WARN sentences, one per (beat, device screen) that shows nothing for most of its time on screen — read from
+    object_closeups.py's record of every sampled screen box and the delivered out.mp4. [] when there is no record
+    (object_closeups.py has not run: main() says so). `read(frame) -> 2D gray array` is for tests."""
+    rp = os.path.join(out_dir, "_object_closeups.json")
+    if not os.path.isfile(rp):
+        return []
+    rec = json.load(open(rp, encoding="utf-8"))
+    fps = float(rec.get("fps") or 30)
+    video = os.path.join(out_dir, "out.mp4")
+    if read is None:
+        cache = {}
+
+        def read(f):
+            if f not in cache:
+                cache[f] = _read_frame_gray(video, f, fps)
+            return cache[f]
+    out = []
+    for name, rows in sorted((rec.get("screens") or {}).items()):
+        by_beat = {}
+        for r in rows:
+            f, x, y, w, h = r[:5]
+            beat = r[5] if len(r) > 5 else None
+            if w >= DEAD_MIN_PX and h >= DEAD_MIN_PX:
+                by_beat.setdefault(beat, []).append((f, x, y, w, h))
+        for beat, boxes in sorted(by_beat.items(), key=lambda kv: (kv[0] is None, kv[0])):
+            step = max(1, len(boxes) // DEAD_SAMPLES)
+            dens = []
+            for f, x, y, w, h in boxes[::step][:DEAD_SAMPLES]:
+                g = read(f)
+                if g is None:
+                    continue
+                H, W = g.shape[:2]
+                crop = g[max(0, y):min(H, y + h), max(0, x):min(W, x + w)]
+                if crop.size:
+                    dens.append(edge_density(crop))
+            dead, share = dead_verdict(dens)
+            if dead:
+                out.append("%sthe %s screen says nothing on %d of %d sampled frames (edges on %.2f%% of it at the "
+                           "median, under %.1f%%) — an empty, flat or wallpaper-only screen reads as a placeholder: "
+                           "show the product's real UI on it, or justify an empty screen"
+                           % ("beat %s: " % beat if beat is not None else "", name.split(":", 1)[-1],
+                              round(share * len(dens)), len(dens), 100 * sorted(dens)[len(dens) // 2],
+                              100 * DEAD_EDGE))
+    return out
+
+
 def main(argv):
     if len(argv) != 1:
         sys.exit("usage: device_fidelity_qa.py <out_dir> — every device beat's fidelity findings")
@@ -261,6 +361,12 @@ def main(argv):
         for w in warns:
             print("WARN  beat %d: %s" % (i, w))
         n_err += len(errs)
+    # the rendered film's screens: a device that shows nothing (object_closeups.py keeps every screen's boxes)
+    if os.path.isfile(os.path.join(out_dir, "_object_closeups.json")):
+        for w in dead_screens(out_dir):
+            print("WARN  " + w)
+    elif any(s.get("shot") in ("DeviceDemo", "DeviceHero") for s in slides):
+        print("note: the dead-screen check reads the rendered film — run scripts/object_closeups.py after the render")
     return 1 if n_err else 0
 
 

@@ -431,6 +431,17 @@ shows it, or does it smear, alias or collapse? Stylised is allowed (S15, rule 2)
 keeps the true proportions and every defining part. Every verdict CITES the sheet by path; a real built thing with
 no sheet, a stale one, or one whose findings are not empty is a FAIL (`shot_proof.py` reports which). `na` only when
 no built thing depicts a real thing — say which records say `abstract`, and whether that is the truth.
+**EVERY OBJECT, not only the declared ones.** Open `<out_dir>/_object_closeups.png` (`python3
+scripts/object_closeups.py <out_dir>`; the brief says whether it is current): every device the kit draws, every
+screen on one and every element a shot marks `data-object`, each at the frame where it is LARGEST, cropped at 100%
+from the delivered frames. Give EVERY object on it a verdict in the S16 row — name, PASS/FAIL, and what you see at
+100% (questions a–f above apply to each: a laptop whose lid turns while its base stays front-on fails (e); a screen
+that shows nothing fails as a placeholder). An object missing from your row, or a sheet that is missing or stale,
+is a FAIL: the object the critic did not look at is the one that ships wrong.
+> **Precedent — 2026-10-30, a product film.** The watch was reviewed at 100% three times; the MacBook beside it never
+> was — lid turned in 3D over a flat front-on sliver of base, no deck, a dead dark screen — and every gate was green.
+> The user had to ask three times that EVERY object be refined and accurate. The close-up sheet exists so that no
+> object in any frame escapes a look.
 > **Precedent — none on record.** The rule came from a user review: a film's hand-drawn Apple Watch read ugly —
 > nothing asked that a built thing be TRUE to the thing, only that it encode its beat. A device's sourced spec
 > table (`runtime/deviceSpec.json`) is the device-shaped instance of the same record.
