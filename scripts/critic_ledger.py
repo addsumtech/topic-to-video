@@ -212,6 +212,12 @@ def _cjk_copy(out_dir):
     return any(_HAS_CJK.search(json.dumps(s.get("shot_props") or {}, ensure_ascii=False)) for s in slides or [])
 
 
+def _styled(out_dir):
+    """True when the film has a drawing style (meta.style) — the films style_qa judges."""
+    meta, _slides = _board(out_dir)
+    return isinstance((meta or {}).get("style"), dict)
+
+
 # THE DELIVERY GATES, ONE LIST PER TIER (SKILL.md 9d) — (label, script, args, timeout, blocking, applies).
 # critic_brief.py RUNS them (`--gates` alone, or inside the brief) and records each exit code against the render id;
 # `--final` refuses a render whose record is MISSING one or holds a blocking failure, on every path — `none` included
@@ -249,6 +255,8 @@ DELIVERY_GATES = {
         # the only gates that judge the FILM rather than a frame: does it move, and does it move without vibrating
         ("FILM ENERGY — motion, light, light arc (density measured)", "film_energy_qa.py", (), 300, True, None),
         ("SHAKE — travelling vs vibrating", "shake_qa.py", (), 300, True, None),
+        # a film with a drawing style: did the DRAWING change, on every beat, and not only its colours (scripts/style_qa.py)
+        ("STYLE drawn, not recoloured (every beat, styled vs unstyled)", "style_qa.py", (), 600, True, _styled),
         ("rhythm", "rhythm_qa.py", (), 240, True, None),
         ("teaching order", "pedagogy_qa.py", (), 240, True, None),
         ("frame-safe (ADVISORY — border ink; known inverted, see above)", "frame_safe_qa.py", (), 240, False, None),

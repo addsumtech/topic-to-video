@@ -427,6 +427,18 @@ All six selectable directions map to a built-in preset (`terminal-technical`, `k
 chart, a diagram; it just inherits the type/palette/container/motion/annotation grammar. Prefer subtle structural
 consistency over repetitive decoration (a shot needs 2–3 recognizable DNA cues, not a forced terminal box).
 
+## Step 0.65 — A DRAWING STYLE the user named (a cartoon, 水墨, "like Kurzgesagt", a screenshot): decompose it
+
+When the user asks for a style of DRAWING, it is not a register to find and not a palette: it is `meta.style`, values on
+fixed drawing axes that one engine applies to every beat and every object. **Follow `references/style-engine.md`**:
+1. Save references in `<out_dir>/style_refs/` — the user's own images first. Without any, record `refs_missing`.
+2. Write the spec, with a note per non-default value naming what in which reference it was read from.
+3. Validate it with `style_spec.py`.
+4. Choose registers as usual. The style changes how they DRAW, not which beat they serve.
+
+Before the full render, the user approves `style_sample.py`'s sheet; record `--signoff` only on their yes. A drawing
+property no axis has is a shortfall to record, never a per-film workaround.
+
 ## Step 0.7 — Style Assimilation + the three-layer model (run per shot, for ANY chosen style)
 The template is a GRAMMAR, not a layout template — and the trap cuts BOTH ways: too weak = reskin a generic
 register (a gauge tinted to the accent); too strong = make EVERY beat the same explicit style CONTAINER (for

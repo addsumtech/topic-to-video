@@ -383,3 +383,34 @@ def test_a_medium_shows_on_a_dark_ground_too(tmp_path):
         p = img[patch].astype(float)
         return float(np.abs(p[:, 1:] - p[:, :-1]).mean())
     assert tooth(st) > tooth(un) + 1.0, ("no medium on the dark ground", tooth(un), tooth(st))
+
+
+@needs_render
+def test_a_shadow_falls_under_a_shape_in_a_frame_filling_drawing(tmp_path):
+    """Most registers draw in ONE frame-sized <svg>: a shadow set on the drawing's root never fell, because a root
+    that fills the frame is its ground (ClayStack in the axis gallery: shadow.mode did nothing)."""
+    spec = {"name": "shadow", "refs": [], "refs_missing": "test", "shadow": {"mode": "hard-offset", "offset": 10}}
+    un = _render("StyleProbe", {}, 10, str(tmp_path / "un.png"))
+    st = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "st.png"))
+    x0, y0, x1, y1 = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))["rect"]
+    p = (y1 + 5, (x0 + x1) // 2)                       # just below the rect, inside its offset shadow
+    assert st[p].astype(int).sum() < un[p].astype(int).sum() - 60, (st[p], un[p])
+    gx, gy = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))["glint_edge"]
+    # the glint casts nothing of its own: just below it, inside the rect, is still the rect's yellow
+    assert st[gy + 52, gx].astype(int).sum() > 450, st[gy + 52, gx]
+
+
+@needs_render
+def test_hatch_shades_with_lines_not_bands(tmp_path):
+    """shade 'hatch' drew exactly what 'cel' drew (the axis gallery showed them identical): a value that does not do
+    what it names. Hatching is ink lines where the drawing is in shade."""
+    cel = {"name": "cel", "refs": [], "refs_missing": "t", "shade": {"mode": "cel"}}
+    hatch = {"name": "hatch", "refs": [], "refs_missing": "t", "shade": {"mode": "hatch"}}
+    a = _render("StyleProbe", {"style": cel}, 10, str(tmp_path / "cel.png"))
+    b = _render("StyleProbe", {"style": hatch}, 10, str(tmp_path / "hatch.png"))
+    cx, cy, r = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))["circle"]
+    dark = (slice(cy - 30, cy + 30), slice(cx - r + 30, cx - r + 90))       # the gradient's darker (left) side
+    def hf(img):
+        p = img[dark].astype(float).mean(axis=2)
+        return float(np.abs(p[:, 1:] - p[:, :-1]).mean() + np.abs(p[1:] - p[:-1]).mean())
+    assert hf(b) > hf(a) + 8, ("no hatching in the shade", hf(a), hf(b))

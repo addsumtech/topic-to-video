@@ -30,7 +30,9 @@ export const wobbleSeed = (frame: number, durF: number, fps: number, hz: number,
 export type Recipe = {wobble: number; seed: number; outer: number; ink: string; surface: string | null;
   strength: number; posterize: boolean; region?: [number, number, number, number]; k?: number; dark?: boolean;
   /** a GENERATED medium's tile (a served URL), tiled in place of the procedural noise; already grain, no matrix */
-  tile?: string};
+  tile?: string;
+  /** shade 'hatch': the ink colour of lines laid where the drawing is in shade */
+  hatch?: string};
 
 /** The tooth as an opaque grey layer from noise (R, ~0.5 ± 0.15): GRAIN, never a veil. Light ground: 1 where the
  *  noise is above its middle and darker only where it dips below, MULTIPLIED in. Dark ground: 0 where the noise is
@@ -48,7 +50,8 @@ export const toothMatrix = (amt: number, dark: boolean): string => {
 
 export const recipeKey = (r: Recipe): string =>
   [r.wobble.toFixed(2), r.seed, r.outer.toFixed(2), r.ink, r.surface ?? '-', r.strength.toFixed(2), r.posterize ? 'p' : '-',
-    (r.region ?? []).map((v) => v.toFixed(1)).join(','), (r.k ?? 1).toFixed(3), r.dark ? 'd' : 'l', r.tile ?? '-'].join('|');
+    (r.region ?? []).map((v) => v.toFixed(1)).join(','), (r.k ?? 1).toFixed(3), r.dark ? 'd' : 'l', r.tile ?? '-',
+    r.hatch ?? '-'].join('|');
 
 /** The noise each medium is made of: [baseFrequency x, y, octaves, contrast]. Frequencies are per px at a 1080 short
  *  side; the caller divides by the frame's scale. */
@@ -95,6 +98,27 @@ export const buildFilter = (doc: Document, defs: Element, id: string, r: Recipe,
     m.appendChild(el(doc, 'feMergeNode', {in: src}));
     f.appendChild(m);
     src = 'ringed';
+  }
+  if (r.hatch) {
+    // HATCHING: diagonal ink lines, as dense as the drawing is dark — shading drawn the way a pen or a burin draws it.
+    // The drawing's own light decides where (its fills keep two tones under 'hatch', so the lines follow the light).
+    const t = +(10 * scale * k).toFixed(3), w = +(1.6 * scale * k).toFixed(3);
+    const tile = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='${t}' height='${t}'>` +
+      `<path d='M0 ${t} L${t} 0 M${-t / 2} ${t / 2} L${t / 2} ${-t / 2} M${t / 2} ${1.5 * t} L${1.5 * t} ${t / 2}' ` +
+      `stroke='${r.hatch.replace('#', '%23')}' stroke-width='${w}'/></svg>`;
+    f.appendChild(el(doc, 'feImage', {href: tile, x: reg[0], y: reg[1], width: t, height: t, preserveAspectRatio: 'none',
+      result: 'hl'}));
+    f.appendChild(el(doc, 'feTile', {in: 'hl', result: 'lines'}));
+    // alpha = how dark the drawing is here: 0 from a light tone up, rising through the shade
+    f.appendChild(el(doc, 'feColorMatrix', {in: src, type: 'matrix', result: 'shade',
+      values: '0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -0.42 -0.83 -0.15 0 1.05'}));
+    f.appendChild(el(doc, 'feComposite', {in: 'lines', in2: 'shade', operator: 'in', result: 'inshade'}));
+    f.appendChild(el(doc, 'feComposite', {in: 'inshade', in2: src, operator: 'in', result: 'hh'}));
+    const m = el(doc, 'feMerge', {result: 'hatched'});
+    m.appendChild(el(doc, 'feMergeNode', {in: src}));
+    m.appendChild(el(doc, 'feMergeNode', {in: 'hh'}));
+    f.appendChild(m);
+    src = 'hatched';
   }
   if (r.surface && r.tile) {
     const t = +(TILE_PX * scale * k).toFixed(3);         // the tile at its own pixel size on screen

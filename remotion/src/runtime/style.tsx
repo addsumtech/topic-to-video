@@ -528,7 +528,11 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
   const wob = (ln as {wobble?: number}).wobble ?? 0;
   const outerW = ln.outline === 'outer' ? (typeof ln.weight === 'number' ? ln.weight : OUTLINE_PX) : 0;
   const svgSurface = surf.kind !== 'none' && surf.strength > 0 ? surf.kind : null;
-  if (defs && (wob > 0 || outerW > 0 || svgSurface)) {
+  // A SHADOW falls from each drawing, not from the frame: most registers draw in ONE frame-sized <svg>, which is its
+  // ground, so a shadow set on that root never fell (ClayStack in the axis gallery). It goes on the same targets.
+  const dropShadow = shadowCss(c, 'filter');
+  const hatching = (spec.shade as {mode: string}).mode === 'hatch';
+  if (defs && (wob > 0 || outerW > 0 || svgSurface || dropShadow || hatching)) {
     const guarded = new Set<Element>();
     for (const el of els) {
       const role = classify(el as never, root as never, true);
@@ -575,11 +579,21 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
         }
         return;
       }
+      if (dropShadow && isSvg && !(node instanceof SVGSVGElement)) {
+        const cs = getComputedStyle(node);
+        const leafAlpha = SHAPES_TAGS.has(node.tagName)
+          ? parseFloat(cs.fillOpacity || '1') * parseFloat(cs.opacity || '1') *
+            (urlId(cs.fill) ? alphaOf(meanColor(stopsOf(doc.getElementById(urlId(cs.fill)!) ?? node, doc).join(' ')) ?? '') : alphaOf(cs.fill))
+          : 1;
+        if (leafAlpha >= LIGHT_ALPHA || (SHAPES_TAGS.has(node.tagName) && cs.fill === 'none')) addFilter(node, dropShadow, 'shadow.mode');
+      }
+      if (!(wob > 0 || outerW > 0 || svgSurface || hatching)) return;
       const behind = groundBehind(node, root.parentElement ?? root, dna);
       const ink = outerW > 0 ? (lineColor(c, behind, '') ?? inkFor(behind, dna)) : '';
       target(node, {wobble: wob, seed: wob > 0 ? seed : 1, outer: outerW, ink, surface: isSvg ? svgSurface : null,
         strength: surf.strength, posterize: false, dark: isDark(behind),
-        tile: isSvg && svgSurface ? genTile(isDark(behind)) ?? undefined : undefined}, outerW > 0 ? 'line.outline' : wob > 0 ? 'line.wobble' : 'surface.kind');
+        tile: isSvg && svgSurface ? genTile(isDark(behind)) ?? undefined : undefined,
+        hatch: hatching ? (lineColor(c, behind, '') ?? inkFor(behind, dna)) : undefined}, outerW > 0 ? 'line.outline' : wob > 0 ? 'line.wobble' : 'surface.kind');
     };
     for (const k of Array.from(root.children)) if (!owned(k)) visit(k);
   }

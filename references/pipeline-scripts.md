@@ -6,6 +6,46 @@ flags, the measured history behind each rule, and the library-maintenance toolin
 before you change how you call it, set a `meta.*` field it reads that the index does not explain, or act on a
 finding it prints that you do not understand.
 
+- `scripts/style_spec.py <out_dir>`: validates `meta.style`, the film's DRAWING style as values on the fixed axes in
+  `remotion/src/runtime/styleAxes.json` (one table, read by Python and the renderer).
+  - ERROR: an unknown axis or value, or empty `refs` without `refs_missing`.
+  - WARN: a spec that leaves every axis as drawn ("only the palette changes"), and `fill.mode: texture` with no
+    surface.
+  - `spec_sha256` is what a sign-off is pinned to; shortfalls and credits are notes, not the spec.
+  - Procedure and axes: `references/style-engine.md`.
+- `scripts/style_sample.py <out_dir> [--to <folder>]` | `--signoff`: the style sample the user approves BEFORE the
+  full render.
+  - It picks 2–3 beats the style can reach (an object, a diagram, a type-led beat) and renders them at 90% beside
+    `style_refs/`. It adds a 2 s clip of the first in the Film (stepping and boil only show in motion).
+  - It prints shortfalls, exempt beats and the recolour-only note, and delivers `<film> 风格样张.png/.mp4`.
+  - With `surface.source: generated` it first asks Codex for the tile (`imagegen.texture`), or records the shortfall.
+  - `--signoff` writes `meta.style_signoff {spec_sha256, sample_sha256, user_ok}`, and is run **only after the user
+    said yes in chat**.
+  - `render_remotion.style_refusal` refuses the full render without it, or when the spec changed since.
+    `--sample` renders are allowed.
+- `scripts/style_qa.py <out_dir> [--json]`: a delivery gate for a styled film (in `critic_brief --gates`). Every beat
+  is rendered at 90% styled and unstyled; lines and fills are measured on a third render without the surface. It
+  measures:
+  - `edges`: 1 − IoU of colour-edge maps on a 3×3 blur;
+  - `fills`: the drop in ramp pixels on a 15×15 blur;
+  - `tooth`: high-frequency gain;
+  - `tone`: the medium's mean shift.
+
+  ERROR when:
+  - an axis set away from as-drawn moved on no reachable beat ("a recolour");
+  - a beat moved nothing while others did (unstyled, inconsistent);
+  - a surface shifts the tone by more than 6 levels.
+
+  Exempt beats (photograph, canvas) are listed and left out. It writes `_style/sheet.png`; look at it. The thresholds
+  are measured: a pure 60° hue rotation moves edges 0.002, and real restyles move them 0.32–0.75.
+- `scripts/style_coverage.py <out_dir>` | `--motion`: which beats the style cannot reach and why, derived rather than
+  listed (`register_energy.evidence_props()` photographs, a canvas grep). It warns past a quarter of the film.
+  `--motion` lists the registers whose own easing the personality does not bend.
+- `scripts/style_axis_gallery.py [--out references/style-axes.jpg]`: every axis value alone on ClayStack, cropped to
+  the subject. Regenerate it after an axis or the engine changes, and look at it: it found shadows that fell nowhere
+  and a `hatch` that drew `cel`.
+- `scripts/style_spike.py <work> [--spec path] [--only=A,B]`: the engine's determinism and type-stillness measurement
+  on `tests/fixtures/style/corpus.json` (twice, out of order across tabs, census lines matched by text).
 - `scripts/ingest.py <input> <out_dir>` — pptx/pdf/image-folder → `frames/` + skeleton `storyboard.json` (pulls speaker notes from pptx).
 - `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.wav` (rewrapped from say's AIFF, which the Remotion tier cannot read; no words.json). **`tts.py` REWRITES `storyboard.json`** (to store each clip's measured duration) — so run it (and any duration-editing pass of your own, e.g. tail-padding) **BEFORE you hand-set per-scene fields like `transition`**, or a later re-synth/duration pass that loads-then-saves the board will silently clobber those edits. Order: finalize audio & durations → THEN set transitions/motion → validate → render (render only READS the board, so it's safe after).
   **Every speech clip is MASTERED in place before its duration is measured:** loudness-normalised

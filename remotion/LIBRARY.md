@@ -462,6 +462,16 @@ chromatic split/glitch, focus-pull DoF, long-exposure trail, gravity bounce, bac
 
 ---
 
+## Style follows the film's spec
+
+A register draws in its own way, and a film with `meta.style` redraws it.
+- The engine (`runtime/style.tsx`) restyles what every register leaves in the DOM: strokes, fills, gradients,
+  shadows, boxes and display type. A new register is styled the day it is written, without a line of style code.
+- A register that draws an axis better itself exports `STYLE_HOOKS = ['line.wobble', …]`, reads `useStyle()`, and is
+  listed in `runtime/styleHooks.ts`.
+- A canvas or a photograph is beyond reach and is listed by `style_coverage.py`.
+- See `references/style-engine.md` and the axis sheet `references/style-axes.jpg`.
+
 ## Type follows the film's DNA
 
 A shot never hardcodes its own typeface. Text reads `var(--f-display|body|mono, <original family list>)`,

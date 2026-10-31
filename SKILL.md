@@ -183,6 +183,20 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     preset-mapped `shot_template` auto-applies one. Only 2-3 ANCHOR beats show the style container, and every shot is
     ASSIMILATED into the DNA. `design_dna.motif` is the subject's material: keep it near 0.05. `design_dna.finish` is on by
     default for themed films; `"none"` turns it off.
+  - **A DRAWING STYLE the user names** (cartoon, 水墨, "like Kurzgesagt", a screenshot) is `meta.style`. It is not a
+    register and not a palette: it is values on fixed drawing axes (line, fill, shade, shadow, form, surface, type,
+    motion), and one engine applies them to every beat and object. **Read `references/style-engine.md` and follow its
+    procedure:**
+    - references saved in `style_refs/` (the user's first);
+    - the spec, validated by `scripts/style_spec.py`;
+    - `scripts/style_sample.py <out_dir>`: 2–3 beats beside the references plus a clip, delivered to the Desktop;
+    - the user's yes, and only after it `style_sample.py <out_dir> --signoff`. The full render refuses a styled film
+      without a current sign-off;
+    - `scripts/style_qa.py` at delivery: it fails a style that only recoloured, a beat left unstyled, or a medium that
+      shifts the tone. Look at its sheet.
+
+    `scripts/style_coverage.py <out_dir>` names the beats a style cannot reach (photographs, canvases). A drawing
+    property no axis has is a recorded shortfall, never a per-film workaround.
   - **CJK.** The renderer bundles Noto Sans SC / Noto Serif SC (a GB2312 subset). validate refuses a board holding a
     character outside the subset, and warns when a CJK film's DNA lists system families only. The stack must NAME the Noto faces.
   - **Aspect.** Set `meta.aspect` (`16:9`|`9:16`|`1:1`|`4:5`|`4:3`) or pass `--vertical`. On a non-16:9 film the shot-director
@@ -1021,6 +1035,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    (`deliver.py <out_dir> --what sample`). No critic runs on the sample: the A/V review (`agents/critic-av.md`) moved to the review
    depth the user picks after the first clean full render (step 9). Look at the sample frames yourself first
    — caption legibility, glyphs, nothing cut off — before you hand it over.
+   **A styled film (`meta.style`) also shows its STYLE SAMPLE** (`style_sample.py <out_dir>`: the sheet + clip on the
+   Desktop). Record `--signoff` only after the user says yes to it; `render_remotion.py` refuses the full render until then.
    🔴 **CHECKPOINT · 🛑 STOP:** get explicit approval of the style (voice/pace/motion/
    captions) BEFORE the full render. Iterate on the sample until they approve — never
    batch-render all slides unsigned-off.
@@ -1086,7 +1102,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    (modelled on slide-maker's post-build review question). When every machine gate is green —
    `python3 scripts/critic_brief.py <out_dir> --gates` exits 0: it runs the tier's delivery gates once on this render
    (remotion: validate, check_av, keyframe_qa_remotion, text_safe incl. `--glide`/`--sync`, jitter_qa, cjk_type_qa on a CJK film,
-   film_energy_qa, shake_qa, rhythm_qa, pedagogy_qa, shot_proof; HTML: keyframe_qa, validate, check_av, jitter_qa,
+   film_energy_qa, shake_qa, style_qa on a styled film, rhythm_qa, pedagogy_qa, shot_proof; HTML: keyframe_qa, validate, check_av, jitter_qa,
    caption_contrast_qa, rhythm_qa, pedagogy_qa) and records each exit code against the render id, and `critic_ledger.py --final` refuses a render
    whose record is missing a gate or holds a failure, on every path, `none` included — FIRST hand the film over
    — and, on a remotion film, BEFORE handing it over run `python3 scripts/object_closeups.py <out_dir>` and LOOK at

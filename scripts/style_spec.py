@@ -94,6 +94,10 @@ def validate_spec(spec):
     for i, s in enumerate(spec.get("shortfalls") or []):
         if not (isinstance(s, dict) and all(isinstance(s.get(k), str) for k in ("axis", "wanted", "got", "why"))):
             errors.append("style.shortfalls[%d] needs axis, wanted, got and why" % i)
+    if not errors and isinstance(spec.get("fill"), dict) and spec["fill"].get("mode") == "texture" and \
+            ((spec.get("surface") or {}).get("kind") or "none") == "none":
+        warnings.append("style.fill.mode is 'texture' with no style.surface.kind: fills are painted with the medium, "
+                        "and there is none — they draw flat")
     if not errors and is_recolour_only(spec):
         warnings.append("meta.style %r leaves every drawing axis as drawn: only the palette changes. If the style "
                         "really draws like the default, say so on the sample sheet; otherwise decompose it"
