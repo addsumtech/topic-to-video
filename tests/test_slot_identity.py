@@ -58,8 +58,21 @@ def _since_slots(name, src):
     no longer found fails loudly (a reference silently left without the change would fail every frame instead).
       * DeviceDemo, the push-in capped at the screenshot's own pixels (agenthud-film 40835dd, ported to int4).
       * DeviceHero, the laptop turned by its own camera (runtime/laptop3d: no CSS rotate of its flat picture),
-        kept in its body by the least correction (identity when it fits); a slab turned by CSS shows its case's edge (`turned`)."""
-    if name == "DeviceDemo":
+        kept in its body by the least correction (identity when it fits); a slab turned by CSS shows its case's edge (`turned`).
+      * TechnicalPlate, a frame narrower than PLATE_SIDE_MIN_ASPECT drawn as a numbered plate with a parts key
+        (`renderPlateKey`): its side-callout sheet left the object ~35-50% of a 9:16 frame with 15.7 px labels. The
+        reference returns into the SAME exported layout at the same anchor; 16:9 keeps its own path, compared as ever."""
+    if name == "TechnicalPlate":
+        src = ("import {useCues} from '@runtime/cue';\n"
+               "import {renderPlateKey, PLATE_SIDE_MIN_ASPECT} from '@shots/TechnicalPlate';\n" + src)
+        src = _swap(src, "  const top = CONTENT_TOP + H * 0.02;",
+                    "  const cue = useCues();\n"
+                    "  if (W < H * PLATE_SIDE_MIN_ASPECT) {\n"
+                    "    return renderPlateKey({W, H, t, cue, dna, kicker, object, plateNo, strokes: STROKES, art: undefined,\n"
+                    "      parts: PARTS, note});\n"
+                    "  }\n"
+                    "  const top = CONTENT_TOP + H * 0.02;", name)
+    elif name == "DeviceDemo":
         src = _swap(src, "  const framing = (st: Step): {zoom: number; x: number; y: number} | null => {",
                     "  const shown: (Step | null)[] = [];\n"
                     "  steps.reduce<Step | null>((last, st) => { const cur = st.screen?.image && st.imageW ? st : last; "
