@@ -1,9 +1,11 @@
-"""A platform-safe (9:16) film's MARGIN is the beat itself: a blurred, dimmed echo of the register behind its 0.8 frame.
+"""A platform-safe (9:16) film's MARGIN is the beat itself: the register at its own size, softened, behind its 0.8 frame.
 
 The `social` profile draws every register in a frame scaled by 0.8 with feathered edges, so on 9:16 every beat was a
 panel on the film's ground ("every beat becomes a panel on black" — a 9:16 launch benchmark's first finding). Film.tsx
-SafeEcho draws the same register again behind it, scaled to cover the canvas about the frame's centre, blurred and (on
-a dark beat) dimmed. It must be invisible to every instrument: `data-echo` + `aria-hidden` (the text gates' echo rule),
+SafeEcho draws the same register again behind it, unscaled about the frame's own fixed point — so the frame's edges land
+on the canvas's and the margin is the register's outer ring continuing — and lightly blurred. (Its first version scaled
+the echo 1.36x about the frame's centre and dimmed it: interior content became smudges in the margin, and the dim drew
+the frame's edge; frame_safe_qa.margin_seam measures both.) It must be invisible to every instrument: `data-echo` + `aria-hidden` (the text gates' echo rule),
 `data-echo="margin"` (the seams' anchor lookup), no optic, no voice, and nothing at all on a film without the profile.
 
 Measured by mutation (E7) on OdometerRoll at 9:16, frame 45, with the type-collision audit armed: with the echo's
@@ -82,3 +84,75 @@ def test_a_board_can_refuse_the_echo_for_its_render_cost():
     rr = open(os.path.join(_ROOT, "scripts", "render_remotion.py"), encoding="utf-8").read()
     body = rr.split("zone = safe_zone(meta, aspect)")[1].split("theme = meta.get")[0]
     assert 'if meta.get("safe_echo") is False:' in body and 'props["safeEcho"] = False' in body
+
+
+def test_the_echo_is_the_register_at_its_own_size_about_the_frames_fixed_point():
+    body = FILM.split("const SafeEcho: React.FC")[1].split("\n};")[0]
+    assert "y0 / (1 - k)" in body, "the echo must scale about the point the frame itself is scaled about"
+    assert "brightness(" not in body, "a dimmed margin draws the frame's edge as a step of its own"
+    assert "ECHO_COVER" not in FILM, "a fixed magnification carries the frame's interior into the margin"
+
+
+# ── the margin seam, measured (scripts/frame_safe_qa.margin_seam) ───────────────────────────────────────────────
+import sys  # noqa: E402
+
+import numpy as np  # noqa: E402
+
+sys.path.insert(0, os.path.join(_ROOT, "scripts"))
+import frame_safe_qa as fsq  # noqa: E402
+import text_safe_qa as tsq  # noqa: E402
+
+W9, H9 = 1080, 1920
+
+
+def _radial(W, H, cx, cy, r, inner, outer):
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float64)
+    t = np.clip(np.hypot((xx - cx) / r, (yy - cy) / r), 0, 1)[..., None]
+    return np.array(inner) * (1 - t) + np.array(outer) * t
+
+
+def _framed(ground_canvas, ground_frame, blob=None):
+    """A synthetic platform-safe frame: `ground_frame` drawn into the 0.8 frame over `ground_canvas`, with the frame's
+    feathered mask — the composite Film.tsx makes. `blob` = (x, y, r, rgb) painted in the margin (a smudge)."""
+    prof = tsq.safe_profile()
+    k, asf = prof["k"], tsq.action_safe_frac()
+    x0, y0 = (1 - k) * W9 / 2, prof["y0"] * H9
+    yy, xx = np.mgrid[0:H9, 0:W9].astype(np.float64)
+    u, v = (xx - x0) / (k * W9), (yy - y0) / (k * H9)
+    inside = ((u >= 0) & (u <= 1) & (v >= 0) & (v <= 1))[..., None]
+    m = (np.clip(np.minimum(u, 1 - u) / asf, 0, 1) * np.clip(np.minimum(v, 1 - v) / asf, 0, 1))[..., None] * inside
+    out = ground_frame * m + ground_canvas * (1 - m)
+    if blob:
+        bx, by, br, rgb = blob
+        b = np.clip(1 - np.hypot(xx - bx, yy - by) / br, 0, 1)[..., None]
+        out = out * (1 - b) + np.array(rgb) * b
+    return out.clip(0, 255).astype(np.uint8)
+
+
+def test_a_continued_ground_reads_clean_a_panel_and_a_smudge_do_not():
+    g = _radial(W9, H9, 540, 300, 1700, (29, 24, 19), (8, 7, 6))
+    clean = fsq.margin_seam(_framed(g, g))
+    assert max(v for v, _ in clean.values()) <= fsq.MARGIN_SEAM_WARN, clean
+    flat = np.zeros_like(g) + (13, 11, 9)                       # the film's flat root ground round a radial frame
+    panel = fsq.margin_seam(_framed(flat, g))
+    assert panel["top"][0] > fsq.MARGIN_SEAM_WARN, panel
+    smudge = fsq.margin_seam(_framed(g, g, blob=(60, 300, 90, (190, 150, 60))))   # a gold arc in the margin
+    assert smudge["left"][0] > fsq.MARGIN_SEAM_WARN and smudge["top"][0] <= fsq.MARGIN_SEAM_WARN, smudge
+
+
+def test_a_frame_that_holds_no_seam_at_all_reads_clean():
+    # E19: an input with no signal (one flat colour everywhere) must read as nothing, not as a step
+    flat = np.zeros((H9, W9, 3), np.uint8) + 128
+    assert all(v == 0 for v, _ in fsq.margin_seam(flat).values())
+
+
+@needs_toolchain
+def test_the_margin_continues_the_frame_on_a_rendered_beat(tmp_path):
+    from PIL import Image
+    on = _still(tmp_path, "seam_on", {})
+    off = _still(tmp_path, "seam_off", {"safeEcho": False})
+    assert on.returncode == 0 and off.returncode == 0, ((on.stderr or "") + (off.stderr or ""))[-600:]
+    seam_on = fsq.margin_seam(np.asarray(Image.open(str(tmp_path / "seam_on.png")).convert("RGB")))
+    seam_off = fsq.margin_seam(np.asarray(Image.open(str(tmp_path / "seam_off.png")).convert("RGB")))
+    assert max(v for v, _ in seam_on.values()) <= fsq.MARGIN_SEAM_WARN, seam_on
+    assert max(v for v, _ in seam_off.values()) > fsq.MARGIN_SEAM_WARN, ("positive control", seam_off)
