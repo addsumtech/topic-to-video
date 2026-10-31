@@ -51,7 +51,7 @@ Px are at a 1080 px short side. Defaults mean "as the register drew it".
 | `line.weight` | number 0–24, `as-drawn` | the MAIN line's weight; lighter lines keep their proportion to it (floor ¼) — a hairline grid stays lighter than the series |
 | `line.variance` | 0–1 | per-stroke weight variation (a hand's pressure) |
 | `line.color` | `as-drawn`, `ink`, `fill-dark`, `none`, `#hex` | `ink`: whichever of the film's fg/bg contrasts with the fill it bounds (or the ground behind a line), black/white below 3:1; `fill-dark`: the fill, darkened. A line that carries HUE (a data series) keeps it |
-| `line.outline` | `none`, `outer`, `all` | `all`: every filled shape gets an outline, drawn under its fill so the visible line outside the edge is the weight; `outer`: one ring around each drawing's silhouette |
+| `line.outline` | `none`, `outer`, `all`, `both` | `all`: every filled shape gets an outline, drawn under its fill so the visible line outside the edge is the weight; `outer`: one ring around each drawing's silhouette; `both`: the silhouette at the weight and every inner line at HALF — illustration systems' two-weight rule, and what keeps a many-part object a drawing rather than a diagram of its facets |
 | `line.join` | `as-drawn`, `round`, `miter` | corners and caps of every line |
 | `line.wobble` | px 0–12 | the line redrawn by a hand (displacement) |
 | `line.boil_hz` | 0, 6–12 | the wobble redrawn on the animator's clock: 3 drawings cycled, never per-frame noise |

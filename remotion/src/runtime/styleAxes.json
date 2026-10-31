@@ -4,7 +4,7 @@
     "weight":   {"kind": "number", "min": 0, "max": 24, "also": ["as-drawn"], "default": "as-drawn"},
     "variance": {"kind": "number", "min": 0, "max": 1, "default": 0},
     "color":    {"kind": "enum", "values": ["as-drawn", "ink", "fill-dark", "none"], "hex": true, "default": "as-drawn"},
-    "outline":  {"kind": "enum", "values": ["none", "outer", "all"], "default": "none"},
+    "outline":  {"kind": "enum", "values": ["none", "outer", "all", "both"], "default": "none"},
     "join":     {"kind": "enum", "values": ["as-drawn", "round", "miter"], "default": "as-drawn"},
     "wobble":   {"kind": "number", "min": 0, "max": 12, "default": 0},
     "boil_hz":  {"kind": "number", "min": 0, "max": 12, "gap": [0, 6], "default": 0}

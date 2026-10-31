@@ -21,7 +21,7 @@
 import React, {useLayoutEffect, useRef} from 'react';
 import {continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useStyle, type ResolvedStyle} from './styleSpec';
-import {useDNA, shade, relLum, type DesignDNA} from './dna';
+import {useDNA, shade, relLum, contrastOf, type DesignDNA} from './dna';
 import {classify, inkFor, meanColor, steppedGradient, quantizeStops, quantizeAlphas, toHex} from './styleClassify';
 import {hash01, ReducedMotionContext, SceneDurationContext} from './motion';
 import {buildFilter, recipeKey, wobbleSeed, type Recipe} from './styleFilters';
@@ -145,12 +145,13 @@ const LIGHT_ALPHA = 0.6;
 /** A ground dark enough that a multiplied tooth would vanish into it (relative luminance). */
 const DARK_LUM = 0.18;
 const isDark = (css: string): boolean => relLum(toHex(css) ?? '#ffffff') < DARK_LUM;
-/** ONE GROUND FOR THE FILM (surface.ground 'film') is only safe between grounds of the same TONE: a register drawn on
- *  a dark ground sets light type, and repainted light that type is unreadable — type is never restyled, so such a
- *  beat keeps its ground and the selection check (validate: style ground) asks for another register. */
-const TONE_SPLIT = 0.35;
+/** ONE GROUND FOR THE FILM (surface.ground 'film') is only safe between grounds that are CLOSE: a register sets its
+ *  type for its own ground, and type is never restyled. A tone split was not enough — black and slate are both "dark"
+ *  and 3.7:1 apart, and SpotlightStage's dim words sank into the slate. Within 1.6:1 a 7:1 line of type keeps 4.4:1.
+ *  A beat farther off keeps its ground, and the selection check (validate: style ground) asks for another register. */
+const GROUND_CLOSE = 1.6;
 const sameTone = (a: string, b: string): boolean =>
-  (relLum(toHex(a) ?? '#ffffff') >= TONE_SPLIT) === (relLum(toHex(b) ?? '#ffffff') >= TONE_SPLIT);
+  contrastOf(toHex(a) ?? '#ffffff', toHex(b) ?? '#ffffff') <= GROUND_CLOSE;
 const translucentStops = (css: string): boolean =>
   [...css.matchAll(/rgba?\(([^)]+)\)/g)].some((m) => parseFloat(m[1].split(',')[3] ?? '1') < 0.95);
 
@@ -227,6 +228,10 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
   const short = Math.min(rr.width, rr.height) || 1080 * scale;
   const c: Ctx = {spec, dna, scale, root: rr, short, beat, defs};
   const ln = lineOf(spec);
+  // TWO WEIGHTS (line.outline 'both'): the drawing's silhouette at line.weight, every inner line at half — the rule
+  // illustration systems write down (the outline double the inner line), and what keeps a many-part object a drawing
+  // rather than a diagram of its facets
+  const inner = ln.outline === 'both' ? 0.5 : 1;
   const grad = gradientMode(spec);
   // how LIGHT (a translucent gradient) is drawn: as drawn unless the shade axis says otherwise
   const shadeAxis = (spec.shade as {mode: string}).mode;
@@ -423,13 +428,13 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
       const fillAlpha = parseFloat(cs.fillOpacity || '1') * parseFloat(cs.opacity || '1') *
         (urlId(fillPaint) ? alphaOf(solidFill) : alphaOf(fillPaint));
       const light = filled && fillAlpha < LIGHT_ALPHA;
-      const outlineHere = filled && !ground && !stroked && ln.outline === 'all' && !keepLine && !light;
+      const outlineHere = filled && !ground && !stroked && (ln.outline === 'all' || ln.outline === 'both') && !keepLine && !light;
       if (outlineHere) {
         const col = lineColor(c, solidFill, '') ?? inkFor(solidFill, dna);
         put(el, 'stroke', col, 'line.outline');
         // under the fill (paint-order), only the outer half of a stroke shows: draw it twice as wide, so the line a
         // viewer sees outside the edge is the weight the spec asked for and the fill keeps all of its area
-        put(el, 'stroke-width', lineWeight(c, i, OUTLINE_PX, 2)!, 'line.outline');
+        put(el, 'stroke-width', lineWeight(c, i, OUTLINE_PX, 2 * inner)!, 'line.outline');
         put(el, 'vector-effect', 'non-scaling-stroke', 'line.outline');
         put(el, 'paint-order', 'stroke fill', 'line.outline');
       } else if (stroked && !keepLine) {
@@ -438,7 +443,7 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
         const hueLine = !filled && chromatic(strokePaint);
         const col = hueLine ? null : lineColor(c, filled ? solidFill : groundBehind(el, root.parentElement ?? root, dna), strokePaint);
         if (col) put(el, 'stroke', col, 'line.color');
-        const w = lineWeight(c, i, null, 1, heaviest > 0 ? screenWidth(el, sw) / heaviest : 1);
+        const w = lineWeight(c, i, null, inner, heaviest > 0 ? screenWidth(el, sw) / heaviest : 1);
         if (w) { put(el, 'stroke-width', w, 'line.weight'); put(el, 'vector-effect', 'non-scaling-stroke', 'line.weight'); }
       }
       if ((stroked || outlineHere) && ln.join !== 'as-drawn') {
@@ -539,9 +544,10 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     const visibleFill = alphaOf(cs.backgroundColor) * parseFloat(cs.opacity || '1') >= LIGHT_ALPHA ||
       (bg.includes('gradient(') && !translucentStops(bg));
     const fillCol = alphaOf(cs.backgroundColor) > 0.05 ? cs.backgroundColor : (meanColor(bg) ?? dna?.bg ?? '#ffffff');
-    const ring = bordered || (ln.outline === 'all' && visibleFill);
-    if (ring && (ln.outline === 'all' || ln.color !== 'as-drawn' || typeof ln.weight === 'number')) {
-      const w = lineWeight(c, i, bordered ? bw / scale : OUTLINE_PX)!;
+    const outlined = ln.outline === 'all' || ln.outline === 'both';
+    const ring = bordered || (outlined && visibleFill);
+    if (ring && (outlined || ln.color !== 'as-drawn' || typeof ln.weight === 'number')) {
+      const w = lineWeight(c, i, bordered ? bw / scale : OUTLINE_PX, inner)!;
       const col = lineColor(c, fillCol, cs.borderTopColor) ?? (bordered ? cs.borderTopColor : inkFor(fillCol, dna));
       if (col !== 'none') {
         put(el, 'outline', `${w} solid ${col}`, 'line.outline');
@@ -562,7 +568,7 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
   // THE DRAWING TARGETS of the per-pixel filters: the largest elements that hold no type, no photograph and no canvas
   // — a filter displaces or textures everything inside the element it is set on, so it is never set above a glyph.
   const wob = (ln as {wobble?: number}).wobble ?? 0;
-  const outerW = ln.outline === 'outer' ? (typeof ln.weight === 'number' ? ln.weight : OUTLINE_PX) : 0;
+  const outerW = ln.outline === 'outer' || ln.outline === 'both' ? (typeof ln.weight === 'number' ? ln.weight : OUTLINE_PX) : 0;
   const svgSurface = surf.kind !== 'none' && surf.strength > 0 ? surf.kind : null;
   // A SHADOW falls from each drawing, not from the frame: most registers draw in ONE frame-sized <svg>, which is its
   // ground, so a shadow set on that root never fell (ClayStack in the axis gallery). It goes on the same targets.
@@ -592,7 +598,12 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
       const w = h.offsetWidth || node.getBoundingClientRect().width, ht = h.offsetHeight || node.getBoundingClientRect().height;
       return {...r, k: 1, region: [-pad, -pad, w + 2 * pad, ht + 2 * pad]};
     };
-    const target = (node: Element, r: Recipe, axis: string) => addFilter(node, filterFor(placed(node, r)), axis);
+    // a recipe that does nothing builds a filter with no primitives, and an empty filter draws NOTHING: a bare line
+    // with no ring, wobble, medium or hatching vanished outright (StyleProbe under outline 'both')
+    const target = (node: Element, r: Recipe, axis: string) => {
+      if (!(r.wobble > 0 || r.outer > 0 || r.surface || r.hatch || r.posterize)) return;
+      addFilter(node, filterFor(placed(node, r)), axis);
+    };
     const visit = (node: Element): void => {
       if (owned(node) || NON_DRAWING.has(node.tagName)) return;
       const role = classify(node as never, root as never, true);
@@ -625,11 +636,21 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
       }
       if (!(wob > 0 || outerW > 0 || svgSurface || hatching)) return;
       const behind = groundBehind(node, root.parentElement ?? root, dna);
-      const ink = outerW > 0 ? (lineColor(c, behind, '') ?? inkFor(behind, dna)) : '';
-      target(node, {wobble: wob, seed: wob > 0 ? seed : 1, outer: outerW, ink, surface: isSvg ? svgSurface : null,
+      // a silhouette is a FILLED drawing's: a bare line is its own outline, and ringed it only gets fat
+      const filledIn = (n: Element) => {
+        for (const e of [n, ...Array.from(n.querySelectorAll('*'))]) {
+          if (!SHAPES_TAGS.has(e.tagName) || e.tagName === 'line') continue;
+          const f = getComputedStyle(e).fill;
+          if (f && f !== 'none' && parseFloat(getComputedStyle(e).fillOpacity || '1') > 0) return true;
+        }
+        return !(node instanceof SVGElement);              // an HTML box is a filled thing
+      };
+      const ringW = outerW > 0 && filledIn(node) ? outerW : 0;
+      const ink = ringW > 0 ? (lineColor(c, behind, '') ?? inkFor(behind, dna)) : '';
+      target(node, {wobble: wob, seed: wob > 0 ? seed : 1, outer: ringW, ink, surface: isSvg ? svgSurface : null,
         strength: surf.strength, posterize: false, dark: isDark(behind),
         tile: isSvg && svgSurface ? genTile(isDark(behind)) ?? undefined : undefined,
-        hatch: hatching ? (lineColor(c, behind, '') ?? inkFor(behind, dna)) : undefined}, outerW > 0 ? 'line.outline' : wob > 0 ? 'line.wobble' : 'surface.kind');
+        hatch: hatching ? (lineColor(c, behind, '') ?? inkFor(behind, dna)) : undefined}, ringW > 0 ? 'line.outline' : wob > 0 ? 'line.wobble' : 'surface.kind');
     };
     for (const k of Array.from(root.children)) if (!owned(k)) visit(k);
   }

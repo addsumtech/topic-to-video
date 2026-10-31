@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A film's palette READ from its drawing style's references — the DNA a style's pictures imply.
 
-    python3 scripts/dna_from_refs.py <out_dir> [--force] [--dry-run]
+    python3 scripts/dna_from_refs.py <out_dir> [--ground [--force]] [--dry-run]
 
 The style engine draws (meta.style); the DNA colours (meta.design_dna). A style's references carry both: a cartoon's
 paper-white field and saturated primaries, an ink painting's rice paper and black. This reads them, the way
@@ -12,8 +12,11 @@ scripts/dna_from_deck.py reads a deck's theme, so the palette is repeatable and 
   * accents — the most saturated frequent colours, of hues at least 40° apart;
   * the rest (dim, surface, line, onAccent) mixed from those.
 
-It writes `meta.design_dna` with a `provenance` block, and never overwrites a DNA the board already has unless that
-DNA was itself read from references or `--force` is passed. Fonts: the board's own DNA faces when it has them,
+A film that already HAS a DNA keeps its ground and ink and takes only the references' ACCENTS: a reference's largest
+area is its own backdrop (a cel's painted sky), not the film's ground, and read as the ground it turned a cartoon on
+cream into slate and white — the user found that film worse than the hand-made one. `--ground` reads the whole palette
+(refused over a DNA the board did not read from references unless `--force`). With no DNA yet, the whole palette is
+read. It writes `meta.design_dna` with a `provenance` block. Fonts: the board's own DNA faces when it has them,
 otherwise a sans stack that names the bundled Noto CJK faces (validate refuses a CJK film's DNA without them).
 """
 import argparse
@@ -106,7 +109,8 @@ def derive(paths):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("out_dir")
-    ap.add_argument("--force", action="store_true", help="replace a DNA the board already has")
+    ap.add_argument("--ground", action="store_true", help="read the ground and ink too, not only the accents")
+    ap.add_argument("--force", action="store_true", help="with --ground: replace a DNA the board already has")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     path = os.path.join(a.out_dir, "storyboard.json")
@@ -121,10 +125,22 @@ def main(argv=None):
         print("%s REFUSED: meta.style has no reference image on disk to read a palette from" % TAG)
         return 2
     have = meta.get("design_dna")
-    if have and not a.force and not (isinstance(have, dict) and (have.get("provenance") or {}).get("from") == "style refs"):
+    whole = a.ground or not have
+    if whole and have and not a.force and not (isinstance(have, dict) and (have.get("provenance") or {}).get("from") == "style refs"):
         print("%s REFUSED: the board already has a design_dna it did not read from references — --force replaces it" % TAG)
         return 2
+    if not whole and not isinstance(have, dict):
+        print("%s REFUSED: the board's design_dna is a preset name — give it an object first, or pass --ground" % TAG)
+        return 2
     dna = derive(refs)
+    if not whole:
+        read = dna
+        dna = dict(have)
+        for k in ("accent", "accent2", "onAccent"):
+            dna[k] = read[k]
+        prov = dict(dna.get("provenance") or {})
+        prov.update({"accents_from": "style refs", "accent_refs": read["provenance"]["refs"]})
+        dna["provenance"] = prov
     if isinstance(have, dict):
         for f in ("fontDisplay", "fontBody", "fontMono"):
             if have.get(f):

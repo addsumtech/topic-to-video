@@ -92,9 +92,16 @@ def test_a_dark_world_register_on_a_light_style_is_named():
     import validate
     errs, warns = [], []
     validate._check_style(board["meta"], errs, warns, board["slides"])
-    assert any("SpotlightStage" in w and "dark" in w for w in warns), warns
+    assert any("SpotlightStage" in w and "#09090b" in w.lower() for w in warns), warns
 
 
 def test_no_style_or_no_dna_asks_nothing():
     board = {"meta": {"renderer": "remotion", "design_dna": _LIGHT_DNA}, "slides": [{"index": 1, "shot": "SpotlightStage"}]}
     assert sc.ground_conflicts(board) == []
+
+
+def test_a_ground_far_from_the_films_is_named_even_of_the_same_tone():
+    board = {"meta": {"renderer": "remotion", "design_dna": dict(_LIGHT_DNA, bg="#54717f", fg="#ffffff"),
+                      "style": {"name": "x", "refs": [], "refs_missing": "t"}},
+             "slides": [{"index": 1, "shot": "SpotlightStage"}]}
+    assert [r["shot"] for r in sc.ground_conflicts(board)] == ["SpotlightStage"]

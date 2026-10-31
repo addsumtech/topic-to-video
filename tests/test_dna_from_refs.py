@@ -59,14 +59,31 @@ def test_it_writes_the_board_and_never_overwrites_an_authored_dna(tmp_path):
     board = {"meta": {"renderer": "remotion", "style": {"name": "x", "refs": [{"src": "style_refs/a.png", "from": "found"}]}},
              "slides": []}
     (tmp_path / "storyboard.json").write_text(json.dumps(board))
-    assert dfr.main([str(tmp_path)]) == 0
+    assert dfr.main([str(tmp_path)]) == 0                                    # no DNA yet: the whole palette is read
     dna = json.load(open(tmp_path / "storyboard.json"))["meta"]["design_dna"]
     assert dna["provenance"]["from"] == "style refs"
-    board["meta"]["design_dna"] = {"id": "mine", "bg": "#000000"}
+    board["meta"]["design_dna"] = {"id": "mine", "bg": "#123456", "fg": "#fafafa", "accent": "#777777"}
     (tmp_path / "storyboard.json").write_text(json.dumps(board))
-    assert dfr.main([str(tmp_path)]) == 2
-    assert json.load(open(tmp_path / "storyboard.json"))["meta"]["design_dna"]["id"] == "mine"
-    assert dfr.main([str(tmp_path), "--force"]) == 0
+    assert dfr.main([str(tmp_path), "--ground"]) == 2                        # the ground is a design decision: refused
+    assert json.load(open(tmp_path / "storyboard.json"))["meta"]["design_dna"]["accent"] == "#777777"
+    assert dfr.main([str(tmp_path), "--ground", "--force"]) == 0
+
+
+def test_with_a_dna_only_the_accents_are_read(tmp_path):
+    """A reference's largest area is its own backdrop (a cel's painted sky), not the film's ground: read as the ground
+    it turned a cartoon on cream into slate and white (the second acceptance film; the user found it worse). So a film
+    that HAS a DNA keeps its ground and ink, and takes the references' accents."""
+    (tmp_path / "style_refs").mkdir()
+    _ref(tmp_path / "style_refs" / "a.png", ground=(60, 80, 95))
+    board = {"meta": {"design_dna": {"id": "cream", "bg": "#fff4df", "fg": "#231a14", "accent": "#777777", "accent2": "#888888"},
+                      "style": {"name": "x", "refs": [{"src": "style_refs/a.png", "from": "found"}]}}, "slides": []}
+    (tmp_path / "storyboard.json").write_text(json.dumps(board))
+    assert dfr.main([str(tmp_path)]) == 0
+    dna = json.load(open(tmp_path / "storyboard.json"))["meta"]["design_dna"]
+    assert (dna["id"], dna["bg"], dna["fg"]) == ("cream", "#fff4df", "#231a14")
+    hues = sorted(_hue(dna[k])[0] for k in ("accent", "accent2"))
+    assert any(h < 0.08 or h > 0.92 for h in hues) and any(0.5 < h < 0.7 for h in hues), (dna["accent"], dna["accent2"])
+    assert dna["provenance"]["accents_from"] == "style refs"
 
 
 def test_no_refs_is_refused(tmp_path):

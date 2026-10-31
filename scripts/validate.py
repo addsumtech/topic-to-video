@@ -2535,11 +2535,9 @@ def _check_style(meta, errors, warnings, slides=None):
     if slides:
         import style_coverage
         for r in style_coverage.ground_conflicts({"meta": meta, "slides": slides}):
-            warnings.append("meta.style: beat %s (%s) keeps its own %s ground (%s) on this film's %s ground (%s) — the style "
+            warnings.append("meta.style: beat %s (%s) keeps its own ground (%s), far from this film's (%s) — the style "
                             "cannot repaint it (its type is set for that ground); cast a register that draws on the "
-                            "film's ground" % (r["beat"], r["shot"], "dark" if style_coverage._lum(r["ground"]) < 0.35
-                                               else "light", r["ground"], "light" if style_coverage._lum(r["film"]) >= 0.35
-                                               else "dark", r["film"]))
+                            "film's ground" % (r["beat"], r["shot"], r["ground"], r["film"]))
 
 
 def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, vertical=False):

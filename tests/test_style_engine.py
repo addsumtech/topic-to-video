@@ -471,3 +471,36 @@ def test_one_ground_for_the_film_when_the_tones_agree(tmp_path):
 _EDITORIAL_LIGHT = {"id": "probe-light", "bg": "#fff4df", "fg": "#231a14", "dim": "#6d5d4f", "accent": "#e5432a",
                     "accent2": "#2a74d1", "onAccent": "#ffffff", "surface": "#ffe9bf", "surfaceBorder": "#231a14",
                     "line": "#231a14", "finish": "none"}
+
+
+@needs_render
+def test_one_ground_leaves_a_ground_far_from_the_films_even_of_the_same_tone(tmp_path):
+    """Black and slate are both "dark", 3.7:1 apart: repainted, a register's dim words set for black sank into the
+    slate (SpotlightStage, the second cartoon film). Grounds are unified only when they are close (≤ 1.6:1)."""
+    spec = {"name": "one ground", "refs": [], "refs_missing": "t", "surface": {"ground": "film"}}
+    slate = dict(_EDITORIAL_LIGHT, bg="#54717f", fg="#ffffff")
+    un = _render("StyleProbe", {"dark": True, "dna": slate}, 10, str(tmp_path / "un.png"))
+    st = _render("StyleProbe", {"dark": True, "dna": slate, "style": spec}, 10, str(tmp_path / "st.png"))
+    for p in ((560, 700), (1060, 20)):
+        assert np.abs(st[p].astype(int) - un[p].astype(int)).max() <= 3, (p, st[p], un[p])
+
+
+@needs_render
+def test_both_draws_a_heavy_silhouette_and_light_inner_lines(tmp_path):
+    """Illustration systems set TWO line weights, the outline double the inner line (Airbus, ServiceTitan guides): with
+    every part outlined alike, a satellite's facets read as a diagram, not a drawing (the first cartoon film)."""
+    both = {"name": "both", "refs": [], "refs_missing": "t", "line": {"outline": "both", "weight": 8, "color": "ink"}}
+    alls = {"name": "all", "refs": [], "refs_missing": "t", "line": {"outline": "all", "weight": 8, "color": "ink"}}
+    b = _render("StyleProbe", {"style": both}, 10, str(tmp_path / "b.png"))
+    a = _render("StyleProbe", {"style": alls}, 10, str(tmp_path / "a.png"))
+    x0, y0, x1, y1 = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))["rect"]
+    ym = (y0 + y1) // 2
+    def band(img):       # how far out from the rect's edge the ink reaches
+        g = img[ym, x0 - 30:x0].astype(int).sum(axis=1)
+        return int((g < g[0] - 200).sum())
+    assert band(b) >= band(a) + 4, ("no heavier silhouette", band(a), band(b))
+    lx, ly = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))["line_mid"]
+    def thick(img):      # the free diagonal line's vertical thickness at its middle
+        col = img[ly - 20:ly + 21, lx].astype(int).sum(axis=1)
+        return int((col < col[0] - 120).sum())          # a thin antialiased line is not fully dark at any pixel
+    assert 0 < thick(b) < thick(a), ("inner lines not lighter", thick(a), thick(b))

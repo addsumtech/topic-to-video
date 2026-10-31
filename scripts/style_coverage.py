@@ -66,7 +66,7 @@ def film_coverage(board):
     return {"exempt": rows, "exempt_fraction": frac, "warnings": warnings}
 
 
-TONE_SPLIT = 0.35          # the same split the engine's one-ground rule uses (runtime/style.tsx TONE_SPLIT)
+GROUND_CLOSE = 1.6         # the engine's one-ground rule (runtime/style.tsx GROUND_CLOSE): grounds within 1.6:1 are one
 
 
 def _lum(hexc):
@@ -81,7 +81,7 @@ def _lum(hexc):
 
 
 def ground_conflicts(board):
-    """[{beat, shot, ground, film}] — beats whose register keeps a ground of the OTHER tone under this film's DNA
+    """[{beat, shot, ground, film}] — beats whose register keeps a ground FAR from the film's (> 1.6:1) under its DNA
     (runtime/shotLuma.ts DNA_GROUND_TOKEN: a literal colour is a world of its own; a token is the film's own). A style
     with one ground cannot repaint them — their type is set for their own ground — so the register has to change."""
     meta = board.get("meta") or {}
@@ -90,7 +90,7 @@ def ground_conflicts(board):
         return []
     import measure_ground_luma as mgl
     table = mgl.declared_tokens(open(mgl._SHOTLUMA, encoding="utf-8").read())
-    film_light = _lum(dna["bg"]) >= TONE_SPLIT
+    film = _lum(dna["bg"])
     out = []
     for i, s in enumerate(board.get("slides") or []):
         tok = table.get(s.get("shot"))
@@ -98,7 +98,8 @@ def ground_conflicts(board):
             continue
         colour = tok if isinstance(tok, str) else next((dna[t] for t in tok if isinstance(dna.get(t), str)
                                                         and dna[t].startswith("#")), None)
-        if colour and (_lum(colour) >= TONE_SPLIT) != film_light:
+        own = _lum(colour) if colour else None
+        if own is not None and (max(own, film) + 0.05) / (min(own, film) + 0.05) > GROUND_CLOSE:
             out.append({"beat": s.get("index", i + 1), "shot": s["shot"], "ground": colour, "film": dna["bg"]})
     return out
 
