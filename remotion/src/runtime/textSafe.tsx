@@ -1593,7 +1593,8 @@ export const TYPE_GLIDE_TAG = 'TYPE-GLIDE ';
 /** One line of type on one frame: key, true top of its first line box in px, its box, effective opacity, its text
  *  (cut), `ly` — its LAYOUT offset in whole px (the offsetTop chain, which no transform moves) — `u` when its matrix
  *  is unlocked, `px` its font size (a jump in it is the type re-set at a new size, not moved), and flags: `f` drawn
- *  through a blur or drop-shadow filter, `s` declared stepped, `c` on a composited layer (listed, not judged). */
+ *  through a blur or drop-shadow filter (or a mask over composited content), `s` declared stepped, `c` on a composited
+ *  layer (listed, not judged). */
 export type GlideLine = {k: string; y: number; x?: number; w?: number; h?: number; o: number; t: string;
   ly?: number; u?: 1; fl?: string; px?: number; b?: string; v?: number;
   /** a KINETIC line's glyphs, each its own run of type that can step: [grapheme index, true top, unlocked 0|1,
@@ -1632,6 +1633,21 @@ export const snapsBaseline = (b: number): boolean => Math.round(Math.abs(b) * 10
 // (`saturate`, `brightness`, …) needs no layer of that kind and passes the unlock through (0.011px). So the skew
 // that counts is the one composed BELOW the nearest blur/drop-shadow, times the scale that layer keeps.
 const SPATIAL_FILTER = /blur\(|drop-shadow\(|url\(/;
+// A MASK DOES THE SAME ONCE ITS CONTENT IS COMPOSITED. A `mask-image` alone passes the unlock through (measured on
+// CameraTypeProbe's push: 0.011px, the floor); a masked element with a composited descendant — a Stage3D surface, a
+// 3D card, a will-change layer — is drawn as a layer of its own under only the scale of the matrix above it, and type
+// anywhere in it snapped (0.229-0.263px RMS, 0.89px jumps; 0.025px with the unlock written inside the mask). This is
+// the platform-safe frame Film.tsx draws every 9:16 register in, and the census read the camera's skew straight
+// through it and reported a validation film's 0.92px kicker pop as gliding (2026-10-31).
+const D3_STYLE = (cs: CSSStyleDeclaration, el: Element) => cs.transformStyle === 'preserve-3d' ||
+  /transform/.test(cs.willChange || '') || D3_FUNCTION.test((el as HTMLElement).style?.transform || '') ||
+  /^matrix3d\(/.test(cs.transform || '');
+const maskedLayer = (el: Element, cs: CSSStyleDeclaration, win: Window): boolean => {
+  const m = (cs as unknown as {webkitMaskImage?: string}).webkitMaskImage || cs.maskImage || '';
+  if (!m || m === 'none') return false;
+  for (const d of Array.from(el.querySelectorAll('*'))) if (D3_STYLE(win.getComputedStyle(d), d)) return true;
+  return false;
+};
 const mul2 = (a: Mat2, b: Mat2): Mat2 =>
   [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3]];
 
@@ -1671,7 +1687,7 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     // `L` is the matrix composed BELOW the nearest blur/drop-shadow — what the glyphs are drawn under inside that
     // filter's layer — and `ls` the scale the layer keeps. An element carrying such a filter starts a new layer:
     // its own transform is above the layer, so the composition below it restarts at identity.
-    const spatial = SPATIAL_FILTER.test(cs.filter || '');
+    const spatial = SPATIAL_FILTER.test(cs.filter || '') || maskedLayer(el, cs, win);
     const L = spatial ? [1, 0, 0, 1] as Mat2 : (up.L === null || own === null ? null : mul2(up.L, own));
     const ls = spatial && M ? Math.sqrt(Math.abs(M[0] * M[3] - M[1] * M[2])) : up.ls;
     if (parent && !childIndex.has(el)) Array.from(parent.children).forEach((c, i) => childIndex.set(c, i));

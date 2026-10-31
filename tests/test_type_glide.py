@@ -262,6 +262,52 @@ def test_a_blur_or_drop_shadow_above_the_type_is_found_and_the_unlock_inside_it_
     assert got["will-change"]["listed"] == 0 and got["will-change"]["z"] > 0
 
 
+@needs_toolchain
+def test_a_mask_over_composited_content_is_found_and_the_unlock_inside_it_is_clean(census_bundle):
+    """A platform-safe film draws each register in a masked frame (Film.tsx). Measured in pixels
+    (tests/test_camera_type.py): a mask alone passes the camera's unlock through, a mask whose content holds a
+    composited layer does not — and the census read the skew straight through it, so a validation film's 0.92px
+    kicker pop under a camera hand-off was reported as gliding. It must be found now, and the unlock inside the mask
+    clean."""
+    got = _census(census_bundle, {
+        "mask-3d": {"move": "push", "layer": "mask", "composited": True, "aspect": "9:16"},
+        "frame-3d": {"move": "push", "layer": "frame", "composited": True, "aspect": "9:16"},
+        "frame-3d-inner": {"move": "push", "layer": "frame", "composited": True, "inner": True, "aspect": "9:16"},
+        "frame": {"move": "push", "layer": "frame", "aspect": "9:16"},
+    })
+    for name in ("mask-3d", "frame-3d"):
+        assert got[name]["level"] == "error" and all("f" in r["fl"] for r in got[name]["runs"]), (name, got[name])
+    for name in ("frame-3d-inner", "frame"):
+        assert got[name]["listed"] == 0, (name, got[name]["runs"][:2])
+
+
+@needs_toolchain
+def test_a_platform_safe_film_carries_the_unlock_inside_its_register_frame(census_bundle):
+    """The film itself: a 9:16 platform-safe film whose register composites a Stage3D beside its 2D type (PlaneStack:
+    "TYPE LIVES OUTSIDE THE STAGE"), its camera handed off from beat 1 into beat 2. Drawn without the frame's own
+    unlock (`frameUnlock: false`, the film before) the type under both cameras is a staircase; with it, nothing
+    Skia would round is left."""
+    def film(**kw):
+        sc = [{"shot": "PlaneStack", "props": {}, "durF": 150, "caption": "", "camera": {"move": "push", "handoff": True}},
+              {"shot": "PlaneStack", "props": {}, "durF": 150, "caption": ""}]
+        return dict({"scenes": sc, "camera": 0, "cameraBed": False, "reducedMotion": False, "aspect": "9:16",
+                     "safe": "social", "safeEcho": False, "captions": False, "dna": "product", "typeGlide": True}, **kw)
+    jobs = [{"tag": "now", "id": "Film", "props": film()},
+            {"tag": "old", "id": "Film", "props": film(frameUnlock=False)}]
+    res = tq.glide_run(jobs, census_bundle)
+    got = {}
+    for j in jobs:
+        slot = res[j["tag"]]
+        assert slot["done"] and not slot["error"], (j["tag"], slot["error"])
+        runs = tq.judge_glide(slot["frames"])
+        got[j["tag"]] = (tq.glide_level(runs)[0], runs,
+                         sum(1 for r in slot["frames"].values() for ln in (r.get("lines") or [])
+                             if ln.get("b") is not None and not ln.get("u") and "c" not in (ln.get("fl") or "")
+                             and ln.get("o", 1) > 0.5))
+    assert got["old"][0] == "error" and all("f" in r["fl"] for r in got["old"][1]), got["old"][:2]
+    assert got["now"][0] == "clean" and got["now"][2] == 0, got["now"]
+
+
 # ── the paths that move type, by construction ────────────────────────────────────────────────────────────────
 @needs_toolchain
 def test_a_drifting_film_carrying_the_unlock_still_covers_the_frame():

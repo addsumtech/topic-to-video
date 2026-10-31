@@ -164,6 +164,24 @@ def test_a_blur_or_drop_shadow_above_the_type_takes_the_unlock_away_and_one_insi
 
 
 @needs_toolchain
+def test_a_mask_over_composited_content_takes_the_unlock_away_and_one_inside_it_gives_it_back(bundle, tmp_path):
+    """The platform-safe register frame (Film.tsx: the page scaled into the frame and masked). A mask alone passes the
+    camera's unlock (0.011px, the floor); once something in the frame is composited — a Stage3D surface — Chrome
+    draws the masked frame as its own layer under only the scale above it, and the type snapped (0.229px RMS, 0.89px
+    jumps); the unlock written inside the mask gives it back (0.025px). Film.tsx's FrameUnlock is that inner unlock."""
+    def y(name, **kw):
+        props = dict({"move": "push", "aspect": "9:16"}, **kw)
+        return _residual(_tracks(_render(bundle, tmp_path / name, "%d-%d" % RENDERED, props)[MOVING]), "y")
+    above = y("frame3d", layer="frame", composited=True)
+    inside = y("frame3d-inner", layer="frame", composited=True, inner=True)
+    alone = y("frame", layer="frame")
+    assert above[0] > Y_RMS_MAX, "a masked frame over composited content no longer snaps (y RMS %.3f) — FrameUnlock and " \
+                                 "the census's mask rule (runtime/textSafe.tsx maskedLayer) may be dropped" % above[0]
+    for name, r in (("inside", inside), ("alone", alone)):
+        assert r[0] < Y_RMS_MAX and r[1] < Y_STEP_MAX, "%s: y RMS %.3f, step %.3f" % (name, r[0], r[1])
+
+
+@needs_toolchain
 def test_a_colour_filter_passes_the_cameras_unlock_through(bundle, tmp_path):
     """`saturate()` (the planes' and the lens's colour anchor) needs no layer of the kind a blur does: the camera's
     own unlock reaches type under it — measured 0.011px, the unfiltered floor."""

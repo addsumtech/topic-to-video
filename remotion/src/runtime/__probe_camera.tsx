@@ -32,7 +32,10 @@ import {BASELINE_UNLOCK, BaselineUnlockContext} from './glide';
 import {CONTENT_TOP} from './layout';
 import {TypeGlideAudit} from './textSafe';
 
-export type ProbeLayer = 'none' | 'shadow' | 'saturate' | 'blur' | 'will-change';
+const MASK = 'linear-gradient(90deg, transparent 0%, #000 4%, #000 96%, transparent 100%), ' +
+  'linear-gradient(180deg, transparent 0%, #000 4%, #000 96%, transparent 100%)';
+
+export type ProbeLayer = 'none' | 'shadow' | 'saturate' | 'blur' | 'will-change' | 'mask' | 'frame';
 const LAYER_STYLE: Record<ProbeLayer, React.CSSProperties> = {
   none: {},
   // the shadow is YELLOW so the measurement cannot mistake it for type (red missing) or for the rule (red without
@@ -41,15 +44,21 @@ const LAYER_STYLE: Record<ProbeLayer, React.CSSProperties> = {
   saturate: {filter: 'saturate(0.955)'},
   blur: {filter: 'blur(0.6px)'},
   'will-change': {willChange: 'transform'},
+  // a feathered mask-image, as Film.tsx draws a platform-safe film's register frame (SAFE_FRAME_MASK): opaque in the
+  // middle, so the measurement sees the type the mask passes through
+  mask: {WebkitMaskImage: MASK, maskImage: MASK, WebkitMaskComposite: 'source-in', maskComposite: 'intersect'},
+  // the whole platform-safe register frame: the page scaled by 0.8 into the frame, centred across, and masked
+  frame: {transformOrigin: '0 0', transform: 'translate(10%, 4%) scale(0.8)',
+    WebkitMaskImage: MASK, maskImage: MASK, WebkitMaskComposite: 'source-in', maskComposite: 'intersect'},
 };
 
 export const DURATION = 120;
 
 export const CameraTypeProbe: React.FC<{move?: CameraMove; amount?: number; pan?: [number, number];
   bare?: boolean; text?: string; legacy?: boolean; typeGlide?: boolean; layer?: ProbeLayer; inner?: boolean;
-  drive?: 'camera' | 'transform' | 'layout' | 'inner'; below?: boolean}> = ({
+  drive?: 'camera' | 'transform' | 'layout' | 'inner'; below?: boolean; composited?: boolean}> = ({
   move = 'push', amount, pan, bare = false, text = 'Type rides the camera 字随镜头走', legacy = false,
-  typeGlide = false, layer = 'none', inner = false, drive = 'camera', below = false}) => {
+  typeGlide = false, layer = 'none', inner = false, drive = 'camera', below = false, composited = false}) => {
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
   // `below`: the same crawl, wholly under the frame's bottom edge — where no reader can see it step
@@ -84,6 +93,10 @@ export const CameraTypeProbe: React.FC<{move?: CameraMove; amount?: number; pan?
             font: `700 ${px}px/1.2 Inter, "Noto Sans SC", sans-serif`}}>{text}</div>
           <div style={{position: 'absolute', left: x, top: y + Math.round(px * 1.6), width: Math.round(W * 0.34),
             height: 3, background: '#ff0000'}} />
+          {/* `composited`: a register's 3D stage beside the type (runtime/stage3d), drawn far below it in white —
+              a composited layer in the same frame, which is what changes how a masked frame is rasterised */}
+          {composited ? <div style={{position: 'absolute', left: x, top: Math.round(H * 0.7), width: Math.round(W * 0.3),
+            height: Math.round(H * 0.1), background: '#ffffff', transform: 'perspective(800px) rotateX(20deg)'}} /> : null}
         </AbsoluteFill>
       </AbsoluteFill>
     </AbsoluteFill>
