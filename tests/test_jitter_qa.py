@@ -64,6 +64,56 @@ def _ln(k, x, y, w=120.0, h=30.0, o=1.0, t="word", **kw):
     return dict({"k": k, "x": x, "y": y, "w": w, "h": h, "o": o, "t": t}, **kw)
 
 
+def test_a_remotion_films_seams_are_placed_from_its_timeline_and_taken_out():
+    """Validation film A: three 'shimmer' ERRORs at frame 449 were TrainSlab's notes under the 2->3 dissolve (frames
+    446-457) — the beat being left stays opaque under the arriving one, so every opacity test passed. The HTML tier
+    already took its scene-edge transitions out; the remotion tier now does, from the Film's own timeline."""
+    scenes = [{"durF": 214}, {"durF": 256}, {"durF": 229}]
+    seams = jq.seam_frames_of(scenes)
+    tr = 12
+    assert seams == set(range(202, 202 + tr)) | set(range(446, 446 + tr)), sorted(seams)
+    census = {f: {"lines": [_ln("/note", 100, 100)]} for f in range(440, 462)}
+    pairs, skip = jq.pairs_from_census(census, 1080, 1920, seams)
+    assert sorted(pairs) == [440, 441, 442, 443, 444, 458, 459, 460], sorted(pairs)
+    assert skip[jq.SEAM_WHY] == 13            # 445->446 through 457->458: every pair that touches a seam frame
+    assert jq.pairs_from_census(census, 1080, 1920)[0].keys() == set(range(440, 461)), "no seams: every pair"
+
+
+def _glyph_windows(background_jump=0, reraster=False):
+    """Two 60x44 windows of a lone digit on a light dot over a dark ground, the dot's surround either jumping by
+    `background_jump` px (a lever snapping bank to bank behind a static label) or the digit itself re-rasterised."""
+    from PIL import Image, ImageDraw, ImageFont
+    from scipy.ndimage import zoom
+    font = ImageFont.truetype(jq._font_for("4"), 64)
+
+    def draw(shift, blur):
+        im = Image.new("L", (240, 176), 20)
+        d = ImageDraw.Draw(im)
+        d.polygon([(0, 0), (90 + shift, 0), (60 + shift, 176), (0, 176)], fill=210)    # moving content, left
+        d.ellipse([68, 36, 172, 140], fill=170)                                        # the dot
+        d.text((120, 88), "4", font=font, fill=30, anchor="mm")
+        a = np.asarray(im, np.float32).reshape(44, 4, 60, 4).mean(axis=(1, 3))
+        if blur:
+            a = zoom(zoom(a, 0.5, order=1), 2.0, order=1)[:44, :60]
+        return a
+    a, b = draw(0, False), draw(background_jump * 4, reraster)
+    return a, b, (25, 12, 35, 32)                  # the digit's own box inside the window
+
+
+def test_a_static_label_over_moving_content_does_not_shimmer_and_a_redrawn_one_does():
+    """ObjectStage's numbered dots over the escapement: the window round each digit holds the lever, which jumps;
+    measured on the window the digit 'shimmered' 0.19-0.45 (ERROR) while it never changed. Measured on the digit's
+    own ink, isolated from what is round it, it is still — and a digit re-rasterised in place still shimmers."""
+    a, b, box = _glyph_windows(background_jump=6)
+    assert jq.aligned_change(a, b, 0.0, 0.0) > jq.SHIMMER_REL, "the window measure is what read it as a shimmer"
+    assert jq.glyph_change(a, b, 0.0, 0.0, box) < 0.5 * jq.SHIMMER_REL
+    a, b, box = _glyph_windows(reraster=True)
+    assert jq.glyph_change(a, b, 0.0, 0.0, box) > jq.SHIMMER_REL
+    # a box with no ink in it cannot be read alone: None, and the caller falls back to the window (said in the line)
+    flat = np.full((44, 60), 20.0, np.float32)
+    assert jq.glyph_change(flat, flat, 0.0, 0.0, box) is None
+
+
 def test_the_census_pairs_judge_composited_lines_and_name_every_skip():
     census = {
         0: {"lines": [_ln("/a", 100, 100, fl="c"), _ln("/fade", 100, 300, o=0.9), _ln("/fast", 400, 100),

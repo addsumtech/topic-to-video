@@ -220,6 +220,58 @@ def aligned_change(a, b, dx, dy):
     return float(np.abs(bb - g * ba).mean()) / e
 
 
+GLYPH_MARGIN = 2               # px round the census box kept as the glyph's own pixels in glyph_change
+GLYPH_INK = 0.3                # a pixel is the glyph's ink when its edge reaches this share of the box's 99th pct
+GLYPH_MIN_INK = 8              # fewer ink pixels than this and the glyph cannot be read on its own
+
+
+def glyph_change(a, b, dx, dy, box):
+    """aligned_change measured on the TYPE ITSELF: the glyph's own ink inside its census box, after everything outside
+    the box (+GLYPH_MARGIN) has been replaced — in both frames — by the median of the box's own border. None when the
+    box holds too little ink to read alone (the caller then uses aligned_change on the whole window).
+
+    WHY. A shimmer is the type re-rasterised in place; the padded window also holds whatever is drawn round the type,
+    and a STATIC label over MOVING content read as a shimmer. Validation film A: ObjectStage's numbered dots '2' '3'
+    '4' sit on the escapement, and each time the lever snapped bank to bank the parts round the dot jumped — the
+    window measured 0.87-2.08 of the dot's edge energy on those pairs, a median of 0.19-0.45 (ERROR) while the digit
+    did not change at all (looked: the strips under film_work/batch5/gates/shimmer). Cutting the measure to the box
+    is not enough — the band-pass (a 3 px Gaussian) carries a dark-to-light jump 9 px away into the box: 0.18-0.27 on
+    the same pairs. Isolating the box first leaves 0.03-0.13, while the synthetic re-raster controls read the same as
+    before (Latin 0.216, CJK 0.439, a lone digit 0.221: the change is ON the glyph, so the cut keeps all of it)."""
+    from scipy.ndimage import binary_dilation, shift as nshift
+    x0, y0, x1, y1 = box
+    h, w = a.shape
+    X0, Y0 = max(0, x0 - GLYPH_MARGIN), max(0, y0 - GLYPH_MARGIN)
+    X1, Y1 = min(w, x1 + GLYPH_MARGIN), min(h, y1 + GLYPH_MARGIN)
+    if X1 - X0 < 3 or Y1 - Y0 < 3:
+        return None
+    keep = np.zeros(a.shape, bool)
+    keep[Y0:Y1, X0:X1] = True
+    inner = np.zeros(a.shape, bool)
+    inner[max(0, y0):min(h, y1), max(0, x0):min(w, x1)] = True
+    if not inner.any():
+        return None
+
+    def isolate(img):
+        rim = np.concatenate([img[Y0, X0:X1], img[Y1 - 1, X0:X1], img[Y0:Y1, X0], img[Y0:Y1, X1 - 1]])
+        out = np.full(img.shape, float(np.median(rim)), np.float32)
+        out[keep] = img[keep]
+        return out
+    ba = _band(isolate(a))
+    bb = _band(isolate(nshift(b, (-dy, -dx), order=3, mode="nearest")))
+    mag = np.maximum(np.abs(ba), np.abs(bb))
+    top = float(np.percentile(np.abs(ba[inner]), 99))
+    if top < MIN_EDGE:
+        return None                                      # no glyph edge in the box above the grain (E19)
+    ink = inner & (mag >= GLYPH_INK * top)
+    ink = binary_dilation(ink, iterations=1) & inner
+    if int(ink.sum()) < GLYPH_MIN_INK:
+        return None
+    g = float((ba[ink] * bb[ink]).sum()) / (float((ba[ink] ** 2).sum()) + 1e-6)
+    e = float(np.abs(ba[ink]).mean()) * max(abs(g), 1e-3) + 1e-6
+    return float(np.abs(bb - g * ba)[ink].mean()) / e
+
+
 # ── THE CENSUS: where each line truly is ───────────────────────────────────────────────────────────────────────
 def load_census(path):
     with gzip.open(path, "rt", encoding="utf-8") as fh:
@@ -240,22 +292,59 @@ def film_census(out_dir):
     return res["frames"], segs
 
 
+def seam_frames_of(scenes):
+    """{frame} the Film's seams own: the `tr` frames on which two beats are drawn at once (Film.tsx's TransitionSeries,
+    modelled exactly by remotion_segments.timeline). A beat that continues a stage run is joined to the one before it
+    and has no seam. The HTML tier takes its scene-edge transitions out the same way (jitter_html)."""
+    import remotion_segments as _rs
+    import stage_runs as _sr
+    tr = _rs.seam_frames()
+    segs, _total = _rs.timeline(scenes, tr)
+    joined = _sr.joined_flags(scenes)
+    out = set()
+    for k in range(1, len(segs)):
+        if not joined[k]:
+            out.update(range(segs[k][0], segs[k][0] + tr))
+    return out
+
+
+def film_seams(out_dir):
+    """seam_frames_of the board AS IT IS NOW — the board the census was rendered from (a census of another render is
+    refused later, by frame count). No renders: film_props builds the props and reads the beats' durations."""
+    import render_remotion as rr
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    props, _slides = rr.film_props(out_dir, board)
+    return seam_frames_of(props["scenes"])
+
+
 def _box(ln):
     return float(ln["x"]), float(ln["y"]), float(ln["w"]), float(ln["h"])
 
 
-def pairs_from_census(census, W, H):
+SEAM_WHY = "inside a seam between beats (two beats drawn at once: the dissolve changes every window)"
+
+
+def pairs_from_census(census, W, H, seams=None):
     """{f: [(key, text, box0, box1, flags)]} — every line judged between frame f and f+1, and {reason: count} of
-    every line-pair that is NOT judged."""
+    every line-pair that is NOT judged. `seams` is the set of frames a seam owns (seam_frames_of): a pair touching
+    one is not judged. On a seam the beat being left stays OPAQUE under the arriving one (E15), so its lines pass
+    every opacity test while the arriving picture dissolves over their windows — validation film A's three
+    'shimmer' errors at frame 449 were TrainSlab's notes under the 2->3 dissolve (frames 446-457)."""
     fast = FAST_PX * frame_scale(W, H)
     skip = {}
     out = {}
+    seams = seams or ()
 
     def no(why):
         skip[why] = skip.get(why, 0) + 1
     for f in sorted(census):
         nxt = census.get(f + 1)
         if nxt is None:
+            continue
+        if f in seams or (f + 1) in seams:
+            for ln in census[f].get("lines") or []:
+                if "x" in ln:
+                    no(SEAM_WHY)
             continue
         b = {ln["k"]: ln for ln in (nxt.get("lines") or []) if "x" in ln}
         here = [ln for ln in (census[f].get("lines") or []) if "x" in ln]
@@ -333,8 +422,9 @@ def _crowded(win, key, f, census, moves, mx, my):
     return False
 
 
-def measure_census(video, census):
-    """Per line, the track of [(f, true dx, true dy, measured dx, measured dy, conf, change)] — and the skip table."""
+def measure_census(video, census, seams=None):
+    """Per line, the track of [(f, true dx, true dy, measured dx, measured dy, conf, change)] — and the skip table.
+    `seams`: the frames a film's seams own (seam_frames_of), never judged."""
     W, H, _fps = probe(video) if not os.path.isdir(video) else (None, None, None)
     tracks, skip, meta = {}, {}, {}
     beat_of = {}                     # DOM path -> the beat its first track belongs to
@@ -344,7 +434,7 @@ def measure_census(video, census):
     for i, fr in frames(video):
         if todo is None:
             H, W = fr.shape
-            todo, skip = pairs_from_census(census, W, H)
+            todo, skip = pairs_from_census(census, W, H, seams)
         if prev is not None and (i - 1) in todo:
             for key, text, b0, b1, fl, beat, moves in todo[i - 1]:
                 win = _window(b0, b1, W, H)
@@ -375,14 +465,25 @@ def measure_census(video, census):
                     skip["correlation too weak (conf < %.0f)" % MIN_CONF] = \
                         skip.get("correlation too weak (conf < %.0f)" % MIN_CONF, 0) + 1
                     continue
-                ch = aligned_change(a, b, dx, dy) if max(abs(mx), abs(my)) < STILL_PX * frame_scale(W, H) else None
+                ch, wide_here = None, False
+                if max(abs(mx), abs(my)) < STILL_PX * frame_scale(W, H):
+                    # the line's own box in the window (both frames' boxes: a still line's are the same)
+                    gb = (int(np.floor(min(b0[0], b1[0]))) - X0, int(np.floor(min(b0[1], b1[1]))) - Y0,
+                          int(np.ceil(max(b0[0] + b0[2], b1[0] + b1[2]))) - X0,
+                          int(np.ceil(max(b0[1] + b0[3], b1[1] + b1[3]))) - Y0)
+                    ch = glyph_change(a, b, dx, dy, gb)
+                    if ch is None:
+                        # too little ink to read alone: the whole window, which can only over-report (described)
+                        wide_here = True
+                        ch = aligned_change(a, b, dx, dy)
                 # ONE TRACK PER LINE, NOT PER DOM PATH: two beats drawn by registers of the same shape give their
                 # lines the same path, and keyed by path alone a beat-2 kicker's pop was reported under beat 4's
                 # copy and beat number (meta took the LAST frame's). A path seen in a second beat starts its own track.
                 first = beat_of.setdefault(key, beat)
                 tkey = key if beat == first else "%s#b%s" % (key, beat)
                 tracks.setdefault(tkey, []).append((i - 1, mx, my, dx, dy, conf, ch))
-                meta[tkey] = {"t": text, "fl": fl, "b": beat}
+                wide = (meta.get(tkey) or {}).get("wide", 0) + (1 if wide_here else 0)
+                meta[tkey] = dict({"t": text, "fl": fl, "b": beat}, **({"wide": wide} if wide else {}))
         prev = fr
         last = i
     # THE CENSUS AND THE PICTURE MUST BE THE SAME FILM. A census of the current board read against an out.mp4 from
@@ -514,7 +615,10 @@ def describe(m, j, fps=30.0, label=None):
                     "(a frozen layer, an overlay the census does not list, or another render — look at it)"
                     % (t_len, fa, fb, m_len))
     if j["shimmer"] >= SHIMMER_REL:
-        bits.append("shimmers in place (%.2f of its edge energy) from frame %d" % (j["shimmer"], j["shimmer_f"]))
+        bits.append("shimmers in place (%.2f of its edge energy) from frame %d%s" % (
+            j["shimmer"], j["shimmer_f"], " — read on its whole window on %d pair(s) (too little ink in its box to read "
+            "the glyph alone): look whether the TYPE changes or only what is round it" % m["wide"]
+            if m.get("wide") else ""))
     where = "composited layer" if "c" in (m.get("fl") or "") else "2D"
     if j.get("conf") and j["conf"] < CONF_REF:
         where += ", low texture: conf %.0f, thresholds x%.2f" % (j["conf"], CONF_REF / j["conf"])
@@ -535,6 +639,11 @@ def clip_size(path):
     return W, H
 
 
+def _seam_len():
+    import remotion_segments as _rs
+    return _rs.seam_frames()
+
+
 def film_tier(out_dir):
     """'remotion' | 'html' | None — critic_ledger's (validate's) one definition."""
     import critic_ledger as cl
@@ -552,11 +661,21 @@ def scan_film(out_dir, video=None, census_path=None):
         raise RuntimeError("no %s to measure — render the film first; a gate with no picture has measured nothing"
                            % video)
     tier = "remotion" if census_path else film_tier(out_dir)
-    extra_skip, scope = {}, []
+    extra_skip, scope, seams = {}, [], None
     if census_path:
         census = load_census(census_path)
     elif tier == "remotion":
         census, _segs = film_census(out_dir)
+    if tier == "remotion":
+        # A REMOTION FILM'S SEAMS ARE TAKEN OUT, AS THE HTML TIER'S ARE. Read off the board, so a kept census is
+        # judged the same way; a board that cannot say where its seams are is not judged with them left in.
+        try:
+            seams = film_seams(out_dir)
+        except Exception as e:                           # noqa: BLE001 - said, and the run stops: E9
+            raise RuntimeError("could not place the film's seams (%s: %s) — without them every dissolve is judged "
+                               "as type trembling" % (type(e).__name__, e))
+        scope.append("%d seam frame(s) taken out (%d seam(s) of %d frames: two beats drawn at once)"
+                     % (len(seams), len(seams) // max(1, _seam_len()), _seam_len()))
     else:
         # the HTML tier, and a board with no authored page (supplied slides with Ken Burns, programmatic scenes):
         # render.py drew both, and jitter_html reads both
@@ -569,7 +688,7 @@ def scan_film(out_dir, video=None, census_path=None):
                   for i, s in enumerate(board.get("slides", []))]
     except (OSError, ValueError):
         labels = None
-    tracks, skip, meta = measure_census(video, census)
+    tracks, skip, meta = measure_census(video, census, seams)
     for why, n in extra_skip.items():
         skip[why] = skip.get(why, 0) + n
     W, H, fps = probe(video)
