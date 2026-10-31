@@ -827,8 +827,9 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     zone = safe_zone(meta, aspect)
     if zone:
         props["safe"] = zone
-        # the margin ECHO (Film.tsx SafeEcho: the beat itself, blurred, behind its 0.8 frame) costs a second rendering
-        # of every register — measured 1.7-1.9x the frame time on a 9:16 probe — so a board may refuse it
+        # the margin is the beat's GROUND (Film.tsx SafeEcho): its measured ground token, and over it the register's own
+        # root ground drawn a second time with everything on it hidden. That second rendering of every register is a
+        # cost; `meta.safe_echo: false` keeps the token alone (never content either way)
         if meta.get("safe_echo") is False:
             props["safeEcho"] = False
     if isinstance(meta.get("brand"), dict) and meta["brand"].get("logo"):

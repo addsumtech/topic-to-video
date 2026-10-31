@@ -95,6 +95,54 @@ def margin_seam(rgb, prof=None, asf=None):
     return out
 
 
+# A COPY OF THE CONTENT IN THE MARGIN IS NOT A STEP AT ITS EDGE. margin_seam compares colour across the frame's edge, so
+# it read the second echo — the register drawn unscaled behind its frame, a ghost iPhone and its home bar under the
+# caption — as a continuation: the ghost IS continuous with the frame. What gives a ghost away is STRUCTURE: a ground is
+# smooth at every scale an object has. Two difference-of-Gaussian bands over the margin alone (a normalised blur, so the
+# frame's own content never leaks in), the 99.9th percentile of |response| over RGB, per region:
+#   fine 3-16 px: outlines, a home bar;  coarse 12-48 px: blobs, the heavily blurred first echo's smudges.
+# Measured on film A at 9:16 (2026-10-31): plain grounds (echo off, and the ground-only margin on the photo, slab,
+# mechanism and phone beats) 0.3-1.6; the ghost phone 12.4 / 23.6 (bottom), the ghost slab and wheel rim 11-17 / 36-42
+# (sides), the first echo's smudges coarse 7-20, the photo plate's ghost box edge 3.3-3.9.
+MARGIN_STRUCTURE_WARN = 3.0   # levels, either band — about twice a plain ground's worst, under every ghost's
+_GUARD = 0.05                 # kept clear of the frame edge (its own feathered border), as a share of the short side
+
+
+def margin_structure(rgb, prof=None):
+    """{region: (fine, coarse)} object-scale structure in the margin of a platform-safe frame `rgb` (H x W x 3): the
+    99.9th percentile of the two band-pass responses, computed on the margin only (bottom: under the frame past a guard;
+    left/right: beside it)."""
+    import numpy as np
+    from scipy.ndimage import gaussian_filter
+    import text_safe_qa as tsq
+    prof = prof or tsq.safe_profile()
+    H, W = rgb.shape[:2]
+    k = prof["k"]
+    x0, y0 = (1 - k) * W / 2, prof["y0"] * H
+    x1, y1 = W - x0, y0 + k * H
+    g = max(2, round(_GUARD * min(W, H)))
+    yy, xx = np.mgrid[0:H, 0:W]
+    margin = (xx < x0 - g / 2) | (xx > x1 + g / 2) | (yy > y1 + g)
+    regions = {"bottom": (yy > y1 + g) & (yy < H - 8) & (xx > 8) & (xx < W - 8),
+               "left": (xx < x0 - g / 2) & (xx > 8) & (yy > y0) & (yy < y1),
+               "right": (xx > x1 + g / 2) & (xx < W - 8) & (yy > y0) & (yy < y1)}
+    m = margin.astype(np.float64)
+    nb = {s: gaussian_filter(m, s, mode="nearest") for s in (3, 12, 16, 48)}
+    resp = []
+    for c in range(3):
+        ch = rgb[..., c].astype(np.float64) * m
+        b = {s: gaussian_filter(ch, s, mode="nearest") / np.maximum(nb[s], 1e-3) for s in nb}
+        resp.append((b[3] - b[16], b[12] - b[48]))
+    out = {}
+    for name, sel in regions.items():
+        # only where the margin dominates every kernel's footprint: a blur half off the margin is an edge effect
+        sel = sel & (nb[48] > 0.6)
+        if sel.sum() < 100:
+            continue
+        out[name] = tuple(max(float(np.percentile(np.abs(r[i][sel]), 99.9)) for r in resp) for i in (0, 1))
+    return out
+
+
 def _ground_luma(px, w, h, step=6):
     """The frame's own dominant luminance — its GROUND."""
     hist = {}
@@ -139,13 +187,21 @@ def evaluate(out_dir):
             import text_safe_qa as tsq
             if tsq.safe_applies(W, H):
                 seams_checked += 1
-                for side, (step, at) in sorted(margin_seam(np.asarray(im.convert("RGB"))).items()):
+                arr = np.asarray(im.convert("RGB"))
+                for side, (step, at) in sorted(margin_seam(arr).items()):
                     if step > MARGIN_SEAM_WARN:
                         warnings.append(
                             "%s: the platform-safe frame's %s edge steps %.0f levels into the margin (at %dpx along "
-                            "it; a continuation reads <= %d) — a visible panel edge, or the margin echo carrying "
-                            "content that is not at the frame's edge. Look at the frame's border (Film.tsx SafeEcho)"
-                            % (name, side, step, at, MARGIN_SEAM_WARN))
+                            "it; a continuation of the ground reads <= %d) — a panel edge, or the register's content "
+                            "cut by the frame's dissolving edge (keep it off the register's outer 10%%). Look at the "
+                            "frame's border (Film.tsx SafeEcho)" % (name, side, step, at, MARGIN_SEAM_WARN))
+                for region, (fine, coarse) in sorted(margin_structure(arr).items()):
+                    if max(fine, coarse) > MARGIN_STRUCTURE_WARN:
+                        warnings.append(
+                            "%s: the %s margin of the platform-safe frame holds object-scale structure (%.1f fine / "
+                            "%.1f coarse; a ground reads <= %.0f) — a copy of the beat's content, a ghost, where only "
+                            "its ground belongs (Film.tsx SafeEcho)" % (name, region, fine, coarse,
+                                                                         MARGIN_STRUCTURE_WARN))
         px = g.load()
         ground = _ground_luma(px, W, H)
         m = max(1, int(round(min(W, H) * MARGIN)))

@@ -58,8 +58,8 @@ never reached.
   `scripts/score.py` (a generated score on that grid), §3 "Built". **Still open:** tier 3 (a tempo map); whether it
   sounds acceptable is unmeasured; and the 2026-10-23 inventory found focus/pop/tick/reveal cues never planned on the
   remotion path (not re-checked in this update).
-- **Portrait and gates**: on 9:16 the platform-safe frame's margin is the beat itself, blurred (the safe echo;
-  `meta.safe_echo: false` refuses it); `scripts/determinism_qa.py` (is a frame the same however and whenever it is
+- **Portrait and gates**: on 9:16 the platform-safe frame's margin is the beat's own ground, never its content (the
+  register's root ground over its ground token; `meta.safe_echo: false` keeps the token alone); `scripts/determinism_qa.py` (is a frame the same however and whenever it is
   asked for), `scripts/caption_breaks_qa.py` (CJK caption lines broken at words, kinsoku held), `scripts/banding_qa.py`
   (CAMBI on the delivered file).
 

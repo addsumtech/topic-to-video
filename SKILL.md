@@ -191,8 +191,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     BEFORE promising a vertical or square film.
   - **Platform-safe portrait.** A 9:16 film keeps its caption, title and labels out of the platform's own UI
     (bottom 19%, the right button column, the top tabs) by default — `meta.safe_zone: "none"` opts out; registers are
-    drawn in a scaled frame whose margin is filled with a blurred echo of the same beat (not a panel on the ground; the
-    echo is invisible to every gate; it roughly doubles frame render time — `meta.safe_echo: false` refuses it), stages
+    drawn in a scaled frame whose margin is the beat's own GROUND carried to the canvas edge — never a copy of its
+    content (the register's root ground drawn again with everything on it hidden, over its measured ground token;
+    `meta.safe_echo: false` keeps the token alone and saves that second rendering; `frame_safe_qa` WARNs on a margin
+    with object-scale structure or a step at the frame's edge), stages
     lay out in the safe area, and `text_safe_qa --glide` ERRORS on type in those zones.
     The render also writes a 3:4 feed cover, `out.cover.png` (`scripts/cover.py`; `meta.cover: {"beat": N}`). A 4:5 or
     3:4 film is a feed post, not a full-screen one, and keeps its own layout.
