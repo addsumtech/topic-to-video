@@ -57,6 +57,71 @@ def _generate_codex(prompt, out_path, size="1536x1024", quality="medium"):
     from PIL import Image
     Image.open(out_path).verify()             # raises if the file is not a valid image
 
+# ── A GENERATED MEDIUM for a film's drawing style (meta.style.surface.source: "generated") ─────────────────────────
+# The style engine's surface is procedural noise unless the spec asks for a generated one: a real paper's fibres, a
+# canvas weave, a brush's drag. Generation goes through the Codex subscription ONLY — the metered API is never called
+# from here — and when Codex cannot draw it (not installed; on a plan with no image tool, as on 2026-10-03), the film
+# keeps the procedural medium and the spec RECORDS the shortfall, which the sample sheet prints. Never content: no
+# text, no objects, a texture and nothing else.
+TEXTURE_DIR = "style"
+
+
+def texture_prompt(kind):
+    return ("A seamless, evenly lit, top-down macro photograph of plain %s texture filling the whole frame: only the "
+            "material's own grain and fibres, neutral and nearly colourless, flat and uniform from edge to edge. No text, "
+            "no letters, no objects, no marks, no shadows, no vignette, no border, no perspective." % kind)
+
+
+def _style_shortfall(out_dir, why):
+    path = os.path.join(out_dir, "storyboard.json")
+    board = json.load(open(path, encoding="utf-8"))
+    spec = (board.get("meta") or {}).get("style") or {}
+    sf = [x for x in spec.get("shortfalls") or [] if x.get("axis") != "surface.source"]
+    sf.append({"axis": "surface.source", "wanted": "generated", "got": "procedural", "why": why})
+    spec["shortfalls"] = sf
+    board["meta"]["style"] = spec
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(board, fh, ensure_ascii=False, indent=2)
+
+
+def _tiles_from(raw_png, light_png, dark_png, strength):
+    """A seamless light tile (grain below white, MULTIPLIED in) and dark tile (grain above black, SCREENED in) from a
+    generated photograph: its own fibres, its tone removed — the medium is grain, not a colour (style_qa TONE_MAX)."""
+    import numpy as np
+    from PIL import Image
+    g = np.asarray(Image.open(raw_png).convert("L").resize((512, 512))).astype(float)
+    lo, med, hi = np.percentile(g, 2), np.median(g), np.percentile(g, 98)
+    d = (med - g) / max(1.0, hi - lo)                     # >0 where the material is darker than its own middle
+    amt = 0.35 * max(0.0, min(1.0, float(strength)))
+    light = 255.0 * (1.0 - np.clip(d, 0, 1) * 2 * amt)
+    dark = 255.0 * np.clip(-d, 0, 1) * 2 * amt * 0.3
+    for arr, out in ((light, light_png), (dark, dark_png)):
+        t = np.concatenate([arr, arr[:, ::-1]], axis=1)  # mirrored: opposite edges match, so it tiles without a seam
+        t = np.concatenate([t, t[::-1]], axis=0)
+        Image.fromarray(t.clip(0, 255).astype(np.uint8)).convert("RGB").save(out)
+
+
+def texture(out_dir, kind, strength):
+    """{"light", "dark"} tile paths relative to `out_dir`, generated once through Codex and cached; None when Codex
+    cannot draw it — then the film keeps the procedural medium and meta.style.shortfalls says why."""
+    rel = {k: os.path.join(TEXTURE_DIR, "surface-%s-%s.png" % (kind, k)) for k in ("light", "dark")}
+    if all(os.path.isfile(os.path.join(out_dir, p)) for p in rel.values()):
+        return rel
+    if not _codex_available():
+        _style_shortfall(out_dir, "the Codex CLI is not installed — the procedural %s is drawn instead" % kind)
+        return None
+    raw = os.path.join(out_dir, TEXTURE_DIR, "surface-%s-raw.png" % kind)
+    os.makedirs(os.path.dirname(raw), exist_ok=True)
+    try:
+        _generate_codex(texture_prompt(kind), raw, size="1024x1024", quality="medium")
+    except Exception as e:                                 # noqa: BLE001 — any failure is the same shortfall, with its reason
+        _style_shortfall(out_dir, "Codex could not generate it (%s) — the procedural %s is drawn instead"
+                         % (str(e)[:160], kind))
+        return None
+    _tiles_from(raw, os.path.join(out_dir, rel["light"]), os.path.join(out_dir, rel["dark"]), strength)
+    return rel
+
+
 def _read_key_file():
     try:
         return (open(os.path.expanduser("~/.openai_key")).read().strip() or None)

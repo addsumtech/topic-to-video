@@ -461,8 +461,10 @@ export const FlooredLeadingProbe: React.FC = () => (
 );
 
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
-  const {dna, aspect: _a, optic, style, ...rest} = p as {dna?: unknown; aspect?: unknown; optic?: unknown; style?: unknown};
-  const activeStyle = React.useMemo(() => (style ? resolveStyle(style as StyleSpec) : null), [style]);
+  const {dna, aspect: _a, optic, style, styleTexture, ...rest} = p as {dna?: unknown; aspect?: unknown; optic?: unknown;
+    style?: unknown; styleTexture?: unknown};
+  const activeStyle = React.useMemo(() => (style ? resolveStyle(style as StyleSpec,
+    styleTexture as {light: string; dark: string} | null) : null), [style, styleTexture]);
   setStyleEase(activeStyle ? (activeStyle.motion as {easing?: string}).easing : null);
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
   const _p = p as {textSafe?: unknown; typeCollisions?: unknown; fedText?: unknown; unfedText?: unknown;

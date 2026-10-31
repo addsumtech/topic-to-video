@@ -13,6 +13,8 @@
 import {boilPhase} from './draw';
 
 const NS = 'http://www.w3.org/2000/svg';
+/** A generated tile's size in px (scripts/imagegen._tiles_from: 512 mirrored to 1024), drawn 1:1 at a 1080 short side. */
+export const TILE_PX = 1024;
 
 /** Which drawing of the line is on screen: 1 when the line does not boil (no rate, or reduced motion). A pure
  *  function of the beat's clock, so a seam's copy of the beat — the same beat at the same frame — boils in phase. */
@@ -26,7 +28,9 @@ export const wobbleSeed = (frame: number, durF: number, fps: number, hz: number,
  *  vanished, measured on StyleProbe), and `k` the target's user units per screen px, so a wobble, a ring and a tooth
  *  are sized on screen whatever the drawing's own scale. */
 export type Recipe = {wobble: number; seed: number; outer: number; ink: string; surface: string | null;
-  strength: number; posterize: boolean; region?: [number, number, number, number]; k?: number; dark?: boolean};
+  strength: number; posterize: boolean; region?: [number, number, number, number]; k?: number; dark?: boolean;
+  /** a GENERATED medium's tile (a served URL), tiled in place of the procedural noise; already grain, no matrix */
+  tile?: string};
 
 /** The tooth as an opaque grey layer from noise (R, ~0.5 ± 0.15): GRAIN, never a veil. Light ground: 1 where the
  *  noise is above its middle and darker only where it dips below, MULTIPLIED in. Dark ground: 0 where the noise is
@@ -44,7 +48,7 @@ export const toothMatrix = (amt: number, dark: boolean): string => {
 
 export const recipeKey = (r: Recipe): string =>
   [r.wobble.toFixed(2), r.seed, r.outer.toFixed(2), r.ink, r.surface ?? '-', r.strength.toFixed(2), r.posterize ? 'p' : '-',
-    (r.region ?? []).map((v) => v.toFixed(1)).join(','), (r.k ?? 1).toFixed(3), r.dark ? 'd' : 'l'].join('|');
+    (r.region ?? []).map((v) => v.toFixed(1)).join(','), (r.k ?? 1).toFixed(3), r.dark ? 'd' : 'l', r.tile ?? '-'].join('|');
 
 /** The noise each medium is made of: [baseFrequency x, y, octaves, contrast]. Frequencies are per px at a 1080 short
  *  side; the caller divides by the frame's scale. */
@@ -92,7 +96,15 @@ export const buildFilter = (doc: Document, defs: Element, id: string, r: Recipe,
     f.appendChild(m);
     src = 'ringed';
   }
-  if (r.surface && SURFACE_NOISE[r.surface]) {
+  if (r.surface && r.tile) {
+    const t = +(TILE_PX * scale * k).toFixed(3);         // the tile at its own pixel size on screen
+    f.appendChild(el(doc, 'feImage', {href: r.tile, x: reg[0], y: reg[1], width: t, height: t,
+      preserveAspectRatio: 'none', result: 'tile1'}));
+    f.appendChild(el(doc, 'feTile', {in: 'tile1', result: 'tooth'}));
+    f.appendChild(el(doc, 'feBlend', {in: src, in2: 'tooth', mode: r.dark ? 'screen' : 'multiply', result: 'toothed'}));
+    f.appendChild(el(doc, 'feComposite', {in: 'toothed', in2: src, operator: 'in', result: 'textured'}));
+    src = 'textured';
+  } else if (r.surface && SURFACE_NOISE[r.surface]) {
     const [fx, fy, oct, k] = SURFACE_NOISE[r.surface];
     f.appendChild(el(doc, 'feTurbulence', {type: 'fractalNoise', baseFrequency: `${+(fx / scale / k).toFixed(5)} ${+(fy / scale / k).toFixed(5)}`,
       numOctaves: oct, seed: 7, stitchTiles: 'stitch', result: 'tex'}));

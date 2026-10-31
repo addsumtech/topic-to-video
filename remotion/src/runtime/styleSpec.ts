@@ -17,8 +17,9 @@ export type StyleSpec = {
   shortfalls?: {axis: string; wanted: string; got: string; why: string}[];
 } & {[group: string]: unknown};
 
-/** Every axis group with every parameter filled — what the engine draws from. */
-export type ResolvedStyle = StyleSpec & Record<string, Record<string, Value>>;
+/** Every axis group with every parameter filled — what the engine draws from. `texture` is not part of the spec:
+ *  it is the GENERATED medium's tiles the render resolved (render_remotion.style_texture_props), served URLs. */
+export type ResolvedStyle = StyleSpec & Record<string, Record<string, Value>> & {texture?: {light: string; dark: string}};
 
 const TABLE = Object.fromEntries(Object.entries(axes).filter(([k]) => !k.startsWith('_'))) as
   Record<string, Record<string, Param>>;
@@ -26,12 +27,13 @@ const TABLE = Object.fromEntries(Object.entries(axes).filter(([k]) => !k.startsW
 export const AXIS_DEFAULTS: Record<string, Record<string, Value>> = Object.fromEntries(
   Object.entries(TABLE).map(([g, ps]) => [g, Object.fromEntries(Object.entries(ps).map(([n, p]) => [n, p.default as Value]))]));
 
-export const resolveStyle = (spec: StyleSpec): ResolvedStyle => {
+export const resolveStyle = (spec: StyleSpec, texture?: {light: string; dark: string} | null): ResolvedStyle => {
   const out: Record<string, unknown> = {...spec};
   for (const [g, defs] of Object.entries(AXIS_DEFAULTS)) {
     const own = spec[g];
     out[g] = {...defs, ...(own && typeof own === 'object' ? own as Record<string, Value> : {})};
   }
+  if (texture) out.texture = texture;
   return out as ResolvedStyle;
 };
 

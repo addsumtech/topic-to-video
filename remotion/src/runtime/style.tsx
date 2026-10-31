@@ -19,7 +19,7 @@
 //
 // NULL STYLE, NOTHING MOUNTS. With no style the layer returns its children: no wrapper, no pass, the same tree.
 import React, {useLayoutEffect, useRef} from 'react';
-import {continueRender, delayRender, useCurrentFrame, useVideoConfig} from 'remotion';
+import {continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useStyle, type ResolvedStyle} from './styleSpec';
 import {useDNA, shade, relLum, type DesignDNA} from './dna';
 import {classify, inkFor, meanColor, steppedGradient, quantizeStops, toHex} from './styleClassify';
@@ -334,8 +334,16 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
 
   const surf = spec.surface as {kind: string; strength: number; source: string};
   const tiles = new Map<boolean, string | null>();
+  // a GENERATED medium (surface.source 'generated', resolved by the render) replaces the procedural noise everywhere
+  const genTile = (dark: boolean): string | null => {
+    const t = spec.texture;
+    return surf.kind !== 'none' && t ? staticFile(dark ? t.dark : t.light) : null;
+  };
   const tileFor = (dark: boolean) => {
-    if (!tiles.has(dark)) tiles.set(dark, surf.kind !== 'none' ? surfaceTile(surf.kind, surf.strength, scale, dark) : null);
+    if (!tiles.has(dark)) {
+      const g = genTile(dark);
+      tiles.set(dark, g ? `url("${g}")` : surf.kind !== 'none' ? surfaceTile(surf.kind, surf.strength, scale, dark) : null);
+    }
     return tiles.get(dark)!;
   };
   const recipes = new Map<string, string>();
@@ -561,14 +569,17 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
         if (isSvg && svgSurface) {         // a ground leaf: the medium only — a displaced ground opens gaps at the frame
           const own = getComputedStyle(node).fill;
           target(node, {wobble: 0, seed: 1, outer: 0, ink: '', surface: svgSurface, strength: surf.strength, posterize: false,
-            dark: isDark(urlId(own) ? groundBehind(node, root.parentElement ?? root, dna) : own)}, 'surface.kind');
+            dark: isDark(urlId(own) ? groundBehind(node, root.parentElement ?? root, dna) : own),
+            tile: genTile(isDark(urlId(own) ? groundBehind(node, root.parentElement ?? root, dna) : own)) ?? undefined},
+            'surface.kind');
         }
         return;
       }
       const behind = groundBehind(node, root.parentElement ?? root, dna);
       const ink = outerW > 0 ? (lineColor(c, behind, '') ?? inkFor(behind, dna)) : '';
       target(node, {wobble: wob, seed: wob > 0 ? seed : 1, outer: outerW, ink, surface: isSvg ? svgSurface : null,
-        strength: surf.strength, posterize: false, dark: isDark(behind)}, outerW > 0 ? 'line.outline' : wob > 0 ? 'line.wobble' : 'surface.kind');
+        strength: surf.strength, posterize: false, dark: isDark(behind),
+        tile: isSvg && svgSurface ? genTile(isDark(behind)) ?? undefined : undefined}, outerW > 0 ? 'line.outline' : wob > 0 ? 'line.wobble' : 'surface.kind');
     };
     for (const k of Array.from(root.children)) if (!owned(k)) visit(k);
   }

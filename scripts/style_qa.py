@@ -203,6 +203,7 @@ def check(out_dir, settled=0.9):
     os.makedirs(work, exist_ok=True)
     jobs, rows = [], []
     surfaced = ((spec.get("surface") or {}).get("kind") or "none") != "none"
+    tex = rr.style_texture_props(meta, out_dir)
     bare = dict(spec, surface={"kind": "none"})          # the drawing without its medium (see measure())
     for i, s in enumerate(board.get("slides") or []):
         shot = s.get("shot")
@@ -211,6 +212,8 @@ def check(out_dir, settled=0.9):
         n = s.get("index", i + 1)
         frames = max(2, int(round(float(s.get("duration") or 5.0) * 30)))
         props = dict(rr.film_shot_props(s, out_dir), aspect=aspect, holdFrames=frames)
+        if tex:
+            props["styleTexture"] = tex
         if dna:
             props["dna"] = dna
         f = int(round((frames - 1) * settled))

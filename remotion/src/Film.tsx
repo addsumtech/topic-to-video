@@ -1269,11 +1269,13 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   // optics identity proofs. Never set by a film.
   optics?: boolean;
   // the film's drawing style (meta.style, runtime/styleSpec.ts) — null draws every register exactly as it is
-  style?: StyleSpec | null}> =
+  style?: StyleSpec | null;
+  // a GENERATED medium's tiles for that style (render_remotion.style_texture_props); absent: the procedural medium
+  styleTexture?: {light: string; dark: string} | null}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
     typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, safe, dither = false, optics = true,
-    safeEcho = true, frameUnlock = true, style = null}) => {
-  const activeStyle = React.useMemo(() => (style ? resolveStyle(style) : null), [style]);
+    safeEcho = true, frameUnlock = true, style = null, styleTexture = null}) => {
+  const activeStyle = React.useMemo(() => (style ? resolveStyle(style, styleTexture) : null), [style, styleTexture]);
   setStyleEase(activeStyle ? (activeStyle.motion as {easing?: string}).easing : null);
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();

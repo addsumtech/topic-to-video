@@ -856,6 +856,9 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     # (runtime/styleAxes.json) that scripts/style_spec.py validated it against. Absent: nothing mounts.
     if isinstance(meta.get("style"), dict):
         props["style"] = meta["style"]
+        tex = style_texture_props(meta, out_dir)
+        if tex:
+            props["styleTexture"] = tex
     # EACH BEAT'S CLOCK, ON ITS VOICE (scripts/sync_qa.py, Film.tsx `BeatClock`): the warp derived for the beat
     # AS IT IS NOW, or the board's own `sync.anchors`; nothing for a beat that has neither, so every reader of
     # these props — the render, the segment plan, the gates — sees the film that will actually play.
@@ -865,6 +868,17 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     _sq.attach_cues(out_dir, data, props, slides)
     _sq.attach_warps(out_dir, data, props, slides)
     return props, slides
+
+
+def style_texture_props(meta, out_dir):
+    """{"light", "dark"} — the GENERATED medium's tiles (scripts/imagegen.texture), served from the film's public dir;
+    None when the spec does not ask for one or it was never made (the engine then draws the procedural medium)."""
+    spec = meta.get("style") if isinstance(meta.get("style"), dict) else None
+    surf = (spec or {}).get("surface") or {}
+    if surf.get("source") != "generated" or (surf.get("kind") or "none") == "none":
+        return None
+    rel = {k: "style/surface-%s-%s.png" % (surf["kind"], k) for k in ("light", "dark")}
+    return rel if all(os.path.isfile(os.path.join(out_dir, p)) for p in rel.values()) else None
 
 
 def style_refusal(data, sample=None):

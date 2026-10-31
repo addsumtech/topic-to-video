@@ -162,6 +162,14 @@ def build(out_dir, to=None):
     spec = meta.get("style")
     if not isinstance(spec, dict):
         raise SystemExit("%s no meta.style — there is no style to sample" % TAG)
+    surf = spec.get("surface") or {}
+    if surf.get("source") == "generated" and (surf.get("kind") or "none") != "none":
+        import imagegen
+        imagegen.texture(out_dir, surf["kind"], surf.get("strength", 0.5))      # or a recorded shortfall
+        board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+        meta = board.get("meta") or {}
+        spec = meta.get("style")
+    tex = rr.style_texture_props(meta, out_dir)
     beats = pick_beats(board)
     if not beats:
         raise SystemExit("%s no beat of this film is in the style's reach — there is nothing to sample" % TAG)
@@ -174,6 +182,8 @@ def build(out_dir, to=None):
         s = by_n[n]
         frames = max(2, int(round(float(s.get("duration") or 5.0) * 30)))
         props = dict(rr.film_shot_props(s, out_dir), aspect=meta.get("aspect") or "16:9", holdFrames=frames, style=spec)
+        if tex:
+            props["styleTexture"] = tex
         if dna:
             props["dna"] = dna
         png = os.path.join(work, "sample.%02d.png" % n)
