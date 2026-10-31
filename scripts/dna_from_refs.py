@@ -66,8 +66,9 @@ def _sat_val(rgb):
     return h, s, v
 
 
-def derive(paths):
-    """The DNA colours the references imply, with where each came from."""
+def derive(paths, film_ground=None):
+    """The DNA colours the references imply, with where each came from. `film_ground` (a film that keeps its own
+    ground) is what the accents must read on."""
     px = np.concatenate([_pixels(p) for p in paths])
     hist = sorted(_bins(px).values(), key=lambda t: -t[0])
     total = float(len(px))
@@ -81,11 +82,15 @@ def derive(paths):
     while _t._contrast(tuple(ink), tuple(ground)) < 7.0 and t < 1.0:         # pushed until it reads
         t += 0.05
         ink = _t._mix(tuple(ink), target, t)
+    # ACCENTS THAT ALREADY READ come first: a yellow pushed to 3:1 on cream turns olive (the third cartoon film's
+    # ending), so a saturated colour that holds 3:1 on the ground as it is beats one that has to be darkened to
+    on = tuple(int(film_ground[i:i + 2], 16) for i in (1, 3, 5)) if film_ground else tuple(ground)
+    ranked = [m for c, m in sorted(hist, key=lambda t: -(_sat_val(t[1])[1] * min(1.0, t[0] / (0.01 * total))))
+              if _sat_val(m)[1] >= 0.35 and _sat_val(m)[2] >= 0.25 and c / total >= 0.003]
+    reads = [m for m in ranked if _t._contrast(tuple(m), on) >= 3.0]
     accents = []
-    for c, m in sorted(hist, key=lambda t: -(_sat_val(t[1])[1] * min(1.0, t[0] / (0.01 * total)))):
-        h, s, v = _sat_val(m)
-        if s < 0.35 or v < 0.25 or c / total < 0.003:
-            continue
+    for m in reads + [m for m in ranked if not any(m is r for r in reads)]:
+        h = _sat_val(m)[0]
         if all(min(abs(h - _sat_val(a)[0]), 1 - abs(h - _sat_val(a)[0])) > 40 / 360.0 for a in accents):
             accents.append(m)
         if len(accents) == 2:
@@ -143,7 +148,7 @@ def main(argv=None):
     if not whole and not isinstance(have, dict):
         print("%s REFUSED: the board's design_dna is a preset name — give it an object first, or pass --ground" % TAG)
         return 2
-    dna = derive(refs)
+    dna = derive(refs, None if whole else have.get("bg"))
     if not whole:
         read = dna
         dna = dict(have)

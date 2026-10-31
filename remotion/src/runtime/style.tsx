@@ -69,6 +69,7 @@ const GRAD_ATTRS = ['x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'fx', 'fy', 'fr', '
 const GROUND_FRAC = 0.9;      // a box or shape covering this much of the layer is its ground: no outline, no shadow
 const DISPLAY_FRAC = 0.06;    // type at least this fraction of the short side is display type
 const OUTLINE_PX = 2.5;       // an outline's weight when the spec sets `outline` but leaves `weight` as drawn
+const SPECK_PX = 12;          // smaller than this (at 1080) is a speck — dust, a sparkle — not a thing: no ring, no shadow
 
 const alphaOf = (css: string): number => {
   const m = /rgba\(([^)]+)\)/.exec(css);
@@ -427,7 +428,7 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
       const keepLine = crossesType(r, filled);
       const fillAlpha = parseFloat(cs.fillOpacity || '1') * parseFloat(cs.opacity || '1') *
         (urlId(fillPaint) ? alphaOf(solidFill) : alphaOf(fillPaint));
-      const light = filled && fillAlpha < LIGHT_ALPHA;
+      const light = (filled && fillAlpha < LIGHT_ALPHA) || Math.max(r.width, r.height) < SPECK_PX * scale;
       const outlineHere = filled && !ground && !stroked && (ln.outline === 'all' || ln.outline === 'both') && !keepLine && !light;
       if (outlineHere) {
         const col = lineColor(c, solidFill, '') ?? inkFor(solidFill, dna);
@@ -538,7 +539,8 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     } else if (image !== null) {
       put(el, 'background-image', image, 'fill.mode');
     }
-    if (ground || furniture(r) || r.width < 2 || r.height < 2) return;
+    // dust specks a few px wide took a ring each and read as boxed squares across a title (the third cartoon film)
+    if (ground || furniture(r) || Math.min(r.width, r.height) < SPECK_PX * scale) return;
     const bw = parseFloat(cs.borderTopWidth) || 0;
     const bordered = bw > 0 && alphaOf(cs.borderTopColor) > 0 && cs.borderTopStyle !== 'none';
     const visibleFill = alphaOf(cs.backgroundColor) * parseFloat(cs.opacity || '1') >= LIGHT_ALPHA ||

@@ -122,3 +122,23 @@ def test_an_accent_read_from_refs_holds_3_to_1_on_the_ground(tmp_path):
     rgb = lambda h: tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
     for k in ("accent", "accent2"):
         assert theme._contrast(rgb(dna[k]), rgb(dna["bg"])) >= 3.0, (k, dna[k])
+
+
+def test_an_accent_that_already_reads_is_preferred_to_one_darkened_until_it_does(tmp_path):
+    """A yellow pushed to 3:1 on cream turns olive — the third cartoon film's ending went muddy. When the references
+    hold saturated colours that already read on the ground (a red, a blue), those are the accents."""
+    (tmp_path / "style_refs").mkdir()
+    img = Image.new("RGB", (400, 300), (250, 240, 220))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, 400, 120], fill=(245, 218, 17))          # the biggest saturated field: a yellow
+    d.ellipse([40, 150, 160, 280], fill=(200, 40, 35))
+    d.rectangle([220, 150, 360, 280], fill=(40, 100, 200))
+    img.save(tmp_path / "style_refs" / "y.png")
+    board = {"meta": {"design_dna": {"id": "cream", "bg": "#fff4df", "fg": "#231a14", "accent": "#777777"},
+                      "style": {"name": "x", "refs": [{"src": "style_refs/y.png", "from": "found"}]}}, "slides": []}
+    (tmp_path / "storyboard.json").write_text(json.dumps(board))
+    assert dfr.main([str(tmp_path)]) == 0
+    dna = json.load(open(tmp_path / "storyboard.json"))["meta"]["design_dna"]
+    hues = sorted(_hue(dna[k])[0] for k in ("accent", "accent2"))
+    assert not any(0.1 < h < 0.2 for h in hues), (dna["accent"], dna["accent2"])     # no yellow/olive
+    assert any(h < 0.05 or h > 0.95 for h in hues) and any(0.55 < h < 0.7 for h in hues), hues

@@ -44,6 +44,9 @@ export const StyleProbe: React.FC<{overlay?: boolean; dark?: boolean}> = ({overl
     </div>
     <div style={{position: 'absolute', left: 800, top: 800, fontSize: 120, lineHeight: '140px', color: '#111827',
       fontFamily: 'sans-serif'}}>标题</div>
+    {/* a speck of dust (6 px, round): not a thing — no ring, no shadow */}
+    <div data-probe="speck" style={{position: 'absolute', left: 1597, top: 117, width: 6, height: 6, borderRadius: 3,
+      background: '#8a7f70'}} />
     {/* a vignette over everything: a translucent ground that must stay translucent */}
     {overlay ? <div data-probe="vignette" style={{position: 'absolute', inset: 0,
       background: 'radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.3) 100%)'}} /> : null}

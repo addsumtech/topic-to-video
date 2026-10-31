@@ -504,3 +504,14 @@ def test_both_draws_a_heavy_silhouette_and_light_inner_lines(tmp_path):
         col = img[ly - 20:ly + 21, lx].astype(int).sum(axis=1)
         return int((col < col[0] - 120).sum())          # a thin antialiased line is not fully dark at any pixel
     assert 0 < thick(b) < thick(a), ("inner lines not lighter", thick(a), thick(b))
+
+
+@needs_render
+def test_a_speck_is_not_outlined(tmp_path):
+    """Dust specks a few px wide took a ring each and read as boxed squares across a title (the third cartoon film)."""
+    spec = {"name": "ink", "refs": [], "refs_missing": "t", "line": {"outline": "all", "weight": 6, "color": "ink"},
+            "shadow": {"mode": "hard-offset", "offset": 6}}
+    un = _render("StyleProbe", {}, 10, str(tmp_path / "un.png"))
+    st = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "st.png"))
+    for p in ((112, 1592), (112, 1607), (128, 1592), (128, 1607)):    # just outside the speck's box
+        assert np.abs(st[p].astype(int) - un[p].astype(int)).max() <= 3, (p, st[p], un[p])
