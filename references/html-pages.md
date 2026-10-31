@@ -755,7 +755,7 @@ label-gauge .label-gauge__reading{opacity:0;transform:translateY(calc(6cqmin * v
   animation:label-gauge-rise .8s cubic-bezier(.2,.7,.2,1) .2s forwards;animation-play-state:paused}
 @keyframes label-gauge-sweep{from{transform:rotate(calc(var(--label-gauge-to) * (1 - var(--motion, 1)) - 90deg * var(--motion, 1)))}
   to{transform:rotate(var(--label-gauge-to))}}
-@keyframes label-gauge-rise{99.9%{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes label-gauge-rise{to{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}}
 ```
 On the page (inside `.stage`, its box set by the page):
 ```html

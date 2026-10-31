@@ -1540,7 +1540,7 @@ COMPONENT_CSS_SCAFFOLD = """/* %(name)s — sized by its box (container units: c
   animation:%(tag)s-rise .8s cubic-bezier(.2,.7,.2,1) .2s forwards;animation-play-state:paused}
 %(tag)s .%(tag)s__label{font:600 6cqmin/1.2 var(--font-body,system-ui,sans-serif);color:var(--muted);opacity:0;
   animation:%(tag)s-fade .6s ease-out .5s forwards;animation-play-state:paused}
-@keyframes %(tag)s-rise{99.9%%{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes %(tag)s-rise{to{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}}
 @keyframes %(tag)s-fade{to{opacity:1}}
 """
 

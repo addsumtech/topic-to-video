@@ -25,5 +25,5 @@ label-gauge .label-gauge__label{font:600 5.5cqmin/1.2 var(--font-body,system-ui,
 @keyframes label-gauge-sweep{
   from{transform:rotate(calc(var(--label-gauge-to) * (1 - var(--motion, 1)) - 90deg * var(--motion, 1)))}
   to{transform:rotate(var(--label-gauge-to))}}
-@keyframes label-gauge-rise{99.9%{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes label-gauge-rise{to{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}}
 @keyframes label-gauge-fade{to{opacity:1}}

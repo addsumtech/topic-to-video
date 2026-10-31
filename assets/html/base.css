@@ -63,20 +63,29 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
    `matrix(1,.0009765625,0,1,0,0)` is a skewY of 1/1024 — the smallest entry Skia's own matrix
    rounding (sk_relax) keeps, so it tilts nothing a viewer can see (under a pixel at either edge of
    a 1920-wide frame) — and it is enough to make the matrix non-axis-aligned, which moves Skia onto
-   its quarter-pixel glyph path on BOTH axes. It rides every keyframe up to (not including) the
-   settled one, so a SETTLED page renders byte-identical to before this existed; reduced-motion.css
-   overrides `transform` outright and never sees it. A loop that is never captured at rest (`.float`
-   below, and any custom `[data-ambient]` text animation an author writes) keeps it for the whole
-   loop instead — state that hairline tradeoff at the call site, don't silently drop it. */
+   its quarter-pixel glyph path on BOTH axes. reduced-motion.css overrides `transform` outright and
+   never sees it.
+   IT STAYS ON AT REST — the span is the reveal AND everything after it on the page, never "while it
+   moves" (the Remotion tier's rule, runtime/glide.ts). The settled keyframe used to drop it
+   (`to{transform:none}`) so a settled page stayed byte-identical to a page with no reveal; but
+   dropping it re-snaps the baseline to the whole pixel on the reveal's LAST frame, so every
+   reveal-up ended with a jump of up to half a pixel after the type had come to rest — measured
+   0.67-0.70px on a validation film's 「1999」 line (jitter_qa: pops 0.95px). Kept on, the last frame
+   of the motion IS the settled frame (0.013px). The cost, measured on that page's settled frame:
+   type sits at its true quarter-pixel place instead of the rounded one (so ~27-35% of the moved
+   blocks' edge pixels differ), with the same sharpness (mean gradient -1.3..+0.1%) — see
+   tests/test_html_baseline_unlock.py. A settled element also keeps the stacking context and the
+   containing block its transform gave it throughout the motion, instead of losing them on the last
+   frame. */
 .reveal-up{opacity:0;transform:translateY(48px) matrix(1,.0009765625,0,1,0,0);
   animation:rise var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
 @keyframes fade{to{opacity:1}}
-@keyframes rise{99.9%{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes rise{to{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}}
 /* 8-pt grid: gaps/padding use multiples of 8. hierarchy contract: .title/.sub ≥ 2.5×, .title/.note ≥ 3×. */
 .mono{font-family:var(--font-mono);letter-spacing:.04em;font-variant-numeric:tabular-nums}
 /* spring overshoot for a hero stat / pop-in (paused -> seek.js freezes it) */
 .reveal-pop{opacity:0;transform:scale(.88) matrix(1,.0009765625,0,1,0,0);animation:pop var(--dur) var(--ease-over) forwards;animation-play-state:paused}
-@keyframes pop{99.9%{opacity:1;transform:scale(1) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes pop{to{opacity:1;transform:scale(1) matrix(1,.0009765625,0,1,0,0)}}
 /* shorter rise for dense sub-items */
 .reveal-up-sm{opacity:0;transform:translateY(10px) matrix(1,.0009765625,0,1,0,0);animation:rise var(--dur) var(--ease-expo) forwards;animation-play-state:paused}
 /* mask-reveal entrance (left-to-right wipe-on) — for elements with a FILLING/DIRECTIONAL semantic
@@ -504,7 +513,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 /* emphasis: the focal cell/row/node SETTLES in last, from just-below full size (never scale(0) — a
    0.96 start reads as a considered landing, not a pop). Pair with the element's static .on ring. */
 .settle{opacity:0;transform:scale(.96) matrix(1,.0009765625,0,1,0,0);animation:settle var(--dur) var(--ease-over) forwards;animation-play-state:paused}
-@keyframes settle{99.9%{opacity:1;transform:scale(1) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes settle{to{opacity:1;transform:scale(1) matrix(1,.0009765625,0,1,0,0)}}
 
 /* comparison: the NON-focal side DIMS as the focal side is named (opacity-only, stays >=.4 = still
    legible; pairs with .defocus / rtable tr.win / .cell.on). */
