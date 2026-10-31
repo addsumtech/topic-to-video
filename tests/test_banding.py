@@ -34,19 +34,32 @@ needs_cambi = pytest.mark.skipif(not _cambi_ok(), reason="needs an ffmpeg with l
 def _film(tmp_path, noise):
     """A 2 s film of one dark radial gradient (two scenes of 1 s), encoded the way a film is: x264 CRF 18.
 
-    The gradient's geometry is FIXED (centre out to a corner). Left to `gradients`' default seed (-1, random) the
-    endpoints moved every run, and some draws are too shallow to band (seed 3 reads CAMBI 3.7, under the 5.0 floor)
-    — the test passed in one run and failed in the next on unchanged code. Fixed, it reads 15.0 banded, 0.0 dithered."""
+    The gradient is FIXED by its SEED. `gradients`' default seed is -1 (random), and setting x0..y1 does not take it
+    out: with only those set, two runs still drew different pictures (CAMBI 3.4 in one, 15.0 in another, against the
+    5.0 floor) — the test passed in one run and failed in the next on unchanged code. At seed=3 it reads 8.7 banded,
+    0.0 dithered, every run (test_the_fixture_film_is_the_same_on_every_run)."""
     out = tmp_path / ("n%d" % noise)
     out.mkdir()
     vf = "format=yuv420p" + (",noise=c0s=%d:c0f=u" % noise if noise else "")
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
                     "gradients=s=960x540:c0=0x0b1020:c1=0x1a2a48:d=2:r=30:speed=0:type=radial:"
-                    "x0=480:y0=270:x1=960:y1=540", "-t", "2",
+                    "x0=480:y0=270:x1=960:y1=540:seed=3", "-t", "2",
                     "-vf", vf, "-c:v", "libx264", "-crf", "18", str(out / "out.mp4")], check=True)
     json.dump({"meta": {}, "slides": [{"index": 1, "duration": 1.0}, {"index": 2, "duration": 1.0}]},
               open(out / "storyboard.json", "w"))
     return str(out)
+
+
+def test_the_fixture_film_is_the_same_on_every_run(tmp_path):
+    """Two draws of the fixture must be the same pixels, or the CAMBI floor below is judged on a different picture
+    each run (it read 3.4 in one run and 15.0 in the next)."""
+    import hashlib
+    for i in (1, 2):
+        (tmp_path / str(i)).mkdir()
+    a, b = (_film(tmp_path / str(i), 0) for i in (1, 2))
+    raw = [subprocess.run(["ffmpeg", "-v", "error", "-i", os.path.join(f, "out.mp4"), "-frames:v", "1", "-f", "rawvideo",
+                           "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout for f in (a, b)]
+    assert hashlib.sha256(raw[0]).hexdigest() == hashlib.sha256(raw[1]).hexdigest()
 
 
 @needs_cambi
