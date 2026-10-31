@@ -34,6 +34,7 @@ here writes outside `<out_dir>/workshop/`.
 """
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -893,6 +894,9 @@ def check(out_dir):
 # seek.js, so the parser-created elements are upgraded (and build their parts) before seek.js freezes every
 # animation it finds. Nothing below runs for a film without workshop/html/ and without a custom tag in a page.
 HTML_KIND = "html"
+# the longest a component's parts may animate after its start without declaring it: base.css's --dur, which the
+# capture burst (scenes.html_capture_plan, 0.8 s) already covers with its 0.1 s margin
+SPAN_FREE = 0.7
 ASSETS_HTML = os.path.join(SKILL, "assets", "html")
 LIB_COMPONENTS = os.path.join(ASSETS_HTML, "components")
 # names the HTML spec reserves (all hyphenated, all SVG/MathML elements) — never a custom element
@@ -1146,8 +1150,11 @@ _HARNESS = """<!doctype html><html lang="%(lang)s"><head><meta charset="utf-8">
   var attrs=%(attrs)s||C.demo;
   if(!attrs||typeof attrs!=='object'||!Object.keys(attrs).length){window.__cmpErrs.push('static demo is missing or empty');return;}
   window.__cmpDemo=C.demo||null;
+  window.__cmpSpan=(typeof C.span==='number')?C.span:null;
   var el=document.createElement(%(tag_js)s);el.id='__cmp';
   Object.keys(attrs).forEach(function(k){el.setAttribute(k,String(attrs[k]));});
+  // a cue host, as on a real page: seek.js then times every animated part from the element's start
+  el.setAttribute('data-cue-index','0');
   el.style.width='%(bw)dpx';el.style.height='%(bh)dpx';el.style.flex='none';el.style.alignSelf='center';
   document.getElementById('__host').appendChild(el);
 }catch(e){window.__cmpErrs.push(String(e&&e.message||e));}})();</script>
@@ -1159,6 +1166,11 @@ _PROBE_JS = r"""(function(){
   var el=document.getElementById('__cmp');
   var out={errs:(window.__cmpErrs||[]).slice(),demo:window.__cmpDemo||null,built:!!el};
   if(!el) return JSON.stringify(out);
+  // how long after its start the element's last part finishes, as seek.js scheduled it (the element's own
+  // reveal counts from 0, a part from its authored delay), and the `static span` the class declares
+  out.declared=window.__cmpSpan; out.span=0; out.parts=0;
+  (window.__seekSpans||[]).forEach(function(s){if(s.ambient||!(s.el===el||el.contains(s.el)))return;
+    out.parts++; out.span=Math.max(out.span,(s.own?0:Math.max(0,s.rel||0))+s.dur);});
   var cs0=getComputedStyle(el), r0=el.getBoundingClientRect();
   out.display=cs0.display; out.box=[r0.width,r0.height];
   out.attrs=[]; for(var i=0;i<el.attributes.length;i++){var a=el.attributes[i];
@@ -1307,6 +1319,17 @@ def component_runtime(name, js, css, label, scratch_dir, theme=None, lang="en", 
         if abs(bx[0] - bw) > 1 or abs(bx[1] - bh) > 1:
             probs.append("%s: given a %d×%d box it is %d×%d — the element fills the box its page gives it (never "
                          "sets its own width/height)" % (label, bw, bh, round(bx[0]), round(bx[1])))
+        # THE PARTS' TIMELINE MUST BE KNOWN BEFORE THE PAGE IS LOADED. render_html captures fresh frames for a
+        # cue's burst — 0.8 s unless the plan knows the cue animates longer (_common.cued_anim_need) — and holds
+        # the last one after it. A component's parts are built by its script, so the plan cannot read their
+        # delays from the page: a component whose parts outlast an ordinary reveal says how long in `static
+        # span`, and here the declaration is checked against what seek.js actually scheduled.
+        span, decl = float(end.get("span") or 0.0), end.get("declared")
+        if span > SPAN_FREE + 1e-6 and (decl is None or float(decl) + 0.05 < span):
+            probs.append("%s.js: its parts animate for %.2f s after its start, longer than an ordinary reveal (%.1f s) "
+                         "— declare `static span = %.2f;` on the class so the render captures them to the end "
+                         "(%s)" % (label, span, SPAN_FREE, math.ceil(span * 20) / 20.0,
+                                   "it declares none" if decl is None else "it declares %.2f" % float(decl)))
         if end.get("unfrozen"):
             probs.append("%s.js: %s animate(s) but seek.js did not freeze them — build every part when the element "
                          "is connected (connectedCallback), never later" % (label, ", ".join(end["unfrozen"][:3])))
@@ -1511,6 +1534,9 @@ COMPONENT_JS_SCAFFOLD = """// COMPONENT · %(name)s <%(tag)s> — %(means)s
 customElements.define('%(tag)s', class extends HTMLElement {
   // neutral demo attributes `workshop.py check` renders it with — never film copy
   static demo = {label: 'Demo label', value: '3'};
+  // seconds after the element starts (its cue) that its LAST part finishes: the longest CSS delay + duration
+  // below, delays set from script included. `check` measures it; the render captures the parts that long.
+  static span = 1.1;
 
   connectedCallback() {
     if (this._built) return;            // build ONCE: a re-attach must not duplicate the parts

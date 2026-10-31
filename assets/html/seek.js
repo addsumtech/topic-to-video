@@ -16,26 +16,45 @@
     // OUT of the reveal-stagger envelope below, so dropping one behind a page can never shift when a
     // reveal fires. Determinism is preserved either way.
     var ambient = el.matches('.bg-live, .bg-drift, [data-ambient]');
-    return { el: el, d: sec(cs.animationDelay), dur: sec(cs.animationDuration), ambient: ambient };
+    // THE CUE HOST: the element itself when it carries data-cue-index, else its nearest ancestor that does.
+    // An animated part INSIDE a cued element — a component's cells, built by its script; a .bar's fill inside
+    // a cued card — is timed from that element's start, its own animation-delay an offset from there. Without
+    // this a part kept its delay from the SCENE's start: a validation film's <tiling-patch> rippled its cells in
+    // over the scene's first second while the patch itself sat at opacity 0 until its word — the ripple played
+    // out unseen and the patch faded in already complete.
+    var host = ambient ? null : el.closest('[data-cue-index]');
+    return { el: el, d: sec(cs.animationDelay), dur: sec(cs.animationDuration), ambient: ambient,
+             host: host, own: host === el };
   });
   var useCues = cues && !isNaN(dur) && dur > 0;
-  if (useCues) {
-    spans.forEach(function (s) {
-      if (s.ambient) return;   // ambient backdrops are progress-driven, never cue-anchored
-      var ci = s.el.getAttribute('data-cue-index');
+  // when a cue host starts: its spoken cue (+ data-cue-offset, clamped to the scene) in cue mode, else its own
+  // CSS animation-delay (0 when the host itself does not animate) — the stagger the page was authored with
+  var hostStart = function (h) {
+    if (useCues) {
+      var ci = h.getAttribute('data-cue-index');
       if (ci !== null && cues[+ci] != null && !isNaN(cues[+ci])) {
         // data-cue-offset: seconds to LEAD (negative) or LAG (positive) the spoken word. Without it
         // an author's only temporal control is WHICH word fires an element — the reveal lands exactly
         // on the anchor and nothing can be phrased against it. A connector that should start drawing
         // just before its phrase, or a punchline that should land a beat after, had no expression.
         // Clamped to [0, dur] so an offset can never schedule a reveal off the scene.
-        var off = parseFloat(s.el.getAttribute('data-cue-offset'));
-        s.d = cues[+ci] + (isNaN(off) ? 0 : off);
-        if (s.d < 0) s.d = 0;
-        if (s.d > dur) s.d = dur;
+        var off = parseFloat(h.getAttribute('data-cue-offset'));
+        var t = cues[+ci] + (isNaN(off) ? 0 : off);
+        return Math.min(dur, Math.max(0, t));
       }
-    });
-  }
+      return null;                // an unanchored slot keeps the paced stagger (see html_capture_plan)
+    }
+    var n = getComputedStyle(h).animationName;
+    return n && n !== 'none' ? sec(getComputedStyle(h).animationDelay) : 0;
+  };
+  spans.forEach(function (s) {
+    if (!s.host) return;
+    var start = hostStart(s.host);
+    if (start === null) return;
+    if (s.own) { if (useCues) s.d = start; return; }   // a host's own reveal: on its cue (paced: as authored)
+    s.rel = s.d;                  // a part: its authored delay, now counted from the host's start
+    s.d = start + s.d;
+  });
   // reveal-stagger envelope: max(delay+dur) over the REVEALS only (ambient backdrops excluded)
   var total = useCues ? dur : spans.reduce(function (m, s) {
     return s.ambient ? m : Math.max(m, s.d + s.dur);
@@ -46,5 +65,10 @@
     // absolute time T = p*total via a negative delay.
     s.el.style.animationDelay = (s.ambient ? -(p * s.dur) : (s.d - T)) + 's';
     s.el.style.animationPlayState = 'paused';
+  });
+  // what was scheduled, for the checks that must agree with it (workshop.py measures a component's parts here)
+  window.__seekSpans = spans.map(function (s) {
+    return { el: s.el, start: s.d, rel: s.rel === undefined ? null : s.rel, dur: s.dur, ambient: s.ambient,
+             host: s.host, own: s.own };
   });
 })();

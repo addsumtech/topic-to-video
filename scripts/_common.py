@@ -280,22 +280,95 @@ def out_edge_seconds(slide, meta, dur):
     return d
 
 
-def cued_anim_need(html):
-    """{data-cue-index: seconds its cued element animates for, plus any positive data-cue-offset lag} — what
-    a cue's reveal needs after its moment to finish (the per-cue burst width and the end clamp read it)."""
-    import re
-    table = css_anim_durations()
-    need = {}
-    for tag in re.findall(r"<[^>]+>", html):
-        mi = re.search(r'data-cue-index\s*=\s*["\'](\d+)["\']', tag)
-        if not mi:
+_SPAN_DECL = re.compile(r"\bstatic\s+span\s*=\s*([0-9]*\.?[0-9]+)")
+_DEFINE = re.compile(r"customElements\s*\.\s*define\s*\(\s*['\"`]([a-z][a-z0-9]*(?:-[a-z0-9]*)+)['\"`]")
+_VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+
+
+def component_spans(html):
+    """{custom tag: seconds} — each component's declared `static span` (how long after its start its last part
+    finishes animating), read from the component scripts the page links. A component with no declaration is
+    absent: workshop.py `check` measures every component's parts and refuses one whose parts outlast the capture
+    burst without saying so, so absent means "finishes inside an ordinary reveal"."""
+    from urllib.parse import unquote, urlparse
+    out = {}
+    for src in re.findall(r"""<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']""", html or "", re.I):
+        u = urlparse(src)
+        path = unquote(u.path) if u.scheme == "file" else (src if os.path.isabs(src) else None)
+        if not path or not os.path.isfile(path):
             continue
-        sec = element_anim_seconds(tag, table)
-        if sec:
-            ci = int(mi.group(1))
-            mo = re.search(r'data-cue-offset\s*=\s*["\']([-\d.]+)["\']', tag)
-            lag = max(0.0, float(mo.group(1))) if mo else 0.0
-            need[ci] = max(need.get(ci, 0.0), sec + lag)
+        try:
+            js = open(path, encoding="utf-8").read()
+        except OSError:
+            continue
+        tags, spans = _DEFINE.findall(js), _SPAN_DECL.findall(js)
+        if len(tags) == 1 and spans:
+            out[tags[0]] = float(spans[0])
+    return out
+
+
+def _inline_delay(tag_html):
+    m = re.search(r"animation-delay\s*:\s*(-?[\d.]+)(m?s)", tag_html)
+    if not m or m.group(1) in ("", ".", "-"):
+        return 0.0
+    v = float(m.group(1))
+    return v / 1000.0 if m.group(2) == "ms" else v
+
+
+def cued_anim_need(html):
+    """{data-cue-index: seconds after its cue that element's animation runs — plus any positive data-cue-offset
+    lag} — what a cue's reveal needs after its moment to finish (the per-cue burst width and the end clamp read it).
+
+    A cued element's PARTS count: seek.js times every animated descendant that carries no data-cue-index of its
+    own from its cue host's start, its own animation-delay an offset from there — so a host needs the longest of
+    (part's inline delay + its duration) too, and a component inside it (or the host itself, when it is one) its
+    declared `static span` (component_spans). Before, only the host's own class was counted, and a component whose
+    cells rippled in for 1.45 s got the ordinary 0.8 s burst and was frozen mid-ripple."""
+    from html.parser import HTMLParser
+    table = css_anim_durations()
+    spans = component_spans(html)
+    need = {}
+
+    class _P(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.stack = []                         # [(tag, cue index or None, lag)]
+
+        def _host(self):
+            for _t, ci, lag in reversed(self.stack):
+                if ci is not None:
+                    return ci, lag
+            return None, 0.0
+
+        def handle_starttag(self, tag, attrs):
+            raw = self.get_starttag_text() or ""
+            mi = re.search(r'data-cue-index\s*=\s*["\'](\d+)["\']', raw)
+            mo = re.search(r'data-cue-offset\s*=\s*["\']([-\d.]+)["\']', raw)
+            own = int(mi.group(1)) if mi else None
+            lag = max(0.0, float(mo.group(1))) if (mi and mo) else 0.0
+            sec = element_anim_seconds(raw, table)
+            comp = spans.get(tag.lower())
+            if own is not None:
+                host, hlag, rel = own, lag, 0.0     # a host's own reveal starts on its cue
+            else:
+                host, hlag = self._host()
+                rel = _inline_delay(raw)            # a part: its delay counts from the host's start
+            if host is not None:
+                for s in (sec, comp):
+                    if s:
+                        need[host] = max(need.get(host, 0.0), max(0.0, rel) + s + hlag)
+            if tag.lower() not in _VOID and not raw.rstrip().endswith("/>"):
+                self.stack.append((tag.lower(), own, lag))
+
+        def handle_endtag(self, tag):
+            for k in range(len(self.stack) - 1, -1, -1):
+                if self.stack[k][0] == tag.lower():
+                    del self.stack[k:]
+                    break
+
+    p = _P()
+    p.feed(re.sub(r"(<(script|style)\b[^>]*>).*?(</\2\s*>)", r"\1\3", html or "", flags=re.S | re.I))
+    p.close()
     return need
 
 

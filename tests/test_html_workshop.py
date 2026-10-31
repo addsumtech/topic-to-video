@@ -209,6 +209,17 @@ def test_the_fixture_passes_every_runtime_check(tmp_path):
 
 
 @needs_chrome
+@pytest.mark.parametrize("span, expect", [(None, "it declares none"), ("0.5", "it declares 0.50")])
+def test_parts_that_outlast_a_reveal_must_declare_their_span(tmp_path, span, expect):
+    """LabelGauge's reading rises .8 s after a .2 s delay: 1.0 s, longer than the 0.8 s capture burst covers. With no
+    `static span` (or one too short) the render would freeze the reading mid-rise — check measures what seek.js
+    scheduled and says so."""
+    js = _sub(JS, "  static span = 1.0;\n", "" if span is None else "  static span = %s;\n" % span)
+    probs = _runtime(tmp_path, js=js)["problems"]
+    assert any("static span = 1.00" in p and expect in p for p in probs), probs
+
+
+@needs_chrome
 def test_a_word_written_into_the_code_is_caught(tmp_path):
     js = _sub(JS, "part(this, 'label', attr('label'));", "part(this, 'label', 'Pump pressure');")
     probs = _runtime(tmp_path, js=js)["problems"]
