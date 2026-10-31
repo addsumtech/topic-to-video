@@ -69,9 +69,13 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   `auto`/`codex`/`openai`; the Codex CLI path needs no key). The images are backplanes BEHIND HTML pages: never a
   slideshow of generated stills, never text or data, never a stand-in for a real named subject (that is
   `documentary`). `validate.py` enforces all three.
-- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--duotone SHADOW HIGHLIGHT]`: the FREE `documentary` tier. Fetches a
-  license-clean Wikimedia Commons image of the ACTUAL named subject and writes a `<out_path>.json` sidecar with licence
-  + attribution. Helpers: `fetch()` returns None when nothing license-clean exists, `attribution_line()` gives the
+- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--min-width PX] [--require TERM...] [--duotone SHADOW HIGHLIGHT]`:
+  the FREE `documentary` tier. Fetches a license-clean Wikimedia Commons image of the ACTUAL named subject and writes a
+  `<out_path>.json` sidecar with licence + attribution + which field of the file's record named each query term. A
+  candidate is taken only when its title, object name or categories attest EVERY key term of the query (or its
+  description holds the whole phrase); otherwise it is refused, and when all are refused the reasons and a hint print to
+  stderr — rephrase, or pass `--require` with the terms that are the subject when the rest only qualify it.
+  Helpers: `fetch()` returns None when nothing relevant and license-clean exists, `attribution_line()` gives the
   on-screen `.credit`, `duotone()` tones the image into the palette. Reach for it on CONCRETE topics; the design-director
   picks `media.treatment: none|atmosphere|documentary` per beat. **Take the credit FROM the sidecar, never from memory**:
   `validate.py` ERRORS when a beat shows a `media/*` file without crediting its sidecar's author.
@@ -893,7 +897,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     TREATMENT" procedure: `none` for data beats, `atmosphere` for mood, `documentary` to SHOW a real
     concrete subject), fetch the real image at authoring time:
     `imagefetch.fetch(doc_query, out_path, prefer=doc_prefer)` → returns an attribution dict (or **None**
-    if nothing license-clean matched). Then: **treat it to match the deck** on a non-photographic style —
+    if nothing relevant and license-clean matched — the refused candidates and why print to stderr; read them
+    before degrading, since a query that names the subject differently from Commons' records is fixed by
+    rephrasing it, not by giving up the image). Then: **treat it to match the deck** on a non-photographic style —
     `imagefetch.duotone(raw, out_path, shadow=<--fg rgb>, mid=<--accent rgb>, highlight=<--bg rgb>)`;
     reference it as a full-bleed `.bg-photo` (+ `.scrim`) or a `.split` panel; and **add a `.credit` line**
     with `imagefetch.attribution_line(meta)` — placed as a DIRECT CHILD of `<body>` (a sibling of

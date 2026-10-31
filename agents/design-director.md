@@ -181,7 +181,7 @@ real photo of "inflation") — that's `none`/`atmosphere`.
 | a sparse hook / section-divider / close needing mood | `atmosphere` (generic, topical) |
 
 **Availability + fallback (a documentary pick can miss):** `imagefetch.fetch(doc_query)` returns None when
-no license-clean image exists for the query. So a `documentary` beat MUST degrade gracefully — fall back to
+no license-clean image whose record names every key term of the query exists (it prints each refusal and why). So a `documentary` beat MUST degrade gracefully — fall back to
 `atmosphere` (if the beat wanted mood) or `none` (if it wanted the real thing and none exists), never ship
 a blank. Keep `doc_query` SPECIFIC enough to name the subject but not so narrow it finds nothing (prefer
 "Tokyo rail network map" over "Tokyo 2026 official JR East route diagram"). `documentary` is FREE (Commons,

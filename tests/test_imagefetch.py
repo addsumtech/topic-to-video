@@ -87,23 +87,23 @@ def test_search_parses_commons_response(monkeypatch):
 def test_fetch_filters_by_license_and_writes_sidecar(tmp_path, monkeypatch):
     cands = [
         {"title": "File:bad.jpg", "url": "u1", "mime": "image/jpeg", "license": "Non-free", "artist": "", "credit": "", "source": "s1", "width": 1600, "height": 1000},
-        {"title": "File:good map.png", "url": "u2", "mime": "image/png", "license": "CC0", "artist": "N", "credit": "", "source": "s2", "width": 1600, "height": 1000},
+        {"title": "File:good railway map.png", "url": "u2", "mime": "image/png", "license": "CC0", "artist": "N", "credit": "", "source": "s2", "width": 1600, "height": 1000},
     ]
     monkeypatch.setattr(F, "search", lambda q, limit=12, width=1600: cands)
     downloaded = {}
-    monkeypatch.setattr(F, "_download", lambda url, out, timeout=60: downloaded.__setitem__("url", url) or open(out, "wb").write(b"x" * 2000))
+    monkeypatch.setattr(F, "_download", lambda url, out, timeout=60: downloaded.__setitem__("url", url) or open(out, "wb").write(_jpeg()))
     out = tmp_path / "img.png"
-    meta = F.fetch("a map", str(out), prefer="map")
+    meta = F.fetch("a railway map", str(out), prefer="map")
     assert meta and meta["license"] == "CC0"          # skipped the non-free candidate
     assert downloaded["url"] == "u2"
     side = json.load(open(str(out) + ".json"))
-    assert side["title"] == "File:good map.png" and side["query"] == "a map"
+    assert side["title"] == "File:good railway map.png" and side["query"] == "a railway map"
 
 
 def test_fetch_returns_none_when_nothing_license_clean(tmp_path, monkeypatch):
     monkeypatch.setattr(F, "search", lambda q, limit=12, width=1600: [
-        {"title": "x", "url": "u", "mime": "image/jpeg", "license": "All rights reserved", "artist": "", "credit": "", "source": "", "width": 1600, "height": 1000}])
-    assert F.fetch("q", str(tmp_path / "n.png")) is None
+        {"title": "File:quay.jpg", "url": "u", "mime": "image/jpeg", "license": "All rights reserved", "artist": "", "credit": "", "source": "", "width": 1600, "height": 1000}])
+    assert F.fetch("quay", str(tmp_path / "n.png")) is None
 
 
 def test_the_depicts_filter_is_a_parameter_and_never_applied_on_its_own():
@@ -140,13 +140,20 @@ import email.message
 import io
 import urllib.error
 
-_SEARCH_ANSWER = {"query": {"pages": {"1": {"title": "File:River and city.jpg", "imageinfo": [{
+_SEARCH_ANSWER = {"query": {"pages": {"1": {"title": "File:Shenzhen River and city.jpg", "imageinfo": [{
     "thumburl": "https://upload.example/river.jpg", "url": "https://upload.example/river-full.jpg",
     "mime": "image/jpeg", "thumbwidth": 1600, "thumbheight": 1100,
     "descriptionurl": "https://commons.example/File:River_and_city.jpg",
     "extmetadata": {"LicenseShortName": {"value": "CC BY-SA 3.0"}, "Artist": {"value": "A Photographer"}},
 }]}}}}
-_IMAGE_BYTES = b"\xff\xd8" + b"jpeg" * 600
+def _jpeg(w=1600, h=1100):
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.effect_noise((w, h), 40).convert("RGB").save(buf, "JPEG", quality=60)
+    return buf.getvalue()
+
+
+_IMAGE_BYTES = _jpeg()     # a real JPEG: fetch() measures the downloaded file's own width
 
 
 def _http_error(url, code, retry_after=None):
@@ -218,9 +225,9 @@ def test_the_cli_reports_a_rate_limit_as_a_failure_not_as_an_empty_search(tmp_pa
 
 def test_a_missing_file_is_skipped_for_the_next_candidate_without_waiting(tmp_path, monkeypatch):
     two = {"query": {"pages": {
-        "1": {"title": "File:gone.jpg", "imageinfo": [dict(_SEARCH_ANSWER["query"]["pages"]["1"]["imageinfo"][0],
+        "1": {"title": "File:gone river.jpg", "imageinfo": [dict(_SEARCH_ANSWER["query"]["pages"]["1"]["imageinfo"][0],
                                                              thumburl="https://upload.example/gone.jpg")]},
-        "2": {"title": "File:here.jpg", "imageinfo": [dict(_SEARCH_ANSWER["query"]["pages"]["1"]["imageinfo"][0],
+        "2": {"title": "File:here river.jpg", "imageinfo": [dict(_SEARCH_ANSWER["query"]["pages"]["1"]["imageinfo"][0],
                                                              thumburl="https://upload.example/here.jpg")]}}}}
     seen = []
 
@@ -236,7 +243,7 @@ def test_a_missing_file_is_skipped_for_the_next_candidate_without_waiting(tmp_pa
     waits = []
     monkeypatch.setattr(F, "_sleep", waits.append, raising=False)
     meta = F.fetch("a river", str(tmp_path / "r.jpg"))
-    assert meta and meta["title"] == "File:here.jpg"
+    assert meta and meta["title"] == "File:here river.jpg"
     assert waits == [] and seen.count("https://upload.example/gone.jpg") == 1   # a 404 is not retried
 
 

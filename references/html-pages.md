@@ -223,8 +223,9 @@ line = imagefetch.attribution_line(meta)   # "Artist · CC BY 4.0 · Wikimedia C
   a sibling of `.stage` — NOT inside `.stage`. It's `position:absolute` in the lower corner; placed inside
   `.stage`, `keyframe_qa`'s overflow probe (which measures `.stage *`) counts it as content spilling past
   the canvas and FAILS the page. On a dark scrimmed photo, set `style="color:color-mix(in srgb,var(--bg) 80%,transparent)"`.
-- **Fetch can miss** — `imagefetch.fetch` returns `None` when nothing license-clean matched the query;
-  fall back to an `atmosphere` texture (mood beat) or `none` (drop the image), never a blank page.
+- **Fetch can miss** — `imagefetch.fetch` returns `None` when nothing relevant and license-clean matched the
+  query (every candidate's record must name every key term; the refusals and why print to stderr — rephrase
+  first, `require=[...]` the subject's terms when the rest only qualify it); fall back to an `atmosphere` texture (mood beat) or `none` (drop the image), never a blank page.
 - Numbers/claims still live in the page TEXT — the image shows the subject, the text asserts the fact
   (`critic-content` R1e: the fetched subject must match the beat; the credit must be present).
 

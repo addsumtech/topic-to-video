@@ -121,7 +121,7 @@ finding it prints that you do not understand.
   never a standalone slideshow of generated stills (data stays in real HTML/charts — the "AI =
   background, code = data" split). `validate.py` enforces the three bright lines on such a background
   (backplane-only, no text/data, never a stand-in for a real named subject → that's `documentary`).
-- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--duotone SHADOW HIGHLIGHT]` — the
+- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--min-width PX] [--require TERM...] [--duotone SHADOW HIGHLIGHT]` — the
   **`documentary` (REAL-image) tier**, FREE + no key: search **Wikimedia Commons** for a
   license-clean (CC / Public-Domain) real photo/map/diagram of the ACTUAL named subject, download it,
   and write a sidecar `<out_path>.json` with the license + attribution. Unlike `imagegen` (generic
