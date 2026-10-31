@@ -31,6 +31,7 @@ import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA} from './runtime/dna';
 import {StyleContext, resolveStyle, type StyleSpec} from './runtime/styleSpec';
+import {StyleLayer} from './runtime/style';
 import {REGISTRY} from './registry';
 import {STAGES, STAGE_GROUND} from './stage';
 import {StageRunContext, type StageBeat} from './runtime/stageRun';
@@ -1395,7 +1396,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                     {/* the anchor a container carried INTO this beat, which the register then draws in place */}
                     <CarryContext.Provider value={arrived[i] ?? null}>
                       <BeatOptic decl={optics ? sc.optic : undefined} dna={activeDna} where={`scene ${i} (${sc.shot}) optic`}>
-                        <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                        <StyleLayer beat={i}>
+                          <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                        </StyleLayer>
                       </BeatOptic>
                     </CarryContext.Provider>
                   </ObjectIdleContext.Provider>

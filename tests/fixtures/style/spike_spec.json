@@ -1,0 +1,2 @@
+{"name": "spike: thick uniform line, flat fill", "refs": [], "refs_missing": "a measurement spec, not a user's style",
+ "line": {"weight": 4}, "fill": {"mode": "flat"}}

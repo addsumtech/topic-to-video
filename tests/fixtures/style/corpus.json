@@ -1,0 +1,21 @@
+{
+  "_why": "The style engine's development corpus: registers that draw in the ways a restyle has to survive — raw SVG with gradient defs, CSS gradients, a CSS-3D stage with a moving camera, a labelled diagram, a hand-drawn boil, kinetic CJK type, a canvas, a real photograph, a library object. Frames are ~90% of each register's length (the settled frame).",
+  "public": "../images",
+  "entries": [
+    {"shot": "ClayStack", "props": {}, "frame": 144},
+    {"shot": "ChartLive", "props": {}, "frame": 135},
+    {"shot": "KnowledgeGraph", "props": {}, "frame": 148},
+    {"shot": "FlowSankey", "props": {}, "frame": 189},
+    {"shot": "AtomOrbital", "props": {}, "frame": 140},
+    {"shot": "CinematicTitle", "props": {}, "frame": 153},
+    {"shot": "CraneUp", "props": {}, "frame": 175},
+    {"shot": "TermSpace", "props": {}, "frame": 171},
+    {"shot": "WordTunnel", "props": {}, "frame": 148},
+    {"shot": "CartoonPop", "props": {}, "frame": 140},
+    {"shot": "HandDrawn", "props": {}, "frame": 148},
+    {"shot": "PortRail", "props": {}, "frame": 148},
+    {"shot": "ObjectStage", "props": {"object": {"id": "GpsSatellite"}, "title": "GPS 卫星"}, "frame": 148},
+    {"shot": "PhotoPlate", "props": {"src": "01.png", "credit": "fixture"}, "frame": 157},
+    {"shot": "ElasticType", "props": {"word": "画法", "tagline": "线条和填色"}, "frame": 130}
+  ]
+}

@@ -7,6 +7,8 @@ import {FidelityProbe, FidelityHero} from './runtime/fidelity';
 import {BaselineUnlockContext} from './runtime/glide';
 import {CJK_MIN_LEADING} from './runtime/cjkType';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
+import {StyleContext, resolveStyle, type StyleSpec} from './runtime/styleSpec';
+import {StyleLayer} from './runtime/style';
 import {ObjectsContext} from './runtime/objectSlot';
 import {OBJECTS, WORKSHOP_SHOTS} from './registry';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
@@ -457,7 +459,8 @@ export const FlooredLeadingProbe: React.FC = () => (
 );
 
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
-  const {dna, aspect: _a, optic, ...rest} = p as {dna?: unknown; aspect?: unknown; optic?: unknown};
+  const {dna, aspect: _a, optic, style, ...rest} = p as {dna?: unknown; aspect?: unknown; optic?: unknown; style?: unknown};
+  const activeStyle = React.useMemo(() => (style ? resolveStyle(style as StyleSpec) : null), [style]);
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
   const _p = p as {textSafe?: unknown; typeCollisions?: unknown; fedText?: unknown; unfedText?: unknown;
     unfedScope?: unknown; typeSize?: unknown};
@@ -490,8 +493,11 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   const holds = Boolean((p as {kineticHolds?: unknown}).kineticHolds);
   const holdReports = React.useMemo<HoldReport[]>(() => [], []);
   const collect = React.useCallback((r: HoldReport) => { holdReports.push(r); }, [holdReports]);
+  const drawn = activeStyle
+    ? <StyleContext.Provider value={activeStyle}><StyleLayer><C {...rest} /></StyleLayer></StyleContext.Provider>
+    : <C {...rest} />;
   const body = holds
-    ? <KineticHoldContext.Provider value={collect}><C {...rest} /></KineticHoldContext.Provider> : <C {...rest} />;
+    ? <KineticHoldContext.Provider value={collect}>{drawn}</KineticHoldContext.Provider> : drawn;
   const inner = <ObjectsContext.Provider value={OBJECTS}>{body}{audit}{glide}{titleProbe}{fidelity}
     {holds ? <KineticHoldAudit reports={holdReports} /> : null}</ObjectsContext.Provider>;
   const unlocked = unlockOff ? <BaselineUnlockContext.Provider value={false}>{inner}</BaselineUnlockContext.Provider> : inner;
