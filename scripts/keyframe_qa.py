@@ -183,6 +183,89 @@ try:
 except ImportError:                                   # run from elsewhere: the documented values
     UPSCALE_ERROR, UPSCALE_WARN = 1.25, 1.08
 
+# THE RENDERED TYPE-SIZE FLOOR (the html tier's half of runtime/textSafe.tsx's TYPE_WARN_FRAC / TYPE_ERROR_FRAC).
+# Nothing on this tier measured how SMALL type is drawn. The 2026-10-30 generality film B v1 shipped its body copy at
+# 16 px on a 1080x1080 frame — a `font:` shorthand naming an undefined `var(--font-display)` made the whole
+# declaration invalid, so the size fell back to the browser default — and all eight gates passed it. A source rule
+# cannot see that (the 30px is right there in the CSS); only the computed, rendered size can. This walks every
+# element with its own visible text — through open shadow roots, since a component's labels are as much the page as
+# the page's own — and returns its RENDERED size: computed font-size x the scale of every transform and `zoom` above
+# it (an SVG's CTM for SVG text), the same measure textSafe.tsx's `renderedPx` takes on the remotion tier. Opt-outs
+# are the remotion tier's: `[data-small="why"]` (declared texture, not copy) — plus the `.credit` licence line a
+# documentary image requires, which is counted and reported as exempt, never silently dropped.
+_TYPE_SIZE_JS = (
+    "(function(){var W=window.innerWidth,H=window.innerHeight,rows=[],n=0,exempt=0;"
+    "function det(t){if(!t||t==='none')return 1;var m=t.match(/matrix(3d)?\\(([^)]+)\\)/);if(!m)return 1;"
+    "var v=m[2].split(',').map(parseFloat);"
+    "return m[1]?Math.sqrt(Math.abs(v[0]*v[5]-v[1]*v[4])):Math.sqrt(Math.abs(v[0]*v[3]-v[1]*v[2]));}"
+    "function up(e){return e.parentElement||(e.parentNode&&e.parentNode.host)||null;}"
+    "function px(e,cs){var fs=parseFloat(cs.fontSize)||0;if(!(fs>0))return 0;"
+    "if(typeof e.getScreenCTM==='function'){var M=e.getScreenCTM();if(M)return fs*Math.sqrt(Math.abs(M.a*M.d-M.b*M.c));}"
+    "var s=1;for(var a=e;a;a=up(a)){var c=getComputedStyle(a);s*=det(c.transform);"
+    "var z=parseFloat(c.zoom||'1');if(z>0&&isFinite(z))s*=z;}return fs*s;}"
+    "function op(e){var o=1;for(var a=e;a;a=up(a))o*=parseFloat(getComputedStyle(a).opacity||'1');return o;}"
+    "function closestUp(e,sel){for(var a=e;a;a=up(a))if(a.matches&&a.matches(sel))return a;return null;}"
+    "function walk(root){var all=root.querySelectorAll('*');for(var i=0;i<all.length;i++){var e=all[i];"
+    "if(e.shadowRoot)walk(e.shadowRoot);"
+    "var own='';for(var k=0;k<e.childNodes.length;k++){var c=e.childNodes[k];if(c.nodeType===3)own+=c.nodeValue||'';}"
+    "own=own.trim();if(!own)continue;var tag=e.tagName.toLowerCase();"
+    "if(tag==='script'||tag==='style'||tag==='title'||tag==='noscript')continue;"
+    "var cs=getComputedStyle(e);if(cs.display==='none'||cs.visibility==='hidden')continue;"
+    "var rr=document.createRange();rr.selectNodeContents(e);var r=rr.getBoundingClientRect();"
+    "if(r.width<1||r.height<1||r.right<=0||r.bottom<=0||r.left>=W||r.top>=H)continue;"
+    "if(op(e)<0.5)continue;"
+    "if(closestUp(e,'[data-small],.credit')){exempt++;continue;}"
+    "n++;var p=px(e,cs);rows.push({t:own.slice(0,48),px:Math.round(p*10)/10,"
+    "cls:String(e.getAttribute('class')||'').slice(0,40),tag:tag,font:cs.fontSize+' '+(cs.fontFamily||'').split(',')[0]});}}"
+    "walk(document);rows.sort(function(a,b){return a.px-b.px;});"
+    "return JSON.stringify({W:W,H:H,measured:n,exempt:exempt,rows:rows});})()")
+
+
+def _type_size_probe(chrome):
+    r = chrome._cmd("Runtime.evaluate", {"expression": _TYPE_SIZE_JS, "returnByValue": True}, chrome.sid)
+    return json.loads(r["result"]["result"]["value"])
+
+
+def type_size_verdict(probe, W, H):
+    """(issues, advisories) from a type-size probe at a W x H canvas, on the remotion tier's floors (text_safe_qa's
+    TYPE_ERROR_FRAC / TYPE_WARN_FRAC of the short side — ~24 / ~30 px at 1080, the same at every aspect).
+
+    Pure and Chrome-free so it is unit-tested. A probe that measured no type at all says so: a page of only exempt
+    or pictorial content passes, but the count is printed, never a silent 'ok' over nothing."""
+    from text_safe_qa import TYPE_ERROR_FRAC, TYPE_WARN_FRAC
+    if (probe.get("W"), probe.get("H")) != (W, H):
+        # judged on a viewport the film is not rendered at, every floor is wrong (a5e60b8: 1:1 pages judged on 1920x1080)
+        raise ValueError("type-size probe ran at %sx%s, the film renders at %dx%d" % (probe.get("W"), probe.get("H"), W, H))
+    short = min(W, H)
+    err_px, warn_px = TYPE_ERROR_FRAC * short, TYPE_WARN_FRAC * short
+    rows = probe.get("rows") or []
+    errs = [r for r in rows if r["px"] < err_px]
+    warns = [r for r in rows if err_px <= r["px"] < warn_px]
+
+    def _ex(rs):
+        seen, out = set(), []
+        for r in rs:                              # smallest first, one example per distinct size+class+tag
+            k = (r["px"], r["cls"], r["tag"])
+            if k not in seen:
+                seen.add(k)
+                out.append("%r %.1fpx (%s)" % (r["t"][:24], r["px"], r["font"]))
+        return ", ".join(out[:4]) + (" …" if len(out) > 4 else "")
+    issues, adv = [], []
+    if errs:
+        # 16 px is the browser's default: type drawn at exactly that size is usually a declaration that never applied
+        default = any(abs(r["px"] - 16.0) < 0.05 for r in errs)
+        issues.append("%d line(s) of text rendered under %.0f px — too small to read on a phone at %dx%d (the remotion "
+                      "tier's floor, %.1f%% of the short side): %s.%s Set it larger or cut words; texture that is not "
+                      "copy may say so with data-small=\"why\""
+                      % (len(errs), err_px, W, H, 100 * TYPE_ERROR_FRAC, _ex(errs),
+                         " 16 px is the browser default — check the COMPUTED size: an invalid `font:` shorthand (e.g. "
+                         "an undefined var()) drops the whole declaration." if default else ""))
+    if warns:
+        adv.append("%d line(s) of text under the %.0f px label floor at %dx%d: %s"
+                   % (len(warns), warn_px, W, H, _ex(warns)))
+    return issues, adv
+
+
 # Reveal-count probe (evaluated at EACH frozen p-state): how many reveal elements are visible now.
 # Used for the STAGGER advisory — on a PACED page (no data-cue-index) a proper stagger makes this rise
 # across the p-states; if most are already visible at p=0.25 the page dumps everything at once.
@@ -741,6 +824,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             if uncued_issue:
                 issues.append(uncued_issue)
             probed = True                     # False = nothing was measured; never report that as "ok"
+            type_cov = None                   # the type-size floor's own coverage: lines measured / exempt / smallest
             if chrome:
                 try:
                     # GEOMETRY is measured on the AUTHORED RESTING state (blind p=1.0), not on the
@@ -759,6 +843,19 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                     if _blank:
                         issues.append(_blank)
                     issues.extend(_geometry_issues(info, meta, W, H))   # overflow + intra-box clip + caption occlusion
+                    # the RENDERED type-size floor, on the same resting frame the geometry judges
+                    tprobe = _type_size_probe(chrome)
+                    t_issues, t_adv = type_size_verdict(tprobe, W, H)
+                    issues.extend(t_issues)
+                    advisories.extend(t_adv)
+                    type_cov = {"measured": tprobe["measured"], "exempt": tprobe["exempt"],
+                                "min_px": tprobe["rows"][0]["px"] if tprobe["rows"] else None}
+                    # the content band, printed as COVERAGE, not judged: how much of the frame a page uses is a
+                    # composition choice the doctrine allows both ways (a sparse beat may stop high), and no
+                    # corpus of good 1:1 / 16:9 pages exists to draw a floor on without condemning those
+                    if info.get("cbot", -1) > info.get("ctop", 0):
+                        type_cov["band"] = [round(info["ctop"] / H, 2), round(info["cbot"] / H, 2),
+                                            round(1 - caption_band_px(W, H) / H, 2)]
                     _up = float(info.get("upscale") or 0)
                     if _up > UPSCALE_ERROR:
                         issues.append(f"a picture is drawn {_up:.2f}x past its own pixels "
@@ -909,7 +1006,7 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
                 errors += 1
             if advisories:
                 warns += 1
-            report.append({"scene": idx, "issues": issues, "advisories": advisories, "probed": probed,
+            report.append({"scene": idx, "issues": issues, "advisories": advisories, "probed": probed, "type": type_cov,
                            "status": "FAIL" if issues else ("WARN" if advisories else
                                                             ("ok" if probed else "UNVERIFIED"))})
     finally:
@@ -978,7 +1075,12 @@ def run(out_dir, ps=DEFAULT_PS, as_json=False):
             mark = {"FAIL": "✗", "WARN": "!"}.get(r["status"], "✓")
             notes = (r.get("issues") or []) + (r.get("advisories") or [])
             extra = ("  " + "; ".join(notes)) if notes else ""
-            print(f"  {mark} scene {r['scene']:02d} [{r['status']}]{extra}")
+            tc = r.get("type")
+            tnote = (f"  (type: {tc['measured']} line(s) measured, smallest {tc['min_px']}px, {tc['exempt']} exempt"
+                     + (f"; content y {tc['band'][0]:.2f}-{tc['band'][1]:.2f} of the frame, caption band from "
+                        f"{tc['band'][2]:.2f}" if tc.get("band") else "") + ")"
+                     if tc else "")
+            print(f"  {mark} scene {r['scene']:02d} [{r['status']}]{tnote}{extra}")
         for dn in deck_notes:
             print(f"  ! deck  {dn}")
         mode = "DOM+shots" if chrome else "shots-only (no CDP → overflow/centered/type-glide unchecked)"

@@ -12,14 +12,16 @@ label-gauge .label-gauge__needle{position:absolute;left:calc(50% - .6cqmin);bott
 label-gauge .label-gauge__hub{position:absolute;left:calc(50% - 2cqmin);bottom:.6cqmin;width:4cqmin;
   height:4cqmin;border-radius:50%;background:var(--fg)}
 label-gauge .label-gauge__ends{display:flex;justify-content:space-between;width:min(80cqw,100cqh)}
-label-gauge .label-gauge__end{font:500 4.5cqmin/1 var(--font-body,system-ui,sans-serif);
+/* the smallest type is 5.5cqmin: keyframe_qa's floor is 2.2% of the frame's short side (23.8px at 1080), so this
+   gauge's fine print clears it from a 432px box up. At 4.5cqmin the end ticks drew 19.8px in an 800x440 box. */
+label-gauge .label-gauge__end{font:500 5.5cqmin/1 var(--font-body,system-ui,sans-serif);
   font-variant-numeric:lining-nums tabular-nums;color:var(--muted)}
 label-gauge .label-gauge__reading{display:flex;align-items:baseline;gap:1.5cqmin;opacity:0;
   transform:translateY(calc(6cqmin * var(--motion, 1))) matrix(1,.0009765625,0,1,0,0);
   animation:label-gauge-rise .8s cubic-bezier(.2,.7,.2,1) .2s forwards;animation-play-state:paused}
 label-gauge .label-gauge__value{font:700 14cqmin/1 var(--font-display,system-ui,sans-serif);
   font-variant-numeric:lining-nums tabular-nums;color:var(--accent)}
-label-gauge .label-gauge__unit{font:500 5cqmin/1 var(--font-body,system-ui,sans-serif);color:var(--muted)}
+label-gauge .label-gauge__unit{font:500 5.5cqmin/1 var(--font-body,system-ui,sans-serif);color:var(--muted)}
 label-gauge .label-gauge__label{font:600 5.5cqmin/1.2 var(--font-body,system-ui,sans-serif);opacity:0;
   animation:label-gauge-fade .6s ease-out .4s forwards;animation-play-state:paused}
 @keyframes label-gauge-sweep{

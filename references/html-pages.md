@@ -418,6 +418,11 @@ are semantic *accent aliases*, not hardcoded colours — using them is fine; a l
 Body/running text (`.sub`, `.note`, long paragraphs) is **LEFT-ALIGNED** — a centered multi-line
 paragraph doesn't scan (`keyframe_qa` flags it); centering is for display elements (titles,
 pull-quotes, stats) and centered diagram archetypes only.
+**Type floor (blocking).** `keyframe_qa` measures every visible line's RENDERED size (computed font-size × every
+transform above it, SVG viewBox and shadow-root components included) at the film's own canvas: under 2.2% of the
+short side (~24 px at 1080) is an ERROR, under 2.75% (~30 px) a warning — the remotion tier's floor. The hierarchy
+contract is met by making the title larger, never the note smaller. It reads the computed size because the source
+can lie: a `font:` shorthand naming an undefined `var()` is invalid as a whole and draws at the 16 px default.
 
 ## Layout diversity — no samey deck (enforced)
 The floors — no single form family above ~45% of the `html` scenes, the block audit, the composition envelope — are
