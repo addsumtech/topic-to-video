@@ -142,3 +142,76 @@ def test_dead_screens_warns_for_the_screen_that_shows_nothing_and_not_for_the_on
 
 def test_no_record_no_dead_screen_claim(tmp_path):
     assert dq.dead_screens(str(tmp_path)) == []
+
+
+def test_a_row_that_names_the_beat_that_drew_it_is_filed_there_not_under_the_frames_beat():
+    """Validation film A: on the 5->6 seam the leaving DeviceHero's iPhone was filed under the closing HeadlineReveal
+    (the frame's beat) at 566x1194 — off the real 569x1202 by more than the seam guess's 3 px, so listed twice."""
+    rows = {f: {"o": [["device:iphone-18-pro", 255, 300, 569, 1202, 1.0, 0]]} for f in range(0, 99, 3)}
+    rows.update({f: {"o": [["device:iphone-18-pro", 257, 304, 566, 1194, 1.0, 0]]} for f in (102, 105, 108)})
+    best = oc.pick(rows, _beat, W, 1920)
+    assert set(best) == {(0, "device:iphone-18-pro")}, best
+    assert best[(0, "device:iphone-18-pro")]["seen"] == 36
+    # ...and the screens record labels by the drawing beat too
+    sc = oc.screens({102: {"o": [["screen:p", 1, 2, 30, 40, 1.0, 0]]}}, lambda f: "frame-beat", lambda b: "drew-%d" % b)
+    assert sc["screen:p"][0][-1] == "drew-0"
+
+
+def test_two_beats_showing_one_object_at_one_size_are_two_pictures_when_the_census_says_so():
+    """Film A's escapement close-up (beat 3) and its whole mechanism (beat 4) sit in the same 795x994 slot: the seam
+    guess (same box, seen on fewer frames) dropped beat 3. A row that says its beat is never guessed about."""
+    rows = {f: {"o": [["LeverEscapement", 140, 400, 795, 994, 1.0, 0 if f < 100 else 1]]} for f in range(0, 230, 3)}
+    best = oc.pick(rows, _beat, W, 1920)
+    assert set(best) == {(0, "LeverEscapement"), (1, "LeverEscapement")}, best
+    # a census from before the field still gets the old guess
+    legacy = {f: {"o": [r["o"][0][:6]]} for f, r in rows.items()}
+    assert len(oc.pick(legacy, _beat, W, 1920)) == 1
+
+
+# ── the census itself (runtime/mediaRes.tsx censusObjects), rendered: a 9:16 film with its margin echo on ──────────
+_RLOCK = "/Users/donghanglyu/code_project/film_work/tools/rlock.py"
+
+
+def _two_beat_portrait_film(out):
+    import subprocess
+    os.makedirs(os.path.join(out, "audio"), exist_ok=True)
+    os.makedirs(os.path.join(out, "media"), exist_ok=True)
+    shot = Image.new("RGB", (1206, 2622), (245, 246, 248))           # a phone screenshot with something on it
+    d = ImageDraw.Draw(shot)
+    for y in range(200, 2400, 160):
+        d.rectangle([80, y, 1126, y + 110], fill=(60, 90, 160))
+    shot.save(os.path.join(out, "media", "screen.png"))
+    for n in ("01", "02"):
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", "2.5",
+                        os.path.join(out, "audio", n + ".wav")], check=True)
+    board = {"meta": {"renderer": "remotion", "language": "en", "aspect": "9:16"},       # safe zone + echo: default
+             "slides": [{"index": 1, "type": "slide", "shot": "DeviceHero", "narration": "The phone.",
+                         "duration": 2.5, "audio": "audio/01.wav", "shot_props": {"device": "phone", "screen": {"image": "media/screen.png"}}},
+                        {"index": 2, "type": "slide", "shot": "ObjectStage", "narration": "The object.",
+                         "duration": 2.5, "audio": "audio/02.wav", "shot_props": {"title": "The object"}}]}
+    json.dump(board, open(os.path.join(out, "storyboard.json"), "w"))
+    return out
+
+
+import pytest      # noqa: E402
+
+
+@pytest.mark.skipif(not os.environ.get("GATE_RENDER"), reason="renders the census: set GATE_RENDER=1 (under rlock)")
+def test_the_census_counts_the_film_object_slot_skips_the_echo_and_names_the_drawing_beat(tmp_path):
+    import media_res_qa as mr
+    import remotion_segments as rs
+    out = _two_beat_portrait_film(str(tmp_path / "film"))
+    res, segs, _slides, total = mr.census_film(out, every=1)
+    frames = res["frames"]
+    assert len(frames) == total, (len(frames), total)
+    seam = range(segs[1][0], segs[1][0] + rs.seam_frames())
+    phones = {f: [r for r in v.get("o") or [] if str(r[0]).startswith("device:")] for f, v in frames.items()}
+    # ONE phone per frame — the echo's blurred copy (a box ~1.4x larger) is not a second object
+    assert all(len(p) <= 1 for p in phones.values()), {f: p for f, p in phones.items() if len(p) > 1}
+    assert max(p[0][3] for p in phones.values() if p) < 0.8 * 1080, "a phone box as wide as the echo"
+    # on the seam the leaving beat's phone is filed under the leaving beat
+    on_seam = [p[0] for f, p in phones.items() if f in seam and p]
+    assert on_seam and all(r[6] == 0 for r in on_seam), on_seam
+    # the object a film places through runtime/objectSlot is an object (ObjectStage's preview form, DemoForm)
+    slots = [r for f, v in frames.items() for r in v.get("o") or [] if r[0] == "DemoForm"]
+    assert slots and all(r[6] == 1 for r in slots) and max(r[3] for r in slots) > 200, slots[:3]

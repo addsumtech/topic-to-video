@@ -57,18 +57,31 @@ def pick(frames, beat_of, W, H):
     {frame: census}, a census's `o` rows being [name, x, y, w, h, opacity]. A box is clipped to the frame first;
     one under MIN_SIDE on both sides or fainter than MIN_OPACITY is not looked at. `seen` counts the frames it was.
     An object that holds its size (a device standing still) is taken at the MIDDLE of its frames at that size —
-    its settled picture, not the first frame it reached it. And an object a seam carries into the next beat's first
-    frames at the size it had (the same box, seen on fewer frames there) is shown once, in the beat it belongs to."""
-    seen = {}
+    its settled picture, not the first frame it reached it.
+
+    WHICH BEAT. A row's 7th field is the beat whose register DREW it (runtime/mediaRes.tsx, its `data-beat`): on a
+    seam frame two beats are drawn at once, and the frame's own beat (`beat_of`) is the arriving one — validation
+    film A filed the leaving DeviceHero's iPhone a second time under the closing HeadlineReveal. Only a row without
+    one (a census from before the field) falls back to `beat_of(f)` and to the old guess: an object a seam carries
+    into the next beat's first frames at the size it had (the same box, seen on fewer frames there) is shown once,
+    in the beat it belongs to. That guess is not applied to rows that SAY their beat — two beats of one shot showing
+    one object at one box size (film A's escapement close-up and its whole mechanism) are two pictures."""
+    seen, guessed = {}, set()
     for f in sorted(frames):
         for row in frames[f].get("o") or []:
             name, x, y, w, h, op = row[:6]
+            drew = row[6] if len(row) > 6 else None
             x0, y0 = max(0, x), max(0, y)
             x1, y1 = min(W, x + w), min(H, y + h)
             cw, ch = x1 - x0, y1 - y0
             if cw <= 0 or ch <= 0 or (cw < MIN_SIDE and ch < MIN_SIDE) or op < MIN_OPACITY:
                 continue
-            seen.setdefault((beat_of(f), name), []).append((f, cw * ch, [x0, y0, cw, ch]))
+            if isinstance(drew, int) and not isinstance(drew, bool) and drew >= 0:
+                key = (drew, name)
+            else:
+                key = (beat_of(f), name)
+                guessed.add(key)
+            seen.setdefault(key, []).append((f, cw * ch, [x0, y0, cw, ch]))
     best = {}
     for k, rows in seen.items():
         top = max(a for _, a, _ in rows)
@@ -76,6 +89,8 @@ def pick(frames, beat_of, W, H):
         f, area, box = near[len(near) // 2]
         best[k] = {"frame": f, "box": box, "area": area, "seen": len(rows)}
     for (beat, name) in sorted(best):
+        if (beat, name) not in guessed:
+            continue
         here = best.get((beat, name))
         for other in (beat - 1, beat + 1):
             o = best.get((other, name))
@@ -88,13 +103,16 @@ def pick(frames, beat_of, W, H):
     return best
 
 
-def screens(frames, beat_label=lambda f: None):
-    """{name: [[frame, x, y, w, h, beat], ...]} — every sampled box of every device screen (`screen:` rows)."""
+def screens(frames, beat_label=lambda f: None, label_of_beat=None):
+    """{name: [[frame, x, y, w, h, beat], ...]} — every sampled box of every device screen (`screen:` rows). A row that
+    names the beat that drew it is labelled by `label_of_beat(beat)` (see pick), else by `beat_label(frame)`."""
     out = {}
     for f in sorted(frames):
         for row in frames[f].get("o") or []:
             if str(row[0]).startswith("screen:") and row[5] >= MIN_OPACITY:
-                out.setdefault(row[0], []).append([f] + [int(round(v)) for v in row[1:5]] + [beat_label(f)])
+                drew = row[6] if len(row) > 6 else None
+                lab = label_of_beat(drew) if label_of_beat and isinstance(drew, int) and drew >= 0 else beat_label(f)
+                out.setdefault(row[0], []).append([f] + [int(round(v)) for v in row[1:5]] + [lab])
     return out
 
 
@@ -223,7 +241,9 @@ def run(out_dir, every=3):
     size = build_sheet(items, files, os.path.join(out_dir, SHEET)) if items else None
     rec = {"film": film_sha(video), "fps": fps, "frame_size": [W, H], "every": every, "sampled": len(frames),
            "objects": [{k: v for k, v in it.items() if k != "label"} for it in items],
-           "screens": screens(frames, lambda f: labels[beat_of(f)] if beat_of(f) < len(labels) else beat_of(f) + 1), "sheet": SHEET if items else None}
+           "screens": screens(frames, lambda f: labels[beat_of(f)] if beat_of(f) < len(labels) else beat_of(f) + 1,
+                              lambda b: labels[b] if b < len(labels) else b + 1),
+           "sheet": SHEET if items else None}
     with open(os.path.join(out_dir, RECORD), "w", encoding="utf-8") as fh:
         json.dump(rec, fh, ensure_ascii=False, indent=1)
     return {"items": items, "size": size, "record": rec}, None

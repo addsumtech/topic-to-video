@@ -84,23 +84,57 @@ export const censusMedia = (root: HTMLElement, frame: DOMRect): {n: number; m: R
   return {n, m: rows};
 };
 
-type ORow = [string, number, number, number, number, number];
+type ORow = [string, number, number, number, number, number, number | null];
+
+/** The box an element DRAWS: its own client rect, or — when that is empty (a 0x0 wrapper whose children are
+ *  absolutely placed) — the union of its descendants' non-empty boxes. An empty wrapper used to be skipped in
+ *  silence, so the object it held never reached the sheet. Null when nothing inside it has a size. */
+const drawnBox = (el: Element): {left: number; top: number; width: number; height: number} | null => {
+  const r = el.getBoundingClientRect();
+  if (r.width >= 1 && r.height >= 1) return r;
+  let l = Infinity, t = Infinity, rr = -Infinity, b = -Infinity;
+  el.querySelectorAll('*').forEach((c) => {
+    const q = c.getBoundingClientRect();
+    if (q.width < 1 || q.height < 1) return;
+    l = Math.min(l, q.left); t = Math.min(t, q.top); rr = Math.max(rr, q.right); b = Math.max(b, q.bottom);
+  });
+  return Number.isFinite(l) ? {left: l, top: t, width: rr - l, height: b - t} : null;
+};
 
 /** THE OBJECT CENSUS (scripts/object_closeups.py): the box of every OBJECT on the frame — every device the kit draws
- *  (`data-device-body`, named by its model), every screen on one (`data-device-screen`), and every element a shot
- *  marks `data-object="<name>"` — as [name, x, y, w, h, opacity], clipped to nothing: the sheet clips. A film's
- *  close-up sheet crops each at the frame where it is largest, so no object escapes a look at 100%. */
+ *  (`data-device-body`, named by its model), every screen on one (`data-device-screen`), every object a film placed
+ *  through runtime/objectSlot (`data-object-slot="<id>"`, named by its id) and every element a shot marks
+ *  `data-object="<name>"` — as [name, x, y, w, h, opacity, beat], clipped to nothing: the sheet clips. A film's
+ *  close-up sheet crops each at the frame where it is largest, so no object escapes a look at 100%. The slot was not
+ *  counted: validation film A's own LeverEscapement, the object the film was about, was missing from its sheet.
+ *
+ *  `beat` is the Film beat whose register DREW the element (its `data-beat` ancestor), so on a seam frame — two beats
+ *  drawn at once — the leaving beat's phone is filed under the leaving beat, not under the beat that owns the frame's
+ *  clock (film A listed its iPhone a second time under the closing HeadlineReveal). Null outside any beat (a register
+ *  rendered alone): the reader then falls back to the frame's beat.
+ *
+ *  NOT COUNTED: anything inside an ECHO (`[data-echo]`) — the 9:16 platform-safe margin's blurred, scaled-up copy of
+ *  the beat, and a container seam's copy. Each draws the same objects again, larger: film A's echo phone measured
+ *  968x1783 (the whole blurred frame) against the real 569x1202, and as the largest box it was the one cropped.
+ *  A slot inside an element the shot already marks `data-object` is that object, listed once. */
 export const censusObjects = (root: HTMLElement): ORow[] => {
   const rows: ORow[] = [];
   const add = (el: Element, name: string) => {
-    const r = el.getBoundingClientRect();
-    if (r.width < 1 || r.height < 1) return;
+    if (el.closest('[data-echo]')) return;
+    const r = drawnBox(el);
+    if (!r) return;
+    const b = el.closest('[data-beat]')?.getAttribute('data-beat');
+    const beat = b != null && /^\d+$/.test(b) ? Number(b) : null;
     rows.push([name, Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height),
-      Math.round(opacityOf(el) * 100) / 100]);
+      Math.round(opacityOf(el) * 100) / 100, beat]);
   };
   root.querySelectorAll('[data-device-body]').forEach((el) =>
     add(el, 'device:' + (el.getAttribute('data-device-model') || el.getAttribute('data-device-body'))));
   root.querySelectorAll('[data-device-screen]').forEach((el) => add(el, 'screen:' + el.getAttribute('data-device-screen')));
+  root.querySelectorAll('[data-object-slot]').forEach((el) => {
+    if (el.parentElement?.closest('[data-object]')) return;
+    add(el, el.getAttribute('data-object-slot') || 'object');
+  });
   root.querySelectorAll('[data-object]').forEach((el) => add(el, el.getAttribute('data-object') || 'object'));
   return rows;
 };
