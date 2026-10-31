@@ -269,6 +269,10 @@ DELIVERY_GATES = {
         # baseline?) and nothing read the encoded film — a page's own camera, a matrix3d reveal, the image slides'
         # Ken Burns. jitter_qa reads each line against its true path (scripts/jitter_html.py builds the census)
         ("TYPE trembles in the pixels (pages + Ken Burns, every frame)", "jitter_qa.py", (), 600, True, None),
+        # a CAPTION that melts into a busy photograph: every type gate measures the page's own type, none the burned
+        # caption against the pixels behind it — a 1:1 film's dark caption over a bee close-up shipped with all of
+        # them green (scripts/caption_contrast_qa.py reads out.mp4 where render.py recorded each caption)
+        ("CAPTIONS read on their ground (delivered pixels)", "caption_contrast_qa.py", (), 300, True, None),
         ("rhythm", "rhythm_qa.py", (), 240, True, None),
         ("teaching order", "pedagogy_qa.py", (), 240, True, None),
         ("voice (ADVISORY — always exits 0)", "voice_qa.py", (), 240, False, None),

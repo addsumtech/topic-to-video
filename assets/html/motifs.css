@@ -62,13 +62,11 @@
 
 /* seekable motion (paused so seek.js can freeze it):
    .rise-in/.fade-in echo base.css reveals; .float is a gentle bob; .draw strokes an SVG path on. */
-/* baseline unlock (base.css, above .reveal-up): .float is slow (3s) and, per render_html's
-   per-cue capture burst, is routinely held mid-flight for most of a scene rather than captured
-   all the way to its own 100% — so unlike .reveal-up it is NOT given a drop-on-settle keyframe;
-   the skew rides the WHOLE loop, 0% to 100%. HAIRLINE TRADEOFF: on the rare page where .float
-   genuinely is captured at its own true rest frame, that frame carries a permanent skewY of
-   1/1024 and is therefore not byte-identical to a pre-fix render (imperceptible — below Skia's
-   own rounding floor for anything a viewer could measure by eye — but stated, not silent). */
+/* baseline unlock (base.css, above .reveal-up): like every base.css reveal, .float carries the
+   skew on EVERY keyframe, 0% to 100%, and keeps it at rest — dropping it on the last frame re-snaps
+   the type a fraction of a pixel after it stopped moving (a pop). The cost at rest is stated in
+   base.css: the type sits at its true quarter-pixel place, not byte-identical to a page with no
+   motion, with the same sharpness. */
 .float{animation:mt-float 3s ease-in-out forwards;animation-play-state:paused}
 @keyframes mt-float{0%{transform:translateY(26px) matrix(1,.0009765625,0,1,0,0)}100%{transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}}
 .draw{stroke-dasharray:1;stroke-dashoffset:1;animation:mt-draw 1.4s ease forwards;animation-play-state:paused}

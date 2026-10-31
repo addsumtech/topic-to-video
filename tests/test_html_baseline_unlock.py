@@ -4,16 +4,22 @@ THE DEFECT, carried over from the Remotion tier (commit 604dbec, runtime/depth.t
 Chrome/Skia snaps a TEXT run's baseline to a whole device pixel whenever the run's accumulated
 transform matrix is axis-aligned — exactly what a CSS `translate`/`scale` reveal always is. So a
 slowly-revealing headline advances in 1px hold-then-jump steps while a plain shape riding the SAME
-keyframe glides continuously. `base.css` has five such reveals (`.reveal-up`, `.reveal-up-sm`,
-`.reveal-pop`, `.settle`) plus `motifs.css` `.float`; all five now carry `matrix(1,.0009765625,0,1,0,0)`
-— a skewY of 1/1024, the smallest entry Skia's own matrix rounding (sk_relax) keeps, so it tilts a
-1920px-wide frame by under a pixel at either edge — through every keyframe, dropping it again on the
-settled (`to`) stop so a page at rest renders byte-identical to before the fix existed. `.float` is the
-one exception: it is slow (3s) and, per `render_html`'s per-cue capture burst, is routinely held
-mid-flight for most of a scene rather than captured to its own 100% — so it keeps the skew for the
-WHOLE loop, 0% to 100%, with no drop-off. The hairline tradeoff: on the rare page where `.float` genuinely
-IS captured at rest, that one frame is not byte-identical to a pre-fix render (bounded below, hairline
-in size — see `test_settled_float_frame_cost_is_a_hairline_not_a_defect`).
+keyframe glides continuously. `base.css` has four such reveals (`.reveal-up`, `.reveal-up-sm`,
+`.reveal-pop`, `.settle`) plus `motifs.css` `.float`; all five carry `matrix(1,.0009765625,0,1,0,0)` — a
+skewY of 1/1024, the smallest entry Skia's own matrix rounding (sk_relax) keeps, so it tilts a 1920px-wide
+frame by under a pixel at either edge — through EVERY keyframe, the settled one included.
+
+THE SETTLED KEYFRAME USED TO DROP IT (`99.9%{… unlock}to{transform:none}`), so a page at rest rendered
+byte-identical to a page with no reveal. That bought the invariant with a defect a viewer sees: dropping the
+skew re-snaps the baseline to the whole pixel on the reveal's LAST frame, after the type has come to rest, so
+every reveal ended with a jump of up to half a pixel. A 2026-10-31 validation film measured it on its 「1999」
+line through sequential decode (0.70px between two frames; jitter_qa: "pops 0.95px"), and through the real
+capture path here (0.670px, frames 111->112 of that scene). Kept on at rest, the last moving frame IS the
+settled frame (0.013px on the same page). The cost, measured on that page's settled frame and pinned below:
+the moved type sits at its true quarter-pixel place instead of the rounded one — position, not sharpness
+(mean gradient over the moved blocks -1.3..+0.1%, visually indistinguishable side by side). The fixture
+tests below would never have shown the pop: their type's box hugged it, where the snap and the tilt move
+nothing — so the pop test widens the type's box (see WIDE) and runs the OLD keyframes as its control.
 
 HOW IT IS MEASURED HERE, through the REAL capture path (`scenes.render_html` -> CDP JPEG q90 @ device
 scale 1 — the same function and the same persistent-Chrome capture `scripts/render.py` calls for a
@@ -78,10 +84,10 @@ _PAGE_TMPL = """<!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="file://{motifs}">
 <style>
   html,body{{width:{w}px;height:{h}px;margin:0;background:#000;overflow:hidden}}
-  #txt{{position:absolute;left:120px;top:90px;font:800 96px/1 Arial,Helvetica,sans-serif;
+  #txt{{position:absolute;left:120px;top:{top}px;width:{width};font:800 96px/1 Arial,Helvetica,sans-serif;
         color:#fff;white-space:nowrap}}
   #rule{{position:absolute;left:120px;top:400px;width:360px;height:28px;background:#fff}}
-</style></head>
+</style>{extra}</head>
 <body>
 <div id="txt" class="{cls}">Glide 42</div>
 <div id="rule" class="{cls}"></div>
@@ -93,7 +99,7 @@ _BARE_TMPL = """<!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="file://{motifs}">
 <style>
   html,body{{width:{w}px;height:{h}px;margin:0;background:#000;overflow:hidden}}
-  #txt{{position:absolute;left:120px;top:90px;font:800 96px/1 Arial,Helvetica,sans-serif;
+  #txt{{position:absolute;left:120px;top:{top}px;width:{width};font:800 96px/1 Arial,Helvetica,sans-serif;
         color:#fff;white-space:nowrap}}
   #rule{{position:absolute;left:120px;top:400px;width:360px;height:28px;background:#fff}}
 </style></head>
@@ -103,20 +109,30 @@ _BARE_TMPL = """<!doctype html><html><head><meta charset="utf-8">
 </body></html>"""
 
 
-def _build(path, cls, base=BASE_CSS, motifs=MOTIFS_CSS):
-    open(path, "w", encoding="utf-8").write(
-        _PAGE_TMPL.format(base=base, motifs=motifs, seek=SEEK_JS, w=W, h=H, cls=cls))
+# The type's box width. A reveal's pop at rest is the difference between where the type sits under the unlock and
+# where it sits without it: the baseline snap, and the skew's own tilt about the element's centre (1/1024 of the
+# type's distance from it). In a box that hugs "Glide 42" both are near zero — the old drop-on-settle keyframes
+# moved this fixture 0.02px — while a real page's blocks are column-wide and popped 0.67px. The pop test widens the
+# box past the frame so the type sits ~460px left of the centre (measured: the old keyframes 0.417px, today 0.026).
+WIDE = "1300px"
 
 
-def _build_bare(path, base=BASE_CSS, motifs=MOTIFS_CSS):
-    open(path, "w", encoding="utf-8").write(_BARE_TMPL.format(base=base, motifs=motifs, w=W, h=H))
+def _build(path, cls, base=BASE_CSS, motifs=MOTIFS_CSS, width="auto", extra=""):
+    open(path, "w", encoding="utf-8").write(_PAGE_TMPL.format(base=base, motifs=motifs, seek=SEEK_JS, w=W, h=H,
+                                                              cls=cls, top=90, width=width, extra=extra))
 
 
-def _render(tmp_path, cls, reduced_motion=False, frames=FRAMES):
+def _build_bare(path, base=BASE_CSS, motifs=MOTIFS_CSS, width="auto"):
+    open(path, "w", encoding="utf-8").write(_BARE_TMPL.format(base=base, motifs=motifs, w=W, h=H, top=90,
+                                                              width=width))
+
+
+def _render(tmp_path, cls, reduced_motion=False, frames=FRAMES, extra="", width="auto"):
     """Render via the REAL `scenes.render_html` path (CDP, JPEG q90, device scale 1) — the exact
     function `scripts/render.py` calls for a real scene. Returns sorted frame paths."""
     out_dir = str(tmp_path)
-    _build(os.path.join(out_dir, "probe.html"), cls)
+    os.makedirs(out_dir, exist_ok=True)
+    _build(os.path.join(out_dir, "probe.html"), cls, extra=extra, width=width)
     meta = {"_out": out_dir, "fps": FPS, "reduced_motion": reduced_motion}
     scenes.render_html({"html": "probe.html", "anim_seconds": ANIM_SECONDS}, meta, W, H, frames, out_dir, 0)
     return sorted(glob.glob(os.path.join(out_dir, "scene_00_*.jpg")),
@@ -204,7 +220,8 @@ def test_two_plain_rule_boxes_glide_together_with_no_snap_of_their_own(tmp_path)
     measured residual — this is what licenses using one rule box as the "smooth truth" reference
     for the type in the test above, rather than an assumption."""
     out_dir = str(tmp_path)
-    html = _PAGE_TMPL.format(base=BASE_CSS, motifs=MOTIFS_CSS, seek=SEEK_JS, w=W, h=H, cls="reveal-up")
+    html = _PAGE_TMPL.format(base=BASE_CSS, motifs=MOTIFS_CSS, seek=SEEK_JS, w=W, h=H, cls="reveal-up", top=90,
+                             width="auto", extra="")
     # both #txt and #rule are already plain boxes here once given the rule's own box styling —
     # simplest is to just reuse the id="rule" box twice via a second instance.
     html = html.replace('id="txt"', 'id="rule2" style="position:absolute;left:120px;top:90px;'
@@ -241,34 +258,63 @@ def _bare_frame(tmp_dir):
     return glob.glob(os.path.join(tmp_dir, "scene_00_*.jpg"))[0]
 
 
+# The keyframes base.css carried before the unlock stayed on at rest: identical up to 99.9%, then the skew dropped.
+# Injected AFTER base.css as the pop test's control, so the control is today's file with only that one change.
+_OLD_SETTLE = "<style>@keyframes rise{99.9%%{opacity:1;transform:translateY(0) %s}to{opacity:1;transform:none}}</style>" \
+    % UNLOCK
+
+
+def _tail_pop(paths):
+    """The largest frame-to-frame step of the type's residual against its rule over the frames where both are
+    at full ink — the window in which a reveal has come to rest and anything that moves the type is a pop."""
+    rows = _centroids(paths)
+    valid = [(ct, cr) for ct, cr in rows if ct is not None and cr is not None]
+    tpk, rpk = max(c[2] for c, _ in valid), max(c[2] for _, c in valid)
+    res = [ct[1] - cr[1] for ct, cr in valid if ct[2] >= 0.97 * tpk and cr[2] >= 0.97 * rpk]
+    assert len(res) >= 10, "only %d frames at full ink — nothing settled was measured" % len(res)
+    return float(np.abs(np.diff(res)).max())
+
+
 @needs_chrome
-@pytest.mark.parametrize("cls", ["reveal-up", "reveal-up-sm", "reveal-pop", "settle"])
-def test_settled_frame_matches_a_bare_static_page_exactly(tmp_path, cls):
-    """`A SETTLED page is byte-identical to today`: every reveal class that DROPS the unlock on its
-    final keyframe must render its settled (p=1) frame pixel-for-pixel identical to a page with no
-    reveal class at all — proving the skew truly comes off, not just "small"."""
+def test_a_reveal_comes_to_rest_without_a_pop(tmp_path):
+    """THE DEFECT THIS FILE NOW PINS: the type must not move once it has stopped. With the skew dropped on the
+    settled keyframe (the control) the baseline re-snaps on the last frame — measured here 0.42px on the WIDE box —
+    and with it kept the last moving frame is the settled frame. The control proves the fixture can show it."""
+    ctl = _tail_pop(_render(tmp_path / "old", "reveal-up", extra=_OLD_SETTLE, width=WIDE))
+    now = _tail_pop(_render(tmp_path / "now", "reveal-up", width=WIDE))
+    assert ctl > 0.3, ("control: the old drop-on-settle keyframes moved the type only %.3fpx at rest — the fixture "
+                       "no longer exposes the snap, so this test proves nothing" % ctl)
+    assert now < 0.12, "the type jumps %.3fpx after it has come to rest (the old keyframes: %.3fpx)" % (now, ctl)
+
+
+def _sharpness(a):
+    """Mean gradient magnitude of a luma array: how crisp its edges are, independent of where they sit."""
+    gy, gx = np.diff(a, axis=0)[:, :-1], np.diff(a, axis=1)[:-1, :]
+    return float(np.hypot(gx, gy).mean())
+
+
+@needs_chrome
+@pytest.mark.parametrize("cls", ["reveal-up", "reveal-up-sm", "reveal-pop", "settle", "float"])
+def test_settled_frame_costs_position_not_sharpness(tmp_path, cls):
+    """The stated tradeoff of keeping the unlock at rest: a settled page is NOT byte-identical to a bare one —
+    its moved type sits at its true quarter-pixel place instead of the rounded one — but it is exactly as sharp
+    and the change is confined to that type's edges. Measured on a validation film's settled page: mean gradient
+    -1.3..+0.1% over the moved blocks. Pinned here: sharpness within 4%, under 5% of the frame touched."""
     settled = _settled_frame(str(tmp_path / "rendered"), cls)
     bare_frame = _bare_frame(str(tmp_path / "bare"))
-    assert open(settled, "rb").read() == open(bare_frame, "rb").read(), (
-        "%s: settled frame is no longer byte-identical to a bare, un-animated page" % cls)
-
-
-@needs_chrome
-def test_settled_float_frame_cost_is_a_hairline_not_a_defect(tmp_path):
-    """The stated tradeoff: `.float` keeps the unlock for its whole loop (no drop-on-settle), so its
-    OWN settled frame is not byte-identical to a bare page the way the other four classes are. This
-    pins the cost at a hairline — small, localized to ink edges — not a visible defect; it must stay
-    bounded even if `.float`'s geometry changes later."""
-    settled = _settled_frame(str(tmp_path / "rendered"), "float")
-    bare_frame = _bare_frame(str(tmp_path / "bare"))
-    a = np.asarray(Image.open(settled).convert("RGB")).astype(int)
-    b = np.asarray(Image.open(bare_frame).convert("RGB")).astype(int)
+    a = np.asarray(Image.open(settled).convert("L")).astype(float)
+    b = np.asarray(Image.open(bare_frame).convert("L")).astype(float)
     diff = np.abs(a - b)
-    frac_changed = float((diff.sum(axis=2) > 0).mean())
-    assert diff.max() > 0, "the .float settled frame should NOT be byte-identical (that would mean no skew at all)"
+    assert diff.max() > 0, "%s: the settled frame is byte-identical to a bare page — the unlock came off at rest" % cls
+    frac_changed = float((diff > 0).mean())
     assert frac_changed < 0.05, (
-        "float: %.1f%% of pixels differ from the bare page — the tradeoff has stopped being a "
-        "hairline" % (frac_changed * 100))
+        "%s: %.1f%% of pixels differ from the bare page — the tradeoff has stopped being the type's own edges"
+        % (cls, frac_changed * 100))
+    y0, y1 = TXT_BOX
+    sa, sb = _sharpness(a[y0:y1]), _sharpness(b[y0:y1])
+    assert abs(sa / sb - 1) < 0.04, (
+        "%s: the settled type is %.1f%% %s than on a bare page — the unlock at rest costs sharpness, not only "
+        "position" % (cls, abs(sa / sb - 1) * 100, "softer" if sa < sb else "harsher"))
 
 
 @needs_chrome
@@ -314,29 +360,25 @@ def test_reduced_motion_never_carries_the_unlock(tmp_path, cls):
 
 
 def test_axis_aligned_reveal_classes_carry_the_baseline_unlock(tmp_path=None):
-    """Source-level guard (no Chrome needed): every axis-aligned reveal/motion class carries the
-    unlock skew in its base transform, and the four that are expected to SETTLE still drop it again
-    on their final keyframe (`.float` deliberately does not — see its own comment in motifs.css)."""
+    """Source-level guard (no Chrome needed): every axis-aligned reveal/motion class carries the unlock skew in
+    its base transform AND on its settled keyframe — none may drop it at rest (see the module docstring)."""
     base = open(BASE_CSS, encoding="utf-8").read()
     motifs = open(MOTIFS_CSS, encoding="utf-8").read()
     for selector in (".reveal-up{", ".reveal-up-sm{", ".reveal-pop{", ".settle{"):
         i = base.index(selector)
         block = base[i:i + 260]
         assert UNLOCK in block, "%s lost its baseline unlock" % selector
-    for kf, settle_kw in ((r"@keyframes rise{", "transform:none"),
-                          (r"@keyframes pop{", "transform:none"),
-                          (r"@keyframes settle{", "transform:none")):
+    for kf in (r"@keyframes rise{", r"@keyframes pop{", r"@keyframes settle{"):
         i = base.index(kf)
-        block = base[i:base.index("\n", base.index(settle_kw, i))]
-        assert "99.9%" in block and UNLOCK in block, "%s: missing the carried-through 99.9%% stop" % kf
-        assert block.rstrip().endswith("transform:none}}") or "to{opacity:1;transform:none}" in block, (
-            "%s must still settle to a clean transform:none" % kf)
+        block = base[i:base.index("}}", i) + 2]
+        assert block.rstrip().endswith(UNLOCK + "}}"), "%s: the settled keyframe must keep the unlock" % kf
+        assert "transform:none" not in block, "%s drops the unlock at rest — the type pops when it lands" % kf
     i = motifs.index(".float{")
     assert UNLOCK not in motifs[i:i + 120]           # the RULE (.float itself) carries no transform
     kf_i = motifs.index("@keyframes mt-float{")
     kf_block = motifs[kf_i:motifs.index("}}", kf_i) + 2]
     assert kf_block.count(UNLOCK) == 2, "float: expected the unlock on BOTH 0% and 100% (no drop-off)"
-    assert "transform:none" not in kf_block, "float: must NOT drop to a clean transform — see its tradeoff comment"
+    assert "transform:none" not in kf_block, "float: must NOT drop to a clean transform"
 
 
 def test_reduced_motion_css_source_is_unmodified_by_the_unlock():

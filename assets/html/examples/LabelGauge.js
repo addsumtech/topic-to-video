@@ -6,6 +6,8 @@
 customElements.define('label-gauge', class extends HTMLElement {
   // neutral demo attributes `workshop.py check` renders it with — never film copy
   static demo = {label: 'Demo reading', value: '6', min: '0', max: '10', unit: 'units'};
+  // its parts finish 1.0 s after it starts (the reading: .2 s delay + .8 s rise) — the render captures that long
+  static span = 1.0;
 
   connectedCallback() {
     if (this._built) return;            // build ONCE: a re-attach must not duplicate the parts

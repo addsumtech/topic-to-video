@@ -192,6 +192,26 @@ const ECHO_NO_TYPE = '[data-echo="margin"] *{color:transparent!important;-webkit
   'text-shadow:none!important;-webkit-text-stroke:0!important}' +
   '[data-echo="margin"] text,[data-echo="margin"] tspan,[data-echo="margin"] textPath{fill:transparent!important;' +
   'stroke:transparent!important}';
+// THE UNLOCK GOES INSIDE THE FRAME'S MASK. Every motion above a beat — its camera, a hand-off, a seam's presentation,
+// the whole-film drift — carries the baseline unlock (runtime/glide.ts), and on a 16:9 film it reaches the glyphs. On a
+// platform-safe film the register is drawn inside a MASKED frame, and once anything in the register is composited (a
+// Stage3D surface, a 3D card) Chrome draws that masked frame as a layer of its own, rasterised under the SCALE of the
+// matrix above it only: the skew is applied to the finished layer and never reaches the type, which snaps again.
+// Measured on CameraTypeProbe at 9:16 under a push: masked frame + a composited sibling, y residual 0.229-0.263px RMS
+// with 0.89px jumps (the snapped signature); the same with no composited sibling, or with no mask, 0.011px; with the
+// unlock written inside the mask, 0.025px. A validation film (擒纵, 9:16) shipped it: under a camera hand-off its beat-2
+// kicker drifted smoothly and jumped back 0.92px at frames 244->245 (and 0.63px at 212->213) while the camera curve
+// itself was smooth. So inside the mask the register carries its own unlock, sized for the frame's scale k (Skia
+// judges the skew times the scale above it — `unlockFor`), on EVERY frame: its span is "whatever above it can move",
+// which on a film with seams and cameras is the whole beat, and switching it on with each motion would itself pop
+// (glide.ts). The skew's tilt (0.53px at the frame's far corners) sits under the mask's transparent feather.
+// BaselineUnlockContext false (identity proofs) and reduced motion draw the frame exactly as before.
+const FrameUnlock: React.FC<{k: number; on: boolean; children: React.ReactNode}> = ({k, on, children}) => {
+  const glide = useGlide();
+  const tf = glide(undefined, on, k);
+  return tf ? <AbsoluteFill style={{transform: tf}}>{children}</AbsoluteFill> : <>{children}</>;
+};
+
 const SafeEcho: React.FC<{W: number; H: number; k: number; y0: number; children: React.ReactNode}> = ({
   W, H, k, y0, children}) => {
   if (React.useContext(SeamCopyContext)) return null;
@@ -1218,12 +1238,15 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   dither?: boolean;
   // `safeEcho: false` switches a platform-safe film's margin echo off (SafeEcho) — for its proofs. Never set by a film.
   safeEcho?: boolean;
+  // `frameUnlock: false` draws a platform-safe film's register frame without its own unlock (FrameUnlock) — the film
+  // as it was before, for the proofs that the frame needs it. Never set by a film.
+  frameUnlock?: boolean;
   // `optics: false` switches every beat's optic off — for scripts/determinism_qa.py's layer attribution and the
   // optics identity proofs. Never set by a film.
   optics?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
     typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, safe, dither = false, optics = true,
-    safeEcho = true}) => {
+    safeEcho = true, frameUnlock = true}) => {
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -1349,6 +1372,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                 transform: `translate(${regFrame.x0}px, ${regFrame.y0}px) scale(${regFrame.k})`,
                 WebkitMaskImage: SAFE_FRAME_MASK, maskImage: SAFE_FRAME_MASK,
                 WebkitMaskComposite: 'source-in', maskComposite: 'intersect'} : undefined}>
+                <FrameUnlock k={regFrame ? regFrame.k : 1} on={Boolean(regFrame) && frameUnlock && !reducedMotion}>
                 <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
                   <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
                     {/* the anchor a container carried INTO this beat, which the register then draws in place */}
@@ -1359,6 +1383,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                     </CarryContext.Provider>
                   </ObjectIdleContext.Provider>
                 </CueContext.Provider>
+                </FrameUnlock>
               </AbsoluteFill>
             </BeatCamera>
             <BeatChrome chrome={sc.chrome} W={width} H={height} />

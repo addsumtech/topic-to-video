@@ -37,6 +37,14 @@ no special ffmpeg build needed.
   draws each line as its own block. `python3 scripts/caption_breaks_qa.py <out_dir>` runs the same file in node at the
   film's frame and face and ERRORS on a line that starts with closing punctuation or a caption ending on one glyph;
   `out.srt`'s CJK cues are broken by it too (16 glyphs a line). A caption it cannot break cleanly is fixed in the copy.
+- **Never inside a number or a word — BOTH TIERS (2026-10-31).** ICU cuts numerals (负|四, 四百|五十, 两|万|八千), and the
+  HTML tier wrapped between any two characters and hard-split a long clause every N characters: validation films burned
+  「负 / 四」, 「正方 / 形」 and 「四百 / 五十」. A number is one unit — prefix + numerals (a joiner only between two) + unit
+  (`remotion/src/captionGlue.json`: 负四, 第三十二届, 约三点八公斤, 28,800 拍, 3.8 kg, 95%, 一億二千万人) — and ICU's
+  one-character out-of-vocabulary fragments are joined back for the breaker (黑|尔|斯, 正|多边|形). Remotion:
+  `captionBreak.ts` (glueSpans, wordStarts). HTML/image: `scripts/caption_words.py`, the same rules (ICU in plain node;
+  without node, per-character with numbers still whole, said out loud), used by render.py's wrap and its hard wrap.
+  `caption_breaks_qa.py` checks both tiers (ERROR `split` / `number`); validate.py runs the HTML check on every HTML film.
 - **Padding inside bar:** ~1.2% of frame height above and below text.
 
 ### Enabled / disabled
@@ -65,7 +73,21 @@ that:
   WHITE caption; a cream page gets dark), NOT an independent max-contrast pick (which clashed — a dark
   caption under white-on-red content). The per-glyph OUTLINE is **the frame's OWN sampled ground colour** —
   invisible on the clean caption zone, a subtle hair only where the ground varies, NEVER a white bar. The
-  karaoke word is a distinct contrasting accent. The subtitle sits on the frame's own content background. **The only rule authors owe it:** keep content out of the bottom caption band (`caption_band_px`: 200 px ≈ 18.5% at 16:9, 257 px on 9:16/1:1/4:5 — keyframe_qa's finding prints the exact edge) (heroes/airy
+  karaoke word is a distinct contrasting accent. The subtitle sits on the frame's own content background.
+  **On a photograph (2026-10-31)** "the sampled ground" is not one colour: render.py now measures EVERY pixel under the
+  caption's lines over its window (three frames of its Ken Burns move or of the page's capture) and picks the deck ink
+  whose 10th-percentile contrast against them is best, outlined (7% of the em) in the ground's own FAR tone — its
+  darkest decile under a light ink, its lightest under a dark one: the photo's own shadow tracing each glyph, still
+  no strip, no scrim, no white halo; on a flat ground it is the ground itself, invisible. (A 1:1 film's single-median
+  pick put a dark ink at 3.01:1 on a bee close-up, outlined in that same brown — its author scrimmed the photos by
+  hand.) `scripts/caption_contrast_qa.py <out_dir>` (an HTML-tier delivery gate) reads out.mp4 where render.py
+  recorded each caption (`.clips/clip_NN.mp4.captions.json`) and ERRORs when more than 25% of a caption's edge is
+  under 3:1 against its ink on some frame of its window (WARN > 10%). The spoken word's highlight is chosen the same
+  way (the deck's accents, lightened or darkened with hue kept) and never under the base ink's floor — with no hue
+  passing, the word keeps the base ink; the gate judges each spoken word in its own colour. A platform-safe 9:16
+  caption is measured on the page band it sits over. The Remotion tier is NOT measured: Film.tsx inks its caption from
+  the beat's ground token, and its registers keep the caption band clear (band_debt.json lists the exceptions) — the
+  gate says so, and `REMOTION_WHY` in caption_contrast_qa.py says what measuring it would take. **The only rule authors owe it:** keep content out of the bottom caption band (`caption_band_px`: 200 px ≈ 18.5% at 16:9, 257 px on 9:16/1:1/4:5 — keyframe_qa's finding prints the exact edge) (heroes/airy
   beats are fine; a dense bottom-anchored beat must leave the zone clear — `keyframe_qa` gates it). Applies
   to BOTH aspects; a top-anchored 9:16 deck (bottom empty) reads it as the frame's own footer.
 - **`"band"` (opt-in alt):** the caption is drawn in a **dedicated strip BELOW the content**, so it never

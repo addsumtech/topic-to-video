@@ -889,7 +889,8 @@ def _describe_run(r):
     if "f" in r["fl"]:
         # the one case whose fix is not "add the unlock": a blur or drop-shadow keeps only the scale of the matrix
         # above it, so an unlock above the filter never reaches these glyphs (runtime/textSafe.tsx SPATIAL_FILTER)
-        flags.append("inside a blur/drop-shadow filter — the unlock must sit INSIDE the filtered element")
+        flags.append("inside a blur/drop-shadow filter or a mask over composited content — the unlock must sit "
+                     "INSIDE the filtered/masked element")
     if "s" in r["fl"]:
         flags.append("declared data-type-steps")
     return ("%r steps %d whole pixel%s across frames %d-%d, crawling at most %.2fpx/frame%s"

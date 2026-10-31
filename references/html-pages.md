@@ -707,6 +707,18 @@ reusable across the film's pages, and promotable to the library (`assets/html/co
   so seek.js freezes it like any reveal — which only works for parts that exist when seek.js runs: **link the
   component's script BEFORE seek.js** (plain `<script src>`, never `defer`/`async`/`type=module`) and its CSS with
   the other stylesheets.
+- **Its parts move on its cue, not on page load.** Give the element (or a wrapper around it) `data-cue-index` +
+  `data-cue` like any reveal. seek.js times every animated part that has no `data-cue-index` of its own from the
+  nearest cued ancestor's start — the part's own `animation-delay` (CSS, or set by the script per part, e.g. a
+  ripple outward from the centre) is an offset FROM THE CUE, not from the scene's start. On a page without word
+  timings the cued element's own authored delay is that start. (Before, a validation film's `<tiling-patch>`
+  rippled its cells in during the scene's first second while the patch sat invisible until its word; the viewer
+  only ever saw the finished patch fade in.)
+- **Declare how long the parts run: `static span = <seconds>`** — from the element's start to its LAST part's end
+  (the longest delay + duration). The render captures fresh frames for 0.8 s after a cue unless it knows the cue
+  animates longer, and it cannot read a script's per-part delays from the page; `scripts/_common.cued_anim_need`
+  reads `static span` from the linked script instead. `check` measures what seek.js actually scheduled and fails a
+  component whose parts outlast 0.7 s without a span at least that long — undeclared, the ripple freezes mid-way.
 - **Scoped CSS** — every selector starts with the tag; every `@keyframes` is named `<tag>-…` (keyframe names are
   global: an unprefixed `rise` would replace base.css's own on every page); prefix part classes
   (`espresso-puck__bed`) so base.css classes never restyle them.
@@ -744,6 +756,7 @@ Worked example (the example `assets/html/examples/LabelGauge.{js,css}` — a lab
 ```js
 customElements.define('label-gauge', class extends HTMLElement {
   static demo = {label: 'Demo reading', value: '6', min: '0', max: '10', unit: 'units'};
+  static span = 1.0;       // its last part (the reading: .2 s delay + .8 s rise) finishes 1.0 s after it starts
   connectedCallback() {
     if (this._built) return; this._built = true;
     const attr = (k) => this.getAttribute(k) || '';
@@ -761,7 +774,7 @@ label-gauge .label-gauge__reading{opacity:0;transform:translateY(calc(6cqmin * v
   animation:label-gauge-rise .8s cubic-bezier(.2,.7,.2,1) .2s forwards;animation-play-state:paused}
 @keyframes label-gauge-sweep{from{transform:rotate(calc(var(--label-gauge-to) * (1 - var(--motion, 1)) - 90deg * var(--motion, 1)))}
   to{transform:rotate(var(--label-gauge-to))}}
-@keyframes label-gauge-rise{99.9%{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}to{opacity:1;transform:none}}
+@keyframes label-gauge-rise{to{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}}
 ```
 On the page (inside `.stage`, its box set by the page):
 ```html
