@@ -30,6 +30,7 @@ import {SceneCamera, bedPan, ACTION_SAFE_FRAC, cameraBudget, type CameraMove} fr
 import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA} from './runtime/dna';
+import {StyleContext, resolveStyle, type StyleSpec} from './runtime/styleSpec';
 import {REGISTRY} from './registry';
 import {STAGES, STAGE_GROUND} from './stage';
 import {StageRunContext, type StageBeat} from './runtime/stageRun';
@@ -1256,10 +1257,13 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   frameUnlock?: boolean;
   // `optics: false` switches every beat's optic off — for scripts/determinism_qa.py's layer attribution and the
   // optics identity proofs. Never set by a film.
-  optics?: boolean}> =
+  optics?: boolean;
+  // the film's drawing style (meta.style, runtime/styleSpec.ts) — null draws every register exactly as it is
+  style?: StyleSpec | null}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
     typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, safe, dither = false, optics = true,
-    safeEcho = true, frameUnlock = true}) => {
+    safeEcho = true, frameUnlock = true, style = null}) => {
+  const activeStyle = React.useMemo(() => (style ? resolveStyle(style) : null), [style]);
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);
@@ -1520,6 +1524,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           past its own pixels — judged by scripts/media_res_qa.py. Absent unless asked for. */}
       {mediaRes ? <MediaResAudit /> : null}
       <DesignDNAContext.Provider value={activeDna}>
+      <StyleContext.Provider value={activeStyle}>
       {/* THE ATMOSPHERE MUST BELONG TO THIS FILM. With no explicit `theme` it fell back to its own
           defaults — a near-black field with a cyan/violet dot lattice, the palette of the MRI films this
           component was written for. On a cream survey film that is another film's world sitting under
@@ -1584,6 +1589,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
       {captions ? <CaptionTrack scenes={scenes} groundBg={theme?.bg ?? activeDna?.bg} dna={activeDna} dnaFontBody={activeDna?.fontBody} dnaUniform={activeDna?.uniformType} reduced={reducedMotion} safe={safeP} /> : null}
       <BrandMark brand={brand} safe={safeP} />
       {dither ? <FilmDither /> : null}
+      </StyleContext.Provider>
       </DesignDNAContext.Provider>
     </AbsoluteFill>
   );

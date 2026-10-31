@@ -2510,6 +2510,18 @@ def _renders_with_dna(meta):
             or str(meta.get("shot_template") or "") in _DNA_PRESETS_FOR_TEST())
 
 
+def _check_style(meta, errors, warnings):
+    """meta.style — the film's drawing style as values on fixed axes (scripts/style_spec.py). An unknown axis or
+    value would silently draw as-drawn: the recolour-only film the user rejected, so it is an ERROR."""
+    spec = meta.get("style")
+    if spec is None:
+        return
+    import style_spec
+    e, w = style_spec.validate_spec(spec)
+    errors.extend("meta.style: " + x for x in e)
+    warnings.extend("meta.style: " + x for x in w)
+
+
 def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, vertical=False):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
@@ -2520,6 +2532,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
     The adapt lint is a PROXY (a script sees empty props + a missing note, never whether the components were
     truly redesigned) — the SEMANTIC verdict is shot-critic S10 (the note vs the rendered pixels)."""
     _check_shot_template(meta, errors, warnings, out_dir)
+    _check_style(meta, errors, warnings)
     _spoken_spellings(slides, warnings)
     # DESIGN DNA — the GLOBAL visual system every shot inherits (runtime/dna.tsx). A themed film should carry an
     # explicit meta.design_dna artifact (the reviewable "Design DNA", docx Artifact A) OR a shot_template that maps

@@ -1,0 +1,41 @@
+{
+  "_why": "The drawing axes a style is decomposed into — ONE table for the TypeScript that draws a style (runtime/styleSpec.ts, runtime/style.tsx) and the Python that validates and measures it (scripts/style_spec.py, scripts/style_qa.py). A new style fills new VALUES here; it never adds code, so no axis and no value may be named after a style (tests/test_style_spec.py). Px are at a 1080 px short side. `only_with` names the sibling values a parameter means anything under; alone it is not a change to the drawing.",
+  "line": {
+    "weight":   {"kind": "number", "min": 0, "max": 24, "also": ["as-drawn"], "default": "as-drawn"},
+    "variance": {"kind": "number", "min": 0, "max": 1, "default": 0},
+    "color":    {"kind": "enum", "values": ["as-drawn", "ink", "fill-dark", "none"], "hex": true, "default": "as-drawn"},
+    "outline":  {"kind": "enum", "values": ["none", "outer", "all"], "default": "none"},
+    "join":     {"kind": "enum", "values": ["as-drawn", "round", "miter"], "default": "as-drawn"},
+    "wobble":   {"kind": "number", "min": 0, "max": 12, "default": 0},
+    "boil_hz":  {"kind": "number", "min": 0, "max": 12, "gap": [0, 6], "default": 0}
+  },
+  "fill": {
+    "mode":  {"kind": "enum", "values": ["as-drawn", "flat", "cel", "texture"], "default": "as-drawn"},
+    "steps": {"kind": "int", "min": 2, "max": 5, "default": 3, "only_with": {"mode": ["cel", "texture"]}}
+  },
+  "shade": {
+    "mode": {"kind": "enum", "values": ["as-drawn", "none", "cel", "soft", "hatch"], "default": "as-drawn"}
+  },
+  "shadow": {
+    "mode":   {"kind": "enum", "values": ["as-drawn", "none", "hard-offset", "soft"], "default": "as-drawn"},
+    "offset": {"kind": "number", "min": 0, "max": 40, "default": 6, "only_with": {"mode": ["hard-offset", "soft"]}}
+  },
+  "form": {
+    "corner":   {"kind": "number", "min": 0, "max": 4, "default": 1},
+    "simplify": {"kind": "number", "min": 0, "max": 1, "default": 0}
+  },
+  "surface": {
+    "kind":     {"kind": "enum", "values": ["none", "paper", "canvas", "brush", "grain"], "default": "none"},
+    "strength": {"kind": "number", "min": 0, "max": 1, "default": 0.5, "only_with": {"kind": ["paper", "canvas", "brush", "grain"]}},
+    "source":   {"kind": "enum", "values": ["procedural", "generated"], "default": "procedural", "only_with": {"kind": ["paper", "canvas", "brush", "grain"]}}
+  },
+  "type": {
+    "display":         {"kind": "string", "default": "as-dna"},
+    "display_outline": {"kind": "bool", "default": false}
+  },
+  "motion": {
+    "stepping": {"kind": "enum", "values": [1, 2, 3], "default": 1},
+    "easing":   {"kind": "enum", "values": ["as-drawn", "overshoot", "snappy", "floaty"], "default": "as-drawn"},
+    "squash":   {"kind": "number", "min": 0, "max": 1, "default": 0}
+  }
+}

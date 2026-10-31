@@ -852,6 +852,10 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
         props["dna"] = design_dna.strip()
     elif meta.get("shot_template"):
         props["template"] = str(meta["shot_template"])
+    # THE DRAWING STYLE (runtime/style.tsx): passed as written — the renderer fills defaults from the same axis table
+    # (runtime/styleAxes.json) that scripts/style_spec.py validated it against. Absent: nothing mounts.
+    if isinstance(meta.get("style"), dict):
+        props["style"] = meta["style"]
     # EACH BEAT'S CLOCK, ON ITS VOICE (scripts/sync_qa.py, Film.tsx `BeatClock`): the warp derived for the beat
     # AS IT IS NOW, or the board's own `sync.anchors`; nothing for a beat that has neither, so every reader of
     # these props — the render, the segment plan, the gates — sees the film that will actually play.
