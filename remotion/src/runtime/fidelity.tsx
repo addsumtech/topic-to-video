@@ -43,12 +43,15 @@ export type Fidelity = {
   materials?: string[];
   /** an exploded view: parts are shown apart on purpose, so the detached-part check does not apply */
   exploded?: boolean;
+  /** what each part is FIXED to ({'exit-pallet': 'pallet-fork'}): the sheet checks the two touch. In a mechanism
+   *  parts touch everywhere (a jewel rests on a tooth), so touching something proves nothing about attachment */
+  mounted_on?: Record<string, string | string[]>;
 };
 export type FidelityMeta = ObjectMeta & {fidelity: Fidelity};
 
 type Box = {x: number; y: number; w: number; h: number};
 export type PartReport = {f: number; canvas: {w: number; h: number}; object?: Box | null;
-  parts: Record<string, {boxes: Box[]; leaves: Box[]; hidden: number}>};
+  parts: Record<string, {boxes: Box[]; leaves: Box[]; hidden: number; geo?: (LeafGeo | null)[]}>};
 
 // THE LEAVES OF A PART — the shapes that actually put ink down. A group's box is the box AROUND its children, so a
 // band drawn as two straps in one <g> has a box that spans the case between them and would read as attached however
@@ -82,6 +85,42 @@ const unionOf = (rs: Rect[]): Rect | null => {
   const l = Math.min(...rs.map((q) => q.left)), t = Math.min(...rs.map((q) => q.top));
   const r = Math.max(...rs.map((q) => q.left + q.width)), b = Math.max(...rs.map((q) => q.top + q.height));
   return {left: l, top: t, width: r - l, height: b - t};
+};
+
+// THE OUTLINE A LEAF ACTUALLY DRAWS. A box says nothing about attachment for any shape that is not a filled rectangle:
+// a ring's box holds everything inside the ring, a lever's box holds the jewels it fails to reach. Validation film A's
+// LeverEscapement drew its pallet jewels floating off the fork (visible on its sheet) and every part's box touched
+// another's — the balance rim's 926 px box held them all — so DETACHED had nothing to find. Each SVG geometry leaf
+// therefore also reports its outline: points along its length (no further apart than OUTLINE_STEP px on screen, at
+// most OUTLINE_MAX), its half stroke width on screen, whether it is filled and how many subpaths it has.
+// scripts/fidelity.py measures distances on these.
+export type LeafGeo = {p: number[]; sw: number; f: 0 | 1; s: number};
+const OUTLINE_STEP = 3, OUTLINE_MAX = 2400;
+const outlineOf = (leaf: Element, win: Window, ox: number, oy: number): LeafGeo | null => {
+  const geo = (win as unknown as {SVGGeometryElement?: typeof SVGGeometryElement}).SVGGeometryElement;
+  if (!geo || !(leaf instanceof geo)) return null;
+  const g = leaf as SVGGeometryElement;
+  const M = g.getScreenCTM();
+  if (!M) return null;
+  let L = 0;
+  try {
+    L = g.getTotalLength();
+  } catch {
+    return null;
+  }
+  if (!(L > 0)) return null;
+  const k = Math.hypot(M.a, M.b) || 1;
+  const n = Math.max(8, Math.min(OUTLINE_MAX, Math.ceil((L * k) / OUTLINE_STEP)));
+  const p: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const q = g.getPointAtLength((L * i) / n);
+    p.push(Math.round((M.a * q.x + M.c * q.y + M.e - ox) * 10) / 10, Math.round((M.b * q.x + M.d * q.y + M.f - oy) * 10) / 10);
+  }
+  const cs = win.getComputedStyle(g);
+  const sw = cs.stroke && cs.stroke !== 'none' ? ((parseFloat(cs.strokeWidth) || 0) * k) / 2 : 0;
+  const f: 0 | 1 = cs.fill && cs.fill !== 'none' && parseFloat(cs.fillOpacity || '1') > 0.02 ? 1 : 0;
+  const s = g.tagName.toLowerCase() === 'path' ? Math.max(1, ((g.getAttribute('d') || '').match(/[Mm]/g) || []).length) : 1;
+  return {p, sw: Math.round(sw * 10) / 10, f, s};
 };
 
 const visibleOpacity = (el: Element, win: Window): number => {
@@ -119,8 +158,9 @@ export const FidelityProbe: React.FC = () => {
           const name = (el.getAttribute(PART_ATTR) || '').trim();
           if (!name) return;
           const slot = parts[name] ?? (parts[name] = {boxes: [], leaves: [], hidden: 0});
-          const leaves = leavesOf(el).filter((leaf) => visibleOpacity(leaf, win) > 0.02).map((leaf) => inked(leaf, win))
-            .filter((q) => q.width > 0.5 || q.height > 0.5);
+          const drawnLeaves = leavesOf(el).filter((leaf) => visibleOpacity(leaf, win) > 0.02)
+            .map((leaf) => ({leaf, q: inked(leaf, win)})).filter(({q}) => q.width > 0.5 || q.height > 0.5);
+          const leaves = drawnLeaves.map(({q}) => q);
           let r: Rect = inked(el, win);
           if (!(r.width > 0.5 && r.height > 0.5)) r = unionOf(leaves) ?? r;
           if (!(r.width > 0.5 && r.height > 0.5 && visibleOpacity(el, win) > 0.02)) {
@@ -129,6 +169,9 @@ export const FidelityProbe: React.FC = () => {
           }
           slot.boxes.push(rel(r));
           for (const q of leaves) slot.leaves.push(rel(q));
+          // one outline per leaf, index-aligned with `leaves` (null: not SVG geometry — its box is its shape)
+          const geo = slot.geo ?? (slot.geo = []);
+          for (const {leaf} of drawnLeaves) geo.push(outlineOf(leaf, win, c.left, c.top));
         });
         const obj = doc.querySelector('[data-fidelity-object]');
         const rec: PartReport = {f: frame, canvas: {w: c.width, h: c.height}, object: obj ? rel(obj.getBoundingClientRect()) : null,

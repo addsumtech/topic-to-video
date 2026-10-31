@@ -15,7 +15,8 @@ record on its `meta.build_list` entry (`fidelity`); a LIBRARY register that does
 
     {subject, depicts: 'real' | 'abstract',
      references: [{kind: photo|spec|drawing|asset, source: url-or-path, note}],
-     proportions: {name: {value, source}}, parts: [names], materials: [names], exploded?: bool}
+     proportions: {name: {value, source}}, parts: [names], materials: [names], exploded?: bool,
+     mounted_on?: {part: part | [parts]}}       # what each part is FIXED to — checked to touch it
 
 `depicts: 'abstract'` (a chart, a metaphor shape) needs no references. A device's sourced spec table
 (runtime/deviceSpec.json) is the device-shaped instance of the same record.
@@ -35,7 +36,10 @@ the film shows it on, at the film's size — with `fidelityParts` armed: runtime
 named), the film-size frame, and a 100% crop of every declared part, at `<out_dir>/_fidelity/<Name>.png` with its
 findings in `<Name>.json`. Two findings are measured from the DOM, both ERROR:
   * MISSING — a declared part no node draws (absent, zero-sized or invisible): the object claims a part it lacks
-  * DETACHED — a part whose boxes touch no other part's (an inflated-box connectivity test), unless `exploded`
+  * DETACHED — a part that touches no other part (SVG shapes by their drawn outlines, other nodes by their boxes),
+    within the smaller of 2% of the drawing's diagonal and 10% of the part's own short side, unless `exploded`
+  * NOT ON ITS MOUNT — a part `mounted_on` names that does not touch the part it is fixed to (a mechanism's parts
+    touch each other everywhere, so touching SOMETHING is no evidence a part is attached; only the record says what)
 """
 import json
 import os
@@ -50,7 +54,9 @@ IMAGE_KINDS = ("photo", "drawing", "asset")
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 PART_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 SHEET_DIR = "_fidelity"
-DETACH_TOL = 0.02           # a part must come within 2% of the drawing's diagonal of another part
+DETACH_TOL = 0.02           # a part must come within 2% of the drawing's diagonal of another part...
+DETACH_OWN = 0.10           # ...and within 10% of the smaller part's own short side (dom_problems)
+DETACH_MIN_PX = 1.5         # ...but never less than this: an anti-aliased seam between two shapes drawn edge to edge
 
 
 class FidelityParseError(ValueError):
@@ -438,7 +444,7 @@ def problems(rec, base, where, part_names=None):
         err("fidelity is {subject, depicts: 'real' | 'abstract', references, proportions, parts, materials} "
             "(got %r)" % (rec,))
         return out
-    known = {"subject", "depicts", "references", "proportions", "parts", "materials", "exploded"}
+    known = {"subject", "depicts", "references", "proportions", "parts", "materials", "exploded", "mounted_on"}
     for k in sorted(set(rec) - known):
         err("fidelity has an unknown key %r (known: %s)" % (k, ", ".join(sorted(known))))
     if not str(rec.get("subject") or "").strip():
@@ -535,6 +541,18 @@ def problems(rec, base, where, part_names=None):
         err("fidelity.materials is a list of names")
     if "exploded" in rec and not isinstance(rec.get("exploded"), bool):
         err("fidelity.exploded is true or false")
+    mounts = rec.get("mounted_on")
+    if mounts is not None:
+        if not isinstance(mounts, dict):
+            err("fidelity.mounted_on is {part: the part (or list of parts) it is fixed to}")
+        else:
+            for k, v in mounts.items():
+                on = v if isinstance(v, list) else [v]
+                for name in [k] + on:
+                    if not isinstance(name, str) or name not in seen:
+                        err("fidelity.mounted_on names %r, which is not one of fidelity.parts" % (name,))
+                if k in on:
+                    err("fidelity.mounted_on: %r is mounted on itself" % k)
     if dep == "real":
         if not refs:
             err("depicts a real thing and names no reference — collect them BEFORE drawing: a real photo "
@@ -610,8 +628,15 @@ def union(boxes):
     return {"x": x0, "y": y0, "w": x1 - x0, "h": y1 - y0}
 
 
-def dom_problems(rec, declared, where, exploded=False):
-    """[(level, sentence)] from one render's part report: MISSING and DETACHED parts."""
+def dom_problems(rec, declared, where, exploded=False, mounted_on=None):
+    """[(level, sentence)] from one render's part report: MISSING and DETACHED parts, and — for each part the record
+    says is MOUNTED ON another (`mounted_on`) — whether the two touch.
+
+    WHY A DECLARATION. Touching anything is not being attached to it. In a mechanism, parts meet that are not joined:
+    the escapement's locked pallet jewel rests on an escape-wheel tooth, and its exit jewel is drawn across the
+    balance rim. A jewel drawn floating off its fork (validation film A's first escapement) therefore touched the
+    wheel and the rim, belonged to the drawing's one connected piece, and DETACHED had nothing to report however its
+    tolerance was set. What the jewel must touch is the part it is FIXED to, and only the record knows which that is."""
     out = []
     if rec is None:
         return [("ERROR", "%s: the render logged no part report — the probe did not run, so nothing was measured"
@@ -627,15 +652,33 @@ def dom_problems(rec, declared, where, exploded=False):
     present = [p for p in declared if (got.get(p) or {}).get("boxes")]
     if exploded or len(present) < 2:
         return out
+    mount_pairs = []
+    for part, on in sorted((mounted_on or {}).items()):
+        for host in (on if isinstance(on, list) else [on]):
+            if part in present and host in present:
+                mount_pairs.append((part, host))
     # ATTACHMENT, judged on the LEAVES — the shapes that put ink down (runtime/fidelity.tsx leavesOf); a group's own
     # box spans whatever lies between its children. Every leaf of every declared part is a node; two nodes are joined
     # when their boxes come within `tol`. Whatever is not joined to the largest component floats.
     # every MARKED part is ink that can bridge two declared ones (a radiator face between the bus and a wing boom), so
     # the graph holds all of them; a piece is reported only when it holds a declared part.
     marked = present + sorted(p for p in got if p not in present and (got[p] or {}).get("boxes"))
-    nodes = [(p, b) for p in marked for b in (got[p].get("leaves") or got[p]["boxes"])[:400]]
-    u = union([b for _p, b in nodes])
-    tol = DETACH_TOL * ((u["w"] ** 2 + u["h"] ** 2) ** 0.5)
+    nodes = []                                           # (part, box, outline or None)
+    for p in marked:
+        leaves = got[p].get("leaves") or got[p]["boxes"]
+        geo = got[p].get("geo") if got[p].get("leaves") else None
+        geo = geo if isinstance(geo, list) and len(geo) == len(leaves) else [None] * len(leaves)
+        nodes += [(p, b, g) for b, g in list(zip(leaves, geo))[:400]]
+    u = union([b for _p, b, _g in nodes])
+    diag_tol = DETACH_TOL * ((u["w"] ** 2 + u["h"] ** 2) ** 0.5)
+    # A PART IS ATTACHED BY TOUCHING, AT ITS OWN SCALE. The tolerance between two pieces is the drawing's 2% only up to
+    # DETACH_OWN of the SMALLER part's own short side (never under DETACH_MIN_PX): a 2%-of-the-diagonal gap is 27 px
+    # on the escapement's hero render, wider than its 27 px jewel — a gap the jewel could float in whole.
+    short = {p: min(union(got[p].get("leaves") or got[p]["boxes"])["w"],
+                    union(got[p].get("leaves") or got[p]["boxes"])["h"]) for p in marked}
+
+    def tol_of(i, j):
+        return min(diag_tol, max(DETACH_MIN_PX, DETACH_OWN * min(short[nodes[i][0]], short[nodes[j][0]])))
     parent = list(range(len(nodes)))
 
     def find(i):
@@ -644,9 +687,18 @@ def dom_problems(rec, declared, where, exploded=False):
             i = parent[i]
         return i
 
+    def dist(i, j, cap):
+        """The gap between two leaves: their OUTLINES' distance less both half strokes when both carry one (0 when
+        one's outline enters the other's filled shape), else their boxes' — a lower bound, never an over-report."""
+        bg = _gap(nodes[i][1], nodes[j][1])
+        if bg > cap:
+            return bg
+        a, b = nodes[i][2], nodes[j][2]
+        return bg if not (a and b) else _outline_gap(a, b)
+
     for i in range(len(nodes)):
         for j in range(i + 1, len(nodes)):
-            if _gap(nodes[i][1], nodes[j][1]) <= tol:
+            if find(i) != find(j) and dist(i, j, tol_of(i, j)) <= tol_of(i, j):
                 parent[find(i)] = find(j)
     groups = {}
     for i in range(len(nodes)):
@@ -659,16 +711,81 @@ def dom_problems(rec, declared, where, exploded=False):
             names = tuple(sorted({nodes[i][0] for i in g}))
             if not set(names) & set(present):
                 continue
-            gap = min(_gap(nodes[i][1], nodes[k][1]) for i in g for k in main)
-            n, far = floating.get(names, (0, 0.0))
-            floating[names] = (n + 1, max(far, gap))
-        for names, (n, gap) in sorted(floating.items()):
-            out.append(("ERROR", "%s: %s detached — %s %.0f px from the rest of the drawing (more than %.0f px, %d%% "
-                        "of its diagonal); attach it where the real one is, or set fidelity.exploded for an exploded "
-                        "view" % (where, " + ".join(repr(p) for p in names) + (" is" if len(names) == 1 else " are"),
-                                  "a piece" if n == 1 else "%d pieces, up to" % n, gap, tol,
-                                  round(DETACH_TOL * 100))))
+            gap = min(dist(i, k, float("inf")) for i in g for k in main)
+            lim = min(tol_of(i, k) for i in g for k in main)
+            n, far, lo = floating.get(names, (0, 0.0, lim))
+            floating[names] = (n + 1, max(far, gap), min(lo, lim))
+        for names, (n, gap, lim) in sorted(floating.items()):
+            out.append(("ERROR", "%s: %s detached — %s %.0f px from the rest of the drawing (more than %.1f px: the "
+                        "smaller of %d%% of its diagonal and %d%% of the part's own short side); attach it where the "
+                        "real one is, or set fidelity.exploded for an exploded view"
+                        % (where, " + ".join(repr(p) for p in names) + (" is" if len(names) == 1 else " are"),
+                           "a piece" if n == 1 else "%d pieces, up to" % n, gap, lim, round(DETACH_TOL * 100),
+                           round(DETACH_OWN * 100))))
+    # MOUNTED PARTS TOUCH THEIR MOUNT — whatever else they touch
+    for part, host in mount_pairs:
+        a = [i for i in range(len(nodes)) if nodes[i][0] == part]
+        b = [i for i in range(len(nodes)) if nodes[i][0] == host]
+        gap = min(dist(i, k, float("inf")) for i in a for k in b)
+        lim = min(tol_of(i, k) for i in a for k in b)
+        if gap > lim:
+            out.append(("ERROR", "%s: %r is mounted on %r (fidelity.mounted_on) and does not touch it — %.1f px apart "
+                        "(more than %.1f px); it floats where the real one is fixed" % (where, part, host, gap, lim)))
     return out
+
+
+def _outline_pts(g):
+    import numpy as np
+    p = np.asarray(g.get("p") or [], dtype=float).reshape(-1, 2)
+    return p
+
+
+def _inside(pts, poly):
+    """bool per point: inside the closed polygon `poly` (even-odd ray cast)."""
+    import numpy as np
+    x, y = pts[:, 0][:, None], pts[:, 1][:, None]
+    x0, y0 = poly[:, 0][None, :], poly[:, 1][None, :]
+    x1, y1 = np.roll(poly[:, 0], -1)[None, :], np.roll(poly[:, 1], -1)[None, :]
+    cond = (y0 > y) != (y1 > y)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        xc = x0 + (y - y0) * (x1 - x0) / (y1 - y0)
+    return (cond & (x < xc)).sum(axis=1) % 2 == 1
+
+
+def _seg_dist(pts, poly, closed):
+    """min distance from any of `pts` to the polyline `poly` (closed: back to its first point)."""
+    import numpy as np
+    a = poly if closed else poly[:-1]
+    b = np.roll(poly, -1, axis=0) if closed else poly[1:]
+    best = float("inf")
+    for k in range(0, len(pts), 256):                       # chunked: a spiral carries ~2000 points
+        P = pts[k:k + 256][:, None, :]
+        d = b - a
+        L2 = np.maximum((d ** 2).sum(axis=1), 1e-9)
+        t = np.clip(((P - a[None]) * d[None]).sum(axis=2) / L2[None], 0, 1)
+        q = a[None] + t[..., None] * d[None]
+        best = min(best, float(np.sqrt(((P - q) ** 2).sum(axis=2)).min()))
+    return best
+
+
+def _closed(p):
+    """An outline that ends where it began (a polygon, a circle, a closed path): its last sample sits one sampling
+    step (runtime OUTLINE_STEP, 3 px) from its first. An open line's ends are apart."""
+    import numpy as np
+    return len(p) >= 3 and float(np.hypot(*(p[-1] - p[0]))) <= 6.0
+
+
+def _outline_gap(ga, gb):
+    """The ink gap between two leaf outlines (runtime/fidelity.tsx outlineOf): 0 when either filled single-subpath
+    shape holds a point of the other; else the outlines' distance less both half strokes, floored at 0."""
+    pa, pb = _outline_pts(ga), _outline_pts(gb)
+    if len(pa) < 2 or len(pb) < 2:
+        return 0.0
+    for g, mine, other in ((ga, pa, pb), (gb, pb, pa)):
+        if g.get("f") and g.get("s", 1) == 1 and len(mine) >= 3 and _inside(other, mine).any():
+            return 0.0
+    d = min(_seg_dist(pa, pb, _closed(pb)), _seg_dist(pb, pa, _closed(pa)))
+    return max(0.0, d - float(ga.get("sw") or 0) - float(gb.get("sw") or 0))
 
 
 # ── THE SHEET: COMPOSING IT ──────────────────────────────────────────────────────────────────────────────────
@@ -980,10 +1097,12 @@ def sheet(out_dir, name, props=None, host="ObjectStage", slot=None, dna=None):
     hero_parts, film_parts = got.get("hero"), got.get("film")
     if declared:
         if hero_parts is not None or kind == "object":
-            findings += dom_problems(hero_parts, declared, "%s at hero size" % name, bool(rec.get("exploded")))
+            findings += dom_problems(hero_parts, declared, "%s at hero size" % name, bool(rec.get("exploded")),
+                                     rec.get("mounted_on"))
         findings += [f for f in dom_problems(film_parts, declared, "%s as the film shows it (%s)" % (name, comp),
-                                             bool(rec.get("exploded")))
-                     if "detached" not in f[1] or hero_parts is None]
+                                             bool(rec.get("exploded")), rec.get("mounted_on"))
+                     if ("detached" not in f[1] and "does not touch" not in f[1])
+                     or hero_parts is None]
     png = os.path.join(outd, name + ".png")
     compose(png, name, rec, base, hero_png, hero_parts, film_png, film_parts, findings,
             "on %s, frame %d" % (comp, frame))
@@ -1003,9 +1122,12 @@ def scope_lines(declared, kind, host, frame, aspect, hero_parts, film_parts):
     renders = (["hero size"] if kind == "object" else []) + ["%s at %s, frame %d" % (host, aspect, frame)]
     got = [r for r, p in zip(renders, ([hero_parts] if kind == "object" else []) + [film_parts]) if p is not None]
     if declared and got:
-        out.append("MEASURED — %d declared part(s) for presence (MISSING) and attachment (DETACHED, %d%% of the "
-                   "drawing's diagonal) in the rendered DOM: %s" % (len(declared), round(DETACH_TOL * 100),
-                                                                    "; ".join(got)))
+        out.append("MEASURED — %d declared part(s) for presence (MISSING) and attachment (DETACHED: SVG shapes by "
+                   "their drawn outlines, other nodes by their boxes, within %d%% of the drawing's diagonal or %d%% of "
+                   "the smaller part's short side, whichever is less) in the rendered DOM: %s"
+                   % (len(declared), round(DETACH_TOL * 100), round(DETACH_OWN * 100), "; ".join(got)))
+        out.append("NOT MEASURED — depth: a part drawn OVER another (a jewel crossing the balance rim in the picture) "
+                   "touches it on screen whether or not it is mounted on it; attachment in depth is left to the eye")
     elif declared:
         out.append("NOT MEASURED — no render logged a part report: presence and attachment are unchecked (an ERROR "
                    "above says so)")

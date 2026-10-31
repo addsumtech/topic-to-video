@@ -363,3 +363,71 @@ def test_the_sheet_of_a_library_object_at_portrait_and_square(tmp_path, aspect):
     want = {"9:16": (1080, 1920), "1:1": (1080, 1080)}[aspect]
     assert Image.open(os.path.join(str(tmp_path), "_fidelity", "GpsSatellite.film.png")).size == want
     assert any(aspect in ln for ln in res["scope"]) and res["scope"][0].startswith("MEASURED")
+
+
+# ── attachment by the OUTLINES the probe reports, at the part's own scale, and on the part it is mounted on ──────
+import math  # noqa: E402
+
+
+def _square(x, y, w, h, fill=1, sw=0.5):
+    """A filled rectangle's leaf as the probe reports it: its box and its outline sampled every ~3 px."""
+    pts = []
+    for (ax, ay), (bx, by) in zip([(x, y), (x + w, y), (x + w, y + h), (x, y + h)],
+                                  [(x + w, y), (x + w, y + h), (x, y + h), (x, y)]):
+        n = max(2, int(math.hypot(bx - ax, by - ay) / 3))
+        pts += [v for k in range(n) for v in (ax + (bx - ax) * k / n, ay + (by - ay) * k / n)]
+    return {"x": x, "y": y, "w": w, "h": h}, {"p": pts, "sw": sw, "f": fill, "s": 1}
+
+
+def _ring(cx, cy, r, sw):
+    n = int(2 * math.pi * r / 3)
+    pts = [v for k in range(n) for v in (cx + r * math.cos(2 * math.pi * k / n), cy + r * math.sin(2 * math.pi * k / n))]
+    return {"x": cx - r - sw, "y": cy - r - sw, "w": 2 * (r + sw), "h": 2 * (r + sw)}, {"p": pts, "sw": sw, "f": 0, "s": 1}
+
+
+def _geo_rep(**parts):
+    return {"f": 0, "canvas": {"w": 1000, "h": 1000},
+            "parts": {k: {"boxes": [b for b, _g in v], "leaves": [b for b, _g in v], "geo": [g for _b, g in v],
+                          "hidden": 0} for k, v in parts.items()}}
+
+
+def test_a_piece_inside_a_rings_box_but_far_from_its_rim_is_detached_by_its_outline():
+    """A rim's BOX holds everything inside the ring (the escapement's balance: a 926 px box around every part), so a
+    box test called any piece in there attached. The outline says how far the ink really is."""
+    rep = _geo_rep(rim=[_ring(500, 500, 300, 6)], hub=[_square(480, 480, 40, 40)])
+    assert any("'hub' is detached" in m for _lv, m in fid.dom_problems(rep, ["rim", "hub"], "R"))
+    rep["parts"]["hub"]["geo"] = [None]                             # no outline: the box, as before (a lower bound)
+    assert fid.dom_problems(rep, ["rim", "hub"], "R") == []
+    rep = _geo_rep(rim=[_ring(500, 500, 300, 6)], spoke=[_square(200, 490, 600, 20)])
+    assert fid.dom_problems(rep, ["rim", "spoke"], "R") == [], "a spoke that meets the rim is attached"
+
+
+def test_the_tolerance_is_the_small_parts_own_not_the_drawings():
+    """2% of the diagonal is 12 px here; a 20 px part 10 px off the body floats in a gap half its own size."""
+    rep = _geo_rep(body=[_square(100, 100, 400, 400)], pin=[_square(510, 290, 20, 20)])
+    msgs = [m for _lv, m in fid.dom_problems(rep, ["body", "pin"], "P")]
+    assert len(msgs) == 1 and "'pin' is detached" in msgs[0], msgs
+    rep = _geo_rep(body=[_square(100, 100, 400, 400)], pin=[_square(501, 290, 20, 20)])
+    assert fid.dom_problems(rep, ["body", "pin"], "P") == [], "a seam of a pixel is attached"
+
+
+def test_a_part_touching_something_else_is_still_reported_off_its_mount():
+    """The escapement's jewel rests on a wheel tooth and crosses the balance rim in the picture: it belongs to the
+    drawing's one piece whether or not it sits on its fork. Only the declared mount says what it must touch."""
+    rep = _geo_rep(fork=[_square(100, 340, 200, 60)], wheel=[_square(100, 400, 300, 300)],
+                   jewel=[_square(330, 380, 30, 60)])                       # on the wheel, 30 px off the fork's end
+    assert fid.dom_problems(rep, ["fork", "wheel", "jewel"], "E") == []    # touching the wheel: one piece
+    msgs = [m for _lv, m in fid.dom_problems(rep, ["fork", "wheel", "jewel"], "E", mounted_on={"jewel": "fork"})]
+    assert len(msgs) == 1 and "'jewel' is mounted on 'fork'" in msgs[0] and "does not touch it" in msgs[0], msgs
+    rep["parts"]["jewel"] = _geo_rep(j=[_square(280, 345, 30, 60)])["parts"]["j"]   # set into the fork
+    assert fid.dom_problems(rep, ["fork", "wheel", "jewel"], "E", mounted_on={"jewel": ["fork"]}) == []
+
+
+def test_mounted_on_names_declared_parts(tmp_path):
+    rec = _good(tmp_path)
+    rec["mounted_on"] = {"lid": "body"}
+    assert _errs(rec, tmp_path) == []
+    rec["mounted_on"] = {"lid": "hinge"}
+    assert any("'hinge', which is not one of fidelity.parts" in e for e in _errs(rec, tmp_path))
+    rec["mounted_on"] = {"lid": "lid"}
+    assert any("mounted on itself" in e for e in _errs(rec, tmp_path))

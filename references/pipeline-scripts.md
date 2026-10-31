@@ -804,7 +804,7 @@ agent on the beats it points at.
   through `scripts/fidelity_stills.cjs`, whose renderStill sees the page's log), and composes
   `<out_dir>/_fidelity/<Name>.png` + `.json`: the reference images beside the render with each part outlined, the
   film-size frame, a 100% crop of every part, the record's proportions and the findings. ERROR: a declared part not
-  drawn (MISSING), a part touching no other (DETACHED, unless `exploded`), and every record error. Exit 0 clean ·
+  drawn (MISSING), a part touching no other (DETACHED, unless `exploded`), a part off the part `mounted_on` names, and every record error. Exit 0 clean ·
   1 findings. The record itself (`META.fidelity`, or a shot's `meta.build_list[i].fidelity`) is checked by
   `workshop.py check` and `validate.py`; `critic_brief.py` hands the critic each real built thing's sheet (S16) and
   `shot_proof.py` reports a sheet that is missing, stale or has problems.

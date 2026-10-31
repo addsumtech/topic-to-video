@@ -74,8 +74,12 @@ that has a slot for one — `ObjectStage`, `ObjectCompare`, `ObjectPath`, `Objec
    imagefetch sidecar. `workshop.py <out_dir> fidelity <Name>` renders the **fidelity sheet**
    (`<out_dir>/_fidelity/<Name>.png`): the reference images beside the hero-size render with every part outlined,
    the frame as the film shows it, and a 100% crop of every part. It reads the parts from the DOM and refuses a
-   declared part that is not drawn (MISSING) or that touches no other part (DETACHED; `exploded: true` for an
-   exploded view). The critic judges every real built thing on that sheet (`agents/shot-critic.md` S16). A
+   declared part that is not drawn (MISSING) or that touches no other part (DETACHED — SVG shapes are measured by
+   their drawn outlines, within the smaller of 2% of the drawing's diagonal and 10% of the part's own short side;
+   `exploded: true` for an exploded view). In a MECHANISM parts touch everywhere — a pallet jewel rests on an
+   escape tooth and crosses the balance rim in the picture — so touching something proves nothing: declare what
+   each part is FIXED to, `mounted_on: {'exit-pallet': 'pallet-fork'}`, and the sheet refuses one that does not
+   touch its mount. The critic judges every real built thing on that sheet (`agents/shot-critic.md` S16). A
    device's sourced spec table (`runtime/deviceSpec.json`) is the device-shaped instance of this record.
 
 `META` carries `aspect`, `provenance` (the idiom world its look comes from — the film's `idiom_world` is judged on
