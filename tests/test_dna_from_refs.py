@@ -72,3 +72,20 @@ def test_it_writes_the_board_and_never_overwrites_an_authored_dna(tmp_path):
 def test_no_refs_is_refused(tmp_path):
     (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {"style": {"name": "x", "refs": []}}, "slides": []}))
     assert dfr.main([str(tmp_path)]) == 2
+
+
+def test_a_ref_that_shows_only_line_is_left_out_of_the_palette(tmp_path):
+    """A reference can show HOW a line is drawn and nothing about colour (a white line drawing on black): read for the
+    palette it outvoted two colour references and gave a cartoon on cream a black ground. `palette: false` keeps it out."""
+    (tmp_path / "style_refs").mkdir()
+    _ref(tmp_path / "style_refs" / "colour.png")
+    _ref(tmp_path / "style_refs" / "line.png", ground=(0, 0, 0), blobs=((0, 0, 0), (0, 0, 0)), ink=(255, 255, 255))
+    _ref(tmp_path / "style_refs" / "line2.png", ground=(0, 0, 0), blobs=((0, 0, 0), (0, 0, 0)), ink=(255, 255, 255))
+    refs = [{"src": "style_refs/colour.png", "from": "found"},
+            {"src": "style_refs/line.png", "from": "found", "palette": False},
+            {"src": "style_refs/line2.png", "from": "found", "palette": False}]
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {"style": {"name": "x", "refs": refs}}, "slides": []}))
+    assert dfr.main([str(tmp_path)]) == 0
+    dna = json.load(open(tmp_path / "storyboard.json"))["meta"]["design_dna"]
+    assert _hue(dna["bg"])[2] > 0.9, dna["bg"]
+    assert dna["provenance"]["refs"] == ["colour.png"]

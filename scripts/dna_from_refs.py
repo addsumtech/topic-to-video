@@ -112,8 +112,11 @@ def main(argv=None):
     path = os.path.join(a.out_dir, "storyboard.json")
     board = json.load(open(path, encoding="utf-8"))
     meta = board.setdefault("meta", {})
+    # a reference marked `palette: false` shows how a line is drawn and nothing about colour (a white line drawing on
+    # black): read for the palette, it outvoted two colour references and gave a cartoon on cream a black ground
     refs = [os.path.join(a.out_dir, r["src"]) for r in ((meta.get("style") or {}).get("refs") or [])
-            if isinstance(r, dict) and isinstance(r.get("src"), str) and os.path.isfile(os.path.join(a.out_dir, r["src"]))]
+            if isinstance(r, dict) and isinstance(r.get("src"), str) and r.get("palette") is not False
+            and os.path.isfile(os.path.join(a.out_dir, r["src"]))]
     if not refs:
         print("%s REFUSED: meta.style has no reference image on disk to read a palette from" % TAG)
         return 2

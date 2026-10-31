@@ -26,7 +26,8 @@ never new code.
      e.g. "line.outline all: every shape in refs 1–3 has a closed dark contour, ~4 px at 1080".
    - A spec that leaves every axis as drawn is a recolour: say so to the user, or decompose it properly.
 3. **Palette** from the same references: `python3 scripts/dna_from_refs.py <out_dir>` reads ground, ink and two
-   accents from `style_refs/` into `meta.design_dna` (with where each came from; it never overwrites a DNA it did not
+   accents from `style_refs/` into `meta.design_dna` (a reference that shows only how a line is drawn — a line
+   drawing on black — is marked `"palette": false` and left out) (with where each came from; it never overwrites a DNA it did not
    write without `--force`). The style draws; the DNA colours.
    - Then **cast for the ground**: validate (and `style_coverage.py <out_dir>`) names any beat whose register keeps
      a ground of the other tone under this DNA (a theatre's night in a cartoon on cream). One ground cannot repaint
