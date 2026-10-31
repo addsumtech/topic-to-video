@@ -22,7 +22,7 @@ import React, {useLayoutEffect, useRef} from 'react';
 import {continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useStyle, type ResolvedStyle} from './styleSpec';
 import {useDNA, shade, relLum, type DesignDNA} from './dna';
-import {classify, inkFor, meanColor, steppedGradient, quantizeStops, toHex} from './styleClassify';
+import {classify, inkFor, meanColor, steppedGradient, quantizeStops, quantizeAlphas, toHex} from './styleClassify';
 import {hash01, ReducedMotionContext, SceneDurationContext} from './motion';
 import {buildFilter, recipeKey, wobbleSeed, type Recipe} from './styleFilters';
 import {surfaceTile} from './styleSurface';
@@ -294,7 +294,7 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     const stops = stopsOf(g, doc);
     if (!stops.length) return null;
     const bands = quantizeStops(stops, grad.steps || 2);
-    const a = +(stops.reduce((s, x) => s + alphaOf(x), 0) / stops.length).toFixed(3);
+    const bandA = quantizeAlphas(stops.map(alphaOf), grad.steps || 2);
     const ns = 'http://www.w3.org/2000/svg';
     const clone = doc.createElementNS(ns, g.tagName);
     for (const k of GRAD_ATTRS) { const v = g.getAttribute(k); if (v !== null) clone.setAttribute(k, v); }
@@ -305,7 +305,7 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
         const s = doc.createElementNS(ns, 'stop');
         s.setAttribute('offset', String(off));
         s.setAttribute('stop-color', col);
-        s.setAttribute('stop-opacity', String(a));
+        s.setAttribute('stop-opacity', String(bandA[k]));
         clone.appendChild(s);
       }
     });
@@ -469,8 +469,10 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     let image: string | null = null;              // the box's background-image as the style leaves it (null: as drawn)
     const bgMode = bg.includes('gradient(') && translucentStops(bg) ? lightMode : grad.mode;
     if (bg.includes('gradient(') && bgMode !== 'as-drawn') {
-      if (bgMode === 'flat' && ground && translucentStops(bg)) {
-        image = 'none';                         // a vignette or a scrim with no light: gone, never a uniform veil
+      if (ground && translucentStops(bg)) {
+        // a FRAME-FILLING light (a vignette, a scrim) under a light that is not as drawn: gone. Flattened it is a veil
+        // over the whole register; stepped, a hard ring round the frame (CinematicTitle in the cartoon sample)
+        image = 'none';
       } else if (bgMode === 'flat' || ground) {
         const mean = meanColor(bg);
         image = 'none';

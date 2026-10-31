@@ -103,8 +103,21 @@ export const quantizeStops = (colors: string[], steps: number): string[] => {
   return out;
 };
 
-/** A computed CSS gradient redrawn as `steps` hard bands of its own colours, its shape and direction kept; null when
- *  `css` is not a gradient. Alpha is carried as the mean alpha of the stops, so a glow stays as faint as it was. */
+/** `steps` alphas standing for a gradient of `alphas` (evenly spaced), sampled at each band's centre as quantizeStops
+ *  samples colour. ONE mean alpha for every band turned a vignette (clear → 80% black) into a uniform 40% veil over a
+ *  whole title (the cartoon acceptance sample). */
+export const quantizeAlphas = (alphas: number[], steps: number): number[] => {
+  if (!alphas.length) return [];
+  return Array.from({length: steps}, (_, k) => {
+    const t = (k + 0.5) / steps * (alphas.length - 1);
+    const i = Math.min(alphas.length - 2, Math.floor(t));
+    const v = alphas.length === 1 ? alphas[0] : alphas[i] + (alphas[i + 1] - alphas[i]) * (t - i);
+    return +v.toFixed(3);
+  });
+};
+
+/** A computed CSS gradient redrawn as `steps` hard bands of its own colours AND alphas, its shape and direction kept;
+ *  null when `css` is not a gradient. */
 export const steppedGradient = (css: string, steps: number): string | null => {
   const m = /^(repeating-)?(linear|radial|conic)-gradient\((.*)\)$/s.exec(css.trim());
   if (!m) return null;
@@ -114,10 +127,11 @@ export const steppedGradient = (css: string, steps: number): string | null => {
   const head = body.slice(0, first).trim().replace(/,\s*$/, '');
   const stops = [...body.matchAll(RGB)].map((x) => x[0]);
   const alphas = [...body.matchAll(RGB)].map((x) => parseFloat(x[1].split(',')[3] ?? '1'));
-  const a = +(alphas.reduce((s, v) => s + v, 0) / alphas.length).toFixed(3);
+  const bandA = quantizeAlphas(alphas, steps);
   const bands = quantizeStops(stops, steps);
   const parts = bands.map((c, k) => {
     const [r, g, b] = parse(c) as number[];
+    const a = bandA[k];
     const col = a < 1 ? `rgba(${r}, ${g}, ${b}, ${a})` : `rgb(${r}, ${g}, ${b})`;
     const p0 = +(k / steps * 100).toFixed(2), p1 = +((k + 1) / steps * 100).toFixed(2);
     return `${col} ${p0}% ${p1}%`;

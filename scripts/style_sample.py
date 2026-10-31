@@ -103,8 +103,16 @@ def _compose(out_png, notes, refs, stills):
     def fit(im, w):
         return im.resize((w, max(1, int(im.height * w / im.width))))
     ref_ims = [fit(i, ref_w) for i in ref_ims]
-    st_ims = [(n, fit(i, st_w)) for n, i in st_ims]
-    body_h = max(sum(i.height + 16 for i in ref_ims), sum(i.height + 44 for _n, i in st_ims))
+    # a PORTRAIT film's beats stand side by side: stacked, three 9:16 frames made a sheet 8000 px tall
+    portrait = bool(st_ims) and st_ims[0][1].height > st_ims[0][1].width
+    if portrait:
+        each = (st_w - 20 * (len(st_ims) - 1)) // max(1, len(st_ims))
+        st_ims = [(n, fit(i, each)) for n, i in st_ims]
+        beats_h = max(i.height for _n, i in st_ims) + 44
+    else:
+        st_ims = [(n, fit(i, st_w)) for n, i in st_ims]
+        beats_h = sum(i.height + 44 for _n, i in st_ims)
+    body_h = max(sum(i.height + 16 for i in ref_ims), beats_h)
     line_h = 34
     H = 90 + body_h + 30 + line_h * len(notes["lines"]) + 30
     sheet = Image.new("RGB", (W, H), (246, 244, 239))
@@ -116,11 +124,14 @@ def _compose(out_png, notes, refs, stills):
     for im in ref_ims:
         sheet.paste(im, (30, yy))
         yy += im.height + 16
-    yy = y
+    yy, xx = y, 530
     for n, im in st_ims:
-        d.text((530, yy), "beat %s" % n, fill=(90, 90, 90), font=fid._font(20))
-        sheet.paste(im, (530, yy + 26))
-        yy += im.height + 44
+        d.text((xx, yy), "beat %s" % n, fill=(90, 90, 90), font=fid._font(20))
+        sheet.paste(im, (xx, yy + 26))
+        if portrait:
+            xx += im.width + 20
+        else:
+            yy += im.height + 44
     y = 90 + body_h + 30
     for ln in notes["lines"]:
         d.text((30, y), ln, fill=(40, 40, 40), font=fid._font(24, ln))

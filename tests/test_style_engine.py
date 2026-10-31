@@ -414,3 +414,27 @@ def test_hatch_shades_with_lines_not_bands(tmp_path):
         p = img[dark].astype(float).mean(axis=2)
         return float(np.abs(p[:, 1:] - p[:, :-1]).mean() + np.abs(p[1:] - p[:-1]).mean())
     assert hf(b) > hf(a) + 8, ("no hatching in the shade", hf(a), hf(b))
+
+
+@needs_ts
+def test_a_stepped_translucent_gradient_keeps_each_bands_alpha():
+    """Stepped with ONE mean alpha, a vignette (clear → 80% black) became a uniform 40% veil over the whole title
+    (CinematicTitle in the cartoon acceptance sample: a cream ground read as muddy taupe)."""
+    out = _ts("""
+      out.s = C.steppedGradient('radial-gradient(120% 100% at 50% 50%, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.8) 100%)', 2);
+      out.a = C.quantizeAlphas([0, 0.8], 2);
+    """)
+    alphas = [float(x) for x in re.findall(r"rgba\(\s*\d+,\s*\d+,\s*\d+,\s*([\d.]+)\)", out["s"])]
+    assert len(alphas) == 2 and alphas[0] < alphas[1] - 0.2, out["s"]
+    assert out["a"][0] < out["a"][1]
+
+
+@needs_render
+def test_a_frame_filling_light_is_removed_not_banded_or_veiled(tmp_path):
+    spec = {"name": "cel light", "refs": [], "refs_missing": "test", "shade": {"mode": "cel"}}
+    bare = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "bare.png"))
+    lit = _render("StyleProbe", {"style": spec, "overlay": True}, 10, str(tmp_path / "lit.png"))
+    # the open ground near the middle is what it is without the vignette — no veil
+    assert np.abs(lit[560, 700].astype(int) - bare[560, 700].astype(int)).max() <= 3, (lit[560, 700], bare[560, 700])
+    # and the corner is not a hard dark band either
+    assert np.abs(lit[1060, 20].astype(int) - bare[1060, 20].astype(int)).max() <= 3, (lit[1060, 20], bare[1060, 20])
