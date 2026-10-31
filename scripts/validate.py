@@ -2520,6 +2520,16 @@ def _check_style(meta, errors, warnings):
     e, w = style_spec.validate_spec(spec)
     errors.extend("meta.style: " + x for x in e)
     warnings.extend("meta.style: " + x for x in w)
+    # THE USER'S YES ON A SAMPLE. Before the sample exists this is only a reminder (the pipeline runs validate on the
+    # way TO the sample); the full render itself refuses (render_remotion.style_refusal). A sign-off for a spec that
+    # has since changed approved something else: that is an ERROR.
+    so = meta.get("style_signoff")
+    if not (isinstance(so, dict) and so.get("user_ok") is True):
+        warnings.append("meta.style has no sign-off yet: build the sample (scripts/style_sample.py <out_dir>), show it "
+                        "to the user, record their yes with --signoff; the full render waits for it")
+    elif not e and so.get("spec_sha256") != style_spec.spec_sha256(spec):
+        errors.append("meta.style_signoff is stale: the style changed after the user approved its sample — build a "
+                      "new sample and show it")
 
 
 def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, vertical=False):

@@ -867,8 +867,30 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     return props, slides
 
 
+def style_refusal(data, sample=None):
+    """Why the FULL render of a styled film must not start, or None. The user approves a style on its sample before
+    the film is rendered (scripts/style_sample.py); a spec changed after that approval is stale. A `--sample` render
+    is always allowed — it is how a sample is made."""
+    meta = data.get("meta") or {}
+    spec = meta.get("style")
+    if sample is not None or not isinstance(spec, dict):
+        return None
+    import style_spec as _ss
+    so = meta.get("style_signoff")
+    if not (isinstance(so, dict) and so.get("user_ok") is True):
+        return ("this film has a drawing style and no sign-off: build the sample (scripts/style_sample.py <out_dir>), "
+                "show it to the user, and record their yes (--signoff) before the full render")
+    if so.get("spec_sha256") != _ss.spec_sha256(spec):
+        return ("the style sign-off is stale: meta.style changed after the user approved its sample — build a new "
+                "sample and show it")
+    return None
+
+
 def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=False, vertical=False, whole=False):
     """Render via the bespoke-shot LIBRARY. Fails loud on a missing/unknown shot or missing audio."""
+    why = style_refusal(data, sample)
+    if why:
+        raise RuntimeError(why)
     if not shutil.which("npx"):
         raise RuntimeError("Node/npx not found — the Remotion tier needs Node.js.")
     if not os.path.isdir(os.path.join(_REMOTION2_DIR, "node_modules")):
