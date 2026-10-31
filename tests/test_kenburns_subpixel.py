@@ -274,3 +274,111 @@ def test_troubleshooting_names_the_jitter_gate_not_the_retired_knob():
     doc = open(os.path.join(HERE, "..", "references", "troubleshooting.md"), encoding="utf-8").read()
     assert "raise `meta.motion_ss`" not in doc
     assert "jitter_qa.py" in doc and "_kenburns_window" in doc
+
+
+# ── the move is drawn from the source's own pixels (render._kenburns_master) ────────────────────────────────────────
+# The 2026-10-30 validation film B resampled every window out of the 1080 fitted frame of a 2400 px photograph: a push
+# to 1.10x magnified a copy that had already thrown the detail away (0.76-0.81 of a source resample's, measured).
+
+def _detail(arr):
+    """High-frequency energy: the variance of a 4-neighbour Laplacian of the luma."""
+    g = arr[..., 1].astype(np.float64)
+    lap = 4 * g[1:-1, 1:-1] - g[:-2, 1:-1] - g[2:, 1:-1] - g[1:-1, :-2] - g[1:-1, 2:]
+    return float(lap.var())
+
+
+def _noise_photo(path, w, h, seed=3, grain=40, cell=4):
+    rng = np.random.default_rng(seed)
+    base = rng.integers(0, 256, (max(2, h // cell), max(2, w // cell), 3), dtype=np.uint8)
+    im = np.asarray(Image.fromarray(base).resize((w, h), Image.BICUBIC), np.int16)   # detail at every scale
+    noise = rng.integers(-grain, grain + 1, (h, w, 3)) if grain else 0
+    Image.fromarray(np.clip(im + noise, 0, 255).astype(np.uint8)).save(path)
+
+
+def _last(src_png, w, h, p, n, master=None):
+    *_, last = render._kenburns_frames(src_png, w, h, p, n, n, master=master)
+    return np.frombuffer(last, np.uint8).reshape(h, w, 3)
+
+
+def test_a_push_keeps_the_detail_a_resample_of_the_source_keeps(tmp_path):
+    w, h, k = 480, 270, 2.5
+    src = str(tmp_path / "photo.png")
+    _noise_photo(src, round(w * k), round(h * k))
+    fit = str(tmp_path / "fit.png")
+    render._fit_frame(src, fit, w, h)
+    p = render._motion_params({"from": [0.5, 0.5, 1.0], "to": [0.4, 0.6, 1.10]})
+    n = 20
+    l, t, ww, hh = render._kenburns_window(p, n, n - 1, w, h)
+    sw = Image.open(src).size[0] / float(w)                              # the source's pixels per fitted pixel
+    truth = np.asarray(Image.open(src).convert("RGB").resize(
+        (w, h), Image.LANCZOS, box=(l * sw, t * sw, (l + ww) * sw, (t + hh) * sw)))
+    master = render._kenburns_master(src, w, h, "contain", (0, 0, 0), p)
+    assert master is not None and master.size == (round(w * 1.65), round(h * 1.65)), "1.5x the move's zoom"
+    new, old = _last(fit, w, h, p, n, master=master), _last(fit, w, h, p, n)
+    kept_new, kept_old = _detail(new) / _detail(truth), _detail(old) / _detail(truth)
+    assert kept_new > 0.98, kept_new
+    assert kept_old < 0.9, ("the fitted-frame path was expected to lose detail", kept_old)
+    assert np.abs(new.astype(int) - truth.astype(int)).mean() < 3.0     # the same picture, in the same place
+
+
+@pytest.mark.parametrize("fit,size", [("contain", (300, 540)), ("cover", (300, 540)), ("contain", (1500, 700))])
+def test_the_master_is_the_fitted_frame_at_k_times_its_size(tmp_path, fit, size):
+    """Letterbox bands, the cover crop and the picture's offset land where _fit_frame puts them: the master drawn
+    down to the frame IS the fitted frame, to resampling noise — a zoom from it starts on the same picture."""
+    w, h = 480, 270
+    src = str(tmp_path / "s.png")
+    # coarse blobs, far below the frame's Nyquist after the fit (>= 20 frame px in every case here): one Lanczos pass
+    # and two agree, so only PLACEMENT can differ (4 px source blobs land at ~2 px in the frame, where the two filter
+    # chains legitimately disagree)
+    _noise_photo(src, size[0] * 3, size[1] * 3, grain=0, cell=200)
+    fit_png = str(tmp_path / "f.png")
+    render._fit_frame(src, fit_png, w, h, fit, bg_rgb=(200, 30, 30))
+    p = render._motion_params({"from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.2]})
+    m = render._kenburns_master(src, w, h, fit, (200, 30, 30), p)
+    down = np.asarray(m.resize((w, h), Image.LANCZOS), np.float64)
+    fitted = np.asarray(Image.open(fit_png).convert("RGB"), np.float64)
+
+    def edges(a):                     # where each row's picture starts and ends: its distance from the bg crosses half
+        dist = np.abs(a - [200, 30, 30]).sum(axis=2).mean(axis=0)
+        inside = dist > dist.max() / 2
+        return np.argmax(inside), len(inside) - np.argmax(inside[::-1])
+    assert all(abs(a - b) <= 1 for a, b in zip(edges(fitted), edges(down))), (edges(fitted), edges(down))
+    assert np.abs(down - fitted).mean() < 1.5, np.abs(down - fitted).mean()
+
+
+def test_the_master_is_no_larger_than_the_move_or_the_source_can_use(tmp_path):
+    w, h = 480, 270
+    push = render._motion_params({"from": [0.5, 0.5, 1.0], "to": [0.5, 0.5, 1.12]})
+    big = str(tmp_path / "big.png")
+    Image.new("RGB", (w * 4, h * 4)).save(big)
+    assert render._kenburns_master(big, w, h, "contain", (0, 0, 0), push).size == (round(w * 1.68), round(h * 1.68))
+    some = str(tmp_path / "some.png")                              # fewer pixels than 1.5x the zoom: all of them
+    Image.new("RGB", (round(w * 1.5), round(h * 1.5))).save(some)
+    assert render._kenburns_master(some, w, h, "contain", (0, 0, 0), push).size == (720, 405)
+    small = str(tmp_path / "small.png")
+    Image.new("RGB", (w, h)).save(small)
+    assert render._kenburns_master(small, w, h, "contain", (0, 0, 0), push) is None   # no pixels to spare
+    flat = render._motion_params({"from": [0.3, 0.5, 1.0], "to": [0.7, 0.5, 1.0]})
+    assert render._kenburns_master(big, w, h, "contain", (0, 0, 0), flat) is None    # a pan at 1.0 never magnifies
+
+
+def test_the_glide_is_exact_through_the_master(tmp_path):
+    """The bar track above, the move drawn from a 3x source: the window still lands to a few hundredths of a pixel."""
+    w, h, k = 320, 180, 3
+    im = Image.new("RGB", (w * k, h * k), (20, 20, 20))
+    ImageDraw.Draw(im).rectangle([150 * k, 40 * k, 154 * k - 1, 140 * k], fill=(240, 240, 240))
+    src = str(tmp_path / "bar.png")
+    im.save(src)
+    fit = str(tmp_path / "fit.png")
+    render._fit_frame(src, fit, w, h)
+    p = render._motion_params({"from": [0.3, 0.5, 1.10], "to": [0.7, 0.5, 1.10]})
+    m = render._kenburns_master(src, w, h, "contain", (20, 20, 20), p)
+    n = 40
+    xs = []
+    for buf in render._kenburns_frames(fit, w, h, p, n, n, master=m):
+        g = np.frombuffer(buf, np.uint8).reshape(h, w, 3)[60:120, :, 1].astype(np.float64) - 20.0
+        col = g.sum(axis=0)
+        xs.append((np.arange(w) * col).sum() / col.sum())
+    true = np.array([(152.0 - render._kenburns_window(p, n, on, w, h)[0]) * 1.10 - 0.5 for on in range(n)])
+    err = np.array(xs) - true
+    assert np.abs(err - err.mean()).max() < 0.05 and np.abs(np.diff(err)).max() < 0.05, err

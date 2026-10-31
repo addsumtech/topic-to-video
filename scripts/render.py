@@ -744,9 +744,10 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     if slide.get("type") == "html":
         fp["range"] = "tv1"
     # an image slide's Ken Burns move is a float-window Lanczos resample now (_kenburns_frames), not zoompan's whole-
-    # pixel crop: its pixels changed, so its key does — and only its key (html/programmatic clips stay cached)
+    # pixel crop: its pixels changed, so its key does — and only its key (html/programmatic clips stay cached).
+    # source2: a moving window is resampled from the source's own pixels (_kenburns_master), not the fitted frame.
     if slide.get("type", "slide") == "slide":
-        fp["kb"] = "lanczos-float1+grain"
+        fp["kb"] = "lanczos-source2+grain"
     # a platform-safe portrait film draws every clip differently (scaled page, caption, bug) — keyed by the geometry
     # it was drawn with, so a change to safeZone.ts re-renders it too. Absent on every other film, whose keys (and
     # cached clips) stay exactly as they were.
@@ -907,7 +908,7 @@ def _karaoke_hl_rgb(out, band_bg, base):
 # imported from validate — validate imports render, not the reverse) so the intensity dial can't push
 # the EFFECTIVE move past them. Keep in sync with validate.MAX_ZOOM_DELTA / its 1.25 check.
 _MAX_ZOOM_DELTA = 0.20   # a bigger zoom delta reads as a lurch, not a Ken Burns
-_MAX_ZOOM_ABS = 1.25     # fine text softens magnified past 1.25x (the fitted frame is upsampled)
+_MAX_ZOOM_ABS = 1.25     # fine text softens magnified past 1.25x when the SOURCE has no pixels to spare (_kenburns_master)
 
 # Visual-ENERGY amplitude dial (baoyu "mood"/comic "tone"): scales the Ken Burns MOVE so a bold beat
 # pushes harder + a subtle one drifts. meta.intensity sets the deck default; a per-scene slide.intensity
@@ -956,21 +957,87 @@ def _kenburns_window(params, frames, on, W, H):
     w, h = W / z, H / z
     return min(W - w, max(0.0, (W - w) * xp)), min(H - h, max(0.0, (H - h) * yp)), w, h
 
-def _kenburns_frames(src_png, W, H, params, frames, count, workers=None):
+# THE MOVE IS DRAWN FROM THE SOURCE'S OWN PIXELS, NOT FROM THE FITTED FRAME. Resampling every window out of the
+# W x H fitted frame upsampled it: a 2400 px photograph pushed to 1.10x was first thrown down to 1920 and then blown
+# back up, and the 2026-10-30 validation film measured the detail it kept at 0.81 (1.05x) to 0.76 (1.10x) of what a
+# resample from the original keeps. The master is the SAME fit (contain's letterbox, cover's crop) rebuilt from the
+# source at k times the frame, k = the source's own pixels per fitted pixel, capped at 1.5x the move's largest zoom —
+# so at every zoom a frame is a downsample of real pixels, never a magnification of a fitted copy. Not 1x: a master at
+# exactly the move's zoom is two Lanczos passes that both cut near the frame's Nyquist, and measured on noise
+# photographs it kept 0.77-0.97 of a direct source resample's detail; at 1.5x 1.00-1.02, the same as at 2x, for up to
+# 40% less resample time (film B's 2400 px photo at 1:1, 139 frames: 3.3 s at 1.5x, 5.4 s at 2x, 1.7 s from the fitted
+# frame). A source with no pixels to spare (k <= 1) keeps the fitted frame, exactly as before.
+_KB_MASTER_HEADROOM = 1.5
+_KB_MASTER_MAX_PX = 48_000_000     # ~144 MB of RGB; 1920x1080 at a 1.25x move is 13 MP
+
+
+def _kenburns_master(src_path, W, H, fit, bg_rgb, params):
+    """The fitted frame rebuilt from `src_path` at k x (W, H) for the move `params`, or None when the source has
+    no pixels past the fitted frame's (k <= 1) or the move never zooms. Mirrors _fit_frame's geometry exactly —
+    contain: Pillow's thumbnail size, centred at whole-pixel offsets on `bg_rgb`; cover: scaled to fill, centre
+    cropped — with every length multiplied by the master's own per-axis scale."""
+    fx, fy, z0, tx, ty, z1 = params
+    zmax = min(10.0, max(1.0, z0, z1))
+    if zmax <= 1.0:
+        return None
+    im = Image.open(src_path)
+    iw, ih = im.size
+    if fit == "cover":
+        scale = max(W / iw, H / ih)
+        nw, nh = max(1, round(iw * scale)), max(1, round(ih * scale))
+        native = iw / nw
+    else:
+        tw, th = _thumb_size(iw, ih, W, H)
+        native = iw / tw
+    k = min(native, _KB_MASTER_HEADROOM * zmax)
+    if k * k * W * H > _KB_MASTER_MAX_PX:
+        k = (_KB_MASTER_MAX_PX / float(W * H)) ** 0.5
+    if k <= 1.0 + 1e-6:
+        return None
+    MW, MH = round(W * k), round(H * k)
+    kx, ky = MW / float(W), MH / float(H)
+    im = im.convert("RGB")
+    if fit == "cover":
+        big = im.resize((max(1, round(nw * kx)), max(1, round(nh * ky))), Image.LANCZOS)
+        left, top = round(((nw - W) // 2) * kx), round(((nh - H) // 2) * ky)
+        return big.crop((left, top, left + MW, top + MH))
+    master = Image.new("RGB", (MW, MH), tuple(bg_rgb))
+    pic = im.resize((max(1, round(tw * kx)), max(1, round(th * ky))), Image.LANCZOS)
+    master.paste(pic, (round(((W - tw) // 2) * kx), round(((H - th) // 2) * ky)))
+    return master
+
+
+def _thumb_size(iw, ih, W, H):
+    """The size Image.thumbnail((W, H)) gives an iw x ih picture — computed by Pillow itself on a stand-in, so the
+    master's letterbox lands where _fit_frame's does."""
+    stand = Image.new("1", (iw, ih))
+    stand.thumbnail((W, H), Image.LANCZOS)
+    return stand.size
+
+
+def _kenburns_frames(src_png, W, H, params, frames, count, workers=None, master=None):
     """Yield `count` rgb24 frames (bytes) of the Ken Burns move over the fitted frame `src_png`: frame `on` is the
     window _kenburns_window(on) resampled whole to W x H by Pillow (Lanczos by default) with a FLOAT box — the
     window lands where the curve says to a fraction of a pixel, so a slow push or pan glides instead of stepping.
-    Frames are resampled ahead on a few threads (Pillow releases the GIL while it resamples) and yielded in order,
-    with a bounded look-ahead, so memory stays a few frames whatever the clip's length. A move that does not move
-    (reduced motion, from == to) resamples once and repeats those bytes."""
+    With a `master` (_kenburns_master: the same fit at k x the frame, from the source's own pixels) every moving
+    frame is resampled from it instead — the window scaled by the master's per-axis k — so a push shows the
+    picture's real detail. Frames are resampled ahead on a few threads (Pillow releases the GIL while it resamples)
+    and yielded in order, with a bounded look-ahead, so memory stays a few frames whatever the clip's length. A move
+    that does not move (reduced motion, from == to) is the fitted frame, repeated."""
     from collections import deque
     from concurrent.futures import ThreadPoolExecutor
     src = Image.open(src_png).convert("RGB")
     if src.size != (W, H):
         raise ValueError("Ken Burns source %s is %dx%d, not the %dx%d frame it is fitted to" % (src_png, *src.size, W, H))
+    if master is not None:
+        kx, ky = master.size[0] / float(W), master.size[1] / float(H)
+        if kx < 1 or ky < 1:
+            raise ValueError("Ken Burns master %dx%d is smaller than its %dx%d frame" % (*master.size, W, H))
 
     def draw(on):
         l, t, w, h = _kenburns_window(params, frames, on, W, H)
+        if master is not None:
+            return master.resize((W, H), Image.LANCZOS, box=(l * kx, t * ky, (l + w) * kx, (t + h) * ky)).tobytes()
         if (l, t, w, h) == (0.0, 0.0, float(W), float(H)):
             return src.tobytes()                       # the window IS the frame: no resample, no softening
         return src.resize((W, H), Image.LANCZOS, box=(l, t, l + w, t + h)).tobytes()
@@ -1597,7 +1664,9 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     # The ffmpeg frame count is unchanged (-t dur -r fps); two frames past it are offered and ffmpeg stops reading
     # when it has enough.
     params = _motion_params(m, meta.get("reduced_motion"), _intensity_amp(meta, slide))
-    feed = _kenburns_frames(frame, W, H, params, frames, int(math.ceil(dur * fps - 1e-6)) + 2)
+    master = _kenburns_master(os.path.join(meta["_out"], slide["image"]), W, H, slide.get("fit", "contain"),
+                              _theme_rgb(meta.get("_out", "."), "--bg", (13, 17, 23)), params)
+    feed = _kenburns_frames(frame, W, H, params, frames, int(math.ceil(dur * fps - 1e-6)) + 2, master=master)
     vf = "null"
 
     # Overlays, in order: one static callout layer (whole slide) + one caption layer per
