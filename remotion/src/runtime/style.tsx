@@ -21,7 +21,7 @@
 import React, {useLayoutEffect, useRef} from 'react';
 import {continueRender, delayRender, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useStyle, type ResolvedStyle} from './styleSpec';
-import {useDNA, shade, type DesignDNA} from './dna';
+import {useDNA, shade, relLum, type DesignDNA} from './dna';
 import {classify, inkFor, meanColor, steppedGradient, quantizeStops, toHex} from './styleClassify';
 import {hash01, ReducedMotionContext, SceneDurationContext} from './motion';
 import {buildFilter, recipeKey, wobbleSeed, type Recipe} from './styleFilters';
@@ -142,6 +142,9 @@ const layerArea = (root: Element, owned: (el: Element) => boolean = () => false)
  *  (looked at on the cartoon-like corpus run): a vignette flattened into a grey veil over CinematicTitle's title, and a
  *  glint (ClayStack) and a halo (KnowledgeGraph) were outlined as if they were things. Light answers to `shade`. */
 const LIGHT_ALPHA = 0.6;
+/** A ground dark enough that a multiplied tooth would vanish into it (relative luminance). */
+const DARK_LUM = 0.18;
+const isDark = (css: string): boolean => relLum(toHex(css) ?? '#ffffff') < DARK_LUM;
 const translucentStops = (css: string): boolean =>
   [...css.matchAll(/rgba?\(([^)]+)\)/g)].some((m) => parseFloat(m[1].split(',')[3] ?? '1') < 0.95);
 
@@ -330,7 +333,11 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
   };
 
   const surf = spec.surface as {kind: string; strength: number; source: string};
-  const tile = surf.kind !== 'none' ? surfaceTile(surf.kind, surf.strength, scale) : null;
+  const tiles = new Map<boolean, string | null>();
+  const tileFor = (dark: boolean) => {
+    if (!tiles.has(dark)) tiles.set(dark, surf.kind !== 'none' ? surfaceTile(surf.kind, surf.strength, scale, dark) : null);
+    return tiles.get(dark)!;
+  };
   const recipes = new Map<string, string>();
   /** `url(#id)` of the filter for recipe `r`, built into the layer's defs the first time it is asked for. */
   const filterFor = (r: Recipe): string | null => {
@@ -473,10 +480,12 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     const gradient = bg.includes('gradient(');
     const stopsOpaque = !gradient || [...bg.matchAll(/rgba?\(([^)]+)\)/g)].every((m) => parseFloat(m[1].split(',')[3] ?? '1') >= 0.95);
     const fills = alphaOf(cs.backgroundColor) >= 0.95 ? stopsOpaque : gradient && stopsOpaque;
+    const dark = isDark(alphaOf(cs.backgroundColor) > 0.5 ? cs.backgroundColor : (meanColor(bg) ?? '#ffffff'));
+    const tile = tileFor(dark);
     if (tile && fills) {
       const under = image ?? bg;
       put(el, 'background-image', under && under !== 'none' ? `${tile}, ${under}` : tile, 'surface.kind');
-      put(el, 'background-blend-mode', 'multiply', 'surface.kind');
+      put(el, 'background-blend-mode', dark ? 'screen' : 'multiply', 'surface.kind');
     } else if (image !== null) {
       put(el, 'background-image', image, 'fill.mode');
     }
@@ -550,15 +559,16 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
       if (isGround(r)) {
         if (kids.length) { kids.forEach(visit); return; }
         if (isSvg && svgSurface) {         // a ground leaf: the medium only — a displaced ground opens gaps at the frame
-          target(node, {wobble: 0, seed: 1, outer: 0, ink: '', surface: svgSurface, strength: surf.strength, posterize: false},
-            'surface.kind');
+          const own = getComputedStyle(node).fill;
+          target(node, {wobble: 0, seed: 1, outer: 0, ink: '', surface: svgSurface, strength: surf.strength, posterize: false,
+            dark: isDark(urlId(own) ? groundBehind(node, root.parentElement ?? root, dna) : own)}, 'surface.kind');
         }
         return;
       }
       const behind = groundBehind(node, root.parentElement ?? root, dna);
       const ink = outerW > 0 ? (lineColor(c, behind, '') ?? inkFor(behind, dna)) : '';
       target(node, {wobble: wob, seed: wob > 0 ? seed : 1, outer: outerW, ink, surface: isSvg ? svgSurface : null,
-        strength: surf.strength, posterize: false}, outerW > 0 ? 'line.outline' : wob > 0 ? 'line.wobble' : 'surface.kind');
+        strength: surf.strength, posterize: false, dark: isDark(behind)}, outerW > 0 ? 'line.outline' : wob > 0 ? 'line.wobble' : 'surface.kind');
     };
     for (const k of Array.from(root.children)) if (!owned(k)) visit(k);
   }

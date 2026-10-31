@@ -369,3 +369,17 @@ def test_light_is_not_paint(tmp_path):
     assert st[gy, gx].astype(int).sum() > 450, ("the glint was outlined", st[gy, gx])
     # the letterbox bar has no ring along its lower edge
     assert np.abs(st[42, 960].astype(int) - st[70, 960].astype(int)).max() <= 12, (st[42, 960], st[70, 960])
+
+
+@needs_render
+def test_a_medium_shows_on_a_dark_ground_too(tmp_path):
+    """Multiplied, a tooth darkens: on a near-black ground that is one level, which no viewer sees (WordTunnel measured
+    no surface at all under paper). A dark ground takes the medium as light grain."""
+    spec = {"name": "paper", "refs": [], "refs_missing": "test", "surface": {"kind": "paper", "strength": 0.8}}
+    un = _render("StyleProbe", {"dark": True}, 10, str(tmp_path / "un.png"))
+    st = _render("StyleProbe", {"dark": True, "style": spec}, 10, str(tmp_path / "st.png"))
+    patch = (slice(60, 160), slice(1300, 1700))
+    def tooth(img):
+        p = img[patch].astype(float)
+        return float(np.abs(p[:, 1:] - p[:, :-1]).mean())
+    assert tooth(st) > tooth(un) + 1.0, ("no medium on the dark ground", tooth(un), tooth(st))

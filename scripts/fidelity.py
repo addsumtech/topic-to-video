@@ -1043,16 +1043,17 @@ def record_for(out_dir, name):
                             % name])
 
 
-def _render_all(out_dir, jobs):
+def _render_all(out_dir, jobs, parts=True):
     """Render each job {tag, id, props, frame, png} with the part probe armed — one bundle (the film's workshop in
-    it), one browser (scripts/fidelity_stills.cjs) — under the machine-wide render lock. {tag: part report | None}."""
+    it), one browser (scripts/fidelity_stills.cjs) — under the machine-wide render lock. {tag: part report | None}.
+    `parts=False` renders the stills alone (scripts/style_qa.py reuses the one-bundle, one-browser path)."""
     import shutil
     import subprocess
     import tempfile
     import _common as _c
     import workshop as ws
     import text_safe_qa as ts
-    jobs = [dict(j, props=dict(j["props"], fidelityParts=True)) for j in jobs]
+    jobs = [dict(j, props=dict(j["props"], fidelityParts=True)) for j in jobs] if parts else list(jobs)
     work = tempfile.mkdtemp(prefix="fidelity_")
     try:
         with _c.render_lock():

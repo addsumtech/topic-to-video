@@ -7,10 +7,11 @@
 import React from 'react';
 import {AbsoluteFill} from 'remotion';
 
-export const StyleProbe: React.FC<{overlay?: boolean}> = ({overlay = false}) => (
-  <AbsoluteFill style={{background: '#f5f1e8'}}>
-    <div data-probe="ground" style={{position: 'absolute', inset: 0,
-      background: 'radial-gradient(circle at 50% 50%, #fbf8f1 0%, #e6dccb 100%)'}} />
+export const StyleProbe: React.FC<{overlay?: boolean; dark?: boolean}> = ({overlay = false, dark = false}) => (
+  <AbsoluteFill style={{background: dark ? '#0b0f17' : '#f5f1e8'}}>
+    <div data-probe="ground" style={{position: 'absolute', inset: 0, background: dark
+      ? 'radial-gradient(circle at 50% 50%, #141b29 0%, #080b11 100%)'
+      : 'radial-gradient(circle at 50% 50%, #fbf8f1 0%, #e6dccb 100%)'}} />
     <svg width={1920} height={1080} style={{position: 'absolute', left: 0, top: 0}}>
       <defs>
         <linearGradient id="probe-g" x1="0" y1="0" x2="1" y2="0">

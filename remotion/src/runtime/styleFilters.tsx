@@ -26,11 +26,25 @@ export const wobbleSeed = (frame: number, durF: number, fps: number, hz: number,
  *  vanished, measured on StyleProbe), and `k` the target's user units per screen px, so a wobble, a ring and a tooth
  *  are sized on screen whatever the drawing's own scale. */
 export type Recipe = {wobble: number; seed: number; outer: number; ink: string; surface: string | null;
-  strength: number; posterize: boolean; region?: [number, number, number, number]; k?: number};
+  strength: number; posterize: boolean; region?: [number, number, number, number]; k?: number; dark?: boolean};
+
+/** The tooth as an opaque grey layer from noise (R, ~0.5 ± 0.15): GRAIN, never a veil. Light ground: 1 where the
+ *  noise is above its middle and darker only where it dips below, MULTIPLIED in. Dark ground: 0 where the noise is
+ *  below its middle and a light speck only where it rises above, SCREENED in. The first build mapped the whole noise
+ *  range onto the layer, so a dark film's tooth was a constant grey lift: every dark ground went mid-grey and a
+ *  subtitle lost its contrast (looked at; style_qa's TONE_MAX now fails it). */
+export const toothMatrix = (amt: number, dark: boolean): string => {
+  // screened onto near-black a speck ADDS its value, where multiplied onto paper it scales a light ground: the same k
+  // gave the dark ground 8x the grain and a 10-level lift (StyleProbe, paper 0.8) — the dark side takes 0.3 of it
+  const k = +(5 * amt).toFixed(4), kd = +(1.5 * amt).toFixed(4);
+  return dark
+    ? `${kd} 0 0 0 ${+(-0.6 * kd).toFixed(4)}  ${kd} 0 0 0 ${+(-0.6 * kd).toFixed(4)}  ${kd} 0 0 0 ${+(-0.6 * kd).toFixed(4)}  0 0 0 0 1`
+    : `${k} 0 0 0 ${+(1 - 0.4 * k).toFixed(4)}  ${k} 0 0 0 ${+(1 - 0.4 * k).toFixed(4)}  ${k} 0 0 0 ${+(1 - 0.4 * k).toFixed(4)}  0 0 0 0 1`;
+};
 
 export const recipeKey = (r: Recipe): string =>
   [r.wobble.toFixed(2), r.seed, r.outer.toFixed(2), r.ink, r.surface ?? '-', r.strength.toFixed(2), r.posterize ? 'p' : '-',
-    (r.region ?? []).map((v) => v.toFixed(1)).join(','), (r.k ?? 1).toFixed(3)].join('|');
+    (r.region ?? []).map((v) => v.toFixed(1)).join(','), (r.k ?? 1).toFixed(3), r.dark ? 'd' : 'l'].join('|');
 
 /** The noise each medium is made of: [baseFrequency x, y, octaves, contrast]. Frequencies are per px at a 1080 short
  *  side; the caller divides by the frame's scale. */
@@ -86,9 +100,8 @@ export const buildFilter = (doc: Document, defs: Element, id: string, r: Recipe,
     // darkens the drawing by up to ~amt around its mean. (The first build carried the noise in ALPHA over a constant
     // grey: ~1.4% of light, which no viewer sees — measured on StyleProbe at strength 1.)
     const amt = +(k * r.strength).toFixed(3);
-    f.appendChild(el(doc, 'feColorMatrix', {in: 'tex', type: 'matrix', result: 'tooth',
-      values: `${2 * amt} 0 0 0 ${1 - 2 * amt}  ${2 * amt} 0 0 0 ${1 - 2 * amt}  ${2 * amt} 0 0 0 ${1 - 2 * amt}  0 0 0 0 1`}));
-    f.appendChild(el(doc, 'feBlend', {in: src, in2: 'tooth', mode: 'multiply', result: 'toothed'}));
+    f.appendChild(el(doc, 'feColorMatrix', {in: 'tex', type: 'matrix', result: 'tooth', values: toothMatrix(amt, Boolean(r.dark))}));
+    f.appendChild(el(doc, 'feBlend', {in: src, in2: 'tooth', mode: r.dark ? 'screen' : 'multiply', result: 'toothed'}));
     f.appendChild(el(doc, 'feComposite', {in: 'toothed', in2: src, operator: 'in', result: 'textured'}));
     src = 'textured';
   }
