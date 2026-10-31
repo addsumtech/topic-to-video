@@ -537,3 +537,15 @@ def test_an_empty_register_does_not_hang_the_render(tmp_path):
     t0 = time.time()
     _render("StyleProbe", {"style": spec, "empty": True}, 10, str(tmp_path / "e.png"))
     assert time.time() - t0 < 25, "the empty layer held the frame"
+
+
+@needs_render
+def test_a_glow_speck_keeps_its_round_fade(tmp_path):
+    """Stepped, a few-px radial glow filled its square box and read as a grey square (the fourth cartoon film's title)."""
+    spec = {"name": "cel", "refs": [], "refs_missing": "t", "shade": {"mode": "cel"}, "fill": {"mode": "cel", "steps": 2}}
+    un = _render("StyleProbe", {}, 10, str(tmp_path / "un.png"))
+    st = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "st.png"))
+    ground = st[120, 1680].astype(int)                                  # the (flattened) ground beside it
+    for p in ((116, 1700), (116, 1707), (123, 1700), (123, 1707)):     # the speck's box corners: ground, not a band
+        assert np.abs(st[p].astype(int) - ground).max() <= 6, (p, st[p], ground)
+    assert np.abs(st[120, 1704].astype(int) - ground).max() > 20        # and the speck itself is still there

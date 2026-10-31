@@ -97,6 +97,7 @@ def derive(paths, film_ground=None):
             break
     while len(accents) < 2:
         accents.append(_t._mix(tuple(ink), tuple(ground), 0.35))
+    reading = sum(1 for a in accents if any(a is r for r in reads))
     g, k, a1, a2 = map(_hex, (ground, ink, accents[0], accents[1]))
     on_a = "#ffffff" if _t._contrast((255, 255, 255), tuple(accents[0])) >= _t._contrast(tuple(ink), tuple(accents[0])) else k
     return {
@@ -104,7 +105,7 @@ def derive(paths, film_ground=None):
         "bg": g, "fg": k, "dim": _hex(_t._mix(tuple(ink), tuple(ground), 0.42)), "accent": a1, "accent2": a2,
         "onAccent": on_a, "surface": _hex(_t._mix(tuple(ground), tuple(accents[0]), 0.1)), "surfaceBorder": k,
         "line": _hex(_t._mix(tuple(ink), tuple(ground), 0.6)), "finish": "none",
-        "provenance": {"from": "style refs", "refs": [os.path.basename(p) for p in paths],
+        "provenance": {"from": "style refs", "refs": [os.path.basename(p) for p in paths], "reading_accents": reading,
                        "colours": {"bg": "the most common %s colour of the references" % ("light" if light else "dark"),
                                    "fg": "their most common %s colour, pushed to 7:1 on bg" % ("dark" if light else "light"),
                                    "accent": "the most saturated frequent colour", "accent2": "the next, at least 40° of hue away"}},
@@ -152,8 +153,15 @@ def main(argv=None):
     if not whole:
         read = dna
         dna = dict(have)
-        for k in ("accent", "accent2", "onAccent"):
+        # a slot the references cannot fill with a colour that already reads keeps the film's own: pushed to 3:1, the
+        # one candidate left (a yellow) turned olive (the fourth cartoon film)
+        n = read["provenance"]["reading_accents"]
+        # a slot is kept from the film only when the film HAS that colour; otherwise the best the refs offer goes in
+        slots = tuple(k for i, k in enumerate(("accent", "accent2")) if i < n or not have.get(k))
+        for k in slots:
             dna[k] = read[k]
+        if "accent" in slots:
+            dna["onAccent"] = read["onAccent"]
         prov = dict(dna.get("provenance") or {})
         prov.update({"accents_from": "style refs", "accent_refs": read["provenance"]["refs"]})
         dna["provenance"] = prov

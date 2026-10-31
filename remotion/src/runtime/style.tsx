@@ -383,6 +383,12 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     if (inDefs) return;
     const role = classify(el as never, root as never, true);
     if (role === 'image') { rep.images++; return; }
+    // A SPECK — dust, a sparkle, a glow a few px wide — is left as drawn by every axis: stepped, a radial fade filled its
+    // square box, and outlined it became a boxed square (the cartoon films' title); it is not a thing in the picture
+    if (role !== 'text') {
+      const sb = el.getBoundingClientRect();
+      if (sb.width > 0 && sb.height > 0 && Math.max(sb.width, sb.height) < SPECK_PX * scale && !el.closest('[data-part]')) return;
+    }
     if (role === 'canvas') { rep.canvas++; return; }
     if (role === 'caption') return;
     const cs = getComputedStyle(el);

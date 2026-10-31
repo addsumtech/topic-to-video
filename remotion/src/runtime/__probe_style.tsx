@@ -47,6 +47,9 @@ export const StyleProbe: React.FC<{overlay?: boolean; dark?: boolean; empty?: bo
     {/* a speck of dust (6 px, round): not a thing — no ring, no shadow */}
     <div data-probe="speck" style={{position: 'absolute', left: 1597, top: 117, width: 6, height: 6, borderRadius: 3,
       background: '#8a7f70'}} />
+    {/* a glow speck (8 px, a radial fade): light, and a speck — stepped, its fade filled its square box */}
+    <div data-probe="glowspeck" style={{position: 'absolute', left: 1700, top: 116, width: 8, height: 8,
+      background: 'radial-gradient(circle, rgba(120, 100, 80, 0.9) 0%, rgba(120, 100, 80, 0) 70%)'}} />
     {/* a vignette over everything: a translucent ground that must stay translucent */}
     {overlay ? <div data-probe="vignette" style={{position: 'absolute', inset: 0,
       background: 'radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.3) 100%)'}} /> : null}

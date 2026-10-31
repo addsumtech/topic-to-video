@@ -142,3 +142,21 @@ def test_an_accent_that_already_reads_is_preferred_to_one_darkened_until_it_does
     hues = sorted(_hue(dna[k])[0] for k in ("accent", "accent2"))
     assert not any(0.1 < h < 0.2 for h in hues), (dna["accent"], dna["accent2"])     # no yellow/olive
     assert any(h < 0.05 or h > 0.95 for h in hues) and any(0.55 < h < 0.7 for h in hues), hues
+
+
+def test_an_accent_the_refs_cannot_fill_keeps_the_films_own(tmp_path):
+    """With one reference colour that reads (a red) and a yellow that does not, the second accent was the yellow pushed
+    to olive (the fourth cartoon film). A slot the references cannot fill keeps the film's own colour."""
+    (tmp_path / "style_refs").mkdir()
+    img = Image.new("RGB", (400, 300), (250, 240, 220))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, 400, 120], fill=(245, 218, 17))
+    d.ellipse([40, 150, 160, 280], fill=(200, 40, 35))
+    img.save(tmp_path / "style_refs" / "y.png")
+    board = {"meta": {"design_dna": {"id": "cream", "bg": "#fff4df", "fg": "#231a14", "accent": "#777777", "accent2": "#2a74d1"},
+                      "style": {"name": "x", "refs": [{"src": "style_refs/y.png", "from": "found"}]}}, "slides": []}
+    (tmp_path / "storyboard.json").write_text(json.dumps(board))
+    assert dfr.main([str(tmp_path)]) == 0
+    dna = json.load(open(tmp_path / "storyboard.json"))["meta"]["design_dna"]
+    assert _hue(dna["accent"])[0] < 0.05 or _hue(dna["accent"])[0] > 0.95, dna["accent"]
+    assert dna["accent2"] == "#2a74d1", dna["accent2"]
