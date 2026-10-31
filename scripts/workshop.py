@@ -1168,11 +1168,46 @@ _PROBE_JS = r"""(function(){
   function desc(e){var c=(typeof e.className==='string'?e.className:(e.getAttribute('class')||''));
     return e.tagName.toLowerCase()+(c?'.'+c.trim().split(/\s+/).join('.'):'');}
   out.text=[];
+  // WHAT IS DRAWN, NOT THE BOX DECLARED. A node cropped by a clip-path (its own or an ancestor's) or by an ancestor
+  // whose overflow clips draws only inside that clip; its client rect does not know. A film's <tiling-patch> cropped
+  // its tiling with an SVG clipPath and was reported 123/182 px outside its box (validation film B), so the author
+  // re-cut every cell by hand. The clip is the intersection, up to the component, of: an SVG clip-path url(#id) —
+  // its clipPath's children mapped through the element's own CTM (userSpaceOnUse) or onto its bbox
+  // (objectBoundingBox); a CSS basic-shape clip-path — the element's border box (its default reference box); and
+  // any ancestor below the component whose overflow is not visible, or an inner <svg> (which clips to its viewport
+  // by default). Null when nothing clips. A clip that cannot be read is no clip: the check can only over-report.
+  function isect(a,b){if(!a)return b;if(!b)return a;return {l:Math.max(a.l,b.l),t:Math.max(a.t,b.t),
+    r:Math.min(a.r,b.r),b:Math.min(a.b,b.b)};}
+  function R(r){return {l:r.left,t:r.top,r:r.right,b:r.bottom};}
+  function pathClip(x){var cp=getComputedStyle(x).clipPath;if(!cp||cp==='none')return null;
+    var m=cp.match(/url\(\s*["']?#([^"')\s]+)["']?\s*\)/);
+    if(!m)return /^(inset|circle|ellipse|polygon|path|rect|xywh)\(/.test(cp)?R(x.getBoundingClientRect()):null;
+    var c=document.getElementById(m[1]);if(!c||!x.getScreenCTM)return null;
+    var M=x.getScreenCTM();if(!M)return null;
+    var obb=c.getAttribute('clipPathUnits')==='objectBoundingBox',bb=null;
+    if(obb){try{bb=x.getBBox();}catch(e){return null;}}
+    var u=null;[].forEach.call(c.children,function(k){if(!k.getBBox)return;var b;try{b=k.getBBox();}catch(e){return;}
+      var T=(k.transform&&k.transform.baseVal.consolidate())?k.transform.baseVal.consolidate().matrix:null;
+      [[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].forEach(function(p){
+        var px=p[0],py=p[1];if(T){var qx=T.a*px+T.c*py+T.e,qy=T.b*px+T.d*py+T.f;px=qx;py=qy;}
+        if(obb){px=bb.x+px*bb.width;py=bb.y+py*bb.height;}
+        var sx=M.a*px+M.c*py+M.e,sy=M.b*px+M.d*py+M.f;
+        u=u?{l:Math.min(u.l,sx),t:Math.min(u.t,sy),r:Math.max(u.r,sx),b:Math.max(u.b,sy)}:{l:sx,t:sy,r:sx,b:sy};});});
+    return u;}
+  function clipOf(e){var c=null;
+    for(var x=e;x&&x!==document.body;x=x.parentElement){c=isect(c,pathClip(x));
+      if(x!==e&&x!==el&&el.contains(x)){var ov=getComputedStyle(x);
+        if((ov.overflowX!=='visible'||ov.overflowY!=='visible')||(x.tagName.toLowerCase()==='svg'&&ov.overflow!=='visible'))
+          c=isect(c,R(x.getBoundingClientRect()));}
+      if(x===el)break;}
+    return c;}
+  function drawn(r,e){var c=clipOf(e);var v=isect(R(r),c);
+    return {left:v.l,top:v.t,right:v.r,bottom:v.b,width:Math.max(0,v.r-v.l),height:Math.max(0,v.b-v.t)};}
   var w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,null),nd;
   out.boxes=[];out.over=[];out.unfrozen=[];
   while((nd=w.nextNode())){var s=(nd.nodeValue||'').trim();if(!s)continue;
     if(vis(nd.parentElement))out.text.push(s);
-    var rg=document.createRange();rg.selectNodeContents(nd);var tr=rg.getBoundingClientRect();
+    var rg=document.createRange();rg.selectNodeContents(nd);var tr=drawn(rg.getBoundingClientRect(),nd.parentElement);
     if(tr.width>0&&tr.height>0){var to=Math.max(r0.left-tr.left,r0.top-tr.top,tr.right-r0.right,tr.bottom-r0.bottom);
       if(to>1)out.over.push(['the text "'+s.slice(0,24)+'"',Math.round(to),'outside the component\'s box']);}}
   var all=[el].concat([].slice.call(el.querySelectorAll('*')));
@@ -1181,7 +1216,8 @@ _PROBE_JS = r"""(function(){
       if(c&&c!=='none'&&c!=='normal'&&vis(e)){var m=c.match(/^"(.*)"$/);out.text.push(m?m[1]:c);}});
     var r=e.getBoundingClientRect();
     out.boxes.push([desc(e),r.left,r.top,r.width,r.height]);
-    if(e!==el&&(r.width>0||r.height>0)){
+    if(e!==el&&(r.width>0||r.height>0)&&!e.closest('clipPath,mask,defs')){r=drawn(r,e);}
+    if(e!==el&&(r.width>0||r.height>0)&&!e.closest('clipPath,mask,defs')){
       var o=Math.max(r0.left-r.left,r0.top-r.top,r.right-r0.right,r.bottom-r0.bottom);
       if(o>1)out.over.push([desc(e),Math.round(o),'outside the component\'s box']);}
     var cs=getComputedStyle(e);

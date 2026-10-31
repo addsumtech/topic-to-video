@@ -258,6 +258,64 @@ def test_a_component_that_throws_is_reported_not_raised(tmp_path):
     assert any("threw" in p for p in probs), probs
 
 
+# A tiling drawn past its window and CROPPED to it — validation film B's <tiling-patch> cut its cells with an SVG
+# clipPath and was reported 123/182 px outside its box; its author re-cut every cell by hand to get a clean check.
+CLIP_JS = """customElements.define('clip-tile', class extends HTMLElement {
+  static demo = {label: 'Demo label'};
+  connectedCallback() {
+    if (this._built) return;
+    this._built = true;
+    const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('class', 'clip-tile__svg');
+    const cp = document.createElementNS(NS, 'clipPath');
+    cp.setAttribute('id', 'clip-tile-window');
+    const r = document.createElementNS(NS, 'rect');
+    r.setAttribute('width', 'CLIP_W'); r.setAttribute('height', '100');
+    cp.appendChild(r); svg.appendChild(cp);
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('CLIP_ATTR', 'url(#clip-tile-window)');
+    svg.appendChild(g);
+    const p = document.createElementNS(NS, 'polygon');
+    p.setAttribute('points', '-60,-60 160,-60 160,160 -60,160');
+    g.appendChild(p);
+    this.appendChild(svg);
+    const label = document.createElement('span');
+    label.className = 'clip-tile__label';
+    label.textContent = this.getAttribute('label') || '';
+    this.appendChild(label);
+  }
+});
+"""
+CLIP_CSS = """clip-tile{display:block;position:relative;container-type:size}
+clip-tile .clip-tile__svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+clip-tile .clip-tile__label{position:absolute;left:0;bottom:0;font-size:5cqmin}
+"""
+
+
+def _clip_runtime(tmp_path, clip_w="100", attr="clip-path", css=CLIP_CSS):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    js = CLIP_JS.replace("CLIP_W", clip_w).replace("CLIP_ATTR", attr)
+    j, c = _component(tmp_path, js=js, css=css, name="ClipTile")
+    return [p for p in ws.component_runtime("ClipTile", j, c, "c/ClipTile", str(tmp_path / "scratch"))["problems"]
+            if "overflows" in p]
+
+
+@needs_chrome
+def test_a_drawing_cropped_by_its_clip_path_is_not_overflow_and_an_unclipped_one_is(tmp_path):
+    assert _clip_runtime(tmp_path / "a") == []
+    # the same drawing with the crop not applied, and with a crop wider than the window: both spill
+    assert any("is " in p and "outside the component's box" in p
+               for p in _clip_runtime(tmp_path / "b", attr="data-no-clip")), "the uncropped drawing must overflow"
+    assert any("outside the component's box" in p for p in _clip_runtime(tmp_path / "c", clip_w="160"))
+
+
+@needs_chrome
+def test_an_ancestor_that_clips_its_overflow_crops_what_it_holds(tmp_path):
+    css = CLIP_CSS.replace("overflow:visible", "overflow:hidden")
+    assert _clip_runtime(tmp_path / "a", attr="data-no-clip", css=css) == []
+
+
 @needs_chrome
 def test_check_on_a_correct_film_is_clean_and_on_a_scaffold_names_only_the_scaffold(tmp_path):
     out = _film(tmp_path)
