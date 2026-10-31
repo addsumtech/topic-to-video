@@ -18,7 +18,7 @@ import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
         CONTENT_TOP, contentBottom} from './runtime/layout';
 import {ObjectIdleContext} from './runtime/objectSlot';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES,
-        easeOutCubic} from './runtime/motion';
+        easeOutCubic, setStyleEase} from './runtime/motion';
 import {NarrationContext} from './runtime/voice';
 import {CueContext, warpFrame} from './runtime/cue';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumValue, lumFromY, DNA_GROUND_TOKEN,
@@ -30,7 +30,8 @@ import {SceneCamera, bedPan, ACTION_SAFE_FRAC, cameraBudget, type CameraMove} fr
 import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA} from './runtime/dna';
-import {StyleContext, resolveStyle, type StyleSpec} from './runtime/styleSpec';
+import {StyleContext, resolveStyle, useStyle, type StyleSpec} from './runtime/styleSpec';
+import {stepFrame} from './runtime/styleMotion';
 import {StyleLayer} from './runtime/style';
 import {REGISTRY} from './registry';
 import {STAGES, STAGE_GROUND} from './stage';
@@ -137,10 +138,17 @@ const checkWarp = (warp: [number, number][], i: number, shot: string) => {
 // Only the REGISTER is warped: the beat's camera, its chrome, its ground and its voice stay on the film's clock,
 // which is why this wraps the register alone. With no warp it adds nothing to the tree's DOM, so an unwarped
 // beat is pixel-identical to a film rendered before warps existed.
+// A STEPPED STYLE (meta.style.motion.stepping) holds this clock on every 2nd or 3rd frame, AFTER the warp: the drawing
+// moves on twos, the way drawn animation is drawn, while the caption, the voice, the camera and the seams — all outside
+// this clock — stay on ones. Reduced motion never steps. With no warp and no stepping it still adds nothing to the tree.
 const BeatClock: React.FC<{warp?: [number, number][]; children: React.ReactNode}> = ({warp, children}) => {
   const frame = useCurrentFrame();
-  if (!warp || warp.length < 2) return <>{children}</>;
-  return <Freeze frame={warpFrame(frame, warp)}>{children}</Freeze>;
+  const style = useStyle();
+  const reduced = React.useContext(ReducedMotionContext);
+  const step = reduced || !style ? 1 : Number((style.motion as {stepping?: number}).stepping) || 1;
+  const warped = !warp || warp.length < 2 ? null : warpFrame(frame, warp);
+  if (warped === null && step === 1) return <>{children}</>;
+  return <Freeze frame={stepFrame(warped ?? frame, step)}>{children}</Freeze>;
 };
 
 const TR = SEAM_FRAMES; // cross-dissolve length (frames) — rides the ~0.42s narration breath so speech barely
@@ -1265,6 +1273,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
     typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, safe, dither = false, optics = true,
     safeEcho = true, frameUnlock = true, style = null}) => {
   const activeStyle = React.useMemo(() => (style ? resolveStyle(style) : null), [style]);
+  setStyleEase(activeStyle ? (activeStyle.motion as {easing?: string}).easing : null);
   const frame = useCurrentFrame();
   const {width, height} = useVideoConfig();
   const total = filmDuration(scenes);

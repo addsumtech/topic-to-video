@@ -9,6 +9,7 @@ import {CJK_MIN_LEADING} from './runtime/cjkType';
 import {DesignDNAContext, coerceDna} from './runtime/dna';
 import {StyleContext, resolveStyle, type StyleSpec} from './runtime/styleSpec';
 import {StyleLayer} from './runtime/style';
+import {setStyleEase} from './runtime/motion';
 import {ObjectsContext} from './runtime/objectSlot';
 import {OBJECTS, WORKSHOP_SHOTS} from './registry';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
@@ -462,6 +463,7 @@ export const FlooredLeadingProbe: React.FC = () => (
 const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C, p}) => {
   const {dna, aspect: _a, optic, style, ...rest} = p as {dna?: unknown; aspect?: unknown; optic?: unknown; style?: unknown};
   const activeStyle = React.useMemo(() => (style ? resolveStyle(style as StyleSpec) : null), [style]);
+  setStyleEase(activeStyle ? (activeStyle.motion as {easing?: string}).easing : null);
   const active = coerceDna(dna as never);   // a string is a preset name; an object is a partial DNA
   const _p = p as {textSafe?: unknown; typeCollisions?: unknown; fedText?: unknown; unfedText?: unknown;
     unfedScope?: unknown; typeSize?: unknown};

@@ -383,8 +383,21 @@ def _said(us):
     return out
 
 
+def stepping_slack(style, fps):
+    """Seconds a stepped style may hold an element past its word: a drawing on `stepping`s shows a frame up to
+    stepping-1 frames old (runtime/styleMotion.ts). 0 for a film that is not stepped."""
+    step = ((style or {}).get("motion") or {}).get("stepping", 1) if isinstance(style, dict) else 1
+    try:
+        step = int(step)
+    except (TypeError, ValueError):
+        step = 1
+    return max(0, step - 1) / float(fps or 30)
+
+
 def level(rec):
     lag = rec["lag"]
+    if lag > 0 and rec.get("slack"):
+        lag = max(0.0, lag - rec["slack"])          # a stepped film's held frame is not lateness
     if lag > LAG_ERROR:
         return "error"
     if lag > LAG_WARN:

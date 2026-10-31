@@ -126,10 +126,28 @@ export function useSpringAt(a = 0, config: SpringConfig = SPRING_LAND): number {
 // Re-map a sub-window [a,b] of global t to a local 0→1 (for phase timing within a shot).
 export const seg = (t: number, a: number, b: number) => clamp01((t - a) / Math.max(1e-6, b - a));
 
+// THE FILM'S EASING PERSONALITY (meta.style.motion.easing, runtime/styleMotion.ts). 178 of 218 registers import
+// these easings, so a drawing style that moves with an overshoot, snaps, or floats bends THEM rather than every
+// register. It is module state because these are plain functions called mid-render: each render entry (Film, a shot
+// rendered alone in Root) SETS it before anything draws — to 'as-drawn' when there is no style — so a value can never
+// be left over from another job. One personality per film, so every beat in a tab reads the same value.
+export type StyleEase = 'as-drawn' | 'overshoot' | 'snappy' | 'floaty';
+let STYLE_EASE: StyleEase = 'as-drawn';
+export const setStyleEase = (k: StyleEase | string | undefined | null): void => {
+  STYLE_EASE = k === 'overshoot' || k === 'snappy' || k === 'floaty' ? k : 'as-drawn';
+};
+const personal = (t: number, drawn: number): number => {
+  // as drawn — and outside 0..1, where some registers extrapolate — the easing is EXACTLY what it was: no style, no change
+  if (STYLE_EASE === 'as-drawn' || t <= 0 || t >= 1) return drawn;
+  if (STYLE_EASE === 'overshoot') { const c1 = 1.2, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
+  if (STYLE_EASE === 'snappy') return (1 - Math.pow(2, -14 * t)) / (1 - Math.pow(2, -14));
+  return -(Math.cos(Math.PI * t) - 1) / 2;       // floaty: eases in as well as out
+};
+
 // Easings.
-export const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-export const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-export const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)); // the "house" quick-out settle
+export const easeOutCubic = (t: number) => personal(t, 1 - Math.pow(1 - t, 3));
+export const easeInOutCubic = (t: number) => personal(t, t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+export const easeOutExpo = (t: number) => personal(t, t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)); // the "house" quick-out settle
 export function easeOutBack(t: number): number {
   const c1 = 1.70158, c3 = c1 + 1;
   return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);

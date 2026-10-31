@@ -1139,6 +1139,10 @@ def scan_film_sync(out_dir, raw=False, concurrency=None, props=None, census_out=
         spoken, src = _sq.spoken_units(_sq.narration_of(s), _sq.words_for(out_dir, s), s.get("duration"))
         sources[label] = src
         beats[label] = _sq.measure_beat(samples.get(k, []), spoken) if spoken else []
+        slack = _sq.stepping_slack(props.get("style"), fps)
+        if slack:
+            for r in beats[label]:
+                r["slack"] = slack                   # stepped drawing (runtime/styleMotion.ts): held frames are not late
         by_k.append(beats[label])
         warped[label] = bool((props["scenes"][k] or {}).get("warp"))
     return {"beats": beats, "by_k": by_k, "summary": _sq.summarize(beats), "sources": sources,
