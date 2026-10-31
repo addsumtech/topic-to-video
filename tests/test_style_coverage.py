@@ -73,3 +73,28 @@ def test_a_hooked_axis_is_left_to_the_register():
     """)
     assert out["k"] == [0, 4, "as-drawn", 3]
     assert out["same"] is True
+
+
+_LIGHT_DNA = {"id": "t", "bg": "#fff4df", "fg": "#231a14", "accent": "#e5432a", "accent2": "#2a74d1"}
+
+
+def test_a_dark_world_register_on_a_light_style_is_named():
+    """A cartoon film on cream cut to SpotlightStage's own night (#09090b): one ground cannot repaint it (its type is
+    set for dark), so the SELECTION has to change — and only the ground table knows which registers keep a world of
+    their own under a film's DNA."""
+    board = {"meta": {"renderer": "remotion", "design_dna": _LIGHT_DNA,
+                      "style": {"name": "x", "refs": [], "refs_missing": "t", "line": {"outline": "all"}}},
+             "slides": [{"index": 1, "shot": "CinematicTitle"}, {"index": 2, "shot": "SpotlightStage"},
+                        {"index": 3, "shot": "KnowledgeGraph"}]}
+    rows = sc.ground_conflicts(board)
+    assert [r["shot"] for r in rows] == ["SpotlightStage"], rows
+    assert rows[0]["ground"].lower() == "#09090b"
+    import validate
+    errs, warns = [], []
+    validate._check_style(board["meta"], errs, warns, board["slides"])
+    assert any("SpotlightStage" in w and "dark" in w for w in warns), warns
+
+
+def test_no_style_or_no_dna_asks_nothing():
+    board = {"meta": {"renderer": "remotion", "design_dna": _LIGHT_DNA}, "slides": [{"index": 1, "shot": "SpotlightStage"}]}
+    assert sc.ground_conflicts(board) == []

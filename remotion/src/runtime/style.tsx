@@ -145,6 +145,12 @@ const LIGHT_ALPHA = 0.6;
 /** A ground dark enough that a multiplied tooth would vanish into it (relative luminance). */
 const DARK_LUM = 0.18;
 const isDark = (css: string): boolean => relLum(toHex(css) ?? '#ffffff') < DARK_LUM;
+/** ONE GROUND FOR THE FILM (surface.ground 'film') is only safe between grounds of the same TONE: a register drawn on
+ *  a dark ground sets light type, and repainted light that type is unreadable — type is never restyled, so such a
+ *  beat keeps its ground and the selection check (validate: style ground) asks for another register. */
+const TONE_SPLIT = 0.35;
+const sameTone = (a: string, b: string): boolean =>
+  (relLum(toHex(a) ?? '#ffffff') >= TONE_SPLIT) === (relLum(toHex(b) ?? '#ffffff') >= TONE_SPLIT);
 const translucentStops = (css: string): boolean =>
   [...css.matchAll(/rgba?\(([^)]+)\)/g)].some((m) => parseFloat(m[1].split(',')[3] ?? '1') < 0.95);
 
@@ -334,7 +340,8 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     return Boolean(node && prims.some((p) => node.querySelector(p)));
   };
 
-  const surf = spec.surface as {kind: string; strength: number; source: string};
+  const surf = spec.surface as {kind: string; strength: number; source: string; ground?: string};
+  const filmGround = surf.ground === 'film' && dna ? toHex(dna.bg) : null;
   const tiles = new Map<boolean, string | null>();
   // a GENERATED medium (surface.source 'generated', resolved by the render) replaces the procedural noise everywhere
   const genTile = (dark: boolean): string | null => {
@@ -392,6 +399,12 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
       const r = el.getBoundingClientRect();
       const ground = isGround(r);
       const fillPaint = cs.fill, strokePaint = cs.stroke;
+      if (ground && filmGround && fillPaint !== 'none') {
+        const own = urlId(fillPaint) ? (stopsOf(doc.getElementById(urlId(fillPaint)!) ?? el, doc).pop() ?? fillPaint) : fillPaint;
+        const a = parseFloat(cs.fillOpacity || '1') * parseFloat(cs.opacity || '1') * alphaOf(own);
+        if (a < 0.95) { put(el, 'opacity', '0', 'surface.ground'); return; }          // a frame-filling light: gone
+        if (sameTone(own, filmGround)) { put(el, 'fill', filmGround, 'surface.ground'); return; }
+      }
       const newFill = paintFor(fillPaint, ground);
       if (newFill) put(el, 'fill', newFill, 'fill.mode');
       const newStroke = paintFor(strokePaint, ground);
@@ -469,6 +482,22 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     const ground = isGround(r);
     const bg = cs.backgroundImage;
     let image: string | null = null;              // the box's background-image as the style leaves it (null: as drawn)
+    // ONE GROUND: a frame-filling box of the same tone takes the film's ground; a frame-filling light goes
+    if (ground && filmGround) {
+      const opaqueBg = alphaOf(cs.backgroundColor) >= 0.95;
+      const lightOnly = !opaqueBg && bg.includes('gradient(') && translucentStops(bg);
+      const own = opaqueBg ? cs.backgroundColor
+        : bg.includes('gradient(') ? ([...bg.matchAll(/rgba?\([^)]+\)/g)].pop()?.[0] ?? '') : '';
+      if (lightOnly) {
+        put(el, 'background-image', 'none', 'surface.ground');
+      } else if (own && sameTone(own, filmGround)) {
+        const t = tileFor(isDark(filmGround));
+        put(el, 'background-image', t ?? 'none', 'surface.ground');
+        if (t) put(el, 'background-blend-mode', isDark(filmGround) ? 'screen' : 'multiply', 'surface.kind');
+        put(el, 'background-color', filmGround, 'surface.ground');
+      }
+      if (lightOnly || (own && sameTone(own, filmGround))) return;
+    }
     const bgMode = bg.includes('gradient(') && translucentStops(bg) ? lightMode : grad.mode;
     if (bg.includes('gradient(') && bgMode !== 'as-drawn') {
       if (ground && translucentStops(bg)) {

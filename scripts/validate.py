@@ -2510,7 +2510,7 @@ def _renders_with_dna(meta):
             or str(meta.get("shot_template") or "") in _DNA_PRESETS_FOR_TEST())
 
 
-def _check_style(meta, errors, warnings):
+def _check_style(meta, errors, warnings, slides=None):
     """meta.style — the film's drawing style as values on fixed axes (scripts/style_spec.py). An unknown axis or
     value would silently draw as-drawn: the recolour-only film the user rejected, so it is an ERROR."""
     spec = meta.get("style")
@@ -2530,6 +2530,16 @@ def _check_style(meta, errors, warnings):
     elif not e and so.get("spec_sha256") != style_spec.spec_sha256(spec):
         errors.append("meta.style_signoff is stale: the style changed after the user approved its sample — build a "
                       "new sample and show it")
+    # THE SELECTION FITS THE STYLE'S GROUND: a register that keeps a world of the other tone under this film's DNA (a
+    # cartoon on cream cut to a theatre's night) is one the style cannot reach — its type is set for its own ground
+    if slides:
+        import style_coverage
+        for r in style_coverage.ground_conflicts({"meta": meta, "slides": slides}):
+            warnings.append("meta.style: beat %s (%s) keeps its own %s ground (%s) on this film's %s ground (%s) — the style "
+                            "cannot repaint it (its type is set for that ground); cast a register that draws on the "
+                            "film's ground" % (r["beat"], r["shot"], "dark" if style_coverage._lum(r["ground"]) < 0.35
+                                               else "light", r["ground"], "light" if style_coverage._lum(r["film"]) >= 0.35
+                                               else "dark", r["film"]))
 
 
 def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, vertical=False):
@@ -2542,7 +2552,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
     The adapt lint is a PROXY (a script sees empty props + a missing note, never whether the components were
     truly redesigned) — the SEMANTIC verdict is shot-critic S10 (the note vs the rendered pixels)."""
     _check_shot_template(meta, errors, warnings, out_dir)
-    _check_style(meta, errors, warnings)
+    _check_style(meta, errors, warnings, slides)
     _spoken_spellings(slides, warnings)
     # DESIGN DNA — the GLOBAL visual system every shot inherits (runtime/dna.tsx). A themed film should carry an
     # explicit meta.design_dna artifact (the reviewable "Design DNA", docx Artifact A) OR a shot_template that maps

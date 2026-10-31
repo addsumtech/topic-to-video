@@ -189,6 +189,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     procedure:**
     - references saved in `style_refs/` (the user's first);
     - the spec, validated by `scripts/style_spec.py`;
+    - the palette read from the references by `scripts/dna_from_refs.py`, and registers cast for the film's ground
+      (validate names a beat whose register keeps a ground of the other tone);
     - `scripts/style_sample.py <out_dir>`: 2–3 beats beside the references plus a clip, delivered to the Desktop;
     - the user's yes, and only after it `style_sample.py <out_dir> --signoff`. The full render refuses a styled film
       without a current sign-off;

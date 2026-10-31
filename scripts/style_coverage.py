@@ -66,24 +66,67 @@ def film_coverage(board):
     return {"exempt": rows, "exempt_fraction": frac, "warnings": warnings}
 
 
+TONE_SPLIT = 0.35          # the same split the engine's one-ground rule uses (runtime/style.tsx TONE_SPLIT)
+
+
+def _lum(hexc):
+    h = hexc.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    def lin(v):
+        v /= 255.0
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+
+
+def ground_conflicts(board):
+    """[{beat, shot, ground, film}] — beats whose register keeps a ground of the OTHER tone under this film's DNA
+    (runtime/shotLuma.ts DNA_GROUND_TOKEN: a literal colour is a world of its own; a token is the film's own). A style
+    with one ground cannot repaint them — their type is set for their own ground — so the register has to change."""
+    meta = board.get("meta") or {}
+    dna = meta.get("design_dna")
+    if not isinstance(meta.get("style"), dict) or not isinstance(dna, dict) or not str(dna.get("bg", "")).startswith("#"):
+        return []
+    import measure_ground_luma as mgl
+    table = mgl.declared_tokens(open(mgl._SHOTLUMA, encoding="utf-8").read())
+    film_light = _lum(dna["bg"]) >= TONE_SPLIT
+    out = []
+    for i, s in enumerate(board.get("slides") or []):
+        tok = table.get(s.get("shot"))
+        if tok is None:
+            continue
+        colour = tok if isinstance(tok, str) else next((dna[t] for t in tok if isinstance(dna.get(t), str)
+                                                        and dna[t].startswith("#")), None)
+        if colour and (_lum(colour) >= TONE_SPLIT) != film_light:
+            out.append({"beat": s.get("index", i + 1), "shot": s["shot"], "ground": colour, "film": dna["bg"]})
+    return out
+
+
 def main(argv=None):
-    argv = sys.argv[1:] if argv is None else argv
-    if len(argv) == 1 and not argv[0].startswith("--"):
-        board = json.load(open(os.path.join(argv[0], "storyboard.json"), encoding="utf-8"))
-        rep = film_coverage(board)
-        for r in rep["exempt"]:
-            print("beat %s (%s): %s" % (r["beat"], r["shot"], r["why"]))
-        for w in rep["warnings"]:
-            print("WARN   " + w)
-        print("%d of %d beats outside the style's reach" % (len(rep["exempt"]), len(board.get("slides") or [])))
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("out_dir", nargs="?", help="a film: which of its beats the style cannot reach, and why")
+    ap.add_argument("--motion", action="store_true", help="which registers the easing personality reaches")
+    a = ap.parse_args(argv)
+    if a.motion:
+        cov = motion_coverage()
+        print("easing personality reaches %d registers through the shared easings" % cov["shared"])
+        print("%d move on their own easing (stepping reaches them, the personality does not): %s"
+              % (len(cov["own"]), ", ".join(cov["own"])))
         return 0
-    if argv != ["--motion"]:
-        print("usage: style_coverage.py --motion | <out_dir>", file=sys.stderr)
-        return 1
-    cov = motion_coverage()
-    print("easing personality reaches %d registers through the shared easings" % cov["shared"])
-    print("%d move on their own easing (stepping reaches them, the personality does not): %s"
-          % (len(cov["own"]), ", ".join(cov["own"])))
+    if not a.out_dir:
+        ap.error("give an out_dir or --motion")
+    board = json.load(open(os.path.join(a.out_dir, "storyboard.json"), encoding="utf-8"))
+    rep = film_coverage(board)
+    for r in rep["exempt"]:
+        print("beat %s (%s): %s" % (r["beat"], r["shot"], r["why"]))
+    for r in ground_conflicts(board):
+        print("beat %s (%s): keeps its own ground %s on the film's %s — cast a register that draws on the film's ground"
+              % (r["beat"], r["shot"], r["ground"], r["film"]))
+    for w in rep["warnings"]:
+        print("WARN   " + w)
+    print("%d of %d beats outside the style's reach" % (len(rep["exempt"]), len(board.get("slides") or [])))
     return 0
 
 

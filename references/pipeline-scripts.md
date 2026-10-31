@@ -38,6 +38,15 @@ finding it prints that you do not understand.
 
   Exempt beats (photograph, canvas) are listed and left out. It writes `_style/sheet.png`; look at it. The thresholds
   are measured: a pure 60° hue rotation moves edges 0.002, and real restyles move them 0.32–0.75.
+- `scripts/dna_from_refs.py <out_dir> [--force] [--dry-run]`: the film's palette READ from its style references, the
+  way `dna_from_deck.py` reads a deck. It produces:
+  - ground: the most common colour on the references' side;
+  - ink: the other end, pushed to 7:1;
+  - two accents: the most saturated frequent colours, ≥ 40° of hue apart;
+  - dim, surface and line, mixed from those.
+
+  It writes `meta.design_dna` with a provenance block, keeps the board's own faces, and refuses with no reference on
+  disk or an authored DNA (unless `--force`).
 - `scripts/style_coverage.py <out_dir>` | `--motion`: which beats the style cannot reach and why, derived rather than
   listed (`register_energy.evidence_props()` photographs, a canvas grep). It warns past a quarter of the film.
   `--motion` lists the registers whose own easing the personality does not bend.

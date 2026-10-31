@@ -449,3 +449,25 @@ def test_a_flattened_radial_ground_is_the_ground_its_glow_fades_into(tmp_path):
     outer = np.array([0xe6, 0xdc, 0xcb])                       # the probe ground's outer stop
     for p in ((560, 700), (60, 1500), (1060, 20)):
         assert np.abs(st[p].astype(int) - outer).max() <= 3, (p, st[p])
+
+
+@needs_render
+def test_one_ground_for_the_film_when_the_tones_agree(tmp_path):
+    """surface.ground 'film': every frame-filling ground becomes the film's own ground — a register's glow, its own
+    tint, its vignette go — so the beats read as one world (a cartoon film cut to a dark theatre stage did not).
+    Only where the register's ground and the film's are the SAME tone: repainted the other way, type drawn for a dark
+    ground would sit unreadable on a light one, and type is never restyled."""
+    spec = {"name": "one ground", "refs": [], "refs_missing": "t", "surface": {"ground": "film"}}
+    light = _render("StyleProbe", {"style": spec, "dna": "editorial"}, 10, str(tmp_path / "x.png"))
+    # editorial is a DARK film; the probe's light ground disagrees: left as drawn, type untouched
+    assert light[560, 700].astype(int).sum() > 600, light[560, 700]
+    film = dict(_EDITORIAL_LIGHT)
+    st = _render("StyleProbe", {"style": spec, "dna": film, "overlay": True}, 10, str(tmp_path / "st.png"))
+    want = np.array([0xff, 0xf4, 0xdf])
+    for p in ((560, 700), (60, 1500), (1060, 20)):        # the middle, an empty stretch, a vignetted corner
+        assert np.abs(st[p].astype(int) - want).max() <= 3, (p, st[p])
+
+
+_EDITORIAL_LIGHT = {"id": "probe-light", "bg": "#fff4df", "fg": "#231a14", "dim": "#6d5d4f", "accent": "#e5432a",
+                    "accent2": "#2a74d1", "onAccent": "#ffffff", "surface": "#ffe9bf", "surfaceBorder": "#231a14",
+                    "line": "#231a14", "finish": "none"}

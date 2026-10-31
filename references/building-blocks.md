@@ -659,6 +659,49 @@ manifests).
 (the sheet: `python3 scripts/workshop.py <out_dir> fidelity <Name>`)
 **Exports:** `Fidelity`, `FidelityReference`, `FidelityMeta`, `FidelityProbe`, `FidelityHero`, `FIDELITY_TAG`, `PART_ATTR`, `PartReport`.
 
+### `styleSpec`
+The film's drawing style (`meta.style`, references/style-engine.md) as the renderer reads it: the axis defaults filled
+in, plus the generated medium's tiles when the render resolved them.
+**Reach for it:** a register that draws an axis itself (a hook) reads the resolved spec; nothing else needs it.
+**Smallest real use:** `const style = useStyle(); const boils = (style?.line.boil_hz ?? 0) > 0;`
+**Exports:** `StyleSpec`, `ResolvedStyle`, `AXIS_DEFAULTS`, `resolveStyle`, `StyleContext`, `useStyle`.
+
+### `styleAxes.json`
+The ONE table of drawing axes — groups `line`, `fill`, `shade`, `shadow`, `form`, `surface`, `type`, `motion` — read by
+the renderer and by scripts/style_spec.py alike. A new style is new values here, never a new axis named after a style.
+
+### `style`
+The style engine: wraps each beat's register and restyles what it drew, per frame — put back, read, write, so it is
+idempotent and order-free. Film and a shot rendered alone mount it; with no style it is its children.
+**Reach for it:** never from a register; it is mounted for you.
+**Smallest real use:** `<StyleLayer beat={i}>{register}</StyleLayer>` (Film.tsx); `applyDomPass` is what it runs.
+**Exports:** `StyleLayer`, `applyDomPass`, `DomPassReport`.
+
+### `styleClassify`
+What an element IS to the engine (`classify`: text, shape, box, image, canvas, echo, caption) and the colour arithmetic
+it draws with: `inkFor` (an outline that contrasts with what it bounds), `meanColor` (alpha-weighted),
+`quantizeStops` / `quantizeAlphas` / `steppedGradient` (cel bands), `toHex`.
+**Exports:** `classify`, `Role`, `inkFor`, `meanColor`, `quantizeStops`, `quantizeAlphas`, `steppedGradient`, `toHex`.
+
+### `styleFilters`
+The per-pixel half of the engine, built into the layer's own defs: wobble and boil (`wobbleSeed`, a pure function of
+the beat clock), the outer ring, hatching, the medium (`SURFACE_NOISE`, `toothMatrix`, a generated tile at `TILE_PX`).
+**Exports:** `wobbleSeed`, `Recipe`, `recipeKey`, `buildFilter`, `SURFACE_NOISE`, `toothMatrix`, `TILE_PX`.
+
+### `styleSurface`
+The medium as a background layer a box paints beneath its own content, so the type set on it stays clean.
+**Exports:** `surfaceTile`.
+
+### `styleMotion`
+Drawn motion: `stepFrame` (on twos/threes, applied after the sync warp by Film's BeatClock) and `squashAt`
+(squash-and-stretch with the area kept).
+**Exports:** `stepFrame`, `squashAt`.
+
+### `styleHooks`
+Axes a register draws itself: `STYLE_HOOKS_BY_SHOT` (Film reads it) and `withoutAxes` (the spec without them).
+**Reach for it:** a register that exports `STYLE_HOOKS` is listed here, or the engine restyles it anyway.
+**Exports:** `STYLE_HOOKS_BY_SHOT`, `withoutAxes`.
+
 ## Recipes
 
 ### A mechanism in cutaway

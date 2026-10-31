@@ -25,8 +25,12 @@ never new code.
    - Every value away from the default gets a note in `notes` naming what in which reference it was read from,
      e.g. "line.outline all: every shape in refs 1–3 has a closed dark contour, ~4 px at 1080".
    - A spec that leaves every axis as drawn is a recolour: say so to the user, or decompose it properly.
-3. **Palette and faces** come from the same references, through the DNA (`meta.design_dna`) as before. The style
-   draws; the DNA colours.
+3. **Palette** from the same references: `python3 scripts/dna_from_refs.py <out_dir>` reads ground, ink and two
+   accents from `style_refs/` into `meta.design_dna` (with where each came from; it never overwrites a DNA it did not
+   write without `--force`). The style draws; the DNA colours.
+   - Then **cast for the ground**: validate (and `style_coverage.py <out_dir>`) names any beat whose register keeps
+     a ground of the other tone under this DNA (a theatre's night in a cartoon on cream). One ground cannot repaint
+     it, so cast another register.
 4. `python3 scripts/style_spec.py <out_dir>` validates the spec. Unknown axis or value: ERROR.
 5. **The sample, before the full render.** Run `python3 scripts/style_sample.py <out_dir>`.
    - It picks 2–3 beats (an object, a diagram, a type-led beat), renders them beside the references, adds a 2 s clip,
@@ -59,6 +63,7 @@ Px are at a 1080 px short side. Defaults mean "as the register drew it".
 | `form.simplify` | 0–1 | drops decorative hairlines below `simplify × 2 px`; never a fidelity part |
 | `surface.kind` | `none`, `paper`, `canvas`, `brush`, `grain` | the medium as GRAIN: dark specks multiplied on a light ground, light specks screened on a dark one; never a tone shift (style_qa TONE_MAX) |
 | `surface.strength` | 0–1 | |
+| `surface.ground` | `as-drawn`, `film` | `film`: every frame-filling ground of the SAME tone as the film's takes the film's ground (its glow, tint and vignette go); a register keeping a ground of the other tone is left as drawn (its type is set for it) and named by validate / `style_coverage.py` — cast another register |
 | `surface.source` | `procedural`, `generated` | `generated`: one tile through Codex at sample time; when it cannot, procedural + a recorded shortfall |
 | `type.display` | `as-dna` or a face | display type only (≥ 6% of the short side, or `data-type-role="display"`) |
 | `type.display_outline` | bool | an ink outline on display type |

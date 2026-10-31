@@ -150,7 +150,7 @@ def test_validate_reports_a_bad_style_on_a_remotion_board():
     src = open(os.path.join(ROOT, "scripts", "validate.py"), encoding="utf-8").read()
     body = src[src.index("def _check_remotion("):]
     body = body[:body.index("\ndef ")]
-    assert "_check_style(meta, errors, warnings)" in body, "_check_remotion does not run the style check"
+    assert "_check_style(meta, errors, warnings, slides)" in body, "_check_remotion does not run the style check"
 
 
 def test_film_takes_the_style_and_provides_it():

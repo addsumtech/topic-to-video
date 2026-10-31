@@ -27,7 +27,8 @@
   "surface": {
     "kind":     {"kind": "enum", "values": ["none", "paper", "canvas", "brush", "grain"], "default": "none"},
     "strength": {"kind": "number", "min": 0, "max": 1, "default": 0.5, "only_with": {"kind": ["paper", "canvas", "brush", "grain"]}},
-    "source":   {"kind": "enum", "values": ["procedural", "generated"], "default": "procedural", "only_with": {"kind": ["paper", "canvas", "brush", "grain"]}}
+    "source":   {"kind": "enum", "values": ["procedural", "generated"], "default": "procedural", "only_with": {"kind": ["paper", "canvas", "brush", "grain"]}},
+    "ground":   {"kind": "enum", "values": ["as-drawn", "film"], "default": "as-drawn"}
   },
   "type": {
     "display":         {"kind": "string", "default": "as-dna"},
