@@ -21,7 +21,7 @@ import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES,
         easeOutCubic} from './runtime/motion';
 import {NarrationContext} from './runtime/voice';
 import {CueContext, warpFrame} from './runtime/cue';
-import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumValue, lumFromY,
+import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumValue, lumFromY, DNA_GROUND_TOKEN,
         type Lum, type GroundColors} from './runtime/shotLuma';
 import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DARK, CAPTION_INK_LIGHT,
         type SceneGroundDecl} from './runtime/light';
@@ -29,7 +29,7 @@ import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {SceneCamera, bedPan, ACTION_SAFE_FRAC, cameraBudget, type CameraMove} from './runtime/depth';
 import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
-import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome} from './runtime/dna';
+import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA} from './runtime/dna';
 import {REGISTRY} from './registry';
 import {STAGES, STAGE_GROUND} from './stage';
 import {StageRunContext, type StageBeat} from './runtime/stageRun';
@@ -161,53 +161,65 @@ const SAFE_FRAME_MASK = `linear-gradient(90deg, transparent 0%, #000 ${SAFE_EDGE
 // THE MARGIN IS THE BEAT ITSELF. A platform-safe film draws every register in a frame scaled by k (0.8) with feathered
 // edges, so on 9:16 every beat was a panel floating on the film's ground — "every beat becomes a panel on black", the
 // first of a 9:16 launch benchmark's findings (2026-10-24), and the DNA's own gradient and vignette drew the panel's
-// edge as a visible seam. The margin is now filled the way vertical video fills one: with an ECHO of the same register,
-// drawn behind the scaled frame, scaled up about the frame's own centre until it covers the canvas, heavily blurred and
-// a little dimmed. What shows through the feathered edge is the beat's own picture going soft, not a second ground.
+// edge as a visible seam. The margin is now the beat's own ground carried to the canvas edge (below: never its content).
 //
 // IT IS NOT A SECOND BEAT TO ANY INSTRUMENT. `data-echo="margin"` + `aria-hidden`: every text gate already skips an
 // echo (runtime/textSafe.tsx `isEcho` — safety, collisions, the glide and sync censuses; runtime/titleProbe.tsx), the
 // seams' anchor lookups skip a margin echo (seams.tsx `anchorIn`), it mounts no optic (no BeatOptic) and plays no
 // sound (SeamCopyContext: Film's beat voice reads it; every film video in runtime/screen.tsx is already muted). Inside a
 // container seam's copy of the beat it is not drawn at all. Only a platform-safe film has one, so every other film's
-// tree — and every pixel — is what it was (`safeEcho: false` switches it off for a proof).
+// tree — and every pixel — is what it was (`safeEcho: false` keeps the ground token and drops the register's copy).
 //
-// THE ECHO IS THE REGISTER AT ITS OWN SIZE, NOT A MAGNIFIED COPY. The scaled frame is the register scaled by k about
-// one fixed point — (W/2, y0/(1-k)), (540, 288) for `social` — so the register drawn UNSCALED about that same point
-// puts each frame edge exactly on the canvas edge, and what fills the margin is the register's own outer ring: its
-// ground running on, or a full-bleed picture's own edge going soft. The first version scaled the echo 1.36x about the
-// frame's CENTRE — 1.7x the frame — which carried content from ~20% inside the frame out into the margin: the 2026-10-30
-// generality film's 9:16 beats wore the balance wheel as gold arcs in both top corners and the plate's caption as a
-// white blob bottom-left, and it dimmed dark beats by 0.85, which drew the frame's edge as a step of its own. Turning
-// the echo off was no cure — the margin was then the film's FLAT root ground round a register's radial one, a lit
-// panel 13 levels brighter at its top edge. Measured by scripts/frame_safe_qa.py's margin check.
-const ECHO_BLUR_FRAC = 0.015; // of the frame's short side — 16px at 1080: enough to soften whatever reaches the
-                              // register's edge, while the register's ground (the usual content there) is unchanged
-// THE ECHO CARRIES NO WORDS. Unscaled, the margin under the frame's foot is the register's rows just above its own
-// caption band — where a register may set its title — so the same film showed its beat's title a second time, blurred,
-// in the bottom margin ('瑞士杠杆擒纵' under its own frame, looked). No one transform maps every side to the frame's
-// edge, and the one thing that must never be read twice is type: in the echo every glyph is transparent, while the
-// ground and the pictures continue.
-const ECHO_NO_TYPE = '[data-echo="margin"] *{color:transparent!important;-webkit-text-fill-color:transparent!important;' +
-  'text-shadow:none!important;-webkit-text-stroke:0!important}' +
-  '[data-echo="margin"] text,[data-echo="margin"] tspan,[data-echo="margin"] textPath{fill:transparent!important;' +
-  'stroke:transparent!important}';
-const SafeEcho: React.FC<{W: number; H: number; k: number; y0: number; children: React.ReactNode}> = ({
-  W, H, k, y0, children}) => {
+// THE MARGIN IS THE BEAT'S GROUND — NEVER A COPY OF ITS CONTENT. Two echoes were tried and both drew a second, blurred
+// copy of the beat in the margin. The first scaled the register 1.36x about the frame's centre (1.7x the frame): the
+// balance wheel as gold arcs in the top corners, the plate caption as a blob. The second drew it unscaled about the
+// frame's fixed point with its type made transparent: a ghost iPhone with its home bar under the caption on the phone
+// beat, a ghost of the gear-train slab beside its frame (2026-10-31, looked; frame_safe_qa margin_structure reads the
+// phone 24 and the slab 39-56 where a plain ground reads <= 2.3). A viewer reads either as a duplicate object. And off,
+// the margin was the film's FLAT root ground round a register's radial one: a lit panel.
+//
+// So the margin is ground only, in two layers:
+//   · the beat's measured ground token (shotLuma DNA_GROUND_TOKEN, resolved in this beat's DNA: `bg` paints the DNA's
+//     bgGrad when it has one, as the registers that read `bg` do) — always, and the whole margin when the echo is off;
+//   · over it, the register's OWN ROOT GROUND: the register rendered once more, unscaled, with every element under its
+//     root hidden — so the gradient, literal or prop colour it actually paints runs on to the canvas edge, evaluated on
+//     the canvas, and nothing it draws on that ground can appear. A register whose root paints nothing leaves the token.
+// The frame's feathered edge then dissolves the scaled ground into the same ground at full size: the residual is the
+// ground's own slope across the gap (frame_safe_qa margin_seam).
+//
+// `meta.safe_echo: false` (Film `safeEcho`) keeps the token only and skips the second rendering of every register.
+const ECHO_GROUND_ONLY = '[data-echo="margin"]>div>* *{visibility:hidden!important}' +
+  '[data-echo="margin"]>div>*{color:transparent!important;-webkit-text-fill-color:transparent!important}';
+
+/** The paint of a beat's measured ground token in its DNA (DNA_GROUND_TOKEN): a literal colour as it is; `bg` as the
+ *  DNA's bgGrad when it has one (the registers that read `bg` paint `bgGrad ?? bg`); a two-token flood as a gradient of
+ *  the two; null when nothing resolves (no DNA, no row) — the film's own root ground then shows, as before. */
+const groundPaint = (shot: string, dna: DesignDNA | null): string | null => {
+  const tok = DNA_GROUND_TOKEN[shot];
+  if (typeof tok === 'string' && tok.charCodeAt(0) === 35) return tok;
+  if (!dna) return null;
+  const d = dna as unknown as Record<string, string | undefined>;
+  const names = Array.isArray(tok) ? tok : [tok ?? 'bg'];
+  if (names.length === 1 && names[0] === 'bg') return d.bgGrad ?? d.bg ?? null;
+  const cols = names.map((n) => d[n]).filter((c): c is string => typeof c === 'string');
+  if (!cols.length) return d.bgGrad ?? d.bg ?? null;
+  return cols.length === 1 ? cols[0] : `linear-gradient(180deg, ${cols.join(', ')})`;
+};
+
+const SafeEcho: React.FC<{shot: string; rootGround: boolean; children: React.ReactNode}> = ({
+  shot, rootGround, children}) => {
+  const dna = useDNA();
   if (React.useContext(SeamCopyContext)) return null;
-  const blur = Math.round(Math.min(W, H) * ECHO_BLUR_FRAC);
-  // the frame's fixed point, and the least scale about it that leaves three blur radii (a Gaussian's reach) of pixels
-  // past the canvas on the sides and the foot — without them the blur fades the canvas edge to transparent
-  const fx = W / 2, fy = k < 1 ? y0 / (1 - k) : H / 2;
-  const cover = 1 + (3 * blur) / Math.max(1, Math.min(fx, H - fy));
-  const tx = fx - cover * fx, ty = fy - cover * fy;
+  const paint = groundPaint(shot, dna);
   return (
     <AbsoluteFill aria-hidden data-echo="margin" style={{overflow: 'hidden', pointerEvents: 'none',
-      filter: `blur(${blur}px)`}}>
-      <style>{ECHO_NO_TYPE}</style>
-      <AbsoluteFill style={{transformOrigin: '0 0', transform: `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${cover})`}}>
-        <SeamCopyContext.Provider value={true}>{children}</SeamCopyContext.Provider>
-      </AbsoluteFill>
+      ...(paint ? {background: paint} : {})}}>
+      {rootGround ? <style>{ECHO_GROUND_ONLY}</style> : null}
+      {rootGround ? (
+        <AbsoluteFill>
+          <SeamCopyContext.Provider value={true}>{children}</SeamCopyContext.Provider>
+        </AbsoluteFill>
+      ) : null}
     </AbsoluteFill>
   );
 };
@@ -1216,7 +1228,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   mediaRes?: boolean;
   // the delivery dither (runtime/dither): render_remotion asks for it; a still for a gate or a test does not
   dither?: boolean;
-  // `safeEcho: false` switches a platform-safe film's margin echo off (SafeEcho) — for its proofs. Never set by a film.
+  // `safeEcho: false`: a platform-safe film's margin is its ground TOKEN only, without the register's own root ground drawn
+  // a second time (SafeEcho) — the second rendering of every register is the cost it saves (meta.safe_echo: false).
   safeEcho?: boolean;
   // `optics: false` switches every beat's optic off — for scripts/determinism_qa.py's layer attribution and the
   // optics identity proofs. Never set by a film.
@@ -1334,8 +1347,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                   band lands where the caption is, above the platform's UI, and nothing in it is re-laid-out */}
               {/* …and its edges dissolve into the beat's ground: a register that paints its own atmosphere showed the
                   scaled frame as a hard-edged panel */}
-              {regFrame && safeEcho ? (
-                <SafeEcho W={width} H={height} k={regFrame.k} y0={regFrame.y0}>
+              {regFrame ? (
+                <SafeEcho shot={sc.shot} rootGround={safeEcho}>
                   <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
                     <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
                       <CarryContext.Provider value={arrived[i] ?? null}>
