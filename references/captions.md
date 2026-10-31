@@ -82,7 +82,12 @@ that:
   pick put a dark ink at 3.01:1 on a bee close-up, outlined in that same brown — its author scrimmed the photos by
   hand.) `scripts/caption_contrast_qa.py <out_dir>` (an HTML-tier delivery gate) reads out.mp4 where render.py
   recorded each caption (`.clips/clip_NN.mp4.captions.json`) and ERRORs when more than 25% of a caption's edge is
-  under 3:1 against its ink on some frame of its window (WARN > 10%). **The only rule authors owe it:** keep content out of the bottom caption band (`caption_band_px`: 200 px ≈ 18.5% at 16:9, 257 px on 9:16/1:1/4:5 — keyframe_qa's finding prints the exact edge) (heroes/airy
+  under 3:1 against its ink on some frame of its window (WARN > 10%). The spoken word's highlight is chosen the same
+  way (the deck's accents, lightened or darkened with hue kept) and never under the base ink's floor — with no hue
+  passing, the word keeps the base ink; the gate judges each spoken word in its own colour. A platform-safe 9:16
+  caption is measured on the page band it sits over. The Remotion tier is NOT measured: Film.tsx inks its caption from
+  the beat's ground token, and its registers keep the caption band clear (band_debt.json lists the exceptions) — the
+  gate says so, and `REMOTION_WHY` in caption_contrast_qa.py says what measuring it would take. **The only rule authors owe it:** keep content out of the bottom caption band (`caption_band_px`: 200 px ≈ 18.5% at 16:9, 257 px on 9:16/1:1/4:5 — keyframe_qa's finding prints the exact edge) (heroes/airy
   beats are fine; a dense bottom-anchored beat must leave the zone clear — `keyframe_qa` gates it). Applies
   to BOTH aspects; a top-anchored 9:16 deck (bottom empty) reads it as the frame's own footer.
 - **`"band"` (opt-in alt):** the caption is drawn in a **dedicated strip BELOW the content**, so it never

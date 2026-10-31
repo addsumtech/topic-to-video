@@ -486,7 +486,24 @@ def _highlight_ink(out, ink, ink_p10, p10):
     return tuple(best[3]), best[0]
 
 
-def _chunk_inks(seg, segs, frame_at, W, H, fps, dur, meta, memo):
+def _page_boxes(boxes, safe, W, H):
+    """Frame-pixel boxes carried into the PAGE a platform-safe film draws scaled into its frame (_safe_geometry: the
+    page at fw x fh from x0, y0): the caption sits in frame coordinates over the page's own caption band, and the
+    pixels under it are the page's, scaled."""
+    if not safe:
+        return boxes
+    sx, sy = W / float(safe["fw"]), H / float(safe["fh"])
+    out = []
+    for x0, y0, x1, y1 in boxes:
+        a, b = int((x0 - safe["x0"]) * sx), int((y0 - safe["y0"]) * sy)
+        c, d = int(math.ceil((x1 - safe["x0"]) * sx)), int(math.ceil((y1 - safe["y0"]) * sy))
+        a, b, c, d = max(0, a), max(0, b), min(W, c), min(H, d)
+        if c > a and d > b:
+            out.append((a, b, c, d))
+    return out
+
+
+def _chunk_inks(seg, segs, frame_at, W, H, fps, dur, meta, memo, safe=None):
     """The measured inks for `seg`'s CHUNK — one decision per caption text over the chunk's whole window (the union of
     every segment that burns it): karaoke burns a chunk as one layer per word, and an ink chosen per word could flip
     between light and dark mid-sentence. `frame_at(frame index)` -> the frame under it (or None); memoised by text."""
@@ -496,7 +513,8 @@ def _chunk_inks(seg, segs, frame_at, W, H, fps, dur, meta, memo):
         a, b = min(s["start"] for s in win), max(s["end"] for s in win)
         ons = sorted({int(round(min(dur, max(0.0, a + (b - a) * q)) * fps)) for q in (0.0, 0.25, 0.5, 0.75, 1.0)})
         ims = [im for im in (frame_at(on) for on in ons) if im is not None]
-        memo[text] = _caption_inks(_ground_pixels(ims, caption_boxes(text, W, H, meta)), meta) if ims else None
+        boxes = _page_boxes(caption_boxes(text, W, H, meta, safe=safe), safe, W, H)
+        memo[text] = _caption_inks(_ground_pixels(ims, boxes), meta) if ims and boxes else None
     return memo[text]
 
 
@@ -1688,11 +1706,11 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
             # scene_ frames) — the sequential loop makes a bare k safe today, a parallel one wouldn't
             cap_png = os.path.join(workdir, f"scap_{(slide or {}).get('index', 0):02d}_{k:03d}.png")
             inks = None
-            if not band and not safe:                  # overlay on the page: measure the frames under THIS caption
-                def _page_at(on):
+            if not band:                               # overlay on the page: measure the frames under THIS caption
+                def _page_at(on):                      # (a platform-safe film: the page's own band, scaled into it)
                     fp = pattern % max(0, min(on, int(round(dur * fps)) - 1))
                     return Image.open(fp) if os.path.exists(fp) else None
-                inks = _chunk_inks(seg, caption_segs, _page_at, W, H, fps, dur, meta, inks_by_text)
+                inks = _chunk_inks(seg, caption_segs, _page_at, W, H, fps, dur, meta, inks_by_text, safe=safe)
             rec = {"text": seg["text"], "start": seg["start"], "end": seg["end"]}
             _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe, inks=inks, record=rec)
             records.append(rec)
@@ -1841,8 +1859,8 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
                 continue
             cap_png = os.path.join(workdir, f"cap_{i:02d}_{k:02d}.png")
             inks = None
-            if not band and not safe:                  # overlay on the picture: measure the pixels under THIS caption
-                inks = _chunk_inks(seg, segs, _kb_at, W, H, fps, dur, meta, inks_by_text)
+            if not band:                               # overlay on the picture: measure the pixels under THIS caption
+                inks = _chunk_inks(seg, segs, _kb_at, W, H, fps, dur, meta, inks_by_text, safe=safe)
             rec = {"text": seg["text"], "start": seg["start"], "end": seg["end"]}
             _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe, inks=inks, record=rec)
             records.append(rec)

@@ -124,6 +124,19 @@ def test_a_caption_that_is_not_there_is_not_judged():
     assert cc.judge_frame(frame, core, edge) == (None, None)
 
 
+def test_a_platform_safe_caption_is_measured_on_the_page_it_sits_over():
+    """A 9:16 platform-safe film draws its page scaled into the frame; the caption sits in FRAME coordinates over the
+    page's own caption band, so its ground is the page's pixels carried back through that scale."""
+    W, H = 1080, 1920
+    safe = rd._safe_geometry(W, H, {"k": 0.8, "y0": 0.06, "right": 0.12, "top": 0.08, "caption_scale": 1.15},
+                             0.035, 257, 60)
+    box = (safe["x0"] + 40, safe["y0"] + 100, safe["x0"] + 440, safe["y0"] + 180)
+    (a, b, c, d), = rd._page_boxes([box], safe, W, H)
+    assert abs(a - 40 * W / safe["fw"]) <= 1 and abs(b - 100 * H / safe["fh"]) <= 1
+    assert abs((c - a) - 400 * W / safe["fw"]) <= 2 and abs((d - b) - 80 * H / safe["fh"]) <= 2
+    assert rd._page_boxes([box], None, W, H) == [box]
+
+
 # ── the spoken word's highlight ──────────────────────────────────────────────────────────────────────────────
 def _film_accent(tmp_path, accent="#f0a830", accent2="#d9534f"):
     (tmp_path / "theme.css").write_text(":root{--fg:#f0f3f8;--on-accent:#111111;--bg:#14100a;--accent:%s;--accent2:%s}"

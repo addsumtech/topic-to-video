@@ -22,7 +22,8 @@ large text) is a place where the letter melts into the picture.
   WARN   more than 10%
 
 HTML / image tier, overlay captions (render.py burns them). Not read here, and said so: a Remotion film (Film.tsx
-draws its captions), band mode (its own strip), a platform-safe film, a clip rendered before the manifest existed.
+draws its captions), band mode (its own strip), a clip rendered before the manifest existed. A platform-safe film is read like
+any other: its records hold frame coordinates.
 Exit 1 on an ERROR, 2 when nothing could be measured.
 """
 import json
@@ -73,6 +74,22 @@ def caption_mask(rec, W, H, runs=None):
     return np.asarray(core) > 0, edge
 
 
+# WHY THE REMOTION TIER IS NOT READ (2026-10-31), and what it would take. Film.tsx's CaptionTrack picks its ink from
+# the beat's GROUND TOKEN (light.tsx captionInk(dnaGroundY / groundAt)) — a design-time luminance, not the pixels
+# under the caption — and a register reserves the caption band, so that token IS the ground except on the registers
+# remotion/band_debt.json lists (full-bleed photos and fields). The browser cannot read its own composited pixels, so
+# measuring them means a second pass: render each chunk's window WITHOUT captions (`captions: false`, three stills a
+# chunk through the segment cache), measure the pixels under the caption block, and hand the chunk's ink, outline and
+# highlight to Film.tsx as props (CaptionTrack today has one ink and a text-shadow in the ground token). And this
+# gate would need the caption's glyph places from the film — the type census (textSafe.tsx) lists the caption HUD's
+# lines but not its glyph masks, and PIL cannot draw Chrome's bundled webfont at Chrome's positions; the record would
+# have to come from the DOM. Roughly: a stills pass (~3 stills x chunks, minutes a film), a props channel, a census
+# record of the caption's lines and face, and a mask drawn in Chrome. Until then this gate says NOT MEASURED.
+REMOTION_WHY = ("a Remotion film: Film.tsx picks its caption ink from the beat's ground token, not from pixels, and "
+                "nothing records where its glyphs sit — this gate does not read it (see REMOTION_WHY in "
+                "scripts/caption_contrast_qa.py for what it would take)")
+
+
 PRESENT = 0.6     # share of the glyph cores that must carry one ink for the caption to be "there" on a frame
 
 
@@ -113,15 +130,12 @@ def check(out_dir, video=None):
     meta = dict(board.get("meta") or {}, _out=out_dir)
     slides = board.get("slides") or []
     if str(meta.get("renderer") or "local").lower().startswith("remotion"):
-        return {"skipped": "a Remotion film: Film.tsx draws its captions (not read by this gate)", "rows": []}
+        return {"skipped": REMOTION_WHY, "rows": []}
     if meta.get("captions") is False:
         return {"skipped": "captions are off", "rows": []}
     if rd._caption_band_px(meta, int(meta.get("width") or 1920), int(meta.get("height") or 1080)):
         return {"skipped": "band mode: the caption sits on its own strip", "rows": []}
     W, H = int(meta.get("width") or 1920), int(meta.get("height") or 1080)
-    if rd._platform_safe(meta, W, H):
-        return {"skipped": "a platform-safe film: its caption sits on the page's own band (not read by this gate)",
-                "rows": []}
     fps = meta.get("fps", 30)
     video = video or os.path.join(out_dir, "out.mp4")
     if not os.path.exists(video):
