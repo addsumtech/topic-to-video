@@ -122,3 +122,50 @@ def test_a_caption_that_is_not_there_is_not_judged():
     edge = np.zeros((50, 50), bool); edge[17:20, 10:40] = True
     frame = np.asarray(_busy(50, 50, a=DARK, period=1, share=0.5))
     assert cc.judge_frame(frame, core, edge) == (None, None)
+
+
+# ── the spoken word's highlight ──────────────────────────────────────────────────────────────────────────────
+def _film_accent(tmp_path, accent="#f0a830", accent2="#d9534f"):
+    (tmp_path / "theme.css").write_text(":root{--fg:#f0f3f8;--on-accent:#111111;--bg:#14100a;--accent:%s;--accent2:%s}"
+                                        % (accent, accent2), encoding="utf-8")
+    return {"_out": str(tmp_path), "language": "zh", "captions": True}
+
+
+def test_the_highlight_is_scored_on_the_ground_and_never_falls_under_the_inks_floor(tmp_path):
+    """The film's case: an amber accent over amber-and-brown honeycomb. The deck's accent sits under 3:1 against
+    most of that ground (the old pick cleared it against ONE median); the measured highlight either clears the floor
+    the base ink meets or IS the base ink."""
+    meta = _film_accent(tmp_path)
+    W = H = 1080
+    text = "蜡来之不易。"
+    px = rd._ground_pixels([_busy(W, H)], rd.caption_boxes(text, W, H, meta))
+    inks = rd._caption_inks(px, meta)
+    sample = sorted(rd._wcag_contrast((240, 168, 48), g) for g in px)
+    assert sample[len(sample) // 10] < rd.CAPTION_MIN_CONTRAST, "control: the deck's amber should melt here"
+    floor = min(rd.CAPTION_MIN_CONTRAST, inks["p10"])
+    assert inks["hl_p10"] >= floor - 1e-9 or tuple(inks["hl"]) == tuple(inks["ink"]), inks
+
+
+def test_on_a_clean_ground_the_highlight_is_the_decks_own_accent(tmp_path):
+    meta = _film_accent(tmp_path)
+    ground = Image.new("RGB", (1080, 1080), (20, 16, 10))
+    inks = rd._caption_inks(rd._ground_pixels([ground], rd.caption_boxes("面积相同。", 1080, 1080, meta)), meta)
+    assert inks["hl"] == (240, 168, 48), inks
+
+
+def test_the_gate_judges_the_spoken_word_in_its_own_colour(tmp_path):
+    meta = _film_accent(tmp_path)
+    W = H = 1080
+    text = "约三点八公斤蜂蜜，才换来四百五十克蜡。"
+    ground = Image.new("RGB", (W, H), (20, 16, 10))
+    inks = rd._caption_inks(rd._ground_pixels([ground], rd.caption_boxes(text, W, H, meta)), meta)
+    rec = {"text": text, "start": 0, "end": 1}
+    lay = str(tmp_path / "c.png")
+    rd._caption_layer(text, W, H, lay, meta, band_bg=(20, 16, 10), hl_span=(6, 8), record=rec, inks=inks)
+    assert rec.get("hl_runs") and "".join(r[2] for r in rec["hl_runs"]) == "蜂蜜", rec.get("hl_runs")
+    comp = ground.copy()
+    layer = Image.open(lay)
+    comp.paste(layer, (0, 0), layer)
+    core, edge = cc.caption_mask(rec, W, H, rec["hl_runs"])
+    melt, ink = cc.judge_frame(np.asarray(comp), core, edge)
+    assert max(abs(int(a) - b) for a, b in zip(ink, rec["hl"])) <= 3 and melt == 0.0, (ink, rec["hl"])

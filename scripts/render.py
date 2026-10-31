@@ -296,7 +296,8 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
         if inks:                                # MEASURED on the pixels this caption actually sits on, over its window
             base = tuple(inks["ink"]) + (255,)  # (_caption_inks): the ink that contrasts them best, outlined in the
             halo = tuple(inks["outline"]) + (235,)       # ground's own far tone — still no bar, no white halo
-            hl_col = _karaoke_hl_rgb(out, tuple(inks["ground"]), base[:3])
+            hl_col = (tuple(inks["hl"]) + (255,) if inks.get("hl")
+                      else _karaoke_hl_rgb(out, tuple(inks["ground"]), base[:3]))
         if safe:                                # the block's bottom edge on runtime/safeZone captionBottomY — by its INK
             y0 = safe["cap_bottom"] - _safe_block_h(d, lines, font) - pad   # (_safe_block_h), not the font's descent
         else:
@@ -315,8 +316,14 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
                    stroke_fill=halo)
             yy += line_h
 
+    hl_runs = []
+
     def _put(xy, s, fill):                      # a caption line/word (its outline is already down)
         d.text(xy, s, font=font, fill=fill)
+        if fill == hl_col and hl_col != base and s.strip():
+            hl_runs.append([float(xy[0]), float(xy[1]), s])
+        if record is not None and hl_runs:      # the spoken word as drawn: the gate judges it in its own colour
+            record.update(hl=list(hl_col[:3]), hl_runs=hl_runs)
     if hl_span is not None:
         # CJK karaoke: highlight a CHAR RANGE [a,b) of the ORIGINAL text. Wrapping may normalize
         # whitespace, so align wrapped-line chars to original indices by walking both streams over
@@ -436,7 +443,47 @@ def _caption_inks(ground_px, meta):
         ink = (245, 244, 240) if _rel_lum(ink) >= 0.5 else (17, 17, 17)
         best = p10(ink)
     outline = dark if _rel_lum(ink) >= _rel_lum(med) else light
-    return {"ink": tuple(ink), "outline": tuple(outline), "ground": tuple(med), "p10": best}
+    hl, hl_p10 = _highlight_ink(out, ink, best, p10)
+    return {"ink": tuple(ink), "outline": tuple(outline), "ground": tuple(med), "p10": best, "hl": hl, "hl_p10": hl_p10}
+
+
+def _highlight_ink(out, ink, ink_p10, p10):
+    """(rgb, its 10th-percentile contrast) — the karaoke highlight for a caption over a MEASURED ground.
+
+    The spoken word was coloured _karaoke_hl_rgb(median ground): the deck's --accent whenever it cleared 3:1 against
+    one median colour. A validation film's amber accent on amber honeycomb cleared it against the median and read
+    as amber on amber where the cells were bright (「蜡来之不易」 at 27 s). Now each of the deck's accents — and the same
+    accent at other LIGHTNESS steps toward the ink's side, hue and saturation kept (HLS) — is scored by the same
+    10th-percentile contrast over every ground pixel the base ink was scored on, and must stay DISTINCT from the base
+    words. It may not fall under the floor the base ink meets (CAPTION_MIN_CONTRAST, or the base ink's own p10 when
+    even the base could not reach it): the passing candidate nearest the deck's own accent wins. With NONE passing the
+    spoken word is not recoloured at all — it keeps the base ink: on that ground a coloured word would be the one word
+    a viewer cannot read (measured on the film: the best distinct warm tone reached 2.67:1 where the white held 3.07)."""
+    import colorsys
+
+    def distinct(c):
+        return _wcag_contrast(c, ink) >= 1.6 or sum(abs(a - b) for a, b in zip(c, ink)) >= 120
+    floor = min(CAPTION_MIN_CONTRAST, ink_p10)
+    up = _rel_lum(ink) >= 0.5                      # a light ink: highlights may lighten; a dark one: darken
+    cands = []
+    for rank, acc in enumerate((_theme_rgb(out, "--accent", (181, 101, 47)), _theme_rgb(out, "--accent2", (47, 109, 117)),
+                                tuple(KARAOKE_HL[:3]))):
+        h, l, s = colorsys.rgb_to_hls(*(v / 255.0 for v in acc))
+        for k in range(0, 10):
+            l2 = l + (k * 0.05 if up else -k * 0.05)
+            if not 0.0 <= l2 <= 1.0:
+                break
+            c = tuple(int(round(v * 255)) for v in colorsys.hls_to_rgb(h, l2, s))
+            if distinct(c):
+                cands.append((rank, k, c))
+    if not cands:
+        return tuple(ink), ink_p10
+    scored = [(p10(c), rank, k, c) for rank, k, c in cands]
+    ok = [x for x in scored if x[0] >= floor]
+    if not ok:
+        return tuple(ink), ink_p10
+    best = min(ok, key=lambda x: (x[2], x[1]))       # the smallest lightness change, the deck's first accent
+    return tuple(best[3]), best[0]
 
 
 def _chunk_inks(seg, segs, frame_at, W, H, fps, dur, meta, memo):

@@ -50,17 +50,18 @@ def _contrast(l1, l2):
     return (hi + 0.05) / (lo + 0.05)
 
 
-def caption_mask(rec, W, H):
+def caption_mask(rec, W, H, runs=None):
     """(core, edge) boolean masks of one caption AS IT WAS DRAWN — its manifest record (render.py
     _write_caption_manifest: lines, face, places): the glyphs' cores (eroded 1 px) and the edge zone (the outline's
-    width + 1 px outside the glyphs)."""
+    width + 1 px outside the glyphs). `runs` ([x, y, text], the record's `hl_runs`) masks only those runs — the
+    spoken word, judged in the colour it was drawn in."""
     from PIL import Image, ImageDraw, ImageFilter
     import render as rd
     m = Image.new("L", (W, H), 0)
     d = ImageDraw.Draw(m)
     path, size = rec["font"]
     font = rd._load_font(int(size), path)
-    for ln, (x, y) in zip(rec["lines"], rec["xy"]):
+    for x, y, ln in (runs if runs is not None else [(x, y, ln) for ln, (x, y) in zip(rec["lines"], rec["xy"])]):
         d.text((x, y), ln, font=font, fill=255)
     glyph = m.point(lambda v: 255 if v >= 128 else 0)
     sw = int(rec.get("outline_px") or rd.caption_outline_px(font))
@@ -142,7 +143,16 @@ def check(out_dir, video=None):
             if rec.get("band") or not rec.get("lines"):
                 continue
             j = by.setdefault(rec["text"], {"rec": rec, "a": rec["start"], "b": rec["end"]})
+            if j["rec"].get("hl_runs") and not rec.get("hl_runs"):
+                j["rec"] = rec                          # the plain layer, when there is one, for the base ink
             j["a"], j["b"] = min(j["a"], rec["start"]), max(j["b"], rec["end"])
+            # THE SPOKEN WORD, in its own colour: its own layer's window, its own glyphs
+            if rec.get("hl_runs"):
+                a, b = max(rec["start"], SEAM_PAD), min(rec["end"], dur - SEAM_PAD)
+                if b > a:
+                    jobs.append({"beat": i + 1, "text": rec["text"], "frames": [starts[i] + int(round((a + b) / 2 * fps))],
+                                 "rec": rec, "runs": rec["hl_runs"],
+                                 "word": "".join(r[2] for r in rec["hl_runs"])})
         for text, j in by.items():
             a, b = max(j["a"], SEAM_PAD), min(j["b"], dur - SEAM_PAD)
             if b <= a:
@@ -152,7 +162,7 @@ def check(out_dir, video=None):
     frames = _decode(video, [f for j in jobs for f in j["frames"]], W, H)
     rows, unseen = [], []
     for j in jobs:
-        core, edge = caption_mask(j["rec"], W, H)
+        core, edge = caption_mask(j["rec"], W, H, j.get("runs"))
         worst, seen = None, 0
         for f in j["frames"]:
             if f not in frames:
@@ -164,11 +174,18 @@ def check(out_dir, video=None):
             if worst is None or melt > worst[0]:
                 worst = (melt, f, [int(x) for x in ink])
         if worst:
-            rows.append({"beat": j["beat"], "text": j["text"], "melt": round(worst[0], 3), "frame": worst[1],
-                         "ink": worst[2], "level": "error" if worst[0] > ERROR_FRAC else
+            rows.append({"beat": j["beat"], "text": j["text"], "word": j.get("word"), "melt": round(worst[0], 3),
+                         "frame": worst[1], "ink": worst[2], "level": "error" if worst[0] > ERROR_FRAC else
                          "warn" if worst[0] > WARN_FRAC else "ok"})
         else:
-            unseen.append({"beat": j["beat"], "text": j["text"]})
+            unseen.append({"beat": j["beat"], "text": j.get("word") or j["text"]})
+    # one row per caption and per spoken word: keep the worst of each
+    keep = {}
+    for r in rows:
+        k = (r["beat"], r["text"], r["word"])
+        if k not in keep or r["melt"] > keep[k]["melt"]:
+            keep[k] = r
+    rows = list(keep.values())
     return {"skipped": None, "rows": rows, "jobs": len(jobs), "unseen": unseen, "no_record": no_record}
 
 
@@ -186,9 +203,10 @@ def main(argv):
         return 2 if rep.get("unmeasured") else 0
     for r in rep["rows"]:
         if r["level"] != "ok":
-            print("[caption_contrast] %s beat %d: %.0f%% of the caption's edge is under %.0f:1 against its ink %s "
-                  "(frame %d) — 「%s」" % (r["level"].upper(), r["beat"], r["melt"] * 100, MIN_CONTRAST,
-                                          "#%02x%02x%02x" % tuple(r["ink"]), r["frame"], r["text"][:24]))
+            print("[caption_contrast] %s beat %d: %.0f%% of the %s edge is under %.0f:1 against its ink %s "
+                  "(frame %d) — 「%s」" % (r["level"].upper(), r["beat"], r["melt"] * 100,
+                                          "highlighted word 「%s」's" % r["word"] if r.get("word") else "caption's",
+                                          MIN_CONTRAST, "#%02x%02x%02x" % tuple(r["ink"]), r["frame"], r["text"][:24]))
     n = len(rep["rows"])
     if rep.get("no_record"):
         print("[caption_contrast] NOT MEASURED beat(s) %s: no caption manifest beside the clip (rendered before "
