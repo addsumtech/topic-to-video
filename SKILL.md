@@ -1077,7 +1077,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    `python3 scripts/critic_brief.py <out_dir> --gates` exits 0: it runs the tier's delivery gates once on this render
    (remotion: validate, check_av, keyframe_qa_remotion, text_safe incl. `--glide`/`--sync`, jitter_qa, cjk_type_qa on a CJK film,
    film_energy_qa, shake_qa, rhythm_qa, pedagogy_qa, shot_proof; HTML: keyframe_qa, validate, check_av, jitter_qa,
-   rhythm_qa, pedagogy_qa) and records each exit code against the render id, and `critic_ledger.py --final` refuses a render
+   caption_contrast_qa, rhythm_qa, pedagogy_qa) and records each exit code against the render id, and `critic_ledger.py --final` refuses a render
    whose record is missing a gate or holds a failure, on every path, `none` included — FIRST hand the film over
    — and, on a remotion film, BEFORE handing it over run `python3 scripts/object_closeups.py <out_dir>` and LOOK at
    `_object_closeups.png` yourself: every object in the film (each device, each screen, each `data-object`) at its

@@ -245,7 +245,7 @@ def _caption_layout(d, text, W, H, meta=None, band=0, safe=None):
 
 
 def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None,
-                  hl_span=None, safe=None):
+                  hl_span=None, safe=None, inks=None, record=None):
     """Burn a centered caption. `band==0` (default 'overlay'): NO background bar — the text sits at the very
     BOTTOM of the W×H content in the deck's `--fg` ink with a subtle opposite-luminance OUTLINE, so it reads
     over any ground (empty frame, a tint, a photo) on any theme + aspect without a heavy/ugly strip; the
@@ -293,16 +293,29 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
         # caption zone and only a subtle hair where the ground varies — never a bar, never white. Authors keep
         # content clear of the bottom ~15% (keyframe_qa gates it) so the zone is the frame's own clean ground.
         halo = tuple(ground[:3]) + (235,)
+        if inks:                                # MEASURED on the pixels this caption actually sits on, over its window
+            base = tuple(inks["ink"]) + (255,)  # (_caption_inks): the ink that contrasts them best, outlined in the
+            halo = tuple(inks["outline"]) + (235,)       # ground's own far tone — still no bar, no white halo
+            hl_col = _karaoke_hl_rgb(out, tuple(inks["ground"]), base[:3])
         if safe:                                # the block's bottom edge on runtime/safeZone captionBottomY — by its INK
             y0 = safe["cap_bottom"] - _safe_block_h(d, lines, font) - pad   # (_safe_block_h), not the font's descent
         else:
             y0 = H - int(H * 0.02) - block_h    # flush to the very bottom edge
     y = y0 + pad + _caption_half_lead(font)
-    def _put(xy, s, fill):                      # a caption line/word, with a thin outline when there's no bar
-        if halo:
-            ox, oy = xy
-            for dx, dy in ((-2, -2), (-2, 2), (2, -2), (2, 2), (-2, 0), (2, 0), (0, -2), (0, 2)):
-                d.text((ox + dx, oy + dy), s, font=font, fill=halo)
+    sw = caption_outline_px(font)
+    if record is not None:                      # what was drawn, where, in which inks — caption_contrast_qa reads it
+        record.update(lines=list(lines), font=[getattr(font, "path", None), getattr(font, "size", None)],
+                      xy=[[(W - d.textlength(ln, font=font)) / 2, y + k * line_h] for k, ln in enumerate(lines)],
+                      ink=list(base[:3]), outline=list(halo[:3]) if halo else None, outline_px=sw if halo else 0,
+                      band=int(band or 0))
+    if halo:                                    # the outline, ONE stroke pass per line, under every fill: drawn per
+        yy = y                                  # run it painted over the neighbouring run's glyph edges
+        for ln in lines:
+            d.text(((W - d.textlength(ln, font=font)) / 2, yy), ln, font=font, fill=halo, stroke_width=sw,
+                   stroke_fill=halo)
+            yy += line_h
+
+    def _put(xy, s, fill):                      # a caption line/word (its outline is already down)
         d.text(xy, s, font=font, fill=fill)
     if hl_span is not None:
         # CJK karaoke: highlight a CHAR RANGE [a,b) of the ORIGINAL text. Wrapping may normalize
@@ -352,6 +365,106 @@ def _draw_caption(d, text, W, H, meta=None, hl_word=None, band=0, text_rgb=None,
             gi += 1
         y += line_h
 
+def caption_outline_px(font):
+    """The caption outline's width: 2px at small type, growing with it (7% of the em: 3px at a 44px caption)."""
+    return max(2, int(round(getattr(font, "size", 40) * 0.07)))
+
+
+def caption_boxes(text, W, H, meta=None, safe=None):
+    """[(x0, y0, x1, y1)] — each line of an OVERLAY caption as _draw_caption draws it, its outline included: the
+    footprint whose pixels decide whether the caption reads (ink choice here, scripts/caption_contrast_qa.py)."""
+    d = ImageDraw.Draw(Image.new("RGB", (4, 4)))
+    font, lines = _caption_layout(d, text, W, H, meta, band=0, safe=safe)
+    pad, line_h = int(H * 0.012), _caption_line_h(font)
+    block_h = line_h * len(lines) + pad * 2
+    y0 = (safe["cap_bottom"] - _safe_block_h(d, lines, font) - pad) if safe else H - int(H * 0.02) - block_h
+    y = y0 + pad + _caption_half_lead(font)
+    m, out = caption_outline_px(font) + 2, []
+    for ln in lines:
+        w = d.textlength(ln, font=font)
+        bb = d.textbbox(((W - w) / 2, y), ln, font=font)
+        out.append((max(0, int(bb[0]) - m), max(0, int(bb[1]) - m), min(W, int(bb[2]) + m + 1), min(H, int(bb[3]) + m + 1)))
+        y += line_h
+    return out
+
+
+def _ground_pixels(frames_at, boxes, step=3):
+    """Every `step`-th pixel inside `boxes` of each frame `frames_at` yields (PIL images, W x H)."""
+    px = []
+    for im in frames_at:
+        a = im.convert("RGB")
+        for (x0, y0, x1, y1) in boxes:
+            if x1 > x0 and y1 > y0:
+                px += _pixels(a.crop((x0, y0, x1, y1)).resize((max(1, (x1 - x0) // step), max(1, (y1 - y0) // step)),
+                                                             Image.NEAREST))
+    return px
+
+
+CAPTION_MIN_CONTRAST = 3.0    # WCAG AA-large: what a caption's ink must hold against the ground right around it
+
+
+def _caption_inks(ground_px, meta):
+    """{'ink', 'outline', 'ground', 'p10'} for an overlay caption over these GROUND pixels (the ones under its lines,
+    over its time window).
+
+    WHY. The ink was picked against ONE colour — the median of the bottom 20% of the scene's FIRST frame — and outlined
+    in that same median. On a flat page that is the ground. On a photograph it is a colour no pixel need have: a
+    validation film's honeycomb slides (a bright amber bee close-up, then a busy frame of dark cells and bees) got a
+    dark ink with an amber hairline, and read only where the photo happened to be light; the film's author painted a
+    scrim under them by hand. Now: the deck's two inks (its --fg and --on-accent, else black/white) are each scored by
+    the 10th-percentile WCAG contrast against EVERY ground pixel, and the better wins; its outline is the ground's own
+    tone from the FAR side of its range (the darkest decile under light ink, the lightest under dark ink) — the frame's
+    own colour, never a bar or a white halo — so on a flat ground it is the ground (invisible) and on a busy photo it
+    is the photo's own shadow (or highlight) tracing every glyph."""
+    out = (meta or {}).get("_out", ".")
+    if not ground_px:
+        return None
+    lum = sorted(ground_px, key=_rel_lum)
+    n = len(lum)
+    med, dark, light = lum[n // 2], lum[max(0, n // 10)], lum[min(n - 1, (9 * n) // 10)]
+    fg = _theme_rgb(out, "--fg", (17, 17, 17))
+    on_acc = _theme_rgb(out, "--on-accent", (255, 255, 255))
+    cands = [fg, on_acc] if abs(_rel_lum(fg) - _rel_lum(on_acc)) > 0.3 else [(17, 17, 17), (245, 244, 240)]
+    sample = lum[::max(1, n // 4000)]
+
+    def p10(c):
+        cs = sorted(_wcag_contrast(c, g) for g in sample)
+        return cs[len(cs) // 10]
+    scored = sorted(((p10(c), _rel_lum(c), c) for c in cands), reverse=True)
+    best, ink = scored[0][0], scored[0][2]
+    if best < CAPTION_MIN_CONTRAST:          # neither deck ink holds: the plain extreme on the right side does better
+        ink = (245, 244, 240) if _rel_lum(ink) >= 0.5 else (17, 17, 17)
+        best = p10(ink)
+    outline = dark if _rel_lum(ink) >= _rel_lum(med) else light
+    return {"ink": tuple(ink), "outline": tuple(outline), "ground": tuple(med), "p10": best}
+
+
+def _chunk_inks(seg, segs, frame_at, W, H, fps, dur, meta, memo):
+    """The measured inks for `seg`'s CHUNK — one decision per caption text over the chunk's whole window (the union of
+    every segment that burns it): karaoke burns a chunk as one layer per word, and an ink chosen per word could flip
+    between light and dark mid-sentence. `frame_at(frame index)` -> the frame under it (or None); memoised by text."""
+    text = seg["text"]
+    if text not in memo:
+        win = [s for s in segs if s.get("text") == text] or [seg]
+        a, b = min(s["start"] for s in win), max(s["end"] for s in win)
+        ons = sorted({int(round(min(dur, max(0.0, a + (b - a) * q)) * fps)) for q in (0.0, 0.25, 0.5, 0.75, 1.0)})
+        ims = [im for im in (frame_at(on) for on in ons) if im is not None]
+        memo[text] = _caption_inks(_ground_pixels(ims, caption_boxes(text, W, H, meta)), meta) if ims else None
+    return memo[text]
+
+
+def caption_manifest_path(clip):
+    """Where a scene clip's caption manifest sits: beside the clip, so a cached clip keeps the record of what it drew."""
+    return clip + ".captions.json"
+
+
+def _write_caption_manifest(clip, records):
+    """[{text, start, end, lines, font, xy, ink, outline, outline_px, inks?}] — every caption a clip burns, as drawn.
+    scripts/caption_contrast_qa.py measures the delivered pixels at exactly these places."""
+    with open(caption_manifest_path(clip), "w", encoding="utf-8") as f:
+        json.dump({"captions": records}, f, ensure_ascii=False)
+
+
 def _callout_layer(callouts, W, H, dst, meta=None):
     """Draw ONLY the callouts onto a transparent PNG (shown for the whole slide)."""
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -370,7 +483,7 @@ def _callout_layer(callouts, W, H, dst, meta=None):
     layer.save(dst)
 
 def _caption_layer(text, W, H, dst, meta=None, hl_word=None, band=0, text_rgb=None, band_bg=None,
-                   hl_span=None, safe=None):
+                   hl_span=None, safe=None, inks=None, record=None):
     """Draw ONLY one caption block onto a transparent PNG (shown for one time window). In band mode the
     layer is W×(H+band) so the caption text lands in the strip below the content; `text_rgb` overrides
     the text colour (the per-scene sampled colour that contrasts a flush strip); `band_bg` is that strip's
@@ -378,7 +491,7 @@ def _caption_layer(text, W, H, dst, meta=None, hl_word=None, band=0, text_rgb=No
     platform-safe portrait film's geometry (`_platform_safe`)."""
     layer = Image.new("RGBA", (W, H + band), (0, 0, 0, 0))
     _draw_caption(ImageDraw.Draw(layer), text, W, H, meta, hl_word, band=band, text_rgb=text_rgb,
-                  band_bg=band_bg, hl_span=hl_span, safe=safe)
+                  band_bg=band_bg, hl_span=hl_span, safe=safe, inks=inks, record=record)
     layer.save(dst)
 
 def _load_words(out_dir, index):
@@ -1517,6 +1630,8 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0[v{n_in}]"); vlabel = f"v{n_in}"; n_in += 1
 
     band_text = None; band_bg = None                   # per-scene sampled caption text colour + strip ground
+    records, inks_by_text = [], {}
+
     def _add_caption_overlays():
         nonlocal vlabel, n_in
         for k, seg in enumerate(caption_segs):
@@ -1525,7 +1640,15 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
             # index-scoped like every other per-scene artifact in the shared workdir (sbug_/cap_/
             # scene_ frames) — the sequential loop makes a bare k safe today, a parallel one wouldn't
             cap_png = os.path.join(workdir, f"scap_{(slide or {}).get('index', 0):02d}_{k:03d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe)
+            inks = None
+            if not band and not safe:                  # overlay on the page: measure the frames under THIS caption
+                def _page_at(on):
+                    fp = pattern % max(0, min(on, int(round(dur * fps)) - 1))
+                    return Image.open(fp) if os.path.exists(fp) else None
+                inks = _chunk_inks(seg, caption_segs, _page_at, W, H, fps, dur, meta, inks_by_text)
+            rec = {"text": seg["text"], "start": seg["start"], "end": seg["end"]}
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe, inks=inks, record=rec)
+            records.append(rec)
             extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
@@ -1552,6 +1675,7 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
         "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
         "-c:v", "libx264", "-crf", "18", "-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
     _common.run(cmd)
+    _write_caption_manifest(out_clip, records)
     return out_clip
 
 def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
@@ -1656,18 +1780,31 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     segs = (_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)) if burn_captions else []
 
     band_text = None; band_bg = None                   # per-scene sampled caption text colour + strip ground
+    src_im = Image.open(frame).convert("RGB")
+    inks_by_text = {}
+
+    def _kb_at(on):                                    # the Ken Burns frame `on`, as _kenburns_frames draws it
+        l, tp, w, h = _kenburns_window(params, frames, on, W, H)
+        return src_im.resize((W, H), Image.BILINEAR, box=(l, tp, l + w, tp + h))
+
     def _cap_overlays():
         nonlocal vlabel, n_in
         for k, seg in enumerate(segs):
             if not (seg.get("text") or "").strip():
                 continue
             cap_png = os.path.join(workdir, f"cap_{i:02d}_{k:02d}.png")
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe)
+            inks = None
+            if not band and not safe:                  # overlay on the picture: measure the pixels under THIS caption
+                inks = _chunk_inks(seg, segs, _kb_at, W, H, fps, dur, meta, inks_by_text)
+            rec = {"text": seg["text"], "start": seg["start"], "end": seg["end"]}
+            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe, inks=inks, record=rec)
+            records.append(rec)
             extra_inputs.append("-i"); extra_inputs.append(cap_png)
             en = f"between(t,{seg['start']},{seg['end']})"
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
             vlabel = f"v{n_in}"; n_in += 1
 
+    records = []
     if band:                                           # edge-treat content, add the strip, then the captions
         ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
         parts.extend(ep)
@@ -1691,6 +1828,7 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
         "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
         "-c:v", "libx264", "-crf", "18"] + _KB_X264 + ["-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
     _run_fed(cmd, feed)
+    _write_caption_manifest(out_clip, records)
     return out_clip
 
 def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False, preview=False):
