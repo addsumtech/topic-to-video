@@ -79,6 +79,22 @@ Px are at a 1080 px short side. Defaults mean "as the register drew it".
 - `notes`;
 - `shortfalls` [{axis, wanted, got, why}]: what the engine could not draw, printed on the sample sheet. Never hide one.
 
+## What a style costs (measured 2026-10-31, the 6-beat 9:16 acceptance film, 180 frames, 4 tabs)
+
+| spec | render | vs unstyled |
+|---|---|---|
+| no `meta.style` | 16–17 s | — (nothing mounts) |
+| colour, fills, cel, shade (no line filters) | 15 s | ±0 |
+| `line.outline: all` (per-shape outlines) | 17 s | +3% |
+| `line.outline: outer`/`both` (the silhouette ring, an SVG dilation) | 25 s | **+50%** |
+
+- The per-frame pass is cheap. The cost is rasterising the silhouette ring, so choose `outer`/`both` when the look
+  needs it, not by default.
+- Eight chained drop-shadows instead of the dilation measured 395 s: never.
+- Per film, a style also adds:
+  - the sample: 2–3 stills and a 2 s clip;
+  - `style_qa`: two stills per beat, three with a surface, in one browser — about a second each.
+
 ## The rules the engine keeps (any style)
 
 - **Type** keeps its glyphs: never wobbled, textured or posterized, and never moved. A line that crosses type keeps
