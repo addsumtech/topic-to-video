@@ -219,8 +219,9 @@ def build(out_dir, to=None):
     return {"png": png, "mp4": mp4, "sample_sha256": sha, "beats": beats}
 
 
-def record_signoff(out_dir):
-    """Write meta.style_signoff for the sample last built — run ONLY after the user approved it in chat."""
+def record_signoff(out_dir, note=None):
+    """Write meta.style_signoff for the sample last built — run ONLY after the user said to go on, in chat. `note` keeps
+    the user's own words: "render it so I can judge" is not "this style is right", and the record must not say it was."""
     path = os.path.join(out_dir, "storyboard.json")
     board = json.load(open(path, encoding="utf-8"))
     spec = (board.get("meta") or {}).get("style")
@@ -232,6 +233,8 @@ def record_signoff(out_dir):
         raise SystemExit("%s the spec changed after the sample was built — build a new sample and show it" % TAG)
     board["meta"]["style_signoff"] = {"spec_sha256": kept["spec_sha256"], "sample_sha256": kept["sample_sha256"],
                                       "user_ok": True}
+    if note:
+        board["meta"]["style_signoff"]["note"] = str(note)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(board, fh, ensure_ascii=False, indent=2)
     return board["meta"]["style_signoff"]
@@ -242,9 +245,10 @@ def main(argv=None):
     ap.add_argument("out_dir")
     ap.add_argument("--to", default=None, help="the folder to deliver to (default: the Desktop)")
     ap.add_argument("--signoff", action="store_true", help="record the user's approval of the last sample")
+    ap.add_argument("--note", default=None, help="with --signoff: the user's own words, kept with the record")
     a = ap.parse_args(argv)
     if a.signoff:
-        so = record_signoff(a.out_dir)
+        so = record_signoff(a.out_dir, a.note)
         print("%s signed off: spec %s… sample %s…" % (TAG, so["spec_sha256"][:10], so["sample_sha256"][:10]))
         return 0
     rep = build(a.out_dir, a.to)

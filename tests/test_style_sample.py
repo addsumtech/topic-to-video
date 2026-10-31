@@ -124,3 +124,14 @@ def test_build_delivers_a_sheet_and_a_clip(tmp_path):
     assert os.path.basename(rep["png"]) == "样张测试 风格样张.png"
     kept = json.load(open(film / "_style" / "sample.json"))
     assert kept["sample_sha256"] == rep["sample_sha256"] and kept["spec_sha256"] == ss.spec_hash(_SPEC)
+
+
+def test_a_signoff_records_the_users_words(tmp_path):
+    """A user may ask for the film to judge it, which is not an approval of the style: the sign-off keeps their words."""
+    board = _board([("ChartLive", {})])
+    (tmp_path / "_style").mkdir()
+    (tmp_path / "_style" / "sample.json").write_text(json.dumps({"sample_sha256": "abc", "spec_sha256": ss.spec_hash(_SPEC)}))
+    (tmp_path / "storyboard.json").write_text(json.dumps(board))
+    so = ss.record_signoff(str(tmp_path), note="看不出卡通风格，不过可以发个成片看下")
+    assert so["note"] == "看不出卡通风格，不过可以发个成片看下"
+    assert json.load(open(tmp_path / "storyboard.json"))["meta"]["style_signoff"]["note"].startswith("看不出")

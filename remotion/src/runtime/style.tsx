@@ -323,6 +323,8 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     const stops = stopsOf(g, doc);
     const mode = translucentStops(stops.join(' ')) ? lightMode : grad.mode;
     if (mode === 'as-drawn') return null;
+    // a frame-filling RADIAL gradient is a glow on a ground: flat, it is the ground the glow fades into (its outer stop)
+    if (ground && g.tagName === 'radialGradient') return stops[stops.length - 1];
     if (mode === 'flat' || ground) return meanColor(stops.join(' '));
     return steppedFor(id);
   };
@@ -474,7 +476,10 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
         // over the whole register; stepped, a hard ring round the frame (CinematicTitle in the cartoon sample)
         image = 'none';
       } else if (bgMode === 'flat' || ground) {
-        const mean = meanColor(bg);
+        // a frame-filling radial is a glow on a ground: flat, it is its OUTER stop — flattened to the mean, a 9:16 title
+        // went peach edge to edge while the platform-safe margin (the DNA ground) stayed cream: a panel on the frame
+        const outer = ground && /^radial-gradient/.test(bg) ? [...bg.matchAll(/rgba?\([^)]+\)/g)].pop()?.[0] ?? null : null;
+        const mean = outer ?? meanColor(bg);
         image = 'none';
         if (mean && alphaOf(cs.backgroundColor) === 0) put(el, 'background-color', mean, 'fill.mode');
       } else {

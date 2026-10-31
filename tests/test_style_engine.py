@@ -438,3 +438,14 @@ def test_a_frame_filling_light_is_removed_not_banded_or_veiled(tmp_path):
     assert np.abs(lit[560, 700].astype(int) - bare[560, 700].astype(int)).max() <= 3, (lit[560, 700], bare[560, 700])
     # and the corner is not a hard dark band either
     assert np.abs(lit[1060, 20].astype(int) - bare[1060, 20].astype(int)).max() <= 3, (lit[1060, 20], bare[1060, 20])
+
+
+@needs_render
+def test_a_flattened_radial_ground_is_the_ground_its_glow_fades_into(tmp_path):
+    """A radial ground is a glow on a ground. Flattened to its MEAN, a 9:16 title's whole frame turned peach while the
+    platform-safe margin (the DNA ground) stayed cream — the beat read as a panel. Its outer stop is the ground."""
+    spec = {"name": "flat", "refs": [], "refs_missing": "test", "fill": {"mode": "flat"}}
+    st = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "st.png"))
+    outer = np.array([0xe6, 0xdc, 0xcb])                       # the probe ground's outer stop
+    for p in ((560, 700), (60, 1500), (1060, 20)):
+        assert np.abs(st[p].astype(int) - outer).max() <= 3, (p, st[p])
