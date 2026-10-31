@@ -204,12 +204,17 @@ def check(out_dir, video=None):
 
 
 def main(argv):
-    if not argv or argv[0] in ("-h", "--help"):
+    import argparse
+    if not argv:
         print(__doc__.strip())
-        return 0 if argv else 2
-    video = next((a.split("=", 1)[1] for a in argv if a.startswith("--video=")), None)
-    jp = next((a.split("=", 1)[1] for a in argv if a.startswith("--json=")), None)
-    rep = check(argv[0], video)
+        return 2
+    ap = argparse.ArgumentParser(description="Is every burned caption legible on the ground it was burned on?")
+    ap.add_argument("out_dir")
+    ap.add_argument("--video", help="the film to measure (default <out_dir>/out.mp4)")
+    ap.add_argument("--json", help="also write the report to this path")
+    a = ap.parse_args(argv)
+    video, jp = a.video, a.json
+    rep = check(a.out_dir, video)
     if jp:
         json.dump(rep, open(jp, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     if rep["skipped"]:

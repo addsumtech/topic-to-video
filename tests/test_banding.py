@@ -32,12 +32,17 @@ needs_cambi = pytest.mark.skipif(not _cambi_ok(), reason="needs an ffmpeg with l
 
 
 def _film(tmp_path, noise):
-    """A 2 s film of one dark radial-ish gradient (two scenes of 1 s), encoded the way a film is: x264 CRF 18."""
+    """A 2 s film of one dark radial gradient (two scenes of 1 s), encoded the way a film is: x264 CRF 18.
+
+    The gradient's geometry is FIXED (centre out to a corner). Left to `gradients`' default seed (-1, random) the
+    endpoints moved every run, and some draws are too shallow to band (seed 3 reads CAMBI 3.7, under the 5.0 floor)
+    — the test passed in one run and failed in the next on unchanged code. Fixed, it reads 15.0 banded, 0.0 dithered."""
     out = tmp_path / ("n%d" % noise)
     out.mkdir()
     vf = "format=yuv420p" + (",noise=c0s=%d:c0f=u" % noise if noise else "")
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
-                    "gradients=s=960x540:c0=0x0b1020:c1=0x1a2a48:d=2:r=30:speed=0:type=radial", "-t", "2",
+                    "gradients=s=960x540:c0=0x0b1020:c1=0x1a2a48:d=2:r=30:speed=0:type=radial:"
+                    "x0=480:y0=270:x1=960:y1=540", "-t", "2",
                     "-vf", vf, "-c:v", "libx264", "-crf", "18", str(out / "out.mp4")], check=True)
     json.dump({"meta": {}, "slides": [{"index": 1, "duration": 1.0}, {"index": 2, "duration": 1.0}]},
               open(out / "storyboard.json", "w"))
