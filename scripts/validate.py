@@ -4998,6 +4998,13 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                 widow = _dangling_word(lines)
                 if widow:
                     warnings.append(f"{tag}: caption ends on a lone word \"{widow}\" — rephrase so the last line isn't a widow")
+            # A LINE BREAK INSIDE A WORD OR A NUMBER (scripts/caption_breaks_qa.py html_beat_faults: render.py's own
+            # chunks and lines). The Remotion tier is judged by the same gate in node, against Film.tsx's breaker.
+            if str(meta.get("renderer") or "local").lower() not in REMOTION_RENDERERS:
+                import caption_breaks_qa as _cbq
+                for f in _cbq.html_beat_faults(s, lambda text: _caption_lines(text, meta, W, H)):
+                    errors.append(f"{tag}: caption break — {f}; reword the line, or give the beat an authored "
+                                  f"`captions` track that splits at a clause")
             # minimum on-screen time (needs the timed segments, so only after tts)
             if not pre_tts and s.get("duration"):
                 shown_floor = shown_cps = shown_ceil = shown_cjk_line = False

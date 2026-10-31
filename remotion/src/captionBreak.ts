@@ -20,6 +20,7 @@
 
 import {cjkAdvance, latinAdvance, CAPTION_SIZE_FRAC, CAPTION_LINES} from './runtime/layout';
 import {SAFE_CAPTION_SCALE} from './runtime/safeZone';
+import GLUE from './captionGlue.json';
 
 export const CAP_PAD_X = 60; // the caption block's own side padding, inside its measure (border-box)
 
@@ -61,24 +62,106 @@ const segmenter = (): {segment: (t: string) => Iterable<Seg>} | null => {
  *  kinsoku rules still hold — the gate says which it ran on. */
 export const hasSegmenter = (): boolean => segmenter() !== null;
 
+// A NUMBER IS ONE WORD, the way it is said. ICU cuts Chinese and Japanese numerals into pieces — 负|四, 四百|五十,
+// 两|万|八千|八百 — and a validation film (2026-10-31) burned 「负 / 四」 on its standards beat. The rule is data
+// (captionGlue.json), read here and by scripts/caption_words.py (the HTML tier), so both tiers protect the same spans:
+// a prefix (负, 第, 百分之, $), numerals with a joiner only between two of them (3.8, 28,800, 三点八), a unit (克, 秒,
+// kg, %; one space allowed before it) and a second unit after an approximator (三十多岁).
+const NUMERALS = new Set(Array.from(GLUE.numerals as string));
+const JOINERS = new Set(Array.from(GLUE.joiners as string));
+const APPROX = new Set(Array.from(GLUE.approximators as string));
+const byLen = (xs: string[]) => Array.from(new Set(xs)).sort((a, b) => b.length - a.length);
+const PREFIX = byLen(GLUE.prefix as string[]);
+const UNITS_CJK = byLen(GLUE.units_cjk as string[]);
+const UNITS_LATIN = byLen(GLUE.units_latin as string[]);
+const wordChar = (c: string | undefined) => !!c && /[\p{L}\p{N}_'’]/u.test(c);
+
+/** The number spans of `text`, as [a, b): no break may fall at any k with a < k < b. */
+export const glueSpans = (text: string): [number, number][] => {
+  const t = text ?? '', n = t.length, out: [number, number][] = [];
+  let i = 0;
+  while (i < n) {
+    if (!NUMERALS.has(t[i])) { i++; continue; }
+    let a = i, j = i + 1;
+    while (j < n) {
+      if (NUMERALS.has(t[j])) j++;
+      else if (JOINERS.has(t[j]) && j + 1 < n && NUMERALS.has(t[j + 1]) && NUMERALS.has(t[j - 1])) j += 2;
+      else break;
+    }
+    for (const p of PREFIX) if (a >= p.length && t.slice(a - p.length, a) === p) { a -= p.length; break; }
+    let b = j;
+    for (let k = 0; k < 2; k++) {
+      const sp = k === 0 && b < n && t[b] === ' ' ? 1 : 0;
+      const hit = UNITS_CJK.find((u) => t.startsWith(u, b + sp))
+        ?? UNITS_LATIN.find((u) => t.startsWith(u, b + sp) && !wordChar(t[b + sp + u.length]));
+      if (!hit) break;
+      b += sp + hit.length;
+      if (!APPROX.has(hit)) break;
+    }
+    if (b - a >= 2) out.push([a, b]);
+    i = Math.max(j, i + 1);
+  }
+  return out;
+};
+
+// ICU'S OUT-OF-VOCABULARY FRAGMENTS, JOINED BACK. ICU spells a run it has no dictionary word for one character at a
+// time — 黑|尔|斯 (a name), 走|时, 擒|纵|叉, 正|多边|形, 一|口气 — and a break after such a character is a break inside a
+// word. So a one-character Han segment joins the Han segment AFTER it (正+多边, 一+口气), and one at a phrase end
+// (before punctuation, a space or the end) joins the Han word BEFORE it (多边+形，). Kana particles and numbers
+// (glueSpans) are left alone; no joined word grows past FRAGMENT_CAP. scripts/caption_words.py `_join_fragments` is
+// the same rule for the HTML tier (tests/test_caption_words.py holds the two to one answer).
+const HAN = /[\u3400-\u9fff\uf900-\ufaff]/;
+const FRAGMENT_CAP = 6;
+const joinFragments = (text: string, starts: Set<number>): Set<number> => {
+  const cuts = Array.from(new Set([0, text.length, ...Array.from(starts).filter((k) => k > 0 && k < text.length)]))
+    .sort((a, b) => a - b);
+  const out = new Set(cuts.slice(1, -1));
+  const num = new Set<number>();
+  for (const [a, b] of glueSpans(text)) for (let k = a; k < b; k++) num.add(k);
+  let u0 = 0;
+  for (let i = 1; i + 1 < cuts.length; i++) {
+    const pa = cuts[i - 1], a = cuts[i], b = cuts[i + 1];
+    if (b - u0 <= FRAGMENT_CAP && HAN.test(text[a]) && HAN.test(text[a - 1]) && !num.has(a)) {
+      const singlePrev = a - pa === 1 && !num.has(a - 1);
+      const phraseEnd = b - a === 1 && (b === text.length || !(HAN.test(text[b]) || /[\p{L}\p{N}]/u.test(text[b])));
+      if (singlePrev || phraseEnd) { out.delete(a); continue; }
+    }
+    u0 = a;
+  }
+  return out;
+};
+
+/** Where each word of `text` starts (k > 0): Intl.Segmenter's words with their fragments joined, or null when this
+ *  engine has no segmenter. */
+export const wordStarts = (text: string): Set<number> | null => {
+  const seg = segmenter();
+  if (!seg) return null;
+  const s = new Set<number>();
+  for (const x of seg.segment(text)) if (x.index > 0) s.add(x.index);
+  return joinFragments(text, s);
+};
+
 /**
  * The places `text` may break, as offsets: a break at k puts text[k] first on the next line. Word starts only (or
  * every CJK character without a segmenter), never in front of closing punctuation, never just after opening
- * punctuation, never inside a run with no space (a Latin word, a number).
+ * punctuation, never inside a run with no space (a Latin word), never inside a number span (glueSpans).
  */
 export const breakPoints = (text: string): number[] => {
   const starts = new Set<number>();
-  const seg = segmenter();
-  if (seg) {
-    for (const s of seg.segment(text)) if (s.index > 0) starts.add(s.index);
+  const ws = wordStarts(text);
+  if (ws) {
+    ws.forEach((k) => starts.add(k));
   } else {
     for (let i = 1; i < text.length; i++) if (isCJKChar(text[i]) || isCJKChar(text[i - 1])) starts.add(i);
   }
   for (let i = 1; i < text.length; i++) if (isSpace(text[i - 1]) && !isSpace(text[i])) starts.add(i);
+  const inside = new Set<number>();
+  for (const [a, b] of glueSpans(text)) for (let k = a + 1; k < b; k++) inside.add(k);
   const out: number[] = [];
   for (const k of Array.from(starts).sort((a, b) => a - b)) {
     const c = text[k], p = text[k - 1];
-    if (isSpace(c)) continue;                       // a break lands on the word after a space, not on the space
+    if (k <= 0 || k >= text.length) continue;
+    if (isSpace(c) || inside.has(k)) continue;      // a break lands on the word after a space; never in a number
     if (CLOSE.has(c) || OPEN.has(p)) continue;      // kinsoku
     if (!isCJKChar(c) && !isCJKChar(p) && !isSpace(p)) continue;   // inside a Latin word or a number
     out.push(k);
@@ -175,15 +258,16 @@ export const breakLines = (text: string, measure: number, adv: (ch: string) => n
   return lines.filter(Boolean);
 };
 
-export type LineFault = {line: number; kind: 'kinsoku' | 'orphan' | 'split'; text: string};
+export type LineFault = {line: number; kind: 'kinsoku' | 'orphan' | 'split' | 'number'; text: string};
 
 /**
  * What is wrong with a set of lines a caption was broken into: a line that STARTS with closing punctuation
- * (kinsoku), a last line that is ONE CJK glyph (with or without its punctuation — 「子。」), or a break that falls
- * INSIDE a word (`split`: the line's end and the next line's start are one segmenter word). Empty when the lines are
- * clean. This is the gate's question, asked of the lines the film draws.
+ * (kinsoku), a last line that is ONE CJK glyph (with or without its punctuation — 「子。」), a break INSIDE a number
+ * (`number`: glueSpans of the re-joined lines runs across it — 「负 / 四」) or INSIDE a word (`split`: not one of
+ * ICU's word starts in the re-joined lines). Empty when the lines are clean. This is the gate's question, asked of the
+ * lines the film draws; scripts/caption_words.py line_faults asks it of the HTML tier's.
  */
-export const lineFaults = (lines: string[]): LineFault[] => {
+export const lineFaults = (lines: string[], source?: string): LineFault[] => {
   const out: LineFault[] = [];
   lines.forEach((l, i) => {
     const s = l.trim();
@@ -193,25 +277,50 @@ export const lineFaults = (lines: string[]): LineFault[] => {
       out.push({line: i, kind: 'orphan', text: s});
     }
   });
-  const seg = segmenter();
-  if (seg && lines.length > 1) {
-    // re-join as the caption was written: a space between two Latin line ends, nothing between CJK ones
-    let joined = '';
-    const at: number[] = [];
+  if (lines.length < 2) return out;
+  // WHERE EACH BREAK FALLS, in the text the lines were cut from: `source` when the caller has it (captionPlan does),
+  // so a space the caption had — 「约 460 ppi」 — is still there; else the lines re-joined as a caption is written (a
+  // space between two Latin ends, none at a CJK one)
+  let text = '';
+  const cut: [number, number][] = [];          // per break: [end of the line before, start of the line after]
+  const src = source !== undefined ? source : null;
+  if (src !== null) {
+    let at = 0, ok = true;
+    const pos = lines.map((l) => {
+      const s = l.trim();
+      const k = src.indexOf(s, at);
+      if (k < 0) ok = false;
+      at = k < 0 ? at : k + s.length;
+      return [k, k + s.length];
+    });
+    if (ok) {
+      text = src;
+      for (let i = 1; i < pos.length; i++) cut.push([pos[i - 1][1], pos[i][0]]);
+    }
+  }
+  if (!text) {
     lines.forEach((l, i) => {
       const s = l.trim();
       if (i > 0) {
-        if (!isCJKChar(joined[joined.length - 1] ?? '') && !isCJKChar(s[0] ?? '')) joined += ' ';
-        at.push(joined.length);
+        const e = text.length;
+        if (!isCJKChar(text[text.length - 1] ?? '') && !isCJKChar(s[0] ?? '')) text += ' ';
+        cut.push([e, text.length]);
       }
-      joined += s;
-    });
-    const starts = new Set<number>();
-    for (const x of seg.segment(joined)) starts.add(x.index);
-    at.forEach((k, i) => {
-      if (!starts.has(k)) out.push({line: i + 1, kind: 'split', text: lines[i + 1].trim()});
+      text += s;
     });
   }
+  const spans = glueSpans(text);
+  // ICU's OWN words here, not wordStarts: the breaker also keeps one-character fragments together, but a break after
+  // a real one-character word (的 / 东西) is not inside a word and the gate must not call it one. No segmenter: words
+  // cannot be judged, numbers still can.
+  const seg = segmenter();
+  const starts = new Set<number>();
+  if (seg) for (const x of seg.segment(text)) starts.add(x.index);
+  cut.forEach(([e, k], i) => {
+    const t2 = lines[i + 1].trim();
+    if (spans.some(([a, b]) => a < e && k < b)) out.push({line: i + 1, kind: 'number', text: t2});
+    else if (seg && e === k && !starts.has(k)) out.push({line: i + 1, kind: 'split', text: t2});
+  });
   return out;
 };
 

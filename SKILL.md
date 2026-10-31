@@ -275,7 +275,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   `scripts/energy_skeleton.py <out_dir>` checks declared energy against measured register motion.
   `scripts/cjk_type_qa.py <out_dir>` is required on a CJK film; **run it serially**, because parallel shards report
   false failures. `scripts/caption_breaks_qa.py <out_dir>` checks a CJK film's burned caption lines as Film.tsx breaks
-  them (ERROR on a line opening with closing punctuation or a one-glyph last line; `references/captions.md`).
+  them (ERROR on a break inside a word or a number, a line opening with closing punctuation or a one-glyph last line;
+  `references/captions.md`; on an HTML film it reads render.py's own lines, and validate.py runs that check too).
   `scripts/density_advice.py <out_dir>` names starved beats and denser same-family registers; these are
   candidates, never instructions. `scripts/text_safe_qa.py <out_dir>` is the TEXT-SAFE gate (type cut by the canvas;
   full-bleed graphics and container-cropped type are legal; an intentional bleed layer carries `data-bleed` with a written

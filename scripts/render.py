@@ -146,40 +146,43 @@ _CJK_TIGHT = _HAN + _KANA + _CJK_PUNCT
 _CJK_TIGHT_RE = re.compile(f"[{_CJK_TIGHT}]")
 
 def _atoms(text):
-    """Break text into wrap units: each zh/ja CJK character is its own unit (no spaces — a line may
-    break between any two), while runs of other non-space characters (Latin words AND Korean hangul
-    words) stay together and re-join with a space."""
-    return re.findall(f"[{_CJK_TIGHT}]|[^{_CJK_TIGHT}\\s]+", text)
+    """Break text into wrap units, each ending where a line may break (scripts/caption_words.py — the HTML tier's
+    half of the Remotion tier's captionBreak.ts): a WORD (Intl.Segmenter's, the segmenter the Remotion tier draws
+    with), never cut inside a number (负四, 四百五十克, 28,800 拍, 3.8 kg — remotion/src/captionGlue.json), never
+    in front of closing / after opening punctuation. Each unit is a slice of the text, its own trailing space kept,
+    so joining units restores the text exactly. It used to make every zh/ja character its own unit, and a
+    validation film (2026-10-31) burned 「正方 / 形」 and 「四百 / 五十」."""
+    import caption_words as _cw
+    return _cw.atoms(text)
 
 def _wrap(d, text, font, max_w, hang=True):
-    """Greedy wrap to a max pixel width. Latin words join with a space; CJK characters
-    join tight and may break anywhere — so Chinese/Japanese/Korean captions wrap instead
-    of overflowing as one un-splittable line (which `text.split()` alone produced).
-    `hang=False` is for a measure that is a HARD edge (a platform-safe caption ends short of the
-    button column): a closer that would overhang it carries the glyph before it down to the next line
-    instead (push-out kinsoku), so no line is wider than max_w — a hung "，" is a full em past it."""
+    """Greedy wrap to a max pixel width over `_atoms` — words, numbers kept whole, closing punctuation riding
+    with the word before it — so Chinese/Japanese/Korean captions wrap at word boundaries instead of overflowing
+    as one un-splittable line (which `text.split()` alone produced) or breaking inside a word (which per-character
+    wrapping did). `hang=False` is for a measure that is a HARD edge (a platform-safe caption ends short of the
+    button column): a word whose closer would overhang it goes down to the next line with its closer (push-out
+    kinsoku), so no line is wider than max_w — a hung "，" is a full em past it."""
     KINSOKU = "，。、：；！？…）』」》%"      # closers/clause marks never START a wrapped line
 
-    def _join(cur, a):
-        if not cur:
-            return a
-        if _CJK_TIGHT_RE.match(a) or _CJK_TIGHT_RE.match(cur[-1]):
-            return cur + a             # no space when either side is zh/ja CJK
-        return cur + " " + a           # space between Latin/hangul words
-    lines, cur, prev, last = [], "", "", ""   # prev = the line before its last atom (for a push-out)
-    for a in _atoms(text):
-        trial = _join(cur, a)
-        # (with nothing before it to push — a one-atom line — the closer still hangs: a line that STARTS
-        # with "，" is the worse failure, and that lone atom is already as wide as the measure)
-        if not cur or d.textlength(trial, font=font) <= max_w or (a in KINSOKU and (hang or not prev)):
-            prev, last, cur = cur, a, trial   # kinsoku: a lone closer rides the line even slightly over budget
-        elif a in KINSOKU:
-            lines.append(prev)                # push-out: the closer's neighbour goes down with it
-            prev, last, cur = last, a, _join(last, a)
-        else:
-            lines.append(cur); prev, last, cur = "", a, a
-    if cur:
-        lines.append(cur)
+    # units already carry their own spacing (a slice of the text up to the next allowed break) and closing
+    # punctuation is already glued to the word before it, so a line is units joined as they are; a line's trailing
+    # space hangs (it is measured and drawn without it)
+    lines, cur = [], ""
+    for a in _atoms(" ".join((text or "").split())):
+        trial = cur + a
+        if not cur or d.textlength(trial.rstrip(), font=font) <= max_w:
+            cur = trial
+            continue
+        # over the measure. A unit that ENDS in a closer (word + "，") may hang that one closer past a soft edge
+        # (`hang`); on a hard edge (a platform-safe caption ending short of the button column) the unit goes down
+        lead = a.rstrip()
+        if hang and lead and lead[-1] in KINSOKU and d.textlength((cur + lead[:-1]).rstrip(), font=font) <= max_w:
+            cur = trial
+            continue
+        lines.append(cur.rstrip())
+        cur = a
+    if cur.strip():
+        lines.append(cur.rstrip())
     return lines
 
 KARAOKE_HL = (255, 209, 102, 255)   # warm gold — reads clearly on the dark caption bar
@@ -524,7 +527,9 @@ def _segment(text, cjk_marks, latin_marks):
     comma/colon authored in ASCII *inside* Chinese text ("提取,公式") still splits, while a
     decimal like "1.77" or "1,000" (mark between digits) stays intact. Abbreviation/initial periods
     ("Dr.", "e.g.", "U.S.", "J. Smith") are protected so they don't fragment into tiny captions."""
-    t = re.sub(rf"([{cjk_marks}])", "\\1\x00", text)
+    # a CJK clause mark BETWEEN TWO DIGITS is a separator inside a number (28，800), not a clause end
+    t = re.sub(rf"(?<![0-9０-９])([{cjk_marks}])|([{cjk_marks}])(?![0-9０-９])", lambda m: (m.group(1) or m.group(2)) + "\x00",
+               text)
     if "." in latin_marks:                       # protect abbrev/initial periods (\x02), restore after
         t = re.sub(rf"\b(?:{_ABBR})\.", lambda m: m.group(0)[:-1] + "\x02", t)
         t = re.sub(r"\b([A-Z])\.(?=\s*[A-Z])", lambda m: m.group(1) + "\x02", t)   # initials: J. Smith / U.S.A.
@@ -542,17 +547,16 @@ def _hardwrap(s, limit):
     s = s.strip()
     if _wlen(s) <= limit:
         return [s] if s else []
-    if _CJK_RE.search(s) and " " not in s:        # CJK run, no spaces — break on chars (weighted ~2.5)
-        step = max(1, int(limit / 2.5))
-        return [s[i:i + step] for i in range(0, len(s), step)]
+    # at WORD boundaries in every script (caption_words.atoms: never inside a word or a number). It used to cut a
+    # CJK run every limit/2.5 characters wherever that fell — a chunk ending in 「四百」 and the next starting 「五十克」
     out, cur = [], ""
-    for w in s.split():
-        if cur and _wlen(cur) + 1 + _wlen(w) > limit:
-            out.append(cur); cur = w
+    for a in _atoms(s):
+        if cur and _wlen((cur + a).strip()) > limit:
+            out.append(cur.strip()); cur = a
         else:
-            cur = w if not cur else cur + " " + w
-    if cur:
-        out.append(cur)
+            cur += a
+    if cur.strip():
+        out.append(cur.strip())
     return out
 
 def _split_caption_chunks(text, max_len=84, hard_wrap=True):

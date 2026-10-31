@@ -37,6 +37,14 @@ no special ffmpeg build needed.
   draws each line as its own block. `python3 scripts/caption_breaks_qa.py <out_dir>` runs the same file in node at the
   film's frame and face and ERRORS on a line that starts with closing punctuation or a caption ending on one glyph;
   `out.srt`'s CJK cues are broken by it too (16 glyphs a line). A caption it cannot break cleanly is fixed in the copy.
+- **Never inside a number or a word — BOTH TIERS (2026-10-31).** ICU cuts numerals (负|四, 四百|五十, 两|万|八千), and the
+  HTML tier wrapped between any two characters and hard-split a long clause every N characters: validation films burned
+  「负 / 四」, 「正方 / 形」 and 「四百 / 五十」. A number is one unit — prefix + numerals (a joiner only between two) + unit
+  (`remotion/src/captionGlue.json`: 负四, 第三十二届, 约三点八公斤, 28,800 拍, 3.8 kg, 95%, 一億二千万人) — and ICU's
+  one-character out-of-vocabulary fragments are joined back for the breaker (黑|尔|斯, 正|多边|形). Remotion:
+  `captionBreak.ts` (glueSpans, wordStarts). HTML/image: `scripts/caption_words.py`, the same rules (ICU in plain node;
+  without node, per-character with numbers still whole, said out loud), used by render.py's wrap and its hard wrap.
+  `caption_breaks_qa.py` checks both tiers (ERROR `split` / `number`); validate.py runs the HTML check on every HTML film.
 - **Padding inside bar:** ~1.2% of frame height above and below text.
 
 ### Enabled / disabled

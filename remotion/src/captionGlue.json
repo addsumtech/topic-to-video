@@ -1,0 +1,12 @@
+{
+  "_why": "Where a burned caption line may NOT break, beyond word boundaries: inside a NUMBER, read the way it is said. Intl.Segmenter (ICU) cuts Chinese and Japanese numerals into pieces — 负|四, 四百|五十, 两|万|八千|八百 — and a validation film (2026-10-31) burned 「负 / 四」 and 「四百 / 五十」. One definition, read by both tiers: remotion/src/captionBreak.ts (glueSpans) and scripts/caption_words.py (glue_spans); tests/test_caption_words.py holds them to the same answers. A number span is: an optional PREFIX, a run of NUMERALS in which a JOINER may sit between two numerals, and a UNIT (one space allowed before it: 28,800 拍, 3.8 kg), plus a second one after an APPROXIMATOR (三十多岁, 十几天). Nothing inside the span is a break; its edges are untouched (the segmenter decides those).",
+  "numerals": "0123456789０１２３４５６７８９〇零一二两三四五六七八九十百千万亿兆壹贰叁肆伍陆柒捌玖拾佰仟萬億廿卅",
+  "joiners": ".,:/．，：点·",
+  "prefix": ["百分之", "千分之", "万分之", "零下", "正负", "负", "正", "第", "约", "約", "±", "+", "-", "−", "~", "～", "$", "€", "£", "¥", "￥"],
+  "units_cjk": ["分钟", "小时", "公里", "千米", "厘米", "毫米", "微米", "纳米", "公斤", "千克", "毫克", "公顷", "平方米", "立方米", "毫升", "摄氏度", "百分点", "个月", "周年", "多万", "多亿", "余万",
+                "秒", "分", "时", "天", "日", "周", "月", "年", "岁", "代", "届", "期", "号", "点", "克", "斤", "吨", "两", "米", "里", "升", "度", "倍", "成", "折", "元", "块", "角",
+                "个", "种", "次", "位", "名", "人", "只", "条", "张", "件", "台", "部", "本", "页", "层", "边", "格", "拍", "圈", "齿", "颗", "粒", "滴", "家", "座", "项", "道", "步", "口", "级", "趟", "遍", "回", "轮", "节", "段", "章", "行", "字", "多", "余", "来", "几",
+                "メートル", "キロ", "グラム", "時間", "週間", "か月", "ヶ月", "円", "回", "個", "本", "枚", "歳", "階", "番", "人", "年", "月", "日", "時", "分", "秒", "倍", "度"],
+  "approximators": "多余来几",
+  "units_latin": ["%", "‰", "°C", "°F", "°", "×", "x", "kg", "mg", "g", "km", "cm", "mm", "μm", "um", "nm", "m", "km/h", "m/s", "mph", "kph", "s", "ms", "μs", "ns", "min", "h", "hr", "hrs", "Hz", "kHz", "MHz", "GHz", "KB", "MB", "GB", "TB", "PB", "px", "pt", "W", "kW", "MW", "kWh", "V", "mV", "A", "mA", "mAh", "dB", "L", "mL", "ml", "lb", "lbs", "oz", "ft", "in", "mi", "yd", "K", "M", "B", "bn", "k"]
+}

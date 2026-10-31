@@ -13,7 +13,15 @@ film's own frame, platform-safe profile and caption face, so what it checks is w
 
   ERROR  kinsoku  a line that starts with closing punctuation (。，、！？）」…)
   ERROR  orphan   a caption whose last line is ONE CJK glyph (with or without its punctuation)
-  WARN   split    a line break inside a word (by the segmenter's own reading of the joined line)
+  ERROR  split    a line break inside a word (by the segmenter's own reading of the re-joined line — ICU's words;
+                  the breaker is stricter still and also keeps ICU's one-character fragments together)
+  ERROR  number   a line break inside a number (负 / 四, 四百 / 五十, 3.8 / kg — remotion/src/captionGlue.json)
+
+BOTH TIERS. A Remotion film is checked in node with Film.tsx's own captionBreak.ts; an HTML / image-tier film with
+render.py's own chunks and PIL lines (html_beat_faults, scripts/caption_words.py — the same rules: ICU words in plain
+node, the same number spans), including a chunk boundary the hard wrap put inside a word. validate.py runs the HTML
+check on every HTML film. A validation film (2026-10-31) burned 「负 / 四」 on the Remotion tier — this gate passed it:
+ICU reads 负|四 as two words — and 「正方 / 形」, 「四百 / 五十」 on the HTML tier, which had no break gate at all.
 
 A caption that cannot be broken cleanly at its measure is fixed in the COPY — reword it, or give the beat a
 `caption` that splits at a full stop. `captions: false` has nothing to check. Exit 1 on an ERROR.
@@ -46,7 +54,7 @@ if (job.film) {
   for (const b of job.film.beats) {
     const plan = cb.captionPlan(b.caption, W, H, prof, font || undefined, !!uniform);
     out.beats.push({beat: b.beat, chunks: plan.map((p) => ({chunk: p.chunk, cjk: p.cjk, lines: p.lines,
-      faults: p.lines ? cb.lineFaults(p.lines) : []}))});
+      faults: p.lines ? cb.lineFaults(p.lines, p.chunk) : []}))});
   }
 }
 for (const t of job.srt || []) {
@@ -109,6 +117,54 @@ def _font(meta):
     return d.get("fontBody"), uniform
 
 
+_FAULT = {
+    "kinsoku": lambda f: "line %d starts with closing punctuation" % (f["line"] + 1),
+    "orphan": lambda f: "its last line is one glyph (%s)" % f["text"],
+    "split": lambda f: "the break before line %d falls inside a word" % (f["line"] + 1),
+    "number": lambda f: "the break before line %d falls inside a number" % (f["line"] + 1),
+}
+
+
+def html_beat_faults(slide, lines_of):
+    """[message] for one HTML/image-tier beat's caption AS render.py BURNS IT: its chunks (an authored `captions`
+    track, else the narration split by render._split_caption_chunks, hard wrap included) and each chunk's lines
+    (`lines_of(text)`: render._caption_layout at the film's frame — validate._caption_lines). A break inside a number
+    or a word is an error wherever it falls: between two lines of a chunk, or between two chunks of one narration
+    that the hard wrap cut where no clause mark is."""
+    import caption_words as cw
+    import render as rd
+    caps = slide.get("captions") or []
+    authored = len(caps) >= 2
+    narration = (slide.get("narration") or (caps[0]["text"] if caps else "") or "").strip()
+    chunks = [c.get("text", "") for c in caps] if authored else rd._split_caption_chunks(narration)
+    chunks = [c.strip() for c in chunks if (c or "").strip()]
+    cw.prime(chunks + [narration])
+    out = []
+    for c in chunks:
+        lines = lines_of(c)
+        for i, kind, text in cw.line_faults(lines, source=" ".join(c.split())):
+            out.append("%s — %s" % (" / ".join(lines), {
+                "kinsoku": "line %d starts with closing punctuation" % (i + 1),
+                "orphan": "its last line is one glyph (%s)" % text,
+                "split": "the break before line %d falls inside a word" % (i + 1),
+                "number": "the break before line %d falls inside a number" % (i + 1)}[kind]))
+    if not authored and len(chunks) > 1:
+        # where each chunk sits in the narration: a cut with no punctuation or space at it must be a break point
+        allowed, at = set(cw.word_starts(narration, joined=False)), 0
+        for prev, c in zip(chunks, chunks[1:]):
+            a = narration.find(prev, at)
+            b = narration.find(c, a + len(prev)) if a >= 0 else -1
+            if a < 0 or b < 0:
+                break                                   # not a plain slice of the narration (normalised) — not judged
+            gap = narration[a + len(prev):b]
+            at = a + len(prev)
+            inside = any(x < b < y for x, y in cw.glue_spans(narration))
+            if not gap.strip(" ") and (b not in allowed or inside):
+                out.append("「%s」 / 「%s」 — the caption is cut into two chunks inside a %s" % (
+                    prev[-8:], c[:8], "number" if inside else "word"))
+    return out
+
+
 def check(out_dir):
     """{'beats': [...], 'errors': [...], 'warnings': [...], 'skipped': reason|None} for the board in out_dir."""
     import render_remotion as _rr
@@ -117,6 +173,21 @@ def check(out_dir):
     meta = board.get("meta") or {}
     if meta.get("captions") is False:
         return {"beats": [], "errors": [], "warnings": [], "skipped": "captions are off"}
+    if not str(meta.get("renderer") or "local").lower().startswith("remotion"):
+        # THE HTML / IMAGE TIER burns captions with PIL (render.py), not Film.tsx: judge the lines it draws
+        import caption_words as cw
+        import validate as _v
+        W, H = int(meta.get("width") or 1920), int(meta.get("height") or 1080)
+        errors, beats = [], []
+        for i, s in enumerate(board.get("slides") or []):
+            found = html_beat_faults(s, lambda text: _v._caption_lines(text, meta, W, H))
+            beats.append({"beat": i + 1, "faults": found})
+            errors += ["beat %d: %s" % (i + 1, f) for f in found]
+        name, why = cw.backend()
+        warnings = [] if name == "icu" else ["no word segmenter (%s): words were judged per character; numbers and "
+                                             "kinsoku still held" % why]
+        return {"beats": beats, "errors": errors, "warnings": warnings, "skipped": None, "frame": [W, H],
+                "safe": None, "tier": "html"}
     aspect = str(meta.get("aspect") or "16:9")
     W, H = aspect_wh(aspect)
     try:
@@ -136,11 +207,7 @@ def check(out_dir):
     for b in res["beats"]:
         for c in b["chunks"]:
             for f in c["faults"]:
-                msg = "beat %d: %s — %s" % (b["beat"], " / ".join(c["lines"]), {
-                    "kinsoku": "line %d starts with closing punctuation" % (f["line"] + 1),
-                    "orphan": "its last line is one glyph (%s)" % f["text"],
-                    "split": "the break before line %d falls inside a word" % (f["line"] + 1)}[f["kind"]])
-                (warnings if f["kind"] == "split" else errors).append(msg)
+                errors.append("beat %d: %s — %s" % (b["beat"], " / ".join(c["lines"]), _FAULT[f["kind"]](f)))
     if not res["segmenter"]:
         warnings.append("Intl.Segmenter is not in this node — words were judged per character (kinsoku still held)")
     return {"beats": res["beats"], "errors": errors, "warnings": warnings, "skipped": None,
@@ -157,10 +224,14 @@ def main(argv):
     if rep["skipped"]:
         print("[caption_breaks] NOT CHECKED: %s" % rep["skipped"])
         return 0
-    n = sum(1 for b in rep["beats"] for c in b["chunks"] if c["cjk"])
-    tot = sum(len(b["chunks"]) for b in rep["beats"])
-    print("[caption_breaks] %d caption chunk(s) on %d beat(s), %d CJK broken by captionBreak.ts at %dx%d%s"
-          % (tot, len(rep["beats"]), n, rep["frame"][0], rep["frame"][1], " (platform-safe)" if rep["safe"] else ""))
+    if rep.get("tier") == "html":
+        print("[caption_breaks] %d beat(s) as render.py burns them at %dx%d (html/image tier)"
+              % (len(rep["beats"]), rep["frame"][0], rep["frame"][1]))
+    else:
+        n = sum(1 for b in rep["beats"] for c in b["chunks"] if c["cjk"])
+        tot = sum(len(b["chunks"]) for b in rep["beats"])
+        print("[caption_breaks] %d caption chunk(s) on %d beat(s), %d CJK broken by captionBreak.ts at %dx%d%s"
+              % (tot, len(rep["beats"]), n, rep["frame"][0], rep["frame"][1], " (platform-safe)" if rep["safe"] else ""))
     for w in rep["warnings"]:
         print("  WARN  " + w)
     for e in rep["errors"]:
@@ -169,7 +240,8 @@ def main(argv):
         print("[caption_breaks] %d caption line fault(s) — reword the line, or give the beat a `caption` that splits "
               "at a full stop" % len(rep["errors"]))
         return 1
-    print("[caption_breaks] OK — no line starts with closing punctuation, no caption ends on one glyph")
+    print("[caption_breaks] OK — no break inside a word or a number, no line starts with closing punctuation, no "
+          "caption ends on one glyph")
     return 0
 
 
