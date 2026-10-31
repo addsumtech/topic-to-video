@@ -1,0 +1,323 @@
+{
+ "_why": "Craft reference for scripts/craft_qa.py: each film's NUMBERS, measured by craft_qa.measure itself on the first preview video of each whole-film video skill listed on skillry.dev (CreatorMotion/LaunchMotion single-effect clips excluded; their two series reels kept). The films are not kept here.",
+ "source": "https://skillry.dev/skills/output/video",
+ "measured": "2026-11-01",
+ "median": {
+  "longest_still_s": 2.545,
+  "still_share": 0.571,
+  "motion_p90": 4.3,
+  "dom_med": 0.632,
+  "nblob_med": 2.0,
+  "one_thing": 0.473
+ },
+ "films": [
+  {
+   "slug": "bs-ascii-glitch-launch-video",
+   "url": "https://skillry.dev/skills/bs-ascii-glitch-launch-video",
+   "seconds": 15.83,
+   "longest_still_s": 1.42,
+   "still_share": 0.291,
+   "motion_p90": 157.4,
+   "dom_med": 1.0,
+   "nblob_med": 1.0,
+   "one_thing": 0.688
+  },
+  {
+   "slug": "bs-creatormotion",
+   "url": "https://skillry.dev/skills/bs-creatormotion",
+   "seconds": 25.42,
+   "longest_still_s": 2.17,
+   "still_share": 0.694,
+   "motion_p90": 2.78,
+   "dom_med": 0.635,
+   "nblob_med": 3.0,
+   "one_thing": 0.44
+  },
+  {
+   "slug": "bs-cue-style-launch-video",
+   "url": "https://skillry.dev/skills/bs-cue-style-launch-video",
+   "seconds": 71.67,
+   "longest_still_s": 3.17,
+   "still_share": 0.502,
+   "motion_p90": 6.08,
+   "dom_med": 0.44,
+   "nblob_med": 2.0,
+   "one_thing": 0.403
+  },
+  {
+   "slug": "bs-hyperframes-agent-chorus-reel",
+   "url": "https://skillry.dev/skills/bs-hyperframes-agent-chorus-reel",
+   "seconds": 24.0,
+   "longest_still_s": 2.33,
+   "still_share": 0.662,
+   "motion_p90": 5.22,
+   "dom_med": 0.396,
+   "nblob_med": 2.0,
+   "one_thing": 0.375
+  },
+  {
+   "slug": "bs-hyperframes-capability-keynote-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-capability-keynote-launch",
+   "seconds": 34.5,
+   "longest_still_s": 3.42,
+   "still_share": 0.717,
+   "motion_p90": 1.22,
+   "dom_med": 0.55,
+   "nblob_med": 2.0,
+   "one_thing": 0.457
+  },
+  {
+   "slug": "bs-hyperframes-chat-to-result-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-chat-to-result-launch",
+   "seconds": 35.83,
+   "longest_still_s": 4.67,
+   "still_share": 0.748,
+   "motion_p90": 2.51,
+   "dom_med": 0.231,
+   "nblob_med": 3.0,
+   "one_thing": 0.083
+  },
+  {
+   "slug": "bs-hyperframes-code-change-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-code-change-launch",
+   "seconds": 30.0,
+   "longest_still_s": 4.42,
+   "still_share": 0.504,
+   "motion_p90": 4.72,
+   "dom_med": 0.762,
+   "nblob_med": 2.0,
+   "one_thing": 0.633
+  },
+  {
+   "slug": "bs-hyperframes-device-canvas-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-device-canvas-launch",
+   "seconds": 18.0,
+   "longest_still_s": 3.5,
+   "still_share": 0.637,
+   "motion_p90": 5.43,
+   "dom_med": 1.0,
+   "nblob_med": 1.0,
+   "one_thing": 0.778
+  },
+  {
+   "slug": "bs-hyperframes-format-shift-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-format-shift-launch",
+   "seconds": 26.83,
+   "longest_still_s": 3.25,
+   "still_share": 0.782,
+   "motion_p90": 1.54,
+   "dom_med": 1.0,
+   "nblob_med": 1.0,
+   "one_thing": 0.769
+  },
+  {
+   "slug": "bs-hyperframes-frame-token-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-frame-token-launch",
+   "seconds": 21.0,
+   "longest_still_s": 2.92,
+   "still_share": 0.817,
+   "motion_p90": 0.88,
+   "dom_med": 0.571,
+   "nblob_med": 2.0,
+   "one_thing": 0.381
+  },
+  {
+   "slug": "bs-hyperframes-halftone-canvas-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-halftone-canvas-launch",
+   "seconds": 23.08,
+   "longest_still_s": 0.42,
+   "still_share": 0.268,
+   "motion_p90": 2.98,
+   "dom_med": 1.0,
+   "nblob_med": 2.0,
+   "one_thing": 0.87
+  },
+  {
+   "slug": "bs-hyperframes-liquid-logo-reveal",
+   "url": "https://skillry.dev/skills/bs-hyperframes-liquid-logo-reveal",
+   "seconds": 7.0,
+   "longest_still_s": 3.08,
+   "still_share": 0.53,
+   "motion_p90": 1.98,
+   "dom_med": 0.946,
+   "nblob_med": 3.0,
+   "one_thing": 1.0
+  },
+  {
+   "slug": "bs-hyperframes-objection-reversal-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-objection-reversal-launch",
+   "seconds": 27.92,
+   "longest_still_s": 2.0,
+   "still_share": 0.536,
+   "motion_p90": 5.71,
+   "dom_med": 0.719,
+   "nblob_med": 2.0,
+   "one_thing": 0.536
+  },
+  {
+   "slug": "bs-hyperframes-pain-gag-reveal-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-pain-gag-reveal-launch",
+   "seconds": 31.0,
+   "longest_still_s": 3.25,
+   "still_share": 0.685,
+   "motion_p90": 4.89,
+   "dom_med": 0.855,
+   "nblob_med": 2.0,
+   "one_thing": 0.516
+  },
+  {
+   "slug": "bs-hyperframes-partnership-aroll-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-partnership-aroll-launch",
+   "seconds": 26.0,
+   "longest_still_s": 1.75,
+   "still_share": 0.637,
+   "motion_p90": 5.67,
+   "dom_med": 1.0,
+   "nblob_med": 1.0,
+   "one_thing": 0.808
+  },
+  {
+   "slug": "bs-hyperframes-persistent-chat-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-persistent-chat-launch",
+   "seconds": 32.0,
+   "longest_still_s": 4.58,
+   "still_share": 0.791,
+   "motion_p90": 2.3,
+   "dom_med": 0.368,
+   "nblob_med": 5.0,
+   "one_thing": 0.406
+  },
+  {
+   "slug": "bs-hyperframes-pixel-promo",
+   "url": "https://skillry.dev/skills/bs-hyperframes-pixel-promo",
+   "seconds": 36.33,
+   "longest_still_s": 0.42,
+   "still_share": 0.115,
+   "motion_p90": 42.02,
+   "dom_med": 0.692,
+   "nblob_med": 3.0,
+   "one_thing": 0.5
+  },
+  {
+   "slug": "bs-hyperframes-sound-reveal-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-sound-reveal-launch",
+   "seconds": 32.5,
+   "longest_still_s": 3.17,
+   "still_share": 0.805,
+   "motion_p90": 1.24,
+   "dom_med": 1.0,
+   "nblob_med": 1.0,
+   "one_thing": 0.848
+  },
+  {
+   "slug": "bs-hyperframes-square-morph-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-square-morph-launch",
+   "seconds": 34.0,
+   "longest_still_s": 3.58,
+   "still_share": 0.727,
+   "motion_p90": 3.3,
+   "dom_med": 1.0,
+   "nblob_med": 1.0,
+   "one_thing": 0.824
+  },
+  {
+   "slug": "bs-hyperframes-technical-drawing-promo",
+   "url": "https://skillry.dev/skills/bs-hyperframes-technical-drawing-promo",
+   "seconds": 15.0,
+   "longest_still_s": 2.42,
+   "still_share": 0.726,
+   "motion_p90": 0.71,
+   "dom_med": 0.059,
+   "nblob_med": 10.0,
+   "one_thing": 0.0
+  },
+  {
+   "slug": "bs-hyperframes-texture-swatch-launch",
+   "url": "https://skillry.dev/skills/bs-hyperframes-texture-swatch-launch",
+   "seconds": 16.42,
+   "longest_still_s": 1.92,
+   "still_share": 0.454,
+   "motion_p90": 1.99,
+   "dom_med": 0.629,
+   "nblob_med": 2.0,
+   "one_thing": 0.312
+  },
+  {
+   "slug": "bs-hyperframes-velocity-sting",
+   "url": "https://skillry.dev/skills/bs-hyperframes-velocity-sting",
+   "seconds": 12.0,
+   "longest_still_s": 1.58,
+   "still_share": 0.336,
+   "motion_p90": 6.1,
+   "dom_med": 0.297,
+   "nblob_med": 3.5,
+   "one_thing": 0.25
+  },
+  {
+   "slug": "bs-launchmotion",
+   "url": "https://skillry.dev/skills/bs-launchmotion",
+   "seconds": 92.58,
+   "longest_still_s": 0.83,
+   "still_share": 0.283,
+   "motion_p90": 10.13,
+   "dom_med": 0.283,
+   "nblob_med": 5.0,
+   "one_thing": 0.172
+  },
+  {
+   "slug": "bs-linear-agent-style-launch-video",
+   "url": "https://skillry.dev/skills/bs-linear-agent-style-launch-video",
+   "seconds": 34.83,
+   "longest_still_s": 1.92,
+   "still_share": 0.223,
+   "motion_p90": 5.72,
+   "dom_med": 1.0,
+   "nblob_med": 2.0,
+   "one_thing": 0.794
+  },
+  {
+   "slug": "bs-manus2-0-style-launch-video",
+   "url": "https://skillry.dev/skills/bs-manus2-0-style-launch-video",
+   "seconds": 94.17,
+   "longest_still_s": 2.33,
+   "still_share": 0.401,
+   "motion_p90": 5.31,
+   "dom_med": 0.607,
+   "nblob_med": 2.0,
+   "one_thing": 0.489
+  },
+  {
+   "slug": "bs-notion-style-localize-video",
+   "url": "https://skillry.dev/skills/bs-notion-style-localize-video",
+   "seconds": 9.58,
+   "longest_still_s": 0.08,
+   "still_share": 0.219,
+   "motion_p90": 3.49,
+   "dom_med": 0.125,
+   "nblob_med": 10.0,
+   "one_thing": 0.0
+  },
+  {
+   "slug": "bs-paper-cutout-story-video",
+   "url": "https://skillry.dev/skills/bs-paper-cutout-story-video",
+   "seconds": 41.83,
+   "longest_still_s": 3.92,
+   "still_share": 0.605,
+   "motion_p90": 3.88,
+   "dom_med": 0.438,
+   "nblob_med": 4.5,
+   "one_thing": 0.262
+  },
+  {
+   "slug": "bs-plush-crew-launch-video",
+   "url": "https://skillry.dev/skills/bs-plush-crew-launch-video",
+   "seconds": 41.0,
+   "longest_still_s": 2.67,
+   "still_share": 0.32,
+   "motion_p90": 7.45,
+   "dom_med": 0.174,
+   "nblob_med": 15.0,
+   "one_thing": 0.049
+  }
+ ]
+}

@@ -336,6 +336,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   reasoned about. A `COVERAGE` error (the file was decoded short) is never waivable: re-render or repair the file.
   A MOTION finding names the beats holding the film under the floor — seconds under it and, of those, FROZEN (no
   pixel changed); a small thing moving is under the floor but never frozen. Fix those beats before waiving.
+- `scripts/craft_qa.py <out_dir>`: remotion CRAFT read (advisory), by beat: the longest still hold, the motion peak and
+  whether one element leads the frame, against numbers measured on 28 published launch films
+  (`references/craft_reference.json`, numbers only). Our films held still 5.0 s against 2.5 s and let 3 elements share
+  the frame against 2. A hold it names is either a decision (a closing lockup) or a missing reveal or camera move.
 - `scripts/shake_qa.py <out_dir>`: remotion SHAKE gate (travelling vs vibrating camera). It is paired with film_energy_qa,
   because jitter is the cheapest way to clear the motion floor. A frame it cannot lock onto is UNJUDGED.
 - `scripts/critic_ledger.py <out_dir> --final`: the independent-review gate on both tiers (workflow step 9);
