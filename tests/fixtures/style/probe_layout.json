@@ -1,0 +1,6 @@
+{"_why": "Where runtime/__probe_style.tsx draws each thing (px, 1920x1080). Type boxes are the glyphs' areas, kept clear of every shape's edge.",
+ "rect": [200, 200, 600, 500],
+ "circle": [900, 350, 150],
+ "line_mid": [1450, 350],
+ "box": [200, 650, 600, 850],
+ "type": [[1190, 645, 1460, 715], [350, 720, 450, 780], [790, 805, 1060, 945]]}

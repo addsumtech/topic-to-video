@@ -16,6 +16,7 @@ import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
 import {CameraTypeProbe, EdgeBudgetProbe, DURATION as CTP} from './runtime/__probe_camera';
 import {SlabTypeProbe, DURATION as STP} from './runtime/__probe_slab';
+import {StyleProbe} from './runtime/__probe_style';
 import {TypeSpecimen, DURATION as TSP} from './runtime/__probe_specimen';
 import {KineticProbe, DURATION as KPD} from './runtime/__probe_kinetic';
 import {MathProbe, DURATION as MPD} from './runtime/__probe_math';
@@ -552,6 +553,7 @@ export const RemotionRoot: React.FC = () => (
     <Composition id="SlabTypeProbe" component={SlabTypeProbe} durationInFrames={STP} fps={30}
       width={1920} height={1080} calculateMetadata={({props}) => ({...dims((props as any).aspect)})} />
     {F('TypeCollisionProbe', TypeCollisionProbe, 165)}
+    {F('StyleProbe', StyleProbe, 30)}
     {F('TiltedTypeCollisionProbe', TiltedTypeCollisionProbe, 165)}
     {F('TiltedTypeCleanProbe', TiltedTypeCleanProbe, 165)}
     {F('CaptionBandProbe', CaptionBandProbe, 165)}

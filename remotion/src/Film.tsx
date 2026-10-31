@@ -1376,6 +1376,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
               {/* …and its edges dissolve into the beat's ground: a register that paints its own atmosphere showed the
                   scaled frame as a hard-edged panel */}
               {regFrame ? (
+                <StyleLayer beat={i}>
                 <SafeEcho shot={sc.shot} rootGround={safeEcho}>
                   <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
                     <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
@@ -1385,6 +1386,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                     </ObjectIdleContext.Provider>
                   </CueContext.Provider>
                 </SafeEcho>
+                </StyleLayer>
               ) : null}
               <AbsoluteFill data-beat={String(i)} style={regFrame ? {transformOrigin: '0 0',
                 transform: `translate(${regFrame.x0}px, ${regFrame.y0}px) scale(${regFrame.k})`,

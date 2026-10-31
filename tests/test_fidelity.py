@@ -465,3 +465,23 @@ def test_mounted_on_names_declared_parts(tmp_path):
     assert any("'hinge', which is not one of fidelity.parts" in e for e in _errs(rec, tmp_path))
     rec["mounted_on"] = {"lid": "lid"}
     assert any("mounted on itself" in e for e in _errs(rec, tmp_path))
+
+
+# ── a film with a drawing style: the sheet is measured on the STYLED drawing (style engine spec, Constraints) ──────
+
+_STYLED = {"name": "fidelity under a style", "refs": [], "refs_missing": "test",
+           "line": {"outline": "all", "weight": 4, "color": "ink"}, "fill": {"mode": "cel", "steps": 3},
+           "shadow": {"mode": "hard-offset", "offset": 6}, "form": {"simplify": 0.5}}
+
+
+@pytest.mark.skipif(not os.environ.get("FIDELITY_RENDER"), reason="renders: set FIDELITY_RENDER=1")
+@pytest.mark.parametrize("name", ["GpsSatellite", "DNAHelix", "GearTrain", "MoleculeBallStick"])
+def test_the_sheet_of_a_library_thing_under_a_drawing_style(tmp_path, name):
+    """A style may simplify detail and round forms; it may not lose a part or detach one. The sheet renders the
+    film's style, says so, and finds every declared part attached."""
+    (tmp_path / "storyboard.json").write_text(json.dumps(
+        {"meta": {"renderer": "remotion", "design_dna": "product", "style": _STYLED}, "slides": []}))
+    res = fid.sheet(str(tmp_path), name)
+    assert fid.errors_of(res["problems"]) == [], res["problems"]
+    rep = json.load(open(res["json"], encoding="utf-8"))
+    assert rep.get("style") == _STYLED["name"], "the sheet does not say it measured the styled drawing"

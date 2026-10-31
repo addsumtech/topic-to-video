@@ -1099,6 +1099,9 @@ def sheet(out_dir, name, props=None, host="ObjectStage", slot=None, dna=None):
     board = ws._board(out_dir)
     meta = board.get("meta") or {}
     dna = dna or meta.get("design_dna") or meta.get("shot_template")
+    # THE FILM'S DRAWING STYLE (runtime/style.tsx): a styled film shows its objects styled, so that is what is measured
+    # — a style may round and simplify, and must not lose or detach a part
+    style = meta.get("style") if isinstance(meta.get("style"), dict) else None
     jobs = []
     hero_png = os.path.join(outd, name + ".hero.png") if kind == "object" else None
     if kind == "object":
@@ -1107,8 +1110,12 @@ def sheet(out_dir, name, props=None, host="ObjectStage", slot=None, dna=None):
         payload = {"object": dict({"id": name}, **({"props": props} if props and not placed else {}))}
         if dna:
             payload["dna"] = dna
+        if style:
+            payload["style"] = style
         jobs.append({"tag": "hero", "id": "FidelityHero", "props": payload, "frame": 0, "png": hero_png})
     comp, payload, dur = ws.still_plan(out_dir, name, props, host=host, slot=slot, dna=dna)
+    if style:
+        payload = dict(payload, style=style)
     frame = int(round(rr.frame_at_t(dur, rr.SETTLED_T)))
     film_png = os.path.join(outd, name + ".film.png")
     jobs.append({"tag": "film", "id": comp, "props": payload, "frame": frame, "png": film_png})
@@ -1127,7 +1134,7 @@ def sheet(out_dir, name, props=None, host="ObjectStage", slot=None, dna=None):
             "on %s, frame %d" % (comp, frame))
     scope = scope_lines(declared, kind, comp, frame, payload.get("aspect") or "16:9", hero_parts, film_parts)
     report = {"name": name, "kind": kind, "record": rec, "hero": hero_parts, "film": film_parts,
-              "film_host": comp, "frame": frame, "aspect": payload.get("aspect") or "16:9", "scope": scope,
+              "film_host": comp, "frame": frame, "style": style.get("name") if style else None, "aspect": payload.get("aspect") or "16:9", "scope": scope,
               "problems": [{"level": lv, "message": m} for lv, m in findings]}
     jp = os.path.join(outd, name + ".json")
     with open(jp, "w", encoding="utf-8") as fh:
