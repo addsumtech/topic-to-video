@@ -397,6 +397,23 @@ export const SmallTypeProbe: React.FC = () => (
   </div>
 );
 
+// THE PAYLOAD CAP KEEPS THE WORST. Sixteen labels under the size floor (twelve at 26 px — WARN-sized — then four at
+// 16 px, ERROR-sized) and, LAST in the DOM, one line cut by the right edge. The audit lists MAX_REPORTED rows; walked
+// in DOM order it listed eleven 26 px WARNs and dropped the cut and every 16 px label into '…and N more' (validation
+// film A: a FAIL raised on that count row alone while the listed rows were WARNs). Sorted worst first, the cut leads,
+// the four 16 px labels follow, and only 26 px rows fall past the cap.
+export const CapOrderProbe: React.FC = () => (
+  <div style={{position: 'absolute', inset: 0, background: '#fff', color: '#000',
+    font: '600 26px/1.2 var(--f-body, Inter, system-ui, sans-serif)'}}>
+    {Array.from({length: 12}, (_, i) => (
+      <div key={'w' + i} style={{position: 'absolute', left: 120, top: 60 + i * 60}}>{`WARN LABEL ${i + 1}`}</div>))}
+    {Array.from({length: 4}, (_, i) => (
+      <div key={'e' + i} style={{position: 'absolute', left: 900, top: 60 + i * 60, fontSize: 16}}>
+        {`ERROR LABEL ${i + 1}`}</div>))}
+    <div style={{position: 'absolute', left: 1500, top: 600, fontSize: 64, whiteSpace: 'nowrap'}}>CUT BY THE EDGE</div>
+  </div>
+);
+
 // A LAST LINE HOLDING ONE CHARACTER, and the one-property fix. Chinese breaks between any two glyphs, so a
 // label a single unit too wide for its box drops one character onto a line of its own — a delivered film's
 // card read 「Craft · 直接开」 over a line holding just 「干」. Fifteen characters in a box seven wide is that
@@ -538,6 +555,7 @@ export const RemotionRoot: React.FC = () => (
     {F('CutOffProbe', CutOffProbe, 165)}
     {F('CutOffCleanProbe', CutOffCleanProbe, 165)}
     {F('SmallTypeProbe', SmallTypeProbe, 165)}
+    {F('CapOrderProbe', CapOrderProbe, 165)}
     {F('TitleProbeFixture', TitleProbeFixture, 165)}
     {F('FidelityHero', FidelityHero, 30)}
     {F('OrphanLineProbe', OrphanLineProbe, 165)}

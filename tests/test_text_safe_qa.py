@@ -583,3 +583,51 @@ def test_an_unchanged_beat_is_measured_once_and_its_answer_reused(monkeypatch, c
     g.scan_film(str(out))
     # three beats, two runs, every one rendered: a failure is kept neither across runs nor within one
     assert seen.count("x") == 6, "a failed render was kept and replayed"
+
+
+# ── THE PAYLOAD CAP'S COUNT ROW ─────────────────────────────────────────────────────────────────────────────────
+def _warn_rows(n, px=22.0):
+    return [{"out": {}, "text": "label %d" % i, "tag": "div", "cls": "", "font": "22px X", "small": px, "short": 1080}
+            for i in range(n)]
+
+
+@pytest.mark.parametrize("row", [
+    {"out": {}, "text": "…and 6 more", "tag": "", "cls": "", "font": "", "more": 6},
+    {"out": {}, "text": "…and 6 more", "tag": "", "cls": "", "font": ""},          # a runtime from before `more`
+])
+def test_the_cap_count_row_is_a_note_never_a_finding(monkeypatch, tmp_path, row):
+    """Validation film A FAILED on two rows reading only '…and 3 more' / '…and 6 more' while every listed row was a
+    WARN: the count row has no geometry, so `_describe` filed it as an ERROR with nothing after the quotes."""
+    monkeypatch.setattr(g, "NO_CACHE", True)
+    monkeypatch.setattr(g, "title_of", lambda *a, **k: None)
+    monkeypatch.setattr(g, "audit_shot", lambda *a, **k: _warn_rows(12) + [row])
+    warnings = []
+    findings, _n, _universe, _skipped = g.scan_film(
+        _film(tmp_path, [{"index": 1, "shot": "ObjectStage", "shot_props": {}}]), warnings=warnings)
+    assert findings == [], findings
+    note = [w for w in warnings if "past the runtime's report cap" in w]
+    assert len(note) == 1 and "6 more element(s)" in note[0] and "no worse than the last listed" in note[0], warnings
+
+
+def test_a_cap_over_geometry_rows_says_the_hidden_ones_may_be_findings_too():
+    cut = [{"out": {"right": 40}, "text": "cut %d" % i, "tag": "div", "cls": "", "font": "60px X"} for i in range(12)]
+    note = g._unlisted_note("scene 01 (X)", 4, cut + [{"out": {}, "text": "…and 4 more", "more": 4}])
+    assert "may be too" in note and "4 more" in note
+    assert g.unlisted_count({"out": {}, "text": "…and 4 more"}) == 4
+    # copy that merely SAYS it is the cap row but carries geometry is a real finding, not a count
+    assert g.unlisted_count({"out": {"left": 30}, "text": "…and 4 more"}) is None
+    assert g.unlisted_count({"out": {}, "text": "and 4 more"}) is None
+
+
+@_NEEDS_RENDER
+def test_the_cap_keeps_the_worst_rows(tmp_path):
+    """Sixteen labels under the size floor and, LAST in the DOM, one cut line (CapOrderProbe). Walked in DOM order the
+    cap listed the first twelve 26 px WARN labels and hid the cut and every 16 px ERROR-sized label. Sorted worst
+    first: the cut leads, the four 16 px labels follow, and only 26 px rows fall past the cap — counted, not listed."""
+    found = g.audit_shot("CapOrderProbe", {"dna": "product"}, 82, str(tmp_path / "cap.png"), type_size=True)
+    rows = [v for v in found if not v.get("title")]
+    assert rows[0]["text"] == "CUT BY THE EDGE" and rows[0]["out"].get("right"), rows[:2]
+    assert [v["text"] for v in rows[1:5]] == ["ERROR LABEL %d" % i for i in range(1, 5)], rows[1:5]
+    assert all(v.get("small", 0) > 24 for v in rows[5:-1]), rows[5:-1]
+    assert rows[-1].get("more") == 17 - 12 and g.unlisted_count(rows[-1]) == 5, rows[-1]
+    assert len(rows) == 12 + 1

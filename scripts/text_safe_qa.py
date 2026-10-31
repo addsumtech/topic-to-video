@@ -276,6 +276,38 @@ def type_size_level(v):
     return "error" if px < TYPE_ERROR_FRAC * short else "warn"
 
 
+_MORE_ROW = re.compile(r"^…and (\d+) more$")
+
+
+def unlisted_count(v):
+    """N when `v` is the runtime's cap row ('…and N more' after MAX_REPORTED rows, runtime/textSafe.tsx), else None.
+
+    It is a COUNT, never a finding: it carries no geometry and no size, so `_describe` used to file it as an ERROR with
+    nothing after the quotes — and a film whose listed rows were all WARNs FAILED on the two count rows alone
+    (validation film A, scenes 03/04 ObjectStage: '…and 3 more', '…and 6 more'). The runtime sorts its rows worst
+    first (`violationRank`) before it caps them, so what the cap hid is never worse than the last row it listed."""
+    if isinstance(v.get("more"), int) and not isinstance(v.get("more"), bool):
+        return v["more"]
+    m = _MORE_ROW.match(str(v.get("text", "")))
+    if m and not v.get("out") and not v.get("band") and not v.get("device") and not v.get("small"):
+        return int(m.group(1))
+    return None
+
+
+def _unlisted_note(where, n, listed):
+    """The count row as a coverage sentence, bounded by the worst-first order: no worse than the last listed row."""
+    rows = [v for v in listed if not v.get("title") and unlisted_count(v) is None]
+    last = rows[-1] if rows else None
+    if last is None:
+        bound = "the runtime listed none of them"
+    elif type_size_level(last) and not last.get("out") and not last.get("band") and not last.get("device"):
+        bound = "each one no worse than the last listed (%r at %s px)" % (last.get("text", ""), last.get("small"))
+    else:
+        bound = "the runtime lists the worst first and every listed row is a cut/band/device finding, so these " \
+                "may be too — fix the listed ones and run again"
+    return "%s: %d more element(s) past the runtime's report cap, not listed — %s" % (where, n, bound)
+
+
 def _describe_small(v):
     err = type_size_level(v) == "error"
     return ("%r is set at %.0f px — %s (at this frame: under %d px is an error, under %d px a warning). Cut words "
@@ -445,6 +477,12 @@ def scan_film(out_dir, warnings=None):
             for frame, v in got["audit"]:
                 if v.get("title"):
                     continue
+                more = unlisted_count(v)
+                if more is not None:
+                    if warnings is not None:
+                        warnings.append(_unlisted_note("scene %02d (%s, film frame %d)" % (i, shot, frame), more,
+                                                       [x for f2, x in got["audit"] if f2 == frame]))
+                    continue
                 lvl = type_size_level(v)
                 if lvl and not v.get("out") and not v.get("band") and not v.get("device"):
                     line = "scene %02d (%s, film frame %d): SMALL TYPE — %s" % (i, shot, frame, _describe_small(v))
@@ -488,6 +526,11 @@ def scan_film(out_dir, warnings=None):
         for v in audit:
             if v.get("title"):
                 continue                                 # the walk's own "largest type" record; title_of decides
+            more = unlisted_count(v)
+            if more is not None:
+                if warnings is not None:
+                    warnings.append(_unlisted_note("scene %02d (%s)" % (i, shot), more, audit))
+                continue
             lvl = type_size_level(v)
             if lvl and not v.get("out") and not v.get("band") and not v.get("device"):
                 line = "scene %02d (%s): SMALL TYPE — %s" % (i, shot, _describe_small(v))
@@ -497,8 +540,12 @@ def scan_film(out_dir, warnings=None):
                     # on the mri film — can only show up here). Said loudly, never refused: a film should not be blocked
                     # for a register the catalogue still offers. A film's OWN shot is its author's, and is held to it.
                     known = debt.get(shot, {}).get("min_px")
-                    lvl, line = "warn", line + (" — LIBRARY TYPE DEBT: %s sets type down to %s px" % (shot, known)
-                                                if known else " — LIBRARY TYPE DEBT not yet listed for %s" % shot) + \
+                    # said as what it is: ERROR-sized, held to a WARN — the size sentence above names the error floor,
+                    # and a WARN row that says "under 24 px is an error" without this reads as a gate contradicting itself
+                    lvl, line = "warn", line + (" — ERROR-sized, held to a WARN as LIBRARY TYPE DEBT: %s sets type "
+                                                "down to %s px" % (shot, known) if known else
+                                                " — ERROR-sized, held to a WARN as LIBRARY TYPE DEBT not yet listed "
+                                                "for %s" % shot) + \
                         "; pick a register that does not, or adapt this one's type"
                 if lvl == "error":
                     findings.append(line)
@@ -604,8 +651,14 @@ def scan_library(limit=None, aspect=None, dna=DEFAULT_DNA, only=None, cjk=False,
         props.update(cjk_fixture.get(n) or {})
         props.update(evidence.get(n) or {})
         swept += 1
-        for v in audit_shot(n, props, frame, tmp, type_size=type_size):
+        got = audit_shot(n, props, frame, tmp, type_size=type_size)
+        for v in got:
             if v.get("title"):
+                continue
+            more = unlisted_count(v)
+            if more is not None:
+                # the library sweep has no WARN channel: the count rides with the findings it bounds, as a note
+                print("  [text_safe] note %s" % _unlisted_note(n, more, got), flush=True)
                 continue
             lvl = type_size_level(v)
             if lvl and not v.get("out") and not v.get("band") and not v.get("device"):

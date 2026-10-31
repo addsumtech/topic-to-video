@@ -65,6 +65,26 @@ export type Violation = {
   /** present on ONE record per frame when `typeSize` is asked: the frame's TITLE — its largest visible type — with
    *  its box centre as fractions of the frame, so a film's titles can be compared beat to beat */
   title?: {cx: number; cy: number; px: number};
+  /** present ONLY on the cap's count row ('…and N more', after MAX_REPORTED rows): how many violations were not
+   *  listed. It is a COUNT, not a violation — it has no geometry — and the rows above it are the worst ones
+   *  (`worstFirst`), so the reader may say the unlisted rows are no worse than the last listed one. */
+  more?: number;
+};
+
+/** A violation's rank for the payload cap: geometry first (cut by the canvas, in the caption band, on a device — the
+ *  reader always ERRORs these), deepest first; then small type, smallest first (the reader's ERROR/WARN line is a
+ *  px floor, so ascending px is descending severity); anything else last. Sorted so the MAX_REPORTED rows that
+ *  survive the cap are always the worst: a frame with 15 WARN-sized labels and one 40px cut used to list whichever
+ *  twelve the DOM walk met first, and the cut could be the one cut off. */
+export const violationRank = (v: Violation): [number, number] => {
+  const geo = Math.max(0, ...Object.values(v.out ?? {}).map((x) => x ?? 0), v.band ?? 0, v.device ?? 0);
+  if (geo > 0) return [0, -geo];
+  if (v.small) return [1, v.small];
+  return [2, 0];
+};
+const worstFirst = (a: Violation, b: Violation): number => {
+  const ra = violationRank(a), rb = violationRank(b);
+  return ra[0] - rb[0] || ra[1] - rb[1];
 };
 
 // THE TYPE-SIZE FLOOR. Nothing measured how SMALL type is: text_safe asked whether it was cut, cjk_type whether it
@@ -1550,6 +1570,7 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
     if (ml.root.closest?.('[data-bleed]')) return;
     judge(ml.root, ml.text, unionRect(ml.rects), 'math');
   });
+  out.sort(worstFirst);                               // stable: equal ranks keep the walk's order
   if (title) {
     const t = title as {text: string; px: number; r: {left: number; top: number; right: number; bottom: number}};
     // FIRST, so the payload cap (MAX_REPORTED) can never cut it off a busy frame
@@ -1938,9 +1959,12 @@ export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collis
       }
       const viol = auditTextSafety(body, frame, typeSize);
       if (viol.length) {
-        const head = viol.slice(0, MAX_REPORTED);
-        if (viol.length > head.length) {
-          head.push({out: {}, text: `…and ${viol.length - head.length} more`, tag: '', cls: '', font: ''});
+        // The title record rides first and is not a violation: it never spends one of the cap's rows
+        const lead = viol.filter((v) => v.title), rest = viol.filter((v) => !v.title);
+        const head = [...lead, ...rest.slice(0, MAX_REPORTED)];
+        if (rest.length > MAX_REPORTED) {
+          const more = rest.length - MAX_REPORTED;
+          head.push({out: {}, text: `…and ${more} more`, tag: '', cls: '', font: '', more});
         }
         cancelRender(new Error(TEXT_SAFE_TAG + JSON.stringify(head)));
       }
