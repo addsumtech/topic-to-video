@@ -106,3 +106,19 @@ def test_a_ref_that_shows_only_line_is_left_out_of_the_palette(tmp_path):
     dna = json.load(open(tmp_path / "storyboard.json"))["meta"]["design_dna"]
     assert _hue(dna["bg"])[2] > 0.9, dna["bg"]
     assert dna["provenance"]["refs"] == ["colour.png"]
+
+
+def test_an_accent_read_from_refs_holds_3_to_1_on_the_ground(tmp_path):
+    """A cel's yellow read straight onto a cream film measured ~1.3:1 — a kicker set in it is unreadable. A SAMPLED
+    accent is nudged toward the ink until it holds 3:1 (theme.py's rule for sampled accents)."""
+    import theme
+    (tmp_path / "style_refs").mkdir()
+    _ref(tmp_path / "style_refs" / "y.png", ground=(250, 240, 220), blobs=((245, 218, 17), (40, 110, 210)))
+    board = {"meta": {"design_dna": {"id": "cream", "bg": "#fff4df", "fg": "#231a14", "accent": "#777777"},
+                      "style": {"name": "x", "refs": [{"src": "style_refs/y.png", "from": "found"}]}}, "slides": []}
+    (tmp_path / "storyboard.json").write_text(json.dumps(board))
+    assert dfr.main([str(tmp_path)]) == 0
+    dna = json.load(open(tmp_path / "storyboard.json"))["meta"]["design_dna"]
+    rgb = lambda h: tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+    for k in ("accent", "accent2"):
+        assert theme._contrast(rgb(dna[k]), rgb(dna["bg"])) >= 3.0, (k, dna[k])

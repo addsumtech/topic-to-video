@@ -106,6 +106,17 @@ def derive(paths):
     }
 
 
+def _held(accent, ground, ink, floor=3.0):
+    """`accent` nudged toward `ink` until it holds `floor`:1 on `ground` — a sampled accent is a colour the film will
+    set type and marks in (theme.py holds sampled accents to the same 3:1)."""
+    a, g, k = (tuple(int(h[i:i + 2], 16) for i in (1, 3, 5)) for h in (accent, ground, ink))
+    t = 0.0
+    while _t._contrast(a, g) < floor and t < 1.0:
+        t += 0.05
+        a = _t._mix(a, k, 0.05 / max(1e-6, 1 - t + 0.05))
+    return _hex(a)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("out_dir")
@@ -141,6 +152,8 @@ def main(argv=None):
         prov = dict(dna.get("provenance") or {})
         prov.update({"accents_from": "style refs", "accent_refs": read["provenance"]["refs"]})
         dna["provenance"] = prov
+    for k in ("accent", "accent2"):
+        dna[k] = _held(dna[k], dna["bg"], dna["fg"])
     if isinstance(have, dict):
         for f in ("fontDisplay", "fontBody", "fontMono"):
             if have.get(f):
