@@ -3232,8 +3232,12 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         try:
             import energy_skeleton as _es
             # the film's own shots, as energy_skeleton.py last MEASURED them (cache only — validate never renders)
-            _bm = _es.own_motion(out_dir, slides, meta, render=False) if out_dir and _film_shots else {}
-            _fs, _cv, _why = _es.check_slides(slides, _es.load_plan(out_dir) if out_dir else None, _film_shots, _bm)
+            # ...and the library registers that host the film's OWN objects: their library row measured a demo object
+            import workshop as _wsk
+            _hosted = _es.hosted_beats(slides, _wsk.object_names(out_dir), _film_shots) if out_dir else {}
+            _bm = _es.own_motion(out_dir, slides, meta, render=False) if out_dir and (_film_shots or _hosted) else {}
+            _fs, _cv, _why = _es.check_slides(slides, _es.load_plan(out_dir) if out_dir else None, _film_shots, _bm,
+                                              _hosted)
         except Exception as e:                                       # noqa: BLE001 — never let a diagnostic block
             _es, _fs, _cv, _why = None, [], None, "energy_skeleton failed: %s" % e
         if _why:

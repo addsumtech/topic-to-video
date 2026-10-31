@@ -201,7 +201,7 @@ def test_the_mutation_that_hides_an_unmeasured_beat_is_caught(tmp_path, capsys):
     import types
     src = open(es.__file__, encoding="utf-8").read()
     old = ('            out.append(dict(r, kind="unmeasured", alternatives=[],\n'
-           '                            why=malformed.get(i) or unmeasured_reason(r["shot"], stale_rows, film_shots)))\n'
+           '                            why=why or unmeasured_reason(r["shot"], stale_rows, film_shots)))\n'
            '            continue')
     assert old in src, "the mutation target has drifted out of the source"
     mod = types.ModuleType("energy_skeleton_mutant")
@@ -358,3 +358,28 @@ def test_the_own_shot_cache_key_sees_assets_and_library_code_but_not_generated_s
     assert k2 != k, "an asset the shot draws changes its motion"
     monkeypatch.setattr(bk, "shared_hash", lambda: "L2")
     assert es._own_key(str(out), slide, meta) != k2, "library code a built shot imports changes it too"
+
+
+def test_a_library_register_hosting_the_films_own_object_is_measured_per_beat_never_by_its_demo_row(tmp_path):
+    """Validation film A put its LeverEscapement on ObjectStage: the check read ObjectStage's library row — the
+    register measured with its DemoForm — for both beats (0.0018), where the beats rendered with the escapement
+    measure 0.0023 and 0.0101. A hosted beat takes its own measurement or is unmeasured, saying why."""
+    _sweep()
+    out = tmp_path / "film"
+    (out / "workshop" / "objects").mkdir(parents=True)
+    (out / "workshop" / "objects" / "Escapement.tsx").write_text("export const Escapement = () => null;\n")
+    slides = [{"index": 1, "shot": "ObjectStage", "energy": "high",
+               "shot_props": {"object": {"id": "Escapement", "props": {"cycles": 1.5}}}},
+              {"index": 2, "shot": "ObjectStage", "energy": "medium", "shot_props": {"object": {"id": "GpsSatellite"}}},
+              {"index": 3, "shot": "DeviceHero", "shot_props": {"screen": {"object": {"id": "Escapement"}}}}]
+    json.dump({"meta": {"renderer": "remotion"}, "slides": slides}, open(out / "storyboard.json", "w"))
+    assert es.hosted_beats(slides, {"Escapement"}) == {1: ["Escapement"], 3: ["Escapement"]}
+    fs, _cv, why = es.check(str(out), render_own=False)
+    assert why is None
+    um = {f["beat"]: f for f in fs if f["kind"] == "unmeasured"}
+    assert set(um) == {1, 3}, fs                     # beat 2 hosts a LIBRARY object: the register's row stands
+    assert "hosts this film's own object Escapement" in um[1]["why"] and "demo object" in um[1]["why"]
+    # measured per beat, the beat's own number is the one judged
+    fs, cv, _why = es.check_slides(slides, None, set(), {1: 0.0101, 3: 0.002}, es.hosted_beats(slides, {"Escapement"}))
+    assert not [f for f in fs if f["kind"] == "unmeasured"], fs
+    assert "?" not in cv[1]

@@ -181,6 +181,34 @@ def _alternatives(slide, beat, lo, hi, motion, used, families, k=3):
     return out[:k]
 
 
+def hosted_objects(slide, film_objects):
+    """[ids] of this film's OWN objects (workshop/objects) the beat's props place on a library register — any dict in
+    `shot_props`, at any depth, whose `id` names one (ObjectStage's `object`, OrbitClockGain's `sat`, a device screen's
+    `object`, ExtractionFlow's cases). Such a beat's picture is the film's object, not the register's demo one."""
+    found = []
+
+    def walk(v):
+        if isinstance(v, dict):
+            if isinstance(v.get("id"), str) and v["id"] in film_objects and v["id"] not in found:
+                found.append(v["id"])
+            for x in v.values():
+                walk(x)
+        elif isinstance(v, list):
+            for x in v:
+                walk(x)
+    if isinstance(slide, dict) and film_objects:
+        walk(slide.get("shot_props") or {})
+    return found
+
+
+def hosted_beats(slides, film_objects, film_shots=()):
+    """{beat (1-based): [ids]} — the beats on a LIBRARY register that host the film's own objects (see hosted_objects).
+    A film's own shot is measured per beat already and is not listed."""
+    return {i: ids for i, s in enumerate(slides, 1)
+            if isinstance(s, dict) and s.get("shot") not in (film_shots or ())
+            for ids in [hosted_objects(s, film_objects)] if ids}
+
+
 def unmeasured_reason(shot, stale_rows, film_shots=()):
     """Why this beat carries no motion number, in words whose FIX differs — the whole point of separating
     them. `None` when there is nothing to say (the beat is measured).
@@ -210,11 +238,16 @@ def unmeasured_reason(shot, stale_rows, film_shots=()):
 
 
 def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_rows=None, malformed=None,
-             film_shots=(), beat_motion=None):
+             film_shots=(), beat_motion=None, hosted=None):
     """The list of dicts described in the module docstring. Empty when the film follows its skeleton.
 
     A beat with no motion number is emitted as kind `unmeasured` rather than skipped: it is the one thing
     this check could not do, and it silently weakened two of the five rules as well as its own line.
+
+    `hosted` ({beat: [object ids]}, hosted_beats) names the beats whose library register draws the film's OWN object.
+    The library's row measured that register with its demo object — validation film A's escapement on ObjectStage
+    was judged by ObjectStage's DemoForm — so such a beat takes its per-beat measurement (`beat_motion`) or none:
+    never the register's row.
     """
     try:
         import shot_director as sd
@@ -227,14 +260,22 @@ def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_row
     rows = []
     for i, s in enumerate(slides):
         shot = s.get("shot")
-        # a film's own shot is measured per BEAT (its props change the picture), the library's per register
-        m = (beat_motion or {}).get(i + 1, motion.get(shot))
-        rows.append({"beat": i + 1, "shot": shot, "energy": declared(s, beats[i]), "motion": m})
+        # a film's own shot is measured per BEAT (its props change the picture), the library's per register — unless
+        # the register hosts the film's own object, whose picture the register's row never saw
+        own_obj = (hosted or {}).get(i + 1)
+        m = (beat_motion or {}).get(i + 1, None if own_obj else motion.get(shot))
+        rows.append({"beat": i + 1, "shot": shot, "energy": declared(s, beats[i]), "motion": m,
+                     **({"hosts": own_obj} if own_obj else {})})
     out = []
     for i, r in enumerate(rows):
         if r["motion"] is None:
+            why = malformed.get(i)
+            if not why and r.get("hosts"):
+                why = ("%s hosts this film's own object %s — the library's row measured %s with its demo object, not "
+                       "this one; `python3 scripts/energy_skeleton.py <out_dir>` renders the beat with its props and "
+                       "measures it (cached in .energy_own.json)" % (r["shot"], ", ".join(r["hosts"]), r["shot"]))
             out.append(dict(r, kind="unmeasured", alternatives=[],
-                            why=malformed.get(i) or unmeasured_reason(r["shot"], stale_rows, film_shots)))
+                            why=why or unmeasured_reason(r["shot"], stale_rows, film_shots)))
             continue
         e, m = r["energy"], r["motion"]
         kind = None
@@ -285,7 +326,7 @@ def findings(slides, motion, floor, quiet_cut, kinetic_cut, plan=None, stale_row
     return out
 
 
-def curve(slides, motion, quiet_cut, kinetic_cut, plan=None, beat_motion=None):
+def curve(slides, motion, quiet_cut, kinetic_cut, plan=None, beat_motion=None, hosted=None):
     """Two aligned strings: the declared skeleton (L/m/H/P per beat) and the measured register motion as a
     sparkline. Reading them together is the whole check."""
     beats = _beats_by_position(plan, slides)
@@ -293,7 +334,7 @@ def curve(slides, motion, quiet_cut, kinetic_cut, plan=None, beat_motion=None):
     for k, (s, b) in enumerate(zip(slides, beats), 1):
         e = declared(s, b)
         dec.append({"low": "L", "medium": "m", "high": "H", "peak": "P"}[e])
-        m = (beat_motion or {}).get(k, motion.get(s.get("shot")))
+        m = (beat_motion or {}).get(k, None if (hosted or {}).get(k) else motion.get(s.get("shot")))
         if m is None:
             meas.append("?")
         else:
@@ -321,7 +362,7 @@ def coverage(fs, slides, curve_pair=None):
     return len(slides) - len(miss), len(slides), miss
 
 
-def check_slides(slides, plan=None, film_shots=(), beat_motion=None):
+def check_slides(slides, plan=None, film_shots=(), beat_motion=None, hosted=None):
     """(findings, curve_pair, why_none) for a storyboard's slides — what validate.py calls on the board it
     holds. Beats the sweep cannot measure arrive as `unmeasured` findings, so a caller that reports findings
     reports the coverage hole too without needing a second channel for it."""
@@ -329,8 +370,8 @@ def check_slides(slides, plan=None, film_shots=(), beat_motion=None):
     slides, malformed = _normalise(slides)
     if why:
         return [], None, why
-    return (findings(slides, motion, floor, qc, kc, plan, stale_rows, malformed, film_shots, beat_motion),
-            curve(slides, motion, qc, kc, plan, beat_motion), None)
+    return (findings(slides, motion, floor, qc, kc, plan, stale_rows, malformed, film_shots, beat_motion, hosted),
+            curve(slides, motion, qc, kc, plan, beat_motion, hosted), None)
 
 
 # ── A FILM'S OWN SHOTS, MEASURED BEFORE THE RENDER ──────────────────────────────────────────────────────────────
@@ -377,13 +418,15 @@ def own_motion(out_dir, slides, meta, render=False, log=print):
     and measuring every one the cache does not hold."""
     import workshop as _ws
     own = _ws.shot_names(out_dir)
+    hosted = hosted_beats(slides, _ws.object_names(out_dir), own)
     path = os.path.join(out_dir, OWN_CACHE)
     try:
         cache = json.load(open(path, encoding="utf-8"))
     except (OSError, ValueError):
         cache = {}
     out, dirty = {}, False
-    todo = [(i, s) for i, s in enumerate(slides, 1) if isinstance(s, dict) and s.get("shot") in own]
+    # the film's own shots, and the library registers that host the film's own objects (hosted_beats)
+    todo = [(i, s) for i, s in enumerate(slides, 1) if isinstance(s, dict) and (s.get("shot") in own or i in hosted)]
     if render and todo:
         import render_remotion as rr
         import film_energy_qa as fe
@@ -445,13 +488,19 @@ def check(out_dir, render_own=False):
         film_shots = workshop.shot_names(out_dir)
     except Exception:                                               # noqa: BLE001 — a reason, never a crash
         film_shots = set()
+    try:
+        import workshop
+        film_objects = workshop.object_names(out_dir)
+    except Exception:                                               # noqa: BLE001
+        film_objects = set()
+    hosted = hosted_beats(data.get("slides") or [], film_objects, film_shots)
     beat_motion = {}
-    if film_shots:
+    if film_shots or hosted:
         try:
             beat_motion = own_motion(out_dir, data.get("slides") or [], data.get("meta") or {}, render=render_own)
         except Exception as e:                                      # noqa: BLE001 — unmeasured says why
             print("[energy_skeleton] the film's own shots could not be measured: %s" % e)
-    return check_slides(data.get("slides") or [], load_plan(out_dir), film_shots, beat_motion)
+    return check_slides(data.get("slides") or [], load_plan(out_dir), film_shots, beat_motion, hosted)
 
 
 def describe(f):
