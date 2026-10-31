@@ -100,11 +100,11 @@ def test_gradient_flattens_to_mean_and_cel_quantizes():
 def test_style_mounts_on_both_register_paths():
     film = open(FILM, encoding="utf-8").read()
     # the plain path: the register's clock inside the style layer
-    assert re.search(r"<StyleLayer beat=\{i\}>\s*<BeatClock warp=\{sc\.warp\}>\{C \? <C \{\.\.\.\(sc\.props \?\? \{\}\)\} /> : <Missing",
+    assert re.search(r"<StyleLayer beat=\{i\} skip=\{STYLE_HOOKS_BY_SHOT\[sc\.shot\]\}>\s*<BeatClock warp=\{sc\.warp\}>\{C \? <C \{\.\.\.\(sc\.props \?\? \{\}\)\} /> : <Missing",
                      film), "the plain register path is not styled"
     # the platform-safe margin: the WHOLE echo inside a style layer, so its ground matches the beat's, and never a
     # style element between the echo's selectors and the register they hide (ECHO_GROUND_ONLY)
-    assert re.search(r"<StyleLayer beat=\{i\}>\s*<SafeEcho ", film), "the platform-safe margin is not styled"
+    assert re.search(r"<StyleLayer beat=\{i\} skip=\{STYLE_HOOKS_BY_SHOT\[sc\.shot\]\}>\s*<SafeEcho ", film), "the platform-safe margin is not styled"
     echo = film[film.index("<SafeEcho shot="):film.index("</SafeEcho>")]
     assert "StyleLayer" not in echo, "a style element sits inside the echo, under its ground-only selectors"
 

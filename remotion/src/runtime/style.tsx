@@ -26,6 +26,7 @@ import {classify, inkFor, meanColor, steppedGradient, quantizeStops, toHex} from
 import {hash01, ReducedMotionContext, SceneDurationContext} from './motion';
 import {buildFilter, recipeKey, wobbleSeed, type Recipe} from './styleFilters';
 import {surfaceTile} from './styleSurface';
+import {withoutAxes} from './styleHooks';
 
 export {meanColor};
 
@@ -574,8 +575,9 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
 };
 
 /** Wraps a beat's register. With no style it is its children. */
-export const StyleLayer: React.FC<{beat?: number; children: React.ReactNode}> = ({beat, children}) => {
-  const spec = useStyle();
+export const StyleLayer: React.FC<{beat?: number; skip?: string[]; children: React.ReactNode}> = ({beat, skip, children}) => {
+  const full = useStyle();
+  const spec = React.useMemo(() => (full ? withoutAxes(full, skip) : null), [full, skip]);
   if (!spec) return <>{children}</>;
   return <StyledLayer spec={spec} beat={beat}>{children}</StyledLayer>;
 };

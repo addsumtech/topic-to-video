@@ -33,6 +33,7 @@ import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalCh
 import {StyleContext, resolveStyle, useStyle, type StyleSpec} from './runtime/styleSpec';
 import {stepFrame} from './runtime/styleMotion';
 import {StyleLayer} from './runtime/style';
+import {STYLE_HOOKS_BY_SHOT} from './runtime/styleHooks';
 import {REGISTRY} from './registry';
 import {STAGES, STAGE_GROUND} from './stage';
 import {StageRunContext, type StageBeat} from './runtime/stageRun';
@@ -1385,7 +1386,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
               {/* …and its edges dissolve into the beat's ground: a register that paints its own atmosphere showed the
                   scaled frame as a hard-edged panel */}
               {regFrame ? (
-                <StyleLayer beat={i}>
+                <StyleLayer beat={i} skip={STYLE_HOOKS_BY_SHOT[sc.shot]}>
                 <SafeEcho shot={sc.shot} rootGround={safeEcho}>
                   <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
                     <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
@@ -1407,7 +1408,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                     {/* the anchor a container carried INTO this beat, which the register then draws in place */}
                     <CarryContext.Provider value={arrived[i] ?? null}>
                       <BeatOptic decl={optics ? sc.optic : undefined} dna={activeDna} where={`scene ${i} (${sc.shot}) optic`}>
-                        <StyleLayer beat={i}>
+                        <StyleLayer beat={i} skip={STYLE_HOOKS_BY_SHOT[sc.shot]}>
                           <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
                         </StyleLayer>
                       </BeatOptic>
