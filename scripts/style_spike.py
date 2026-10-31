@@ -103,9 +103,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("work")
     ap.add_argument("--only", default="")
+    ap.add_argument("--spec", default=os.path.join(FIX, "spike_spec.json"), help="the style spec to measure")
     args = ap.parse_args(argv)
     corpus = json.load(open(os.path.join(FIX, "corpus.json"), encoding="utf-8"))
-    spec = json.load(open(os.path.join(FIX, "spike_spec.json"), encoding="utf-8"))
+    spec = json.load(open(args.spec, encoding="utf-8"))
     only = {s for s in args.only.split(",") if s}
     entries = [e for e in corpus["entries"] if not only or e["shot"] in only]
     work = os.path.abspath(args.work)

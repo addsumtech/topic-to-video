@@ -23,7 +23,9 @@ import {continueRender, delayRender, useCurrentFrame, useVideoConfig} from 'remo
 import {useStyle, type ResolvedStyle} from './styleSpec';
 import {useDNA, shade, type DesignDNA} from './dna';
 import {classify, inkFor, meanColor, steppedGradient, quantizeStops, toHex} from './styleClassify';
-import {hash01} from './motion';
+import {hash01, ReducedMotionContext, SceneDurationContext} from './motion';
+import {buildFilter, recipeKey, wobbleSeed, type Recipe} from './styleFilters';
+import {surfaceTile} from './styleSurface';
 
 export {meanColor};
 
@@ -58,6 +60,7 @@ const write = (el: Element, prop: string, value: string): boolean => {
 };
 
 const GRADIENTS = new Set(['linearGradient', 'radialGradient']);
+const SHAPES_TAGS = new Set(['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon']);
 const NON_DRAWING = new Set(['defs', 'stop', 'filter', 'clipPath', 'mask', 'pattern', 'marker', 'symbol', 'style',
   'title', 'desc', 'metadata', 'linearGradient', 'radialGradient', 'STYLE', 'SCRIPT']);
 const GRAD_ATTRS = ['x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'fx', 'fy', 'fr', 'gradientUnits', 'gradientTransform',
@@ -119,17 +122,33 @@ const groundBehind = (el: Element, stop: Element, dna: DesignDNA | null): string
 
 /** The register's frame on screen: the largest box among the layer's own children (the layer is display:contents and
  *  has none). 0 before the composition is laid out — Remotion mounts it off-screen at zero size first. */
-const layerArea = (root: Element, owned: (el: Element) => boolean = () => false): number =>
-  Math.max(0, ...Array.from(root.children).filter((k) => !owned(k)).map((k) => {
+const layerRect = (root: Element, owned: (el: Element) => boolean = () => false): DOMRect | null => {
+  let best: DOMRect | null = null;
+  for (const k of Array.from(root.children)) {
+    if (owned(k)) continue;
     const b = k.getBoundingClientRect();
-    return b.width * b.height;
-  }));
+    if (!best || b.width * b.height > best.width * best.height) best = b;
+  }
+  return best;
+};
+const layerArea = (root: Element, owned: (el: Element) => boolean = () => false): number => {
+  const b = layerRect(root, owned);
+  return b ? b.width * b.height : 0;
+};
+
+/** TRANSLUCENT IS LIGHT. A gradient with a see-through stop is a vignette, a glow, a fade — light on the picture, not
+ *  paint in it; a shape most of the way transparent is a glint or a halo. Treated as paint they went wrong three ways
+ *  (looked at on the cartoon-like corpus run): a vignette flattened into a grey veil over CinematicTitle's title, and a
+ *  glint (ClayStack) and a halo (KnowledgeGraph) were outlined as if they were things. Light answers to `shade`. */
+const LIGHT_ALPHA = 0.6;
+const translucentStops = (css: string): boolean =>
+  [...css.matchAll(/rgba?\(([^)]+)\)/g)].some((m) => parseFloat(m[1].split(',')[3] ?? '1') < 0.95);
 
 type Ctx = {spec: ResolvedStyle; dna: DesignDNA | null; scale: number; root: DOMRect; short: number; beat: string;
   defs: SVGSVGElement | null};
 
 const lineOf = (s: ResolvedStyle) => s.line as {weight: number | 'as-drawn'; variance: number; color: string;
-  outline: string; join: string};
+  outline: string; join: string; wobble: number; boil_hz: number};
 
 /** The gradient mode in force: the fill axis when it is set, else what the shade axis implies. */
 const gradientMode = (s: ResolvedStyle): {mode: 'as-drawn' | 'flat' | 'cel'; steps: number} => {
@@ -164,18 +183,30 @@ const lineColor = (c: Ctx, fill: string, current: string): string | null => {
   return color;
 };
 
-const lineWeight = (c: Ctx, i: number, fallback: number | null, k = 1): string | null => {
+/** A line's new weight. `rel` is the line's drawn weight over the drawing's heaviest: the style's weight is the MAIN
+ *  line's, and a lighter line keeps its proportion to it (floored at a quarter) — set to one weight, a chart's hairline
+ *  grid became as heavy as its series (ChartLive, looked at). */
+const lineWeight = (c: Ctx, i: number, fallback: number | null, k = 1, rel = 1): string | null => {
   const ln = lineOf(c.spec);
   const w = typeof ln.weight === 'number' ? ln.weight : fallback;
   if (w === null) return null;
   const v = ln.variance > 0 ? 1 + ln.variance * (hash01(i * 7919 + 13) - 0.5) : 1;
-  return `${+(w * c.scale * v * k).toFixed(3)}px`;
+  const r = Math.max(0.25, Math.min(1, rel));
+  return `${+(w * c.scale * v * k * r).toFixed(3)}px`;
+};
+
+/** A colour that carries hue (a data series, an accent line) rather than neutral ink: its channels spread past 40/255. */
+const chromatic = (css: string): boolean => {
+  const h = toHex(css);
+  if (!h) return false;
+  const v = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return Math.max(...v) - Math.min(...v) > 40;
 };
 
 /** Restyle everything under `root` for `spec`. Three phases — put back every write of ours, read the originals,
  *  write — so the result depends only on what the registers drew this frame, and style is recomputed once. */
 export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, dna: DesignDNA | null = null,
-  defs: SVGSVGElement | null = null, beat = ''): DomPassReport => {
+  defs: SVGSVGElement | null = null, beat = '', seed = 1): DomPassReport => {
   const rep: DomPassReport = {shapes: 0, boxes: 0, text: 0, images: 0, canvas: 0, changed: 0, byAxis: {}, laidOut: false};
   const doc = root.ownerDocument;
   const owned = (el: Element) => Boolean(defs && (el === defs || defs.contains(el)));
@@ -187,22 +218,39 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
   const c: Ctx = {spec, dna, scale, root: rr, short, beat, defs};
   const ln = lineOf(spec);
   const grad = gradientMode(spec);
+  // how LIGHT (a translucent gradient) is drawn: as drawn unless the shade axis says otherwise
+  const shadeAxis = (spec.shade as {mode: string}).mode;
+  const lightMode: 'as-drawn' | 'flat' | 'cel' = shadeAxis === 'none' ? 'flat' : shadeAxis === 'cel' || shadeAxis === 'hatch' ? 'cel' : 'as-drawn';
   const shMode = (spec.shadow as {mode: string}).mode;
   const shadeMode = (spec.shade as {mode: string}).mode;
   const form = spec.form as {corner: number; simplify: number};
   const type = spec.type as {display: string; display_outline: boolean};
   const plan: [Element, string, string, string][] = [];
   const put = (el: Element, prop: string, value: string, axis: string) => plan.push([el, prop, value, axis]);
+  // An element's CSS `filter` is written ONCE, at the end: what it keeps of its own (`base`, after a shadow or a glow is
+  // taken out) and what the style adds to it (a drop shadow, a filter recipe), so no axis overwrites another's.
+  const filterBase = new Map<Element, string>();
+  const filterAdd = new Map<Element, [string, string][]>();
+  const addFilter = (el: Element, f: string | null, axis: string) => {
+    if (!f) return;
+    const l = filterAdd.get(el) ?? [];
+    l.push([f, axis]);
+    filterAdd.set(el, l);
+  };
   // the register's frame: its root box (the layer itself is display:contents and has none). Measured on screen, so a
   // register drawn in a scaled platform-safe frame is judged against the frame it is drawn in, not the canvas.
-  const area = layerArea(root, owned);
+  const frameBox = layerRect(root, owned);
+  const area = frameBox ? frameBox.width * frameBox.height : 0;
   rep.laidOut = area > 1;
+  /** The frame's own furniture — a letterbox bar, a full-width band — spans the register edge to edge: no ring. */
+  const furniture = (r: DOMRect) => Boolean(frameBox) &&
+    (r.width >= 0.98 * frameBox!.width || r.height >= 0.98 * frameBox!.height);
   const isGround = (r: DOMRect) => r.width * r.height >= GROUND_FRAC * area;
   // WHERE THE TYPE IS. A line that crosses type keeps the weight and colour it was drawn with: the gear's spokes, drawn
   // as hairlines under its label, became 4 px ink through the word "Trigger" (looked at on GearTrain, 2026-10-31).
   const typeRects: DOMRect[] = [];
   for (const el of els) {
-    if (classify(el as never) !== 'text') continue;
+    if (classify(el as never, root as never, true) !== 'text') continue;
     if (el.childNodes.length && el instanceof HTMLElement) {
       for (const n of Array.from(el.childNodes)) {
         if (n.nodeType !== 3 || !(n.textContent ?? '').trim()) continue;
@@ -221,6 +269,18 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
   /** A line here would cross type: an unfilled stroke near any type, or a filled shape whose EDGE type straddles. */
   const crossesType = (r: DOMRect, filled: boolean) =>
     typeRects.some((t) => meets(r, t) && (!filled || !inside(t, r)));
+  // the drawing's heaviest line, in screen px — the line the style's weight is the weight OF
+  const screenWidth = (el: Element, sw: number) => {
+    const m = (el as SVGGraphicsElement).getScreenCTM?.();
+    return sw * (m ? Math.hypot(m.a, m.b) : 1);
+  };
+  let heaviest = 0;
+  for (const el of els) {
+    if (!SHAPES_TAGS.has(el.tagName)) continue;
+    const cs = getComputedStyle(el);
+    const sw = parseFloat(cs.strokeWidth) || 0;
+    if (cs.stroke !== 'none' && sw > 0) heaviest = Math.max(heaviest, screenWidth(el, sw));
+  }
   const stepped = new Map<string, string>();
   const steppedFor = (id: string): string | null => {
     if (!defs) return null;
@@ -229,7 +289,7 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     if (!g || !GRADIENTS.has(g.tagName)) return null;
     const stops = stopsOf(g, doc);
     if (!stops.length) return null;
-    const bands = quantizeStops(stops, grad.steps);
+    const bands = quantizeStops(stops, grad.steps || 2);
     const a = +(stops.reduce((s, x) => s + alphaOf(x), 0) / stops.length).toFixed(3);
     const ns = 'http://www.w3.org/2000/svg';
     const clone = doc.createElementNS(ns, g.tagName);
@@ -253,10 +313,13 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
   // as things in the picture (the dark radial ground behind GpsSatellite, looked at 2026-10-31)
   const paintFor = (paint: string, ground = false): string | null => {
     const id = urlId(paint);
-    if (!id || grad.mode === 'as-drawn') return null;
+    if (!id) return null;
     const g = doc.getElementById(id);
     if (!g || !GRADIENTS.has(g.tagName)) return null;
-    if (grad.mode === 'flat' || ground) return meanColor(stopsOf(g, doc).join(' '));
+    const stops = stopsOf(g, doc);
+    const mode = translucentStops(stops.join(' ')) ? lightMode : grad.mode;
+    if (mode === 'as-drawn') return null;
+    if (mode === 'flat' || ground) return meanColor(stops.join(' '));
     return steppedFor(id);
   };
   const filterIs = (f: string, prims: string[]): boolean => {
@@ -265,12 +328,28 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     return Boolean(node && prims.some((p) => node.querySelector(p)));
   };
 
+  const surf = spec.surface as {kind: string; strength: number; source: string};
+  const tile = surf.kind !== 'none' ? surfaceTile(surf.kind, surf.strength, scale) : null;
+  const recipes = new Map<string, string>();
+  /** `url(#id)` of the filter for recipe `r`, built into the layer's defs the first time it is asked for. */
+  const filterFor = (r: Recipe): string | null => {
+    if (!defs) return null;
+    const key = recipeKey(r);
+    if (!recipes.has(key)) {
+      const id = `style-f-${beat}-${recipes.size}`;
+      buildFilter(doc, defs, id, r, scale);
+      recipes.set(key, `url(#${id})`);
+    }
+    return recipes.get(key)!;
+  };
+  const POSTERIZE = filterFor({wobble: 0, seed: 1, outer: 0, ink: '', surface: null, strength: 0, posterize: true});
+
   els.forEach((el, i) => {
     const tag = el.tagName;
     let inDefs = false;
     for (let e: Element | null = el; e && e !== root; e = e.parentElement) if (NON_DRAWING.has(e.tagName)) { inDefs = true; break; }
     if (inDefs) return;
-    const role = classify(el as never);
+    const role = classify(el as never, root as never, true);
     if (role === 'image') { rep.images++; return; }
     if (role === 'canvas') { rep.canvas++; return; }
     if (role === 'caption') return;
@@ -310,7 +389,10 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
         if (sw * k < form.simplify * 2 * scale) { put(el, 'stroke', 'none', 'form.simplify'); stroked = false; }
       }
       const keepLine = crossesType(r, filled);
-      const outlineHere = filled && !ground && !stroked && ln.outline === 'all' && !keepLine;
+      const fillAlpha = parseFloat(cs.fillOpacity || '1') * parseFloat(cs.opacity || '1') *
+        (urlId(fillPaint) ? alphaOf(solidFill) : alphaOf(fillPaint));
+      const light = filled && fillAlpha < LIGHT_ALPHA;
+      const outlineHere = filled && !ground && !stroked && ln.outline === 'all' && !keepLine && !light;
       if (outlineHere) {
         const col = lineColor(c, solidFill, '') ?? inkFor(solidFill, dna);
         put(el, 'stroke', col, 'line.outline');
@@ -320,9 +402,12 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
         put(el, 'vector-effect', 'non-scaling-stroke', 'line.outline');
         put(el, 'paint-order', 'stroke fill', 'line.outline');
       } else if (stroked && !keepLine) {
-        const col = lineColor(c, filled ? solidFill : groundBehind(el, root.parentElement ?? root, dna), strokePaint);
+        // a line that bounds nothing and carries hue IS content (a series, an accent): its colour stays; an outline
+        // and a neutral line take the style's ink (ChartLive's green series went white)
+        const hueLine = !filled && chromatic(strokePaint);
+        const col = hueLine ? null : lineColor(c, filled ? solidFill : groundBehind(el, root.parentElement ?? root, dna), strokePaint);
         if (col) put(el, 'stroke', col, 'line.color');
-        const w = lineWeight(c, i, null);
+        const w = lineWeight(c, i, null, 1, heaviest > 0 ? screenWidth(el, sw) / heaviest : 1);
         if (w) { put(el, 'stroke-width', w, 'line.weight'); put(el, 'vector-effect', 'non-scaling-stroke', 'line.weight'); }
       }
       if ((stroked || outlineHere) && ln.join !== 'as-drawn') {
@@ -338,9 +423,11 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
       const f = cs.filter;
       if (f && f !== 'none') {
         if (shMode === 'none' && (f.includes('drop-shadow(') || filterIs(f, ['feDropShadow', 'feOffset']))) {
-          put(el, 'filter', urlId(f) ? 'none' : filterWithout(f, ['drop-shadow']), 'shadow.mode');
+          filterBase.set(el, urlId(f) ? 'none' : filterWithout(f, ['drop-shadow']));
         } else if (shadeMode === 'none' && (f.includes('blur(') || filterIs(f, ['feGaussianBlur']))) {
-          put(el, 'filter', urlId(f) ? 'none' : filterWithout(f, ['blur']), 'shade.mode');
+          filterBase.set(el, urlId(f) ? 'none' : filterWithout(f, ['blur']));
+        } else if (shadeMode === 'cel' && (f.includes('blur(') || filterIs(f, ['feGaussianBlur']))) {
+          addFilter(el, POSTERIZE, 'shade.mode');       // a soft glow, cut into a hard-edged one
         }
       }
       return;
@@ -350,7 +437,10 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
       // a drawing standing in the frame casts the style's shadow as one silhouette (its shapes do not each cast one)
       const r = el.getBoundingClientRect();
       const sh = shadowCss(c, 'filter');
-      if (sh && !isGround(r) && r.width > 0) put(el, 'filter', [filterWithout(cs.filter, ['drop-shadow']), sh].filter((x) => x !== 'none').join(' '), 'shadow.mode');
+      if (sh && !isGround(r) && r.width > 0) {
+        filterBase.set(el, filterWithout(cs.filter, ['drop-shadow']));
+        addFilter(el, sh, 'shadow.mode');
+      }
       return;
     }
     if (!isHtml) return;
@@ -360,20 +450,40 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     const r = el.getBoundingClientRect();
     const ground = isGround(r);
     const bg = cs.backgroundImage;
-    if (bg.includes('gradient(') && grad.mode !== 'as-drawn') {
-      if (grad.mode === 'flat' || ground) {
+    let image: string | null = null;              // the box's background-image as the style leaves it (null: as drawn)
+    const bgMode = bg.includes('gradient(') && translucentStops(bg) ? lightMode : grad.mode;
+    if (bg.includes('gradient(') && bgMode !== 'as-drawn') {
+      if (bgMode === 'flat' && ground && translucentStops(bg)) {
+        image = 'none';                         // a vignette or a scrim with no light: gone, never a uniform veil
+      } else if (bgMode === 'flat' || ground) {
         const mean = meanColor(bg);
-        put(el, 'background-image', 'none', 'fill.mode');
+        image = 'none';
         if (mean && alphaOf(cs.backgroundColor) === 0) put(el, 'background-color', mean, 'fill.mode');
       } else {
-        const st = bg.split(/,(?![^(]*\))(?![^(]*\([^(]*\))/).length > 1 ? null : steppedGradient(bg, grad.steps);
-        if (st) put(el, 'background-image', st, 'fill.mode');
+        const st = bg.split(/,(?![^(]*\))(?![^(]*\([^(]*\))/).length > 1 ? null : steppedGradient(bg, grad.steps || 2);
+        if (st) image = st;
       }
     }
-    if (ground || r.width < 2 || r.height < 2) return;
+    // THE MEDIUM: one more background layer, painted beneath the box's own content — so the ground and the cards take
+    // the paper's tooth and the type set on them does not. Only a box that paints a ground of its own: a texture on a
+    // transparent wrapper would darken empty space.
+    // ...and only where that ground is OPAQUE: the tooth is an opaque layer, and laid on a translucent vignette it
+    // covered the whole register (CinematicTitle rendered as a grey frame)
+    const gradient = bg.includes('gradient(');
+    const stopsOpaque = !gradient || [...bg.matchAll(/rgba?\(([^)]+)\)/g)].every((m) => parseFloat(m[1].split(',')[3] ?? '1') >= 0.95);
+    const fills = alphaOf(cs.backgroundColor) >= 0.95 ? stopsOpaque : gradient && stopsOpaque;
+    if (tile && fills) {
+      const under = image ?? bg;
+      put(el, 'background-image', under && under !== 'none' ? `${tile}, ${under}` : tile, 'surface.kind');
+      put(el, 'background-blend-mode', 'multiply', 'surface.kind');
+    } else if (image !== null) {
+      put(el, 'background-image', image, 'fill.mode');
+    }
+    if (ground || furniture(r) || r.width < 2 || r.height < 2) return;
     const bw = parseFloat(cs.borderTopWidth) || 0;
     const bordered = bw > 0 && alphaOf(cs.borderTopColor) > 0 && cs.borderTopStyle !== 'none';
-    const visibleFill = alphaOf(cs.backgroundColor) > 0.05 || (bg !== 'none' && bg.includes('gradient('));
+    const visibleFill = alphaOf(cs.backgroundColor) * parseFloat(cs.opacity || '1') >= LIGHT_ALPHA ||
+      (bg.includes('gradient(') && !translucentStops(bg));
     const fillCol = alphaOf(cs.backgroundColor) > 0.05 ? cs.backgroundColor : (meanColor(bg) ?? dna?.bg ?? '#ffffff');
     const ring = bordered || (ln.outline === 'all' && visibleFill);
     if (ring && (ln.outline === 'all' || ln.color !== 'as-drawn' || typeof ln.weight === 'number')) {
@@ -392,8 +502,71 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
     if (shMode === 'none' && cs.boxShadow !== 'none') put(el, 'box-shadow', 'none', 'shadow.mode');
     const sh = shadowCss(c, 'box');
     if (sh && visibleFill) put(el, 'box-shadow', sh, 'shadow.mode');
-    if (shadeMode === 'none' && cs.filter.includes('blur(')) put(el, 'filter', filterWithout(cs.filter, ['blur']), 'shade.mode');
+    if (shadeMode === 'none' && cs.filter.includes('blur(')) filterBase.set(el, filterWithout(cs.filter, ['blur']));
+    else if (shadeMode === 'cel' && cs.filter.includes('blur(')) addFilter(el, POSTERIZE, 'shade.mode');
   });
+  // THE DRAWING TARGETS of the per-pixel filters: the largest elements that hold no type, no photograph and no canvas
+  // — a filter displaces or textures everything inside the element it is set on, so it is never set above a glyph.
+  const wob = (ln as {wobble?: number}).wobble ?? 0;
+  const outerW = ln.outline === 'outer' ? (typeof ln.weight === 'number' ? ln.weight : OUTLINE_PX) : 0;
+  const svgSurface = surf.kind !== 'none' && surf.strength > 0 ? surf.kind : null;
+  if (defs && (wob > 0 || outerW > 0 || svgSurface)) {
+    const guarded = new Set<Element>();
+    for (const el of els) {
+      const role = classify(el as never, root as never, true);
+      if (role === 'text' || role === 'image' || role === 'canvas') {
+        for (let e: Element | null = el; e && e !== root; e = e.parentElement) guarded.add(e);
+      }
+    }
+    const pad = (wob * 2 + outerW + 4) * scale;
+    /** The target's own box in its own user space, padded so a displaced or ringed edge is not clipped. */
+    const placed = (node: Element, r: Recipe): Recipe => {
+      if (node instanceof SVGGraphicsElement && !(node instanceof SVGSVGElement)) {
+        const m = node.getScreenCTM();
+        const px = m ? Math.hypot(m.a, m.b) : 1;            // screen px per user unit
+        const k = px > 0 ? 1 / px : 1;
+        let bb: DOMRect | SVGRect;
+        try { bb = node.getBBox(); } catch { bb = {x: 0, y: 0, width: 0, height: 0} as SVGRect; }
+        const p = pad * k;
+        return {...r, k, region: [bb.x - p, bb.y - p, bb.width + 2 * p, bb.height + 2 * p]};
+      }
+      const h = node as HTMLElement;
+      const w = h.offsetWidth || node.getBoundingClientRect().width, ht = h.offsetHeight || node.getBoundingClientRect().height;
+      return {...r, k: 1, region: [-pad, -pad, w + 2 * pad, ht + 2 * pad]};
+    };
+    const target = (node: Element, r: Recipe, axis: string) => addFilter(node, filterFor(placed(node, r)), axis);
+    const visit = (node: Element): void => {
+      if (owned(node) || NON_DRAWING.has(node.tagName)) return;
+      const role = classify(node as never, root as never, true);
+      if (role === 'text' || role === 'image' || role === 'canvas' || role === 'caption') return;
+      const kids = Array.from(node.children);
+      if (guarded.has(node)) { kids.forEach(visit); return; }
+      const isSvg = node instanceof SVGElement;
+      // an HTML wrapper holding SVG drawings: the drawings take the medium through their own filter, so go down to them
+      if (!isSvg && svgSurface && node.querySelector('svg')) { kids.forEach(visit); return; }
+      const r = node.getBoundingClientRect();
+      if (r.width * r.height < 1) { kids.forEach(visit); return; }
+      if (isGround(r)) {
+        if (kids.length) { kids.forEach(visit); return; }
+        if (isSvg && svgSurface) {         // a ground leaf: the medium only — a displaced ground opens gaps at the frame
+          target(node, {wobble: 0, seed: 1, outer: 0, ink: '', surface: svgSurface, strength: surf.strength, posterize: false},
+            'surface.kind');
+        }
+        return;
+      }
+      const behind = groundBehind(node, root.parentElement ?? root, dna);
+      const ink = outerW > 0 ? (lineColor(c, behind, '') ?? inkFor(behind, dna)) : '';
+      target(node, {wobble: wob, seed: wob > 0 ? seed : 1, outer: outerW, ink, surface: isSvg ? svgSurface : null,
+        strength: surf.strength, posterize: false}, outerW > 0 ? 'line.outline' : wob > 0 ? 'line.wobble' : 'surface.kind');
+    };
+    for (const k of Array.from(root.children)) if (!owned(k)) visit(k);
+  }
+  for (const el of new Set([...filterBase.keys(), ...filterAdd.keys()])) {
+    const base = filterBase.get(el) ?? getComputedStyle(el).filter;
+    const adds = filterAdd.get(el) ?? [];
+    const value = [base && base !== 'none' ? base : '', ...adds.map(([f]) => f)].filter(Boolean).join(' ') || 'none';
+    put(el, 'filter', value, adds[0]?.[1] ?? 'shadow.mode');
+  }
   for (const [el, prop, value, axis] of plan) {
     if (write(el, prop, value)) { rep.changed++; rep.byAxis[axis] = (rep.byAxis[axis] ?? 0) + 1; }
   }
@@ -412,7 +585,10 @@ const StyledLayer: React.FC<{spec: ResolvedStyle; beat?: number; children: React
   const defsRef = useRef<SVGSVGElement>(null);
   const frame = useCurrentFrame();
   const dna = useDNA();
-  const {width, height} = useVideoConfig();
+  const {width, height, fps, durationInFrames} = useVideoConfig();
+  const sceneDur = React.useContext(SceneDurationContext);
+  const reduced = React.useContext(ReducedMotionContext);
+  const seed = wobbleSeed(frame, sceneDur ?? durationInFrames, fps, Number((spec.line as {boil_hz?: number}).boil_hz) || 0, reduced);
   const scale = Math.min(width, height) / 1080;
   useLayoutEffect(() => {
     const root = ref.current;
@@ -423,7 +599,8 @@ const StyledLayer: React.FC<{spec: ResolvedStyle; beat?: number; children: React
       if (busy) return;
       busy = true;
       obs.disconnect();
-      const rep = applyDomPass(root, spec, scale, dna, defsRef.current, String(beat ?? ''));
+      const rep = applyDomPass(root, spec, scale, dna, defsRef.current, String(beat ?? ''), seed);
+      root.setAttribute('data-style-seed', String(seed));
       root.setAttribute('data-style-pass', JSON.stringify(rep.byAxis));
       obs.takeRecords();
       obs.observe(root, {subtree: true, childList: true, attributes: true,
@@ -453,7 +630,7 @@ const StyledLayer: React.FC<{spec: ResolvedStyle; beat?: number; children: React
       ro?.disconnect();
       if (handle !== null) continueRender(handle);
     };
-  }, [frame, spec, scale, dna, beat]);
+  }, [frame, spec, scale, dna, beat, seed]);
   return (
     <div ref={ref} data-style-layer={beat ?? ''} style={{display: 'contents'}}>
       <svg ref={defsRef} data-style-defs="" width={0} height={0} aria-hidden

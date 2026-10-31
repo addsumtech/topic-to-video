@@ -26,11 +26,14 @@ const ownText = (el: ElLike): boolean => {
   return false;
 };
 
-/** What `el` is. An element drawing its own glyphs is `text` whatever else it is; inside an SVG text run, too. */
-export const classify = (el: ElLike): Role => {
-  for (let e: ElLike | null = el; e; e = e.parentElement) {
+/** What `el` is. An element drawing its own glyphs is `text` whatever else it is; inside an SVG text run, too.
+ *  `stop` bounds the walk for a caption or an echo to inside one style layer: a layer drawn inside a seam's container
+ *  copy (itself marked as an echo) still styles its shapes, or the copy and the beat would differ mid-seam.
+ *  `drawEcho` styles an echo INSIDE the layer like anything else (the platform-safe margin must match its beat). */
+export const classify = (el: ElLike, stop: ElLike | null = null, drawEcho = false): Role => {
+  for (let e: ElLike | null = el; e && e !== stop; e = e.parentElement) {
     if (e.getAttribute('data-caption') !== null) return 'caption';
-    if (e.getAttribute('data-echo') !== null) return 'echo';
+    if (!drawEcho && e.getAttribute('data-echo') !== null) return 'echo';
   }
   const tag = el.tagName;
   if (IMAGES.has(tag)) return 'image';
@@ -60,10 +63,14 @@ export const toHex = (css: string): string | null => {
 export const meanColor = (css: string): string | null => {
   const cs = [...css.matchAll(RGB)].map((m) => m[1].split(',').map((x) => parseFloat(x)));
   if (!cs.length) return null;
+  // each stop's colour counts by its alpha: a fill fading to nothing is that colour, fainter — not mixed with the
+  // black a transparent stop happens to be written in (the area under ChartLive's series went grey)
   const n = cs.length;
-  const avg = (i: number, d: number) => cs.reduce((s, c) => s + (c[i] ?? d), 0) / n;
-  const [r, g, b, a] = [avg(0, 0), avg(1, 0), avg(2, 0), avg(3, 1)];
-  return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${+a.toFixed(3)})`;
+  const al = cs.map((c) => c[3] ?? 1);
+  const wsum = al.reduce((s, v) => s + v, 0);
+  const ch = (i: number) => (wsum > 0 ? cs.reduce((s, c, k) => s + c[i] * al[k], 0) / wsum : cs.reduce((s, c) => s + c[i], 0) / n);
+  const a = wsum / n;
+  return `rgba(${Math.round(ch(0))}, ${Math.round(ch(1))}, ${Math.round(ch(2))}, ${+a.toFixed(3)})`;
 };
 
 /** The outline ink for a shape filled with `fill`: whichever of the film's own fg/bg contrasts more with it, and

@@ -133,7 +133,23 @@ def _ink(img, box):
     reg = img[y0:y1, x0:x1]
     border = np.concatenate([reg[0], reg[-1], reg[:, 0], reg[:, -1]])
     ground = np.median(border, axis=0)
-    return np.abs(reg - ground).max(axis=2) > 60
+    # 100: every glyph on the probe sits 190+ from its ground; the grey hairline under the heading — a SHAPE, which a
+    # style may texture and wobble — sits ~60 from it, and must not be read as type
+    return np.abs(reg - ground).max(axis=2) > 100
+
+
+def _ink_moved(a, b):
+    """The fraction of the box where type ink differs by MORE than its own antialiased edge: a pixel that flips within
+    1 px of a glyph's edge is the ground under a partly-covered pixel changing (a texture, a flattened gradient), not
+    the glyph; one farther out is a glyph drawn differently."""
+    def grow(m):
+        g = m.copy()
+        g[1:] |= m[:-1]; g[:-1] |= m[1:]; g[:, 1:] |= m[:, :-1]; g[:, :-1] |= m[:, 1:]
+        return g
+    def shrink(m):
+        return ~grow(~m)
+    edge = grow(a) & ~shrink(a)
+    return float(((a ^ b) & ~edge).mean())
 
 
 _OUTLINE = {"name": "probe", "refs": [], "refs_missing": "test",
@@ -166,8 +182,8 @@ def test_outline_all_strokes_shapes_and_never_text(tmp_path):
     assert st[(by0 + by1) // 2, bx0 + 1].sum() != un[(by0 + by1) // 2, bx0 + 1].sum()
     # 4) every line of type is the same ink — and a hairline crossing the heading keeps the weight it was drawn with
     for box in from_probe["type"]:
-        a, b = _ink(un, box), _ink(st, box)
-        assert (a ^ b).mean() <= 0.002, ("type ink changed", box, float((a ^ b).mean()))
+        moved = _ink_moved(_ink(un, box), _ink(st, box))
+        assert moved <= 0.0005, ("type ink changed", box, moved)
 
 
 @needs_render
@@ -198,3 +214,158 @@ def test_evidence_images_are_never_repainted(tmp_path):
     assert (x1 - x0) > 400 and (y1 - y0) > 200, "the photograph was not found"
     d = np.abs(st[y0:y1, x0:x1] - un[y0:y1, x0:x1]).max()
     assert d <= 2, "the photograph was repainted (max channel diff %d)" % d
+
+
+# ── Task 4: per-pixel filters (wobble, boil, posterize, the outer edge) and the surface ─────────────────────────
+
+def _filters(body):
+    return _tsprobe.run_ts("import * as F from %s;" % _tsprobe.mod("styleFilters.tsx"), body)
+
+
+@needs_ts
+def test_wobble_seed_is_a_pure_function_of_frame():
+    out = _filters("""
+      out.same = [F.wobbleSeed(10, 150, 30, 8, false), F.wobbleSeed(10, 150, 30, 8, false)];
+      out.hold = [0, 1, 2, 3].map((f) => F.wobbleSeed(f, 150, 30, 8, false));
+      out.next = F.wobbleSeed(4, 150, 30, 8, false);
+      out.still = [0, 40, 99].map((f) => F.wobbleSeed(f, 150, 30, 0, false));
+      out.reduced = [0, 40, 99].map((f) => F.wobbleSeed(f, 150, 30, 8, true));
+    """)
+    assert out["same"][0] == out["same"][1]
+    assert len(set(out["hold"])) == 1, out["hold"]               # 8 Hz at 30 fps: one drawing for 3.75 frames
+    assert out["next"] != out["hold"][0]
+    assert len(set(out["still"])) == 1 and len(set(out["reduced"])) == 1
+
+
+def test_the_seed_reads_only_the_beat_clock():
+    """A seam's container copy is the same beat drawn twice at the same frame: in phase iff the seed reads nothing
+    else (no counter, no time, no randomness)."""
+    src = open(os.path.join(REMOTION, "src", "runtime", "styleFilters.tsx"), encoding="utf-8").read()
+    body = src[src.index("export const wobbleSeed"):]
+    body = body[:body.index("\n};") + 3]
+    for banned in ("Math.random", "Date", "performance", "useRef", "let "):
+        assert banned not in body, banned
+
+
+@needs_ts
+def test_a_layer_inside_an_echo_still_styles_its_shapes():
+    out = _ts("""
+      const echo = el('DIV', null, {'data-echo': 'seam-container'}); const layer = el('DIV', echo);
+      const rect = el('rect', el('svg', layer));
+      out.r = [C.classify(rect), C.classify(rect, layer)];
+    """)
+    assert out["r"] == ["echo", "shape"]
+
+
+def test_surface_is_static_and_never_over_type():
+    src = open(os.path.join(REMOTION, "src", "runtime", "styleSurface.ts"), encoding="utf-8").read()
+    for banned in ("useCurrentFrame", "Math.random", "Date.now"):
+        assert banned not in src, banned
+    eng = open(STYLE, encoding="utf-8").read()
+    # the texture goes UNDER content: a box's own background layer (painted beneath its text) or a filter on a group
+    # that holds no type — never an overlay above the register
+    assert "background-blend-mode" in eng and "surfaceTile(" in eng
+    assert "mix-blend-mode" not in eng
+
+
+_BOIL = {"name": "boil", "refs": [], "refs_missing": "test",
+         "line": {"weight": 3, "color": "ink", "outline": "all", "wobble": 3, "boil_hz": 8}}
+
+
+@needs_render
+def test_text_never_wobbles_and_shapes_boil(tmp_path):
+    """Three frames of the probe one boil phase apart: the shapes' edges move between drawings, the type's ink not."""
+    frames = [_render("StyleProbe", {"style": _BOIL}, f, str(tmp_path / ("b%d.png" % f))) for f in (0, 4, 8)]
+    lay = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))
+    x0, y0, x1, y1 = lay["rect"]
+    edge = (slice(y0 - 12, y1 + 12), slice(x0 - 12, x0 + 12))
+    assert np.abs(frames[0][edge] - frames[1][edge]).max() > 40, "the rect's edge did not move between drawings"
+    for box in lay["type"]:
+        for a, b in ((frames[0], frames[1]), (frames[1], frames[2])):
+            moved = _ink_moved(_ink(a, box), _ink(b, box))
+            assert moved <= 0.0005, ("type moved under the boil", box, moved)
+
+
+@needs_render
+def test_outer_outline_rings_a_drawing_not_its_parts(tmp_path):
+    spec = {"name": "outer", "refs": [], "refs_missing": "test", "line": {"outline": "outer", "weight": 5, "color": "ink"}}
+    un = _render("StyleProbe", {}, 10, str(tmp_path / "un.png"))
+    st = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "st.png"))
+    lay = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))
+    x0, y0, x1, y1 = lay["rect"]
+    ym = (y0 + y1) // 2
+    assert st[ym, x0 - 3].sum() < un[ym, x0 - 3].sum() - 300, "no outer ring at the rect's edge"
+    for box in lay["type"]:
+        assert _ink_moved(_ink(un, box), _ink(st, box)) <= 0.0005, ("type changed", box)
+
+
+@needs_render
+def test_a_paper_surface_textures_the_ground_and_not_the_type(tmp_path):
+    spec = {"name": "paper", "refs": [], "refs_missing": "test", "surface": {"kind": "paper", "strength": 0.8}}
+    un = _render("StyleProbe", {}, 10, str(tmp_path / "un.png"))
+    st = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "st.png"))
+    patch = (slice(60, 160), slice(1300, 1700))            # an empty stretch of ground
+    def tooth(img):          # high-frequency energy: a smooth gradient has none, a medium's tooth has it
+        p = img[patch].astype(float)
+        return float(np.abs(p[:, 1:] - p[:, :-1]).mean())
+    assert tooth(st) > tooth(un) + 1.0, ("the ground took no texture", tooth(un), tooth(st))
+    lay = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))
+    for box in lay["type"]:
+        assert _ink_moved(_ink(un, box), _ink(st, box)) <= 0.0005, ("type textured", box)
+
+
+# ── found by LOOKING at the cartoon-like corpus run (CinematicTitle went grey, ChartLive's series went white) ──────
+
+@needs_ts
+def test_a_mean_colour_weighs_each_stop_by_its_alpha():
+    """A fill fading to nothing is that colour, fainter — not that colour mixed with black (the area under ChartLive's
+    series went grey)."""
+    out = _ts("out.m = C.meanColor('linear-gradient(rgba(34, 197, 94, 0.6) 0%, rgba(0, 0, 0, 0) 100%)');")
+    assert out["m"] == "rgba(34, 197, 94, 0.3)", out["m"]
+
+
+_CARTOON = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "cartoonish_spec.json")))
+
+
+@needs_render
+def test_a_translucent_overlay_takes_no_opaque_medium(tmp_path):
+    """The paper's tooth is opaque; laid on a vignette it covered the whole register (CinematicTitle: a grey frame)."""
+    st = _render("StyleProbe", {"style": _CARTOON, "overlay": True}, 10, str(tmp_path / "st.png"))
+    x0, y0, x1, y1 = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))["rect"]
+    mid = st[(y0 + y1) // 2, (x0 + x1) // 2]
+    assert mid[0] > 150 and mid[2] < 140, ("the yellow rect is covered", mid)       # still yellow under the vignette
+
+
+@needs_render
+def test_a_coloured_line_keeps_its_hue_and_a_hairline_stays_lighter(tmp_path):
+    spec = {"name": "ink lines", "refs": [], "refs_missing": "test", "line": {"weight": 4, "color": "ink"},
+            "fill": {"mode": "flat"}}
+    st = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "st.png"))
+    lay = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))
+    # per PIXEL: the series is #16a34a (G−R 141); the faint area under it ~45; an ink line ~0
+    greenest = max(int((st[y - 6:y + 7, x - 6:x + 7, 1].astype(int) - st[y - 6:y + 7, x - 6:x + 7, 0]).max())
+                   for x, y in lay["series"])
+    assert greenest > 80, ("the data series lost its colour", greenest)
+    gx, gy = lay["grid_x"], lay["grid_y"]
+    col = np.abs(st[gy - 6:gy + 7, gx] - st[gy + 14, gx]).max(axis=1) > 12      # the area above ends at y=1030
+    assert 0 < col.sum() <= 2, ("the hairline is no longer lighter than the main line", int(col.sum()))
+    ax, ay = lay["area"]
+    a = st[ay, ax]
+    assert a[1] > a[0] + 10, ("the area under the series lost its hue", a)
+
+
+@needs_render
+def test_light_is_not_paint(tmp_path):
+    """Translucent things are LIGHT: a vignette flattened became a grey veil over a title (CinematicTitle), a glint and a
+    halo were outlined as if they were objects (ClayStack, KnowledgeGraph), and a letterbox bar took a ring."""
+    spec = {"name": "flat ink", "refs": [], "refs_missing": "test", "fill": {"mode": "flat"},
+            "line": {"outline": "all", "weight": 4, "color": "ink"}, "shadow": {"mode": "hard-offset", "offset": 6}}
+    st = _render("StyleProbe", {"style": spec, "overlay": True}, 10, str(tmp_path / "st.png"))
+    lay = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))
+    # the vignette is still a vignette: the corner darker than the open ground near the middle
+    assert st[1060, 20].astype(int).sum() < st[560, 700].astype(int).sum() - 40, (st[1060, 20], st[560, 700])
+    # the glint has no ink ring: just outside its edge is still the yellow of the rect
+    gx, gy = lay["glint_edge"]
+    assert st[gy, gx].astype(int).sum() > 450, ("the glint was outlined", st[gy, gx])
+    # the letterbox bar has no ring along its lower edge
+    assert np.abs(st[42, 960].astype(int) - st[70, 960].astype(int)).max() <= 12, (st[42, 960], st[70, 960])

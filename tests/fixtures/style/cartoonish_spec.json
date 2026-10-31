@@ -1,0 +1,5 @@
+{"name": "cartoon-like measurement spec: ink outline, cel fill, hard shadow, boiling line, paper",
+ "refs": [], "refs_missing": "a measurement spec, not a user's style",
+ "line": {"weight": 3, "color": "ink", "outline": "all", "wobble": 1.5, "boil_hz": 8},
+ "fill": {"mode": "cel", "steps": 3}, "shadow": {"mode": "hard-offset", "offset": 6},
+ "form": {"corner": 1.5}, "surface": {"kind": "paper", "strength": 0.6}}
