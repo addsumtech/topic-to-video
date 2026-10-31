@@ -36,6 +36,7 @@ export const FIDELITY = {
       source: 'https://en.wikipedia.org/wiki/Nucleic_acid_double_helix'},
   },
   parts: ['backbone', 'base-pair'],
+  mounted_on: {'backbone': null, 'base-pair': 'backbone'},   // each rung is bonded to both strands
   materials: ['sugar-phosphate backbones', 'paired bases (A-T, G-C) as rungs'],
 };
 const BG_D0 = '#060a10', A_T = '#37e0ff', G_C = '#ff5b9e', STRAND = '#7fe9c8';

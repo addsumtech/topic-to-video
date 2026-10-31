@@ -1687,9 +1687,12 @@ import {clamp01, seg, easeOutCubic} from '@runtime/motion';
 // fidelity (references/object-authoring.md rule 7): what it depicts. A REAL thing names its references BEFORE it
 // is drawn — a photo via scripts/imagefetch.py (with its sidecar) or the product's own asset, and a spec or drawing
 // you read — its key proportions with their source, the defining parts (each drawn on a node marked
-// data-part="<name>") and its materials. A chart or a metaphor shape is {subject, depicts: 'abstract'}.
+// data-part="<name>"), its materials, and what holds each part (mounted_on). A chart or a metaphor shape is
+// {subject, depicts: 'abstract'}.
 export const META: FidelityMeta = {aspect: 1, provenance: '', fidelity: {
-  subject: '', depicts: 'real', references: [], proportions: {}, parts: [], materials: []}};
+  subject: '', depicts: 'real', references: [], proportions: {}, parts: [], materials: [],
+  // what holds each part: {part: the part it is fixed to | null (held by something not drawn — a pivot, the frame)}
+  mounted_on: {}}};
 
 // @scaffold — replace this body with the real drawing, then delete this line.
 export const %(name)s: React.FC<ObjectProps> = ({w, h, t, dna}) => {

@@ -63,6 +63,8 @@ export const META: ObjectMeta & {fidelity: object} = {aspect: 2.3, turns: true, 
       source: 'references/object-refs/GpsSatellite/gps-iif.jpg'},
   },
   parts: ['bus', 'solar-array', 'wing-boom', 'helix-array', 'boom-antenna'],
+  // what holds each part (the NASA/Boeing drawing): the wings on their booms off the bus, the arrays on the bus
+  mounted_on: {'bus': null, 'wing-boom': 'bus', 'solar-array': 'wing-boom', 'helix-array': 'bus', 'boom-antenna': 'bus'},
   materials: ['gold insulation foil on every face of the bus (both drawings; the spec names "radiator blankets" but locates none, so no radiator face is drawn)', 'dark-blue solar cells', 'bronze helix elements on a dark frame (the NASA/Boeing drawing)', 'a pale boom and collar carrying a bronze cylinder (the NASA/Boeing drawing)'],
 }};
 

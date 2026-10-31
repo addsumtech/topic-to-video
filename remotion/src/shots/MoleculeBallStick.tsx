@@ -41,6 +41,7 @@ export const FIDELITY = {
     depth_order: {value: 'sticks and balls occlude each other by depth', drawn: 'one far-to-near order for both', source: 'references/object-refs/MoleculeBallStick/ball-and-stick.png'},
   },
   parts: ['atom', 'bond'],
+  mounted_on: {'atom': null, 'bond': 'atom'},   // a stick runs from atom to atom
   materials: ['balls in the CPK colour of their element, lit from the upper left', 'sticks in one neutral ink'],
 };
 const BG_D0 = '#070a14';

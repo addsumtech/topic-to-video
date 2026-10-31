@@ -39,6 +39,7 @@ export const FIDELITY = {
       source: 'references/object-refs/GearTrain/spur-gears.png'},
   },
   parts: ['teeth', 'gear-body'],
+  mounted_on: {'gear-body': null, 'teeth': 'gear-body'},   // the body turns on an axle the plate does not draw
   materials: ['machined gear blanks (the film\'s tones)', 'spokes and a rim on the web'],
 };
 const BG_D0 = '#0b0c11';

@@ -79,7 +79,9 @@ that has a slot for one — `ObjectStage`, `ObjectCompare`, `ObjectPath`, `Objec
    `exploded: true` for an exploded view). In a MECHANISM parts touch everywhere — a pallet jewel rests on an
    escape tooth and crosses the balance rim in the picture — so touching something proves nothing: declare what
    each part is FIXED to, `mounted_on: {'exit-pallet': 'pallet-fork'}`, and the sheet refuses one that does not
-   touch its mount. The critic judges every real built thing on that sheet (`agents/shot-critic.md` S16). A
+   touch its mount. A real thing of two or more parts accounts for EVERY part there — on the part it is fixed to,
+   or `null` when what holds it is not drawn (`'escape-wheel': null`, a pivot in the plate) — and `workshop.py
+   check` / `validate.py` warn, naming each part left out: a part no mount names is checked against nothing. The critic judges every real built thing on that sheet (`agents/shot-critic.md` S16). A
    device's sourced spec table (`runtime/deviceSpec.json`) is the device-shaped instance of this record.
 
 `META` carries `aspect`, `provenance` (the idiom world its look comes from — the film's `idiom_world` is judged on

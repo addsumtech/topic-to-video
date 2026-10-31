@@ -16,7 +16,8 @@ record on its `meta.build_list` entry (`fidelity`); a LIBRARY register that does
     {subject, depicts: 'real' | 'abstract',
      references: [{kind: photo|spec|drawing|asset, source: url-or-path, note}],
      proportions: {name: {value, source}}, parts: [names], materials: [names], exploded?: bool,
-     mounted_on?: {part: part | [parts]}}       # what each part is FIXED to — checked to touch it
+     mounted_on?: {part: part | [parts] | None}} # what each part is FIXED to — checked to touch it; None: held
+                                                 # by something not drawn (a pivot, the frame)
 
 `depicts: 'abstract'` (a chart, a metaphor shape) needs no references. A device's sourced spec table
 (runtime/deviceSpec.json) is the device-shaped instance of the same record.
@@ -28,7 +29,9 @@ THE CHECKS (problems(), run by workshop.py check and validate.py) — ERROR unle
     kind `asset`
   * a proportion with no value or no source, or citing a source that is not among the references
   * empty `parts` on a real thing; a part name that cannot be a `data-part` token
-  * WARN: no spec/drawing reference; no materials; a declared part the source never marks `data-part="…"`
+  * WARN: no spec/drawing reference; no materials; a declared part the source never marks `data-part="…"`;
+    a real thing of two or more parts that leaves a part out of `mounted_on` (neither mounted, held by something
+    not drawn, nor a mount) — that part's attachment is checked against nothing
 
 THE SHEET (sheet()). The object is rendered twice — alone at hero size (Root's `FidelityHero`) and on the host
 the film shows it on, at the film's size — with `fidelityParts` armed: runtime/fidelity.tsx logs the box of every
@@ -547,12 +550,28 @@ def problems(rec, base, where, part_names=None):
             err("fidelity.mounted_on is {part: the part (or list of parts) it is fixed to}")
         else:
             for k, v in mounts.items():
-                on = v if isinstance(v, list) else [v]
+                on = [] if v is None else (v if isinstance(v, list) else [v])
                 for name in [k] + on:
                     if not isinstance(name, str) or name not in seen:
                         err("fidelity.mounted_on names %r, which is not one of fidelity.parts" % (name,))
                 if k in on:
                     err("fidelity.mounted_on: %r is mounted on itself" % k)
+    # EVERY PART OF A REAL ASSEMBLY SAYS WHAT HOLDS IT. Detachment is judged against a declared mount, and a part no
+    # mount names is judged against nothing: a jewel drawn off its fork touches the wheel beside it and passes. So a
+    # real thing of two or more parts accounts for each one — mounted on a part (`'exit-pallet': 'pallet-fork'`),
+    # held by something the drawing does not show (`'escape-wheel': null` — a pivot in the plate, the hand), or
+    # named as another part's mount. An exploded view is exempt: its parts are apart on purpose.
+    if (dep == "real" and isinstance(parts, list) and len(parts) >= 2 and not rec.get("exploded")
+            and (mounts is None or isinstance(mounts, dict))):
+        held = set(mounts or {})
+        for v in (mounts or {}).values():
+            held.update(v if isinstance(v, list) else ([v] if isinstance(v, str) else []))
+        loose = [q for q in parts if isinstance(q, str) and q not in held]
+        if loose:
+            warn("names %d part(s) but says what holds only %d — %s: declare each in fidelity.mounted_on, on the part "
+                 "it is fixed to, or null when what holds it is not drawn (a pivot, the frame). A part no mount names "
+                 "is checked against nothing, and a part drawn floating beside another passes"
+                 % (len(parts), len(parts) - len(loose), ", ".join(loose)))
     if dep == "real":
         if not refs:
             err("depicts a real thing and names no reference — collect them BEFORE drawing: a real photo "

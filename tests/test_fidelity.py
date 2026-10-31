@@ -40,6 +40,38 @@ def test_a_complete_real_record_passes(tmp_path):
     assert _errs(_good(tmp_path), tmp_path) == []
 
 
+def _holds(rec, base):
+    return [m for lv, m in fid.problems(rec, str(base), "X") if lv == "WARN" and "says what holds" in m]
+
+
+def test_every_part_of_a_real_assembly_says_what_holds_it(tmp_path):
+    """A part no mount names is checked against nothing — the floating jewel passed every distance test — so a real
+    thing of two or more parts accounts for each: mounted on a part, null (held by what is not drawn), or a mount."""
+    rec = dict(_good(tmp_path), parts=["plate", "wheel", "jewel"])
+    w = _holds(rec, tmp_path)
+    assert len(w) == 1 and "plate, wheel, jewel" in w[0] and "only 0" in w[0], w
+    rec["mounted_on"] = {"jewel": "wheel"}                     # the wheel holds the jewel; the plate is unaccounted
+    w = _holds(rec, tmp_path)
+    assert len(w) == 1 and w[0].split(" — ")[1].startswith("plate:"), w
+    rec["mounted_on"] = {"jewel": "wheel", "plate": None}      # null: held by something the drawing does not show
+    assert _holds(rec, tmp_path) == [] and _errs(rec, tmp_path) == []
+    rec["mounted_on"] = {"jewel": ["wheel", "plate"]}          # a list of mounts accounts for each of them
+    assert _holds(rec, tmp_path) == []
+
+
+def test_a_one_part_abstract_or_exploded_thing_owes_no_mounts(tmp_path):
+    assert _holds(dict(_good(tmp_path), parts=["body"]), tmp_path) == []
+    assert _holds({"subject": "a chart", "depicts": "abstract", "parts": ["a", "b"]}, tmp_path) == []
+    assert _holds(dict(_good(tmp_path), parts=["a", "b", "c"], exploded=True), tmp_path) == []
+
+
+def test_a_null_mount_is_not_a_part_name(tmp_path):
+    rec = dict(_good(tmp_path), mounted_on={"body": None, "lid": "body"})
+    assert _errs(rec, tmp_path) == [] and _holds(rec, tmp_path) == []
+    bad = dict(_good(tmp_path), mounted_on={"lid": "hinge"})
+    assert any("names 'hinge'" in e for e in _errs(bad, tmp_path))
+
+
 def test_an_abstract_record_needs_no_reference(tmp_path):
     assert _errs({"subject": "a chart of years", "depicts": "abstract"}, tmp_path) == []
 
@@ -139,6 +171,7 @@ def test_every_library_object_declares_a_valid_record(name):
     assert why is None and isinstance(rec, dict), "%s: META.fidelity is missing or unreadable (%s)" % (name, why)
     probs = fid.problems(rec, fid.SKILL, name, fid.source_part_names(src))
     assert fid.errors_of(probs) == [], probs
+    assert not [m for lv, m in probs if lv == "WARN" and "says what holds" in m], probs
     if rec["depicts"] == "real":
         names, _dyn = fid.source_part_names(src)
         assert set(rec["parts"]) <= names, "every declared part is marked data-part in the source"
@@ -175,6 +208,7 @@ def test_every_library_register_that_declares_a_record_declares_a_valid_one(name
     assert why is None and isinstance(rec, dict), "%s: FIDELITY is unreadable (%s)" % (name, why)
     probs = fid.problems(rec, fid.SKILL, name, fid.source_part_names(src))
     assert fid.errors_of(probs) == [], probs
+    assert not [m for lv, m in probs if lv == "WARN" and "says what holds" in m], probs
     if rec["depicts"] == "real":
         names, _dyn = fid.source_part_names(src)
         assert set(rec["parts"]) <= names, "every declared part is marked data-part in the source"

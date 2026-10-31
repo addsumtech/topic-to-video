@@ -423,7 +423,7 @@ of the thing: (a) **reference** — set beside the reference image, is it recogn
 block, that species), not a generic icon of its kind? (b) **proportions** — do the drawn ratios match the record's
 sourced ones (`drawn` vs `value`) and the reference image? (c) **parts** — is every defining part present and
 ATTACHED where the real one is: nothing floating, nothing detached, no part larger than the whole? (the sheet's
-MISSING / DETACHED findings are measured from the DOM and are an automatic FAIL); (d) **materials** — are they the
+MISSING / DETACHED / NOT ON ITS MOUNT findings are measured from the DOM and are an automatic FAIL; a real thing of two or more parts whose `mounted_on` leaves a part out — the sheet's check warns, naming it — is judged on that part by eye, and the verdict says what holds it); (d) **materials** — are they the
 real thing's, lit by one light consistent with the film? (e) **one geometry** — one projection and transform for
 the body and everything on it: no level text on a skewed face, symmetric where the thing is, concentric radii and
 even edge thickness? (f) **detail at 100%** — in the sheet's 100% crops, does the detail hold at the size the film

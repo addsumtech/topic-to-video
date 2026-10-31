@@ -45,7 +45,7 @@ export type Fidelity = {
   exploded?: boolean;
   /** what each part is FIXED to ({'exit-pallet': 'pallet-fork'}): the sheet checks the two touch. In a mechanism
    *  parts touch everywhere (a jewel rests on a tooth), so touching something proves nothing about attachment */
-  mounted_on?: Record<string, string | string[]>;
+  mounted_on?: Record<string, string | string[] | null>;
 };
 export type FidelityMeta = ObjectMeta & {fidelity: Fidelity};
 
