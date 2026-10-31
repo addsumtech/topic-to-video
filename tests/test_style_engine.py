@@ -515,3 +515,25 @@ def test_a_speck_is_not_outlined(tmp_path):
     st = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "st.png"))
     for p in ((112, 1592), (112, 1607), (128, 1592), (128, 1607)):    # just outside the speck's box
         assert np.abs(st[p].astype(int) - un[p].astype(int)).max() <= 3, (p, st[p], un[p])
+
+
+@needs_render
+def test_a_display_face_without_cjk_keeps_the_cjk_glyphs(tmp_path):
+    """type.display named a face; set alone it dropped the DNA's bundled Noto SC stack, so a 中文 heading fell to
+    whatever the system had (review finding). The face goes FIRST, the element's own stack stays behind it."""
+    spec = {"name": "face", "refs": [], "refs_missing": "t", "type": {"display": "NoSuchFace"}}
+    un = _render("StyleProbe", {}, 10, str(tmp_path / "un.png"))
+    st = _render("StyleProbe", {"style": spec}, 10, str(tmp_path / "st.png"))
+    box = json.load(open(os.path.join(ROOT, "tests", "fixtures", "style", "probe_layout.json")))["type"][2]   # 标题
+    assert _ink_moved(_ink(un, box), _ink(st, box)) <= 0.0005
+
+
+@needs_render
+def test_an_empty_register_does_not_hang_the_render(tmp_path):
+    """A layer whose register draws nothing waited for its children to take a size, for ever: the frame hit
+    Remotion's delayRender timeout and the render failed (review finding)."""
+    import time
+    spec = {"name": "x", "refs": [], "refs_missing": "t", "line": {"outline": "all"}}
+    t0 = time.time()
+    _render("StyleProbe", {"style": spec, "empty": True}, 10, str(tmp_path / "e.png"))
+    assert time.time() - t0 < 25, "the empty layer held the frame"

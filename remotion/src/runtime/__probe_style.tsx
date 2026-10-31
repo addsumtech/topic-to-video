@@ -7,7 +7,7 @@
 import React from 'react';
 import {AbsoluteFill} from 'remotion';
 
-export const StyleProbe: React.FC<{overlay?: boolean; dark?: boolean}> = ({overlay = false, dark = false}) => (
+export const StyleProbe: React.FC<{overlay?: boolean; dark?: boolean; empty?: boolean}> = ({overlay = false, dark = false, empty = false}) => empty ? null : (
   <AbsoluteFill style={{background: dark ? '#0b0f17' : '#f5f1e8'}}>
     <div data-probe="ground" style={{position: 'absolute', inset: 0, background: dark
       ? 'radial-gradient(circle at 50% 50%, #141b29 0%, #080b11 100%)'

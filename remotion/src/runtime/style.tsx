@@ -26,6 +26,7 @@ import {classify, inkFor, meanColor, steppedGradient, quantizeStops, quantizeAlp
 import {hash01, ReducedMotionContext, SceneDurationContext} from './motion';
 import {buildFilter, recipeKey, wobbleSeed, type Recipe} from './styleFilters';
 import {surfaceTile} from './styleSurface';
+import {stepFrame} from './styleMotion';
 import {withoutAxes} from './styleHooks';
 
 export {meanColor};
@@ -391,9 +392,16 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
       rep.text++;
       const px = parseFloat(cs.fontSize) || 0;
       const display = el.getAttribute('data-type-role') === 'display' || px >= DISPLAY_FRAC * short;
-      if (display && type.display !== 'as-dna') put(el, 'font-family', type.display, 'type.display');
+      // the style's face goes FIRST and the element's own stack stays behind it: set alone it dropped the DNA's bundled
+      // Noto SC faces, and a 中文 heading fell to whatever the system had (review finding)
+      if (display && type.display !== 'as-dna') {
+        const face = /^["'].*["']$|^[\w-]+$/.test(type.display.trim()) ? type.display.trim() : `"${type.display.trim()}"`;
+        put(el, 'font-family', `${face}, ${cs.fontFamily}`, 'type.display');
+      }
       if (display && type.display_outline) {
-        const w = Math.max(1, +(px * 0.035).toFixed(2));
+        // CJK strokes are dense: at 3.5% of the size an outline closes a character's counters — 1.5% keeps them open
+        const cjk = /[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7a3]/.test(el.textContent ?? '');
+        const w = Math.max(1, +(px * (cjk ? 0.015 : 0.035)).toFixed(2));
         put(el, '-webkit-text-stroke', `${w}px ${inkFor(cs.color, dna)}`, 'type.display_outline');
         put(el, 'paint-order', 'stroke fill', 'type.display_outline');
       }
@@ -684,7 +692,10 @@ const StyledLayer: React.FC<{spec: ResolvedStyle; beat?: number; children: React
   const {width, height, fps, durationInFrames} = useVideoConfig();
   const sceneDur = React.useContext(SceneDurationContext);
   const reduced = React.useContext(ReducedMotionContext);
-  const seed = wobbleSeed(frame, sceneDur ?? durationInFrames, fps, Number((spec.line as {boil_hz?: number}).boil_hz) || 0, reduced);
+  // the boil steps with the drawing: on twos, the line is redrawn when the picture is (review finding)
+  const step = reduced ? 1 : Number((spec.motion as {stepping?: number}).stepping) || 1;
+  const seed = wobbleSeed(stepFrame(frame, step), sceneDur ?? durationInFrames, fps,
+    Number((spec.line as {boil_hz?: number}).boil_hz) || 0, reduced);
   const scale = Math.min(width, height) / 1080;
   useLayoutEffect(() => {
     const root = ref.current;
@@ -708,18 +719,23 @@ const StyledLayer: React.FC<{spec: ResolvedStyle; beat?: number; children: React
     // changes no DOM under this layer, so the observer above never fires: every geometric judgement (a ground, a line
     // crossing type) would be made against empty boxes — measured: every element read as the ground and no outline
     // was drawn. Hold the frame until the register has a size, then pass again.
+    // Wait for the HOST (the box the layer sits in) to be laid out, never for the register's own children: a register
+    // that draws nothing on a frame never gives them a size, and the frame waited out Remotion's delayRender timeout
+    // and failed the render (review finding).
     let handle: number | null = null;
     let ro: ResizeObserver | null = null;
-    if (layerArea(root) <= 1) {
-      handle = delayRender('style engine: waiting for the register to be laid out');
+    const host = root.parentElement;
+    const laidOut = () => !host || host.getBoundingClientRect().width * host.getBoundingClientRect().height > 1;
+    if (!laidOut() && host) {
+      handle = delayRender('style engine: waiting for the frame to be laid out');
       ro = new ResizeObserver(() => {
-        if (layerArea(root) <= 1 || handle === null) return;
+        if (!laidOut() || handle === null) return;
         run();
         ro?.disconnect();
         continueRender(handle);
         handle = null;
       });
-      for (const k of Array.from(root.children)) ro.observe(k);
+      ro.observe(host);
     }
     return () => {
       obs.disconnect();

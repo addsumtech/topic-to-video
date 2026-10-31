@@ -143,3 +143,9 @@ def test_a_stepped_film_holds_its_drawing_for_two_frames(tmp_path):
     assert moved(ones[0], ones[1]) > 0.001, "the register is not moving here: the test frame is wrong"
     assert moved(twos[0], twos[1]) < 1e-4 and moved(twos[2], twos[3]) < 1e-4, "a stepped drawing moved on a held frame"
     assert moved(twos[1], twos[2]) > 0.001, "a stepped drawing never advanced"
+
+
+def test_the_boil_steps_with_the_drawing():
+    """On twos the picture holds two frames; a line that kept boiling every frame read as a tween over a drawing."""
+    src = open(os.path.join(REMOTION, "src", "runtime", "style.tsx"), encoding="utf-8").read()
+    assert "wobbleSeed(stepFrame(frame, step)" in src
