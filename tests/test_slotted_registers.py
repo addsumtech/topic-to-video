@@ -135,11 +135,20 @@ def test_the_plate_s_rule_never_runs_through_its_own_caption(film, tmp_path, asp
     green = (a[..., 1] > 180) & (a[..., 0] < 90) & (a[..., 2] < 90)
     # the sheet's lowest green: its bottom rule, or where its side rules end when the art covers that rule
     rules = [y for y in range(H) if green[y].any()]
-    assert rules, "no sheet rule found — the sheet is no longer drawn in the DNA's `line`"
-    rule_bottom = max(rules)
+    if aspect == "16:9":
+        assert rules, "no sheet rule found — the sheet is no longer drawn in the DNA's `line`"
+    # A narrow frame draws the plate as a patent plate (TechnicalPlate PLATE_SIDE_MIN_ASPECT): its sheet IS the
+    # drawing's own square, and this fixture's art is an opaque square that covers that rule edge to edge — so there
+    # the sheet's bottom is the drawing's bottom, never an assumed rule.
+    rule_bottom = max(rules + [box[3]])
     light = a.min(axis=-1) > 110                                          # white name, grey note
     band = light[:, box[0]:box[2] + 1]                                    # under the drawing, not the margins
     cap_rows = [y for y in range(box[1], H) if band[y].any()]
+    if not cap_rows and aspect == "1:1":
+        # a near-square plate sets its key, name and note in a column BESIDE the drawing: then nothing of the
+        # caption may enter the drawing's columns at all (checked above: no light ink there), and it must exist
+        assert light[:, box[2] + 1:].any(), "no caption ink found beside the drawing"
+        return
     assert cap_rows, "no caption ink found under the drawing"
     assert min(cap_rows) > rule_bottom, (
         "the caption starts at y=%d, on or above the sheet's rule at y=%d" % (min(cap_rows), rule_bottom))
