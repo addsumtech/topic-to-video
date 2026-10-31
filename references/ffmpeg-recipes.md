@@ -21,6 +21,12 @@ rawvideo:
 * `_kenburns_frames` resamples that window whole to W×H with Pillow's Lanczos (`Image.resize(..., box=float
   window)`) on a few threads with a bounded look-ahead; a move that does not move (reduced motion, from == to) is
   the fitted frame's own bytes repeated;
+* the window is resampled from the SOURCE's own pixels, not the fitted frame: `_kenburns_master` rebuilds the same fit
+  (contain's letterbox, cover's crop) from the source at k × the frame, k = the source's pixels per fitted pixel capped
+  at 1.5× the move's largest zoom (a master at exactly the zoom is two Lanczos passes both cutting near the frame's
+  Nyquist — measured 0.77–0.97 of a direct source resample's detail; 1.00–1.02 at 1.5×, as at 2× for more time). On the 2026-10-30 film's
+  2400 px photo pushed to 1.12× the fitted-frame path kept 0.79 of the detail, the master 1.00. A source with no pixels
+  to spare keeps the fitted frame;
 * `_run_fed` streams the frames to ffmpeg, which overlays callouts / bug / captions and encodes:
 
 ```bash

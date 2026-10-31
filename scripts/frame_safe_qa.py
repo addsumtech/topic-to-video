@@ -40,6 +40,61 @@ EDGE_FRAC_ERR = 0.045   # >this fraction of the (top+left+right) border being br
 from _caption_band import caption_band_px          # noqa: E402
 
 
+# THE 9:16 MARGIN MUST CONTINUE THE FRAME, NOT FRAME IT. A platform-safe film draws every register in a frame scaled
+# by k (runtime/safeZone.ts) whose edges dissolve over the action-safe border; what shows round it is the margin. Two
+# defects lived there and no gate saw either (2026-10-30 generality film A): with the echo on, the register MAGNIFIED
+# about the frame's centre carried interior content into the margin — the balance wheel as gold arcs in the top corners
+# (measured here: up to 61 levels against the frame's own edge); with it off, the film's flat ground round the
+# register's radial one — a lit panel whose top edge stepped 13 levels. Measured per segment along each side: the
+# median colour just inside the frame's dissolving edge against the median just outside it, in the margin. A
+# continuation reads a few levels (the ground's own slope across the gap); a panel edge or a smudge reads far more.
+# The bottom side is not judged: the caption is burned there, over the platform's own UI.
+MARGIN_SEAM_WARN = 8      # levels (max over RGB) between the frame's edge and the margin beside it
+_SEG = 0.05               # segment length along a side, as a share of the short side
+_BAND = 0.02              # band depth either side of the edge, as a share of the short side
+_GAP = 0.006              # kept clear of the edge itself, as a share of the short side
+
+
+def margin_seam(rgb, prof=None, asf=None):
+    """{side: (worst level step, at px along the side)} for a platform-safe frame `rgb` (H x W x 3 uint8 array):
+    the largest median-colour step between the scaled frame's inner edge band and the margin band beside it, per side
+    (top / left / right), over segments of the side. Profile and border are READ from the runtime."""
+    import numpy as np
+    import text_safe_qa as tsq
+    prof = prof or tsq.safe_profile()
+    asf = tsq.action_safe_frac() if asf is None else asf
+    H, W = rgb.shape[:2]
+    short = min(W, H)
+    k = prof["k"]
+    x0, y0 = (1 - k) * W / 2, prof["y0"] * H
+    x1, y1 = W - x0, y0 + k * H
+    fx, fy = asf * k * W, asf * k * H                     # the mask's ramp, in frame px (a share of the scaled box)
+    d, gap, seg = (max(2, round(v * short)) for v in (_BAND, _GAP, _SEG))
+    cap_top = y1 - k * caption_band_px(W, H)              # the register's own caption band, where the caption burns
+    a = rgb.astype(np.int16)
+
+    def med(y_lo, y_hi, x_lo, x_hi):
+        y_lo, y_hi, x_lo, x_hi = (int(round(v)) for v in (max(0, y_lo), min(H, y_hi), max(0, x_lo), min(W, x_hi)))
+        if y_hi - y_lo < 2 or x_hi - x_lo < 2:
+            return None
+        return np.median(a[y_lo:y_hi, x_lo:x_hi].reshape(-1, 3), axis=0)
+
+    out = {}
+    sides = {
+        "top": [(med(y0 + fy, y0 + fy + d, s, s + seg), med(y0 - gap - d, y0 - gap, s, s + seg), s)
+                for s in range(int(x0 + fx), int(x1 - fx - seg) + 1, seg)],
+        "left": [(med(s, s + seg, x0 + fx, x0 + fx + d), med(s, s + seg, x0 - gap - d, x0 - gap), s)
+                 for s in range(int(y0 + fy), int(cap_top - seg) + 1, seg)],
+        "right": [(med(s, s + seg, x1 - fx - d, x1 - fx), med(s, s + seg, x1 + gap, x1 + gap + d), s)
+                  for s in range(int(y0 + fy), int(cap_top - seg) + 1, seg)],
+    }
+    for side, pairs in sides.items():
+        steps = [(float(np.abs(i - o).max()), at) for i, o, at in pairs if i is not None and o is not None]
+        if steps:
+            out[side] = max(steps)
+    return out
+
+
 def _ground_luma(px, w, h, step=6):
     """The frame's own dominant luminance — its GROUND."""
     hist = {}
@@ -69,13 +124,28 @@ def evaluate(out_dir):
         return {"ok": True, "errors": [], "warnings": ["no _keyframes/scene_*.png — nothing to check"], "scenes": 0, "lums": []}
 
     lums = []
+    safe_film = _platform_safe(out_dir)
+    seams_checked = 0
     for f in files:
         name = os.path.basename(f)
         try:
-            g = _gray(Image.open(f))
+            im = Image.open(f)
+            g = _gray(im)
         except Exception as e:
             warnings.append("%s: could not open (%s)" % (name, e)); lums.append(None); continue
         W, H = g.size
+        if safe_film:
+            import numpy as np
+            import text_safe_qa as tsq
+            if tsq.safe_applies(W, H):
+                seams_checked += 1
+                for side, (step, at) in sorted(margin_seam(np.asarray(im.convert("RGB"))).items()):
+                    if step > MARGIN_SEAM_WARN:
+                        warnings.append(
+                            "%s: the platform-safe frame's %s edge steps %.0f levels into the margin (at %dpx along "
+                            "it; a continuation reads <= %d) — a visible panel edge, or the margin echo carrying "
+                            "content that is not at the frame's edge. Look at the frame's border (Film.tsx SafeEcho)"
+                            % (name, side, step, at, MARGIN_SEAM_WARN))
         px = g.load()
         ground = _ground_luma(px, W, H)
         m = max(1, int(round(min(W, H) * MARGIN)))
@@ -134,7 +204,23 @@ def evaluate(out_dir):
                 warnings.append("%s: mean luminance %.0f vs deck median %.0f — a DARK scene in a light film "
                                 "(palette clash)" % (os.path.basename(f), l, med))
 
-    return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(files), "lums": lums}
+    if safe_film and not seams_checked:
+        warnings.append("the film is platform-safe but no keyframe is a full-screen vertical frame — the margin seam "
+                        "was NOT measured")
+    return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(files), "lums": lums,
+            "margin_seams_checked": seams_checked}
+
+
+def _platform_safe(out_dir):
+    """Whether this film renders with the platform-safe profile (render_remotion.safe_zone: a 9:16 remotion film
+    unless meta.safe_zone is "none"). No board, or another tier: False."""
+    try:
+        meta = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8")).get("meta") or {}
+    except (OSError, ValueError):
+        return False
+    if meta.get("renderer") != "remotion" or meta.get("safe_zone", "social") in (None, "", "none", False):
+        return False
+    return meta.get("aspect") == "9:16"
 
 
 def main():
@@ -147,8 +233,10 @@ def main():
         print("  ERROR: " + e)
     for w in r["warnings"]:
         print("  warn : " + w)
-    print("[frame_safe_qa] %s  %d scene(s), %d error(s), %d warning(s)"
-          % ("OK" if r["ok"] else "FAIL", r["scenes"], len(r["errors"]), len(r["warnings"])))
+    print("[frame_safe_qa] %s  %d scene(s), %d error(s), %d warning(s)%s"
+          % ("OK" if r["ok"] else "FAIL", r["scenes"], len(r["errors"]), len(r["warnings"]),
+             "; margin seam measured on %d keyframe(s)" % r["margin_seams_checked"]
+             if r.get("margin_seams_checked") else ""))
     sys.exit(0 if r["ok"] else 1)
 
 

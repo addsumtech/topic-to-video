@@ -121,7 +121,7 @@ finding it prints that you do not understand.
   never a standalone slideshow of generated stills (data stays in real HTML/charts — the "AI =
   background, code = data" split). `validate.py` enforces the three bright lines on such a background
   (backplane-only, no text/data, never a stand-in for a real named subject → that's `documentary`).
-- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--duotone SHADOW HIGHLIGHT]` — the
+- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--min-width PX] [--require TERM...] [--duotone SHADOW HIGHLIGHT]` — the
   **`documentary` (REAL-image) tier**, FREE + no key: search **Wikimedia Commons** for a
   license-clean (CC / Public-Domain) real photo/map/diagram of the ACTUAL named subject, download it,
   and write a sidecar `<out_path>.json` with the license + attribution. Unlike `imagegen` (generic
@@ -134,7 +134,8 @@ finding it prints that you do not understand.
   faithfulness section); reach for `documentary` on CONCRETE topics (a city, place, real system).
 - `scripts/render.py <out_dir> [--sample N] [--only N] [--vertical] [--reduced-motion] [--preview]` — storyboard → `out.mp4` + `out.srt`.
   **Ken Burns (image slides):** each frame is the move's FLOAT crop window (`_kenburns_window`) resampled whole by
-  Pillow's Lanczos and piped to ffmpeg as rawvideo (`_kenburns_frames` → `_run_fed`) — sub-pixel exact, so a slow
+  Pillow's Lanczos from the source's own pixels (`_kenburns_master`, the fit rebuilt at up to 1.5× the move's zoom)
+  and piped to ffmpeg as rawvideo (`_kenburns_frames` → `_run_fed`) — sub-pixel exact, so a slow
   push or pan glides; jitter_qa reads it clean on the fixture films at 16:9/9:16/1:1 where the retired zoompan chain read
   0.22–0.59 px RMS (ERROR); image-slide clips encode with `-tune grain` (`_KB_X264`, headers pinned for the concat). `meta.motion_ss` is retired (ignored; validate warns). Bench and recipe: `ffmpeg-recipes.md` §1.
   On an HTML-tier film (at least one `type:"html"` page) the FULL render — not `--sample`, not `--preview` — also

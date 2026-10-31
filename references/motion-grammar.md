@@ -34,7 +34,7 @@ This is a gentle centered 1.0 → 1.12 zoom — barely noticeable, but it kills 
 |---|---|
 | Default, nothing to highlight | Keep the centered default: `[0.5,0.5,1.0] → [0.5,0.5,1.12]` |
 | Narration calls out a region | Move the `to` anchor toward that region (e.g. top-right ≈ `[0.8, 0.2, …]`) and zoom in so it lands centered |
-| Diagram with fine text | Don't zoom past 1.25 — the fitted frame is upsampled, so fine text softens past it |
+| Diagram with fine text | Don't zoom past 1.25 — past the source's own pixels the move magnifies, and fine text softens (a source at least the zoom × the frame keeps it sharp) |
 | Zoom delta | Keep ≤ 0.20; a larger move over one beat reads as a lurch, not a drift |
 
 Zoom toward a region **only when the narration explicitly references it.**

@@ -171,26 +171,40 @@ const SAFE_FRAME_MASK = `linear-gradient(90deg, transparent 0%, #000 ${SAFE_EDGE
 // sound (SeamCopyContext: Film's beat voice reads it; every film video in runtime/screen.tsx is already muted). Inside a
 // container seam's copy of the beat it is not drawn at all. Only a platform-safe film has one, so every other film's
 // tree — and every pixel — is what it was (`safeEcho: false` switches it off for a proof).
-const ECHO_COVER = 1.36;      // the echo's scale over the canvas, about the scaled frame's centre: 1.14 covers exactly
-                              // (k 0.8, y0 0.03), and a blur fades whatever it has no pixels past to transparent — at
-                              // 1.22 the bottom 77px of overscan was not enough and the frame's foot went grey (looked)
-const ECHO_BLUR_FRAC = 0.036; // of the frame's short side — 39px at 1080: no edge of the register's type survives it
-const ECHO_DIM = 0.85;        // brightness under the sharp frame on a DARK beat, so the panel stays the thing to look at.
-                              // A LIGHT beat is not dimmed: 0.78 on a paper beat drew a grey frame round a white card,
-                              // the panel this layer exists to remove (looked, 9:16 probe frame 34)
-const SafeEcho: React.FC<{W: number; H: number; k: number; y0: number; light: boolean; children: React.ReactNode}> = ({
-  W, H, k, y0, light, children}) => {
+//
+// THE ECHO IS THE REGISTER AT ITS OWN SIZE, NOT A MAGNIFIED COPY. The scaled frame is the register scaled by k about
+// one fixed point — (W/2, y0/(1-k)), (540, 288) for `social` — so the register drawn UNSCALED about that same point
+// puts each frame edge exactly on the canvas edge, and what fills the margin is the register's own outer ring: its
+// ground running on, or a full-bleed picture's own edge going soft. The first version scaled the echo 1.36x about the
+// frame's CENTRE — 1.7x the frame — which carried content from ~20% inside the frame out into the margin: the 2026-10-30
+// generality film's 9:16 beats wore the balance wheel as gold arcs in both top corners and the plate's caption as a
+// white blob bottom-left, and it dimmed dark beats by 0.85, which drew the frame's edge as a step of its own. Turning
+// the echo off was no cure — the margin was then the film's FLAT root ground round a register's radial one, a lit
+// panel 13 levels brighter at its top edge. Measured by scripts/frame_safe_qa.py's margin check.
+const ECHO_BLUR_FRAC = 0.015; // of the frame's short side — 16px at 1080: enough to soften whatever reaches the
+                              // register's edge, while the register's ground (the usual content there) is unchanged
+// THE ECHO CARRIES NO WORDS. Unscaled, the margin under the frame's foot is the register's rows just above its own
+// caption band — where a register may set its title — so the same film showed its beat's title a second time, blurred,
+// in the bottom margin ('瑞士杠杆擒纵' under its own frame, looked). No one transform maps every side to the frame's
+// edge, and the one thing that must never be read twice is type: in the echo every glyph is transparent, while the
+// ground and the pictures continue.
+const ECHO_NO_TYPE = '[data-echo="margin"] *{color:transparent!important;-webkit-text-fill-color:transparent!important;' +
+  'text-shadow:none!important;-webkit-text-stroke:0!important}' +
+  '[data-echo="margin"] text,[data-echo="margin"] tspan,[data-echo="margin"] textPath{fill:transparent!important;' +
+  'stroke:transparent!important}';
+const SafeEcho: React.FC<{W: number; H: number; k: number; y0: number; children: React.ReactNode}> = ({
+  W, H, k, y0, children}) => {
   if (React.useContext(SeamCopyContext)) return null;
-  const cy = y0 + (k * H) / 2;
   const blur = Math.round(Math.min(W, H) * ECHO_BLUR_FRAC);
-  // the cover a profile NEEDS: reach both frame edges from cy, plus three blur radii of pixels past each edge (a
-  // Gaussian's reach) — 1.26 for `social`. ECHO_COVER is what was looked at; a profile needing more gets more.
-  const need = Math.max(1 + (6 * blur) / W, (2 * Math.max(cy, H - cy) + 6 * blur) / H);
-  const cover = Math.max(ECHO_COVER, need);
-  const tx = W / 2 - (cover * W) / 2, ty = cy - (cover * H) / 2;
+  // the frame's fixed point, and the least scale about it that leaves three blur radii (a Gaussian's reach) of pixels
+  // past the canvas on the sides and the foot — without them the blur fades the canvas edge to transparent
+  const fx = W / 2, fy = k < 1 ? y0 / (1 - k) : H / 2;
+  const cover = 1 + (3 * blur) / Math.max(1, Math.min(fx, H - fy));
+  const tx = fx - cover * fx, ty = fy - cover * fy;
   return (
     <AbsoluteFill aria-hidden data-echo="margin" style={{overflow: 'hidden', pointerEvents: 'none',
-      filter: light ? `blur(${blur}px)` : `blur(${blur}px) brightness(${ECHO_DIM})`}}>
+      filter: `blur(${blur}px)`}}>
+      <style>{ECHO_NO_TYPE}</style>
       <AbsoluteFill style={{transformOrigin: '0 0', transform: `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${cover})`}}>
         <SeamCopyContext.Provider value={true}>{children}</SeamCopyContext.Provider>
       </AbsoluteFill>
@@ -1321,8 +1335,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
               {/* …and its edges dissolve into the beat's ground: a register that paints its own atmosphere showed the
                   scaled frame as a hard-edged panel */}
               {regFrame && safeEcho ? (
-                <SafeEcho W={width} H={height} k={regFrame.k} y0={regFrame.y0}
-                  light={((edgeGround(sc, 'in')?.y ?? dnaGroundY(sc.shot, activeDna)) ?? 0) > LIGHT_KEY_Y}>
+                <SafeEcho W={width} H={height} k={regFrame.k} y0={regFrame.y0}>
                   <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
                     <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
                       <CarryContext.Provider value={arrived[i] ?? null}>

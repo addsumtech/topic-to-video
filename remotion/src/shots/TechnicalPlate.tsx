@@ -102,6 +102,257 @@ const checkStroke = (st: any, i: number): Stroke => {
   return st as Stroke;
 };
 
+// THE OBJECT, STROKE BY STROKE — one renderer for both layouts below. `on` per stroke is the pen's progress.
+const plateStrokes = (STROKES: Stroke[], draw: number, unit: number, ux: (u: number) => number,
+  uy: (v: number) => number, lw: number, FG: string, DIM: string) => {
+  const nS = Math.max(1, STROKES.length);
+  return STROKES.map((st, i) => {
+    const on = easeOutCubic(clamp01(draw * nS - i));
+    if (on <= 0) return null;
+    if (st.kind === 'circle') {
+      const r = st.r * unit;
+      return (
+        <div key={i} style={{position: 'absolute', left: ux(st.x) - r, top: uy(st.y) - r,
+          width: r * 2, height: r * 2, borderRadius: '50%',
+          // @fallback: on a circle or a line `w` is the STROKE WEIGHT multiplier (1 = the plate's hairline), a drawing parameter, not a reading about the part
+          border: `${Math.max(2, Math.round((st.w ?? 1) * lw))}px ${st.ghost ? 'dashed' : 'solid'} ${st.ghost ? DIM : FG}`,
+          opacity: on * (st.ghost ? 0.6 : 1), transform: `scale(${0.85 + 0.15 * on})`}} />
+      );
+    }
+    if (st.kind === 'bar') {
+      return (
+        <div key={i} style={{position: 'absolute', left: ux(st.x), top: uy(st.y),
+          width: st.w * unit * on, height: Math.max(2, st.h * unit),
+          background: st.fill ? (st.ghost ? DIM : FG) : 'transparent',
+          border: st.fill ? 'none' : `${lw}px ${st.ghost ? 'dashed' : 'solid'} ${st.ghost ? DIM : FG}`,
+          opacity: on * (st.ghost ? 0.55 : 1)}} />
+      );
+    }
+    const x1 = ux(st.x), y1 = uy(st.y), x2 = ux(st.x2), y2 = uy(st.y2);
+    const len = Math.hypot(x2 - x1, y2 - y1) * on;
+    const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+    return (
+      <div key={i} style={{position: 'absolute', left: x1, top: y1 - lw / 2, width: len,
+        // @fallback: on a circle or a line `w` is the STROKE WEIGHT multiplier (1 = the plate's hairline), a drawing parameter, not a reading about the part
+        height: Math.max(2, Math.round((st.w ?? 1) * lw)),
+        background: st.ghost ? 'transparent' : FG,
+        // @fallback: on a circle or a line `w` is the STROKE WEIGHT multiplier (1 = the plate's hairline), a drawing parameter, not a reading about the part
+        borderTop: st.ghost ? `${Math.max(2, Math.round((st.w ?? 1) * lw))}px dashed ${DIM}` : undefined,
+        opacity: st.ghost ? 0.6 : 1,
+        transformOrigin: '0 50%', transform: `rotate(${ang}deg)`}} />
+    );
+  });
+};
+
+// THE SIDE-CALLOUT SHEET NEEDS A WIDE FRAME. Its labels hang in two columns of 0.17 W beside a sheet of 0.52 W, and
+// every size is a fraction of W. On a 9:16 frame that left the drawing a 561 px square floating in a 1270 px-tall
+// sheet — the object at ~50% of the width, measured on a GPS satellite, and down to ~35% for art that paints less of
+// its square — with callouts set at 15.7 px, the kicker at 13.5 px and the note at 14.6 px (the type floor is 23.8 px).
+// 1:1, 4:5 and 4:3 shared it in proportion. A frame narrower than this is drawn as a patent plate is drawn instead:
+// the object as large as the frame allows, a NUMBER at the end of each leader, and the names in a parts KEY.
+export const PLATE_SIDE_MIN_ASPECT = 1.6;
+
+type PlateKeyArgs = {
+  W: number; H: number; t: number; cue: ReturnType<typeof useCues>; dna: ReturnType<typeof useDNA>;
+  kicker: string; object: string; plateNo: string; strokes: Stroke[]; art?: ObjectRef; parts: Part[]; note: string;
+};
+
+/**
+ * The plate on a frame narrower than PLATE_SIDE_MIN_ASPECT (9:16, 4:5, 1:1, 4:3): a numbered drawing and its key.
+ *
+ * Type is a fraction of the frame's SHORT side scaled to the 16:9 sizes (TU = min(W, H) * 16/9 is W at 16:9), so a
+ * label is the size it is on the wide sheet, not a third smaller. The key goes BELOW the drawing or BESIDE it —
+ * whichever leaves the larger square: on a tall frame below (the width is the drawing's), on a square frame beside
+ * (the height is). Exported so the slot-identity reference (tests/test_slot_identity.py) draws the same layout.
+ */
+export const renderPlateKey = ({W, H, t, cue, dna, kicker, object, plateNo, strokes: STROKES, art, parts: PARTS,
+  note}: PlateKeyArgs) => {
+  const FG = dna?.fg ?? FG_D0, DIM = dna?.dim ?? DIM_D0;
+  const ACC = dna?.accent ?? ACC_D0, LINE = dna?.line ?? LINE_D0;
+  const disp = 'var(--f-display, "Source Serif 4", Georgia, serif)';
+  const mono = 'var(--f-mono, ui-monospace, monospace)';
+  const short = Math.min(W, H);
+  const TU = short * 16 / 9;
+  const hair = Math.max(1, Math.round(short * 0.0012 * 16 / 9));
+  const lw = Math.max(2, Math.round(TU * 0.0026));
+  const KICK = Math.round(TU * 0.0156), NUM = Math.round(TU * 0.016), KEY = Math.round(TU * 0.016);
+  const OBJ = Math.round(TU * 0.028), NOTE = Math.round(TU * 0.016);
+  const mx = Math.round(W * 0.06);
+  const gap = Math.round(short * 0.035);
+  const top = CONTENT_TOP + short * 0.02;
+  const zoneH = contentBottom(W, H) - top;
+
+  // each leader ends in a number just outside the square, on its part's side: room is reserved only on a side used
+  const sideOf = (p: Part) => p.side ?? 'right';
+  const badgeW = Math.round(NUM * 2.0);
+  const padL = PARTS.some((p) => sideOf(p) === 'left') ? badgeW : 0;
+  const padR = PARTS.some((p) => sideOf(p) === 'right') ? badgeW : 0;
+  const numW = Math.round(KEY * 1.9);
+  // a label's width is a property of its face and script (E2): a Han glyph is a full em in the mono stack's CJK
+  // fallback, a Latin one ~0.62 em — wrapLines is told the Latin advance and keeps its own CJK one
+  const rowsIn = (colW: number) => PARTS.map((p) => wrapLines(String(p.label ?? ''), KEY, Math.max(1, colW - numW),
+    {adv: 0.62}));
+  const rowGap = Math.round(KEY * 0.45);
+  const keyHeight = (colW: number) => PARTS.length
+    ? rowsIn(colW).reduce((a, n) => a + n * KEY * 1.3, 0) + (PARTS.length - 1) * rowGap : 0;
+  // the plate caption — the object's name and its note — measured in the width it is given
+  const capGap = Math.round(OBJ * 0.35);
+  const capHeight = (w: number) => wrapLines(String(object ?? ''), OBJ, w) * OBJ * 1.2 +
+    (note ? capGap + wrapLines(String(note), NOTE, w) * NOTE * 1.4 : 0) +
+    (inkBlockH(note ? NOTE : OBJ) - (note ? NOTE : OBJ));
+
+  // THREE ARRANGEMENTS, and the one that leaves the LARGEST drawing wins. Every block is measured at the width it is
+  // then drawn in (E1) — a key measured full-width and drawn under a small square wrapped into the name below it.
+  //   A · below:  square / key / caption, the key and caption full width       (tall frames: 9:16, 4:5)
+  //   B · beside: square | key, then caption, in one column                   (square and 4:3 frames)
+  //   C · beside, caption below: [square | key] / caption full width          (a long name that will not fit a column)
+  type Arr = {side: number; sx: number; sy: number; keyX: number; keyY: number; keyW: number; capX: number;
+    capTop: number; capW: number; align: 'left' | 'center'; need: number};
+  const nP = PARTS.length;
+  const capW = W - 2 * mx;
+  const capLead = Math.round(gap * 1.4);
+  const estW = (s: string, px: number) =>
+    [...s].reduce((a, ch) => a + px * (/[⺀-鿿豈-﫿＀-￯]/.test(ch) ? 1 : 0.62), 0);
+  const longest = Math.max(0, ...PARTS.map((p) => estW(String(p.label ?? ''), KEY)));
+  // a column wide enough for the longest label, and for the name on one line when that costs little (a short name
+  // broken in two leaves one glyph on its own line; a long one wraps rather than starving the drawing of width)
+  const nameW = estW(String(object ?? ''), OBJ);
+  const colW = Math.min(W * 0.42, Math.max(W * 0.24, numW + longest, nameW <= W * 0.34 ? nameW : 0));
+  const besideGap = Math.max(gap, Math.round(NUM * 2.5));   // the right-hand numbers are not read as key rows
+  const roomBeside = W - 2 * mx - padL - padR - besideGap - colW;
+  const arrs: Arr[] = [];
+  {
+    const keyH = keyHeight(capW), rest = (nP ? gap + keyH : 0) + capLead + capHeight(capW);
+    const side = Math.min(W - 2 * mx - padL - padR, zoneH - rest);
+    const y0 = top + Math.max(0, (zoneH - side - rest) / 2);
+    const sx = (W - (padL + side + padR)) / 2 + padL;
+    arrs.push({side, sx, sy: y0, keyX: mx, keyY: y0 + side + gap, keyW: capW, capX: mx,
+      capTop: y0 + side + (nP ? gap + keyH : 0) + capLead, capW, align: 'center', need: side + rest});
+  }
+  if (nP) {
+    const keyH = keyHeight(colW);
+    const colH = keyH + capLead + capHeight(colW);
+    const side = Math.min(zoneH, roomBeside);
+    const h = Math.max(side, colH);
+    const y0 = top + Math.max(0, (zoneH - h) / 2);
+    const sx = (W - (padL + side + padR + besideGap + colW)) / 2 + padL;
+    const keyX = sx + side + padR + besideGap, keyY = y0 + (h - colH) / 2;
+    arrs.push({side, sx, sy: y0 + (h - side) / 2, keyX, keyY, keyW: colW, capX: keyX, capTop: keyY + keyH + capLead,
+      capW: colW, align: 'left', need: h});
+    const capH = capHeight(capW);
+    const sideC = Math.min(zoneH - capLead - capH, roomBeside);
+    const hC = Math.max(sideC, keyH);
+    const y0C = top + Math.max(0, (zoneH - hC - capLead - capH) / 2);
+    const sxC = (W - (padL + sideC + padR + besideGap + colW)) / 2 + padL;
+    arrs.push({side: sideC, sx: sxC, sy: y0C + (hC - sideC) / 2, keyX: sxC + sideC + padR + besideGap,
+      keyY: y0C + (hC - keyH) / 2, keyW: colW, capX: mx, capTop: y0C + hC + capLead, capW, align: 'center',
+      need: hC + capLead + capH});
+  }
+  const MIN_SIDE = short * 0.2;
+  const fits = arrs.filter((a) => a.side >= MIN_SIDE && a.need <= zoneH + 0.5);
+  if (!fits.length) {
+    const best = arrs.reduce((a, b) => (b.side > a.side ? b : a));
+    throw new Error(`TechnicalPlate at ${W}x${H}: the key (${nP} part${nP === 1 ? '' : 's'}) and the name/note leave ` +
+      `the drawing ${Math.max(0, Math.round(best.side))} px (it needs ${Math.round(MIN_SIDE)}) — shorten the labels, ` +
+      'the name or the note, or name fewer parts on this plate.');
+  }
+  const L = fits.reduce((a, b) => (b.side > a.side ? b : a));
+  const {side, sx, sy} = L;
+  const keyX = L.keyX, keyY = L.keyY, keyColWidth = L.keyW, capX = L.capX, capColW = L.capW, capTop = L.capTop;
+  const beside = L.align === 'left';
+  const objH = wrapLines(String(object ?? ''), OBJ, capColW) * OBJ * 1.2;
+  const noteTop = capTop + objH + capGap;
+  const ux = (u: number) => sx + u * side;
+  const uy = (v: number) => sy + v * side;
+
+  const sheet = easeOutCubic(clamp01(seg(t, 0.02, 0.18)));
+  const draw = clamp01(seg(t, 0.14, DRAW_B));
+  const land = easeOutExpo(clamp01(seg(t, ...cue.win('object', 0.66, 0.88, REACH_EXPO))));
+  const noteLand = easeOutExpo(clamp01(seg(t, ...cue.win('note', 0.66, 0.88, REACH_EXPO))));
+
+  // badges on one side are kept a line apart, in the order of their parts down the drawing
+  const badgeY: number[] = PARTS.map((p) => uy(p.y as number));
+  (['left', 'right'] as const).forEach((sd) => {
+    const idx = PARTS.map((p, i) => i).filter((i) => sideOf(PARTS[i]) === sd).sort((a, b) => badgeY[a] - badgeY[b]);
+    for (let k = 1; k < idx.length; k++) {
+      badgeY[idx[k]] = Math.max(badgeY[idx[k]], badgeY[idx[k - 1]] + NUM * 1.35);
+    }
+  });
+  const step = Math.min(0.10, 0.22 / Math.max(1, PARTS.length));
+  const partOn = PARTS.map((_p, i) => easeOutCubic(clamp01(seg(t, ...cue.win('parts.' + i, 0.60 + i * step,
+    0.76 + i * step, REACH_CUBIC)))));
+  const rows = rowsIn(keyColWidth);
+  let ry = keyY;
+  const rowTop = rows.map((n) => { const y = ry; ry += n * KEY * 1.3 + rowGap; return y; });
+  const dot = Math.max(4, Math.round(TU * 0.0035));
+
+  return (
+    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
+      <div style={{position: 'absolute', left: mx, top: CONTENT_TOP - Math.round(KICK * 2.2), opacity: sheet,
+        font: `600 ${KICK}px/1.2 ${mono}`, color: ACC, letterSpacing: dna?.labelSpacing ?? '0.14em',
+        textTransform: (dna?.uppercaseLabels ?? true) ? 'uppercase' : 'none'}}>{kicker}</div>
+      {plateNo ? (
+        <div style={{position: 'absolute', right: mx, top: CONTENT_TOP - Math.round(KICK * 2.2), opacity: sheet,
+          font: `600 ${KICK}px/1.2 ${mono}`, color: DIM, letterSpacing: '0.10em'}}>{plateNo}</div>
+      ) : null}
+
+      {/* the sheet: the drawing's own square, ruled */}
+      <div style={{position: 'absolute', left: sx, top: sy, width: side * sheet, height: side,
+        border: `${hair}px solid ${LINE}`, boxSizing: 'border-box'}} />
+      {art ? <ObjectSlot object={art} box={{x: sx, y: sy, w: side, h: side}} t={draw} idleFrom={DRAW_B} />
+        : plateStrokes(STROKES, draw, side, ux, uy, lw, FG, DIM)}
+
+      {/* each part: a dot, a leader to the square's edge, a number past it */}
+      <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0, overflow: 'visible'}}>
+        {PARTS.map((p, i) => {
+          const on = partOn[i];
+          if (on <= 0) return null;
+          const right = sideOf(p) === 'right';
+          const px = ux(p.x as number), py = uy(p.y as number);
+          const edge = right ? sx + side + badgeW * 0.25 : sx - badgeW * 0.25;
+          const by = badgeY[i];
+          return (
+            <g key={'l' + i} opacity={on}>
+              <polyline points={`${px},${py} ${edge},${py} ${right ? edge + badgeW * 0.2 : edge - badgeW * 0.2},${by}`}
+                fill="none" stroke={ACC} strokeWidth={hair} opacity={0.8} />
+              <circle cx={px} cy={py} r={dot} fill={ACC} />
+            </g>
+          );
+        })}
+      </svg>
+      {PARTS.map((p, i) => {
+        const on = partOn[i];
+        if (on <= 0) return null;
+        const right = sideOf(p) === 'right';
+        return (
+          <div key={'b' + i} style={{position: 'absolute', top: badgeY[i] - NUM * 0.62, opacity: on,
+            left: right ? sx + side + badgeW * 0.5 : undefined, right: right ? undefined : W - (sx - badgeW * 0.5),
+            font: `700 ${NUM}px/1.2 ${mono}`, color: ACC}}>{p.n ?? i + 1}</div>
+        );
+      })}
+
+      {/* the parts key */}
+      {PARTS.map((p, i) => (
+        <div key={'k' + i} style={{position: 'absolute', left: keyX, top: rowTop[i], width: keyColWidth,
+          opacity: partOn[i], display: 'flex', font: `500 ${KEY}px/1.3 ${mono}`, color: DIM}}>
+          <span style={{flex: `0 0 ${numW}px`, color: ACC, fontWeight: 700}}>{p.n ?? i + 1}</span>
+          <span style={{flex: '1 1 auto', textWrap: 'balance'}}>{p.label}</span>
+        </div>
+      ))}
+
+      {/* balanced: Chinese breaks between any two glyphs, and a last line of one glyph reads as a stray (cjk_type_qa);
+          balancing keeps the line count wrapLines measured */}
+      <div style={{position: 'absolute', left: capX, top: capTop, width: capColW, textAlign: beside ? 'left' : 'center',
+        textWrap: 'balance', opacity: land, font: `700 ${OBJ}px/1.2 ${disp}`, color: FG}}>{object}</div>
+      {note ? (
+        <div style={{position: 'absolute', left: capX, top: noteTop, width: capColW, textAlign: beside ? 'left' : 'center',
+          textWrap: 'balance', opacity: noteLand * 0.9, font: `400 ${NOTE}px/1.4 var(--f-body, system-ui, sans-serif)`,
+          color: DIM}}>{note}</div>
+      ) : null}
+    </AbsoluteFill>
+  );
+};
+
 export const TechnicalPlate: React.FC<{
   kicker?: string;
   object?: string;          // what it is, set under the plate
@@ -169,6 +420,9 @@ export const TechnicalPlate: React.FC<{
     }
   });
 
+  if (W < H * PLATE_SIDE_MIN_ASPECT) {
+    return renderPlateKey({W, H, t, cue, dna, kicker, object, plateNo, strokes: STROKES, art, parts: PARTS, note});
+  }
   const top = CONTENT_TOP + H * 0.02;
   const bottom = H - captionBand(W, H) - H * 0.09;
   // the drawing occupies a square-ish field, so the object keeps its proportions at any aspect
@@ -221,8 +475,6 @@ export const TechnicalPlate: React.FC<{
   const noteLand = easeOutExpo(clamp01(seg(t, ...cue.win('note', 0.66, 0.88, REACH_EXPO))));
   const lw = Math.max(2, Math.round(W * 0.0026));
 
-  const nS = Math.max(1, STROKES.length);
-
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
       <div style={{position: 'absolute', left: fx0, top: CONTENT_TOP - H * 0.055, opacity: sheet,
@@ -241,42 +493,7 @@ export const TechnicalPlate: React.FC<{
 
       {/* the object, drawn stroke by stroke */}
       {art ? <ObjectSlot object={art} box={{x: artX, y: artY, w: artUnit, h: artUnit}} t={draw}
-        idleFrom={DRAW_B} /> : STROKES.map((st, i) => {
-        const on = easeOutCubic(clamp01(draw * nS - i));
-        if (on <= 0) return null;
-        if (st.kind === 'circle') {
-          const r = st.r * unit;
-          return (
-            <div key={i} style={{position: 'absolute', left: ux(st.x) - r, top: uy(st.y) - r,
-              width: r * 2, height: r * 2, borderRadius: '50%',
-              // @fallback: on a circle or a line `w` is the STROKE WEIGHT multiplier (1 = the plate's hairline), a drawing parameter, not a reading about the part
-              border: `${Math.max(2, Math.round((st.w ?? 1) * lw))}px ${st.ghost ? 'dashed' : 'solid'} ${st.ghost ? DIM : FG}`,
-              opacity: on * (st.ghost ? 0.6 : 1), transform: `scale(${0.85 + 0.15 * on})`}} />
-          );
-        }
-        if (st.kind === 'bar') {
-          return (
-            <div key={i} style={{position: 'absolute', left: ux(st.x), top: uy(st.y),
-              width: st.w * unit * on, height: Math.max(2, st.h * unit),
-              background: st.fill ? (st.ghost ? DIM : FG) : 'transparent',
-              border: st.fill ? 'none' : `${lw}px ${st.ghost ? 'dashed' : 'solid'} ${st.ghost ? DIM : FG}`,
-              opacity: on * (st.ghost ? 0.55 : 1)}} />
-          );
-        }
-        const x1 = ux(st.x), y1 = uy(st.y), x2 = ux(st.x2), y2 = uy(st.y2);
-        const len = Math.hypot(x2 - x1, y2 - y1) * on;
-        const ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-        return (
-          <div key={i} style={{position: 'absolute', left: x1, top: y1 - lw / 2, width: len,
-            // @fallback: on a circle or a line `w` is the STROKE WEIGHT multiplier (1 = the plate's hairline), a drawing parameter, not a reading about the part
-            height: Math.max(2, Math.round((st.w ?? 1) * lw)),
-            background: st.ghost ? 'transparent' : FG,
-            // @fallback: on a circle or a line `w` is the STROKE WEIGHT multiplier (1 = the plate's hairline), a drawing parameter, not a reading about the part
-            borderTop: st.ghost ? `${Math.max(2, Math.round((st.w ?? 1) * lw))}px dashed ${DIM}` : undefined,
-            opacity: st.ghost ? 0.6 : 1,
-            transformOrigin: '0 50%', transform: `rotate(${ang}deg)`}} />
-        );
-      })}
+        idleFrom={DRAW_B} /> : plateStrokes(STROKES, draw, unit, ux, uy, lw, FG, DIM)}
 
       {/* numbered callouts with leader lines out to the margin */}
       {PARTS.map((p, i) => {

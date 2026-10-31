@@ -69,9 +69,13 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   `auto`/`codex`/`openai`; the Codex CLI path needs no key). The images are backplanes BEHIND HTML pages: never a
   slideshow of generated stills, never text or data, never a stand-in for a real named subject (that is
   `documentary`). `validate.py` enforces all three.
-- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--duotone SHADOW HIGHLIGHT]`: the FREE `documentary` tier. Fetches a
-  license-clean Wikimedia Commons image of the ACTUAL named subject and writes a `<out_path>.json` sidecar with licence
-  + attribution. Helpers: `fetch()` returns None when nothing license-clean exists, `attribution_line()` gives the
+- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--min-width PX] [--require TERM...] [--duotone SHADOW HIGHLIGHT]`:
+  the FREE `documentary` tier. Fetches a license-clean Wikimedia Commons image of the ACTUAL named subject and writes a
+  `<out_path>.json` sidecar with licence + attribution + which field of the file's record named each query term. A
+  candidate is taken only when its title, object name or categories attest EVERY key term of the query (or its
+  description holds the whole phrase); otherwise it is refused, and when all are refused the reasons and a hint print to
+  stderr — rephrase, or pass `--require` with the terms that are the subject when the rest only qualify it.
+  Helpers: `fetch()` returns None when nothing relevant and license-clean exists, `attribution_line()` gives the
   on-screen `.credit`, `duotone()` tones the image into the palette. Reach for it on CONCRETE topics; the design-director
   picks `media.treatment: none|atmosphere|documentary` per beat. **Take the credit FROM the sidecar, never from memory**:
   `validate.py` ERRORS when a beat shows a `media/*` file without crediting its sidecar's author.
@@ -260,8 +264,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   `source_ref` that does not resolve, or a non-singular `the_one_thing`, and WARNs on evidence hardness. Run it at step 3.5,
   BEFORE dispatching `content-planner`.
 - `scripts/keyframe_qa.py <out_dir> [--p N] [--json]`: HTML-tier visual QA over each page's real cue timeline (filmstrip
-  sheets, `_keyframes/all.png`). It blocks a blank opening, a blank page, canvas overflow, in-box clipping and
-  caption-zone occlusion; its layout notes are advisory. A scene it could not probe is UNVERIFIED, never `ok`. Run it after
+  sheets, `_keyframes/all.png`). It blocks a blank opening, a blank page, canvas overflow, in-box clipping,
+  caption-zone occlusion and text RENDERED under the remotion tier's type floor (2.2% of the short side, ~24 px at 1080;
+  under 2.75%, ~30 px, warns) — measured from the computed size × transforms, so an invalid `font:` shorthand that fell
+  back to 16 px is caught; `data-small="why"` and the `.credit` line are exempt. Its layout notes are advisory. A scene it could not probe is UNVERIFIED, never `ok`. Run it after
   authoring the pages, BEFORE the full render.
 - `scripts/snapshot.py <page.html> <out.png> [--p 1.0] [--vertical] [--no-captions] [--motion clip.mp4]`: renders one page
   and runs keyframe_qa's floor probe; this is the register-contest primitive. Exit 0 clean · 2 floor issues · 3 rendered
@@ -893,7 +899,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     TREATMENT" procedure: `none` for data beats, `atmosphere` for mood, `documentary` to SHOW a real
     concrete subject), fetch the real image at authoring time:
     `imagefetch.fetch(doc_query, out_path, prefer=doc_prefer)` → returns an attribution dict (or **None**
-    if nothing license-clean matched). Then: **treat it to match the deck** on a non-photographic style —
+    if nothing relevant and license-clean matched — the refused candidates and why print to stderr; read them
+    before degrading, since a query that names the subject differently from Commons' records is fixed by
+    rephrasing it, not by giving up the image). Then: **treat it to match the deck** on a non-photographic style —
     `imagefetch.duotone(raw, out_path, shadow=<--fg rgb>, mid=<--accent rgb>, highlight=<--bg rgb>)`;
     reference it as a full-bleed `.bg-photo` (+ `.scrim`) or a `.split` panel; and **add a `.credit` line**
     with `imagefetch.attribution_line(meta)` — placed as a DIRECT CHILD of `<body>` (a sibling of
@@ -1422,7 +1430,7 @@ adds on that tier.
 | step 1 `doctor.py` reports a REQUIRED dep missing (ffmpeg/ffprobe/PIL) | Install it (e.g. `brew install ffmpeg`, `pip install pillow`) before proceeding | Optional gaps (edge-tts/soffice/Chrome) only narrow the tiers — adjust the interview, don't block |
 | step 9 gate fails: `validate.py` exits non-zero before render | Read each ERROR (missing image/audio/page/`file://` asset, duplicate index, absent `theme.css`) → fix in `storyboard.json` / regenerate the missing asset (run `theme.py`/`imagegen.py`/`tts.py`) | Re-run `python scripts/validate.py <out_dir>` until exit 0 before calling `render.py` |
 | step 9 gate fails: `check_av.py` exits non-zero after full render | Read the issue (A/V drift / non-uniform clip rates) → fix the cause (clear `.clips/`, regenerate audio with ONE engine, re-render) | Re-run `python scripts/check_av.py <out_dir>` until exit 0 before delivering `out.mp4` |
-| `keyframe_qa.py` exits non-zero (BLANK page / canvas overflow) | Open `_keyframes/scene_NN.png` — BLANK → the reveal never fired (broken page / cue never resolves); OVERFLOW → shorten the text or split the beat | Re-run until exit 0; the centered-paragraph advisory never blocks |
+| `keyframe_qa.py` exits non-zero (BLANK page / canvas overflow / type under the floor) | Open `_keyframes/scene_NN.png` — BLANK → the reveal never fired (broken page / cue never resolves); OVERFLOW → shorten the text or split the beat; TYPE → read the computed size it prints (16 px = a declaration that never applied), set it larger or cut words | Re-run until exit 0; the centered-paragraph advisory never blocks |
 | `validate.py`: "only ~N% complete when the render cuts" (a connector/bar frozen mid-flight) | The element's cue fires too late for its `animation-duration` to finish. Set the inline duration validate prints (= remaining − 0.15s), e.g. `style="animation-duration:1.1s"` on that `.draw` path — prefer this to re-anchoring, since a connector drawn BEFORE its phrase spoils the payoff | If the shortfall is large (<60%), the beat is over-stuffed: move the anchor phrase earlier in the narration so the line still has ~1s to run after it. Confirm on `_keyframes/scene_NN_shipped.png`, NOT the `?p=` sheet — the blind sheet always shows animations complete |
 | Timed callout appears at the wrong moment / never appears | Check validate.py's cue warnings — the `cue` must be a phrase the narration says (with a non-edge voice the time is a text-position estimate); `at` ≥ 1.0 puts it exactly at clip end (invisible) | Set an explicit `at` fraction, or drop `cue`/`at` for a whole-slide highlight |
 | Reduced-motion render flagged as static / tools still assume zoom | Set `meta.reduced_motion: true` in the storyboard (the CLI flag isn't persisted) and STATE the mode when dispatching critic-av — static frames are correct there, not a defect | validate.py skips its zoom warnings when the meta flag is set |

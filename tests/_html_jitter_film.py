@@ -77,8 +77,12 @@ def build(out_dir, scenes, W=1920, H=1080, aspect=None, seconds=3.0, reduced_mot
              "transition": transition}
         if kind == "title":
             s.update(type="title", props={"title": "Settled type 42", "subtitle": "a programmatic scene, judged still"})
-        elif kind == "kenburns":
-            slide_image(os.path.join(out_dir, "media", "kb%02d.png" % i), W, H)
+        elif kind.startswith("kenburns"):
+            # 'kenburns-hires': a source 2.2x the frame, so the move is drawn from its own pixels (render._kenburns_master);
+            # 'kenburns-letterbox': a taller-than-the-frame source at 2.2x, contained with bands on both sides
+            sw, sh = {"kenburns": (W, H), "kenburns-hires": (round(W * 2.2), round(H * 2.2)),
+                      "kenburns-letterbox": (round(H * 1.4), round(H * 2.2))}[kind]
+            slide_image(os.path.join(out_dir, "media", "kb%02d.png" % i), sw, sh)
             s.update(type="slide", image="media/kb%02d.png" % i,
                      motion={"type": "kenburns", "from": [0.3, 0.4, 1.0], "to": [0.6, 0.5, 1.12]})
         else:

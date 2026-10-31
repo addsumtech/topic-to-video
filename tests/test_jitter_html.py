@@ -114,6 +114,16 @@ def test_a_snapped_crawl_fails_a_gliding_one_passes_and_every_scene_is_judged(tm
 
 
 @needs_render
+@pytest.mark.parametrize("kw", [{}, {"aspect": "9:16"}, {"W": 1080, "H": 1080}], ids=["16x9", "9x16", "1x1"])
+def test_a_ken_burns_move_drawn_from_the_sources_own_pixels_still_glides(tmp_path, kw):
+    # a source 2.2x the frame is resampled from a master at the move's zoom (render._kenburns_master), not from the
+    # fitted frame; full-bleed and letterboxed, the tiles must still follow the move's geometry
+    out = _film(tmp_path, ["kenburns-hires", "kenburns-letterbox"], **kw)
+    code, worst, stdout = _verdict(out)
+    assert worst.get(1) == "clean" and worst.get(2) == "clean", (worst, stdout)
+
+
+@needs_render
 def test_cjk_and_dark_type_on_pages(tmp_path):
     out = _film(tmp_path, ["cjk-snapped", "cjk-smooth", "dark-snapped", "dark-smooth"])
     code, worst, stdout = _verdict(out)
