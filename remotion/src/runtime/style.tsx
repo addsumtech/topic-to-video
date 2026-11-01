@@ -349,6 +349,7 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
 
   const surf = spec.surface as {kind: string; strength: number; source: string; ground?: string};
   const filmGround = surf.ground === 'film' && dna ? toHex(dna.bg) : null;
+  const world = (surf as {world?: string}).world === 'place';
   const tiles = new Map<boolean, string | null>();
   // a GENERATED medium (surface.source 'generated', resolved by the render) replaces the procedural noise everywhere
   const genTile = (dark: boolean): string | null => {
@@ -423,7 +424,7 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
         const own = urlId(fillPaint) ? (stopsOf(doc.getElementById(urlId(fillPaint)!) ?? el, doc).pop() ?? fillPaint) : fillPaint;
         const a = parseFloat(cs.fillOpacity || '1') * parseFloat(cs.opacity || '1') * alphaOf(own);
         if (a < 0.95) { put(el, 'opacity', '0', 'surface.ground'); return; }          // a frame-filling light: gone
-        if (sameTone(own, filmGround)) { put(el, 'fill', filmGround, 'surface.ground'); return; }
+        if (sameTone(own, filmGround)) { put(el, 'fill', world ? 'none' : filmGround, 'surface.ground'); return; }
       }
       const newFill = paintFor(fillPaint, ground);
       if (newFill) put(el, 'fill', newFill, 'fill.mode');
@@ -510,6 +511,9 @@ export const applyDomPass = (root: Element, spec: ResolvedStyle, scale: number, 
         : bg.includes('gradient(') ? ([...bg.matchAll(/rgba?\([^)]+\)/g)].pop()?.[0] ?? '') : '';
       if (lightOnly) {
         put(el, 'background-image', 'none', 'surface.ground');
+      } else if (own && sameTone(own, filmGround) && world) {
+        put(el, 'background-image', 'none', 'surface.ground');
+        put(el, 'background-color', 'transparent', 'surface.ground');
       } else if (own && sameTone(own, filmGround)) {
         const t = tileFor(isDark(filmGround));
         put(el, 'background-image', t ?? 'none', 'surface.ground');

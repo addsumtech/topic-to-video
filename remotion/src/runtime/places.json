@@ -1,0 +1,7 @@
+{
+  "_why": "The PLACES a beat can happen in (runtime/world.tsx draws them; scripts/validate.py and render_remotion.py read this same table). A place is named from the beat's SUBJECT — where the thing it shows actually is — never chosen as decoration; a beat about an idea, a list or a word names none. Each place stands on its own ground (space is dark whatever the film's paper is), which makes it a declared ground: only a register that follows a declared ground may stand in it.",
+  "orbit": {"ground": "#0b1026", "for": "a thing in space: a satellite, a station, a probe in orbit — the Earth below as a whole disc, stars"},
+  "sky": {"ground": "#dcebf7", "for": "looking up from the ground: the sky, weather, things high above a city — blue sky, clouds, rooftops"},
+  "field": {"ground": "#eef3e2", "for": "outdoors in nature: a farm, a field, a hillside, plants and animals in the open — rolling ground under a sky"},
+  "room": {"ground": "#efe6d8", "for": "indoors: a home, an office, a kitchen, a device on a table — a wall, a floor, a window"}
+}

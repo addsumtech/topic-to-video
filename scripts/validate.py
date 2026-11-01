@@ -1426,6 +1426,35 @@ def _ramp_crossings(meta, slides, warnings):
                 "`transition_in: {type: \"carry\"}`, the seam that bridges a dark<->light cut." % (pos, a, b))
 
 
+def _check_places(meta, slides, errors, warnings):
+    """A beat's `world` names the PLACE it happens in (runtime/world.tsx, remotion/src/runtime/places.json): a place the
+    table does not hold is an ERROR (the runtime would throw mid-render); a board naming places whose style does not
+    draw them (`style.surface.world` is not 'place') is told so — the names would change nothing on screen."""
+    import render_remotion as _rr
+    known = _rr.places()
+    named = [(i, s.get("world")) for i, s in enumerate(slides, start=1) if isinstance(s, dict) and s.get("world")]
+    for beat, w in named:
+        if w not in known:
+            errors.append("remotion: beat %d names place %r — the places are %s (remotion/src/runtime/places.json); "
+                          "a beat about an idea, a list or a word names none" % (beat, w, ", ".join(sorted(known))))
+    surf = ((meta or {}).get("style") or {}).get("surface") or {}
+    if named and surf.get("world") != "place":
+        warnings.append("remotion: %d beat(s) name a place but the style does not draw places — set "
+                        "style.surface.world to 'place' or drop the names" % len(named))
+
+
+def _place_grounds(slides):
+    """The board as the RENDER sees it for grounds: a beat naming a place declares that place's ground unless it
+    declares its own (render_remotion.build_scenes does the same), so the ground checks see the place's."""
+    import render_remotion as _rr
+    out = []
+    for s in slides:
+        if isinstance(s, dict) and s.get("world") and s.get("ground") is None and _rr.place_ground(s["world"]):
+            s = dict(s, ground=_rr.place_ground(s["world"]))
+        out.append(s)
+    return out
+
+
 def _beat_grounds(slides, errors, warnings, out_dir=None):
     """`slide.ground` / `slide.key` — the per-beat exposure the delivery path now forwards.
 
@@ -4830,7 +4859,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _form_vocabulary(meta, slides, errors, warnings)
         _composition_variety(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings, out_dir=out_dir)
-        _beat_grounds(slides, errors, warnings, out_dir)
+        _check_places(meta, slides, errors, warnings)
+        _beat_grounds(_place_grounds(slides), errors, warnings, out_dir)
         _ramp_crossings(meta, slides, warnings)
         _film_language(meta, slides, errors, warnings, skips=skips)
         _image_attribution(slides, out_dir, errors, warnings)

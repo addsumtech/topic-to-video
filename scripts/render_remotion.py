@@ -736,6 +736,13 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         for _f in ("ground", "key"):
             if s.get(_f) is not None:
                 scene[_f] = s[_f]
+        # THE PLACE the beat happens in (runtime/world.tsx, places.json), named from its subject. A place stands on its
+        # own ground (space is dark), so it declares that ground unless the beat names one itself.
+        if s.get("world"):
+            scene["world"] = s["world"]
+            pg = place_ground(s["world"])
+            if pg and s.get("ground") is None:
+                scene["ground"] = pg
         # THE BEAT'S OPTIC (runtime/optics.tsx): `slide.optic`, or `shot_props.optic` lifted out of the props (a register
         # never reads it as a prop). validate.py refuses a board where the two disagree; Film refuses an unknown one.
         _optic = s.get("optic")
@@ -872,6 +879,17 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
 
 
 _ENERGY = None
+
+
+def places():
+    """{place: {ground, for}} — remotion/src/runtime/places.json, the table runtime/world.tsx draws from."""
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "runtime", "places.json")
+    with open(p, encoding="utf-8") as fh:
+        return {k: v for k, v in json.load(fh).items() if not k.startswith("_")}
+
+
+def place_ground(place):
+    return (places().get(place) or {}).get("ground")
 # An authored move is stepped only on a beat this long. Measured: authored push/pull beats of 5.5-8.5 s never held past
 # 2.5 s (the creep is visible there); beats of 15.2 and 18.8 s held 8.2 and 9.8 s. Stepped, a short beat's move only got
 # faster, and gps's ListeningPhone type trembled more for it (0.16 -> 0.28 px).

@@ -435,6 +435,12 @@ fixed drawing axes that one engine applies to every beat and every object. **Fol
 2. Write the spec, with a note per non-default value naming what in which reference it was read from.
 3. Validate it with `style_spec.py`.
 4. Choose registers as usual. The style changes how they DRAW, not which beat they serve.
+5. **Places**, when the style draws them (`surface.world: place`): name each beat's `world` from WHERE ITS SUBJECT
+   ACTUALLY IS — `orbit` for a satellite, `sky` for "high above you", `field` for a farm, `room` for a device on a
+   table (the list and what each is for: `remotion/src/runtime/places.json`). A beat about an idea, a list, a number
+   or a word names NONE. Never one place for the whole film: the user rejected exactly that twice ("卫星的背景怎么可能
+   是山水" / "你不要所有都换成太空场景，你要适配内容"). A place is a declared ground, so its beat's register must
+   follow one (validate names the ones that do not — cast another register or name no place).
 
 Before the full render, the user approves `style_sample.py`'s sheet; record `--signoff` only on their yes. A drawing
 property no axis has is a shortfall to record, never a per-film workaround.

@@ -65,6 +65,7 @@ Px are at a 1080 px short side. Defaults mean "as the register drew it".
 | `surface.kind` | `none`, `paper`, `canvas`, `brush`, `grain` | the medium as GRAIN: dark specks multiplied on a light ground, light specks screened on a dark one; never a tone shift (style_qa TONE_MAX) |
 | `surface.strength` | 0–1 | |
 | `surface.ground` | `as-drawn`, `film` | `film`: every frame-filling ground of the SAME tone as the film's takes the film's ground (its glow, tint and vignette go); a register keeping a ground of the other tone is left as drawn (its type is set for it) and named by validate / `style_coverage.py` — cast another register |
+| `surface.world` | `none`, `place` | `place`: a beat naming a `world` (slide field, from `runtime/places.json`: `orbit`, `sky`, `field`, `room`) is drawn INSIDE that place, and its register's same-tone ground turns transparent so the place shows; a beat naming none keeps the film's ground. Named per beat from where its subject is, never one place for the film |
 | `surface.source` | `procedural`, `generated` | `generated`: one tile through Codex at sample time; when it cannot, procedural + a recorded shortfall |
 | `type.display` | `as-dna` or a face | display type only (≥ 6% of the short side, or `data-type-role="display"`) |
 | `type.display_outline` | bool | an ink outline on display type |

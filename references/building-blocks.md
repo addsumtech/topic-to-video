@@ -91,6 +91,18 @@ An authored push or pull delivered in steps on the voice's clauses (Film.tsx `Ph
 **Smallest real use:** `const done = phraseExtra(frame, fps, sc.phrase, 1)` — 0..1 of the beat's steps.
 **Exports:** `phraseExtra`, `PHRASE_STEP_S`.
 
+### `world`
+The place a beat happens in, drawn behind its register from the beat's own subject (styled films, `surface.world: place`).
+**Reach for it:** nothing to import: name `world` on the slide; Film mounts `WorldBackdrop`.
+**Smallest real use:** `placeGround('orbit')` — the ground the place declares (`PLACES` lists them).
+**Exports:** `WorldBackdrop`, `PLACES`, `placeGround`.
+
+### `places.json`
+The table of PLACES a beat can happen in, read by `world` (drawing), `render_remotion.py` and `validate.py` alike.
+**Reach for it:** to learn what a place is for before naming it on a beat, or to add one (draw it in `world` too).
+**Smallest real use:** `import placesTable from './places.json'; placesTable.orbit.ground`
+**Exports:** `orbit`, `sky`, `field`, `room`.
+
 ### `stage3d`
 Cards posed anywhere in 3D and a camera that flies to face any one of them, with type that stays type (CSS 3D, not
 WebGL).

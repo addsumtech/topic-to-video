@@ -29,6 +29,7 @@ import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {SceneCamera, bedPan, ACTION_SAFE_FRAC, cameraBudget, type CameraMove} from './runtime/depth';
 import {phraseExtra} from './runtime/phrase';
 import {FocusLayer} from './runtime/focusLead';
+import {WorldBackdrop} from './runtime/world';
 import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA} from './runtime/dna';
@@ -70,6 +71,8 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // PHRASE STEPS (scripts/phrase_steps.py, runtime/phrase.ts): seconds on the beat's clock at which an AUTHORED push or
   // pull takes its next step, on the voice's next clause. Absent: the beat's camera is what it always was.
   phrase?: number[];
+  // THE PLACE the beat happens in (runtime/world.tsx), named from its subject; drawn when the style asks for places.
+  world?: string;
   // THE LEAD (scripts/focus_plan.py, runtime/focusLead.tsx): which listed item leads while the voice talks about it.
   focus?: {t: number; key: string | null}[];
   focusItems?: Record<string, string>;
@@ -1405,6 +1408,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
               brand); this one shadows it for the beat. A beat that declares no ground provides the
               film DNA object itself, so this is a no-op and the frame is bit-for-bit unchanged. */}
           <BeatGround dna={activeDna} scene={sc} durF={durF} shot={sc.shot}>
+            <WorldBackdrop place={sc.world} safe={safeP} />
             {/* the camera BED: a beat nobody authored a camera for drifts gently instead of sitting
                 dead — see bedPan's header for the measurements and the guarantees. An authored camera
                 (even 'hold') wins outright; un-themed films and drifting films get none. */}

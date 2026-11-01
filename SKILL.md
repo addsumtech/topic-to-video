@@ -150,6 +150,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     LIST the item the voice names leads while its peers recede (`render_remotion.attach_phrases`; `meta.phrase_camera:
     false` or a beat's `"phrase_camera": false` turns both off). Neither adds a camera to a beat nobody gave one: that
     was measured to make type tremble (pipeline-scripts.md, `phrase_steps.py`).
+  - **Places** (styled films, `style.surface.world: place`): each beat may name the `world` its subject is in —
+    `orbit`, `sky`, `field`, `room` (`remotion/src/runtime/places.json`) — and is drawn inside it; a beat about an
+    idea names none. Named per beat from the subject, never one place for the film.
   - **Reach.** After the forms and ideals, each beat's argument is read against the table of shapes the library has a
     BUILT tool for (`references/remotion-shot-authoring.md` §F): a derivation → `EquationMorph`, a curve →
     `FunctionPlot`, one shape becoming another → `GrowingFigure`, a conserved flow → `FlowSankey`, a ranking over time
