@@ -55,6 +55,9 @@ DILATE_SHARE = 0.022       # of the short side: the gap that still joins one wor
 MIN_BLOB = 0.002           # an element's box must be at least this share of the frame
 ONE_THING = 0.7
 
+TYPE_LEAD_LINE = 0.06       # largest type under this share of the short side ... (census line box; see type_by_beat)
+TYPE_LINES = 5              # ... among this many lines or more, with no element leading: small crowded type
+TYPE_SETTLE = 0.4           # read a beat's type from this share of it on: its entrances are not its layout
 STILL_LINE = 3.0           # 16 of 28 reference films never hold longer; their median is 2.5 s
 DOM_LINE = 0.5             # under this with MANY_BLOBS elements, nothing leads the frame
 MANY_BLOBS = 4
@@ -161,6 +164,50 @@ def measure(path, board=None):
     return out
 
 
+def type_by_beat(frames, segs, short_side, settle=TYPE_SETTLE):
+    """{beat index (0-based): {lead, lines, frames}} from a type census (text_safe_qa.glide_run of the Film): per settled
+    frame, the tallest readable line (opacity >= 0.5) over the short side, and how many readable lines; the median of
+    each. The census measures LINE BOXES and the reference was measured on GLYPH boxes (Vision OCR); on the same film
+    the two read 0.95 of each other (IQR 0.78-1.12, 78 frames, 2026-11-01), so the numbers stand against each other."""
+    import statistics as st
+    per = {}
+    for f, rec in frames.items():
+        f = int(f)
+        for k, (a, b) in enumerate(segs):
+            if a + settle * (b - a) <= f < b:
+                lines = [ln for ln in (rec.get("lines") or []) if ln.get("b") is not None and int(ln["b"]) == k
+                         and float(ln.get("o") or 0) >= 0.5 and float(ln.get("h") or 0) > 0]
+                if lines:
+                    per.setdefault(k, []).append((max(float(ln["h"]) for ln in lines) / float(short_side), len(lines)))
+    return {k: {"lead": round(st.median(x[0] for x in v), 4), "lines": st.median(x[1] for x in v), "frames": len(v)}
+            for k, v in per.items()}
+
+
+def measure_type(out_dir, board, every=15):
+    """type_by_beat for a rendered film, from one census of its Film (every `every` frames). Raises Unmeasurable."""
+    import shutil
+    import tempfile
+    import render_remotion as rr
+    import remotion_segments as _rs
+    import text_safe_qa as tq
+    import workshop as _ws
+    from _caption_band import aspect_table
+    props, _slides = rr.film_props(out_dir, board)
+    props = dict(props, typeGlide=True)
+    segs, _total = _rs.timeline(props["scenes"], _rs.seam_frames())
+    work = tempfile.mkdtemp(prefix="craft_type_")
+    try:
+        public = _rs.minimal_public(props, out_dir, os.path.join(work, "public"))
+        bundle = tq.glide_bundle(os.path.join(work, "bundle"), public, _ws.prepare(out_dir))
+        res = tq.glide_run([{"tag": "f", "id": "Film", "props": props}], bundle, extra=("--every=%d" % every,))["f"]
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    if not res.get("done"):
+        raise Unmeasurable("the type census did not finish (%s)" % (res.get("error") or "no done line"))
+    W, H = aspect_table().get(str((board.get("meta") or {}).get("aspect") or "16:9"), (1920, 1080))
+    return type_by_beat(res["frames"], segs, min(W, H))
+
+
 def findings(m):
     """Advisory lines, by beat when the board placed them, else for the film."""
     lines = []
@@ -172,6 +219,12 @@ def findings(m):
                          "a reveal, a camera move or a change of emphasis inside the hold"
                          % (tag, r["longest_still_s"], STILL_LINE))
         h = r["hierarchy"]
+        ty = r.get("type")
+        if (ty and ty["lead"] < TYPE_LEAD_LINE and ty["lines"] >= TYPE_LINES and h["dom_med"] is not None
+                and h["dom_med"] < DOM_LINE):
+            lines.append("%s: small crowded type — the largest line is %.1f%% of the short side among %g lines and "
+                         "nothing else leads (reference films: ~7%% lead type, ~3 lines) — let one line lead: larger, "
+                         "fewer words; a beat led by its drawing keeps small labels" % (tag, 100 * ty["lead"], ty["lines"]))
         if h["dom_med"] is not None and h["dom_med"] < DOM_LINE and h["nblob_med"] >= MANY_BLOBS:
             lines.append("%s: no element leads the frame — the largest is %.0f%% of the layout among %d elements "
                          "(reference: %.0f%% among 2)" % (tag, 100 * h["dom_med"], h["nblob_med"], 63))
@@ -194,12 +247,12 @@ def _report(m, ref):
         print("  ADVISORY  " + ln)
 
 
-_USAGE = "usage: craft_qa.py <out_dir> [--json] | --file film.mp4 [--json] | --reference"
+_USAGE = "usage: craft_qa.py <out_dir> [--type] [--json] | --file film.mp4 [--json] | --reference"
 
 
 def main(argv):
     import _common as _c
-    _c.refuse_unknown(argv, switches=("json", "file", "reference"), usage=_USAGE)
+    _c.refuse_unknown(argv, switches=("json", "file", "reference", "type"), usage=_USAGE)
     as_json = "--json" in argv
     args = [a for a in argv if not a.startswith("--")]
     if "--reference" in argv:
@@ -223,6 +276,14 @@ def main(argv):
     except Unmeasurable as e:
         print("[craft] NOT MEASURED — %s" % e)
         return 1
+    if "--type" in argv and board:
+        try:
+            ty = measure_type(args[0], board)
+            for r in m["beats"]:
+                if (r["index"] - 1) in ty:
+                    r["type"] = ty[r["index"] - 1]
+        except Unmeasurable as e:
+            print("[craft] type NOT MEASURED — %s" % e)
     if as_json:
         print(json.dumps(dict(m, findings=findings(m)), ensure_ascii=False, indent=1))
     else:

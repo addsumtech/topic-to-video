@@ -133,3 +133,42 @@ def test_reference_is_numbers_with_provenance_not_media():
     assert 2.0 <= med["longest_still_s"] <= 3.0 and med["dom_med"] > 0.55
     root = os.path.dirname(cq.REFERENCE_PATH)
     assert not any(n.endswith((".mp4", ".webm")) for n in os.listdir(root))
+
+
+def _census_frames(spec):
+    """{frame: {"lines": [...]}} from [(frame, beat, [(height px, opacity), ...])]."""
+    out = {}
+    for f, b, lines in spec:
+        out[f] = {"lines": [{"k": "/l%d" % i, "b": b, "h": h, "o": o, "t": "x"} for i, (h, o) in enumerate(lines)]}
+    return out
+
+
+def test_type_by_beat_reads_the_settled_lead_and_line_count():
+    """Calibrated 2026-11-01: on the same film, the census's line-box height over Vision OCR's glyph box read 0.95
+    (IQR 0.78-1.12), so the census number stands against the OCR-measured reference (launch films' lead type 7.6% of
+    the short side; ours 5.8%; lines per frame 2.8 against 4.0)."""
+    segs = [(0, 100), (100, 200)]
+    frames = _census_frames([
+        (10, 0, [(20, 1.0)]),                                   # beat 0 entering: before the settle point
+        (60, 0, [(90, 1.0), (30, 1.0), (30, 1.0)]),            # settled: one 90 px lead among 3 lines
+        (80, 0, [(90, 1.0), (30, 1.0), (30, 0.2)]),            # a faint line is not read
+        (160, 1, [(40, 1.0)] * 6),                              # beat 1: six 40 px lines, nothing larger
+    ])
+    t = cq.type_by_beat(frames, segs, short_side=1080)
+    assert abs(t[0]["lead"] - 90 / 1080) < 1e-4 and t[0]["lines"] in (2, 2.5, 3)
+    assert abs(t[1]["lead"] - 40 / 1080) < 1e-4 and t[1]["lines"] == 6
+
+
+def test_small_crowded_type_with_nothing_leading_is_named_and_a_drawing_lead_is_not():
+    m = {"beats": [
+        {"index": 1, "shot": "Crowded", "longest_still_s": 1, "hierarchy": {"dom_med": 0.3, "nblob_med": 5},
+         "type": {"lead": 0.04, "lines": 6}},
+        {"index": 2, "shot": "Diagram", "longest_still_s": 1, "hierarchy": {"dom_med": 0.8, "nblob_med": 2},
+         "type": {"lead": 0.03, "lines": 7}},                  # the drawing leads: its labels may be small
+        {"index": 3, "shot": "Headline", "longest_still_s": 1, "hierarchy": {"dom_med": 0.3, "nblob_med": 5},
+         "type": {"lead": 0.09, "lines": 6}},
+    ]}
+    lines = cq.findings(m)
+    assert any("Crowded" in ln and "type" in ln for ln in lines), lines
+    assert not any("Diagram" in ln and "type" in ln for ln in lines), lines
+    assert not any("Headline" in ln and "type" in ln for ln in lines), lines

@@ -354,6 +354,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   whether one element leads the frame, against numbers measured on 28 published launch films
   (`references/craft_reference.json`, numbers only). Our films held still 5.0 s against 2.5 s and let 3 elements share
   the frame against 2. A hold it names is either a decision (a closing lockup) or a missing reveal or camera move.
+  `--type` adds one census of the film and names SMALL CROWDED TYPE: the largest line under 6% of the short side among
+  5+ lines with nothing else leading (launch films lead with ~7% type over ~3 lines). A beat led by its drawing keeps
+  its small labels — the rule does not touch it. Measured on 6 films: it named 8 terminal beats of one (4.2-4.9% type,
+  6-18 lines) and nothing in the other five.
 - `scripts/shake_qa.py <out_dir>`: remotion SHAKE gate (travelling vs vibrating camera). It is paired with film_energy_qa,
   because jitter is the cheapest way to clear the motion floor. A frame it cannot lock onto is UNJUDGED.
 - `scripts/critic_ledger.py <out_dir> --final`: the independent-review gate on both tiers (workflow step 9);
