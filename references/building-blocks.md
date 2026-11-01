@@ -60,10 +60,14 @@ A camera over a page bigger than the frame: keys it moves between, and where a p
 
 ### `glide`
 Type that MOVES glides with its drawing instead of stepping a whole pixel at a time: the 1/1024 skew Skia needs to
-place a moving line to the quarter pixel, added only over the span the motion runs.
-**Reach for it:** every transform or layout position that moves type — a reveal, a drift, a scroll, a camera. Below a
-blur or drop-shadow, never above it (those filters keep only the scale of the matrix above them).
-**Smallest real use:** ``const glide = useGlide(); … transform: glide(`translateY(${(1 - e) * 20}px)`, e !== 1)``
+place a moving line to the quarter pixel, held over the whole SPAN the type can move in — never switched with the
+motion itself, which pops the line on the frame the motion starts and again on the frame it lands. A fridge film's
+builders keyed it to `0 < e < 1` from this entry's old example: jitter_qa failed 18 lines with 0.6-1.0 px pops at
+each label's landing; holding it on for the beat left 4 (single-glyph scale words under the beat's camera pull, 0.17 px, still open).
+**Reach for it:** every transform or layout position that moves type — a reveal, a drift, a scroll, a camera — and
+type that stands still inside a shot the film's camera moves. Below a blur or drop-shadow, never above it (those
+filters keep only the scale of the matrix above them).
+**Smallest real use:** ``const glide = useGlide(); … transform: glide(`translateY(${(1 - e) * 20}px)`, true)`` (on for the beat; pass a span flag only when the beat has a stretch that never moves)
 **Exports:** `glide`, `useGlide`, `unlockFor`, `unlockSkewFor`, `BASELINE_UNLOCK`, `BASELINE_UNLOCK_SKEW`, `BaselineUnlockContext`, `baselineUnlockOverscan`, `unlockCoverScale`.
 
 ### `depth`
