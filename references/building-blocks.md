@@ -113,6 +113,16 @@ The face a Chinese film's TITLES are set in: the voice goes after the stack's La
 **Smallest real use:** `withCjkDisplay(dna.fontDisplay, 'TTV Kai')`
 **Exports:** `withCjkDisplay`, `CJK_VOICES`.
 
+### `surface3d`
+Surfaces posed in space under ONE lens — a slab, a card, a browser window, a phone — with everything ON a surface drawn
+as its DOM children, so it shares the surface's exact angle and vanishing point. A flat block laid over a tilted surface
+with a 2D affine reads as "not following the carrier's angle" (a Grok Bot film's windows did); a surface's thickness is
+painted in its own plane, because stacked translateZ layers re-sort over the face for one frame (flash_qa).
+**Reach for it:** any 2D shot that tilts a panel, window or phone toward the viewer and puts content on it; `project`
+for a line, shadow or label that attaches from outside; `PhoneSlab` for a phone posed in space (the runtime `Device`).
+**Smallest real use:** `<View cam={cam}><Slab S={pose} radius={30} T={22} face="#fff" edge="#ccc">{content}</Slab></View>`
+**Exports:** `Cam`, `Pose`, `toWorld`, `project`, `poseTransform`, `View`, `OnPlane`, `Slab`, `phoneGeom`, `phoneSafe`, `PhoneSlab`.
+
 ### `stage3d`
 Cards posed anywhere in 3D and a camera that flies to face any one of them, with type that stays type (CSS 3D, not
 WebGL).

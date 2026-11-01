@@ -2911,6 +2911,11 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
             _ww = _dfq.workshop_warning(s, out_dir)
             if _ww:
                 warnings.append(f"{tag}: {_ww}")
+            # ...and one that names a device in its code without the kit or a real model's numbers (a Grok Bot film's
+            # hand-drawn phone, which showed no capture and so passed the check above)
+            _hd = _dfq.hand_drawn_device(s, out_dir, meta.get("build_list"))
+            if _hd:
+                errors.append(f"{tag}: {_hd}")
         if isinstance(sp, dict) and shot in _demo_copy_library():
             # A PROP CAN BE SUPPLIED BY ANOTHER PROP. `PortRail` grew `groups` (items that belong to named
             # kinds) and when a board gives groups, `items` is never read — but the check saw `items` unset,

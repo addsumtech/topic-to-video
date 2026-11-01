@@ -757,6 +757,96 @@ def glide_run(jobs, bundle_dir, concurrency=None, extra=()):
         shutil.rmtree(work, ignore_errors=True)
 
 
+SWAY_FRAC = 0.006          # a swing of 6.5 px at a 1080 short side: under it, a tremble is jitter_qa's to judge
+SWAY_MAX_FRAC = 0.06       # 65 px at 1080: an idle float is small; a move across the frame and back is choreography
+SWAY_MIN_FRAMES = 12       # each swing lasts 0.4 s or more: a spring's overshoots last a few frames
+SWAY_MIN_OPACITY = 0.5
+SWAY_REST_FRAMES = 15      # a gesture comes to REST (half a second within half the floor); an idle float never does
+
+
+def _zigzag(vals, h):
+    """Indices of the turning points of `vals`, a direction counting only once it has moved `h` (hysteresis)."""
+    if len(vals) < 2:
+        return [0]
+    piv, trend, lo, hi, ext = [], 0, 0, 0, 0
+    for i in range(1, len(vals)):
+        v = vals[i]
+        if trend == 0:
+            if v - vals[lo] >= h:
+                piv, trend, ext = [lo], 1, i
+            elif vals[hi] - v >= h:
+                piv, trend, ext = [hi], -1, i
+            lo = i if v < vals[lo] else lo
+            hi = i if v > vals[hi] else hi
+        elif trend == 1:
+            if v >= vals[ext]:
+                ext = i
+            elif vals[ext] - v >= h:
+                piv.append(ext)
+                trend, ext = -1, i
+        else:
+            if v <= vals[ext]:
+                ext = i
+            elif v - vals[ext] >= h:
+                piv.append(ext)
+                trend, ext = 1, i
+    return piv + [ext] if piv else [0]
+
+
+def _rests(pts, tol):
+    """Does the line come to REST in `pts` — SWAY_REST_FRAMES in a row within `tol` of each other, both axes?"""
+    for i in range(0, max(0, len(pts) - SWAY_REST_FRAMES) + 1):
+        win = pts[i:i + SWAY_REST_FRAMES]
+        if len(win) == SWAY_REST_FRAMES and all(max(p[a] for p in win) - min(p[a] for p in win) <= tol for a in (1, 2)):
+            return True
+    return False
+
+
+def judge_sway(frames, short=1080):
+    """Every line that SWAYS — its centre goes one way and comes back: two adjacent swings, each between SWAY_FRAC and
+    SWAY_MAX_FRAC of the short side and each lasting SWAY_MIN_FRAMES or more, and the line never comes to rest after
+    them (a gesture — an arc, a tip, a paste-down — settles): [{"k", "t", "a", "b", "swing"}].
+
+    Measured on a Grok Bot film: an idle sine "float" on a card (~18 px, ~3 s period) and a "breathing" held camera
+    read to the viewer as the frame SHAKING, and passed shake_qa (whole-frame vibration in half-second windows). The
+    CENTRE is tracked, so a pop scaled about its centre is not a swing; an entrance, a push and a scroll travel one
+    way; a spring that settles loses its swings at once. A frame a line is missing from, or faint in, ends its run."""
+    floor, ceil = SWAY_FRAC * short, SWAY_MAX_FRAC * short
+    tracks = {}
+    for f in sorted(frames):
+        for ln in frames[f].get("lines") or []:
+            if (ln.get("o") or 0) < SWAY_MIN_OPACITY or ln.get("w") is None:
+                continue
+            tracks.setdefault(ln["k"], []).append((f, ln["x"] + ln["w"] / 2.0, ln["y"] + ln["h"] / 2.0, ln.get("t", "")))
+    found = []
+    for k, pts in tracks.items():
+        runs, cur = [], [pts[0]]
+        for p in pts[1:]:
+            if p[0] == cur[-1][0] + 1:
+                cur.append(p)
+            else:
+                runs.append(cur)
+                cur = [p]
+        runs.append(cur)
+        best = None
+        for run in runs:
+            for axis in (1, 2):
+                turns = _zigzag([p[axis] for p in run], floor / 2.0)
+                sw = [abs(run[turns[j + 1]][axis] - run[turns[j]][axis]) for j in range(len(turns) - 1)]
+                dur = [run[turns[j + 1]][0] - run[turns[j]][0] for j in range(len(turns) - 1)]
+                for j in range(len(sw) - 1):
+                    a, b = sw[j], sw[j + 1]
+                    if floor <= a <= ceil and floor <= b <= ceil and min(dur[j], dur[j + 1]) >= SWAY_MIN_FRAMES \
+                            and not _rests(run[turns[j + 1]:], floor / 2.0):
+                        hit = {"k": k, "t": run[0][3], "a": run[turns[j]][0], "b": run[turns[j + 2]][0],
+                               "swing": round(max(a, b), 1)}
+                        if best is None or hit["swing"] > best["swing"]:
+                            best = hit
+        if best:
+            found.append(best)
+    return sorted(found, key=lambda r: -r["swing"])
+
+
 def judge_glide(frames):
     """Every crawl with at least one whole-pixel step, worst first: {"k", "t", "a", "b", "steps", "max_dy", "fl"}.
 
@@ -1039,6 +1129,15 @@ def scan_film_glide(out_dir, concurrency=None):
             errors.extend("%s: STAIRCASE — %s" % (head, _describe_run(r)) for r in worst)
         elif level == "warn":
             warns.extend("%s: %s" % (head, _describe_run(r)) for r in worst)
+    # TYPE THAT SWAYS (judge_sway): an idle float or a breathing camera that rocks the copy back and forth and never
+    # settles read to a viewer as the frame shaking — the same census, a different question
+    from _caption_band import aspect_table as _at
+    W_, H_ = _at().get(str(props.get("aspect")), (1920, 1080))
+    for r in judge_sway(res["frames"], short=min(W_, H_)):
+        k = beat_of(r["a"])
+        errors.append("scene %02d (%s): SWAY — %r swings %.0f px back and forth, frames %d-%d, and does not settle — an "
+                      "idle float or breathing camera reads as the frame shaking; hold it still once it has landed"
+                      % (labels[k], shots[k], (r["t"] or "")[:40], r["swing"], r["a"], r["b"]))
     # A PORTRAIT FILM FOR THE PLATFORMS keeps what must be read out of their UI (runtime/safeZone.ts): measured on
     # every frame the census read, the same lines the staircase is judged on
     if props.get("safe"):

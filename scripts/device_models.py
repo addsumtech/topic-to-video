@@ -25,6 +25,29 @@ def _kind_of(device):
     return "tablet" if device == "tablet-landscape" else device
 
 
+SHAPE_TOLERANCE = 0.0015   # relative: a resize keeps the ratio to its rounding (0.03-0.08% measured); a DIFFERENT device is 0.4%+ off (iPhone 13 vs 18 Pro Max)
+
+
+def by_shape(w, h, kind=None):
+    """The model (of `kind`, when given) whose screen is this capture's SHAPE within SHAPE_TOLERANCE, the closest
+    first and, among equals, the larger screen — or None. For a capture that is no model's native pixels."""
+    if not (isinstance(w, int) and isinstance(h, int)) or w <= 0 or h <= 0:
+        return None
+    best = None
+    for name, m in models().items():
+        if kind and m["kind"] != kind:
+            continue
+        pw, ph = m["published"]["px"]
+        shapes = [(pw, ph)] + ([(ph, pw)] if m["kind"] in ("tablet", "laptop") else [])
+        for a, b in shapes:
+            err = abs((w / float(h)) / (a / float(b)) - 1)
+            if err <= SHAPE_TOLERANCE:
+                key = (round(err, 4), -a * b)
+                if best is None or key < best[0]:
+                    best = (key, name)
+    return best[1] if best else None
+
+
 def candidates(w, h, device=None):
     """[(model, how)] in table order — every model whose screen this w x h capture is. `how` is "native",
     "1/k" (saved at 1/k of its pixels) or "long" (the native width, taller: a scrolling capture). A tablet and a

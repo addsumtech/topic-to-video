@@ -129,7 +129,20 @@ def resolve(props, shot, out_dir):
         other = dm.models()[cands[0][0]]
         warns.append("the %s screen is a %s capture, shown on a %s — use device \"%s\" to draw it on its own device"
                      % (size, other["name"], device, other["kind"]))
-    elif not w:
+        return props, probs, warns
+    # A RESIZED capture (a marketing composite's crop, a 1x export at an odd scale) is no model's pixels, but it is
+    # still some model's SHAPE. Drawn on the generic kind, its guessed corner cut the status bar off Apple's own iPad
+    # screens (Grok Bot film); drawn on the model of its shape, the corners are the real ones.
+    shaped = dm.by_shape(facts["w"], facts["h"], kind or ("phone" if shot == "DeviceDemo" else None))
+    if shaped:
+        model = shaped
+        out = dict(props, model=model)
+        if device is None:
+            out["device"] = dm.kind_for(model, facts["w"], facts["h"])
+        warns.append("the %s screen is no model's native pixels but the shape of the %s — drawn as that model (a "
+                     "resized capture); name `model` to choose another" % (size, dm.models()[model]["name"]))
+        return out, probs, warns
+    if not w:
         warns.append("no device model has a %s screen — it is drawn on the generic %s, not a real model's proportions "
                      "(models: %s; a capture straight off the device is its native size)"
                      % (size, device or ("phone" if shot == "DeviceDemo" else "laptop"),
@@ -179,6 +192,67 @@ def resolution_findings(screen_w_px, image_w, zoom, where):
     if s > warn:
         return [], [msg]
     return [], []
+
+
+# A device named as something the code DRAWS: an identifier (a component, a variable) naming a device — not a pictogram
+# (`phoneGlyph`, `laptopIcon`) — or a comment naming a device AND one of its parts ("the phone's island", the Grok Bot
+# phone's only trace). Part words alone are not evidence: a pressure gauge has a bezel, a door a hinge. Bare "pad" is
+# padding.
+_DEVICE_NOUN = r"(?:[Pp]hone|[Ll]aptop|[Tt]ablet|i[Pp]ad|IPad|[Mm]ac[Bb]ook|[Ss]martwatch)"
+_DEVICE_IDENT = re.compile(r"[A-Za-z_$]*" + _DEVICE_NOUN + r"[A-Za-z0-9_$]*")
+_PICTOGRAM = re.compile(r"(?:Glyph|Icon|Emoji|Pictogram)", re.I)
+_DEVICE_NOUN_TEXT = re.compile(r"\b(i?phone|smartphone|i?pad|tablet|laptop|macbook|smartwatch)s?\b", re.I)
+_DEVICE_PART_TEXT = re.compile(r"\b(dynamic island|island|notch|bezels?|hinge|home indicator|side buttons?|"
+                               r"camera bump|keyboard deck|lid)\b", re.I)
+_COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
+
+
+def _device_evidence(src):
+    """The words in a source that say it DRAWS a device: device identifiers in its code (not pictograms), and a
+    comment that names a device together with one of its parts."""
+    code = _COMMENT.sub(" ", "\n".join(ln for ln in src.splitlines() if not ln.lstrip().startswith("import ")))
+    words = {m.group(0) for m in _DEVICE_IDENT.finditer(code) if not _PICTOGRAM.search(m.group(0))}
+    for c in _COMMENT.findall(src):
+        nouns, parts = _DEVICE_NOUN_TEXT.findall(c), _DEVICE_PART_TEXT.findall(c)
+        if nouns and parts and not _PICTOGRAM.search(c):
+            words.update(p.lower() for p in parts)
+    return words
+
+
+def hand_drawn_device(slide, out_dir, build_list=None):
+    """An ERROR string when a beat's OWN shot draws a phone, tablet, laptop or watch by hand, else None.
+
+    Measured on a Grok Bot film: a workshop phone drawn as a black rounded outline with an "island" — no buttons,
+    wrong proportions — that `workshop_warning` could not see, because it showed no capture. A device the code NAMES is
+    cleared by (1) the kit, imported at any depth (runtime/device), (2) a build-list fidelity record citing a real
+    model's published numbers (deviceSpec.json `models`), or (3) a `@not-a-device: <why>` line in the source."""
+    shot, sp = slide.get("shot"), slide.get("shot_props") or {}
+    if not out_dir or not isinstance(shot, str) or shot in ("DeviceDemo", "DeviceHero"):
+        return None
+    import workshop as ws
+    try:
+        files = ws.beat_files(out_dir, shot, sp)
+    except Exception:
+        return None
+    texts = []
+    for f in files:
+        try:
+            texts.append(open(f, encoding="utf-8").read())
+        except OSError:
+            continue
+    if not texts or any(re.search(r"runtime/device['\"]", t) for t in texts) or any("@not-a-device:" in t for t in texts):
+        return None
+    words = sorted(set().union(*(_device_evidence(t) for t in texts)))
+    if not words:
+        return None
+    entry = next((e for e in build_list or [] if isinstance(e, dict) and e.get("id") == shot), None)
+    record = json.dumps((entry or {}).get("fidelity") or {}, ensure_ascii=False)
+    if any(m in record for m in dm.models()):
+        return None
+    return ("%s draws a device by hand (its code names: %s) — a hand-drawn phone/tablet/laptop gets its proportions, "
+            "corners and parts wrong. Draw it with the kit (runtime/device `Device`, or DeviceHero / DeviceDemo); a "
+            "built device's fidelity record must cite the real model it follows (deviceSpec.json models: %s); or say "
+            "`// @not-a-device: <why>` in the source" % (shot, ", ".join(words), ", ".join(sorted(dm.models()))))
 
 
 def concentric_findings(g, kind):

@@ -38,6 +38,17 @@ Never: `storyboard.json`, another builder's shot, the kit, the library (`remotio
 merge, when every shot is in. Two builders running a film-wide gate at once would starve each other's renders and
 report partial frames as findings.
 
+## Five things a viewer saw (Grok Bot film, 2026-11-01) — each now a gate
+- **UI holds still once it has landed.** No idle sine float, bob or "breathing" camera on cards, panels or type: it reads
+  as the frame shaking. Life belongs to characters. (`text_safe_qa --glide` SWAY)
+- **Anything on a tilted surface is that surface's child** — `runtime/surface3d` (`View`/`OnPlane`/`Slab`), never a flat
+  block laid over a turned panel.
+- **Devices come from the kit** — `Device`/`DeviceHero`/`DeviceDemo`/`PhoneSlab`; a built device's fidelity record cites
+  its deviceSpec model. (validate: `hand_drawn_device`)
+- **Thickness is painted in the face's plane**, never stacked translateZ layers: they re-sort over the face for a frame.
+  (`flash_qa`)
+- **glide(…, true) for the whole beat** on type that moves or sits under a camera — never `0 < e < 1`.
+
 ## How to check your own work (renders are queued, not raced)
 `python3 scripts/workshop.py <out_dir> still <Name> --props <file> --frame N` renders one frame of one shot. Every
 `workshop.py still` render (and every render of the lead's design gates: shot_proof, text_safe_qa, energy_skeleton)
