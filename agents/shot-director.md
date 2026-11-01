@@ -144,6 +144,14 @@ Rules that make this a derivation rather than a shopping list:
    register, you shopped. Go back to the brief.
 3. **Write it to `meta.form_vocabulary`** — the whole list, as the artifact it is.
 
+### First, split what is too long to hold (before any voice is made)
+
+`python3 scripts/split_beats.py <out_dir>` lists every beat predicted over 8 s on one shot, with where it splits.
+Measured on 311 beats of our films: 51-100% of beats that long held a frame still past 3 s — one register reveals,
+then waits for the voice. Split each (`--beat N`) unless it is a deliberate hold or carries an authored push/pull of
+10 s or more (stepped on the voice). The new beats have no shot: design them below like any other beat — a second
+picture for the second half of the thought, never the first beat's shot again.
+
 ### Then, per beat — the ONE design flow (defined in Step 0.55; nothing else restates it)
 Choose the FORM first, from your own list, then run Step 0.55 for the beat: **ideal picture → route → assemble →
 check.** The library is MATERIAL for that picture (registers to adapt, objects' slots, parts, motion), never the

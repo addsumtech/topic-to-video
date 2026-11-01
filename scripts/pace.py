@@ -135,6 +135,64 @@ def film(board):
             "calibrated": _base(lang) in CALIBRATED, "seams": seams}
 
 
+_SENT_END = re.compile(r"[。！？；：!?;:]")
+_CLAUSE = re.compile(r"[，、,]")
+SPLIT_WINDOW = 0.25        # a sentence end within this share of the middle beats a comma at it
+
+
+def split_point(text):
+    """(first, rest) — the narration cut where a beat would split best, or None when it has no break. A SENTENCE end
+    near the middle wins over a comma at it: measured on bench-aurora, cutting at the comma nearest the middle took a
+    clause from its predicate (「…的氧发绿光，‖ 最常见；…」)."""
+    text = text or ""
+    n = len(text)
+    def cuts(rx):
+        return [m.end() for m in rx.finditer(text) if 0 < m.end() < n - 1]
+    mid = n / 2.0
+    sent = [c for c in cuts(_SENT_END) if abs(c - mid) <= SPLIT_WINDOW * n]
+    pool = sent or cuts(_SENT_END) + cuts(_CLAUSE)
+    if not pool:
+        return None
+    c = min(pool, key=lambda x: abs(x - mid))
+    return text[:c], text[c:]
+
+
+def _pieces(text, lang, speed, limit):
+    if beat_seconds(text, lang, speed) <= limit:
+        return [text]
+    sp = split_point(text)
+    if not sp or not sp[0].strip() or not sp[1].strip():
+        return [text]
+    return _pieces(sp[0], lang, speed, limit) + _pieces(sp[1], lang, speed, limit)
+
+
+LONG_BEAT_S = 8.0          # rhythm_qa.LONG_SHOT_S: past this one shot holds still (51-100% of measured beats)
+STEPPED_MOVE_S = 10.0      # render_remotion.LONG_BEAT: an authored push/pull this long is stepped on the voice
+
+
+def long_beats(board, limit=LONG_BEAT_S):
+    """[{index, shot, seconds, pieces}] — beats predicted (or measured) over `limit` on one shot, each with its narration
+    cut into pieces under it at sentence ends where it can. A beat whose authored push/pull is stepped on the voice
+    (STEPPED_MOVE_S and over), and a stage run's beat, are not named: they have their events."""
+    import stage_runs as _sr
+    meta = board.get("meta") or {}
+    slides = [s for s in board.get("slides") or [] if isinstance(s, dict)]
+    lang, speed = film_language(meta, slides), meta.get("tts_speed") or 1.0
+    out = []
+    for i, s in enumerate(slides):
+        text = s.get("narration") or ""
+        d = s.get("duration")
+        sec = float(d) if isinstance(d, (int, float)) and d > 0 else beat_seconds(text, lang, speed, first=(i == 0))
+        if sec <= limit or _sr.run_id(s):
+            continue
+        cam = s.get("camera") if isinstance(s.get("camera"), dict) else {}
+        if cam.get("move") in ("push", "pull") and not cam.get("pan") and sec >= STEPPED_MOVE_S:
+            continue
+        pieces = _pieces(text, lang, speed, limit)
+        out.append({"index": s.get("index", i + 1), "shot": s.get("shot"), "seconds": round(sec, 1), "pieces": pieces})
+    return out
+
+
 def overrun_warning(board, tolerance=0.15):
     """A sentence for validate when the predicted film misses meta.target_seconds by more than `tolerance`, else None."""
     f = film(board)

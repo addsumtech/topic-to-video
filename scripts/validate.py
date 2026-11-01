@@ -1426,6 +1426,23 @@ def _ramp_crossings(meta, slides, warnings):
                 "`transition_in: {type: \"carry\"}`, the seam that bridges a dark<->light cut." % (pos, a, b))
 
 
+def _long_beat_warnings(data):
+    """Remotion beats over pace.LONG_BEAT_S on one shot, named BEFORE the voice is made with where each would split
+    (scripts/split_beats.py applies it). Measured on 311 beats of 22 films: 51-100% of such beats held still past 3 s."""
+    if ((data.get("meta") or {}).get("renderer") or "") != "remotion":
+        return []
+    import pace as _pace
+    out = []
+    for r in _pace.long_beats(data):
+        if len(r["pieces"]) < 2:
+            continue
+        out.append("rhythm: beat %s (%s) is ~%.1f s on one shot — beats that long held still past 3 s in 51-100%% of "
+                   "our measured films; split it into %d beats at 「%s」 (`python3 scripts/split_beats.py <out_dir> "
+                   "--beat %s`, then design the new beats) — or author a push/pull if it must stay one shot"
+                   % (r["index"], r["shot"], r["seconds"], len(r["pieces"]), r["pieces"][0].strip()[-14:], r["index"]))
+    return out
+
+
 def _check_places(meta, slides, errors, warnings):
     """A beat's `world` names the PLACE it happens in (runtime/world.tsx, remotion/src/runtime/places.json): a place the
     table does not hold is an ERROR (the runtime would throw mid-render); a board naming places whose style does not
@@ -4842,6 +4859,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _pw = _pace.overrun_warning(data)
         if _pw:
             warnings.append(_pw)
+        warnings.extend(_long_beat_warnings(data))
     except Exception as _e:                                  # noqa: BLE001 — a length estimate must not break
         warnings.append("length: the pace model could not run (%s) — the film's length against "
                         "meta.target_seconds was NOT checked" % type(_e).__name__)

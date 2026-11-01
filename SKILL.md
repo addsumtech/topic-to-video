@@ -280,6 +280,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   measured beats; counts the ~1.2 s pause after every beat). It predicts the film's length against
   `meta.target_seconds` before any voice is made, and says how much narration a beat holds; validate warns past
   ±15%. The planner, scriptwriter and critics use it — a bare chars-per-second rate undercounts every beat.
+- `scripts/split_beats.py <out_dir> [--beat N]`: a remotion beat over 8 s on one shot holds still (51-100% of 311
+  measured beats past 3 s). validate names each with where it splits; this lists them, and `--beat N` splits one at
+  sentence ends BEFORE tts. The new beats get NO shot (validate refuses that) — design each, then run tts.
 - `scripts/rhythm_qa.py <out_dir> [--json]`: pacing gate. Run after tts, before the full render. It is advisory except
   for a MEASURED static frame held past ~16 s. It names a remotion beat over 8 s on one shot: measured on 311 beats,
   those held a frame still past 3 s in 51-100% of cases. Split it, have the voice walk a list it shows, or author a
