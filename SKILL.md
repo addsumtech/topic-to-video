@@ -273,7 +273,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   `meta.target_seconds` before any voice is made, and says how much narration a beat holds; validate warns past
   ±15%. The planner, scriptwriter and critics use it — a bare chars-per-second rate undercounts every beat.
 - `scripts/rhythm_qa.py <out_dir> [--json]`: pacing gate. Run after tts, before the full render. It is advisory except
-  for a MEASURED static frame held past ~16 s.
+  for a MEASURED static frame held past ~16 s. It names a remotion beat over 8 s on one shot: measured on 311 beats,
+  those held a frame still past 3 s in 51-100% of cases. Split it, have the voice walk a list it shows, or author a
+  push/pull (stepped from 10 s).
 - `scripts/pedagogy_qa.py <out_dir> [--json]`: teaching-order gate over `content_plan.json`. It ERRORs on a concept used
   before it is introduced. Run at step 9 alongside validate and rhythm_qa.
 - `scripts/voice_qa.py <out_dir> [--json]`: narration voice signals (AI-slop vocabulary + rhythm). It is advisory and always

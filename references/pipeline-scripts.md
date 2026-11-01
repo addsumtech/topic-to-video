@@ -739,7 +739,10 @@ the opacity cap — together these once let five PAID generated images ship cont
   video-native complement to the layout-diversity gate. Reads `storyboard.json` (real `duration`s after
   tts, else estimates from narration) and flags flat pacing — durations too uniform (monotone), a climax
   not at ~70–85% (or none on a >75s video), a non-sparse closer, a static image held too long, and no
-  attention reset for >~35s. Advisory (warnings) except ONE hard defect — a MEASURED static frame held
+  attention reset for >~35s; and a REMOTION beat over 8 s on one shot (`LONG_SHOT_S`) — measured on 311 beats of 22 of
+  our films with craft_qa, beats of 4-6 s held a frame still past 3 s 9% of the time, 6-8 s 31%, 8-10 s 51%, 12 s and
+  over 89-100%; the planner's own rhythm (~3-6 s, ~8 for a climax) was never enforced. A beat whose authored push/pull
+  is stepped on the voice (10 s and over, render_remotion.LONG_BEAT) is not named. Advisory (warnings) except ONE hard defect — a MEASURED static frame held
   past ~16s → non-zero exit; a missing climax is only a WARNING (an estimate never gates a render). Run
   after tts, before the full render.
 - `scripts/sources.py add|list|verify <out_dir>` — capture the SOURCE TEXT behind each claim into

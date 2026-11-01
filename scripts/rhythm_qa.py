@@ -36,7 +36,9 @@ NO_CLIMAX_DURATION    = 75.0     # a video longer than this should have a marked
 STATIC_IMAGE_SOFT     = 10.0     # a held image beyond this drags (WARN)
 STATIC_IMAGE_HARD     = 16.0     # …beyond this it's a defect (ERROR)
 RESET_MAX             = 35.0     # go this long with no seam / family change = no attention reset
-FINAL_HOLD_RATIO      = 1.25     # last scene's narration vs the median; above = not a sparse hold
+FINAL_HOLD_RATIO      = 1.25
+LONG_SHOT_S           = 8.0      # a remotion beat longer than this on ONE shot holds still (see the long-shot rule)
+STEPPED_MOVE_S        = 10.0     # render_remotion.LONG_BEAT: an authored push/pull this long arrives in steps     # last scene's narration vs the median; above = not a sparse hold
 
 _STATIC_TYPES = {"slide"}                              # a held image
 _DENSE_TYPES  = {"chart", "keypoints", "compare", "timeline", "html"}
@@ -126,6 +128,21 @@ def evaluate(data, meta=None):
 
     durs = [_est_seconds(s, meta) for s in slides]
     total = sum(durs)
+    # THE LONG SHOT. Measured on 311 beats of 22 of our remotion films (scripts/craft_qa.py): a beat of 4-6 s held a frame
+    # still past 3 s 9% of the time, 6-8 s 31%, 8-10 s 51%, 12 s and over 89-100% — the register reveals and then waits
+    # while the voice talks. Published launch films hold 2.5 s at the median. The planner's rhythm already says ~3-6 s,
+    # up to ~8 for a climax; nothing enforced it. A beat whose authored push/pull is long enough to be stepped on the
+    # voice (render_remotion.attach_phrases) has its events, and is not named.
+    for s, d in zip(slides, durs):
+        if _stype(s) != "shot" or d <= LONG_SHOT_S:
+            continue
+        cam = (s.get("camera") or {}) if isinstance(s.get("camera"), dict) else {}
+        if cam.get("move") in ("push", "pull") and not cam.get("pan") and d >= STEPPED_MOVE_S:
+            continue
+        warnings.append("beat %s (%s): %.1f s on one shot — beats this long held a frame still past 3 s in 51-100%% "
+                        "of our measured films; split it into two shots, have the voice walk a list the shot shows "
+                        "(the named item then leads), or author a push/pull (stepped on the voice from %.0f s)"
+                        % (s.get("index"), s.get("shot"), d, STEPPED_MOVE_S))
     est_note = "" if all(isinstance(s.get("duration"), (int, float)) for s in slides) else \
         " (estimated from narration — run after tts.py for exact durations)"
     # Video KIND — a NARRATIVE arc builds to a payoff (a paper, a pitch, a story); an EXPOSITORY arc is

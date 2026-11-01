@@ -239,3 +239,33 @@ def test_a_misplaced_scene_level_climax_is_judged_like_any_other():
     beats[0]["climax"] = True                                   # the payoff in the first sixth
     r = rq.evaluate(_board(beats, meta={"language": "zh", "renderer": "remotion", "arc_kind": "narrative"}))
     assert any("climax lands at" in w for w in r["warnings"]), r["warnings"]
+
+
+def _shot(index, dur, camera=None):
+    s = {"index": index, "shot": "TechnicalPlate", "narration": "a beat", "duration": dur, "shot_props": {}}
+    if camera:
+        s["camera"] = {"move": camera}
+    return s
+
+
+def test_a_long_remotion_beat_is_named_as_a_hold():
+    """Measured on 311 beats of 22 of our films (craft_qa): a beat of 4-6 s held a frame still past 3 s 9% of the time,
+    8-10 s 51%, 12 s and over 89-100% — the register reveals and then waits for the voice. The planner's own rhythm says
+    ~3-6 s, up to ~8 for a climax; nothing enforced it."""
+    r = rq.evaluate(_board([_shot(1, 5.0), _shot(2, 14.0), _shot(3, 7.5)]))
+    long = [w for w in r["warnings"] if "beat 2" in w and "still" in w]
+    assert long and "split" in long[0], r["warnings"]
+    assert not any("beat 1" in w and "still" in w for w in r["warnings"])
+    assert not any("beat 3" in w and "still" in w for w in r["warnings"])
+
+
+def test_a_long_beat_with_an_authored_move_is_not_named():
+    """An authored push/pull on a beat of 10 s or more arrives in steps on the voice (render_remotion.attach_phrases)."""
+    r = rq.evaluate(_board([_shot(1, 14.0, camera="push"), _shot(2, 14.0, camera="hold")]))
+    assert not any("beat 1" in w and "still" in w for w in r["warnings"])
+    assert any("beat 2" in w and "still" in w for w in r["warnings"])
+
+
+def test_the_stepped_move_length_is_the_renderers():
+    import render_remotion as rr
+    assert rq.STEPPED_MOVE_S == rr.LONG_BEAT
