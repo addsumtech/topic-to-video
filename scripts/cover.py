@@ -37,6 +37,9 @@ def _title_top(props, W, H):
 
 def cover(out_dir, beat=None):
     """The written cover's path. Raises SystemExit with the reason when this film has no cover to make."""
+    # ABSOLUTE, because the still renders from the renderer's own directory: given a relative out_dir it wrote the frame
+    # under remotion/, this looked for it here, and the film shipped with no cover (tests/test_cover_path.py).
+    out_dir = os.path.abspath(out_dir)
     import render_remotion as _rr
     import remotion_segments as _rs
     import stage_frames as _sf
