@@ -823,6 +823,8 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
              # like it is drifting". A default that has to be switched off after you notice it is a default
              # set backwards, so it is now `meta.camera_bed: true` for a film that genuinely wants the floor.
              "cameraBed": meta.get("camera_bed") is True,
+             # Han/Latin spacing on the beats (Film.tsx `autospace`); `meta.cjk_autospace: false` leaves it out
+             "autospace": meta.get("cjk_autospace") is not False,
              "reducedMotion": reduced, "aspect": aspect,
              "captions": bool(meta.get("captions", True)),
              # THE DELIVERY DITHER (runtime/dither.tsx): the dark grounds measured CAMBI 12-22 — rings a viewer sees

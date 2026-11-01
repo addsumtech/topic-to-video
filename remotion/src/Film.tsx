@@ -1290,7 +1290,7 @@ const BeatOptic: React.FC<{decl: OpticDecl; dna: DesignDNA | null; where: string
   return <OpticContext.Provider value={opticState(decl, dna, where)}>{children}</OpticContext.Provider>;
 };
 
-export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; autospace?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
   typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string;
   mediaRes?: boolean;
   // the delivery dither (runtime/dither): render_remotion asks for it; a still for a gate or a test does not
@@ -1308,7 +1308,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   style?: StyleSpec | null;
   // a GENERATED medium's tiles for that style (render_remotion.style_texture_props); absent: the procedural medium
   styleTexture?: {light: string; dark: string} | null}> =
-  ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
+  ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, autospace = false, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
     typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, safe, dither = false, optics = true,
     safeEcho = true, frameUnlock = true, style = null, styleTexture = null}) => {
   const activeStyle = React.useMemo(() => (style ? resolveStyle(style, styleTexture) : null), [style, styleTexture]);
@@ -1605,6 +1605,13 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           `!important` rule below still wins, so terminal is unchanged. */}
       {activeDna ? <style>{`.dna-film { --f-display: ${activeDna.fontDisplay}; --f-body: ${activeDna.fontBody}; --f-mono: ${activeDna.fontMono}; }`}</style> : null}
       {activeDna?.uniformType ? <style>{`.dna-film, .dna-film * { font-family: ${activeDna.fontMono} !important; }`}</style> : null}
+      {/* THE GAP BETWEEN HAN AND LATIN OR DIGITS, set by the browser (Chrome's text-autospace): 手机的GPS reads 手机的 GPS
+          without the author typing the space — about an eighth of an em, the spacing W3C's Chinese layout requirements
+          (clreq) ask for between Han and Western letters and numerals. `normal` is the only value this Chrome accepts
+          (measured: `ideograph-alpha` is refused, and a refused value silently does nothing). On the beats only — the
+          caption sits outside .dna-film, and its lines are broken by a canvas measure that knows nothing of the gap.
+          `autospace: false` (meta.cjk_autospace) leaves it out. */}
+      {autospace ? <style>{`.dna-film { text-autospace: normal; }`}</style> : null}
       {/* ISOLATED WHILE A CONTAINER IS ON SCREEN, and only then: a container's copy is lifted over both beats with a
           z-index (seams.tsx), and without a stacking context of its own here it would rise over the caption and the
           finish too. Every other frame carries no isolation, so it draws exactly what it drew before. */}

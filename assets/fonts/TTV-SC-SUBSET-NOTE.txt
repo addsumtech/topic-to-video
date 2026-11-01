@@ -1,0 +1,26 @@
+TTV Display (TTVDisplaySC-Subset.ttf) and TTV Kai (TTVKaiSC-Subset.ttf) — two CJK DISPLAY faces, each a SUBSET of
+an SIL Open Font License 1.1 font, RENAMED because the originals reserve their names.
+
+  TTV Display  <- Smiley Sans Oblique 得意黑, v2.0.1, atelierAnchor
+                  https://github.com/atelier-anchor/smiley-sans/releases/download/v2.0.1/smiley-sans-v2.0.1.zip
+                  licence: OFL-SmileySans.txt — Reserved Font Names "Smiley" and "得意黑"
+  TTV Kai      <- LXGW WenKai Medium 霞鹜文楷, v1.530, LXGW
+                  https://github.com/lxgw/LxgwWenKai/releases/download/v1.530/LXGWWenKai-Medium.ttf
+                  licence: OFL-LXGWWenKai.txt — Reserved Font Names '霞鹜', '霞鶩', '落霞孤鹜', '落霞孤鶩', 'LXGW'
+
+WHY RENAMED. OFL condition 3: no Modified Version may use a Reserved Font Name without written permission, and a
+subset is a Modified Version. LXGW's additional permission covers subsets "solely for web font delivery" that are not
+made available as installable fonts; a file in this repository is downloadable and installable, so it does not apply.
+Both subsets carry new names in their name tables (family, full, PostScript, unique ID); the copyright notice,
+manufacturer and designer fields — which the licence requires to be kept — are unchanged.
+
+WHY THESE TWO. The bundled CJK faces were Noto Sans SC and Noto Serif SC only, so every Chinese film's headlines had
+one of two voices. Measured against 28 published launch films (2026-11-01), their Chinese display type is a
+geometric oblique (得意黑); the warm, hand-set Kai voice suits explainers about people, history and learning. Both are
+display faces: body text and captions stay on the Noto faces.
+
+SUBSET. Exactly the codepoints of NotoSansSC-Subset.ttf (7467: GB2312's 6763 Han, kana, CJK punctuation, fullwidth
+forms, Latin, digits), so a board that passes the Noto coverage check is covered here as well:
+  TTV Display covers 7266 of them (all 6763 Han; no kana)  2.63MB -> 1.93MB
+  TTV Kai     covers 7462 of them (all 6763 Han)           25.80MB -> 3.63MB
+A character a display face lacks falls back to the Noto face named after it in the DNA stack.

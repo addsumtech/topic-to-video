@@ -27,6 +27,8 @@ import bodoniModaUrl from '../../../assets/fonts/BodoniModa-VF.ttf';
 import baloo2Url from '../../../assets/fonts/Baloo2-VF.ttf';
 import notoSansSCUrl from '../../../assets/fonts/NotoSansSC-Subset.ttf';
 import notoSerifSCUrl from '../../../assets/fonts/NotoSerifSC-Subset.ttf';
+import ttvDisplaySCUrl from '../../../assets/fonts/TTVDisplaySC-Subset.ttf';
+import ttvKaiSCUrl from '../../../assets/fonts/TTVKaiSC-Subset.ttf';
 
 export type Face = {
   family: string;      // for the 4 faces shared with the HTML tier, must match assets/html/base.css
@@ -37,6 +39,11 @@ export type Face = {
   variable: boolean;   // true = weight is a range; the weight-ladder gate only applies to these
   // the WIDTH range the file's `wdth` axis really covers, as a font-stretch range. Absent = 100% only.
   stretch?: string;
+  // A DISPLAY face drawn at its ONE designed weight whatever weight a register asks for. A static face registered
+  // at its own weight is SYNTHESISED bold when a title asks 700-800 — a smeared outline on a face designed at one
+  // weight. Registered over the whole range instead, the browser draws the face as designed. `weight` still says the
+  // file's real weight (tests/test_remotion.py reads the file and checks it).
+  oneWeight?: boolean;
 };
 
 export const FACES: Face[] = [
@@ -77,6 +84,13 @@ export const FACES: Face[] = [
   // declaration the file cannot honour.
   {family: 'Noto Sans SC', file: 'NotoSansSC-Subset.ttf', url: notoSansSCUrl, weight: '100 900', variable: true},
   {family: 'Noto Serif SC', file: 'NotoSerifSC-Subset.ttf', url: notoSerifSCUrl, weight: '200 900', variable: true},
+  // TWO CJK DISPLAY VOICES beside the Noto pair, which were the only ones, so every Chinese film's headlines had one of
+  // two looks. Subsets of OFL faces, renamed because the originals reserve their names (assets/fonts/
+  // TTV-SC-SUBSET-NOTE.txt): TTV Display <- 得意黑 Smiley Sans (geometric oblique: launches, products, tech);
+  // TTV Kai <- 霞鹜文楷 LXGW WenKai Medium (warm, hand-set: people, history, learning). Display only — body text and
+  // captions stay on Noto, which a DNA stack names after these so any character they lack falls back.
+  {family: 'TTV Display', file: 'TTVDisplaySC-Subset.ttf', url: ttvDisplaySCUrl, oneWeight: true, weight: '400', variable: false},
+  {family: 'TTV Kai', file: 'TTVKaiSC-Subset.ttf', url: ttvKaiSCUrl, oneWeight: true, weight: '500', variable: false},
 ];
 
 // One delayRender for the whole set: the first frame must not render in a fallback face.
@@ -122,8 +136,9 @@ const handle = delayRender('loading DNA typefaces', {timeoutInMilliseconds: 3000
  */
 export const FACES_READY: Promise<void> = Promise.all(
   FACES.map(async (f) => {
+    const weight = f.oneWeight ? '100 900' : f.weight;
     const face = new FontFace(f.family, `url(${f.url}) format('truetype')`,
-      f.stretch ? {weight: f.weight, stretch: f.stretch} : {weight: f.weight});
+      f.stretch ? {weight, stretch: f.stretch} : {weight});
     await face.load();
     document.fonts.add(face);
   }),
