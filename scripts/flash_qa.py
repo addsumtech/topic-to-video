@@ -88,10 +88,16 @@ def _beat_of(out_dir, frame):
     return None
 
 
+_USAGE = "usage: flash_qa.py <out_dir | film.mp4> [--json]"
+
+
 def main(argv):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import _common as _c
+    _c.refuse_unknown(argv, valued=(), switches=("json",), usage=_USAGE)
     args = [a for a in argv if not a.startswith("--")]
     if not args:
-        print(__doc__.strip().splitlines()[2])
+        print(_USAGE)
         return 2
     target = args[0]
     out_dir = target if os.path.isdir(target) else None
