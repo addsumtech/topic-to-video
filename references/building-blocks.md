@@ -103,6 +103,12 @@ The table of PLACES a beat can happen in, read by `world` (drawing), `render_rem
 **Smallest real use:** `import placesTable from './places.json'; placesTable.orbit.ground`
 **Exports:** `orbit`, `sky`, `field`, `room`.
 
+### `cjkVoice`
+The face a Chinese film's TITLES are set in: the voice goes after the stack's Latin face and before Noto.
+**Reach for it:** nothing to import: set `meta.cjk_display`; Film applies it to the DNA's display stack.
+**Smallest real use:** `withCjkDisplay(dna.fontDisplay, 'TTV Kai')`
+**Exports:** `withCjkDisplay`, `CJK_VOICES`.
+
 ### `stage3d`
 Cards posed anywhere in 3D and a camera that flies to face any one of them, with type that stays type (CSS 3D, not
 WebGL).

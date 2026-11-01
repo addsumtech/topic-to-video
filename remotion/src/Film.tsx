@@ -29,6 +29,7 @@ import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {SceneCamera, bedPan, ACTION_SAFE_FRAC, cameraBudget, type CameraMove} from './runtime/depth';
 import {phraseExtra} from './runtime/phrase';
 import {FocusLayer} from './runtime/focusLead';
+import {withCjkDisplay} from './runtime/cjkVoice';
 import {WorldBackdrop} from './runtime/world';
 import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
@@ -1290,7 +1291,7 @@ const BeatOptic: React.FC<{decl: OpticDecl; dna: DesignDNA | null; where: string
   return <OpticContext.Provider value={opticState(decl, dna, where)}>{children}</OpticContext.Provider>;
 };
 
-export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; autospace?: boolean; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
+export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; autospace?: boolean; cjkDisplay?: string | null; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
   typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string;
   mediaRes?: boolean;
   // the delivery dither (runtime/dither): render_remotion asks for it; a still for a gate or a test does not
@@ -1308,7 +1309,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   style?: StyleSpec | null;
   // a GENERATED medium's tiles for that style (render_remotion.style_texture_props); absent: the procedural medium
   styleTexture?: {light: string; dark: string} | null}> =
-  ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, autospace = false, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
+  ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, autospace = false, cjkDisplay = null, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
     typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, safe, dither = false, optics = true,
     safeEcho = true, frameUnlock = true, style = null, styleTexture = null}) => {
   const activeStyle = React.useMemo(() => (style ? resolveStyle(style, styleTexture) : null), [style, styleTexture]);
@@ -1336,7 +1337,10 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   const intro = interpolate(frame, [0, 12], [1, 0], {extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});
   const outro = interpolate(frame, [total - 16, total - 1], [0, 1], {extrapolateLeft: 'clamp'});
   // ONE Design DNA for the whole film (null = un-themed → every shot renders its original hardcoded look).
-  const activeDna = coerceDna(dna) ?? dnaFromTemplate(template) ?? null;   // an authored DNA may be partial — normalise it
+  const baseDna = coerceDna(dna) ?? dnaFromTemplate(template) ?? null;   // an authored DNA may be partial — normalise it
+  // the film's CJK display voice (runtime/cjkVoice) set into the TITLE stack only — body text and captions stay on Noto
+  const activeDna = baseDna && cjkDisplay ? {...baseDna, fontDisplay: withCjkDisplay(baseDna.fontDisplay, cjkDisplay)}
+    : baseDna;
   const bg = theme?.bg ?? activeDna?.bg ?? '#05060a';
   // THE GROUND EACH BEAT ACTUALLY PAINTS, at the frame the film tier needs it: 'in' = its first frame, 'out'
   // = its last. Those are the two frames a seam is really cutting between, and the two ends the intro/outro

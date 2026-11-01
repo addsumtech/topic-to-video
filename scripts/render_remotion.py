@@ -861,6 +861,9 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
         props["dna"] = design_dna.strip()
     elif meta.get("shot_template"):
         props["template"] = str(meta["shot_template"])
+    # THE CJK DISPLAY VOICE (runtime/cjkVoice.ts): the titles' face on a Chinese film; 'noto' keeps the stack as it is
+    if meta.get("cjk_display") and meta.get("cjk_display") != "noto":
+        props["cjkDisplay"] = meta["cjk_display"]
     # THE DRAWING STYLE (runtime/style.tsx): passed as written — the renderer fills defaults from the same axis table
     # (runtime/styleAxes.json) that scripts/style_spec.py validated it against. Absent: nothing mounts.
     if isinstance(meta.get("style"), dict):

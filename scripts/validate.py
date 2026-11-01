@@ -1426,6 +1426,24 @@ def _ramp_crossings(meta, slides, warnings):
                 "`transition_in: {type: \"carry\"}`, the seam that bridges a dark<->light cut." % (pos, a, b))
 
 
+CJK_VOICES = ("noto", "TTV Display", "TTV Kai")       # remotion/src/runtime/cjkVoice.ts CJK_VOICES
+
+
+def _check_cjk_voice(meta, errors, warnings):
+    """A CJK remotion film names its titles' voice (`meta.cjk_display`): 'TTV Display' (from 得意黑: launches, products,
+    tech), 'TTV Kai' (from 霞鹜文楷: people, history, learning) or 'noto' (the Noto it had). Unnamed is asked for — the
+    two display faces are unreachable otherwise; an unknown name is refused (the runtime would set it and fall back)."""
+    meta = meta or {}
+    if (meta.get("renderer") or "") != "remotion" or (meta.get("language") or "")[:2].lower() not in ("zh", "ja"):
+        return
+    v = meta.get("cjk_display")
+    if v is None:
+        warnings.append("type: name the CJK title voice — meta.cjk_display 'TTV Display' (launch, product, tech), "
+                        "'TTV Kai' (people, history, learning) or 'noto' (as it is); by the film's voice, not by habit")
+    elif v not in CJK_VOICES:
+        errors.append("type: meta.cjk_display %r is not a bundled voice — %s" % (v, ", ".join(CJK_VOICES)))
+
+
 def _long_beat_warnings(data):
     """Remotion beats over pace.LONG_BEAT_S on one shot, named BEFORE the voice is made with where each would split
     (scripts/split_beats.py applies it). Measured on 311 beats of 22 films: 51-100% of such beats held still past 3 s."""
@@ -4877,6 +4895,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _form_vocabulary(meta, slides, errors, warnings)
         _composition_variety(meta, slides, errors, warnings)
         _idiom_world(meta, slides, errors, warnings, out_dir=out_dir)
+        _check_cjk_voice(meta, errors, warnings)
         _check_places(meta, slides, errors, warnings)
         _beat_grounds(_place_grounds(slides), errors, warnings, out_dir)
         _ramp_crossings(meta, slides, warnings)

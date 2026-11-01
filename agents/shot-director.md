@@ -351,7 +351,9 @@ the film builds stays in its workshop; at delivery the USER decides what is prom
 ## Step 0.6 — Extract the Design DNA (the GLOBAL visual system every shot inherits)
 The chosen template is **NOT a set of reusable frames — it is the whole film's visual system.** Before authoring a
 single shot, expand the template into an explicit **Design DNA** and write it to `meta.design_dna` (a reviewable
-artifact, not just a label). The DNA is the *shared grammar* every shot wears; a library register contributes its
+artifact, not just a label). On a Chinese film also name the TITLE voice, `meta.cjk_display`: `TTV Display` (from
+得意黑 — launches, products, tech), `TTV Kai` (from 霞鹜文楷 — people, history, learning) or `noto` (Noto, as the DNA
+has it), chosen by what the film is, not by habit; body and captions stay on Noto. The DNA is the *shared grammar* every shot wears; a library register contributes its
 STRUCTURE (composition + motion + information hierarchy), the DNA contributes the VISUAL IDENTITY. Required keys
 (match `remotion/src/runtime/dna.tsx` `DesignDNA`): `id` · `fontDisplay`/`fontMono`/`fontBody` · `bg`/`bgGrad`/
 `fg`/`dim`/`accent`/`accent2`/`onAccent`/`surface`/`surfaceBorder`/`line` · `radius`/`borderWidth` · `motion`

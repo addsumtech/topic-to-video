@@ -210,8 +210,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     character outside the subset, and warns when a CJK film's DNA lists system families only. The stack must NAME the Noto faces.
     Two CJK DISPLAY voices sit beside them for `fontDisplay` only (subsets of OFL faces, renamed — assets/fonts/
     TTV-SC-SUBSET-NOTE.txt): `"TTV Display"` (from 得意黑, geometric oblique: launches, products, tech) and `"TTV Kai"`
-    (from 霞鹜文楷, warm and hand-set: people, history, learning). Pick by the film's voice, never by default; put the
-    Noto face after it in the stack. Body and captions stay on Noto. Han/Latin and Han/digit gaps are set by the
+    (from 霞鹜文楷, warm and hand-set: people, history, learning). Choose with `meta.cjk_display` (`noto` keeps the
+    stack) by the film's voice, never by habit — validate asks for it on a CJK remotion film, and the renderer puts the
+    voice after the DNA's Latin face and before Noto. Body and captions stay on Noto. Han/Latin and Han/digit gaps are set by the
     browser on every beat (`text-autospace`; `meta.cjk_autospace: false` turns it off) — do not type them by hand.
   - **Aspect.** Set `meta.aspect` (`16:9`|`9:16`|`1:1`|`4:5`|`4:3`) or pass `--vertical`. On a non-16:9 film the shot-director
     MUST still-render each chosen shot at that aspect and fix or swap what does not reflow. About one register in six is
