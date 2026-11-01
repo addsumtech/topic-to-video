@@ -163,3 +163,32 @@ def test_a_list_read_out_fast_is_not_handed_round():
     fast = fp.focus_plan(props, _spans(cap, [0.4 * k for k in range(n)]), cap, duration=6.0)
     slow = fp.focus_plan(props, _spans(cap, [1.0 * k for k in range(n)]), cap, duration=14.0)
     assert fast == [] and len(slow) == 5
+
+
+def test_a_terminal_s_lines_are_entries_and_a_headline_s_are_not():
+    """craft_qa --type named eight terminal beats of one film (4.2-4.9% type over 6-18 lines, nothing leading). A log's
+    lines and a program's lines are separate entries the voice walks through; a headline's `lines` are one sentence."""
+    log = {"lines": [{"text": "load open base model", "kind": "run"}, {"text": "+ 精选 & 合成数据", "kind": "run"},
+                     {"text": "supervised fine-tune", "kind": "run"}]}
+    assert len(fp.item_texts_for_focus(log, shot="TermLog")) == 3
+    assert len(fp.item_texts_for_focus({"lines": ["resp = model.chat()", "print(resp)"]}, shot="CodeCompose")) == 2
+    assert fp.item_texts_for_focus({"lines": ["一个题目", "一条成片"]}, shot="HeadlineReveal") == {}
+    assert fp.item_texts_for_focus({"lines": ["一个题目", "一条成片"]}) == {}
+
+
+def test_a_commit_message_is_an_item_text():
+    commits = {"commits": [{"hash": "h4a2c1d", "msg": "混合推理 hybrid reasoning"},
+                           {"hash": "h2p8a1c", "msg": "工具调用 tool calling"}]}
+    assert fp.item_texts_for_focus(commits, shot="TermGitLog") == {"commits.0": "混合推理 hybrid reasoning",
+                                                                     "commits.1": "工具调用 tool calling"}
+
+
+def test_a_generic_shared_word_does_not_hand_over_the_lead():
+    """Measured on hermes (TermLog): 「…拿一个开源基座模型…」 handed the lead to the line 「中立对齐 · 会用工具的模型」 on 模型
+    alone — 2 of its 11 characters, which passes the cue matcher's 15% coverage. Lighting the wrong line is worse than
+    lighting none, so the lead asks for a MENTION: 30% of the item, or a run of six characters on its own."""
+    props = {"lines": [{"text": "中立对齐 · 会用工具的模型"}, {"text": "+ 精选 & 合成数据"}]}
+    cap = "拿一个开源基座模型，用精选和合成数据做微调。"
+    n = len([c for c in cap if c not in "，。"])
+    plan = fp.focus_plan(props, _spans(cap, [0.25 * k for k in range(n)]), cap, duration=8.0, shot="TermLog")
+    assert [p["key"] for p in plan] == ["lines.1"], plan

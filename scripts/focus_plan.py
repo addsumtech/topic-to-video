@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sync_qa as _sq                                                            # noqa: E402
 
 MIN_LEAD_S = 1.2
+FOCUS_MIN_COVERAGE = 0.3      # a lead needs a MENTION, not a shared generic word (see _named)
 _CLAUSE_END = re.compile(r"[,，。；;：:!！?？、…—]")
 _SENTENCE_END = re.compile(r"[。！？；.!?;]")
 
@@ -47,17 +48,45 @@ def _fragment(text):
     return bool(_FRAGMENT_END.search(text)) or "*" in text
 
 
-def item_texts_for_focus(props):
+# A terminal's or a program's `lines` are separate ENTRIES the voice walks through (craft_qa --type named eight terminal
+# beats of one film: 4.2-4.9% type over 6-18 lines, nothing leading), unlike a headline's `lines`, which are one
+# sentence set as lines. Named by register, because the prop is spelled the same in both. Measured on that film
+# (hermes, before/after with only this switched): its longest hold 8.4 -> 5.8 s; jitter_qa reported more lines, and
+# the pixels say it is the gate: the flagged input line's trajectory matched the before to 0.21 px, and a TermDiff beat
+# whose layer refused to dim (its two columns did not separate) rendered pixel-identical and still went 1 -> 6 lines.
+ENTRY_LINES = re.compile(r"^(Term[A-Z]\w*|CodeCompose)$")
+# The item text fields: sync_qa's (the cue matcher's) plus a commit's message, which only the lead reads — adding it to
+# the shared list would hand TermGitLog cues it never had.
+FOCUS_TEXT_FIELDS = ("msg",)
+
+
+def _items(props):
+    out = list(_sq.item_texts(props))
+    seen = {k for k, _t in out}
+    for k, v in (props or {}).items():
+        if isinstance(v, list):
+            for i, x in enumerate(v):
+                key = "%s.%d" % (k, i)
+                if key not in seen and isinstance(x, dict):
+                    f = next((f for f in FOCUS_TEXT_FIELDS if isinstance(x.get(f), str) and x[f].strip()), None)
+                    if f:
+                        out.append((key, x[f]))
+    return out
+
+
+def item_texts_for_focus(props, shot=None):
     """{path: text} — the items of every list prop holding two or more PEERS (not a sentence set as lines)."""
+    entries = bool(shot and ENTRY_LINES.match(shot))
     groups = {}
-    for k, t in _sq.item_texts(props):
+    for k, t in _items(props):
         if "." in k:
             groups.setdefault(k.rsplit(".", 1)[0], []).append((k, t))
     out = {}
     for name, items in groups.items():
-        if len(items) < 2 or name.split(".")[-1] in NOT_PEERS:
+        base = name.split(".")[-1]
+        if len(items) < 2 or (base in NOT_PEERS and not (entries and base == "lines")):
             continue
-        if sum(_fragment(t) for _k, t in items) * 2 > len(items):
+        if not entries and sum(_fragment(t) for _k, t in items) * 2 > len(items):
             continue
         out.update(items)
     return out
@@ -91,7 +120,8 @@ def _named(clause, items):
             continue
         j0, k, i0 = hit
         sc = _sq._score(tu[i0:i0 + k])
-        if sc < _sq.MIN_RUN_SCORE and sc < _sq.MIN_COVERAGE * _sq._score(tu):
+        # stricter than the cue matcher's 15%: on hermes, 模型 alone (2 of 11 characters) lit the wrong line
+        if sc < _sq.MIN_RUN_SCORE and sc < FOCUS_MIN_COVERAGE * _sq._score(tu):
             continue
         rank = (sc, -j0)
         if best is None or rank > best[0]:
@@ -99,9 +129,9 @@ def _named(clause, items):
     return best[1] if best else None
 
 
-def focus_plan(props, spans, caption, duration):
+def focus_plan(props, spans, caption, duration, shot=None):
     """[{t, key}] — at second t the item `key` leads (None: every item at full weight again). [] for no plan."""
-    items = item_texts_for_focus(props)
+    items = item_texts_for_focus(props, shot=shot)
     if not items or not spans or not caption:
         return []
     plan, current, after_sentence = [], None, False

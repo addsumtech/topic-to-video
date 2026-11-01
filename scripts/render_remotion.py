@@ -937,10 +937,10 @@ def attach_phrases(props, slides, meta, fps):
         # voice names leads and its peers recede. Nothing moves, so no type is re-positioned — camera steps on
         # TechnicalPlate made its callout digits tremble 0.19-0.22 px (jitter_qa ERROR), as a scale and as a travel.
         focus = _fp.focus_plan(sc.get("props") or {}, sc.get("capWords") or [], sc.get("caption") or "",
-                               sc["durF"] / float(fps))
+                               sc["durF"] / float(fps), shot=sc.get("shot"))
         if focus:
             sc["focus"] = focus
-            sc["focusItems"] = _fp.item_texts_for_focus(sc.get("props") or {})
+            sc["focusItems"] = _fp.item_texts_for_focus(sc.get("props") or {}, shot=sc.get("shot"))
         # Camera steps only for an AUTHORED push or pull (Film.tsx PhraseCamera says why the rest were withdrawn), and
         # only on a beat long enough that its creep is invisible (LONG_BEAT).
         if not cam or fixed or sc["durF"] / float(fps) < LONG_BEAT:
