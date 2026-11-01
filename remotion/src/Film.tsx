@@ -27,6 +27,8 @@ import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DA
         type SceneGroundDecl} from './runtime/light';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {SceneCamera, bedPan, ACTION_SAFE_FRAC, cameraBudget, type CameraMove} from './runtime/depth';
+import {phraseExtra} from './runtime/phrase';
+import {FocusLayer} from './runtime/focusLead';
 import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA} from './runtime/dna';
@@ -65,6 +67,12 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // than word indices because this tier re-chunks the caption to fit its band, and an index into "word 3 of
   // chunk 2" means something different after every re-wrap while an offset into the string does not.
   capWords?: {t: number; a: number; b: number}[];
+  // PHRASE STEPS (scripts/phrase_steps.py, runtime/phrase.ts): seconds on the beat's clock at which an AUTHORED push or
+  // pull takes its next step, on the voice's next clause. Absent: the beat's camera is what it always was.
+  phrase?: number[];
+  // THE LEAD (scripts/focus_plan.py, runtime/focusLead.tsx): which listed item leads while the voice talks about it.
+  focus?: {t: number; key: string | null}[];
+  focusItems?: Record<string, string>;
   // TERMINAL CHROME per scene (remotion + DNA only): a command-path + status readout the Film frames every beat
   // with (see runtime/dna.tsx TerminalChrome). Optional; inert unless the active DNA speaks 'breadcrumb'.
   chrome?: {path?: string; status?: string; root?: string};
@@ -1142,8 +1150,33 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
 type CamPlan = {out?: {amp: number; move: 'push' | 'pull'}; in?: {rate: number; limit: number}};
 
 /** The beat's camera: SceneCamera exactly as before, or — on a beat in a hand-off — HandoffCamera. */
-const BeatCamera: React.FC<React.ComponentProps<typeof SceneCamera> & {plan: CamPlan | null}> = ({plan, ...rest}) =>
-  plan ? <HandoffCamera plan={plan} {...rest} /> : <SceneCamera {...rest} />;
+const BeatCamera: React.FC<React.ComponentProps<typeof SceneCamera> & {plan: CamPlan | null; phrase?: number[]}> =
+  ({plan, phrase, ...rest}) =>
+  plan ? <HandoffCamera plan={plan} {...rest} />
+    : phrase && phrase.length && !rest.pan && (rest.move === 'push' || rest.move === 'pull')
+      ? <PhraseCamera phrase={phrase} {...rest} />
+    : <SceneCamera {...rest} />;
+
+/** An AUTHORED push or pull delivered in phrase steps (runtime/phrase.ts): the author's direction and amount, the same
+ *  budget SceneCamera gives the move, arriving clause by clause instead of as a creep spread over the beat — measured
+ *  on espresso, a push over 18.8 s and a pull over 15.2 s moved under what a viewer sees and the beats held still
+ *  9.8 s and 8.2 s.
+ *
+ *  ONLY AUTHORED MOVES. Steps on beats nobody gave a camera were built and measured, as a scale and as a travel, and
+ *  withdrawn: jitter_qa found type trembling on registers that had been still (TechnicalPlate's callout digits
+ *  0.19-0.22 px; gps's BroadcastStream and TwoClocksApart up to 0.47 px — 6 failing lines became 17). A camera added to
+ *  a beat re-positions every glyph in it, and which registers survive that is not knowable before rendering. */
+const PhraseCamera: React.FC<React.ComponentProps<typeof SceneCamera> & {phrase: number[]}> = ({phrase, ...rest}) => {
+  const f = useCurrentFrame();
+  const {fps, width: W, height: H} = useVideoConfig();
+  const reduced = React.useContext(ReducedMotionContext);
+  const unlockAllowed = React.useContext(BaselineUnlockContext);
+  const {amp} = cameraBudget({W, H, move: rest.move === 'pull' ? 'pull' : 'push', amount: rest.amount,
+    driftExtra: rest.driftExtra ?? 0, driftTranslate: rest.driftTranslate ?? 0, reduced, unlockAllowed, driven: true});
+  const done = phraseExtra(f, fps, phrase, 1);                      // 0..1 of the beat's steps
+  const extra = rest.move === 'pull' ? amp * (1 - done) : amp * done;
+  return <SceneCamera {...rest} drive={{extra, moving: true}} />;
+};
 
 /** SceneCamera driven by the hand-off's curves on this beat's own clock. */
 const HandoffCamera: React.FC<React.ComponentProps<typeof SceneCamera> & {plan: CamPlan}> = ({plan, ...rest}) => {
@@ -1376,7 +1409,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                 dead — see bedPan's header for the measurements and the guarantees. An authored camera
                 (even 'hold') wins outright; un-themed films and drifting films get none. */}
             {/* a beat in a camera HAND-OFF is driven by its curves (HandoffCamera); every other beat by its own move */}
-            <BeatCamera plan={camPlan[i]} move={sc.camera?.move} amount={sc.camera?.amount}
+            <BeatCamera plan={camPlan[i]} phrase={sc.phrase} move={sc.camera?.move} amount={sc.camera?.amount}
               pan={sc.camera?.pan ?? (camPlan[i] ? undefined : bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)?.pan)}
               bed={!sc.camera && !camPlan[i] && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
                          driftExtra={driftExtraFor(ambient, width, height, unlockAllowed)}
@@ -1411,7 +1444,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                     <CarryContext.Provider value={arrived[i] ?? null}>
                       <BeatOptic decl={optics ? sc.optic : undefined} dna={activeDna} where={`scene ${i} (${sc.shot}) optic`}>
                         <StyleLayer beat={i} skip={STYLE_HOOKS_BY_SHOT[sc.shot]}>
-                          <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                          <FocusLayer plan={sc.focus} items={sc.focusItems}>
+                            <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                          </FocusLayer>
                         </StyleLayer>
                       </BeatOptic>
                     </CarryContext.Provider>

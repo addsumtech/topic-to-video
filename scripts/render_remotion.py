@@ -867,7 +867,65 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     # that reads them (runtime/cue.ts). Attached first, because a beat's warp is derived for the beat AS CUED.
     _sq.attach_cues(out_dir, data, props, slides)
     _sq.attach_warps(out_dir, data, props, slides)
+    attach_phrases(props, slides, meta, fps)
     return props, slides
+
+
+_ENERGY = None
+# An authored move is stepped only on a beat this long. Measured: authored push/pull beats of 5.5-8.5 s never held past
+# 2.5 s (the creep is visible there); beats of 15.2 and 18.8 s held 8.2 and 9.8 s. Stepped, a short beat's move only got
+# faster, and gps's ListeningPhone type trembled more for it (0.16 -> 0.28 px).
+LONG_BEAT = 10.0
+
+
+def _register_p75(shot):
+    """The register's measured motion p75 (remotion/register_energy.json), or None when it was never measured."""
+    global _ENERGY
+    if _ENERGY is None:
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion",
+                                   "register_energy.json"), encoding="utf-8") as fh:
+                _ENERGY = json.load(fh).get("registers") or {}
+        except (OSError, ValueError):
+            _ENERGY = {}
+    row = _ENERGY.get(shot) or {}
+    return row.get("motion_p75")
+
+
+def attach_phrases(props, slides, meta, fps):
+    """The beat's EVENTS on the voice's clauses. Measured before this: our films' longest still hold was 5.0 s (median
+    of 22) against 2.5 s on 28 published launch films, and the largest element held 48% of the layout against 63%.
+      * a LISTED beat (scripts/focus_plan.py, runtime/focusLead.tsx): the item the voice names leads, its peers recede.
+      * an AUTHORED push or pull (scripts/phrase_steps.py, Film.tsx PhraseCamera): the move arrives clause by clause.
+    A stage run, reduced motion and `phrase_camera: false` (film or beat) get neither; an authored hold, pan or hand-off
+    and a register that keeps moving on its own get no steps — and a beat with neither draws exactly what it drew."""
+    import focus_plan as _fp
+    import phrase_steps as _ps
+    film_on = meta.get("phrase_camera") is not False and not props.get("reducedMotion")
+    for sc, sl in zip(props["scenes"], slides):
+        sc.pop("phrase", None)
+        sc.pop("focus", None)
+        sc.pop("focusItems", None)
+        cam = sc.get("camera") or {}
+        fixed = bool(cam) and (cam.get("move") not in ("push", "pull") or cam.get("pan") or cam.get("handoff"))
+        if not film_on or sc.get("stage") or sl.get("phrase_camera") is False:
+            continue
+        # A LISTED BEAT'S EVENT IS ITS LEAD CHANGING HANDS (scripts/focus_plan.py, runtime/focusLead.tsx): the item the
+        # voice names leads and its peers recede. Nothing moves, so no type is re-positioned — camera steps on
+        # TechnicalPlate made its callout digits tremble 0.19-0.22 px (jitter_qa ERROR), as a scale and as a travel.
+        focus = _fp.focus_plan(sc.get("props") or {}, sc.get("capWords") or [], sc.get("caption") or "",
+                               sc["durF"] / float(fps))
+        if focus:
+            sc["focus"] = focus
+            sc["focusItems"] = _fp.item_texts_for_focus(sc.get("props") or {})
+        # Camera steps only for an AUTHORED push or pull (Film.tsx PhraseCamera says why the rest were withdrawn), and
+        # only on a beat long enough that its creep is invisible (LONG_BEAT).
+        if not cam or fixed or sc["durF"] / float(fps) < LONG_BEAT:
+            continue
+        steps = _ps.phrase_steps(sc.get("capWords") or [], sc.get("caption") or "", sc["durF"] / float(fps),
+                                 register_p75=_register_p75(sc["shot"]), enabled=sl.get("phrase_camera") is not False)
+        if steps:
+            sc["phrase"] = steps
 
 
 def style_texture_props(meta, out_dir):

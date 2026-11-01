@@ -78,6 +78,19 @@ Depth of field as a signal — how far a thing is from what the shot is about, s
 **Smallest real use:** `const f = focusAt(dist, U); <div style={{filter: focusFilter(f), opacity: f.opacity}} />`
 **Exports:** `focusAt`, `focusFilter`, `focusDist`.
 
+### `focusLead`
+The listed item the voice names leads the frame and its peers recede — Film mounts it from a plan, a register never does.
+**Reach for it:** nothing to import: give a beat a list prop (parts, steps, rows…) whose items the narration names;
+`scripts/focus_plan.py` writes the plan and `FocusLayer` multiplies each peer's own opacity.
+**Smallest real use:** `<FocusLayer plan={sc.focus} items={sc.focusItems}>{register}</FocusLayer>`
+**Exports:** `FocusLayer`, `focusWeights`, `findContainers`, `FOCUS_RECEDE`, `FOCUS_EASE_S`.
+
+### `phrase`
+An authored push or pull delivered in steps on the voice's clauses (Film.tsx `PhraseCamera`), not a creep over the beat.
+**Reach for it:** nothing to import: author `camera:{move:'push'}` on a beat of 10 s or more.
+**Smallest real use:** `const done = phraseExtra(frame, fps, sc.phrase, 1)` — 0..1 of the beat's steps.
+**Exports:** `phraseExtra`, `PHRASE_STEP_S`.
+
 ### `stage3d`
 Cards posed anywhere in 3D and a camera that flies to face any one of them, with type that stays type (CSS 3D, not
 WebGL).
