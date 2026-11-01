@@ -430,14 +430,38 @@ def normalized_segment(path, work):
     return fixed
 
 
+_QUOTED_PATH = re.compile(r"""['"`]([^'"`$\n]{1,300}\.[A-Za-z0-9]{2,5})['"`]""")
+_CODE_EXTS = (".ts", ".tsx", ".js", ".jsx")
+
+
+def workshop_named_files(public_dir):
+    """{name} of every file in the public dir a film's OWN shot names in its code. The library's registers take
+    every file from a prop; a workshop shot may write `staticFile('media/b3/logo_drive.png')` or return that path
+    from a helper (measured on a Grok Bot film, whose census then lost the logo and hung)."""
+    root = os.path.realpath(public_dir)
+    found = set()
+    for d, _n, fs in os.walk(os.path.join(root, "workshop")):
+        for f in fs:
+            if not f.endswith(_CODE_EXTS):
+                continue
+            with open(os.path.join(d, f), encoding="utf-8", errors="replace") as fh:
+                for m in _QUOTED_PATH.finditer(fh.read()):
+                    v = m.group(1)
+                    p = os.path.realpath(os.path.join(root, v.lstrip("/")))
+                    if p.startswith(root + os.sep) and os.path.isfile(p) and not p.endswith(_CODE_EXTS):
+                        found.add(v)
+    return found
+
+
 def minimal_public(props, public_dir, dest):
     """A public folder holding exactly the files the props name, linked (copied across filesystems).
 
     A bundle COPIES its public folder, and the real one is the film's out_dir — old renders, contest clips
-    and this cache itself. Every `staticFile()` in the film takes its argument from a prop, the beat's mp3
-    or the brand block (checked across all 185 registers when this was written), so the named files are
-    all a render can load; the same decoded MD5 came out of both folders on the 37-beat film."""
-    names = referenced_files(props, public_dir)
+    and this cache itself. Every library register's `staticFile()` takes its argument from a prop, the beat's
+    mp3 or the brand block (checked across all 185 registers when this was written); a film's own workshop
+    shots may also name files in their code (workshop_named_files). The same decoded MD5 came out of both
+    folders on the 37-beat film."""
+    names = set(referenced_files(props, public_dir)) | workshop_named_files(public_dir)
     for name in names:
         src = os.path.join(public_dir, name.lstrip("/"))
         dst = os.path.join(dest, name.lstrip("/"))

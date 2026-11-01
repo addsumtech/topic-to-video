@@ -780,3 +780,20 @@ def test_a_segmented_render_records_its_backend(monkeypatch, tmp_path):
     _route(monkeypatch, tmp_path)
     rec = json.loads((tmp_path / rs.RECORD).read_text(encoding="utf-8"))
     assert rec["mode"] == "segments" and rec["gl"] == "angle" and rec["segments"] == [[0, 59, "k0"]], rec
+
+
+def test_the_minimal_public_folder_holds_what_the_films_own_shots_name(public, tmp_path):
+    """Measured 2026-11-01 on a Grok Bot film: a workshop shot loaded `staticFile(logoFor(k))` where logoFor returns
+    'media/b3/logo_drive.png' — a path in the shot's CODE, not its props. The minimal public folder held only what the
+    props named, so the logo was missing from the census bundle (and the render's): the census logged "Error loading
+    image" and sat idle until the render lock killed it. A film's own shots may name files; the library's may not."""
+    (public / "media" / "b3").mkdir(parents=True)
+    (public / "media" / "b3" / "logo_drive.png").write_bytes(b"png")
+    (public / "media" / "b3" / "unused.png").write_bytes(b"png")
+    (public / "workshop" / "shots").mkdir(parents=True)
+    (public / "workshop" / "shots" / "Apps.tsx").write_text(
+        "const logo = (k: string) => (/drive/.test(k) ? 'media/b3/logo_drive.png' : `media/b3/${k}.png`);\n"
+        "const nope = 'media/b3/missing.png'; const t = 'Drive';\n")
+    dest = rs.minimal_public(_props([60, 70]), str(public), str(tmp_path / "pub"))
+    got = sorted(os.path.relpath(os.path.join(d, f), dest) for d, _n, fs in os.walk(dest) for f in fs)
+    assert got == ["audio/01.mp3", "audio/02.mp3", "media/b3/logo_drive.png"], got
