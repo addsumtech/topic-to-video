@@ -593,6 +593,13 @@ def _glide_issue(chrome, duration, fps, url=None, plan=None):
         chrome.shot(urlunsplit((u.scheme, u.netloc, u.path, urlencode(q, safe=",:"), u.fragment)),
                     os.path.join(tmp, "p0.jpg"))
     frames = _glide_census(chrome, n_frames, plan)
+    # TYPE THAT SWAYS — the same judge as the remotion census (text_safe_qa.judge_sway): an idle float that never
+    # rests read to a viewer as the frame shaking (a Grok Bot film). Pages are authored at a 1080 short side.
+    sway = _tsq.judge_sway(frames, short=1080)
+    if sway:
+        r = sway[0]
+        return (f"SWAY — {(r['t'] or '')[:40]!r} swings {r['swing']:.0f} px back and forth (frames {r['a']}-{r['b']}) "
+                f"and never rests — an idle float reads as the frame shaking; hold it still once it has landed"), None
     runs = _tsq.judge_glide(frames)
     level, worst = _tsq.glide_level(runs)
     if level == "clean" or not worst:

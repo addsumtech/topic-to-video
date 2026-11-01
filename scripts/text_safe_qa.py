@@ -815,9 +815,12 @@ def judge_sway(frames, short=1080):
     tracks = {}
     for f in sorted(frames):
         for ln in frames[f].get("lines") or []:
-            if (ln.get("o") or 0) < SWAY_MIN_OPACITY or ln.get("w") is None:
+            # the remotion census gives the box as x/y/w/h, keyframe_qa's (HTML) as the text box tx/ty/tw/th
+            box = (ln.get("x"), ln.get("y"), ln.get("w"), ln.get("h")) if ln.get("w") is not None else \
+                (ln.get("tx"), ln.get("ty"), ln.get("tw"), ln.get("th"))
+            if (ln.get("o") or 0) < SWAY_MIN_OPACITY or None in box:
                 continue
-            tracks.setdefault(ln["k"], []).append((f, ln["x"] + ln["w"] / 2.0, ln["y"] + ln["h"] / 2.0, ln.get("t", "")))
+            tracks.setdefault(ln["k"], []).append((f, box[0] + box[2] / 2.0, box[1] + box[3] / 2.0, ln.get("t", "")))
     found = []
     for k, pts in tracks.items():
         runs, cur = [], [pts[0]]

@@ -74,3 +74,13 @@ def test_a_gesture_that_comes_to_rest_is_not_a_sway():
     assert tq.judge_sway(_frames(tip), short=1080) == []
     arc = [(400 + 10 * f, 600 - 40 * math.sin(math.pi * min(1, f / 60.0))) for f in range(60)] + [(1000, 600)] * 40
     assert tq.judge_sway(_frames(arc), short=1080) == []
+
+
+def test_the_html_census_shape_is_read_too():
+    """keyframe_qa's census gives a line's text box as tx/ty/tw/th, not x/w/h: read either, or the HTML tier's sway
+    check would skip every line and pass every page."""
+    fr = {}
+    for f in range(150):
+        y = 540 + 18 * math.sin(2 * math.pi * f / 90)
+        fr[f] = {"lines": [{"k": "p", "y": y - 20, "tx": 860, "ty": y - 20, "tw": 200, "th": 40, "o": 1, "t": "Send"}]}
+    assert tq.judge_sway(fr, short=1080), "an HTML-shaped float was not read"
