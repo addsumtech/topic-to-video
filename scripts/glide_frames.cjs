@@ -31,6 +31,16 @@ const R = require(require.resolve('@remotion/renderer', {paths: [remotionDir]}))
 // `--tag=` reads another census through the same runner (runtime/mediaRes.tsx logs `MEDIA-RES `)
 const TAG = opt('tag', 'TYPE-GLIDE ').replace(/_/g, ' ');
 
+// The renderer prints a thrown Error's message to this process's stderr ("[Tab 1, …] Error: …"); keep the last one so a
+// cancelled job can say WHY instead of "a register threw".
+let lastError = null;
+const writeErr = process.stderr.write.bind(process.stderr);
+process.stderr.write = (chunk, ...rest) => {
+  const m = /\] (\w*Error: [^\n]+)/.exec(String(chunk));
+  if (m) lastError = m[1].slice(0, 400);
+  return writeErr(chunk, ...rest);
+};
+
 (async () => {
   const jobs = JSON.parse(fs.readFileSync(jobsPath, 'utf8'));
   const gl = opt('gl', 'angle');
@@ -43,6 +53,12 @@ const TAG = opt('tag', 'TYPE-GLIDE ').replace(/_/g, ' ');
     for (const job of jobs) {
       const t0 = Date.now();
       let logged = 0;
+      // A REGISTER THAT THROWS ENDS THE JOB NOW. Measured: a beat whose register refuses its props (a declared ground
+      // it does not follow) logged its Error on every tab and the census then waited out every frame's timeout —
+      // 420 s, past the render lock's 300 s idle watchdog, so a delivery died as "a hung render" with the one
+      // sentence that said why never shown. The first thrown Error cancels the job and is its `error`.
+      const {cancelSignal, cancel} = R.makeCancelSignal();
+      let thrown = null;
       try {
         const composition = await R.selectComposition({serveUrl, id: job.id, inputProps: job.props || {},
           puppeteerInstance: browser, chromiumOptions, logLevel: 'error'});
@@ -52,8 +68,17 @@ const TAG = opt('tag', 'TYPE-GLIDE ').replace(/_/g, ' ');
         await R.renderFrames({composition, serveUrl, inputProps: job.props || {}, imageFormat: 'none', outputDir: null,
           frameRange: [a, b], everyNthFrame: Number(opt('every', '1')), concurrency, puppeteerInstance: browser, chromiumOptions, logLevel: 'error',
           timeoutInMilliseconds: 120000, onStart: () => {}, onFrameUpdate: () => {},
+          cancelSignal,
           onBrowserLog: (log) => {
             const text = log && log.text;
+            // React reports a render that threw as console.error(errorObject): the log's text is only `JSHandle@error`,
+            // and the sentence reaches us through the renderer's own stderr line (sniffed below).
+            if (log && log.type === 'error' && typeof text === 'string'
+                && (text === 'JSHandle@error' || /^(Uncaught )?\w*Error: /.test(text)) && thrown === null) {
+              thrown = /^(Uncaught )?\w*Error: /.test(text) ? text.split('\n')[0].slice(0, 400) : (lastError || 'a register threw');
+              cancel();
+              return;
+            }
             if (typeof text === 'string' && text.startsWith(TAG)) {
               write({tag: job.tag, ...JSON.parse(text.slice(TAG.length))});
               logged += 1;
@@ -61,7 +86,8 @@ const TAG = opt('tag', 'TYPE-GLIDE ').replace(/_/g, ' ');
           }});
         write({tag: job.tag, done: true, frames: Math.floor((b - a) / Number(opt('every', '1'))) + 1, logged, ms: Date.now() - t0});
       } catch (e) {
-        write({tag: job.tag, error: String((e && e.message) || e).split('\n')[0].slice(0, 400), logged,
+        if (thrown === 'a register threw' && lastError) thrown = lastError;
+        write({tag: job.tag, error: thrown || String((e && e.message) || e).split('\n')[0].slice(0, 400), logged,
           ms: Date.now() - t0});
       }
     }

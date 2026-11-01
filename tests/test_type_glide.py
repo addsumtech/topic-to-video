@@ -424,3 +424,17 @@ def test_type_in_a_3d_rendering_context_is_read_as_composited_not_judged(census_
     cards = [ln for rec in res["frames"].values() for ln in rec["lines"] if ln["t"] in ("Hours", "02")]
     assert cards and all("c" in (ln.get("fl") or "") for ln in cards), cards[:3]
     assert tq.glide_level(tq.judge_glide(res["frames"]))[0] == "clean"
+
+
+@needs_toolchain
+def test_a_register_that_throws_ends_its_census_job_at_once_and_says_why(census_bundle):
+    """Measured: a beat whose register refused its props logged its Error on every tab, and the census waited out every
+    frame's timeout — 420 s, past the render lock's 300 s idle watchdog — so a render died as "a hung render" and the
+    one sentence that said why was never shown. The first thrown Error cancels the job and becomes its `error`."""
+    import time
+    props = {"scenes": [{"shot": "KnowledgeGraph", "props": {}, "durF": 60, "ground": "#0b1026"}],
+             "typeGlide": True, "captions": False, "dna": None}
+    t0 = time.time()
+    res = tq.glide_run([{"tag": "x", "id": "Film", "props": props}], census_bundle)["x"]
+    assert time.time() - t0 < 120
+    assert not res["done"] and "declares a ground" in (res["error"] or ""), res["error"]
