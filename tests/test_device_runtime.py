@@ -180,3 +180,40 @@ def test_an_unknown_device_is_named_not_a_key_error():
         dg.geometry("toaster", "flat", 1920, 1080)
     assert "no geometry for toaster" in str(e.value) and "phone" in str(e.value)
 
+
+
+def test_a_3_by_4_ipad_capture_has_a_model_that_does_not_crop_it():
+    """Measured 2026-11-01 on a Grok Bot film: Apple's own iPad Pro App Store screens are 3:4 (2752x2064 panels).
+    The only tablet model was the 11-inch iPad (A16, 0.695) with an 11.5 mm estimated display corner, so the 3:4
+    capture was drawn on the generic tablet, cover-cropped, and its corners cut the status bar's time and battery.
+    The 13-inch iPad Pro (apple.com/ipad-pro/specs) draws it whole, with the 5.2 mm corner its own screens show."""
+    import device_geometry as dg
+    import device_models as dm
+    m = dm.models()["ipad-pro-13"]
+    assert m["published"]["px"] == [2064, 2752] and m["published"]["caseMm"][:2] == [215.5, 281.6]
+    cap_w, cap_h = 1258, 1676                                   # the film's crop of that screen
+    for W, H in ASPECTS:
+        s = dg.geometry("tablet", "real", W, H, "center", False, "ipad-pro-13")["screen"]
+        assert abs(s["h"] / float(s["w"]) - cap_h / float(cap_w)) < 0.004, (W, H, s)
+    a16 = dm.models()["ipad-a16"]
+    assert m["displayRadiusMm"] < a16["displayRadiusMm"]
+
+
+@needs_node
+def test_a_tap_is_a_fingertip_on_the_screen_it_lands_on():
+    """A user on a Grok Bot film: "the tap circle is far too big" — on an iPad. The tap was 14% of the screen's short
+    side on every device: a fingertip on a phone, two and a half fingertips on a tablet. It is now a 9 mm fingertip
+    on the model's own screen (its published pixels and ppi), or on its kind's first model when none is named."""
+    ts = tp.run_ts("import {fingerPx, FINGER_MM} from %s;" % tp.mod("gesture"), """
+      out.mm = FINGER_MM;
+      out.padPro = fingerPx(1000, 'tablet', 'ipad-pro-13');
+      out.tablet = fingerPx(1000, 'tablet', null);
+      out.land = fingerPx(1000, 'tablet-landscape', null);
+      out.phone = fingerPx(1000, 'phone', 'iphone-18-pro');
+      out.genericPhone = fingerPx(1000, 'phone', null);
+    """)
+    # the short side of the screen in mm: 2064/264*25.4 = 198.6 (iPad Pro 13), 1640/264*25.4 = 157.8 (A16), 1206/460*25.4
+    assert abs(ts["padPro"] - 1000 * ts["mm"] / (2064 / 264.0 * 25.4)) < 0.5
+    assert abs(ts["tablet"] - 1000 * ts["mm"] / (1640 / 264.0 * 25.4)) < 0.5 and ts["land"] == ts["tablet"]
+    assert ts["phone"] == ts["genericPhone"] and 120 < ts["phone"] < 150      # a phone keeps its old ~14%
+    assert ts["tablet"] < ts["phone"] / 2.2

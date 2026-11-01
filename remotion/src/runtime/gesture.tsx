@@ -8,6 +8,21 @@ import {alpha} from './device';
 
 const CJK = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7a3]/;   // the same set as device_script._CJK, in ASCII escapes (rulings R5/R5a)
 
+/** A fingertip's contact on glass, in millimetres. A tap was 14% of the screen's short side on every device — a
+ *  fingertip on a phone and two and a half on a tablet ("the tap circle is far too big", on an iPad). */
+export const FINGER_MM = 9;
+type ModelSpec = {kind: string; published: {px: number[]; ppi: number}};
+const MODELS = spec.models as unknown as Record<string, ModelSpec>;
+/** The fingertip in screen pixels: `screenShortPx` (the drawn screen's short side) times FINGER_MM over that screen's
+ *  short side in mm — the named model's published pixels and ppi, else its kind's first model's. */
+export const fingerPx = (screenShortPx: number, kind: string, model: string | null | undefined): number => {
+  const want = kind === 'tablet-landscape' ? 'tablet' : kind;
+  const m = (model && MODELS[model]) || Object.entries(MODELS).find(([k, v]) => !k.startsWith('_') && v.kind === want)?.[1];
+  if (!m) return screenShortPx * 0.14;
+  const mm = (Math.min(m.published.px[0], m.published.px[1]) / m.published.ppi) * 25.4;
+  return (screenShortPx * FINGER_MM) / mm;
+};
+
 /** Latin one character per keystroke, CJK a two-glyph word per commit, or exactly the author's list.
  *  scripts/device_script.type_chunks is the same function; a parity test holds them together. */
 export const typeChunks = (value: string | string[]): string[] => {
@@ -61,7 +76,7 @@ export const TapRipple: React.FC<{x: number; y: number; u: number; color: string
       borderRadius: '50%', border: `${Math.max(2, Math.round(size * 0.06))}px solid ${color}`,
       background: fill ? alpha(color, 0.16) : 'transparent', opacity: op, transform: `scale(${scale})`}} />
   );
-  return <>{ring(0.4 + 0.6 * land, fade, true)}{ring(1 + 1.4 * wave, (1 - wave) * 0.9 * fade, false)}</>;
+  return <>{ring(0.4 + 0.6 * land, fade, true)}{ring(1 + 0.8 * wave, (1 - wave) * 0.9 * fade, false)}</>;
 };
 
 /** A fingertip held on the glass while it moves (a drag, a scroll): one filled disc, no ripple. A ripple is a tap

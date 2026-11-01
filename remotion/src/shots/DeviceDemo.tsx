@@ -20,7 +20,7 @@ import {camAt, clampToPage, camUnlock, pageCamTransform, useCamUnlock, type CamK
 import {textWidthPx, TITLE_Y, contentBottom} from '../runtime/layout';
 import {deviceGeometry, deviceFace, defaultLook, isTouch, Device, type DeviceKind, type DeviceLook, type DeviceModel, type Placement, type Rect} from '../runtime/device';
 import {ScreenImage, ScreenVideo, scrollRangePx, flingAt, type VideoSpan} from '../runtime/screen';
-import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, TouchPoint, CursorArrow} from '../runtime/gesture';
+import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, TouchPoint, CursorArrow, fingerPx} from '../runtime/gesture';
 import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
 import spec from '../runtime/deviceSpec.json';
 
@@ -182,7 +182,7 @@ export const DeviceDemo: React.FC<{
   gestures.forEach((st, n) => {
     const k = kindOf(st);
     const u = seg(t, st.ta!, st.t1!);
-    const size = touch ? Math.min(s.w, s.h) * 0.14 : s.w * 0.06;   // a finger is sized by the short side (a landscape tablet)
+    const size = touch ? fingerPx(Math.min(s.w, s.h), device, model) : s.w * 0.06;   // a 9 mm fingertip on THIS screen
     if (k === 'tap' || k === 'click' || k === 'mark') {
       const p = P((st.tap ?? st.click ?? st.mark)!);
       overlays.push(<TapRipple key={`g${n}`} x={p.x} y={p.y} u={u} color={ACC} size={size} />);

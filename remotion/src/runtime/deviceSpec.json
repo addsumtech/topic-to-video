@@ -362,6 +362,38 @@
     2
    ]
   },
+  "ipad-pro-13": {
+   "kind": "tablet",
+   "name": "iPad Pro 13-inch",
+   "published": {
+    "px": [
+     2064,
+     2752
+    ],
+    "ppi": 264,
+    "caseMm": [
+     215.5,
+     281.6,
+     5.1
+    ],
+    "diagonalIn": 13.03
+   },
+   "source": "https://www.apple.com/ipad-pro/specs/",
+   "retrieved": "2026-11-01",
+   "derived": {
+    "bezel": "(caseMm - px/ppi*25.4)/2: 8.46 mm across, 8.41 mm down",
+    "diagonalIn": "hypot(2752, 2064)/264 = 13.03 (Apple markets it as 13-inch)"
+   },
+   "design": {
+    "displayRadiusMm": "not published: 5.2 mm, measured on the display corner of Apple's own iPad Pro App Store screenshots (a 33 px radius on a 1258 px-wide screen, scaled to 2064 px at 264 ppi) — the 11.5 mm generic estimate cut the status bar off those screens",
+    "camera": "a dot centred on the long edge's bezel (the landscape top)",
+    "buttons": "not drawn: under half a millimetre proud of a 215.5 mm case"
+   },
+   "displayRadiusMm": 5.2,
+   "scale": [
+    2
+   ]
+  },
   "macbook-air-13": {
    "kind": "laptop",
    "name": "MacBook Air 13-inch (M5)",
