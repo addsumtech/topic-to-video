@@ -348,6 +348,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 **Post-render gates and delivery**
 - `scripts/check_av.py <out_dir>`: A/V gate (duration drift > 0.3 s, non-uniform clip rates). Run AFTER the full render,
   before delivery.
+- `scripts/flash_qa.py <out_dir>`: FLASH gate, both tiers — a run of 1-2 frames unlike both of its agreeing neighbours (a
+  layer that drops out or re-sorts for one frame). Every other gate reads a frame, a beat or a line of type; a film shipped
+  three such flashes (near-coplanar translateZ layers re-sorting) with all of them green. Cuts and fades never trip it.
 - `scripts/film_energy_qa.py <out_dir>`: remotion FILM-ENERGY gate (motion p75, ink, luminance span against floors derived
   from four launch films). A deliberately quiet film declares `meta.energy_waiver` with a REASON. The waiver is PER-AXIS:
   an object waives only the axis it names; a plain string waives all four and says so. Waive the axis you actually

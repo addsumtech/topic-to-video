@@ -229,6 +229,9 @@ DELIVERY_GATES = {
     "remotion": [
         ("validate", "validate.py", (), 240, True, None),
         ("A/V", "check_av.py", (), 240, True, None),
+        # a frame unlike both of its agreeing neighbours: a layer that drops out or re-sorts for one frame. Every other
+        # gate reads a frame, a beat or a line of type; a Grok Bot film shipped three such flashes with all 16 green
+        ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", (), 300, True, None),
         ("keyframes", "keyframe_qa_remotion.py", (), 240, True, None),
         # THE AUTHORITATIVE TYPE GATE GOES FIRST, AND IT WAS MISSING ENTIRELY. This brief shipped `frame_safe_qa` —
         # the border-ink measure whose own header records it as INVERTED (it passes every genuinely-cut case and
@@ -273,6 +276,7 @@ DELIVERY_GATES = {
         ("keyframes, blank/overflow/caption zone, glide + sync audit", "keyframe_qa.py", (), 900, True, None),
         ("validate", "validate.py", (), 240, True, None),
         ("A/V", "check_av.py", (), 240, True, None),
+        ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", (), 300, True, None),
         # type that TREMBLES in the delivered pixels: keyframe_qa's glide audit judges a RULE (will Chrome snap this
         # baseline?) and nothing read the encoded film — a page's own camera, a matrix3d reveal, the image slides'
         # Ken Burns. jitter_qa reads each line against its true path (scripts/jitter_html.py builds the census)
