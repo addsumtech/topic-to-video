@@ -49,6 +49,16 @@ export const captionPlan = (caption: string, width: number, height: number, safe
 const CLOSE = new Set(Array.from('、。，．,.：:；;？?！!）)]｝}」』】〕〉》〗〙〛’”…‥〜～ー々〻ゝゞヽヾぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ・%％'));
 const OPEN = new Set(Array.from('（([｛{「『【〔〈《〖〘〚‘“'));
 
+// the marks that CLOSE what was said (not kinsoku's line-start set, which also holds small kana and 々)
+const TRAIL = new Set(Array.from('、。，．,.：:；;？?！!）)]｝}」』】〕〉》〗〙〛’”…‥'));
+/** Where the spoken half of a caption ends once the voice has reached offset `b`: through the marks that close the
+ *  words before it, so a sentence's 「。」 is lit with its last word instead of held back for the rest of the beat. */
+export const litThrough = (text: string, b: number): number => {
+  let i = Math.max(0, b);
+  while (i < text.length && TRAIL.has(text[i])) i++;
+  return i;
+};
+
 export const isCJKChar = (c: string): boolean => /[㐀-鿿豈-﫿぀-ヿ가-힯]/.test(c);
 const isSpace = (c: string) => /\s/.test(c);
 

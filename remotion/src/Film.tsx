@@ -54,7 +54,7 @@ import {OpticContext, opticState, normalizeOptic, dnaLight, dnaOptics, SeamLeak,
 import {litMediumGround} from './runtime/material';
 import {CarryContext} from './runtime/carry';
 import {container, grow, throughWindow, punch, cut, SeamCopyContext} from './seams';
-import {splitCaption, fitCaption, advanceFor, cjkCaptionLines, captionBox, CAP_PAD_X} from './captionBreak';
+import {splitCaption, fitCaption, advanceFor, cjkCaptionLines, captionBox, CAP_PAD_X, litThrough} from './captionBreak';
 
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
 // luminance override; falls back to the measured shotLuma map). Future phases grow this schema (accent,
@@ -414,7 +414,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
     let k = -1;
     for (let i = 0; i < spoken.length; i++) if (spoken[i].t <= t) k = i; else break;
     if (k >= 0) {
-      lit = spoken[k].b;
+      lit = litThrough(sc.caption, spoken[k].b);   // a closing mark is said with its word (captionBreak.ts)
       // the chunk holding the word being spoken — the LAST one that starts at or before it, so a word in
       // the gap between two chunks (punctuation the wrap ate) stays on the chunk it was spoken in
       for (let i = 0; i < at.length; i++) if (at[i].a <= spoken[k].a) idx = i;

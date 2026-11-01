@@ -940,7 +940,7 @@ def attach_phrases(props, slides, meta, fps):
                                sc["durF"] / float(fps), shot=sc.get("shot"))
         if focus:
             sc["focus"] = focus
-            sc["focusItems"] = _fp.item_texts_for_focus(sc.get("props") or {}, shot=sc.get("shot"))
+            sc["focusItems"] = _fp.focus_items(sc.get("props") or {}, focus, shot=sc.get("shot"))
         # Camera steps only for an AUTHORED push or pull (Film.tsx PhraseCamera says why the rest were withdrawn), and
         # only on a beat long enough that its creep is invisible (LONG_BEAT).
         if not cam or fixed or sc["durF"] / float(fps) < LONG_BEAT:

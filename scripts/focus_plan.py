@@ -92,6 +92,14 @@ def item_texts_for_focus(props, shot=None):
     return out
 
 
+def focus_items(props, plan, shot=None):
+    """{path: text} the layer dims between — the items of every list the PLAN names, and no other. A beat's other list
+    is not their peer, and one the frame draws as no text (ids like `active: ["evap", …]`, measured on a fridge film)
+    makes the layer find no element for it and refuse the whole beat."""
+    named = {k["key"].rsplit(".", 1)[0] for k in plan or [] if k.get("key")}
+    return {k: t for k, t in item_texts_for_focus(props, shot=shot).items() if k.rsplit(".", 1)[0] in named}
+
+
 def _clauses(spans, caption):
     """[(onset seconds, clause text, ends a sentence)] in spoken order."""
     out = []

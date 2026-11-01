@@ -192,3 +192,17 @@ def test_a_generic_shared_word_does_not_hand_over_the_lead():
     n = len([c for c in cap if c not in "，。"])
     plan = fp.focus_plan(props, _spans(cap, [0.25 * k for k in range(n)]), cap, duration=8.0, shot="TermLog")
     assert [p["key"] for p in plan] == ["lines.1"], plan
+
+
+def test_the_layer_gets_only_the_peers_of_the_list_the_voice_names():
+    """Measured 2026-11-01 on a fridge film's climax: its shot also took `active: ["evap", "comp", "cond", "cap"]` — ids
+    that pick which part glows, drawn as no text. They went to the layer as items too; it found no element holding
+    "evap", refused the whole beat, and the four parts the voice named one by one stayed at one weight. Peers are the
+    items of the list the plan names; another list on the same beat is not their peer."""
+    props = dict(PROPS, active=["evap", "comp", "cond"])
+    plan = [{"t": 0.0, "key": "parts.0"}, {"t": 2.0, "key": "parts.2"}, {"t": 4.0, "key": None}]
+    assert fp.focus_items(props, plan) == {"parts.0": "分水网", "parts.1": "粉饼", "parts.2": "滤网"}
+    two = dict(props, sides=[{"label": "箱里"}, {"label": "厨房"}])
+    both = [{"t": 0.0, "key": "parts.0"}, {"t": 2.0, "key": "sides.1"}]
+    assert set(fp.focus_items(two, both)) == {"parts.0", "parts.1", "parts.2", "sides.0", "sides.1"}
+    assert fp.focus_items(props, []) == {}
