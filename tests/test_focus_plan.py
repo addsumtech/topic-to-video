@@ -106,6 +106,24 @@ def test_the_runtime_weights_hand_the_lead_over_smoothly_and_rest():
     assert w[8] == {"a": 1, "b": 1, "c": 1}                                   # given back to all
 
 
+def test_a_receding_peer_stays_readable_and_its_hand_over_reads_as_a_fade():
+    """READABLE: the fridge film's critic (S4) could not read the dimmed labels at 0.32 of their opacity — a peer
+    recedes, it does not vanish; the user approved ~0.45. A FADE: jitter_qa judges a line only while its opacity steps
+    less than OPACITY_STEP a frame (a fade defeats its estimator), so a hand-over slower than that read as 0.15-0.17 px
+    of tremble on TrainSlab's rows. Raising the floor shortens the step; the two constants are held together here."""
+    import _tsprobe
+    import jitter_qa
+    if not _tsprobe.available():
+        pytest.skip("node/esbuild not available")
+    out = _tsprobe.run_ts("import {FOCUS_RECEDE, FOCUS_EASE_S} from %s;" % _tsprobe.mod("focusLead.tsx"),
+                          "out.r = FOCUS_RECEDE; out.e = FOCUS_EASE_S;")
+    assert out["r"] >= 0.45, "a receding peer keeps %.2f of its opacity — under 0.45 its label is unreadable" % out["r"]
+    step = (1 - out["r"]) / (out["e"] * 30)            # the Film is 30 fps (Root.tsx); the hand-over is linear
+    assert step > jitter_qa.OPACITY_STEP * 1.1, (
+        "a hand-over steps %.3f a frame, within 10%% of jitter_qa's fade threshold %.2f — shorten FOCUS_EASE_S"
+        % (step, jitter_qa.OPACITY_STEP))
+
+
 def _focus_board(tmp_path):
     import json
     import shutil

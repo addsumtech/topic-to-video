@@ -21,12 +21,13 @@ import {useCurrentFrame, useVideoConfig} from 'remotion';
 
 export type FocusStep = {t: number; key: string | null};
 
-export const FOCUS_RECEDE = 0.32;      // a receding peer keeps this share of its own opacity
-// A hand-over is LINEAR over FOCUS_EASE_S: 0.68 of opacity over 9 frames is a 0.076 step every frame. Eased, its two
+export const FOCUS_RECEDE = 0.45;      // a receding peer keeps this share of its own opacity: at 0.32 the fridge film's critic could not read the dimmed labels (S4)
+// A hand-over is LINEAR over FOCUS_EASE_S: 0.55 of opacity over 7.5 frames is a 0.073 step every frame. Eased, its two
 // ends crawled by under 0.06 a frame, and jitter_qa — which judges a line only while its opacity steps less than 0.06,
 // because a fade defeats its estimator — read 0.15-0.17 px of "tremble" on TrainSlab's composited rows during the
-// hand-overs (nothing in this layer moves a glyph: it writes opacity only). Linear, the whole fade is a fade.
-export const FOCUS_EASE_S = 0.3;
+// hand-overs (nothing in this layer moves a glyph: it writes opacity only). Linear, the whole fade is a fade. Raising
+// FOCUS_RECEDE shortens the step, so the two are held together (tests/test_focus_plan.py): 0.3 s at 0.45 was 0.061.
+export const FOCUS_EASE_S = 0.25;
 const MAX_CONTAINER_FRAC = 0.5;
 
 const norm = (s: string) => s.replace(/[\s*＊]/g, '');
