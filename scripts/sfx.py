@@ -245,7 +245,7 @@ SEAM_PEAK = _seam_peaks()
 # never dropped by the density cap before a whoosh is. A container is the softest: the element never leaves the
 # screen, and its sound is the carry's gentle swell, not a cut's.
 SEAM_CUE = {"punch": ("impact", 0.62, 0), "through-window": ("whoosh", 0.5, 0), "grow": ("whoosh", 0.45, 0),
-            "container": ("whoosh", 0.32, 1)}
+            "container": ("whoosh", 0.32, 1), "sweep": ("whoosh", 0.5, 0)}
 
 
 # ── cue planning: pin cues to the video's BEATS (frame-exact), with restraint ─────────────────────────

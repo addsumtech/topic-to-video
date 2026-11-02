@@ -30,8 +30,9 @@
 import React from 'react';
 import {AbsoluteFill, cancelRender, continueRender, delayRender, Easing, useCurrentFrame} from 'remotion';
 import type {TransitionPresentation} from '@remotion/transitions';
-import {clamp01, easeInOutCubic, easeOutCubic} from './runtime/motion';
+import {clamp01, easeInOutCubic, easeOutCubic, SEAM_FRAMES} from './runtime/motion';
 import {useGlide} from './runtime/glide';
+import {smear} from './runtime/motionBlurCore';
 import {CONTENT_TOP, contentBottom} from './runtime/layout';
 
 /** Inside a seam's SECOND rendering of a beat (the container's copy): the beat's voice must not play twice. */
@@ -46,7 +47,8 @@ export const SeamCopyContext = React.createContext<boolean>(false);
 //                   the curve; its largest step at 12 frames is frames 3->4)
 //   cut             the hard cut's ONE frame (CUT_AT): no motion at all, so this is where the picture changes, and
 //                   sfx.py makes no cue for it — on a scored film the music's own beat is a cut's sound
-export const SEAM_PEAK = {punch: 5 / 12, 'through-window': 0.5, grow: 0.525, container: 0.3, cut: 0.5};
+//   sweep           the panel is fastest at the middle of its easeInOutCubic, which is also where it covers the cut
+export const SEAM_PEAK = {punch: 5 / 12, 'through-window': 0.5, grow: 0.525, container: 0.3, cut: 0.5, sweep: 0.5};
 
 // ── measuring an anchor ───────────────────────────────────────────────────────────────────────────────────────
 // `outline`: the anchor element draws a box of its own (a fill, a border, a declared radius, or content inside it).
@@ -750,3 +752,62 @@ const CutPresentation = ({presentationProgress: p, presentationDirection, childr
 
 /** The hard cut: the picture changes on the seam's middle frame; the audio keeps the seam's overlap. */
 export const cut = (): TransitionPresentation<any> => ({component: CutPresentation, props: {}});
+
+// ── SWEEP — the HIDDEN cut: something passes the lens and the scene changes behind it ────────────────────────
+//
+// An oversized panel crosses the frame fast, blurred by its own speed (runtime/motionBlurCore, a 180-degree shutter),
+// and for the few frames it covers the whole picture the beat underneath is swapped. The claim is CONTINUITY OF
+// MOTION: the camera never stopped, the world went past it — a journey between two stops, a scan moving on to the
+// next thing. A plain cut says "now this"; a sweep says "and on we go". The peer library's transition-hidden-cut
+// (an oversized card sweeps past the lens with heavy motion blur, the scene swapping in the fully-covered frames).
+//
+// The panel is the two beats' grounds MIXED, a step toward the film's surface, so it is never brighter than both:
+// a frame-filling panel lighter than either beat would be a flash by another name. The swap is on the seam's middle
+// frame (CUT_AT), which the panel's path is built to cover: the frame is fully covered while the leading edge is in
+// [-(wide - 1), 0], and the path puts the MIDDLE of that range on p = 0.5. At 3 frames wide the cover lasts three of
+// the seam's twelve frames, 5-7 (2.5 wide covered one, since the eased path is steepest exactly there; 1.5 none, and as first written its edge stood a quarter
+// of the way into the frame at the swap — the cut would have shown beside it).
+const SWEEP_WIDE = 3;                   // the panel, as a share of the frame along its travel
+const SWEEP_IN = 1.05;                  // where its leading edge starts (just off the frame)
+const sweepEdge = (p: number) => {      // the leading edge, as a share of the frame
+  const e = easeInOutCubic(clamp01(p));
+  const mid = -(SWEEP_WIDE - 1) / 2;    // the middle of the covered range, reached at e = 0.5
+  return SWEEP_IN + 2 * (mid - SWEEP_IN) * e;
+};
+/** For tests: is the whole frame under the panel at p? */
+export const sweepCovers = (p: number) => { const e = sweepEdge(p); return e <= 0 && e + SWEEP_WIDE >= 1; };
+const SweepPresentation = ({presentationProgress: p, presentationDirection, passedProps, children}: any) => {
+  const isEnter = presentationDirection === 'entering';
+  const {W, H, panel, direction} = passedProps as {W: number; H: number; panel: string; direction: string};
+  const shown = isEnter ? p >= CUT_AT - 1e-9 : p < CUT_AT - 1e-9;
+  const id = 'sw' + React.useId().replace(/[^a-zA-Z0-9]/g, '');
+  if (!isEnter) return <AbsoluteFill style={shown ? undefined : {opacity: 0}}>{children}</AbsoluteFill>;
+  // the panel is drawn by the ARRIVING half, which sits above the leaving one, so it covers both
+  const vertical = direction === 'from-bottom' || direction === 'from-top';
+  const flip = direction === 'from-left' || direction === 'from-top' ? -1 : 1;
+  const L = vertical ? H : W;
+  const at = (q: number) => sweepEdge(q) * L;
+  const step = 1 / SEAM_FRAMES;
+  const s = smear({x: at(p), y: 0}, {x: at(p - step), y: 0}, {maxSigma: 40});
+  const lead = at(p);
+  const pos = flip > 0 ? lead : L - lead - SWEEP_WIDE * L;
+  const box: React.CSSProperties = vertical
+    ? {left: 0, width: W, top: pos, height: SWEEP_WIDE * L}
+    : {top: 0, height: H, left: pos, width: SWEEP_WIDE * L};
+  return (
+    <AbsoluteFill>
+      <AbsoluteFill style={shown ? undefined : {opacity: 0}}>{children}</AbsoluteFill>
+      {s ? (
+        <svg width={0} height={0} style={{position: 'absolute'}} aria-hidden>
+          <filter id={id} filterUnits="userSpaceOnUse" x={-4000} y={-4000} width={8000} height={8000}>
+            <feGaussianBlur stdDeviation={vertical ? `0 ${s.sigma.toFixed(2)}` : `${s.sigma.toFixed(2)} 0`} />
+          </filter>
+        </svg>
+      ) : null}
+      <div style={{position: 'absolute', ...box, background: panel, filter: s ? `url(#${id})` : undefined}} />
+    </AbsoluteFill>
+  );
+};
+/** The hidden cut: a panel the colour of the two grounds mixed crosses the frame and the beat changes behind it. */
+export const sweep = (o: {W: number; H: number; panel: string; direction?: string}): TransitionPresentation<any> => ({
+  component: SweepPresentation, props: {W: o.W, H: o.H, panel: o.panel, direction: o.direction ?? 'from-right'}});

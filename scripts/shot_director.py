@@ -35,6 +35,7 @@ FAMILY = {
     "StatedBy": "JA",
     "ProfileGrowth": "J",
     "PhotoPlate": "H",
+    "Rearrange": "H",
     "ExtractionFlow": "H",
     "ObjectCompare": "H",
     "TechnicalPlate": "J",
@@ -132,6 +133,7 @@ FAMILY = {
     "PlaneStack": "N",
     "NeonTickerWall": "O",
     "VariableTypeMorph": "P", "InflateType": "P", "ElasticType": "P",
+    "WordDust": "P",
     "CroppedType": "P",
     "TypeOnPath": "P",
     "AntiDesignChaos": "Q",
@@ -170,6 +172,8 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "WordDust":                'motion-graphics',
+    "Rearrange":               'data-viz',
     "LandscapeWell":           'product-ui',
     "MagicMoveType":           'motion-graphics',
     "NebulaField":             'natural-world',
@@ -537,6 +541,15 @@ REACH = [
              "varies IS the argument",
      "not": "peers to be read together (a list register), nothing that varies (HeadlineReveal)",
      "needs": "the options in the order the sentence lands them; each must be READ (see `timing`)"},
+    {"key": "same-set-seen-again", "registers": ["Rearrange"],
+     "cues": [r"(?i)\bthe same (items|things|ones|options|parts|sources|factors)\b", r"(?i)\bregroup",
+              r"(?i)\bsorted? (them )?by\b", r"(?i)\bin order of\b", r"(?i)\bwhich (one|of them) matters\b",
+              r"(?i)\bgroup(ed)? (them )?(by|into)\b", r"(?i)\bput (them )?in order\b",
+              "按.{0,8}排", "排个序", "重新分组", "归成", "分成两类", "其中最重要", "同样这些"],
+     "when": "one SET of things looked at again and again — all equal, then the one that matters, then in order of a "
+             "sourced value, then by what they belong to: the beat changes its mind about the same items",
+     "not": "a ranking that changes over TIME (RankRace), one quantity (FlowCounter), a whole and its parts (MadeOf)",
+     "needs": "2-12 items; a `value` on every item for `rank`, a `group` on every item for `groups`"},
     {"key": "scale-word", "registers": ["CroppedType"],
      "cues": [r"(?i)\b(huge|enormous|massive|vast|gigantic|immense|the scale of)\b", "巨大", "庞大", "规模之大"],
      "when": "the claim is SCALE and one word carries it — the crop makes the word read as big, not merely large",

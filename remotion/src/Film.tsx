@@ -33,7 +33,7 @@ import {withCjkDisplay} from './runtime/cjkVoice';
 import {WorldBackdrop} from './runtime/world';
 import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
-import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA} from './runtime/dna';
+import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA, mix} from './runtime/dna';
 import {StyleContext, resolveStyle, useStyle, type StyleSpec} from './runtime/styleSpec';
 import {stepFrame} from './runtime/styleMotion';
 import {grammarFrame, checkTime, type TimeSpec} from './runtime/timeGrammar';
@@ -54,7 +54,7 @@ import {FilmDither} from './runtime/dither';
 import {OpticContext, opticState, normalizeOptic, dnaLight, dnaOptics, SeamLeak, type OpticDecl, type OpticSpec} from './runtime/optics';
 import {litMediumGround} from './runtime/material';
 import {CarryContext} from './runtime/carry';
-import {container, grow, throughWindow, punch, cut, SeamCopyContext} from './seams';
+import {container, grow, throughWindow, punch, cut, sweep, SeamCopyContext} from './seams';
 import {splitCaption, fitCaption, advanceFor, cjkCaptionLines, captionBox, CAP_PAD_X, litThrough, breaksAsCJK} from './captionBreak';
 
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
@@ -86,7 +86,7 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // on a same/near-luminance seam — across a dark↔light gap it's suppressed back to fade (see pickPresentation).
   transitionIn?: {type: 'fade' | 'slide' | 'push' | 'lift' | 'wipe' | 'clock' | 'dissolve' | 'fadethrough'
     | 'drift' | 'blur' | 'carry' | 'focus' | 'through-dark' | 'portal' | 'return'
-    | 'container' | 'grow' | 'through-window' | 'punch' | 'cut'; direction?: string;
+    | 'container' | 'grow' | 'through-window' | 'punch' | 'cut' | 'sweep'; direction?: string;
     /** `return` only: the pan across the film's board, as fractions of the frame's LONG side. Computed by
      *  `scripts/film_board.py`, which is the one place that knows where two beats sit. */
     dx?: number; dy?: number;
@@ -1155,6 +1155,10 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     case 'punch': return punch({paper: paperOf(dna, nextG), W, H, n: TR, seam, lead});
     // the hard cut: the picture changes on the seam's middle frame, both voices keep the seam's overlap (seams.tsx)
     case 'cut': return cut();
+    // the hidden cut: a panel of the two grounds mixed (never brighter than both) passes the lens, the beat swaps
+    // behind it on the seam's middle frame (seams.tsx)
+    case 'sweep': return sweep({W, H, direction: dir, panel: mix(mix(prevG?.bg ?? dna?.bg ?? '#000000',
+      nextG?.bg ?? dna?.bg ?? '#000000', 0.5), dna?.surface ?? '#202020', 0.25)});
     default: return fade();
   }
 };

@@ -274,6 +274,17 @@ anonymous fade. A relation one tier can claim and the other cannot is a vocabula
 quiet is the worst kind of bug — the board says one thing, the film does another, and every gate is green.
 `validate.py` now ERRORS on a seam word the renderer cannot resolve.
 
+### `sweep` — the hidden cut (remotion, 2026-11-03)
+
+| word | what it draws | the claim | right when | reads cheap when |
+|---|---|---|---|---|
+| **sweep** (`hidden-cut`) | a panel three frames wide — the two beats' grounds mixed, a step toward the film's surface — crosses the frame at speed, blurred along its travel (runtime/motionBlurCore), and the beat changes on the seam's middle frame while the panel covers the whole picture (frames 5-7 of 12); `direction` `from-right` (default), `from-left`, `from-bottom`, `from-top` | **and on we go** — the camera never stopped, the world went past it | consecutive stops of one journey or scan: the next place, the next item of a tour, the next frame of an inspection, where a plain cut would say "now something else" | between two unrelated topics (it pretends a continuity that is not there), more than once or twice a film, or on a calm explainer whose seams dissolve |
+
+The panel is never brighter than both beats (tests/test_sweep_seam.py measures a rendered seam: one panel at its
+middle, std < 6, mean within the beats' range), but it is not in `CANNOT_FLASH`: across a dark/light gap it draws
+as a fade until a crossing seam has been measured. Its whoosh peaks on the swap (`SEAM_PEAK.sweep = 0.5`). Peer:
+video-shotcraft's transition-hidden-cut.
+
 ### The anchored seams — `container`, `grow`, `through-window`, `punch` (remotion, 2026-10-23)
 
 Four seams that take hold of ONE THING on the frame, or land ONE beat (`remotion/src/seams.tsx`; the research is

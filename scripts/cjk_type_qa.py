@@ -1515,8 +1515,14 @@ def _shaped_row(fields, src, i=0, rowIdx=0, depth=0):
         # of a row, so `{t, d}` came back carrying the SAME sentence twice — and the overlap detector matches
         # elements by their text, so a row whose two labels are one string cannot be told apart from a real
         # collision.
-        val = _synth_field(k, v, src, i + (sum(ord(ch) for ch in k) % 3 if _is_text(v) else 0),
-                           rowIdx, depth)
+        base = i + (sum(ord(ch) for ch in k) % 3 if _is_text(v) else 0)
+        val = _synth_field(k, v, src, base, rowIdx, depth)
+        # ...and the name hash alone can collide (`label` and `display` both land on one pool slot), so a string
+        # already in this row is re-drawn, as the scalar path does for sibling props.
+        tries = 0
+        while isinstance(val, str) and val in row.values() and tries < 8:
+            tries += 1
+            val = _synth_field(k, v, src, base + tries, rowIdx, depth)
         if val is not _OMIT:
             row[k] = val
     return row

@@ -224,6 +224,8 @@ import {LandscapeWell} from './shots/LandscapeWell';
 import {AuroraCurtain} from './shots/AuroraCurtain';
 import {LightShafts} from './shots/LightShafts';
 import {NebulaField} from './shots/NebulaField';
+import {Rearrange} from './shots/Rearrange';
+import {WordDust} from './shots/WordDust';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -325,6 +327,8 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   AuroraCurtain,
   LightShafts,
   NebulaField,
+  Rearrange,
+  WordDust,
 };
 
 // A FILM'S OWN SHOTS AND OBJECTS — its workshop (scripts/workshop.py) — join the library here, for a render scoped

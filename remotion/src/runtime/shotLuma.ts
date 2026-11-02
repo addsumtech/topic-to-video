@@ -7,6 +7,8 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
+  WordDust: 'dark',
+  Rearrange: 'dark',
   LandscapeWell: 'dark',
   MagicMoveType: 'dark',
   NebulaField: 'dark',
@@ -152,6 +154,8 @@ const literalGround = (tok: GroundSpec | undefined): string | null =>
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
+  WordDust: 'bg',
+  Rearrange: 'bg',
   LandscapeWell: 'bg',
   MagicMoveType: 'bg',
   NebulaField: '#221617',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise

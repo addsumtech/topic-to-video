@@ -675,6 +675,7 @@ implies. `tests/test_director_reach.py` holds this table and the code to the sam
 | `one-quantity-moving` | one figure and how far it moved | `FlowCounter` (OdometerRoll) | several figures side by side; a ranking | the sourced values in order |
 | `where` | the claim is WHERE, at the scale that makes it legible | `GlobeFocus` (MapPlate) | a route (FlightArcs); an engraved or imagined plate (MapPlate) | the place |
 | `slot-that-varies` | "not X, not Y — it is Z": what is constant and what varies IS the argument | `WordRoll` | peers read together; nothing varies | the options, each READ once (below) |
+| `same-set-seen-again` | one set looked at again — all equal, then the one that matters, then in order of a sourced value, then by what they belong to | `Rearrange` (runtime/layoutMorph) | a ranking over TIME (RankRace); one quantity; a whole and its parts (MadeOf) | 2-12 items; `value` on each for `rank`, `group` for `groups` |
 | `scale-word` | the claim is SCALE and one word carries it | `CroppedType` | a word that must be read whole; a CJK word a crop cuts into other characters | one word + the plain sentence under it |
 | `shape-is-claim` | the path's SHAPE is the claim — this repeats, this rises, this is the route | `TypeOnPath` | steps in order; a shape picked for looks | the subject's own path |
 | `headline` | the headline IS the beat — one claim in one breath, one phrase of it marked `*…*` | `HeadlineReveal` | a list; one enormous word; a slot that changes | the lines as the voice says them |
@@ -744,6 +745,10 @@ instead of re-deriving it:
   Applied before the sync warp, on the register only (camera, voice and caption stay on the film's clock); reduced
   motion has none of it. The film-wide stepping of a drawn style (`meta.style.motion.stepping`) is a different thing:
   a texture for the whole film, where `sakuga` is a change of texture AT a moment.
+
+- **One set, re-arranged — `runtime/layoutMorph` (and `Rearrange`, its register).** `grid`, `hero`, `rank` (full-width rows; the register draws each bar at `shares()` of its room), `groups` (+ `groupHeads`) are deterministic, non-overlapping boxes in a content box that refuse a count they cannot hold at a readable size; `morph(a, b, p, {stagger, order: 'distance', arc})` moves the same items between two of them on staggered, slightly bowed paths and lands exactly. The hero takes the box's LONG side (the top of a portrait box). A register drawing the same item two ways (a card and a row) must choose between them from the two ARRANGEMENTS it is moving between, not from its box mid-flight — keyed to the box, a settled frame near the threshold drew both and printed the value twice.
+
+- **Particles taken FROM a mark — `runtime/particles` + `runtime/particlesDom` (and `WordDust`).** `useTextMark` sets a word in the film's display face on a canvas (holding the render until the face has loaded — dust sampled from a fallback font lands in the wrong shape) and samples its pixels; `pair` makes two marks one size and pairs them in reading order; `particleAt` starts exactly on the first mark and lands exactly on the second; `burstAt` throws a mark outward and fades it. What a viewer reads from a dissolve is CONSERVATION, so never a random pairing and never dust from nowhere unless the claim is a cloud gathering. The settled word must be real text (the type audits cannot see type inside a picture); `Dust` draws the particles as SVG circles.
 
 ## Before you commit a change to this library — walk the case law
 

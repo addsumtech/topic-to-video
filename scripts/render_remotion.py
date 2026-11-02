@@ -54,13 +54,15 @@ _TRANSITION_STYLE = {
     # the seam's overlap. `cut` was an html word only ("no seam at all") and resolved to the default cross-fade here,
     # because this tier had no picture for it — so a board that asked for a hard cut got a dissolve.
     "cut": {"type": "cut"}, "hard-cut": {"type": "cut"},
+    # the HIDDEN cut: a panel passes the lens and the beat changes behind it — continuity of motion (seams.tsx sweep)
+    "sweep": {"type": "sweep"}, "hidden-cut": {"type": "sweep"},
 }
 # `focus`, `through-dark` and `portal` are the DEPTH seams (Film.tsx). They belong here or a storyboard that
 # asks for one is silently downgraded to a fade, which is the exact "built but unreachable" failure this
 # file's `transition_in` docstring was written about — and it has already cost this repo two deliveries.
 _KINETIC_TYPES = {"slide", "push", "lift", "wipe", "clock", "dissolve", "fadethrough", "drift", "blur",
                   "carry", "focus", "through-dark", "portal", "return",
-                  "container", "grow", "through-window", "punch", "cut"}
+                  "container", "grow", "through-window", "punch", "cut", "sweep"}
 # THE CUTS THAT ARE NOT MARKS. A marked seam is punctuation and is budgeted (2-3 a film); a hard cut is the absence
 # of a transition — the film's default grammar on a film whose energy asks for it (seam_plan.py) — and must not
 # spend that budget or set off the "too many marks" warnings.
