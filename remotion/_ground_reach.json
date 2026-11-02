@@ -56,7 +56,7 @@
     "light": 1.0,
     "dark": 0.0006070539820939302
    },
-   "moved": 0.9929640151515151,
+   "moved": 0.9929947916666667,
    "ok": true,
    "why": []
   },
@@ -102,7 +102,7 @@
     "light": 0.921582043170929,
     "dark": 0.005065725184977055
    },
-   "moved": 0.9976041666666666,
+   "moved": 0.9975828598484848,
    "ok": true,
    "why": []
   },
@@ -131,8 +131,8 @@
     "dark": 0.04423943907022476
    },
    "fieldY": {
-    "light": 0.13321447372436523,
-    "dark": 0.12486565113067627
+    "light": 0.1331959068775177,
+    "dark": 0.12484706938266754
    },
    "moved": 0.0,
    "ok": false,
@@ -180,7 +180,7 @@
     "light": 0.921582043170929,
     "dark": 0.0026858176570385695
    },
-   "moved": 0.9712405303030303,
+   "moved": 0.9712452651515151,
    "ok": true,
    "why": []
   },
@@ -194,7 +194,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.996233428030303,
+   "moved": 0.9962168560606061,
    "ok": true,
    "why": []
   },
@@ -240,7 +240,7 @@
     "light": 0.9386858940124512,
     "dark": 0.002428215928375721
    },
-   "moved": 0.9909114583333334,
+   "moved": 0.9907836174242424,
    "ok": true,
    "why": []
   },
@@ -254,7 +254,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9779214015151515,
+   "moved": 0.9781960227272727,
    "ok": true,
    "why": []
   },
@@ -268,7 +268,7 @@
     "light": 0.9559735059738159,
     "dark": 0.002428215928375721
    },
-   "moved": 0.7563139204545455,
+   "moved": 0.7563020833333334,
    "ok": true,
    "why": []
   },
@@ -296,7 +296,7 @@
     "light": 0.9559735059738159,
     "dark": 0.002428215928375721
    },
-   "moved": 0.9957552083333333,
+   "moved": 0.9958451704545455,
    "ok": true,
    "why": []
   },
@@ -338,7 +338,7 @@
     "light": 1.0,
     "dark": 0.002428215928375721
    },
-   "moved": 0.9285179924242424,
+   "moved": 0.9290932765151515,
    "ok": true,
    "why": []
   },
@@ -352,7 +352,7 @@
     "light": 1.0,
     "dark": 0.0006070539820939302
    },
-   "moved": 0.914045928030303,
+   "moved": 0.9140767045454545,
    "ok": true,
    "why": []
   },
@@ -366,7 +366,7 @@
     "light": 0.8855713605880737,
     "dark": 0.006135653704404831
    },
-   "moved": 0.9955350378787878,
+   "moved": 0.9958049242424243,
    "ok": true,
    "why": []
   },
@@ -380,7 +380,7 @@
     "light": 1.0,
     "dark": 0.00023899714869912714
    },
-   "moved": 0.9404427083333333,
+   "moved": 0.9404758522727272,
    "ok": true,
    "why": []
   },
@@ -442,7 +442,7 @@
     "light": 0.001497298595495522,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.010847537878787878,
+   "moved": 0.01073153409090909,
    "ok": false,
    "why": [
     "band ink light wants #ffffff",
@@ -473,9 +473,9 @@
    },
    "fieldY": {
     "light": 0.8406388759613037,
-    "dark": 0.009072080254554749
+    "dark": 0.009064346551895142
    },
-   "moved": 0.9062689393939394,
+   "moved": 0.9060866477272728,
    "ok": true,
    "why": []
   },
@@ -489,7 +489,7 @@
     "light": 0.8227858543395996,
     "dark": 0.0024501304142177105
    },
-   "moved": 0.6311576704545454,
+   "moved": 0.6315009469696969,
    "ok": true,
    "why": []
   },
@@ -503,7 +503,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.9994839015151515,
+   "moved": 0.9991098484848485,
    "ok": true,
    "why": []
   },
@@ -634,7 +634,7 @@
     "light": 1.0,
     "dark": 0.002124688820913434
    },
-   "moved": 0.9751349431818181,
+   "moved": 0.9751420454545454,
    "ok": true,
    "why": []
   },
@@ -718,7 +718,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9991808712121212,
+   "moved": 0.9992140151515152,
    "ok": true,
    "why": []
   },
@@ -746,7 +746,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.998375946969697,
+   "moved": 0.9983901515151515,
    "ok": true,
    "why": []
   },
@@ -846,7 +846,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9989559659090909,
+   "moved": 0.9988399621212121,
    "ok": true,
    "why": []
   },
@@ -860,7 +860,7 @@
     "light": 0.9573096036911011,
     "dark": 0.0021328111179172993
    },
-   "moved": 0.9988991477272727,
+   "moved": 0.9988944128787879,
    "ok": true,
    "why": []
   },
@@ -874,7 +874,7 @@
     "light": 0.9474552273750305,
     "dark": 0.0027116010896861553
    },
-   "moved": 0.9980563446969697,
+   "moved": 0.9980232007575758,
    "ok": true,
    "why": []
   },
@@ -888,7 +888,7 @@
     "light": 0.921582043170929,
     "dark": 0.003912078216671944
    },
-   "moved": 0.9875426136363636,
+   "moved": 0.9876870265151515,
    "ok": true,
    "why": []
   },
@@ -1018,7 +1018,7 @@
     "light": 0.921582043170929,
     "dark": 0.004539121873676777
    },
-   "moved": 0.9863186553030303,
+   "moved": 0.9864346590909091,
    "ok": true,
    "why": []
   },
@@ -1046,7 +1046,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9961955492424243,
+   "moved": 0.9963257575757576,
    "ok": true,
    "why": []
   },
@@ -1093,7 +1093,7 @@
     "light": 0.8134512901306152,
     "dark": 0.0033558025024831295
    },
-   "moved": 0.9681321022727273,
+   "moved": 0.9681486742424242,
    "ok": true,
    "why": []
   },
@@ -1232,10 +1232,10 @@
     "dark": 0.004164542071521282
    },
    "fieldY": {
-    "light": 0.8722658157348633,
+    "light": 0.8721450567245483,
     "dark": 0.00789923407137394
    },
-   "moved": 0.9911600378787879,
+   "moved": 0.9915648674242424,
    "ok": false,
    "why": [
     "ink: subtitle is #fff \u2014 1.01:1 on paper"
@@ -1251,7 +1251,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9981060606060606,
+   "moved": 0.9980492424242424,
    "ok": true,
    "why": []
   },
@@ -1293,7 +1293,7 @@
     "light": 1.0,
     "dark": 0.000585139321628958
    },
-   "moved": 0.975485321969697,
+   "moved": 0.9754829545454545,
    "ok": true,
    "why": []
   },
@@ -1321,7 +1321,7 @@
     "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9913873106060606,
+   "moved": 0.9913707386363636,
    "ok": true,
    "why": []
   },
@@ -1433,7 +1433,7 @@
     "dark": 0.0018232041038572788
    },
    "fieldY": {
-    "light": 0.20021747052669525,
+    "light": 0.1999291181564331,
     "dark": 0.0035585425794124603
    },
    "moved": 0.7339441287878787,
@@ -1449,8 +1449,8 @@
     "dark": 0.23403862118721008
    },
    "fieldY": {
-    "light": 0.28936049342155457,
-    "dark": 0.28936049342155457
+    "light": 0.28930556774139404,
+    "dark": 0.28930556774139404
    },
    "moved": 0.0,
    "ok": false,
@@ -1627,7 +1627,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.8916619318181818,
+   "moved": 0.8916595643939393,
    "ok": true,
    "why": []
   },
@@ -1673,7 +1673,7 @@
     "light": 0.5918364524841309,
     "dark": 0.21881678700447083
    },
-   "moved": 0.9994649621212122,
+   "moved": 0.9994081439393939,
    "ok": false,
    "why": [
     "band ink dark wants #141414",
@@ -1704,7 +1704,7 @@
     "light": 0.28545069694519043,
     "dark": 0.16803871095180511
    },
-   "moved": 0.4512760416666667,
+   "moved": 0.4511529356060606,
    "ok": false,
    "why": [
     "field light reads mid",
@@ -1721,7 +1721,7 @@
     "light": 1.0,
     "dark": 0.0012141079641878605
    },
-   "moved": 0.79859375,
+   "moved": 0.7986931818181818,
    "ok": true,
    "why": []
   },
@@ -1777,7 +1777,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9871638257575758,
+   "moved": 0.9871590909090909,
    "ok": true,
    "why": []
   },
@@ -1802,7 +1802,7 @@
     "dark": 0.0016106234397739172
    },
    "fieldY": {
-    "light": 0.2069014459848404,
+    "light": 0.20690155029296875,
     "dark": 0.003992707934230566
    },
    "moved": 0.7316003787878788,
@@ -1821,21 +1821,21 @@
     "light": 0.921582043170929,
     "dark": 0.005051969550549984
    },
-   "moved": 0.9818394886363636,
+   "moved": 0.9819034090909091,
    "ok": true,
    "why": []
   },
   {
    "shot": "MorphForms",
    "bandY": {
-    "light": 0.8474903702735901,
+    "light": 0.8475212454795837,
     "dark": 0.00191572867333889
    },
    "fieldY": {
     "light": 0.921582043170929,
     "dark": 0.005110535770654678
    },
-   "moved": 0.9893726325757576,
+   "moved": 0.9893205492424243,
    "ok": true,
    "why": []
   },
@@ -1849,7 +1849,7 @@
     "light": 1.0,
     "dark": 0.002124688820913434
    },
-   "moved": 0.6722537878787879,
+   "moved": 0.6722561553030303,
    "ok": true,
    "why": []
   },
@@ -1863,7 +1863,7 @@
     "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9952627840909091,
+   "moved": 0.9951751893939393,
    "ok": true,
    "why": []
   },
@@ -1895,7 +1895,7 @@
     "light": 0.01042307261377573,
     "dark": 0.0015176349552348256
    },
-   "moved": 0.020023674242424242,
+   "moved": 0.020333806818181817,
    "ok": false,
    "why": [
     "band ink light wants #ffffff",
@@ -1910,7 +1910,7 @@
     "dark": 0.0012153220595791936
    },
    "fieldY": {
-    "light": 0.006786528509110212,
+    "light": 0.006791580468416214,
     "dark": 0.004787732847034931
    },
    "moved": 0.0,
@@ -2001,7 +2001,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9073011363636364,
+   "moved": 0.9072703598484848,
    "ok": true,
    "why": []
   },
@@ -2043,7 +2043,7 @@
     "light": 0.921582043170929,
     "dark": 0.002731743035838008
    },
-   "moved": 0.9912713068181818,
+   "moved": 0.991032196969697,
    "ok": true,
    "why": []
   },
@@ -2074,7 +2074,7 @@
     "light": 0.7366871237754822,
     "dark": 0.003346535377204418
    },
-   "moved": 0.9586458333333333,
+   "moved": 0.9586174242424242,
    "ok": true,
    "why": []
   },
@@ -2209,7 +2209,7 @@
     "light": 0.6568931937217712,
     "dark": 0.004501659423112869
    },
-   "moved": 0.7575189393939394,
+   "moved": 0.7568110795454546,
    "ok": true,
    "why": []
   },
@@ -2251,7 +2251,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9985724431818181,
+   "moved": 0.9985345643939394,
    "ok": true,
    "why": []
   },
@@ -2279,7 +2279,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.9975852272727272,
+   "moved": 0.9976089015151515,
    "ok": true,
    "why": []
   },
@@ -2381,7 +2381,7 @@
     "light": 0.8539275527000427,
     "dark": 0.0033558025024831295
    },
-   "moved": 0.9355847537878788,
+   "moved": 0.9362902462121212,
    "ok": true,
    "why": []
   },
@@ -2437,7 +2437,7 @@
     "light": 0.45535069704055786,
     "dark": 0.0909668430685997
    },
-   "moved": 0.7607859848484848,
+   "moved": 0.7610203598484848,
    "ok": false,
    "why": [
     "field light reads mid"
@@ -2509,7 +2509,7 @@
     "light": 0.9046613574028015,
     "dark": 0.003346535377204418
    },
-   "moved": 0.9801136363636364,
+   "moved": 0.9801207386363636,
    "ok": true,
    "why": []
   },
@@ -2523,7 +2523,7 @@
     "light": 1.0,
     "dark": 0.0012141079641878605
    },
-   "moved": 0.9825994318181818,
+   "moved": 0.9825852272727272,
    "ok": true,
    "why": []
   },
@@ -2653,7 +2653,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9984138257575758,
+   "moved": 0.9984161931818182,
    "ok": true,
    "why": []
   },
@@ -2718,7 +2718,7 @@
     "light": 1.0,
     "dark": 0.0018211619462817907
    },
-   "moved": 0.8645691287878788,
+   "moved": 0.864564393939394,
    "ok": true,
    "why": []
   },
@@ -2732,7 +2732,7 @@
     "light": 0.9046613574028015,
     "dark": 0.003346535377204418
    },
-   "moved": 0.9962476325757575,
+   "moved": 0.9962357954545454,
    "ok": true,
    "why": []
   },
@@ -2774,7 +2774,7 @@
     "light": 1.0,
     "dark": 0.0006070539820939302
    },
-   "moved": 0.889157196969697,
+   "moved": 0.8891832386363636,
    "ok": true,
    "why": []
   },
@@ -2802,7 +2802,7 @@
     "light": 1.0,
     "dark": 0.0018211619462817907
    },
-   "moved": 0.9975686553030303,
+   "moved": 0.9976917613636364,
    "ok": true,
    "why": []
   },
@@ -2830,7 +2830,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9977533143939394,
+   "moved": 0.9977793560606061,
    "ok": true,
    "why": []
   },
@@ -2984,7 +2984,7 @@
     "light": 0.8562124967575073,
     "dark": 0.006641207728534937
    },
-   "moved": 0.9951302083333333,
+   "moved": 0.9951183712121212,
    "ok": true,
    "why": []
   },
@@ -2998,7 +2998,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9961245265151515,
+   "moved": 0.9961339962121212,
    "ok": true,
    "why": []
   },
@@ -3040,7 +3040,7 @@
     "light": 0.8092079758644104,
     "dark": 0.011247876100242138
    },
-   "moved": 0.9433688446969697,
+   "moved": 0.9433238636363637,
    "ok": true,
    "why": []
   },
@@ -3054,7 +3054,7 @@
     "light": 0.9301108717918396,
     "dark": 0.0030352699104696512
    },
-   "moved": 0.9002367424242425,
+   "moved": 0.9001325757575758,
    "ok": true,
    "why": []
   },
@@ -3068,7 +3068,7 @@
     "light": 0.7576895952224731,
     "dark": 0.016880173236131668
    },
-   "moved": 0.995719696969697,
+   "moved": 0.99578125,
    "ok": true,
    "why": []
   },
@@ -3191,65 +3191,65 @@
   "AcceptanceStamp": "1517ac088b709647",
   "Aliasing": "f407ff348468088d",
   "AnalogTape": "daa50a5764fa6c90",
-  "AnswerStream": "b98be1c7542c1c2e",
+  "AnswerStream": "682774c7653087e6",
   "AntiDesignChaos": "f856dfe64086ab69",
   "AsciiField": "5c2edc825e6030dd",
-  "AtomOrbital": "89ccaeabc90166d5",
-  "AuroraFlow": "da3638cec5ca9705",
-  "AverageHides": "4caa378f70e7a9a6",
+  "AtomOrbital": "34a45e2cc3df025a",
+  "AuroraFlow": "8beebe0416534740",
+  "AverageHides": "993bfce056bcd435",
   "BeforeAfterSlider": "7aa970fcdbda216e",
-  "BentoReveal": "cbf1da0b19c9a47f",
-  "BlockAssembly": "e6fbf1d0448b0eaf",
+  "BentoReveal": "df47cb26e82b3cd2",
+  "BlockAssembly": "cb02464ac8c8264d",
   "BlueprintGrid": "a5d15f504117b000",
   "BokehPull": "26ab09b77aaabc8d",
-  "BreaksWhenAsked": "2687cd143b1308cd",
-  "BrutalistType": "38b91428df4888a4",
-  "CardFlip3D": "87490118a811c47a",
-  "CardStack3D": "82680d6a1954a5d0",
-  "CarryOver": "92c9e260b3ed21ae",
+  "BreaksWhenAsked": "9ec49ab977538715",
+  "BrutalistType": "62f67be4ed1f4c9c",
+  "CardFlip3D": "311b264a9791a025",
+  "CardStack3D": "d53e2e9596e07aa2",
+  "CarryOver": "b4d6df537b21d87a",
   "CartoonPop": "1d689949007a81cd",
   "ChartLive": "052e86bf0a7e694c",
-  "ChartRace": "1603cdef7abe71ed",
-  "ChatThread": "f1d279a35cfd1a16",
-  "CinematicTitle": "2b1a07264a1d3af6",
-  "CircuitTrace": "c64b2a3803b166c3",
+  "ChartRace": "80023f7409f088b8",
+  "ChatThread": "cd7e4bb96fa0b7eb",
+  "CinematicTitle": "2892c2d23c9f0c6a",
+  "CircuitTrace": "92015acde14a8add",
   "ClayStack": "8d259af5eb7223d7",
   "ClothWave": "69f86c4197f42564",
   "CodeCompose": "f4f38b678a7946a2",
-  "CodeRain": "6e3309c5988aa87f",
+  "CodeRain": "d2f34665567067e5",
   "CollaborativeCursors": "30468f2e4403479b",
-  "ComicPanels": "fa092b78a8b9e207",
-  "CommandSummon": "1afb6e199fed26bc",
-  "CompanionCard": "307fa3a316dea1c6",
+  "ComicPanels": "4d64447076c8d74b",
+  "CommandSummon": "8ce797647229a44e",
+  "CompanionCard": "afcd9f36223a8f35",
   "CompressedSensingEq": "802878ab61ea4364",
   "ConveyorBelt": "08ea60c4e5efb023",
-  "CraneUp": "fdeaccf254eb3d9e",
+  "CraneUp": "56e06cdcc2787234",
   "CrashZoom": "e233b9e3e507d822",
   "CubeRotate": "e7be4741e360058c",
   "CursorStory": "867b853c3a1ac0d6",
-  "DNAHelix": "63fa27222900594a",
-  "DataMonolith": "8a5718ba6fddd4d7",
+  "DNAHelix": "80b4b5f7d6c4013a",
+  "DataMonolith": "9514bea2229bd562",
   "DataOrrery": "f49e35bb19557387",
   "DiffusionDenoise": "177b7b0791cb5a70",
   "DollyZoom": "2090e4f284f80d87",
-  "EdCompare": "9ccb76b5e7ccbc70",
+  "EdCompare": "9145d230dd0fcfcd",
   "EdStat": "d041e2192e724f51",
-  "EdTimeline": "e07a8ae454bf0ea1",
-  "ElasticType": "9a28ee48f9cd17e0",
+  "EdTimeline": "d671b0f8617a12f9",
+  "ElasticType": "d044c540a0e5a544",
   "EmberFlame": "938f2829c4696926",
   "Escalation": "9179d5c61fea0fb0",
   "ExplodedSchematic": "d95441951af33eec",
-  "FallbackPath": "8c4336997fc9ec03",
-  "FlowField": "e5503bad67d3af55",
-  "FocalIsolation": "ca164820771cd738",
-  "FractalTree": "a0db5afa28ab5b4f",
-  "FractureIn": "41cab417f6db77cd",
+  "FallbackPath": "82453526048e072f",
+  "FlowField": "d9a51f868222f897",
+  "FocalIsolation": "00d6172b4bc22343",
+  "FractalTree": "92c0e4f9f7056eba",
+  "FractureIn": "e807e1751cc5837c",
   "FrequencyEncode": "078c02e829d06400",
   "GFactorNoise": "92711c862b573089",
-  "GameOfLife": "2f3e8396344e7883",
+  "GameOfLife": "78113b616e90066d",
   "GaugeCluster": "796a06b5f2cbb1fe",
-  "GazetteerEntry": "24dbdcdd94717374",
-  "GearTrain": "846657bea3c58997",
+  "GazetteerEntry": "e320835979581db1",
+  "GearTrain": "b830ef0c8325a0ee",
   "GlitchDatamosh": "f0d95acd8dc2c1db",
   "GlowPick": "ab2a995b6520e229",
   "GradientTilt": "93dc579f25a937fc",
@@ -3258,21 +3258,21 @@
   "HandDrawn": "4eff756fe34c0fdb",
   "HardBarrier": "e0bb02eb09247ddc",
   "HeldInstant": "302bc7a90f1efe22",
-  "HoloFoil": "32ee19cd09f5fe1e",
-  "HudReticle": "03eb0f895e1c2d8a",
-  "InOrder": "1adb30c7326a9e5c",
+  "HoloFoil": "570485e8dac81c4c",
+  "HudReticle": "36dace50d0fb1c5b",
+  "InOrder": "4b9482e86a43b76c",
   "InducedFID": "61b40781259e0130",
-  "InfiniteCanvas": "9e8c87f77c46c09a",
-  "InflateType": "77d6a75e9db101ae",
-  "InkBloom": "bd8bc60ed735e6e0",
+  "InfiniteCanvas": "9182db41600ab863",
+  "InflateType": "f55e6c8b2696436d",
+  "InkBloom": "4f45d821055a57f8",
   "Inscription": "662bb1d0e949ac78",
   "IsoWorld": "0684ecce41186927",
   "IsometricAssembly": "cd6760d56689a7e4",
   "KSpaceAnatomy": "0ad017a8fe607a21",
   "KSpaceReal": "9b04f4d3b4f8e9d6",
   "KSpaceToImage": "66d2f19c8f72c056",
-  "KaleidoMandala": "a3556fabb1a5edc6",
-  "KineticManifesto": "01ae5fb479b66c5f",
+  "KaleidoMandala": "a5007700a6030ad0",
+  "KineticManifesto": "3ed54234d984ba36",
   "KnowledgeGraph": "344d06567f94ee26",
   "LarmorPrecession": "87ae45a881eca16c",
   "LastLeg": "83ed45f34a4d4c2c",
@@ -3280,77 +3280,77 @@
   "LiquidChrome": "e998e653532ec21d",
   "LiquidFill": "ed3d2fad23bef4ce",
   "LiquidGlass": "b3d626505f4693d5",
-  "LiquidMetal": "e14f6b71e570c0a0",
+  "LiquidMetal": "c6aeca0d7ee4f7e0",
   "LiquidMorph": "09d0fafade9df90f",
-  "LowPolyForm": "59b75b3a02ecee97",
+  "LowPolyForm": "8985dc3194e7206e",
   "MRIPipeline": "4decfd9288040d82",
-  "MadeOf": "7f50629caea69f3a",
-  "MagazineSpread": "7d379de375b1fad9",
+  "MadeOf": "2a3188e00098b286",
+  "MagazineSpread": "f322d31d72a70001",
   "MagnetizationTip": "923fd073247fe559",
   "MapPlate": "512c13c6baae18a3",
-  "MapRoutes": "c74cb95c1563e938",
+  "MapRoutes": "60ddc3f96e7ffc12",
   "MaterialHero": "1657aeab85ff90c1",
-  "MetaballMerge": "b475d7a5037af795",
-  "MoleculeBallStick": "1e2ef342891f3cc8",
-  "MorphForms": "976313e228a09cde",
-  "MuseumLabel": "17d4f75a75cf6605",
-  "NearTheLine": "3b2291b505b83cf1",
-  "NeonGrid": "f5664dfac47efee4",
-  "NeonTickerWall": "83055179555400c3",
+  "MetaballMerge": "d11cf38b04dc313c",
+  "MoleculeBallStick": "5517526cd0b4f3da",
+  "MorphForms": "1fcfccd40341873a",
+  "MuseumLabel": "782ca433d331f954",
+  "NearTheLine": "880f7272f3b312c6",
+  "NeonGrid": "d87f0703055a4c48",
+  "NeonTickerWall": "d7b21985d592b46e",
   "NeuralField": "add8df5a4acbf7b1",
-  "OdometerRoll": "d2c016a68eae380f",
-  "OpenQuestions": "8ad750098dbfdcb6",
-  "OverlapSeparation": "497bdff335c88f64",
+  "OdometerRoll": "9125e22c220b0c16",
+  "OpenQuestions": "b58621e9b66ea007",
+  "OverlapSeparation": "5d12a8618e70923a",
   "PageWrite": "73e2b11b8ead65da",
-  "PaperCutout": "4190848ab7cb3ea2",
+  "PaperCutout": "da4487a49beea9da",
   "PaperSlot": "e7ca56771242c2f1",
   "ParticleForm": "40b63d310ef664e5",
   "PhaseEncodeStep": "c6cd903b075a2d0d",
-  "PhotoPlate": "e8bf7f2f5dcd4233",
+  "PhotoPlate": "42bb43ee1189b8c9",
   "PhysicsStack": "57ca1b0a8783c9f8",
-  "PixelBuild": "3be8f0578f076db1",
+  "PixelBuild": "ea0e42a3639dfbc4",
   "PlanPalimpsest": "663617a678e39feb",
   "PlaneStack": "325c31819be3af94",
-  "PlatformSurfaces": "30eb953d53fb54ea",
+  "PlatformSurfaces": "d9be4baf3d1e120b",
   "PointerTour": "0092c2bd51c0bac6",
   "PortRail": "6806b1e92aaaadad",
-  "PositioningMatrix": "020bb79c4aded02d",
-  "ProfileGrowth": "69fae2e50856f0ee",
+  "PositioningMatrix": "3329d1f5f49917b0",
+  "ProfileGrowth": "beace726a6fce42c",
   "PulledThread": "e37c3ecf62c3e205",
-  "QuadSplit": "678e11c4e04909ce",
+  "QuadSplit": "af0d6d0a76cad422",
   "RackFocus": "ac99039849f31058",
   "RadialBurst": "a2e408a95121bdc5",
   "RainGlass": "56a5ea6440dfc599",
   "RansomZine": "b44b1675e658a8e4",
   "RealVersus": "c2cff6916cdd4846",
-  "RestsOn": "3258eb3239c391cf",
+  "RestsOn": "d436069c61abe8e7",
   "RidgeField": "b8eecf63564c8948",
-  "RisoPrint": "3e3820cd078d154e",
+  "RisoPrint": "669f4ce6ec183421",
   "SameStuffChanged": "a11b012b2dca8486",
   "ScanReconstruct": "43310376143ca633",
-  "ScreenBubble": "a1ac417c8cf0dd00",
-  "SeamBetween": "7b367e2c199f8ef3",
+  "ScreenBubble": "3992baf10ac3b498",
+  "SeamBetween": "7c890b319454e990",
   "SectionRoute": "0b0eab1f13a2b9b9",
   "SharedBlindspot": "800e65143e121e91",
-  "ShorteningHold": "36c6beb2cd78323d",
-  "SourceDeal": "6b2b2c562a243941",
+  "ShorteningHold": "c3a91410435dc890",
+  "SourceDeal": "346e48d366cce76c",
   "SpatialSlides": "714003084fd76898",
   "SpectrumPulse": "1f47389ffb429380",
   "SpeedLimit": "1062149416473552",
   "SpinningProton": "8173db1aa50dfbbb",
-  "SpinsAlign": "109bccdd737c713b",
+  "SpinsAlign": "291785ab6e5cce6a",
   "SplitFlap": "131b8b82f17a43e1",
   "SpotlightStage": "329127279418e4b9",
-  "StarfieldWarp": "7edbe53044ccf233",
-  "StateSheet": "67d58045596c2a38",
-  "StatedBy": "6a89e2b206c2e324",
+  "StarfieldWarp": "39a7c37159a9710c",
+  "StateSheet": "8b7ce624af67119c",
+  "StatedBy": "f81b5f403ab7ea80",
   "StrataColumn": "6271fb01db5fd199",
-  "SurfaceCarousel": "d82a9154481fd037",
-  "SwissEditorial": "c086645243ca3024",
+  "SurfaceCarousel": "9a67d73129eb0f75",
+  "SwissEditorial": "a432faf3607b67fb",
   "TallyLedger": "4b3e93940daa6e58",
-  "TaskFold": "83f2169f03390835",
-  "TechnicalPlate": "cf658e639c225657",
-  "TemporalAccelerate": "43fcf9f121a16db2",
+  "TaskFold": "08089d0a9565695e",
+  "TechnicalPlate": "14e65cc53b0c476d",
+  "TemporalAccelerate": "70e86834c160e9b6",
   "TensionScale": "dd58b6850ce8de63",
   "TermBars": "13a70ca969493d35",
   "TermCounter": "f35254d4ae9b6cea",
@@ -3361,12 +3361,12 @@
   "TermTable": "5be88848be757ff4",
   "TermThink": "15c8259747554a7c",
   "TermTree": "1e8af4ce6e859aea",
-  "TerrainFly": "4715c51c04b154eb",
-  "TimelineTravel": "5f9f19a8a747953e",
+  "TerrainFly": "1f53ae7c0bd52041",
+  "TimelineTravel": "0b34ce765da5c2c1",
   "UndersampledKspace": "eb71b41d7dee7b10",
-  "VariableTypeMorph": "cd39e0bac92ca30b",
-  "VelocitySnap": "b3adfec7a8812f54",
-  "VersusSplit": "4998ec3b196a599a",
+  "VariableTypeMorph": "3064a0d41df5e03a",
+  "VelocitySnap": "fbcae3258e8d542a",
+  "VersusSplit": "2db002873f762b80",
   "ViewSwitch": "e1dc6607e7c0a55d",
   "VoiceSignal": "ffce4bb2cd0bdd7d",
   "VoxelBuild": "4b956ae1c454d317",
@@ -3375,34 +3375,34 @@
   "WorksThrough": "a744875d5345d5b4",
   "DeviceDemo": "2a3ca3250f0439be",
   "DeviceHero": "6d285f97b3a2561c",
-  "ObjectStage": "2afabefd866f543f",
+  "ObjectStage": "3a447f2376e2a53e",
   "ObjectCompare": "78435659bc41a250",
   "ObjectPath": "5460d35ef54e94c5",
   "ObjectTurntable": "86f1d421284789d0",
-  "KSpaceToPicture": "c0ed13800484bfad",
+  "KSpaceToPicture": "e497ecc70cf6cc81",
   "ExtractionFlow": "24d570c8405d35aa",
   "PourSync": "df4cab72292db687",
-  "RangeSpheres": "ad100ac6efaf2fa1",
-  "LightShellOrbit": "fa7ed71bbe285c60",
-  "OrbitClockGain": "c5ae0d8595b5ed39",
-  "ReplyWindow": "3857caa2d3537b38",
-  "WeightedWheel": "9c5e50c8273447da",
-  "ForkingAnswers": "d2f947a9d5e2537a",
-  "HeadlineReveal": "5eb9e938870913f1",
-  "WordRoll": "2cc01dd710c57be3",
-  "TypeOnPath": "e60a7bf5a8b935a6",
-  "CroppedType": "88c0bc954947dc51",
-  "EquationMorph": "e9c7f9f8f930ec31",
-  "GrowingFigure": "7ca9435422aaf8dd",
-  "FunctionPlot": "ad3bb7f810ede97a",
-  "GlobeFocus": "805b05d4dc41f9d3",
-  "FlightArcs": "8600864650f85232",
-  "FlowSankey": "76c29fa69ff42092",
-  "FlowCounter": "3b987570bda3366d",
-  "RankRace": "911cf2339bfde888",
+  "RangeSpheres": "4605f4e77728435e",
+  "LightShellOrbit": "2dbcd298f6fbf002",
+  "OrbitClockGain": "b82ac04054be272b",
+  "ReplyWindow": "dd057337250ffdc5",
+  "WeightedWheel": "84fbd990a68aa74f",
+  "ForkingAnswers": "386571bc738552f8",
+  "HeadlineReveal": "73e0a4f12930ab44",
+  "WordRoll": "7218e7de6998b5ff",
+  "TypeOnPath": "e9cdcd1cff326687",
+  "CroppedType": "33cdcf79969f52bf",
+  "EquationMorph": "486ff007a3041adb",
+  "GrowingFigure": "7b38a584ebca6018",
+  "FunctionPlot": "699ad242595c7a2c",
+  "GlobeFocus": "38c67f34cbcf1c50",
+  "FlightArcs": "3b9b8345ebed5296",
+  "FlowSankey": "b36c0704b5602b09",
+  "FlowCounter": "0a166ea07287e9ad",
+  "RankRace": "579f036d6fc34e4c",
   "LitMedium": "9a0281bb0ebf9765",
-  "LandscapeWell": "539f5374d78ced4e",
-  "MagicMoveType": "a95c81dfec72d6b1",
+  "LandscapeWell": "ce2d3811a6ae5e07",
+  "MagicMoveType": "cfc38765579ca794",
   "AuroraCurtain": "9235dd36f6cfeb5a",
   "LightShafts": "c5f4062b07a62b55",
   "NebulaField": "370d7a44fdbe0ac6"
