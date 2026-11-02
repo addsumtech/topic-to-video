@@ -37,6 +37,7 @@ import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalCh
 import {StyleContext, resolveStyle, useStyle, type StyleSpec} from './runtime/styleSpec';
 import {stepFrame} from './runtime/styleMotion';
 import {grammarFrame, checkTime, type TimeSpec} from './runtime/timeGrammar';
+import {TeaserContext, TEASER_SHOTS, SETTLED_T, frameAtT} from './runtime/teaser';
 import {StyleLayer} from './runtime/style';
 import {STYLE_HOOKS_BY_SHOT} from './runtime/styleHooks';
 import {REGISTRY} from './registry';
@@ -1405,6 +1406,23 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   const rootBg = theme?.bg ?? firstBg ?? bg;
   const veilBg = outro > intro ? (theme?.bg ?? lastBg ?? bg) : rootBg;
 
+  // OTHER BEATS AS PICTURES (runtime/teaser): a cold open's flash of what is coming, a finale's gathering of what was
+  // seen. Each is the beat's own register on its own ground, frozen at its settled frame; no voice, no camera.
+  const teaserOf = (self: number) => ({beats: scenes.length, self: self + 1, render: (beat: number, t = SETTLED_T) => {
+    const sc = scenes[beat - 1];
+    if (!sc || beat - 1 === self || TEASER_SHOTS.has(sc.shot)) return null;
+    const T = REGISTRY[sc.shot];
+    if (!T) return null;
+    const d = Math.max(1, Math.round(sc.durF));
+    return (
+      <SceneDurationContext.Provider value={d}>
+        <Freeze frame={frameAtT(t, d)}>
+          <BeatGround dna={activeDna} scene={sc} durF={d} shot={sc.shot}><T {...(sc.props ?? {})} /></BeatGround>
+        </Freeze>
+      </SceneDurationContext.Provider>
+    );
+  }});
+
   const beatSeq = (sc: SceneSpec, i: number) => {
     const C = REGISTRY[sc.shot];
     const durF = Math.max(1, Math.round(sc.durF));
@@ -1448,7 +1466,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                   <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
                     <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
                       <CarryContext.Provider value={arrived[i] ?? null}>
-                        <BeatClock warp={sc.warp} time={sc.time}>{C ? <C {...(sc.props ?? {})} /> : null}</BeatClock>
+                        <TeaserContext.Provider value={TEASER_SHOTS.has(sc.shot) ? teaserOf(i) : null}>
+                          <BeatClock warp={sc.warp} time={sc.time}>{C ? <C {...(sc.props ?? {})} /> : null}</BeatClock>
+                        </TeaserContext.Provider>
                       </CarryContext.Provider>
                     </ObjectIdleContext.Provider>
                   </CueContext.Provider>
@@ -1467,7 +1487,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                       <BeatOptic decl={optics ? sc.optic : undefined} dna={activeDna} where={`scene ${i} (${sc.shot}) optic`}>
                         <StyleLayer beat={i} skip={STYLE_HOOKS_BY_SHOT[sc.shot]}>
                           <FocusLayer plan={sc.focus} items={sc.focusItems}>
-                            <BeatClock warp={sc.warp} time={sc.time}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                            <TeaserContext.Provider value={TEASER_SHOTS.has(sc.shot) ? teaserOf(i) : null}>
+                              <BeatClock warp={sc.warp} time={sc.time}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                            </TeaserContext.Provider>
                           </FocusLayer>
                         </StyleLayer>
                       </BeatOptic>

@@ -2858,6 +2858,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         _prev = slides[_i - 1] if _i > 0 else None
         errors.extend(f"{tag}: {m}" for m in optic_problems(s, shot, _prev, out_dir))
         errors.extend(f"{tag}: {m}" for m in time_problems(s))
+        errors.extend(f"{tag}: {m}" for m in teaser_problems(s, slides))
         if shot in NUM and (not isinstance(sp, dict) or NUM[shot] not in sp):
             warnings.append(f"{tag}: {shot} shows an ILLUSTRATIVE demo number by default — pass "
                             f"shot_props.{NUM[shot]} a SOURCED figure, or use a non-number register (no-fake-info)")
@@ -3642,6 +3643,36 @@ _OPTICS_TS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 
 
 _TIME_TS = os.path.join(os.path.dirname(_OPTICS_TS), "timeGrammar.ts")
+
+
+_TEASER = {"ColdOpen": (2, 4), "Callback": (3, 6)}
+
+
+def teaser_problems(s, slides):
+    """A beat built of the film's OTHER beats (runtime/teaser: ColdOpen, Callback) must name real ones — not itself,
+    not another beat built of beats — and a cold open shows what is COMING, a callback what was SEEN."""
+    shot = s.get("shot")
+    if shot not in _TEASER:
+        return []
+    lo, hi = _TEASER[shot]
+    beats = (s.get("shot_props") or {}).get("beats")
+    me = next((i + 1 for i, x in enumerate(slides) if x is s), None)     # by identity: two equal slides are two beats
+    if not isinstance(beats, list) or not (lo <= len(beats) <= hi):
+        return ["%s needs shot_props.beats: %d-%d of the film's beat numbers (1-based) to show, got %r" % (shot, lo, hi, beats)]
+    probs = []
+    for b in beats:
+        if not (isinstance(b, int) and 1 <= b <= len(slides)):
+            probs.append("%s: beat %r is not one of the film's 1-%d" % (shot, b, len(slides)))
+        elif b == me:
+            probs.append("%s: beat %d is this beat — it cannot show itself" % (shot, b))
+        elif slides[b - 1].get("shot") in _TEASER:
+            probs.append("%s: beat %d is a %s — a beat built of other beats is not a picture to show"
+                         % (shot, b, slides[b - 1]["shot"]))
+        elif me and shot == "ColdOpen" and b < me:
+            probs.append("ColdOpen: beat %d comes before it — a cold open flashes what is COMING" % b)
+        elif me and shot == "Callback" and b > me:
+            probs.append("Callback: beat %d comes after it — a callback gathers what was SEEN" % b)
+    return probs
 
 
 def time_bounds():

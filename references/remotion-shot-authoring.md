@@ -750,6 +750,8 @@ instead of re-deriving it:
 
 - **Particles taken FROM a mark — `runtime/particles` + `runtime/particlesDom` (and `WordDust`).** `useTextMark` sets a word in the film's display face on a canvas (holding the render until the face has loaded — dust sampled from a fallback font lands in the wrong shape) and samples its pixels; `pair` makes two marks one size and pairs them in reading order; `particleAt` starts exactly on the first mark and lands exactly on the second; `burstAt` throws a mark outward and fades it. What a viewer reads from a dissolve is CONSERVATION, so never a random pairing and never dust from nowhere unless the claim is a cloud gathering. The settled word must be real text (the type audits cannot see type inside a picture); `Dust` draws the particles as SVG circles.
 
+- **The film's own beats as pictures — `runtime/teaser` (`ColdOpen`, `Callback`).** A beat whose register is built of OTHER beats is handed them by Film.tsx: `useTeaser().render(n)` draws beat n's register with its own props on its own ground, frozen at t = 0.95 (landed). `ColdOpen` flashes 2-4 LATER beats then the title (a launch/promo opening); `Callback` gathers 3-6 EARLIER beats round the closing line. `shot_director.bookends` proposes both by POSITION — the one thing a per-beat picker cannot see — on unrouted beats of a 6+-beat film (ColdOpen only for launch/promo); `validate.teaser_problems` refuses a beat that is itself, the wrong side of it, or built of beats.
+
 ## Before you commit a change to this library — walk the case law
 
 `references/engineering-case-law.md` is the E-numbered case law for whoever EDITS the renderer, the runtime

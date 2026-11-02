@@ -77,6 +77,8 @@ FAMILY = {
     "OrbitClockGain": "D",
     "Escalation": "D",
     "ShorteningHold": "C",
+    "Callback": "C",
+    "ColdOpen": "C",
     "MagicMoveType": "C",
     "WordRoll": "C",
     "HeadlineReveal": "C",
@@ -172,6 +174,8 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "Callback":                'motion-graphics',
+    "ColdOpen":                'motion-graphics',
     "WordDust":                'motion-graphics',
     "Rearrange":               'data-viz',
     "LandscapeWell":           'product-ui',
@@ -942,7 +946,67 @@ def assign_shots(data, content_plan=None, template=None):
         lum = shot_luma(shot)
         prev_flip = _hard_flip(lum, last_luma)
         last_luma = lum
+    bookends(data, content_plan)
     return data
+
+
+BOOKEND_MIN_BEATS = 6
+_ENERGY_RANK = {"peak": 4, "high": 3, "medium": 2, "low": 1}
+
+
+def bookends(data, content_plan=None):
+    """THE FILM'S FIRST AND LAST BEAT, by POSITION — what the per-beat picker cannot see. A launch or promo film (meta.
+    purpose) of BOOKEND_MIN_BEATS or more may open COLD: its first beat proposed as `ColdOpen` flashing its three most
+    energetic later beats (the peer library's trailer bumper). Any film that long whose last beat closes may END on a
+    `Callback` gathering four of its beats around the closing line. Both are MATERIAL like every proposal here — only
+    an unrouted beat is touched, `shot_fit.bookend` says why, and the director keeps or replaces it. Returns the notes."""
+    slides = data.get("slides") or []
+    meta = data.get("meta") or {}
+    notes = []
+    if len(slides) < BOOKEND_MIN_BEATS:
+        return notes
+    plan = (content_plan or {}).get("beats") or []
+    energy = [_ENERGY_RANK.get(str((plan[i] if i < len(plan) else {}).get("energy") or s.get("energy") or ""), 2)
+              for i, s in enumerate(slides)]
+    open_ = lambda s: (s.get("shot_fit") or {}).get("verdict") in (None, "", "unjudged") and not _on_stage_run(s)
+    first, last = slides[0], slides[-1]
+    if str(meta.get("purpose") or "").lower() in ("launch", "promo") and open_(first):
+        later = sorted(range(1, len(slides) - 1), key=lambda i: (-energy[i], i))[:3]
+        beats = sorted(i + 1 for i in later)
+        first["shot"], first["shot_props"] = "ColdOpen", dict(first.get("shot_props") or {}, beats=beats)
+        if meta.get("title") and "title" not in first["shot_props"]:
+            first["shot_props"]["title"] = meta["title"]
+        why = ("a %s film opens on itself: beats %s (its most energetic later ones) flash past, then the title — the "
+               "trailer bumper. Replace it if the opening line must be read at once" % (meta.get("purpose"), beats))
+        first.setdefault("shot_fit", {}).update({"material": "ColdOpen", "bookend": why})
+        notes.append("beat 1: " + why)
+    rel = str((plan[-1] if len(plan) >= len(slides) else {}).get("relation") or last.get("relation") or "")
+    if open_(last) and rel in ("close", "payoff", ""):
+        pool = [i for i in sorted(range(len(slides) - 1), key=lambda i: (-energy[i], i))
+                if slides[i].get("shot") not in ("ColdOpen", "Callback")]
+        picked, fams = [], set()
+        for i in pool:                                  # four beats that LOOK different: one per family first...
+            f = FAMILY.get(slides[i].get("shot"))
+            if f not in fams:
+                picked.append(i)
+                fams.add(f)
+            if len(picked) == 4:
+                break
+        for i in pool:                                  # ...then the liveliest of the rest
+            if len(picked) == 4:
+                break
+            if i not in picked:
+                picked.append(i)
+        if len(picked) >= 3:
+            beats = sorted(i + 1 for i in picked)
+            last["shot"], last["shot_props"] = "Callback", dict(last.get("shot_props") or {}, beats=beats)
+            why = ("the film ends gathering what it showed: beats %s come back as cards round the closing line — a "
+                   "recap you see. Replace it if the close is one image or one sentence alone" % beats)
+            last.setdefault("shot_fit", {}).update({"material": "Callback", "bookend": why})
+            notes.append("beat %d: %s" % (len(slides), why))
+    for n in notes:
+        print("[shot_director] bookend — " + n)
+    return notes
 
 
 def reach_report(data, out_dir=None):

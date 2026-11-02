@@ -155,6 +155,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     every: 2|3}` moves on held drawings until the climax and on ones from it (runtime/timeGrammar; every pause is repaid
     within a few frames, so the beat stays on its voice; validate and Film refuse a hold past the bounds). Use it where
     the beat has an impact, a moment to look at, or a climax — not as texture on every beat.
+  - **Bookends.** A launch/promo film of 6+ beats may open COLD (`ColdOpen`: 2-4 of its own later beats flash past,
+    then the title) and any film that long may end on a `Callback` (its earlier beats gather as cards round the
+    closing line); `shot_director.py` proposes both by position, `shot_props.beats` names the beats (1-based).
   - **Places** (styled films, `style.surface.world: place`): each beat may name the `world` its subject is in —
     `orbit`, `sky`, `field`, `room` (`remotion/src/runtime/places.json`) — and is drawn inside it; a beat about an
     idea names none. Named per beat from the subject, never one place for the film.
