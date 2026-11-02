@@ -57,6 +57,8 @@ def _since_slots(name, src):
     only whether an EMPTY SLOT changed the picture. Each is a decision recorded with its commit; an anchor that is
     no longer found fails loudly (a reference silently left without the change would fail every frame instead).
       * DeviceDemo, the push-in capped at the screenshot's own pixels (agenthud-film 40835dd, ported to int4).
+      * DeviceDemo, a tap ripple sized as a 9 mm fingertip on the device's real screen (`fingerPx`, 8686c90): the
+        old 14% of the short side read as a palm-sized circle. The reference has no `model` prop: its generic model.
       * DeviceHero, the laptop turned by its own camera (runtime/laptop3d: no CSS rotate of its flat picture),
         kept in its body by the least correction (identity when it fits); a slab turned by CSS shows its case's edge (`turned`).
       * TechnicalPlate, a frame narrower than PLATE_SIDE_MIN_ASPECT drawn as a numbered plate with a parts key
@@ -83,6 +85,10 @@ def _since_slots(name, src):
                     "    let zoom = Math.min(spec.maxZoom, native, Math.max(1, st.captionPx / (st.textFrac * s.w)));", name)
         src = _swap(src, "      const fr = framing(st);", "      const fr = framing(st, i);", name)
         src = _swap(src, "if (!next || !framing(next))", "if (!next || !framing(next, i + 1))", name)
+        src = _swap(src, "TapRipple, TouchPoint, CursorArrow} from '@runtime/gesture';",
+                    "TapRipple, TouchPoint, CursorArrow, fingerPx} from '@runtime/gesture';", name)
+        src = _swap(src, "const size = touch ? Math.min(s.w, s.h) * 0.14 : s.w * 0.06;",
+                    "const size = touch ? fingerPx(Math.min(s.w, s.h), device, undefined) : s.w * 0.06;", name)
     elif name == "DeviceHero":
         src = "import {laptopCamera, laptopBounds} from '@runtime/laptop3d';\n" + src
         src = _swap(src, "  const fit = lk === 'real' ? persp / (persp + (b.w / 2) * Math.sin((TURN_FROM * Math.PI) / 180)) : 1;",
