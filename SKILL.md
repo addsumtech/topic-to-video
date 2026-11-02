@@ -150,6 +150,11 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     LIST the item the voice names leads while its peers recede (`render_remotion.attach_phrases`; `meta.phrase_camera:
     false` or a beat's `"phrase_camera": false` turns both off). Neither adds a camera to a beat nobody gave one: that
     was measured to make type tremble (pipeline-scripts.md, `phrase_steps.py`).
+  - **Time** is grammar too, per beat and named by the words: `slide.time: {hits: [{cue}], hold: 2}` freezes the
+    drawing on an impact (hit-stop), `freeze: {at: {cue}, hold: s}` holds a moment for a look, `sakuga: {until: {cue},
+    every: 2|3}` moves on held drawings until the climax and on ones from it (runtime/timeGrammar; every pause is repaid
+    within a few frames, so the beat stays on its voice; validate and Film refuse a hold past the bounds). Use it where
+    the beat has an impact, a moment to look at, or a climax — not as texture on every beat.
   - **Places** (styled films, `style.surface.world: place`): each beat may name the `world` its subject is in —
     `orbit`, `sky`, `field`, `room` (`remotion/src/runtime/places.json`) — and is drawn inside it; a beat about an
     idea names none. Named per beat from the subject, never one place for the film.

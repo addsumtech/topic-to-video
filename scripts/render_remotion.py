@@ -317,6 +317,39 @@ def _stage_run_id(slide):
     return _sr.run_id(slide)
 
 
+_TIME_KEYS = {"hits", "hold", "freeze", "sakuga"}
+
+
+def resolve_time(spec, out_dir, audio, narration, dur_s, fps, where):
+    """`slide.time` -> the beat's time grammar in SECONDS (runtime/timeGrammar.ts reads it; Film.tsx checks its bounds).
+
+    A time is a number of seconds inside the beat or `{"cue": "<words the voice says>", "offset"?: s}`, resolved
+    from the beat's own word times like any cued prop — so a hit lands on the word that names the impact. An unknown
+    key is refused: a misspelt `hitz` would otherwise draw a beat with no hit and no complaint."""
+    if not isinstance(spec, dict) or not set(spec) <= _TIME_KEYS:
+        raise RuntimeError("scene %s: `time` takes %s, got %r" % (where, ", ".join(sorted(_TIME_KEYS)), spec))
+
+    def sec(v, what):
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return float(v)
+        if isinstance(v, dict) and "cue" in v:
+            return float(resolve_cue_props({"x": v}, out_dir, audio, narration, dur_s, fps, seconds=True)["x"])
+        raise RuntimeError("scene %s: time %s must be seconds or {\"cue\": ...}, got %r" % (where, what, v))
+
+    out = {}
+    if "hits" in spec:
+        out["hits"] = [sec(h, "hits[%d]" % k) for k, h in enumerate(spec["hits"] or [])]
+    if "hold" in spec:
+        out["hold"] = spec["hold"]
+    if "freeze" in spec:
+        fz = spec["freeze"] or {}
+        out["freeze"] = {"at": sec(fz.get("at"), "freeze.at"), "hold": float(fz.get("hold") or 0)}
+    if "sakuga" in spec:
+        sk = spec["sakuga"] or {}
+        out["sakuga"] = {"until": sec(sk.get("until"), "sakuga.until"), "every": sk.get("every", 2)}
+    return out
+
+
 def resolve_cue_props(props, out_dir, audio, narration, dur_s, fps, seconds=False):
     """A prop written `{"cue": "<words the narration says>"}` becomes the `t` at which the voice says them.
 
@@ -712,6 +745,11 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         tin = _transition_in(s, _travels.get(i), slides[i - 1] if i > 0 else None)
         if tin:
             scene["transitionIn"] = tin
+        # THE BEAT'S TIME GRAMMAR (runtime/timeGrammar): hit-stops, a freeze to look, held drawings into ones — named by
+        # the words, resolved to seconds here; Film.tsx refuses a hold or a time it cannot mean.
+        if s.get("time"):
+            scene["time"] = resolve_time(s["time"], out_dir, audio, s.get("narration") or s.get("script") or "", dur, fps,
+                                         "#%s (%s)" % (idx, shot))
         cam = _camera(s)          # a MOTIVATED per-beat move (push/pull); absent = hold
         if cam:
             scene["camera"] = cam

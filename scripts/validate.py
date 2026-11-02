@@ -2857,6 +2857,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         _i = next(i for i, x in enumerate(slides) if x is s)      # by identity: two equal slides are two beats
         _prev = slides[_i - 1] if _i > 0 else None
         errors.extend(f"{tag}: {m}" for m in optic_problems(s, shot, _prev, out_dir))
+        errors.extend(f"{tag}: {m}" for m in time_problems(s))
         if shot in NUM and (not isinstance(sp, dict) or NUM[shot] not in sp):
             warnings.append(f"{tag}: {shot} shows an ILLUSTRATIVE demo number by default — pass "
                             f"shot_props.{NUM[shot]} a SOURCED figure, or use a non-number register (no-fake-info)")
@@ -3638,6 +3639,68 @@ _GENERIC_FIT = {"it fits", "fits", "fit", "good fit", "perfect fit", "fits well"
 _REMOTION_SHOTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
 _OPTICS_TS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "runtime",
                           "optics.tsx")
+
+
+_TIME_TS = os.path.join(os.path.dirname(_OPTICS_TS), "timeGrammar.ts")
+
+
+def time_bounds():
+    """The time grammar's bounds read from runtime/timeGrammar.ts, so the validator and the runtime agree."""
+    src = open(_TIME_TS, encoding="utf-8").read()
+    out = {}
+    for k in ("MAX_HIT_HOLD", "MAX_HITS", "MAX_FREEZE_S"):
+        m = re.search(r"export const %s = ([\d.]+)" % k, src)
+        if not m:
+            raise RuntimeError("validate: %s not found in runtime/timeGrammar.ts — the time check reads it there" % k)
+        out[k] = float(m.group(1))
+    return out
+
+
+def time_problems(s):
+    """What is wrong with a beat's `time` grammar (hit-stops, a freeze, held drawings): the runtime's own bounds, and
+    every cued time naming words the narration actually says. The in-beat bounds need the beat's length and are
+    Film.tsx checkTime's (a render error)."""
+    t = s.get("time")
+    if t is None:
+        return []
+    if not isinstance(t, dict):
+        return ["`time` must be an object of hits / hold / freeze / sakuga"]
+    probs = []
+    extra = set(t) - {"hits", "hold", "freeze", "sakuga"}
+    if extra:
+        probs.append("`time` has unknown key(s) %s — it takes hits, hold, freeze, sakuga" % ", ".join(sorted(extra)))
+    b = time_bounds()
+    narr = s.get("narration") or s.get("script") or ""
+
+    def chk(v, what):
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return
+        if isinstance(v, dict) and isinstance(v.get("cue"), str) and v["cue"].strip():
+            if v["cue"].strip().lower() not in narr.lower():
+                probs.append("time %s cues %r, which the narration does not say" % (what, v["cue"]))
+            return
+        probs.append("time %s must be seconds or {\"cue\": <words the voice says>}" % what)
+
+    hits = t.get("hits") or []
+    if len(hits) > b["MAX_HITS"]:
+        probs.append("%d hits — at most %d; more is a stutter, not emphasis" % (len(hits), b["MAX_HITS"]))
+    for k, h in enumerate(hits):
+        chk(h, "hits[%d]" % k)
+    hold = t.get("hold", 2)
+    if not (isinstance(hold, int) and 1 <= hold <= b["MAX_HIT_HOLD"]):
+        probs.append("a hit holds %r frames — 1..%d; longer is a freeze, not a hit" % (hold, b["MAX_HIT_HOLD"]))
+    if "freeze" in t:
+        fz = t["freeze"] or {}
+        chk(fz.get("at"), "freeze.at")
+        if not (isinstance(fz.get("hold"), (int, float)) and 0 < fz["hold"] <= b["MAX_FREEZE_S"]):
+            probs.append("a freeze holds %r s — up to %g s; past that the beat looks stuck"
+                         % (fz.get("hold"), b["MAX_FREEZE_S"]))
+    if "sakuga" in t:
+        sk = t["sakuga"] or {}
+        chk(sk.get("until"), "sakuga.until")
+        if sk.get("every", 2) not in (2, 3):
+            probs.append("sakuga steps every %r frames — drawn animation is on 2s or 3s" % sk.get("every"))
+    return probs
 
 
 def optic_vocabulary():

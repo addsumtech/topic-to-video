@@ -735,6 +735,16 @@ instead of re-deriving it:
   poses lie inside it, so ghosts stutter. The numbers are `runtime/motionBlurCore` (tests/test_motion_blur.py); the
   probe is the `MotionProbe` composition.
 
+- **Time is grammar — `slide.time` (runtime/timeGrammar).** Three moves on the beat's clock, named by the words the
+  voice says (`{cue: ...}`, resolved by `render_remotion.resolve_time`): `hits` + `hold` (HIT-STOP — the drawing
+  freezes 1-4 frames on each impact, at most 4 a beat: a stamp landing, a counter ticking over, a card slamming down),
+  `freeze` (a LOOK — it eases to a stop, holds up to 1.5 s while the voice points at something, eases off), `sakuga`
+  (held drawings on 2s or 3s until the climax, ones from it). Every pause is REPAID — the frames after it run the
+  register up to twice as fast until it has caught up — so an item the voice names later still reads on its word.
+  Applied before the sync warp, on the register only (camera, voice and caption stay on the film's clock); reduced
+  motion has none of it. The film-wide stepping of a drawn style (`meta.style.motion.stepping`) is a different thing:
+  a texture for the whole film, where `sakuga` is a change of texture AT a moment.
+
 ## Before you commit a change to this library — walk the case law
 
 `references/engineering-case-law.md` is the E-numbered case law for whoever EDITS the renderer, the runtime

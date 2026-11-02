@@ -36,6 +36,7 @@ import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA} from './runtime/dna';
 import {StyleContext, resolveStyle, useStyle, type StyleSpec} from './runtime/styleSpec';
 import {stepFrame} from './runtime/styleMotion';
+import {grammarFrame, checkTime, type TimeSpec} from './runtime/timeGrammar';
 import {StyleLayer} from './runtime/style';
 import {STYLE_HOOKS_BY_SHOT} from './runtime/styleHooks';
 import {REGISTRY} from './registry';
@@ -109,6 +110,10 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // touched. Derived by scripts/sync_qa.py from the type census of the un-warped film (render_remotion does it
   // before a render); absent = the register's own clock, and the beat renders exactly as it did before.
   warp?: [number, number][];
+  // THE BEAT'S TIME AS GRAMMAR (runtime/timeGrammar): hit-stops on impacts, a freeze to look, held drawings that break
+  // into ones at the climax — seconds inside the beat, resolved from `slide.time` cues by render_remotion. Applied
+  // BEFORE the warp; every pause is repaid within a few frames, so the beat stays on its voice.
+  time?: TimeSpec;
   // PER-ELEMENT CUES: {prop path: film second by which that item should read} — what the warp cannot do, since it
   // cannot reorder (runtime/cue.ts). Set by scripts/sync_qa.py `attach_cues` only for a register that imports
   // runtime/cue; read through CueContext, so a register that ignores it renders exactly as before.
@@ -154,12 +159,17 @@ const checkWarp = (warp: [number, number][], i: number, shot: string) => {
 // A STEPPED STYLE (meta.style.motion.stepping) holds this clock on every 2nd or 3rd frame, AFTER the warp: the drawing
 // moves on twos, the way drawn animation is drawn, while the caption, the voice, the camera and the seams — all outside
 // this clock — stay on ones. Reduced motion never steps. With no warp and no stepping it still adds nothing to the tree.
-const BeatClock: React.FC<{warp?: [number, number][]; children: React.ReactNode}> = ({warp, children}) => {
+// THE BEAT'S TIME GRAMMAR (`time`) is applied first, on the film's clock — a hit lands on the film second its word is
+// said — and the warp after it. Reduced motion has none of it (a hold is motion too: a stall, then a catch-up).
+const BeatClock: React.FC<{warp?: [number, number][]; time?: TimeSpec; children: React.ReactNode}> = ({warp, time,
+  children}) => {
   const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
   const style = useStyle();
   const reduced = React.useContext(ReducedMotionContext);
   const step = reduced || !style ? 1 : Number((style.motion as {stepping?: number}).stepping) || 1;
-  const warped = !warp || warp.length < 2 ? null : warpFrame(frame, warp);
+  const timed = !time || reduced ? frame : grammarFrame(frame, time, fps);
+  const warped = !warp || warp.length < 2 ? (timed === frame ? null : timed) : warpFrame(timed, warp);
   if (warped === null && step === 1) return <>{children}</>;
   return <Freeze frame={stepFrame(warped ?? frame, step)}>{children}</Freeze>;
 };
@@ -1314,7 +1324,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   const activeStyle = React.useMemo(() => (style ? resolveStyle(style, styleTexture) : null), [style, styleTexture]);
   setStyleEase(activeStyle ? (activeStyle.motion as {easing?: string}).easing : null);
   const frame = useCurrentFrame();
-  const {width, height} = useVideoConfig();
+  const {width, height, fps} = useVideoConfig();
   const total = filmDuration(scenes);
   const safeP = safeProfile(safe, width, height);
   const regFrame = safeP ? registerFrame(width, height, safeP) : null;
@@ -1357,6 +1367,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   // quietly outvote the pixels. Checked in both directions (in/out) so a ramp cannot start honest and end wrong.
   scenes.forEach((sc, i) => {
     if (sc.warp) checkWarp(sc.warp, i, sc.shot);
+    if (sc.time) checkTime(sc.time, `scene ${i} (${sc.shot}) time`, sc.durF / fps, fps, TR);
     if (sc.cues) checkCues(sc.cues, i, sc.shot);
     // an optic is checked on every frame (normalizeOptic throws on an unknown kind or an intensity past its cap); a
     // LEAK burns over the seam INTO the beat, so a beat with no seam before it has nowhere to draw one
@@ -1433,7 +1444,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                   <CueContext.Provider value={sc.cues ? {at: sc.cues, warp: sc.warp ?? null} : null}>
                     <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
                       <CarryContext.Provider value={arrived[i] ?? null}>
-                        <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : null}</BeatClock>
+                        <BeatClock warp={sc.warp} time={sc.time}>{C ? <C {...(sc.props ?? {})} /> : null}</BeatClock>
                       </CarryContext.Provider>
                     </ObjectIdleContext.Provider>
                   </CueContext.Provider>
@@ -1452,7 +1463,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                       <BeatOptic decl={optics ? sc.optic : undefined} dna={activeDna} where={`scene ${i} (${sc.shot}) optic`}>
                         <StyleLayer beat={i} skip={STYLE_HOOKS_BY_SHOT[sc.shot]}>
                           <FocusLayer plan={sc.focus} items={sc.focusItems}>
-                            <BeatClock warp={sc.warp}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
+                            <BeatClock warp={sc.warp} time={sc.time}>{C ? <C {...(sc.props ?? {})} /> : <Missing id={sc.shot} />}</BeatClock>
                           </FocusLayer>
                         </StyleLayer>
                       </BeatOptic>
