@@ -235,7 +235,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   GazetteerEntry: 'bg',
   SectionRoute: 'bg',
   Aliasing: 'bg',
-  AnalogTape: '#29170a',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
+  AnalogTape: '#231812',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   AnswerStream: 'bg',
   AntiDesignChaos: 'bg',
   AsciiField: '#140b03',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
@@ -258,7 +258,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   ClayStack: 'bg',
   ClothWave: 'bg',
   CodeCompose: 'bg',
-  CodeRain: '#020603',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
+  CodeRain: '#020804',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   CollaborativeCursors: 'bg',
   ComicPanels: 'bg',
   CommandSummon: 'bg',
@@ -323,7 +323,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   MoleculeBallStick: 'bg',
   MorphForms: 'bg',
   NeonGrid: '#270a3b',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
-  NeonTickerWall: '#111118',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
+  NeonTickerWall: '#101118',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   NeuralField: 'bg',
   OdometerRoll: 'bg',
   OpenQuestions: 'bg',
@@ -331,7 +331,7 @@ export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
   ParticleForm: 'bg',
   PhaseEncodeStep: 'bg',
   PhysicsStack: 'bg',
-  PixelBuild: '#171b34',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
+  PixelBuild: '#15192e',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   PlatformSurfaces: 'bg',
   PositioningMatrix: 'bg',
   QuadSplit: 'bg',

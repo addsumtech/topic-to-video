@@ -63,7 +63,12 @@ Type that MOVES glides with its drawing instead of stepping a whole pixel at a t
 place a moving line to the quarter pixel, held over the whole SPAN the type can move in — never switched with the
 motion itself, which pops the line on the frame the motion starts and again on the frame it lands. A fridge film's
 builders keyed it to `0 < e < 1` from this entry's old example: jitter_qa failed 18 lines with 0.6-1.0 px pops at
-each label's landing; holding it on for the beat left 4 (single-glyph scale words under the beat's camera pull, 0.17 px, still open).
+each label's landing; holding it on for the beat left 4 (single-glyph scale words under the beat's camera pull, 0.17 px).
+Not a missing span: the glide was on. A LONE glyph rides the camera less exactly than a line — it is placed to
+Skia's quarter pixel with no other glyphs to average against (CameraTypeProbe, 「热」 under a pull: 0.06 px y /
+0.10 px x against the camera's own rule; a full line 0.01 / 0.075) — and jitter_qa ERRORs it at 0.16 px. Whether
+a viewer sees it is unjudged, and the gate is kept as it is (user's call, 2026-11-02), so a beat whose moving type
+is one or two characters holds its camera (the fridge film did).
 **Reach for it:** every transform or layout position that moves type — a reveal, a drift, a scroll, a camera — and
 type that stands still inside a shot the film's camera moves. Below a blur or drop-shadow, never above it (those
 filters keep only the scale of the matrix above them).

@@ -304,3 +304,35 @@ def test_staleness_draws_a_missing_fixture_before_it_hashes(monkeypatch):
     re_.stale({"registers": {}})
     pr.stale({"registers": {}})
     assert len(calls) == 2, calls
+
+
+def test_a_symbol_reached_through_another_runtime_module_still_stales_the_register(tmp_path, monkeypatch):
+    """SAFETY, one level down. A register importing `mix` from dna.tsx had dna.tsx narrowed to `mix` — and when it
+    ALSO imported a runtime module that itself imports `separatedPair` from dna.tsx, an edit to `separatedPair`
+    left the register's hash unchanged: a row marked fresh whose pixels moved (VersusSplit via runtime/tonePair).
+    The narrowing must keep every name ANY module in the register's import tree takes from that file."""
+    import register_energy as reg
+    shots, rt = tmp_path / "src" / "shots", tmp_path / "src" / "runtime"
+    shots.mkdir(parents=True)
+    rt.mkdir(parents=True)
+    (rt / "base.tsx").write_text("export const mix = (a: string): string => a;\n\n"
+                                 "export const pair = (a: string): string => a + 'p';\n\n"
+                                 "export const other = (a: string): string => a + 'o';\n", encoding="utf-8")
+    (rt / "wrap.tsx").write_text("import {pair} from './base';\n\nexport const wrapped = (a: string) => pair(a);\n",
+                                 encoding="utf-8")
+    (shots / "Fake.tsx").write_text("import {mix} from '../runtime/base';\nimport {wrapped} from '../runtime/wrap';\n"
+                                    "export const Fake = () => mix(wrapped('x'));\n", encoding="utf-8")
+    monkeypatch.setattr(reg, "_SHOTS", str(shots))
+    reg._IMPORTS_CACHE.clear()
+    h0 = reg.source_hash("Fake")
+
+    def edited(old, new):
+        src = (rt / "base.tsx").read_text(encoding="utf-8")
+        (rt / "base.tsx").write_text(src.replace(old, new, 1), encoding="utf-8")
+        reg._IMPORTS_CACHE.clear()
+        h = reg.source_hash("Fake")
+        (rt / "base.tsx").write_text(src, encoding="utf-8")
+        return h
+
+    assert edited("a + 'p'", "a + 'q'") != h0, "an edit to a symbol a runtime dep imports left the register fresh"
+    assert edited("a + 'o'", "a + 'z'") == h0, "an edit to a symbol nothing in the tree imports staled the register"

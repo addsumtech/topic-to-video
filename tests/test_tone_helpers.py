@@ -86,6 +86,23 @@ def test_a_pair_separates_from_each_other_not_from_the_ground():
         assert gap >= out["step"] * 2, "pair on %s is only %.3f apart (%s vs %s)" % (g, gap, a, b)
 
 
+def test_a_pair_whose_first_accent_is_the_grounds_own_tone_still_splits():
+    """The fallback covered only the SECOND half. A light film with a near-white accent (#fafafa on #f2f2f2 — the
+    luma light probe) or a night film with a near-black one threw on the FIRST, and VersusSplit would not render.
+    Either accent may be the ground's tone; the other carries the division, the pole when both are."""
+    out = probe("""
+      out.rows = [];
+      for (const [g, a, b] of [['#f2f2f2', '#fafafa', '#b4b4b4'], ['#060709', '#0b0c10', '#5b8cff'],
+                               ['#f2f2f2', '#fafafa', '#f6f6f6'], ['#060709', '#5b8cff', '#0b0c10']]) {
+        const [x, y] = D.separatedPair(g, a, b);
+        out.rows.push([g, a, b, x, y, Math.abs(D.pilL(x) - D.pilL(y))]);
+      }
+      out.step = D.TONE_MIN_STEP;
+    """)
+    for g, a, b, x, y, gap in out["rows"]:
+        assert gap >= out["step"] * 2, "pair on %s toward %s/%s is only %.3f apart (%s vs %s)" % (g, a, b, gap, x, y)
+
+
 def test_ink_is_picked_by_measured_contrast_not_by_a_rule_of_thumb():
     out = probe("""
       out.dark = D.readableOn('#0a0c12', '#ffffff', '#05070c');

@@ -237,8 +237,9 @@ def source_hash(name, ignore_follows=False):
     """
     f = os.path.join(_SHOTS, name + ".tsx")
     h = hashlib.sha256()
-    for dep in sorted(_deps(f)):
-        h.update(_dep_bytes(dep, name, ignore_follows))
+    tree = _deps(f)
+    for dep in sorted(tree):
+        h.update(_dep_bytes(dep, name, ignore_follows, tree))
     return h.hexdigest()[:16]
 
 
@@ -306,16 +307,16 @@ _NAMED_IMPORT = re.compile(r"""^\s*import\s*\{([^}]*)\}\s*from\s*['"](\.[^'"]+)[
 _BARE_IMPORT = re.compile(r"""^\s*import\s+(?!\{|type\s*\{)[A-Za-z_$*][^'"]*from\s*['"](\.[^'"]+)['"]""", re.M)
 
 
-def _imported_names(register_src, dep_path, register_dir):
-    """The names `register_src` imports from `dep_path`, or None when it cannot be narrowed safely."""
-    want = None
-    for spec in _BARE_IMPORT.findall(register_src):          # default or namespace import → cannot narrow
-        if _resolve_rel(spec, register_dir) == dep_path:
+def _names_taken(src, dep_path, src_dir):
+    """The names `src` imports from `dep_path`: an empty set when it imports nothing from it, None when it cannot
+    be narrowed (a default or namespace import)."""
+    want = set()
+    for spec in _BARE_IMPORT.findall(src):                   # default or namespace import → cannot narrow
+        if _resolve_rel(spec, src_dir) == dep_path:
             return None
-    for names, spec in _NAMED_IMPORT.findall(register_src):
-        if _resolve_rel(spec, register_dir) != dep_path:
+    for names, spec in _NAMED_IMPORT.findall(src):
+        if _resolve_rel(spec, src_dir) != dep_path:
             continue
-        want = set() if want is None else want
         for n in names.split(","):
             n = n.strip()
             if not n:
@@ -325,6 +326,28 @@ def _imported_names(register_src, dep_path, register_dir):
             if n:
                 want.add(n)
     return want
+
+
+def _tree_imports(tree, dep_path):
+    """Every name ANY file of a register's import tree takes from `dep_path`, or None when it cannot be narrowed.
+
+    The register's own imports were not enough. VersusSplit took `mix` from dna.tsx directly and `splitPair` from
+    runtime/tonePair, which takes `separatedPair` from dna.tsx — narrowed to the register's own names, dna.tsx lost
+    `separatedPair`, and an edit to it left VersusSplit's row fresh. A name no file in the tree takes is still
+    left out, which is what keeps a shared module's unrelated edits from staling the library. When no file names
+    any symbol of it the whole file is kept: the hash is never narrower than what the tree reads."""
+    want = set()
+    for f in sorted(tree):
+        if f == dep_path:
+            continue
+        try:
+            got = _names_taken(open(f, encoding="utf-8").read(), dep_path, os.path.dirname(f))
+        except (OSError, UnicodeDecodeError):
+            return None
+        if got is None:
+            return None
+        want |= got
+    return want or None
 
 
 def _resolve_rel(spec, base):
@@ -436,7 +459,7 @@ def _narrowed(src, want, path=None):
     return out
 
 
-def _dep_bytes(dep, name, ignore_follows=False):
+def _dep_bytes(dep, name, ignore_follows=False, tree=None):
     if os.path.basename(dep) != "shotLuma.ts":
         raw = open(dep, "rb").read()
         # narrow a DIRECTLY imported module to the symbols this register reaches (see above). Any doubt —
@@ -444,11 +467,12 @@ def _dep_bytes(dep, name, ignore_follows=False):
         # whole file, so the hash is never narrower than what the register actually reads.
         own = os.path.join(_SHOTS, name + ".tsx")
         try:
-            ikey = (_stamp(own), os.path.realpath(dep))
+            tree = sorted(tree if tree is not None else _deps(own))
+            ikey = (os.path.realpath(dep), tuple((f, _stamp(f)) for f in tree))
             if ikey in _IMPORTS_CACHE:
                 want = _IMPORTS_CACHE[ikey]
             else:
-                want = _imported_names(open(own, encoding="utf-8").read(), os.path.realpath(dep), _SHOTS)
+                want = _tree_imports(tree, os.path.realpath(dep))
                 _IMPORTS_CACHE[ikey] = want
             if want:
                 cut = _narrowed(raw.decode("utf-8"), want, os.path.realpath(dep))

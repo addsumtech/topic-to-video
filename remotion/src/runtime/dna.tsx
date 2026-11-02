@@ -715,8 +715,26 @@ export const surfaceOn = (ground: string, hint: string,
  */
 export const separatedPair = (ground: string, towardA: string, towardB: string,
                               minStep: number = TONE_MIN_STEP): [string, string] => {
-  const a = separated(ground, towardA, minStep * 0.8);
   const need = minStep * 2.2;
+  let a: string;
+  try {
+    a = separated(ground, towardA, minStep * 0.8);
+  } catch {
+    // ...AND THE FIRST ACCENT MAY BE THE GROUND'S OWN TONE. The fallback below covered only the second half, so a
+    // light film with a near-white accent (#fafafa on #f2f2f2 — the luma light probe) or a night film with a
+    // near-black one threw here and VersusSplit would not render. That half is the ground's own plane (exposure
+    // moves, hue does not, as the light path below already does) and the other accent carries the division; the
+    // pole with headroom does when both are the ground's tone.
+    const near = plane(ground, minStep * 0.8);
+    for (const toward of [towardB, readableOn(near, '#ffffff', '#05070c')]) {
+      try {
+        return [near, separated(near, toward, need)];
+      } catch {
+        // this one is the ground's tone too; next
+      }
+    }
+    throw new Error(`separatedPair(): nothing separates from ${near}, not even the pole.`);
+  }
   try {
     return [a, separated(a, towardB, need)];
   } catch {
