@@ -506,7 +506,7 @@ def _emit(table=None, partial=False):
 
 
 _USAGE = ("usage: measure_ground_luma.py [--only=A,B | --only A,B] [--luma] [--emit] [--check] "
-          "[--stale] [--apply-json]")
+          "[--stale] [--apply-json] [--record]")
 
 
 def _only_or_stop(argv):
@@ -525,6 +525,31 @@ def _only_or_stop(argv):
             raise SystemExit("[shot_luma] --only names %d register(s) that do not exist: %s"
                              % (len(missing), ", ".join(missing)))
     return only
+
+
+
+def _record(argv):
+    """`--only A,B --record`: record_spot on the command line, so a stale row's re-measure is a command like the
+    other three manifests' (scripts/stale_measurements.py prints it). A row whose token CHANGED exits 1 and says
+    so: shotLuma.ts declares the grounds the seam guard reads, and `--check` is what asks whether they still agree."""
+    only = _only_or_stop(argv)
+    if not only:
+        raise SystemExit("[ground_luma] --record needs --only A,B — recording the whole library is the full sweep "
+                         "(`python3 scripts/measure_ground_luma.py`)")
+    jp = os.path.join(_REMOTION, "_ground_luma.json")
+    was = (json.load(open(jp, encoding="utf-8")).get("table") or {}) if os.path.exists(jp) else {}
+    now = record_spot(only)
+    # a pair is a tuple from classify and a list in the JSON: compare and print them as one shape
+    tok = lambda t: "+".join(t) if isinstance(t, (list, tuple)) else str(t)
+    changed = [(n, tok(was.get(n)), tok(t)) for n, t in now.items() if n in was and tok(was.get(n)) != tok(t)]
+    for n, a, b in changed:
+        print("[ground_luma] %s: %s -> %s" % (n, a, b))
+    if changed:
+        print("[ground_luma] %d recorded token(s) CHANGED — confirm shotLuma.ts with "
+              "`python3 scripts/measure_ground_luma.py --only=%s --check`" % (len(changed), ",".join(n for n, _, _ in changed)))
+        return 1
+    print("[ground_luma] recorded %d row(s); none changed its token" % len(now))
+    return 0
 
 
 def _main_shot_luma(argv):
@@ -674,7 +699,10 @@ def record_spot(names):
 
 
 def main(argv):
-    _c.refuse_unknown(argv, valued=("only",), switches=("luma", "emit", "check", "stale", "apply-json"), usage=_USAGE)
+    _c.refuse_unknown(argv, valued=("only",), switches=("luma", "emit", "check", "stale", "apply-json", "record"),
+                      usage=_USAGE)
+    if "--record" in argv:
+        return _record(argv)
     if "--stale" in argv:
         jp = os.path.join(_REMOTION, "_ground_luma.json")
         if not os.path.exists(jp):

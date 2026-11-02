@@ -379,6 +379,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   one). A new register carries an ARGUMENT SHAPE with the topic arriving through props.
 - `scripts/onscreen_text_qa.py` reports hardcoded text, unfed numbers, dead props and literal-duplicated defaults. It
   always exits 0, and tests hold the counts at zero.
+- `scripts/stale_measurements.py`: run it after ANY edit under `remotion/src` (a register OR a runtime file it
+  imports), BEFORE committing. No renders, ~7 s. It names every register whose measured rows (energy, prop reach,
+  ground reach, ground luma) no longer describe its source and prints the re-measure command for each manifest.
+  One runtime edit staled five registers in all four manifests, and the suite only caught it after a push.
 - `scripts/measure_ground_luma.py --check` is the GROUND-TOKEN gate (~15 min, 160 renders). Run it after changing any
   register's ground. Also run `--luma --check` for `SHOT_LUMA`, which must be MEASURED, never guessed. `gen_dna_ground.py` is RETIRED and exits 2.
 - `scripts/dna_audit.py [--depth|--type] [--check]` reports DNA reach. `scripts/dna_smoke.py`: run it after any bulk shot

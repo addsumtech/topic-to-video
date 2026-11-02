@@ -643,6 +643,14 @@ finding it prints that you do not understand.
   Looking at those frames also found what the gate cannot: `GaugeCluster` is 580px wide from its centre
   against a 540px half-frame at 1:1, so both side gauges hung off the edge — what is cut there is an ARC,
   and this instrument measures type.
+- `scripts/stale_measurements.py` — **run after ANY edit under `remotion/src`, before committing** (no renders,
+  ~7 s). Every measured manifest (`register_energy.json`, `prop_reach.json`, `_ground_reach.json`,
+  `_ground_luma.json`) keys a row by the hash of its register's source AND everything it imports, so one runtime
+  edit stales every register importing it: `runtime/gesture.tsx` gaining `fingerPx` staled five registers in all
+  four, and three times the full suite found such rows only after a push. It calls each manifest's own `stale()`,
+  names every stale register under its manifest, prints the re-measure command per manifest (the luma cache's is
+  `measure_ground_luma.py --only=A,B --record`, `record_spot` on the command line; a recorded token that CHANGED
+  exits 1 and points at `--check`), and treats a missing manifest as an error. Exit 1 on any stale row.
 - `scripts/measure_ground_luma.py --check` — the **GROUND-TOKEN gate** (library maintenance, ~15 min: 160
   renders). Which DNA token each register paints its ground from is what the caption ink and the seam guard
   both read, and it is MEASURED, not declared: every register is rendered under a probe DNA whose tokens sit

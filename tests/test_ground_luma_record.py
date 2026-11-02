@@ -144,3 +144,33 @@ def test_a_failed_light_probe_refuses_the_spot_check(spot, monkeypatch):
         gl.record_spot([KNOWN])
     assert "light probe" in str(exc.value)
     assert path.read_text(encoding="utf-8") == raw_before
+
+
+def test_the_record_flag_writes_through_record_spot_and_names_a_changed_token(spot, monkeypatch, capsys):
+    """`--only A,B --record` is record_spot on the command line — the luma cache's only spot-check write had no
+    CLI, so the re-measure command printed for a stale row was a python one-liner. A row whose token CHANGED is
+    named and exits 1: shotLuma.ts declares grounds the seam guard reads, and they may no longer agree."""
+    path, _ = spot
+    lums = gl.token_lums()
+    monkeypatch.setattr(gl, "measure", _stub({KNOWN: (lums["bg"], None)}))
+    assert gl.main(["--only=" + KNOWN, "--record"]) == 1
+    out = capsys.readouterr().out
+    assert "%s: dark -> bg" % KNOWN in out and "--check" in out
+    assert json.loads(path.read_text(encoding="utf-8"))["table"][KNOWN] == "bg"
+    # the same measurement again: nothing changed, so it confirms and exits 0
+    assert gl.main(["--only=" + KNOWN, "--record"]) == 0
+
+
+def test_the_record_flag_refuses_without_only(spot):
+    """A record of the WHOLE library is the full sweep, which has its own path; an unnamed --record is a mistake."""
+    with pytest.raises(SystemExit, match="--record needs --only"):
+        gl.main(["--record"])
+
+
+def test_an_unchanged_two_token_ground_is_not_reported_changed(spot, monkeypatch, capsys):
+    """classify returns a pair as a tuple; the committed JSON holds it as a list (HalftonePop: accent2+bg)."""
+    path, data = spot
+    data["table"][KNOWN] = ["accent2", "bg"]
+    path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    monkeypatch.setattr(gl, "record_spot", lambda names: {KNOWN: ("accent2", "bg")})
+    assert gl.main(["--only=" + KNOWN, "--record"]) == 0, capsys.readouterr().out
