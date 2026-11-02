@@ -1,4 +1,4 @@
-# Remotion2 — Bespoke Shot Library (223 design languages)
+# Remotion2 — Bespoke Shot Library (224 design languages)
 
 Each shot is a **hand-written, deterministic component** (`{default Component, DURATION}`) authored in
 1920×1080, driven by `useT()` (0→1) + the shared `runtime/motion.ts` kit. No generic template funnel —
@@ -17,7 +17,7 @@ yet in this library — they exist for new shots and opportunistic use. See
 deliberately left un-migrated.
 
 <!-- FAMILY-CENSUS (generated: scripts/register_shot.py rewrites it; a test fails if it drifts) -->
-**Family census — 223 registers across 29 families.** D×36 · A×26 · C×22 · B×14 · H×12 · F×11 · G×11 · L×10 · E×9 · I×9 · S×8 · K×6 · P×6 · J×5 · JA×5 · M×5 · U×5 · N×4 · X×4 · GE×2 · MA×2 · R×2 · V×2 · Z×2 · O×1 · Q×1 · T×1 · W×1 · Y×1
+**Family census — 224 registers across 29 families.** D×36 · A×26 · C×22 · B×14 · H×12 · F×11 · G×11 · L×10 · E×9 · I×9 · S×8 · J×6 · K×6 · P×6 · JA×5 · M×5 · U×5 · N×4 · X×4 · GE×2 · MA×2 · R×2 · V×2 · Z×2 · O×1 · Q×1 · T×1 · W×1 · Y×1
 
 **10 families hold two registers or fewer: GE, MA, O, Q, R, T, V, W, Y, Z.** That is a BUILD signal, not a menu. When a beat's
 argument wants one of those languages and the one register there does not carry it, the answer is
@@ -518,6 +518,7 @@ directions (all of which rely on the variables, per the table above): four (`edi
 other than `terminal` is fully uniform across all three roles.
 
 ## J · (new family — name it)
+242. **PhotoToDiagram** — a REAL photograph turns into its own line drawing (its edges, computed by scripts/photo_lines.py) and is labelled: greys, its outlines draw on in the accent, it fades to a ghost, marks pin labels. *Use: a concrete subject with a licence-clean photograph whose parts the narration explains.* `src` (evidence), `marks[{x,y,label}]` (0-5), `title`, `credit` · `lines`/`imageAspect`/`imageW` filled by render_remotion; never drawn past 1.15x the photo's pixels
 170. **ProfileGrowth** — the same cross-section redrawn at successive states, each larger than the last with the earlier ones ghosted behind — when a thing became something else by bein *Use: the same cross-section redrawn at successive states, each larger than the last with the earlier ones ghosted behind — when a thing became something else by bein* `kicker, states[{label,w,h,note}], ground, note` · 1-5 states, each with `w` and `h` in (0,1] — no invented sizes.
 169. **TechnicalPlate** — an ordinary object IS the mechanism — drawn as a numbered technical elevation with callout leaders and a parts key, the way a patent plate or a parts catalogue  *Use: an ordinary object IS the mechanism — drawn as a numbered technical elevation with callout leaders and a parts key, the way a patent plate or a parts catalogue * `kicker, object, plateNo, strokes[], art, parts[{n,label,x,y,side}], note` · `strokes` and `parts` together, or `art` and `parts` together, or neither (neither = the demo bicycle); 0-6 parts, each with x and y. `art` = a drawing the film made, in place of strokes.
 168. **Inscription** — a moment somebody thought worth cutting into stone — incised dated capitals on a dressed face, with chisel shadow; when the beat is a date that was COMMEMORATED *Use: a moment somebody thought worth cutting into stone — incised dated capitals on a dressed face, with chisel shadow; when the beat is a date that was COMMEMORATED* Past that it throws: `lines` 0–4; lines or a date is required.

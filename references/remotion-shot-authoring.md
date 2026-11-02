@@ -754,6 +754,8 @@ instead of re-deriving it:
 
 - **One structure across the film — `LivingMap` (runtime/graphLayout).** When the film's argument is one structure, name it ONCE in `meta.maps[id] = {nodes, edges}` and let its beats build it: `shot_props: {map, add, focus}`. The layout covers every node the film will show, so adding one never moves the rest; `render_remotion.expand_living_maps` hands each beat what is on screen at both its ends, so a map beat starts on the frame the last one ended and the cut is invisible (seam_plan plans no seam there; validate checks every map once). Other registers may come between map beats; the map resumes with what it had. This is the skill's own move: a film of separate registers redraws its structure every beat and the viewer loses where each idea lives.
 
+- **From the real thing to how it works — `PhotoToDiagram` (scripts/photo_lines.py).** A licence-clean photograph whose parts the narration explains turns into its own line drawing: the outlines are the photograph's EDGES (Canny in numpy, short runs dropped), traced once and cached by content when the render reaches the beat, and the film's marks label the drawing. Use it where PhotoPlate would point at a photograph and a diagram would redraw the same thing from nothing — this keeps the evidence and explains it in one picture.
+
 ## Before you commit a change to this library — walk the case law
 
 `references/engineering-case-law.md` is the E-numbered case law for whoever EDITS the renderer, the runtime

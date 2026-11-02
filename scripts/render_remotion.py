@@ -319,6 +319,26 @@ def _stage_run_id(slide):
     return _sr.run_id(slide)
 
 
+def photo_diagram_props(props, out_dir):
+    """A PhotoToDiagram beat's photograph -> its traced outlines (scripts/photo_lines.py, cached by content) and its own
+    proportions and pixel width, so the register can draw its lines and never draw the plate past the photograph's
+    pixels. A photograph with no outlines to trace stops the render with photo_lines' own reason."""
+    import photo_lines as _pl
+    src = os.path.join(out_dir, props["src"])
+    if not os.path.exists(src):
+        raise RuntimeError("PhotoToDiagram: %s does not exist — fetch the photograph first (scripts/imagefetch.py)" % props["src"])
+    out = dict(props)
+    if not out.get("lines"):
+        rel = os.path.splitext(props["src"])[0] + ".lines.png"
+        _pl.ensure(src, os.path.join(out_dir, rel))
+        out["lines"] = rel.replace(os.sep, "/")
+    from PIL import Image as _Im
+    with _Im.open(src) as _im:
+        out.setdefault("imageAspect", round(_im.width / _im.height, 4))
+        out.setdefault("imageW", _im.width)
+    return out
+
+
 def _map_of(slide):
     sp = slide.get("shot_props") or {}
     return sp.get("map") if slide.get("shot") == "LivingMap" else None
@@ -763,6 +783,8 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh", 
                         props = dict(props, imageAspect=round(_im.width / _im.height, 4))
             except Exception:
                 pass                          # a missing or unreadable file is the renderer's problem, not ours
+        if shot == "PhotoToDiagram" and isinstance(props.get("src"), str):
+            props = photo_diagram_props(props, out_dir)
         # THE EAR'S TEXT AND THE EYE'S TEXT ARE NOT THE SAME TEXT. `narration` is written to be SPOKEN, so a
         # film spells an initialism out — "没有用 T T S", "S S H", "A G P L 三点零" — to stop edge-tts reading
         # it as a word. That is correct for the voice and wrong on the frame, and it shipped: an independent

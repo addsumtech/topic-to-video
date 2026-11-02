@@ -34,6 +34,7 @@ FAMILY = {
     "GazetteerEntry": "JA",
     "StatedBy": "JA",
     "ProfileGrowth": "J",
+    "PhotoToDiagram": "J",
     "PhotoPlate": "H",
     "Rearrange": "H",
     "ExtractionFlow": "H",
@@ -175,6 +176,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "PhotoToDiagram":          'photographic',
     "LivingMap":               'data-viz',
     "Callback":                'motion-graphics',
     "ColdOpen":                'motion-graphics',

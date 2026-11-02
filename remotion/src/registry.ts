@@ -229,6 +229,7 @@ import {WordDust} from './shots/WordDust';
 import {ColdOpen} from './shots/ColdOpen';
 import {Callback} from './shots/Callback';
 import {LivingMap} from './shots/LivingMap';
+import {PhotoToDiagram} from './shots/PhotoToDiagram';
 
 export const REGISTRY: Record<string, React.FC<any>> = {
   KSpaceToImage, MagnetizationTip, InducedFID, GFactorNoise, UndersampledKspace, ScanReconstruct, RealVersus, SpinningProton, PhaseEncodeStep, MRIPipeline, FrequencyEncode, CompressedSensingEq, KSpaceReal, SpeedLimit, LarmorPrecession, Aliasing, DiffusionDenoise, SpinsAlign, GradientTilt, KSpaceAnatomy, TensionScale, PlatformSurfaces, OpenQuestions,
@@ -335,6 +336,7 @@ export const REGISTRY: Record<string, React.FC<any>> = {
   ColdOpen,
   Callback,
   LivingMap,
+  PhotoToDiagram,
 };
 
 // A FILM'S OWN SHOTS AND OBJECTS — its workshop (scripts/workshop.py) — join the library here, for a render scoped
