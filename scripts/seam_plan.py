@@ -369,6 +369,8 @@ def plan(slides, dna=None, out_dir=None):
         exempt = set()
     cands = []
     for i in range(1, len(slides)):
+        if _joined(slides, i):
+            continue
         rel = (slides[i].get("relation") or "").strip().lower()
         seam = SEAM_BY_RELATION.get(rel)
         if not seam and rel != "continuation":
@@ -628,8 +630,8 @@ def _cut_eligible(slides, i, marks, handoffs):
     """Why seam i cannot be a planned cut, or None when it can."""
     import stage_runs as _sr
     a, b = slides[i - 1], slides[i]
-    if _sr.joined(a, b):
-        return "inside a stage run (no seam)"
+    if _joined(slides, i):
+        return "inside a stage run or one living map (no seam)"
     if i in marks:
         return "marked"
     if b.get("transition_in") or b.get("transition_style"):
@@ -667,8 +669,11 @@ def plan_cuts(slides, meta=None, marks=None, handoffs=None):
 
 
 def _joined(slides, i):
+    """No seam to plan: a stage run's beats are one scene, and two beats of one LivingMap are one picture whose cut is
+    between identical frames (render_remotion cuts it)."""
     import stage_runs as _sr
-    return _sr.joined(slides[i - 1], slides[i])
+    import render_remotion as _rr
+    return _sr.joined(slides[i - 1], slides[i]) or _rr.living_map_continues(slides, i)
 
 
 def _hard(slide, mark=None):

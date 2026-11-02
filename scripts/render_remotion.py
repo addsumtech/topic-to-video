@@ -319,6 +319,55 @@ def _stage_run_id(slide):
     return _sr.run_id(slide)
 
 
+def _map_of(slide):
+    sp = slide.get("shot_props") or {}
+    return sp.get("map") if slide.get("shot") == "LivingMap" else None
+
+
+def living_map_continues(slides, i):
+    """Beat i carries on the map of beat i-1 — the same picture across the cut, so the cut is between two identical
+    frames (render_remotion makes it a hard cut)."""
+    return i > 0 and _map_of(slides[i]) is not None and _map_of(slides[i]) == _map_of(slides[i - 1])
+
+
+def expand_living_maps(slides, meta):
+    """ONE structure for the whole film (LivingMap): `meta.maps[id] = {nodes, edges}` is named once; each beat names
+    `{map, add, focus}`. This hands each beat the whole map plus what is on screen when it starts (`before`, the
+    camera's `focusFrom`) and when it ends (`after`, `focusTo`) — beat i's start is beat i-1's end, so the picture
+    carries on across the cut. A beat with no `focus` frames everything shown so far. An id the map does not hold,
+    or a map the film does not name, is refused. Returns one props dict per slide (None for other beats)."""
+    maps = (meta or {}).get("maps") or {}
+    shown, last_focus, out = {}, {}, []
+    for i, s in enumerate(slides):
+        mid = _map_of(s)
+        if mid is None:
+            out.append(None)
+            continue
+        m = maps.get(mid)
+        if not isinstance(m, dict) or not m.get("nodes"):
+            raise RuntimeError("scene #%d: LivingMap names map %r, which meta.maps does not define (nodes + edges)" % (i + 1, mid))
+        ids = [str(n.get("id")) for n in m["nodes"]]
+        sp = dict(s.get("shot_props") or {})
+        for k in ("add", "focus"):
+            bad = [x for x in (sp.get(k) or []) if str(x) not in ids]
+            if bad:
+                raise RuntimeError("scene #%d: LivingMap `%s` names %s, not in map %r (%s)" % (i + 1, k, bad, mid, ", ".join(ids)))
+        before = list(shown.get(mid, []))
+        after = before + [str(x) for x in (sp.get("add") or []) if str(x) not in before]
+        if not after:
+            raise RuntimeError("scene #%d: LivingMap shows nothing — `add` the first nodes of map %r" % (i + 1, mid))
+        to = [str(x) for x in sp.get("focus")] if sp.get("focus") else after
+        # the camera starts where the last beat left it — unless another beat came between, when nothing on screen is
+        # there to move from (what an earlier stretch built is still drawn, from the first frame)
+        frm = last_focus.get(mid) if living_map_continues(slides, i) else to
+        props = {k: v for k, v in sp.items() if k not in ("map", "add", "focus")}
+        props.update({"nodes": m["nodes"], "edges": m.get("edges") or [], "before": before, "after": after,
+                      "focusFrom": frm, "focusTo": to})
+        out.append(props)
+        shown[mid], last_focus[mid] = after, to
+    return out
+
+
 _TIME_KEYS = {"hits", "hold", "freeze", "sakuga"}
 
 
@@ -667,7 +716,7 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
               % (len(scenes), " — %d unchanged kept from their segments" % kept if kept else ""))
 
 
-def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
+def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh", meta=None):
     """The storyboard -> Film SceneSpec[] translation, on its own so it can be TESTED without a render.
 
     It was inline in _render_remotion, which meant the only way to check that a storyboard field reaches
@@ -684,6 +733,8 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         _travels = _fb.travels(slides)
     except Exception:                          # noqa: BLE001 — a board with no returns must still render
         _travels = {}
+    # ONE STRUCTURE ACROSS BEATS (LivingMap): each beat's map props are the whole map and what is on screen at its two ends
+    _maps = expand_living_maps(slides, meta)
     for i, s in enumerate(slides):
         idx, shot = s.get("index"), s.get("shot")
         if not shot:
@@ -698,6 +749,8 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         props = s.get("shot_props") or {}
         if not isinstance(props, dict):
             raise RuntimeError("scene #%s `shot_props` must be an object." % idx)
+        if _maps[i] is not None:
+            props = _maps[i]
         # A PhotoPlate frames the WHOLE photograph, so it needs the picture's proportions. Read from the
         # file here rather than asked of the author: measured, a portrait photograph in the register's
         # default landscape plate lost 67% of its height, and since `marks` are plate fractions the crop
@@ -747,6 +800,10 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh"):
         tin = _transition_in(s, _travels.get(i), slides[i - 1] if i > 0 else None)
         if tin:
             scene["transitionIn"] = tin
+        elif living_map_continues(slides, i):
+            # the map carries on: this beat's first frame IS the last one's, so the cut between them is invisible —
+            # a dissolve would cross-fade a picture with itself while the camera starts to move
+            scene["transitionIn"] = {"type": "cut"}
         # THE BEAT'S TIME GRAMMAR (runtime/timeGrammar): hit-stops, a freeze to look, held drawings into ones — named by
         # the words, resolved to seconds here; Film.tsx refuses a hold or a time it cannot mean.
         if s.get("time"):
@@ -846,7 +903,8 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     _aspect = "9:16" if vertical else str((data.get("meta") or {}).get("aspect") or "16:9")
     _frame = aspect_table().get(_aspect, (1920, 1080))
     import device_script as _dsl
-    scenes = build_scenes(slides, out_dir, valid, fps, frame=_frame, lang=_dsl.film_language(data.get("meta"), slides))
+    scenes = build_scenes(slides, out_dir, valid, fps, frame=_frame, lang=_dsl.film_language(data.get("meta"), slides),
+                          meta=data.get("meta"))
     meta = data.get("meta") or {}
     reduced = bool(reduced_motion or meta.get("reduced_motion"))
     # ASPECT: --vertical or meta.aspect:"9:16" renders the Film Composition at 1080x1920 (Root.tsx calculateMetadata

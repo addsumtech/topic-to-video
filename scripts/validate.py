@@ -2859,6 +2859,13 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         errors.extend(f"{tag}: {m}" for m in optic_problems(s, shot, _prev, out_dir))
         errors.extend(f"{tag}: {m}" for m in time_problems(s))
         errors.extend(f"{tag}: {m}" for m in teaser_problems(s, slides))
+        if shot == "LivingMap" and not any(x.get("shot") == "LivingMap" for x in slides[:_i]):
+            # the whole board's maps, checked once (render_remotion.expand_living_maps is the one definition)
+            import render_remotion as _rr
+            try:
+                _rr.expand_living_maps(slides, meta)
+            except RuntimeError as e:
+                errors.append(str(e))
         if shot in NUM and (not isinstance(sp, dict) or NUM[shot] not in sp):
             warnings.append(f"{tag}: {shot} shows an ILLUSTRATIVE demo number by default — pass "
                             f"shot_props.{NUM[shot]} a SOURCED figure, or use a non-number register (no-fake-info)")

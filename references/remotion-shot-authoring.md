@@ -752,6 +752,8 @@ instead of re-deriving it:
 
 - **The film's own beats as pictures — `runtime/teaser` (`ColdOpen`, `Callback`).** A beat whose register is built of OTHER beats is handed them by Film.tsx: `useTeaser().render(n)` draws beat n's register with its own props on its own ground, frozen at t = 0.95 (landed). `ColdOpen` flashes 2-4 LATER beats then the title (a launch/promo opening); `Callback` gathers 3-6 EARLIER beats round the closing line. `shot_director.bookends` proposes both by POSITION — the one thing a per-beat picker cannot see — on unrouted beats of a 6+-beat film (ColdOpen only for launch/promo); `validate.teaser_problems` refuses a beat that is itself, the wrong side of it, or built of beats.
 
+- **One structure across the film — `LivingMap` (runtime/graphLayout).** When the film's argument is one structure, name it ONCE in `meta.maps[id] = {nodes, edges}` and let its beats build it: `shot_props: {map, add, focus}`. The layout covers every node the film will show, so adding one never moves the rest; `render_remotion.expand_living_maps` hands each beat what is on screen at both its ends, so a map beat starts on the frame the last one ended and the cut is invisible (seam_plan plans no seam there; validate checks every map once). Other registers may come between map beats; the map resumes with what it had. This is the skill's own move: a film of separate registers redraws its structure every beat and the viewer loses where each idea lives.
+
 ## Before you commit a change to this library — walk the case law
 
 `references/engineering-case-law.md` is the E-numbered case law for whoever EDITS the renderer, the runtime

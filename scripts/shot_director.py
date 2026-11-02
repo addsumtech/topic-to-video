@@ -70,6 +70,7 @@ FAMILY = {
     "PointerTour": "B",
     "CrashZoom": "B", "TerrainFly": "B",
     "OverlapSeparation": "D", "SharedBlindspot": "H",
+    "LivingMap": "D",
     "RankRace": "D",
     "FlowCounter": "D",
     "FlowSankey": "D",
@@ -174,6 +175,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "LivingMap":               'data-viz',
     "Callback":                'motion-graphics',
     "ColdOpen":                'motion-graphics',
     "WordDust":                'motion-graphics',
