@@ -1107,16 +1107,7 @@ def scan_film_glide(out_dir, concurrency=None):
     t0 = time.time()
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     props, slides = rr.film_props(out_dir, board)
-    props = dict(props, typeGlide=True)
-    segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
-    env = _ws.prepare(out_dir)
-    work = tempfile.mkdtemp(prefix="glide_film_")
-    try:
-        public = _rs.minimal_public(props, out_dir, os.path.join(work, "public"))
-        bundle = glide_bundle(os.path.join(work, "bundle"), public, env)
-        res = glide_run([{"tag": "film", "id": "Film", "props": props}], bundle, concurrency)["film"]
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+    res, segs, total = film_census(out_dir, props, concurrency)     # the census --sync and jitter_qa read too
     why = _glide_measured(res, total)
     labels = [s.get("index", i + 1) for i, s in enumerate(slides)]
     shots = [s.get("shot") or "?" for s in slides]
@@ -1173,13 +1164,63 @@ def scan_film_glide(out_dir, concurrency=None):
 # the html tier's keyframe_qa shares). ERROR past sync_qa.LAG_ERROR late, WARN past LAG_WARN; more than
 # EARLY_WARN early is a spoiler WARN. The film is measured AS IT RENDERS — with the time warp render_remotion
 # derives (Film.tsx `BeatClock`) — so a re-render's numbers are the after, and `raw=True` gives the before.
+# ONE CENSUS PER RENDER STATE. --glide, --sync and jitter_qa each bundled the project and walked every frame's DOM with
+# the same props: three identical censuses per delivery round. The census is kept in the film folder under a key over
+# everything it reads (the Film props, the renderer's source, the film's own workshop, the census code) and read back
+# by whichever gate asks next with the same key. A census that did not finish is never kept; a damaged file is
+# rendered again, never trusted.
+FILM_CENSUS_CACHE = "._film_census.json.gz"
+
+
+def _census_key(out_dir, props):
+    import hashlib
+    h = hashlib.sha256(json.dumps(props, sort_keys=True, ensure_ascii=False).encode("utf-8"))
+    here = os.path.dirname(os.path.abspath(__file__))
+    roots = [os.path.join(here, "..", "remotion", "src"), os.path.join(out_dir, "workshop")]
+    files = [os.path.join(here, n) for n in ("text_safe_qa.py", "remotion_segments.py", "workshop.py")]
+    for r in roots:
+        for dp, dns, fns in os.walk(r):
+            dns[:] = sorted(d for d in dns if not d.startswith((".", "_")) and d != "node_modules")
+            files += [os.path.join(dp, f) for f in sorted(fns) if not f.startswith(".")]
+    for f in files:
+        try:
+            with open(f, "rb") as fh:
+                h.update(os.path.relpath(f, here).encode("utf-8") + b"\0" + fh.read())
+        except OSError:
+            h.update(b"missing:" + f.encode("utf-8"))
+    # the film's pictures by size and time (reading every byte of a 60 MB media folder would cost what it saves): a
+    # picture swapped under the same name can lay a page out differently
+    for r in (os.path.join(out_dir, "media"), os.path.join(out_dir, "assets")):
+        for dp, dns, fns in os.walk(r):
+            dns.sort()
+            for f in sorted(fns):
+                try:
+                    st = os.stat(os.path.join(dp, f))
+                    h.update(("%s:%d:%d" % (os.path.relpath(os.path.join(dp, f), out_dir), st.st_size,
+                                            st.st_mtime_ns)).encode("utf-8"))
+                except OSError:
+                    pass
+    return h.hexdigest()
+
+
 def film_census(out_dir, props, concurrency=None):
-    """(census slot, segs, total, slides-in-order) for the Film with `props` — one bundle, one census run."""
+    """(census slot, segs, total) for the Film with `props` — one bundle, one census run, kept for the next gate."""
+    import gzip
     import shutil
     import tempfile
     import remotion_segments as _rs
     import workshop as _ws
     props = dict(props, typeGlide=True)
+    key = _census_key(out_dir, props)
+    path = os.path.join(out_dir, FILM_CENSUS_CACHE)
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            kept = json.load(fh)
+        if kept.get("key") == key:
+            res = dict(kept["res"], frames={int(f): v for f, v in kept["res"]["frames"].items()})   # JSON keys are str
+            return res, [tuple(s) for s in kept["segs"]], kept["total"]
+    except (OSError, ValueError, EOFError, KeyError, TypeError, AttributeError):
+        pass                                                   # no census kept, or one we cannot read: render it
     segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
     env = _ws.prepare(out_dir)
     work = tempfile.mkdtemp(prefix="sync_film_")
@@ -1189,6 +1230,17 @@ def film_census(out_dir, props, concurrency=None):
         res = glide_run([{"tag": "film", "id": "Film", "props": props}], bundle, concurrency)["film"]
     finally:
         shutil.rmtree(work, ignore_errors=True)
+    if not _glide_measured(res, total):                        # finished and complete: worth keeping
+        tmp = "%s.%d.tmp" % (path, os.getpid())
+        try:
+            with gzip.open(tmp, "wt", encoding="utf-8") as fh:
+                json.dump({"key": key, "res": res, "segs": [list(s) for s in segs], "total": total}, fh)
+            os.replace(tmp, path)
+        except OSError:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
     return res, segs, total
 
 
