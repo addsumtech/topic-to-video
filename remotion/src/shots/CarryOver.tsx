@@ -188,7 +188,7 @@ export const CarryOver: React.FC<{
           {value ? (
             <div style={{position: 'absolute', left: 0, right: 0, bottom: Math.round(rowH * 0.30),
               color: carbon ? CARRIED_INK : ink, opacity: show,
-              transform: glide(`translateY(${lerp(Math.round(U * 0.012), 0, show)}px)`, show !== 1),
+              transform: glide(`translateY(${lerp(Math.round(U * 0.012), 0, show)}px)`, true),
               overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
               font: `600 ${vPx}px/${leading(value, 1.2)} ${body}`}}>{value}</div>
           ) : null}
@@ -220,7 +220,7 @@ export const CarryOver: React.FC<{
       // `left`/`top` it stepped whatever unlocked it: the browser rounds a layout offset to whole pixels before
       // Skia draws anything. It rests where it always did — every resting corner is a whole pixel.
       <div style={{position: 'absolute', left: 0, top: 0, width: sheetW, height: sheetH, boxSizing: 'border-box',
-        transform: glide(`translate(${px}px, ${py}px)`, enter !== 1),
+        transform: glide(`translate(${px}px, ${py}px)`, true),
         background: carbon ? CARBON : SURF, border: `${BW}px solid ${LINE}`, borderRadius: RAD,
         opacity: carbon ? clamp01(enter * 4) : clamp01(enter * 1.2),
         boxShadow: carbon

@@ -117,7 +117,7 @@ export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: strin
         const lblPx = fitTextPx(SPOKES[i], Math.max(80, (flip ? roomL : roomR) - LBL_PADX * 2), 26, {usable: 1});
         // the pin's own pop-in scales its label's ink under an axis-aligned matrix, so it carries the unlock
         // while it is still arriving
-        return <div key={i} style={{position: 'absolute', left: px, top: py, transform: glide(`translate(-50%,-50%) scale(${clamp01(pop)})`, clamp01(pop) !== 1)}}>
+        return <div key={i} style={{position: 'absolute', left: px, top: py, transform: glide(`translate(-50%,-50%) scale(${clamp01(pop)})`, true)}}>
           <div style={{position: 'absolute', left: -18, top: -18, width: 36, height: 36, borderRadius: 18, background: TEAL, boxShadow: `0 0 20px ${TEAL}`}} />
           <div style={{position: 'absolute', left: -18 * pulse, top: -18 * pulse, width: 36 * pulse, height: 36 * pulse, borderRadius: '50%', border: `2px solid ${TEAL}`, opacity: 2 - pulse}} />
           <div style={{position: 'absolute', ...(flip ? {right: LBL_OFF} : {left: LBL_OFF}), top: -20, padding: `8px ${LBL_PADX}px`, borderRadius: 8, background: CHIP, border: `1px solid ${TEAL}55`, font: `700 ${lblPx}px/1 var(--f-body, Inter)`, color: CHIP_INK, whiteSpace: 'nowrap'}}>{SPOKES[i]}</div>

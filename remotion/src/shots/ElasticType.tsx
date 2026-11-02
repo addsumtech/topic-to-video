@@ -86,7 +86,7 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
           );
         })}
       </div>
-      <div style={{opacity: tagIn, transform: glide(`translateY(${(1 - tagIn) * 12}px)`, tagIn !== 1), marginTop: 48, color: dna?.dim ?? '#c7d0ee',
+      <div style={{opacity: tagIn, transform: glide(`translateY(${(1 - tagIn) * 12}px)`, true), marginTop: 48, color: dna?.dim ?? '#c7d0ee',
         font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

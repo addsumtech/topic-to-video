@@ -151,7 +151,7 @@ export const RestsOn: React.FC<{
           <div key={idx} style={{position: 'absolute', left: (W - wpx) / 2, top, width: wpx, height: hgt,
             background: fill, opacity: on,
             // it SETTLES onto what is under it — a small drop, not a fade from nowhere
-            transform: glide(`translateY(${((1 - on) * -base * 0.035).toFixed(1)}px)`, on !== 1),
+            transform: glide(`translateY(${((1 - on) * -base * 0.035).toFixed(1)}px)`, true),
             boxShadow: `inset 0 0 0 ${hair}px ${BG}`,
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
             padding: `0 ${Math.round(base * 0.03)}px`, boxSizing: 'border-box', overflow: 'hidden'}}>

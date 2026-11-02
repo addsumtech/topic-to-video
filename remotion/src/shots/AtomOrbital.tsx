@@ -177,7 +177,7 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: n
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: bottomInset(W, H, 110)}}>
         {/* the title and its tagline are ON the ground, so they are the film's ink and its metadata; the
             separation shadow is the ground's own colour on paper, never a fixed black under near-black type */}
-        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: TITLE_INK,
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: TITLE_INK,
           font: '800 104px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 16, color: TAG_INK,
           font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em'}}>{TAG}</div>

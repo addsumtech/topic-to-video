@@ -133,7 +133,7 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
 
       {/* central neon billboard marquee */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{transform: glide(`scale(${lerp(0.8, 1, marquee)})`, marquee !== 1), opacity: clamp01(marquee * 1.3),
+        <div style={{transform: glide(`scale(${lerp(0.8, 1, marquee)})`, true), opacity: clamp01(marquee * 1.3),
           padding: '38px 66px', borderRadius: 18, background: '#07091a',
           border: `4px solid ${ACC}`, boxShadow: `0 0 60px ${ACC}88, inset 0 0 40px ${ACC}44`}}>
           <div style={{color: '#fff', font: '900 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em',

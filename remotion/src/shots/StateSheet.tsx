@@ -150,7 +150,7 @@ export const StateSheet: React.FC<{
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
       {title ? (
         <div style={{position: 'absolute', top: zTop, left: W * 0.07, width: W * 0.86, opacity: headIn,
-          transform: glide(`translateY(${(1 - headIn) * U * 0.014}px)`, headIn !== 1),
+          transform: glide(`translateY(${(1 - headIn) * U * 0.014}px)`, true),
           color: FG, textWrap: 'balance',
           font: `700 ${headPx}px/${leading(title, 1.2)} var(--f-display, Inter, system-ui, sans-serif)`}}>
           {title}
@@ -177,7 +177,7 @@ export const StateSheet: React.FC<{
         return (
           <div key={c.src + i} style={{position: 'absolute', left: cx, top: cy,
             width: side, height: side + labelH, opacity: on,
-            transform: glide(`translateY(${(1 - on) * U * 0.02 - up * U * 0.012}px)`, on !== 1 || (up > 0 && up < 1))}}>
+            transform: glide(`translateY(${(1 - on) * U * 0.02 - up * U * 0.012}px)`, true)}}>
             <div style={{position: 'absolute', left: 0, top: 0, width: side, height: side,
               borderRadius: Math.round(U * 0.010), background: SURF,
               border: `${isMark ? 2 : 1}px solid ${isMark ? ACC : LINE}`,

@@ -759,14 +759,19 @@ Give a camera move 1.5–4 s. A run is one picture with no seam inside it; its b
 `transition_in`, and a choreographed run counts as BUILT. `shot_director.py` prints the beats whose argument reads as
 one world. Not when the beats are separate arguments — a cut is the honest move between unrelated places.
 
-## Five things a viewer saw (Grok Bot film) — hold every builder to them
+## Things a viewer saw (Grok Bot film; slide-maker promo) — hold every builder to them
 **UI holds still once it has landed.** No idle sine float, bob or "breathing" camera on cards, panels or type — a
 viewer reads it as the frame shaking (a Grok Bot film's draft card, 2026-11-01). Life belongs to characters; type that
 keeps swinging and never rests fails `text_safe_qa --glide` (SWAY). **Anything on a tilted surface is that surface's
 child** (`runtime/surface3d`: `View`/`OnPlane`/`Slab`) — a flat block over a turned panel does not follow its angle.
 **Devices come from the kit** (`Device`/`DeviceHero`/`DeviceDemo`/`PhoneSlab`); a built device's fidelity record cites
 its deviceSpec model (validate `hand_drawn_device`). **Thickness is painted in the face's plane** — stacked translateZ
-layers re-sort over the face for one frame (`flash_qa`). **glide(…, true) for the whole beat** on type that moves.
+layers re-sort over the face for one frame (`flash_qa`). **glide(…, true) for the whole beat** on type that moves — never switched with the motion (`e !== 1`):
+`workshop.py check` refuses it (`scripts/glide_lint.py`). **A lone 1–3 character piece of type never moves** — it
+arrives and leaves by opacity: one glyph sits at Skia's quarter pixel with nothing to average against and any
+motion reads ~0.2 px of tremble (`jitter_qa`; a slide-maker promo's rebuilt chart, 33 lines). **Cross-fades are
+linear**, every frame ≥ 0.06 opacity — eased ends crawl under jitter_qa's fade threshold and two half-visible
+copies of a line read as a false pop.
 
 ## The camera — a move needs a CAUSE (per beat, budget 2–4)
 A scene may carry **`camera` = `{move: "push"|"pull"|"hold", amount: 0.045}`**. This is not a Ken Burns drift:

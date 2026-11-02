@@ -125,12 +125,12 @@ export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: T
 
       {/* neon chrome wordmark */}
       <div style={{position: 'absolute', left: 0, right: 0, top: hy - 250, textAlign: 'center',
-        transform: glide(`translateY(${(1 - titleUp) * 30}px)`, titleUp !== 1), opacity: titleUp}}>
+        transform: glide(`translateY(${(1 - titleUp) * 30}px)`, true), opacity: titleUp}}>
         {/* the shadows sit on a wrapper: a drop-shadow keeps only the scale of the matrix above it, so the rising
             wordmark's unlock has to be BELOW the filter to reach its glyphs (runtime/glide.ts) */}
         <div style={{filter: `drop-shadow(0 0 24px ${MAG_GLOW})`}}>
         <div style={{font: `900 ${titleSize}px/${leading(TITLE, 0.9)} ${dispFace}`, letterSpacing: '0.02em',
-          background: chrome, WebkitBackgroundClip: 'text', transform: glide(undefined, titleUp !== 1),
+          background: chrome, WebkitBackgroundClip: 'text', transform: glide(undefined, true),
           backgroundClip: 'text', color: 'transparent', WebkitTextStroke: `2px ${CYAN}`}}>{TITLE}</div>
         </div>
         <div style={{marginTop: 14, font: `700 ${tagSize}px/1 ${monoFace}`, letterSpacing: '0.5em',

@@ -69,7 +69,7 @@ export const RisoPrint: React.FC<{title?: string; tagline?: string}> = ({
       ))}
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, 210), textAlign: 'center', opacity: tagIn,
-        transform: glide(`translateY(${(1 - tagIn) * 12}px)`, tagIn !== 1), color: tagC,
+        transform: glide(`translateY(${(1 - tagIn) * 12}px)`, true), color: tagC,
         font: '700 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.22em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

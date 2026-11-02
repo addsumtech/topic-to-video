@@ -185,7 +185,7 @@ export const CompanionCard: React.FC<{
         // it takes the neutral ink.
         background: SURF, border: `1px solid ${pressed ? FG : LINE}`,
         opacity: arrive,
-        transform: glide(`translateY(${(1 - arrive) * U * 0.02}px) scale(${1 - pressed * 0.012})`, arrive !== 1),
+        transform: glide(`translateY(${(1 - arrive) * U * 0.02}px) scale(${1 - pressed * 0.012})`, true),
         boxShadow: pressed ? `0 0 ${Math.round(U * 0.05)}px ${FG}2b` : `0 ${Math.round(U * 0.012)}px ${Math.round(U * 0.03)}px #0007`}}>
         <div style={{color: FG, font: `700 ${taskPx}px/${leading(task, 1.25)} var(--f-display, Inter, system-ui, sans-serif)`}}>
           {task}
@@ -206,7 +206,7 @@ export const CompanionCard: React.FC<{
       {returns || note ? (
         <div style={{position: 'absolute', left: cardLeft, top: Math.round(cardTop + cardH + U * 0.05),
           width: CARD_W, opacity: back,
-          transform: glide(`translateY(${(1 - back) * U * 0.018}px)`, back !== 1)}}>
+          transform: glide(`translateY(${(1 - back) * U * 0.018}px)`, true)}}>
           {returns ? (
           <div style={{color: readableOn(dna?.bg ?? '#0b0f17', ACC, FG),
             font: `600 ${backPx}px/${leading(returns, 1.3)} ${MONO}`, letterSpacing: '0.04em'}}>

@@ -34,6 +34,8 @@ UNIFORMITY_CV_MIN     = 0.15     # coefficient of variation below this = monoton
 CLIMAX_POS_LO, CLIMAX_POS_HI = 0.65, 0.88   # the payoff belongs ~70-85% through (a little tolerance)
 NO_CLIMAX_DURATION    = 75.0     # a video longer than this should have a marked climax
 STATIC_IMAGE_SOFT     = 10.0     # a held image beyond this drags (WARN)
+STATIC_SHOT_SOFT      = 5.0      # a register beat whose RENDERED frame holds still this long reads as a slide (WARN)
+STATIC_SHOT_HARD      = 10.0     # ...and this long it is a dead frame (ERROR); measured on out.mp4 (craft_qa)
 STATIC_IMAGE_HARD     = 16.0     # …beyond this it's a defect (ERROR)
 RESET_MAX             = 35.0     # go this long with no seam / family change = no attention reset
 FINAL_HOLD_RATIO      = 1.25
@@ -285,7 +287,49 @@ def check(out_dir):
         data = sb.load(path)
     except Exception as e:
         return _unmeasurable(f"storyboard.json unreadable: {e}")
-    return evaluate(data)
+    r = evaluate(data)
+    _shot_holds(out_dir, path, data, r)
+    return r
+
+
+def _shot_holds(out_dir, board_path, data, r):
+    """THE HELD-FRAME RULE ON A FILM OF REGISTERS, measured where it can be: the rendered film. A `shot` beat has no
+    image to time — its register animates on its own clock — so the rule above inspected 0 of 25 beats of a
+    slide-maker promo and the gate passed. Each shot beat's longest still run is read off out.mp4 (craft_qa's
+    measure: frame-to-frame change under its still threshold); past STATIC_SHOT_HARD it is a dead frame (ERROR),
+    past STATIC_SHOT_SOFT a slide (WARN). Before a render — or after the board changed since one — they are said
+    to be NOT MEASURED, never counted clean."""
+    slides = [s for s in (data.get("slides") or []) if isinstance(s, dict) and _stype(s) == "shot"]
+    if not slides:
+        return
+    r["warnings"] = [w for w in r["warnings"] if not w.startswith("the held-frame check")]
+    film = os.path.join(out_dir, "out.mp4")
+    if not os.path.exists(film) or os.path.getmtime(film) < os.path.getmtime(board_path):
+        r["warnings"].append(
+            "held-frame check: %d shot beat(s) NOT MEASURED — a register beat is measured on the rendered film, and "
+            "out.mp4 %s; re-run after render_remotion" % (len(slides), "does not exist" if not os.path.exists(film)
+                                                          else "is older than storyboard.json"))
+        return
+    import craft_qa
+    try:
+        m = craft_qa.measure(film, data)
+    except Exception as e:                   # noqa: BLE001 — a film this cannot read is reported, never passed
+        r["errors"].append("held-frame check: out.mp4 could not be measured (%s)" % e)
+        r["ok"] = False
+        return
+    shots = {s.get("index"): s.get("shot") for s in slides}
+    for b in m["beats"]:
+        if b["index"] not in shots:
+            continue
+        r["held_frame_scenes"] = r.get("held_frame_scenes", 0) + 1
+        hold = b["longest_still_s"]
+        if hold > STATIC_SHOT_HARD:
+            r["errors"].append(f"scene {b['index']} ({b['shot']}): the rendered beat holds a still frame {hold:.1f}s "
+                               f"(> {STATIC_SHOT_HARD:.0f}s) — a dead frame; give it a reveal, a camera move, or split it")
+        elif hold > STATIC_SHOT_SOFT:
+            r["warnings"].append(f"scene {b['index']} ({b['shot']}): the rendered beat holds a still frame "
+                                 f"{hold:.1f}s (> {STATIC_SHOT_SOFT:.0f}s) — it reads as a slide")
+    r["ok"] = not r["errors"]
 
 
 def main(argv):

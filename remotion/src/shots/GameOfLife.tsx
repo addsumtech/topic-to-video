@@ -71,7 +71,7 @@ export const GameOfLife: React.FC<{title?: string; tagline?: string; accent?: st
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         {/* the wordmark is on the ground, so it is the film's ink; its separation shadow is the ground's own
             colour on paper rather than a fixed black under near-black type */}
-        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: dna?.fg ?? '#eafff4',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: dna?.fg ?? '#eafff4',
           font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: lit ? `0 0 40px ${BG}, 0 12px 40px ${BG}` : `0 0 40px ${ACC}, 0 12px 40px #000`}}>{TITLE}</div>
         {/* the kicker's halo is the same lit device: on paper it is a green haze around green type, so it goes

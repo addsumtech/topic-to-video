@@ -183,14 +183,14 @@ export const TaskFold: React.FC<{
         {/* the list scrolls by a translate, so every row riding it — including the first, whose own place never
             moves — carries the unlock while it scrolls */}
         <div style={{position: 'absolute', left: 0, top: 0, width: panelW, height: total,
-          transform: glide(`translateY(${-scrollTo}px)`, scrollP !== 1)}}>
+          transform: glide(`translateY(${-scrollTo}px)`, true)}}>
           {tasks.map((k, i) => {
             const land = landOf(i);
             const tone = toneOf(k.state);
             const word = wordOf(k.state);
             return (
               <div key={i} style={{position: 'absolute', left: 0, top: 0, width: panelW, opacity: land,
-                transform: glide(`translateY(${tops[i] + (1 - land) * U * 0.02}px)`, land !== 1 || reflowing)}}>
+                transform: glide(`translateY(${tops[i] + (1 - land) * U * 0.02}px)`, true)}}>
                 <div style={{position: 'relative', zIndex: 1, height: cardH, boxSizing: 'border-box', borderRadius: Math.round(U * 0.014),
                   background: SURF, border: `1px solid ${LINE}`, padding: `0 ${pad}px`,
                   display: 'flex', alignItems: 'center', gap: Math.round(U * 0.014)}}>

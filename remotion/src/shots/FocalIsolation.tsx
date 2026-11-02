@@ -149,7 +149,7 @@ export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]; fo
             {/* the unlock rides the label, INSIDE the card: an out-of-focus card's own filter is a blur, which keeps
                 only the scale of the matrix above it (runtime/glide.ts) */}
             <div style={{textWrap: 'balance', font: `${isF ? 700 : 500} ${isF ? 40 : 32}px/1.15 var(--f-body, Inter,system-ui,sans-serif)`,
-              transform: glide(undefined, iso > 0 && iso < 1),
+              transform: glide(undefined, true),
               color: isF ? '#eaf1ff' : '#7f8da3', textAlign: 'center', padding: '0 24px'}}>{label}</div>
           </div>
         );

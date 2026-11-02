@@ -199,7 +199,7 @@ export const CraneUp: React.FC<{
       {reveal ? (
         <div style={{position: 'absolute', left: W * 0.15, width: W * 0.7, textAlign: 'center',
           top: zoneTop + U * 0.02, opacity: revealIn,
-          transform: glide(`translateY(${(1 - easeOutCubic(revealIn)) * U * 0.02}px)`, revealIn !== 1),
+          transform: glide(`translateY(${(1 - easeOutCubic(revealIn)) * U * 0.02}px)`, true),
           font: `700 ${LINE_PX}px/${leading(String(reveal), 1.2)} ${disp}`,
           color: readableOn(BG, ACC, strong)}}>{reveal}</div>
       ) : null}

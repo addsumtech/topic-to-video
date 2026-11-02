@@ -188,7 +188,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
         </>
       ) : (
         <div style={{position: 'absolute', left: cx, top: cy, width: targetW,
-          transform: glide(`translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, brackets !== 1), textAlign: 'center'}}>
+          transform: glide(`translate(-50%,-50%) scale(${lerp(0.9, 1, brackets)})`, true), textAlign: 'center'}}>
           <div style={{color: dna?.fg ?? '#eafffb', font: `800 ${targetPx}px/${targetLead} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
             textWrap: 'balance', textShadow: emits ? `0 0 40px ${col}66` : undefined}}>{TARGET}</div>
           <div style={{marginTop: Math.round(14 * s), color: col, font: `700 ${Math.round(26 * s)}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em',

@@ -38,7 +38,7 @@ Never: `storyboard.json`, another builder's shot, the kit, the library (`remotio
 merge, when every shot is in. Two builders running a film-wide gate at once would starve each other's renders and
 report partial frames as findings.
 
-## Five things a viewer saw (Grok Bot film, 2026-11-01) — each now a gate
+## Things a viewer saw (Grok Bot film, 2026-11-01; slide-maker promo, 2026-11-02) — each now a gate
 - **UI holds still once it has landed.** No idle sine float, bob or "breathing" camera on cards, panels or type: it reads
   as the frame shaking. Life belongs to characters. (`text_safe_qa --glide` SWAY)
 - **Anything on a tilted surface is that surface's child** — `runtime/surface3d` (`View`/`OnPlane`/`Slab`), never a flat
@@ -47,7 +47,14 @@ report partial frames as findings.
   its deviceSpec model. (validate: `hand_drawn_device`)
 - **Thickness is painted in the face's plane**, never stacked translateZ layers: they re-sort over the face for a frame.
   (`flash_qa`)
-- **glide(…, true) for the whole beat** on type that moves or sits under a camera — never `0 < e < 1`.
+- **glide(…, true) for the whole beat** on type that moves or sits under a camera — never `0 < e < 1`, never
+  `e !== 1`: an unlock switched with the motion pops the type on the frame it turns on or off. `workshop.py check`
+  refuses a switched call (scripts/glide_lint.py); a beat-constant flag is declared `// @glide-span: <why>`.
+- **A lone 1–3 character piece of type never moves** ('4', '’24', '=', a slide number): it arrives and leaves by
+  OPACITY only. One glyph is placed to Skia's quarter pixel with nothing to average against, so any motion reads
+  ~0.2 px of tremble and jitter_qa blocks it (a slide-maker promo: 33 such lines on one rebuilt chart).
+- **Cross-fades are linear** — every frame steps ≥ 0.06 opacity (jitter_qa's OPACITY_STEP). Eased ends crawl
+  under it, and two copies of a line half-visible at once read as a 1–1.5 px false pop.
 
 ## How to check your own work (renders are queued, not raced)
 `python3 scripts/workshop.py <out_dir> still <Name> --props <file> --frame N` renders one frame of one shot. Every

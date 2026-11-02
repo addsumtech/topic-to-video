@@ -244,7 +244,7 @@ export const KineticMove: React.FC<KineticMoveProps> = (P) => {
 
   const sec = tToSec(t, spanF, fps);
   const sprites = spritesAt(S, plan, sec, P, reduced);
-  const moves = plan.moves.length > 0 || Boolean(P.scatter) || P.enter !== false;
+  const moves = plan.moves.length > 0 || Boolean(P.scatter) || P.enter !== false;   // @glide-span: fixed by the plan for the whole beat
   const ec = P.emphColor ?? P.color;
   return (
     <div {...rootAttrs} data-carry="word" data-carry-glyph={ext && ext.lines === 1 ? '' : undefined} style={box}>

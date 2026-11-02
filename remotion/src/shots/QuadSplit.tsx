@@ -430,7 +430,6 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
         const g = clamp01(seg(t, 0.16 + i * 0.09, 0.6)); // glyph fill progress
         // the panel's own entrance scale, OR — for the hero panel only — the expand/collapse that carries it
         // to fill the frame: both move the index number and the label this panel draws.
-        const moveSpan = enter !== 1 || (i === heroIdx && !holdQuad && expand !== 1);
 
         // INTERNAL LAYOUT, computed (not space-between): header · glyph · label, all inside the padding box.
         // space-between is what pushed the bottom row's label onto the burned caption; explicit heights and
@@ -475,7 +474,7 @@ export const QuadSplit: React.FC<{panels?: QuadPanel[]; heading?: string; hero?:
         return (
           <div key={i} style={{position: 'absolute', left: expanding ? 0 : x, top: expanding ? 0 : y, width: w, height: h,
             boxSizing: 'border-box', opacity: (0.15 + 0.85 * enter) * (1 - others),
-            transform: glide(`${expanding ? `translate(${x}px, ${y}px) ` : ''}scale(${lerp(0.9, 1, enter)})`, moveSpan),
+            transform: glide(`${expanding ? `translate(${x}px, ${y}px) ` : ''}scale(${lerp(0.9, 1, enter)})`, true),
             transformOrigin: `${cols > 1 && !spanned ? (col ? 'left' : 'right') : 'center'} ${rows > 1 ? (row ? 'top' : 'bottom') : 'center'}`,
             background: `linear-gradient(150deg, ${mix(BG, SURF, 0.85)}, ${BG})`,
             border: `${bwid}px solid ${EDGE}`, borderRadius: rad, overflow: 'hidden',

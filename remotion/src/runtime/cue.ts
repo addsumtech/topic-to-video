@@ -70,6 +70,19 @@ export type Cues = {
   win: (key: string, a: number, b: number, reach?: number, floor?: number) => [number, number];
 };
 
+/** The fields of a list item whose words a cue names — scripts/sync_qa.CUE_TEXT_FIELDS, held equal by a test. */
+export const CUE_TEXT_FIELDS = ['text', 'label', 'title', 'name', 'caption'] as const;
+
+/** The key `at` holds for `key`. An item is keyed by its index path (`files.0`); its words' FULL path
+ *  (`files.0.label`) — what an author reading `cue.win('<prop path>', ...)` literally writes — resolves to it. A key
+ *  that matched nothing used to fall back to the default timing in silence: four files of a delivered film landed
+ *  1.6-2.6 s after the voice named them. */
+export const cueKey = (at: Record<string, number> | undefined, key: string): string => {
+  if (!at || key in at) return key;
+  const m = /^(.+\.\d+)\.([A-Za-z]+)$/.exec(key);
+  return m && (CUE_TEXT_FIELDS as readonly string[]).includes(m[2]) && m[1] in at ? m[1] : key;
+};
+
 export function useCues(): Cues {
   const ctx = React.useContext(CueContext);
   const {fps, durationInFrames} = useVideoConfig();
@@ -80,7 +93,7 @@ export function useCues(): Cues {
   const span = Math.max(1, dur - 1 - 2 * pad);
   const tOf = (g: number) => ENTRY_T + (1 - ENTRY_T) * clamp01((g - pad) / span);
   const readT = (key: string): number | null => {
-    const s = ctx?.at?.[key];
+    const s = ctx?.at?.[cueKey(ctx?.at, key)];
     if (typeof s !== 'number' || !Number.isFinite(s)) return null;
     return tOf(warpFrame(s * fps, ctx?.warp));
   };

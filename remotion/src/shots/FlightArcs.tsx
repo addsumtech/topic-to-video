@@ -248,7 +248,7 @@ export const FlightArcs: React.FC<{
         const a = easeOutCubic(seg(t, landT[i] + 0.04, landT[i] + 0.14));
         return (
           <div key={i} style={{position: 'absolute', left: 0, top: 0, width: q.x1 - q.x0, height: q.y1 - q.y0,
-            transform: glide(`translate(${q.x0}px, ${q.y0}px)`, a < 1), opacity: a, boxSizing: 'border-box',
+            transform: glide(`translate(${q.x0}px, ${q.y0}px)`, true), opacity: a, boxSizing: 'border-box',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: `${padY}px ${padX}px`,
             borderRadius: Math.round(lblPx * 0.35), background: `${CHIP}d9`, border: `1px solid ${mix(CHIP, FG, 0.22)}`,
             color: CHIP_INK, whiteSpace: 'nowrap', font: `600 ${lblPx}px/1.2 ${BODY}`}}>{places[i].label}</div>

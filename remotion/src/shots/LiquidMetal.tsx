@@ -73,7 +73,7 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
         {/* the shadows sit on a wrapper: a drop-shadow keeps only the scale of the matrix above it, so the moving
             title's unlock has to be BELOW the filter to reach its glyphs (runtime/glide.ts) */}
         <div style={{filter: 'drop-shadow(0 3px 0 #ffffffcc) drop-shadow(0 10px 22px #1a1f3aaa)'}}>
-        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1),
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true),
           font: '900 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.04em',
           background: 'linear-gradient(180deg, #ffffff, #6b76a0 44%, #171b33 51%, #9aa6cc 58%, #eef2ff)',
           WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',

@@ -53,7 +53,7 @@ export const InkBloom: React.FC<{title?: string; tagline?: string; ink?: string}
         </g>
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: FG,
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: FG,
           font: '800 132px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 4px 30px ${INKc}, 0 0 60px ${INKc}aa`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: TAGc,

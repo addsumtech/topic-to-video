@@ -84,7 +84,7 @@ export const SpinsAlign: React.FC<{accent?: string; accent2?: string; label?: st
         <defs><marker id="sa2" markerWidth="12" markerHeight="12" refX="4" refY="6" orient="auto"><path d="M0,0 L8,6 L0,12 Z" fill={vec} /></marker></defs>
         {/* mY climbs with `align`, driving the label's y attribute directly rather than a transform — Skia
             still snaps the screen CTM's baseline the same way, so the label carries its own unlock */}
-        <text x={W * 0.5 + 16} y={mBase - mY} fill={vec} fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={align} transform={glide(undefined, align !== 1)}>M₀</text>
+        <text x={W * 0.5 + 16} y={mBase - mY} fill={vec} fontSize="24" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={800} opacity={align} transform={glide(undefined, true)}>M₀</text>
         {note ? <text x={W * 0.5} y={Math.min(H * 0.84, bottomTextY(W, H))} textAnchor="middle" fill={accent} fontSize={notePx} fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" opacity={align}>{note}</text> : null}
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',

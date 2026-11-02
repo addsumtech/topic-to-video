@@ -95,7 +95,7 @@ export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordma
 
       {/* massive flush-left snapping word (clip-rise reveal) */}
       <div style={{position: 'absolute', left: 120, top: H * 0.5, transform: 'translateY(-50%)', width: W - 240, height: 360, overflow: 'hidden'}}>
-        <div style={{transform: glide(`translateY(${(1 - reveal) * 360}px)`, reveal !== 1), color: FG,
+        <div style={{transform: glide(`translateY(${(1 - reveal) * 360}px)`, true), color: FG,
           font: `900 ${wordSize}px/0.86 ${disp}`, letterSpacing: '-0.04em', whiteSpace: 'nowrap'}}>
           {word.slice(0, -1)}<span style={{color: ACC}}>{word.slice(-1)}</span>
         </div>

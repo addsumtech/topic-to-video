@@ -108,14 +108,19 @@ cut word always is); `frame_safe_qa.py` adds an advisory palette-outlier read; t
 collision/tiny-marker — are eyeballed by the shot-critic (S10). Getting them right structurally (via `layout.ts`
 + sizing for real content) is cheaper than being caught.
 
-### A1 · Five things a viewer saw — each now a gate
+### A1 · Things a viewer saw — each now a gate
 **UI holds still once it has landed.** No idle sine float, bob or "breathing" camera on cards, panels or type — a
 viewer reads it as the frame shaking (a Grok Bot film's draft card, 2026-11-01). Life belongs to characters; type that
 keeps swinging and never rests fails `text_safe_qa --glide` (SWAY). **Anything on a tilted surface is that surface's
 child** (`runtime/surface3d`: `View`/`OnPlane`/`Slab`) — a flat block over a turned panel does not follow its angle.
 **Devices come from the kit** (`Device`/`DeviceHero`/`DeviceDemo`/`PhoneSlab`); a built device's fidelity record cites
 its deviceSpec model (validate `hand_drawn_device`). **Thickness is painted in the face's plane** — stacked translateZ
-layers re-sort over the face for one frame (`flash_qa`). **glide(…, true) for the whole beat** on type that moves.
+layers re-sort over the face for one frame (`flash_qa`). **glide(…, true) for the whole beat** on type that moves — never switched with the motion (`e !== 1`):
+`workshop.py check` refuses it (`scripts/glide_lint.py`). **A lone 1–3 character piece of type never moves** — it
+arrives and leaves by opacity: one glyph sits at Skia's quarter pixel with nothing to average against and any
+motion reads ~0.2 px of tremble (`jitter_qa`; a slide-maker promo's rebuilt chart, 33 lines). **Cross-fades are
+linear**, every frame ≥ 0.06 opacity — eased ends crawl under jitter_qa's fade threshold and two half-visible
+copies of a line read as a false pop.
 
 ## A2 · Depth — planes, only where the beat actually has a foreground and a background
 

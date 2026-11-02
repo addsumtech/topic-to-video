@@ -201,14 +201,14 @@ export const RankRace: React.FC<{
         const lead = !moving && (q >= 1 ? r1[i] : r0[i]) === 0;
         return (
           <div key={i} style={{position: 'absolute', left: 0, top: 0, width: W, height: barH, opacity: vis,
-            transform: glide(`translateY(${y}px)`, moving)}}>
+            transform: glide(`translateY(${y}px)`, true)}}>
             <div style={{position: 'absolute', right: W - x0 + gap, top: 0, height: barH, display: 'flex', alignItems: 'center',
               color: FG, font: `600 ${lblPx}px/1.1 ${BODY}`, whiteSpace: 'nowrap'}}>{s.label}</div>
             <div style={{position: 'absolute', left: x0, top: 0, width: bw, height: barH, borderRadius: Math.round(barH * 0.18),
               background: `linear-gradient(90deg, ${mix(tone, BG, 0.25)}, ${tone})`,
               boxShadow: lead ? `0 0 ${Math.round(U * 0.02)}px ${tone}66` : 'none'}} />
             <div style={{position: 'absolute', left: 0, top: 0, height: barH, display: 'flex', alignItems: 'center',
-              transform: glide(`translateX(${x0 + bw + gap}px)`, moving), whiteSpace: 'nowrap',
+              transform: glide(`translateX(${x0 + bw + gap}px)`, true), whiteSpace: 'nowrap',
               color: contrastOf(tone, BG) >= 4.5 ? tone : FG, font: `600 ${valPx}px/1 ${MONO}`, fontVariantNumeric: 'tabular-nums'}}>{text}</div>
           </div>
         );

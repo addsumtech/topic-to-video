@@ -194,7 +194,7 @@ export const DataMonolith: React.FC<{items?: (string | MonolithItem)[]; title?: 
               // pixels before anything was drawn, and stepped whatever unlocked it
               <div style={{position: 'absolute', left: x - gap / 2, width: bandW + gap, textAlign: 'center',
                 top: 0, opacity: clamp01(seg(t, 0.4 + i * 0.06, 0.56 + i * 0.06)),
-                transform: glide(`translateY(${floorY - th * pulse - VALUE_ROOM}px)`, grow !== 1 || (isHero && t > 0.6)),
+                transform: glide(`translateY(${floorY - th * pulse - VALUE_ROOM}px)`, true),
                 color: VALUE_INK, whiteSpace: 'nowrap',
                 // a value is never set under the label floor — it no longer shrinks to fit the tower's band
                 font: `700 ${VALUE_PX}px/1 ` +

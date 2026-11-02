@@ -30,7 +30,7 @@ const BLOCK_GAP = 26, RULE_H = 16, RULE_GAP = 12;
 const Block: React.FC<{i: number; t: number; children: React.ReactNode}> = ({i, t, children}) => {
   const glide = useGlide();
   const r = easeOutBack(seg(t, 0.14 + i * 0.13, 0.14 + i * 0.13 + 0.24));
-  return <div style={{opacity: clamp01(r), transform: glide(`translateY(${lerp(46, 0, clamp01(r))}px)`, r !== 1), marginBottom: BLOCK_GAP}}>{children}</div>;
+  return <div style={{opacity: clamp01(r), transform: glide(`translateY(${lerp(46, 0, clamp01(r))}px)`, true), marginBottom: BLOCK_GAP}}>{children}</div>;
 };
 
 // THE PAGE IS DRAWN AT SCALE ~0.86 (it is scaled to fit the caption band), so a block's RENDERED type is its CSS size

@@ -58,7 +58,7 @@ const Bubble: React.FC<{m: Msg; t: number; f: number}> = ({m, t, f}) => {
   const av = Math.round(74 * f);
   return (
     <div style={{display: 'flex', justifyContent: you ? 'flex-end' : 'flex-start', marginBottom: Math.round(34 * f),
-      opacity: clamp01(r), transform: glide(`translateY(${lerp(30, 0, clamp01(r))}px)`, r !== 1)}}>
+      opacity: clamp01(r), transform: glide(`translateY(${lerp(30, 0, clamp01(r))}px)`, true)}}>
       {!you && <div style={{width: av, height: av, borderRadius: av / 2, marginRight: Math.round(22 * f), background: `linear-gradient(150deg,${A1},${A2c})`, flexShrink: 0}} />}
       {/* overflowWrap: a run with no break opportunity (a URL, a row of ✅) used to run straight out of the
           bubble's right edge and across the frame; it now breaks inside the bubble. Text that has break points

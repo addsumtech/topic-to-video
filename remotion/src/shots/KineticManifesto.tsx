@@ -101,7 +101,6 @@ const Word: React.FC<{text: string; start: number; span: number; t: number; hero
   // approach and depart both scale the word (the blur above is lp's SAME two tails); the hold between them
   // (lp .22-.62) is the one stretch where scale is truly constant, so the unlock stays off there and the
   // settled frame it lands on stays byte-identical to before this fix
-  const scaling = lp < 0.22 || lp >= 0.62;
   // CENTRED ON THE CONTENT ZONE, NOT ON THE FRAME. The fit above sizes the block to the zone, and then
   // centring it on H/2 pushed the extra half of a tall (Chinese) block straight through the caption band
   // anyway — the size was right and the anchor was not. The padding makes the flex centre the zone's
@@ -113,7 +112,7 @@ const Word: React.FC<{text: string; start: number; span: number; t: number; hero
           unlock has to be BELOW the filter to reach its glyphs (runtime/glide.ts) */}
       <div style={{filter: blur > 0.5 ? `blur(${blur}px)` : undefined}}>
         <div style={{font: `900 ${px}px/${lead} var(--f-display, Inter,system-ui,sans-serif)`, letterSpacing: '-0.03em', textAlign: 'center',
-          color: hero ? heroC : normC, opacity: op, transform: glide(`scale(${scale})`, scaling),
+          color: hero ? heroC : normC, opacity: op, transform: glide(`scale(${scale})`, true),
           textShadow: '0 20px 60px rgba(0,0,0,.25)',
           boxSizing: 'content-box', width: measure, padding: '0 60px'}}>{text}</div>
       </div>

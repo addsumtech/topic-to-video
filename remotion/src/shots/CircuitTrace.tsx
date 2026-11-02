@@ -119,7 +119,7 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
         const on = easeOutBack(clamp01(seg(t, 0.12 + i * 0.06, 0.34 + i * 0.06)));
         // the pad's own scale-in moves its label's ink (centred at a fixed point, the glyphs still grow out
         // from it) under an axis-aligned matrix, so it carries the unlock while it is still arriving
-        return <div key={i} style={{position: 'absolute', left: p.px, top: p.py, transform: glide(`translate(-50%,-50%) scale(${on})`, on !== 1),
+        return <div key={i} style={{position: 'absolute', left: p.px, top: p.py, transform: glide(`translate(-50%,-50%) scale(${on})`, true),
           opacity: clamp01(on), width: 116, height: 74, borderRadius: 10, background: '#0c241a',
           // the pad's EDGE touches the ground, so on paper it is the exposed copper (it still reads against
           // the pad's own dark fill); the label inside it does not, and keeps the board's signal green
@@ -128,7 +128,7 @@ export const CircuitTrace: React.FC<{title?: string; chip?: string; nodes?: stri
           boxShadow: lit ? 'none' : `0 0 24px ${COPPER}44`}}>{p.label}</div>;
       })}
       {/* central chip */}
-      <div style={{position: 'absolute', left: cx, top: cy, transform: glide(`translate(-50%,-50%) scale(${chipIn})`, chipIn !== 1),
+      <div style={{position: 'absolute', left: cx, top: cy, transform: glide(`translate(-50%,-50%) scale(${chipIn})`, true),
         width: 260, height: 200, borderRadius: 14, background: 'linear-gradient(160deg, #103326, #0a1f17)',
         // same rule as the pads: the chip's edge is the one part of it that sits against the page
         border: `3px solid ${lit ? SIGNAL : LIVE}`, display: 'flex', alignItems: 'center', justifyContent: 'center',

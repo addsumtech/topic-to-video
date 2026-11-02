@@ -94,7 +94,7 @@ const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone:
       alignItems: align === 'left' ? 'flex-start' : 'flex-end'}}>
       {(side.points ?? []).map((p, i) => {
         const on = clamp01(seg(t, base + i * 0.08, base + 0.2 + i * 0.08));
-        return <div key={i} style={{opacity: on, transform: glide(`translateY(${(1 - on) * 10}px)`, on !== 1),
+        return <div key={i} style={{opacity: on, transform: glide(`translateY(${(1 - on) * 10}px)`, true),
           display: 'flex', flexDirection: align === 'left' ? 'row' : 'row-reverse', alignItems: 'center', gap: 14,
           color: soft, font: '600 32px/1 var(--f-body, Inter, system-ui, sans-serif)'}}>
           <span style={{color: tone, fontWeight: 800}}>{win ? '✓' : '•'}</span>{p}</div>;
@@ -190,7 +190,7 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number |
       <Panel side={RIGHT} enter={rEnter} align="right" tone={toneR} win={WINNER === 1} t={t} base={0.56} ground={halfR} themed={Boolean(dna)} />
 
       {/* VS badge */}
-      <div style={{position: 'absolute', left: '50%', top: '50%', transform: glide(`translate(-50%,-50%) scale(${vs}) rotate(${lerp(-14, 0, vs)}deg)`, vs !== 1),
+      <div style={{position: 'absolute', left: '50%', top: '50%', transform: glide(`translate(-50%,-50%) scale(${vs}) rotate(${lerp(-14, 0, vs)}deg)`, true),
         width: 150, height: 150, borderRadius: '50%',
         background: dna ? `radial-gradient(circle at 40% 35%, ${dna.surface}, ${shade(dna.bg, 0.2)})`
                         : 'radial-gradient(circle at 40% 35%, #2a3048, #12141f)',

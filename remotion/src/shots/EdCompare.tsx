@@ -24,7 +24,7 @@ export const EdCompare: React.FC<{kicker?: string; left?: Col; right?: Col; fram
     const show = clamp01(seg(t, at, at + 0.16));
     const glide = useGlide();
     return (
-      <div style={{flex: 1, opacity: show, transform: glide(`translateY(${(1 - show) * 16}px)`, show !== 1)}}>
+      <div style={{flex: 1, opacity: show, transform: glide(`translateY(${(1 - show) * 16}px)`, true)}}>
         <div style={{color: c.hero ? acc : dim, font: `700 24px/1 ${body}`, letterSpacing: '0.14em',
           textTransform: 'uppercase', marginBottom: 18}}>{c.hero ? '↳ ' : ''}{c.head}</div>
         <div style={{color: c.hero ? fg : dim, font: `${c.hero ? 500 : 400} 46px/1.3 ${disp}`}}>{c.body}</div>

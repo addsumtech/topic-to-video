@@ -77,16 +77,15 @@ export const PaperCutout: React.FC<{label?: string; tagline?: string}> = ({label
       {/* paper DONE banner rises in the mid-ground */}
       {(() => {
         const rise = easeOutBack(seg(t, 0.42, 0.68));
-        const rising = rise !== 1;
         return (
           // the shadow sits on an outer wrapper that never moves: a drop-shadow keeps only the scale of the
           // matrix above it, so the rising banner's unlock has to be BELOW the filter to reach its glyphs
           // (runtime/glide.ts) — the moving translate/rotate carries its own glide, and the card's text
           // carries a second, local one to punch through the filter the same way NeonGrid's wordmark does.
           <div style={{position: 'absolute', left: '50%', top: H * 0.42, filter: shadow}}>
-            <div style={{transform: glide(`translate(-50%, ${(1 - rise) * 120}px) rotate(-2deg)`, rising), opacity: rise > 0 ? 1 : 0}}>
+            <div style={{transform: glide(`translate(-50%, ${(1 - rise) * 120}px) rotate(-2deg)`, true), opacity: rise > 0 ? 1 : 0}}>
               <div style={{background: CARD, border: `6px solid ${CARD_EDGE}`, borderRadius: 14, padding: '16px 54px',
-                transform: glide(undefined, rising),
+                transform: glide(undefined, true),
                 font: '900 92px/1 var(--f-display, "Baloo 2", Inter, sans-serif)', color: CARD_INK, letterSpacing: '0.02em'}}>{label}</div>
             </div>
           </div>

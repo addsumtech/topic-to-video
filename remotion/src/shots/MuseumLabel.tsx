@@ -75,7 +75,7 @@ export const MuseumLabel: React.FC<{
     if (!text) return null;
     const on = easeOutCubic(clamp01(seg(t, at, at + 0.14)));
     return (
-      <div style={{opacity: on, transform: glide(`translateY(${(1 - on) * 6}px)`, on !== 1),
+      <div style={{opacity: on, transform: glide(`translateY(${(1 - on) * 6}px)`, true),
         font: `${size >= 0.030 ? 700 : 500} ${Math.round(W * size)}px/1.3 ${face}`, color,
         letterSpacing: spacing, marginBottom: Math.round(W * 0.007)}}>{text}</div>
     );

@@ -83,7 +83,7 @@ export const MorphForms: React.FC<{title?: string; tagline?: string}> = ({
         {/* the title and its kicker sit ON the ground, so they are the film's ink and its metadata. The
             separation shadow is the GROUND'S OWN colour, never a fixed black: black behind near-black type on
             paper is a smudge, and a white one would be the halo the caption rule forbids. */}
-        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: dna?.fg ?? '#eaf0ff',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: dna?.fg ?? '#eaf0ff',
           font: '800 76px/1.05 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em', textAlign: 'center',
           textShadow: lit ? `0 8px 40px ${BG}` : '0 8px 40px #000'}}>{TITLE}</div>
         {TAG ? <div style={{opacity: titleIn, marginTop: 16, color: dna?.dim ?? '#9fb0d0', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.16em'}}>{TAG}</div> : null}

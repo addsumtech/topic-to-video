@@ -109,7 +109,7 @@ export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]; active?:
               ) : null}
             </div>
             {/* the "created" deliverable row */}
-            <div style={{marginTop: 40, opacity: clamp01(created), transform: glide(`translateY(${lerp(24, 0, clamp01(created))}px)`, clamp01(created) !== 1),
+            <div style={{marginTop: 40, opacity: clamp01(created), transform: glide(`translateY(${lerp(24, 0, clamp01(created))}px)`, true),
               padding: '30px 34px', borderRadius: 14, border: `1px solid ${LINE}`, background: ROW_BG, display: 'flex', alignItems: 'center', gap: 24}}>
               <div style={{width: 54, height: 54, borderRadius: 12, background: `${ACC}22`}} />
               <div><div style={{font: `700 36px/${leading(deliverable, 1)} var(--f-body, Inter)`, color: FG}}>{deliverable}</div>

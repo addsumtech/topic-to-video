@@ -180,7 +180,7 @@ const Panel: React.FC<PanelProps> = ({
   return (
     <div style={{position: 'absolute', left: box.x, top: box.y, width: w, height: h, background: card,
       border: `1px solid ${border}`, borderRadius: radius, overflow: 'hidden', opacity: cardIn,
-      transform: glide(`translateY(${(1 - cardIn) * 12}px)`, cardIn !== 1)}}>
+      transform: glide(`translateY(${(1 - cardIn) * 12}px)`, true)}}>
 
       {/* measure name — the panel's only claim about itself */}
       <div style={{position: 'absolute', left: w * 0.065, right: w * 0.05, top: h * 0.05, color: fg,
@@ -250,7 +250,7 @@ const Panel: React.FC<PanelProps> = ({
 
       {/* the panel's finding, in the film's own words */}
       <div style={{position: 'absolute', left: w * 0.065, right: w * 0.065, top: plotBot + h * 0.09, color: fg,
-        font: `500 ${noteSize}px/1.3 ${face}`, opacity: 0.9 * noteIn, transform: glide(`translateY(${(1 - noteIn) * 8}px)`, noteIn !== 1)}}>
+        font: `500 ${noteSize}px/1.3 ${face}`, opacity: 0.9 * noteIn, transform: glide(`translateY(${(1 - noteIn) * 8}px)`, true)}}>
         {note}
       </div>
     </div>
@@ -421,7 +421,7 @@ export const OverlapSeparation: React.FC<{
       ) : null}
 
       <div style={{...titleStyle, color: FG, opacity: headIn, font: `700 ${titleSize}px/1.1 ${dispFace}`,
-        transform: glide(`translateY(${(1 - headIn) * -8}px)`, headIn !== 1), whiteSpace: 'nowrap'}}>{TITLE}</div>
+        transform: glide(`translateY(${(1 - headIn) * -8}px)`, true), whiteSpace: 'nowrap'}}>{TITLE}</div>
 
       {/* ONE legend for BOTH panels — the statement that the same two populations are being scored twice */}
       {shared ? (

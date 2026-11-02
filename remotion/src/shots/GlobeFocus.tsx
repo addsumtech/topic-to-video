@@ -169,7 +169,7 @@ export const GlobeFocus: React.FC<{
 
   const breathe = life(t, DUR, fps, 3.2);
   const chipStyle = (px: number, a: number, x: number, y: number, w: number, h: number): React.CSSProperties => ({
-    position: 'absolute', left: 0, top: 0, width: w, height: h, transform: glide(`translate(${x}px, ${y}px)`, a < 1),
+    position: 'absolute', left: 0, top: 0, width: w, height: h, transform: glide(`translate(${x}px, ${y}px)`, true),
     opacity: clamp01(a), display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box',
     padding: `${padY}px ${padX}px`, borderRadius: Math.round(px * 0.35), background: `${CHIP}d9`,
     border: `1px solid ${mix(CHIP, FG, 0.22)}`, color: CHIP_INK, whiteSpace: 'nowrap',

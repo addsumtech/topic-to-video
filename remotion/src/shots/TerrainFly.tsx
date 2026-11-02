@@ -71,7 +71,7 @@ export const TerrainFly: React.FC<{title?: string; tagline?: string}> = ({
         background: `radial-gradient(circle, ${ACC}66, ${ACC2}33 40%, #0000 70%)`, filter: 'blur(6px)'}} />
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{lines}</svg>
       <div style={{position: 'absolute', top: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: INK,
+        transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: INK,
         font: '800 120px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
         textShadow: TITLE_GLOW}}>{TITLE}</div>
       <div style={{position: 'absolute', top: 244, left: 0, right: 0, textAlign: 'center',

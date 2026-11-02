@@ -206,7 +206,7 @@ export const GearTrain: React.FC<{items?: string[]; label?: string; title?: stri
       {/* payoff badge off the last gear — only when the film named a payoff */}
       {String(LABEL ?? '').trim() ? (
       <div style={{position: 'absolute', left: x0 + (n - 1) * SPACING, top: cy - R - 96,
-        transform: glide(`translate(-50%,0) scale(${payoff})`, payoff !== 1), opacity: clamp01(payoff * 1.4),
+        transform: glide(`translate(-50%,0) scale(${payoff})`, true), opacity: clamp01(payoff * 1.4),
         padding: '16px 34px', borderRadius: 999, background: `linear-gradient(150deg, ${PILL}, ${PILL_DEEP})`,
         color: PILL_INK, font: '800 40px/1 var(--f-body, Inter, system-ui, sans-serif)',
         boxShadow: `0 18px 50px ${PILL_GLOW}`, whiteSpace: 'nowrap'}}>{LABEL}</div>

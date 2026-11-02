@@ -174,7 +174,7 @@ export const FlowCounter: React.FC<{
             const blur = blurFor(c.place);
             return (
               <div key={i} style={{position: 'absolute', left, top: 0, width: w, height: cellH, overflow: 'hidden'}}>
-                <div style={{position: 'absolute', left: 0, top: 0, width: w, transform: glide(frac > 1e-6 ? `translateY(${-frac * cellH}px)` : undefined, frac > 1e-6),
+                <div style={{position: 'absolute', left: 0, top: 0, width: w, transform: glide(frac > 1e-6 ? `translateY(${-frac * cellH}px)` : undefined, true),
                   filter: blur > 0.3 ? `blur(${blur.toFixed(2)}px)` : undefined}}>
                   <div style={{height: cellH, color: FG, font: `700 ${size}px/${cellH}px ${DISPLAY}`, textAlign: 'center'}}>{String(lo % 10)}</div>
                   {frac > 1e-6 ? <div style={{height: cellH, color: FG, font: `700 ${size}px/${cellH}px ${DISPLAY}`, textAlign: 'center'}}>{String((lo + 1) % 10)}</div> : null}

@@ -72,7 +72,7 @@ export const TemporalAccelerate: React.FC<{items?: string[]; seconds?: number | 
         <div style={{transform: `translateY(${-travel}px)`, filter: blur > 0.5 ? `blur(${blur}px)` : undefined}}>
           {/* the rows carry the baseline unlock while the list scrolls — INSIDE the velocity blur, which keeps only
               the scale of the matrix above it, so an unlock beside it never reaches the glyphs (runtime/glide.ts) */}
-          <div style={{transform: glide(undefined, sf !== 1)}}>
+          <div style={{transform: glide(undefined, true)}}>
           {STEPS.map((s, i) => {
             // ticked once scrolled past — and ALL of them once the timer snaps, which is what the counter says
             const passed = done || i * rowH < travel + 40;
@@ -94,7 +94,7 @@ export const TemporalAccelerate: React.FC<{items?: string[]; seconds?: number | 
             fontVariantNumeric: 'tabular-nums'}}>{done ? figureText(seconds) : elapsed}<span style={{fontSize: 120, color: ACC}}>s</span></div>
         )}
         <div style={{font: '700 54px/1 var(--f-body, Inter,system-ui,sans-serif)', color: done ? GOOD : DIM, marginTop: 20,
-          transform: glide(`scale(${done ? 0.94 + 0.06 * snap : 1})`, done && snap !== 1), transformOrigin: 'right'}}>
+          transform: glide(`scale(${done ? 0.94 + 0.06 * snap : 1})`, true), transformOrigin: 'right'}}>
           {/* counts the list it is actually showing. It counted a hardcoded 12 either way, so a film with
               five steps watched a counter run to twelve. */}
           {done ? `${visN} / ${visN}${doneLabel ? ` · ${doneLabel}` : ''}` : `${Math.min(visN, Math.floor(sf * visN + 0.5))} / ${visN}`}</div>

@@ -212,7 +212,7 @@ export const SurfaceCarousel: React.FC<{
             opacity: fade,
             filter: focusFilter(f),
             zIndex: 1 - d > 0.5 ? 2 : 1}}>
-            <div style={{transform: glide(undefined, moving)}}>
+            <div style={{transform: glide(undefined, true)}}>
             {/* the pill sinks FASTER than its panel, so a neighbour's label settles onto its own window
                 instead of floating in the gap between two of them */}
             {s.label ? (

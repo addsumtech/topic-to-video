@@ -269,3 +269,40 @@ def test_a_long_beat_with_an_authored_move_is_not_named():
 def test_the_stepped_move_length_is_the_renderers():
     import render_remotion as rr
     assert rq.STEPPED_MOVE_S == rr.LONG_BEAT
+
+
+def _shot_film(tmp_path, frozen_s):
+    """A two-beat remotion board and its out.mp4: beat 1 moves the whole time, beat 2 freezes for `frozen_s`."""
+    import json
+    import shutil
+    import subprocess
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg needed")
+    board = {"meta": {"renderer": "remotion", "language": "en"},
+             "slides": [{"index": 1, "shot": "SpecimenWall", "duration": 6.0, "narration": "one two three"},
+                        {"index": 2, "shot": "SpecimenWall", "duration": frozen_s + 1.0, "narration": "four five six"}]}
+    (tmp_path / "storyboard.json").write_text(json.dumps(board), encoding="utf-8")
+    moving = "testsrc=size=320x180:rate=30:duration=6"
+    still = "color=c=gray:size=320x180:rate=30:duration=%.1f" % (frozen_s + 1.0)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", moving, "-f", "lavfi", "-i", still,
+                    "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0", "-pix_fmt", "yuv420p",
+                    str(tmp_path / "out.mp4")], check=True)
+    return tmp_path
+
+
+def test_a_shot_beat_frozen_on_the_rendered_film_is_an_error(tmp_path):
+    """The held-frame rule read only `slide` scenes, so on a film of shots it inspected 0 of 25 beats and the gate
+    still passed. A shot beat is measured on out.mp4 instead: a beat frozen past STATIC_SHOT_HARD is an error."""
+    d = _shot_film(tmp_path, 12.0)
+    r = rq.check(str(d))
+    assert any("scene 2" in e and "still" in e for e in r["errors"]), r["errors"]
+    assert not any("scene 1" in e for e in r["errors"])
+    assert r["held_frame_scenes"] == 2
+
+
+def test_a_shot_board_before_its_render_says_it_was_not_measured(tmp_path):
+    d = _shot_film(tmp_path, 2.0)
+    (d / "out.mp4").unlink()
+    r = rq.check(str(d))
+    assert r["held_frame_scenes"] == 0
+    assert any("NOT MEASURED" in w and "out.mp4" in w for w in r["warnings"]), r["warnings"]

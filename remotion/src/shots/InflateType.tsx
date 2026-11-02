@@ -113,7 +113,7 @@ export const InflateType: React.FC<{word?: string; tagline?: string}> = ({
           );
         })}
       </div>
-      <div style={{opacity: tagIn, transform: glide(`translateY(${(1 - tagIn) * 12}px)`, tagIn !== 1), marginTop: 54, color: TAG_INK,
+      <div style={{opacity: tagIn, transform: glide(`translateY(${(1 - tagIn) * 12}px)`, true), marginTop: 54, color: TAG_INK,
         font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );

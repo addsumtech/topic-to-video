@@ -104,7 +104,7 @@ export const DNAHelix: React.FC<{title?: string; tagline?: string}> = ({
     <AbsoluteFill style={{background: `radial-gradient(120% 100% at 50% 44%, #0b1526, ${BG} 74%)`, overflow: 'hidden'}}>
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{items.map((it) => <g key={it.key}>{it.el}</g>)}</svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none'}}>
-        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, titleIn !== 1), color: '#eafffb',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, true), color: '#eafffb',
           font: '800 128px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: `0 0 50px ${A_T}44, 0 12px 40px #000`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: '#9fd6d0',

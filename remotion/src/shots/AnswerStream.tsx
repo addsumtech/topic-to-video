@@ -55,7 +55,7 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ??
       `radial-gradient(120% 100% at 50% 18%, #14203a, ${BG} 62%)`, padding: 0}}>
       {/* query */}
-      <div style={{position: 'absolute', left: X, top: 150, width: CW, opacity: qIn, transform: glide(`translateY(${lerp(20, 0, qIn)}px)`, qIn !== 1),
+      <div style={{position: 'absolute', left: X, top: 150, width: CW, opacity: qIn, transform: glide(`translateY(${lerp(20, 0, qIn)}px)`, true),
         display: 'flex', alignItems: 'center', gap: 22}}>
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={TEAL} strokeWidth="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" /></svg>
         <div style={{font: '700 62px/1.1 var(--f-body, Inter,system-ui,sans-serif)', color: INK}}>{Q}</div>
@@ -73,7 +73,7 @@ export const AnswerStream: React.FC<{query?: string; answer?: string; sources?: 
       <div style={{position: 'absolute', left: X, top: srcTop, width: CW, display: 'flex', gap: 26}}>
         {SRC.map((s, i) => {
           const r = easeOutBack(seg(t, 0.4 + i * 0.08, 0.4 + i * 0.08 + 0.22));
-          return <div key={i} style={{flex: 1, opacity: clamp01(r), transform: glide(`translateY(${lerp(24, 0, clamp01(r))}px)`, clamp01(r) !== 1),
+          return <div key={i} style={{flex: 1, opacity: clamp01(r), transform: glide(`translateY(${lerp(24, 0, clamp01(r))}px)`, true),
             background: PANEL, border: `1px solid ${EDGE}`, borderRadius: dna?.radius ?? 14, padding: '26px 28px'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14}}>
               <div style={{flex: 'none', width: BADGE, height: BADGE, borderRadius: 9, background: TEAL, color: ON_TEAL, font: `700 ${SRC_D_PX}px/${BADGE}px var(--f-body, Inter)`, textAlign: 'center'}}>{i + 1}</div>

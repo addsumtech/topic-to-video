@@ -164,7 +164,7 @@ export const MadeOf: React.FC<{
           <div key={k} style={{position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h,
             background: fill, opacity: on,
             // the parts arrive by GROWING out of the whole, not by fading in from nowhere
-            transform: glide(`scale(${(0.94 + 0.06 * on).toFixed(4)})`, on !== 1), transformOrigin: '50% 50%',
+            transform: glide(`scale(${(0.94 + 0.06 * on).toFixed(4)})`, true), transformOrigin: '50% 50%',
             boxShadow: `inset 0 0 0 ${hair}px ${BG}`,
             display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
             padding: Math.round(base * 0.022), boxSizing: 'border-box', overflow: 'hidden'}}>

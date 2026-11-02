@@ -221,7 +221,7 @@ export const ForkingAnswers: React.FC<{
         const moving = g > 0 && g < 1;
         if (n.node.answer) {
           return <div key={`n${i}`} style={{position: 'absolute', left: 0, top: 0,
-            transform: glide(`translate(${x}px, ${y - th * 0.55}px)`, moving), height: th * 1.1,
+            transform: glide(`translate(${x}px, ${y - th * 0.55}px)`, true), height: th * 1.1,
             padding: `0 ${px * 0.4}px`, display: 'flex', alignItems: 'center', background: ink.surface,
             border: `${Math.max(2, U * 0.0022)}px solid ${ink.border}`, borderRadius: px * 0.25, color: ink.fg, opacity: on,
             font: `600 ${px}px/1 ${MONO}`, whiteSpace: 'pre', boxSizing: 'border-box'}}>{n.text}</div>;

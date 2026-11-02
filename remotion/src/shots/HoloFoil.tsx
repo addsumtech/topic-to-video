@@ -67,13 +67,13 @@ export const HoloFoil: React.FC<{word?: string; tagline?: string}> = ({word: WOR
       {/* the holo wordmark */}
       {/* sized to the WIDTH it ships at: 210px fits this word at 1920 and loses 107px off each edge at 1080 */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column'}}>
-        <div style={{position: 'relative', transform: glide(`translateY(${(1 - rise) * 40}px)`, rise !== 1), opacity: rise}}>
+        <div style={{position: 'relative', transform: glide(`translateY(${(1 - rise) * 40}px)`, true), opacity: rise}}>
           {/* the word's shadows sit on a wrapper: a drop-shadow keeps only the scale of the matrix above it, so the
               rising word carries its own unlock BELOW the filter (runtime/glide.ts); the sheen above needs none */}
           <div style={{filter: lit ? wordShadow : `${wordShadow} drop-shadow(0 0 2px ${RIM_D0})`}}>
           <div style={{font: `900 ${fitTextPx(WORD, W, 210, {track: 0.01})}px/0.9 var(--f-display, "Antonio", Impact, sans-serif)`, letterSpacing: '0.01em',
             background: foil, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
-            transform: glide(undefined, rise !== 1)}}>{WORD}</div>
+            transform: glide(undefined, true)}}>{WORD}</div>
           </div>
           {/* specular sheen overlay (screen) */}
           <div style={{position: 'absolute', inset: 0, font: `900 ${fitTextPx(WORD, W, 210, {track: 0.01})}px/0.9 var(--f-display, "Antonio", Impact, sans-serif)`,

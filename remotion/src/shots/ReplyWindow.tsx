@@ -141,7 +141,7 @@ const Pane: React.FC<{x: number; y: number; w: number; h: number; ink: Ink; U: n
           shift is min(0, region - own height), resolved by the browser from the block's real height */}
       <div style={{position: 'absolute', left: 0, right: 0, top: 0, color: ink.fg, font: `400 ${replyPx}px/1.42 ${BODY}`,
         paddingBottom: replyPx * 0.25,
-        transform: autoScroll ? glide(`translateY(min(0px, calc(${regH}px - 100%)))`, caret) : undefined}}>
+        transform: autoScroll ? glide(`translateY(min(0px, calc(${regH}px - 100%)))`, true) : undefined}}>
         {ringed ? (() => {
           const s = text.join('');
           const at = s.indexOf(ringed);
@@ -498,7 +498,7 @@ export const ReplyWindow: React.FC<{
                 <div style={{position: 'absolute', left: dx + dW * 0.04, top: dy + dH * 0.6, width: dW * 0.92, height: depth,
                   background: `linear-gradient(180deg, ${mix(ink.fg, ink.bg, 0.8)}, ${mix(ink.fg, ink.bg, 0.9)})`, borderRadius: 4}} />
                 <div style={{position: 'absolute', left: dx, top: dy, width: dW, height: dH, borderRadius: 6,
-                  transform: glide(`translateY(${depth}px)`, open > 0 && open < 1),
+                  transform: glide(`translateY(${depth}px)`, true),
                   background: `linear-gradient(180deg, ${mix(ink.fg, ink.bg, 0.3)}, ${mix(ink.fg, ink.bg, 0.12)})`,
                   boxShadow: `inset 0 1px 0 ${mix(ink.fg, ink.bg, 0.45)}, 0 ${U * 0.004}px ${U * 0.01}px ${mix(ink.fg, ink.bg, 0.8)}`}}>
                   <div style={{position: 'absolute', left: dW * 0.32, top: dH * 0.4, width: dW * 0.36,
@@ -507,7 +507,7 @@ export const ReplyWindow: React.FC<{
                 {/* the label rides down with the drawer front: moved by a glided transform, never by `top` (text moved by
                     layout snaps to whole pixels and steps) */}
                 {drawerLabel ? <div style={{position: 'absolute', left: dx + dW + B0.pad * 0.6, top: dy + dH / 2 - f.label * 0.65,
-                  transform: glide(`translateY(${depth}px)`, open > 0 && open < 1), color: ink.dim, font: `500 ${f.label}px/1.25 ${BODY}`, whiteSpace: 'nowrap'}}>{drawerLabel}</div> : null}
+                  transform: glide(`translateY(${depth}px)`, true), color: ink.dim, font: `500 ${f.label}px/1.25 ${BODY}`, whiteSpace: 'nowrap'}}>{drawerLabel}</div> : null}
                 <svg width={pw} height={ph0} style={{position: 'absolute', left: 0, top: 0, overflow: 'visible'}}>
                   <Cross x={dx + dW / 2} y={dy + depth / 2 + dH * 0.5} s={dH * 0.9} color={ink.acc} p={s} lw={Math.max(6, U * 0.008)} />
                 </svg>
@@ -547,7 +547,7 @@ export const ReplyWindow: React.FC<{
             <Pane key={i} x={x} y={top} w={pw} h={ph} ink={ink} U={U} on={pOn} question={question} reply="" replyPx={replyPx}
               busy={p < 1} look={look} side={1}>
               <div style={{position: 'absolute', left: pad, top: rTop, width: pw - pad * 2, height: rH,
-                transform: glide(`translateY(${-(1 - drop) * U * 0.05}px)`, drop > 0 && drop < 1),
+                transform: glide(`translateY(${-(1 - drop) * U * 0.05}px)`, true),
                 background: mix(ink.acc2, ink.surface, 0.9), border: `1px solid ${mix(ink.acc2, ink.surface, 0.6)}`,
                 borderRadius: 8, opacity: drop, boxShadow: `0 ${U * 0.004}px ${U * 0.012}px ${mix(ink.acc2, ink.bg, 0.85)}`}}>
                 {resultRows.map((r, ri) => {

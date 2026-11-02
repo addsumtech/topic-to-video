@@ -127,7 +127,7 @@ export const CardFlip3D: React.FC<{items?: Item[]; title?: string; backLabel?: s
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 50% 40%, #12162b, ${BG} 68%)`}}>
       <div style={{position: 'absolute', top: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
-        transform: glide(`translateY(${(1 - titleIn) * 14}px)`, titleIn !== 1), color: TITLE_INK,
+        transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: TITLE_INK,
         font: '700 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.26em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       {/* WIDTH-AWARE. Fixed 64px broke a Chinese label mid-word inside a card this narrow ("失/败").

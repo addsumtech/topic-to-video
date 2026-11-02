@@ -132,7 +132,7 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
     <AbsoluteFill style={{background: PAPER, overflow: 'hidden', color: INK}}>
       {/* masthead */}
       <div style={{position: 'absolute', left: M, top: 92, opacity: clamp01(mast * 1.3),
-        transform: glide(`translateY(${(1 - mast) * -20}px)`, mast !== 1),
+        transform: glide(`translateY(${(1 - mast) * -20}px)`, true),
         font: `800 ${mastPx}px/0.9 var(--f-display, "Playfair Display", Georgia, serif)`, letterSpacing: '-0.02em'}}>{TITLE}</div>
       <div style={{position: 'absolute', right: M, top: 128, opacity: clamp01(seg(t, 0.28, 0.44)),
         font: `600 ${ISSUE_PX}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.16em'}}>{ISSUE}</div>
@@ -169,7 +169,7 @@ export const MagazineSpread: React.FC<{sectionLabel?: string; title?: string; he
         {words.map((w, i) => {
           const on = easeOutCubic(clamp01(seg(t, WORD_IN + i * wordStep, WORD_IN + WORD_DUR + i * wordStep)));
           return <span key={i} style={{display: 'inline-block', marginRight: '0.28em', opacity: on,
-            transform: glide(`translateY(${(1 - on) * 24}px)`, on !== 1)}}>{w}</span>;
+            transform: glide(`translateY(${(1 - on) * 24}px)`, true)}}>{w}</span>;
         })}
       </div>
 

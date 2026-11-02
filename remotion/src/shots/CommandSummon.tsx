@@ -94,7 +94,7 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
       {/* the palette rises by a TRANSLATE: by its layout top it was rounded to whole pixels before anything was
           drawn, and stepped whatever unlocked it (it rests on whole pixels, 0 and -40, as before) */}
       <div style={{position: 'absolute', left: PX, top: 210, width: PW, opacity: clamp01(inP),
-        transform: glide(`translateY(${palY}px) scale(${palScale})`, inP !== 1 || (fired && t < 0.62)), transformOrigin: '50% 0', background: 'rgba(20,25,35,0.92)',
+        transform: glide(`translateY(${palY}px) scale(${palScale})`, true), transformOrigin: '50% 0', background: 'rgba(20,25,35,0.92)',
         border: '1px solid #2a3346', borderRadius: 20, boxShadow: '0 50px 120px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)'}}>
         {/* input row */}
         <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: `34px ${CMD_PADX}px`, borderBottom: '1px solid #232c3d'}}>
@@ -111,7 +111,7 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
             const tick = fired && t > 0.66 + i * stepT;
             return (
               <div key={i} style={{display: 'flex', alignItems: 'center', gap: 20, padding: `17px ${ROW_PADX}px`, borderRadius: 12,
-                opacity: clamp01(rev), transform: glide(`translateX(${lerp(-20, 0, clamp01(rev))}px)`, rev !== 1),
+                opacity: clamp01(rev), transform: glide(`translateX(${lerp(-20, 0, clamp01(rev))}px)`, true),
                 background: (!fired && i === 0) ? `${ACCENT}1e` : 'transparent'}}>
                 {/* the tick is COPY-weight type: 34 px in a 44 px box, so it is ~32 px once the palette has scaled to 0.94 */}
                 <div style={{flex: 'none', boxSizing: 'border-box', width: TICK_BOX, height: TICK_BOX, borderRadius: 11, border: `2px solid ${tick ? '#59d98b' : '#3a475e'}`,

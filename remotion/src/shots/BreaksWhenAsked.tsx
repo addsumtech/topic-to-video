@@ -191,7 +191,7 @@ export const BreaksWhenAsked: React.FC<{
       <div style={{position: 'absolute', left: sheetX, top: sheetTop, width: sheetW, height: sheetH,
         background: SHEET, border: `${Math.max(1, dna?.borderWidth ?? 1)}px solid ${LINE}`,
         borderRadius: dna?.radius ?? 2, opacity: sheetIn,
-        transform: glide(`translateY(${(1 - sheetIn) * U * 0.02}px)`, sheetIn !== 1), overflow: 'hidden'}}>
+        transform: glide(`translateY(${(1 - sheetIn) * U * 0.02}px)`, true), overflow: 'hidden'}}>
 
         {/* the statement, in its pieces, laid out as one continuous printed line */}
         <div style={{position: 'absolute', left: padX, top: padY, width: lineW,
@@ -212,7 +212,7 @@ export const BreaksWhenAsked: React.FC<{
               <span key={i} style={{position: 'relative', display: 'inline-block', maxWidth: '100%'}}>
                 <span style={{display: 'inline-block', maxWidth: '100%',
                   color: mix(INK, SHEET, 0.55 * breakT),
-                  transform: glide(`translateY(${drop}px) rotate(${tilt}deg)`, breakT > 0 && breakT < 1), transformOrigin: 'left top',
+                  transform: glide(`translateY(${drop}px) rotate(${tilt}deg)`, true), transformOrigin: 'left top',
                   borderBottom: breakT > 0.02
                     ? `${Math.max(2, Math.round(U * 0.004))}px solid ${ACC}` : 'none',
                   ...type}}>{p}</span>
@@ -266,7 +266,7 @@ export const BreaksWhenAsked: React.FC<{
       {/* THE ONE THAT TALKS BACK — it arrives from under the page, after every reader has finished */}
       <div style={{position: 'absolute', left: sheetX, width: sheetW,
         top: sheetTop + sheetH + readersH, opacity: qIn,
-        transform: glide(`translateY(${(1 - qIn) * U * 0.03}px)`, qIn !== 1)}}>
+        transform: glide(`translateY(${(1 - qIn) * U * 0.03}px)`, true)}}>
         <div style={{color: ACC, font: `700 ${qPx}px/${leading(question, 1.3)} ${disp}`}}>{question}</div>
         <div style={{color: DIM_ON_GROUND, opacity: tagIn, marginTop: Math.round(U * 0.010),
           font: `600 ${tagPx}px/1.3 ${body}`, letterSpacing: spacing, textTransform: upper as any}}>

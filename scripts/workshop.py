@@ -876,12 +876,29 @@ def check(out_dir):
     probs += import_problems(out_dir, files)
     probs += contract_problems(out_dir, files)
     probs += baked_words(out_dir, files)["problems"]
+    probs += glide_problems(out_dir)
     if not index_blockers(out_dir) and has_items(out_dir):
         probs += typecheck(out_dir)
     if has_components(out_dir):
         probs += html_problems(out_dir)
     return probs
 
+
+
+
+def glide_problems(out_dir):
+    """A film's own shot or object that switches the baseline unlock with the motion (scripts/glide_lint.py)."""
+    import glide_lint
+    ws = workshop_dir(out_dir)
+    out = []
+    for kind in KINDS:
+        d = os.path.join(ws, kind)
+        if os.path.isdir(d):
+            for f, ln, on in glide_lint.scan(d):
+                out.append("%s/%s:%d: glide(..., %s) switches the baseline unlock with the motion — hold it for the "
+                           "span: `true`, or a name marked `@glide-span: <why constant over the beat>` (a switched "
+                           "unlock pops the type on the frame it turns on or off)" % (kind, f, ln, on))
+    return out
 
 
 # ── HTML-TIER COMPONENTS ───────────────────────────────────────────────────────────────────────────────────
@@ -1708,6 +1725,13 @@ export const %(name)s: React.FC<ObjectProps> = ({w, h, t, dna}) => {
 };
 """
 
+def _worlds_line():
+    """The idiom worlds a shot may name, written INTO its scaffold: the comment once said "one of
+    shot_director.IDIOM_WORLDS" and three builders guessed 'editorial' (the list says 'print-editorial')."""
+    import shot_director
+    return ", ".join("'%s'" % w for w in shot_director.IDIOM_WORLDS)
+
+
 SHOT_SCAFFOLD = """// SHOT · %(name)s — %(means)s
 // A film-local register (scripts/workshop.py): a template this film needs because no library register's STRUCTURE
 // carries this beat. Every word on screen comes from a prop; content stays inside the content zone (above
@@ -1728,7 +1752,7 @@ export const DURATION = 150;
 // the DNA token this shot paints its ground from ('bg', 'bgGrad', 'surface', 'accent', 'accent2') or a '#hex' —
 // the burned caption picks its ink from it, and scripts/shot_proof.py measures the claim
 export const GROUND = 'bg';
-// the idiom world its look comes from — one of shot_director.IDIOM_WORLDS
+// the idiom world its look comes from — exactly one of: %(worlds)s
 export const PROVENANCE = '';
 
 // @scaffold — replace this body with the real design, then delete this line.
@@ -1772,7 +1796,7 @@ def scaffold(out_dir, kind, name, means):
     path = os.path.join(d, name + ".tsx")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write((OBJECT_SCAFFOLD if kind == "object" else SHOT_SCAFFOLD)
-                 % {"name": name, "means": " ".join(str(means).split())})
+                 % {"name": name, "means": " ".join(str(means).split()), "worlds": _worlds_line()})
     return path
 
 

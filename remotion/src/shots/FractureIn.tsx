@@ -69,7 +69,7 @@ export const FractureIn: React.FC<{title?: string; tagline?: string; accent?: st
 
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         pointerEvents: 'none'}}>
-        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 20}px)`, titleIn !== 1),
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 20}px)`, true),
           color: INK, font: `800 128px/1 ${dna?.fontDisplay ?? 'var(--f-display, Inter, system-ui, sans-serif)'}`, letterSpacing: '-0.03em',
           textShadow: '0 20px 60px #000a'}}>{TITLE}</div>
         <div style={{opacity: clamp01(seg(t, 0.72, 0.9)), marginTop: 22, color: TAG_INK,

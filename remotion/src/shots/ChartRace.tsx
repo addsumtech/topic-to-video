@@ -142,7 +142,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
           // the row slides by a translate (the soft rank sliding to its final slot) and the value counts up by its
           // own: the label and the counting value carry the unlock while the race can still move them (runtime/glide.ts)
           <div key={r.i} style={{position: 'absolute', left: x0, top: 0, width: barMax + valueW + 40, height: rowH - 22,
-            transform: glide(`translateY(${y}px)`, t < RACE_B)}}>
+            transform: glide(`translateY(${y}px)`, true)}}>
             {/* label */}
             <div style={{position: 'absolute', right: '100%', top: 0, height: rowH - 22, paddingRight: 26,
               display: 'flex', alignItems: 'center', color: lead ? '#fff' : '#c7cee0',

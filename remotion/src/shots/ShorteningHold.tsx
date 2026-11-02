@@ -181,7 +181,7 @@ export const ShorteningHold: React.FC<{
       <div style={{position: 'absolute', left: x0, top: top + spentH + U * 0.012, width: colW,
         font: `700 ${LIVE_PX}px/${leading(SS[live], 1.14)} ${disp}`,
         color: live === n - 1 ? readableOn(BG, ACC, strong) : strong,
-        transform: glide(`translateY(${(1 - settle) * U * 0.012}px)`, settle !== 1), opacity: 0.25 + 0.75 * settle,
+        transform: glide(`translateY(${(1 - settle) * U * 0.012}px)`, true), opacity: 0.25 + 0.75 * settle,
         textWrap: 'balance'}}>{SS[live]}</div>
 
       {/* The rule under the live line is THIS statement's own hold, drawn against the first one's — so a

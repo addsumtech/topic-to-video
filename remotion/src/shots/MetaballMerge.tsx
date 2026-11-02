@@ -57,7 +57,7 @@ export const MetaballMerge: React.FC<{title?: string; tagline?: string; accent?:
       </svg>
 
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, titleIn !== 1), color: '#fff',
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, true), color: '#fff',
           font: '800 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
           textShadow: '0 6px 30px #000, 0 0 60px #000c, 0 2px 0 #ffffff40'}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: '#fff',

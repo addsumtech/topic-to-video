@@ -251,7 +251,7 @@ export const NearTheLine: React.FC<{
               ...(above ? {bottom: H - (c.y - U * 0.022)} : {top: c.y + U * 0.022}),
               opacity: on, font: `${c.near ? 700 : 500} ${CASE_PX}px/${leading(String(c.label), 1.25)} ${disp}`,
               color: c.near ? readableOn(BG, ACC, strong) : strong,
-              transform: glide(`translateY(${(1 - pop) * U * 0.008}px)`, pop !== 1), textWrap: 'balance'}}>
+              transform: glide(`translateY(${(1 - pop) * U * 0.008}px)`, true), textWrap: 'balance'}}>
               {/* No register-authored words. A hardcoded "inside the band" shipped ENGLISH onto a
                   Chinese film and was the register talking over the beat; the glow, the accent and the
                   dot's position inside the band already say it, and `note` is where the film says what

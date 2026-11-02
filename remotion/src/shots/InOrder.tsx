@@ -104,7 +104,6 @@ export const InOrder: React.FC<{
   // a band's left/top/width/height move while it first tiles in (`enter`) AND, with no `at` pinned, for as
   // long as the focus keeps walking the sequence (0.10-0.92 of the clip) — both of which Skia rounds the same
   // way it rounds a translate, so the band carries the unlock for whichever of the two can still be running
-  const bandMoving = enter !== 1 || (at === undefined && t < 0.92);
 
   let acc = 0;
   const bands = steps.map((s, i) => {
@@ -149,7 +148,7 @@ export const InOrder: React.FC<{
           <div style={{position: 'absolute', left: 0, top: 0, width: bw, height: bh, overflow: 'hidden',
             transform: `translate(${bx}px, ${by}px)`}}>
             <div style={{position: 'absolute', left: 0, top: 0, width: bw - 2 * inset,
-              transform: glide(`translate(${inset}px, ${bh - inset}px) translateY(-100%)`, bandMoving)}}>
+              transform: glide(`translate(${inset}px, ${bh - inset}px) translateY(-100%)`, true)}}>
               <div style={{color: live ? ink : sub, font: `800 ${numPx}px/1 ${mono}`,
                 fontVariantNumeric: 'lining-nums tabular-nums', opacity: 0.9}}>
                 {done && doneLabel ? doneLabel : String(i + 1).padStart(2, '0')}

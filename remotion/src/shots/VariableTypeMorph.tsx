@@ -55,7 +55,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
         transform: `translateX(${fieldX}px)`,
         background: `radial-gradient(50% 60% at 30% 40%, ${ACC}, #0000 60%), radial-gradient(50% 60% at 72% 60%, ${ACC2}, #0000 60%)`}} />
 
-      <div style={{opacity: kickIn, transform: glide(`translateY(${(1 - kickIn) * 12}px)`, kickIn !== 1), color: dna?.dim ?? '#c7cee0',
+      <div style={{opacity: kickIn, transform: glide(`translateY(${(1 - kickIn) * 12}px)`, true), color: dna?.dim ?? '#c7cee0',
         font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.5em', textTransform: 'uppercase',
         paddingLeft: '0.5em', marginBottom: 40, zIndex: 2}}>{KICKER}</div>
 
@@ -86,7 +86,7 @@ export const VariableTypeMorph: React.FC<{word?: string; kicker?: string; taglin
         })}
       </div>
 
-      <div style={{opacity: tagIn, transform: glide(`translateY(${(1 - tagIn) * 10}px)`, tagIn !== 1), marginTop: 44, color: dna?.dim ?? '#8b93a8',
+      <div style={{opacity: tagIn, transform: glide(`translateY(${(1 - tagIn) * 10}px)`, true), marginTop: 44, color: dna?.dim ?? '#8b93a8',
         font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.24em', textTransform: 'uppercase', zIndex: 2}}>{TAG}</div>
     </AbsoluteFill>
   );

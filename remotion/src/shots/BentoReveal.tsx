@@ -145,7 +145,7 @@ export const BentoReveal: React.FC<{title?: string; hero?: string; items?: (stri
         const tone = TONES[i % TONES.length];
         const pad = Math.round(Math.max(16, Math.min(w * 0.08, h * 0.12, hero ? U * 0.05 : U * 0.032)));
         const common: React.CSSProperties = {position: 'absolute', left: x, top: y, width: w, height: h,
-          boxSizing: 'border-box', opacity: clamp01(e * 1.4), transform: glide(`scale(${lerp(0.86, 1, e)})`, e !== 1),
+          boxSizing: 'border-box', opacity: clamp01(e * 1.4), transform: glide(`scale(${lerp(0.86, 1, e)})`, true),
           transformOrigin: 'center', borderRadius: Math.round(U * 0.02), overflow: 'hidden', padding: pad,
           display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px #0006'};
 

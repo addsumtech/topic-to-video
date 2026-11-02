@@ -100,7 +100,7 @@ export const EdTimeline: React.FC<{kicker?: string; entries?: Entry[]; framed?: 
             const show = clamp01(seg(t, start, start + DUR));
             return (
               <div key={i} style={{display: 'flex', gap: px(40), alignItems: 'baseline', padding: `${px(26)}px 0`,
-                borderTop: i ? `1px solid ${line}` : 'none', opacity: show, transform: glide(`translateY(${(1 - show) * 14}px)`, show !== 1)}}>
+                borderTop: i ? `1px solid ${line}` : 'none', opacity: show, transform: glide(`translateY(${(1 - show) * 14}px)`, true)}}>
                 <span style={{color: acc, font: `700 ${px(40)}px/${leading(e.date, 1)} ${disp}`, textWrap: 'balance', minWidth: '3ch'}}>{e.date}</span>
                 <div>
                   {/* `text-wrap: balance` for the same reason `date` and `note` already carry it, and the

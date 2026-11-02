@@ -129,7 +129,7 @@ export const PositioningMatrix: React.FC<{
         const pulse = hero && t > st + 0.24 ? 1 + 0.12 * Math.max(0, Math.sin((t - st - 0.24) * 10)) * Math.exp(-(t - st - 0.24) * 3) : 1;
         return (
           <div key={i} style={{position: 'absolute', left: X, top: Y,
-            transform: glide(`translate(-50%,-50%) scale(${r * pulse})`, r !== 1 || (hero && pulse !== 1))}}>
+            transform: glide(`translate(-50%,-50%) scale(${r * pulse})`, true)}}>
             <div style={{width: size, height: size, borderRadius: '50%', background: col,
               boxShadow: hero ? `0 0 30px ${col}` : 'none', border: hero ? `3px solid ${HERO_RING}` : 'none'}} />
             {it.label ? (

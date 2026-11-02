@@ -199,7 +199,7 @@ export const CardStack3D: React.FC<{items?: StackItem[]; title?: string}> = ({
       </AbsoluteFill>
       <div style={{position: 'absolute', top: titleTop, height: titleH, left: 0, right: 0, textAlign: 'center',
         opacity: titleIn, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        transform: glide(`translateY(${(1 - titleIn) * 16}px)`, titleIn !== 1), color: dna?.fg ?? TITLE_D0, textWrap: 'balance',
+        transform: glide(`translateY(${(1 - titleIn) * 16}px)`, true), color: dna?.fg ?? TITLE_D0, textWrap: 'balance',
         font: `800 ${titleSize}px/${leading(TITLE, 1)} var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em',
         textShadow: deep ? '0 8px 30px #000' : 'none'}}>{TITLE}</div>
     </AbsoluteFill>

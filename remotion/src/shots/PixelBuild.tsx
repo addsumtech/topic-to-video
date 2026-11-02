@@ -96,7 +96,7 @@ export const PixelBuild: React.FC<{hud?: string; label?: string}> = ({
       </svg>
 
       {/* COMPLETE banner */}
-      <div style={{position: 'absolute', left: 0, right: 0, top: gy + gh + 30, textAlign: 'center', transform: glide(`scale(${banner})`, banner !== 1),
+      <div style={{position: 'absolute', left: 0, right: 0, top: gy + gh + 30, textAlign: 'center', transform: glide(`scale(${banner})`, true),
         opacity: banner > 0 ? 1 : 0, color: '#ffe14d', font: `700 ${BANNER}px/1 var(--f-mono, "Press Start 2P", "VT323", monospace)`,
         letterSpacing: '0.06em', textShadow: '5px 5px 0 #b23b00'}}>{label}</div>
 

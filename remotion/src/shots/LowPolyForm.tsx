@@ -99,7 +99,7 @@ export const LowPolyForm: React.FC<{title?: string; tagline?: string; accent?: s
       <div style={{position: 'absolute', inset: 0, opacity: POOL_ALPHA,
         background: `radial-gradient(38% 40% at 50% 50%, ${BG}, #0000 72%)`}} />
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, titleIn !== 1), color: INK,
+        <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, true), color: INK,
           font: '800 138px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: `0 12px 50px ${BLOOM}`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 22, color: TAG_INK,
           font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em', textShadow: `0 4px 20px ${BLOOM}`}}>{TAG}</div>

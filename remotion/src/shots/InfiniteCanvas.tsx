@@ -77,7 +77,7 @@ export const InfiniteCanvas: React.FC<{hub?: string; items?: string[]}> = ({
             // scales, so a note turned by almost nothing rounds back to axis-aligned — it carries its own unlock,
             // raised for the size it is at (runtime/glide.ts)
             borderRadius: 14, transform: glide(`scale(${clamp01(ap)}) rotate(${(hash01(i + 3) - 0.5) * 6}deg)`,
-              ap !== 1, Math.max(0.01, clamp01(ap) * 0.5)), transformOrigin: 'center',
+              true, Math.max(0.01, clamp01(ap) * 0.5)), transformOrigin: 'center',
             boxShadow: noteShadow, display: 'flex', alignItems: 'center', justifyContent: 'center',
             font: '700 40px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: '#3a3320', textAlign: 'center', padding: 20}}>{n.text}</div>;
         })}

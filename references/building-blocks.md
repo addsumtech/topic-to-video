@@ -73,6 +73,10 @@ is one or two characters holds its camera (the fridge film did).
 type that stands still inside a shot the film's camera moves. Below a blur or drop-shadow, never above it (those
 filters keep only the scale of the matrix above them).
 **Smallest real use:** ``const glide = useGlide(); … transform: glide(`translateY(${(1 - e) * 20}px)`, true)`` (on for the beat; pass a span flag only when the beat has a stretch that never moves)
+Held for the span means the call's `on` is the literal `true` (or a name declared `// @glide-span: <why it is
+constant over the beat>`): `scripts/glide_lint.py` refuses anything else in the library (a test holds it at
+zero — 119 switched calls were rewritten 2026-11-02 after CommandSummon's `t < 0.62` stepped its command line
+0.89 px) and `workshop.py check` refuses it in a film's own shots.
 **Exports:** `glide`, `useGlide`, `unlockFor`, `unlockSkewFor`, `BASELINE_UNLOCK`, `BASELINE_UNLOCK_SKEW`, `BaselineUnlockContext`, `baselineUnlockOverscan`, `unlockCoverScale`.
 
 ### `depth`
