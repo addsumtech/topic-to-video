@@ -362,10 +362,19 @@ def _load_beat_cache(out_dir):
 
 
 def _save_beat_cache(out_dir, cache):
+    # ATOMIC: critic_brief runs this gate's three modes in parallel lanes, all on this one file; a write is made
+    # whole beside it and moved into place, so a reader never sees half of one (it would read as an empty cache).
+    path = os.path.join(out_dir, BEAT_CACHE)
+    tmp = "%s.%d.tmp" % (path, os.getpid())
     try:
-        json.dump(cache, open(os.path.join(out_dir, BEAT_CACHE), "w", encoding="utf-8"), ensure_ascii=False)
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(cache, fh, ensure_ascii=False)
+        os.replace(tmp, path)
     except OSError:
-        pass
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 class _StageBeats:
