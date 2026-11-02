@@ -21,7 +21,7 @@ _LAYOUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # The narrow-frame threshold is parsed too. It was a literal 1400 in BOTH this file and layout.ts —
 # a "one definition" mirror that shared the fractions and quietly duplicated the rule that uses them.
 _KEYS = ("CAPTION_SIZE_FRAC", "CAPTION_LINES", "CAPTION_LEAD",
-         "CAPTION_MARGIN_FRAC", "CAPTION_GAP_FRAC", "CAPTION_NARROW_W")
+         "CAPTION_MARGIN_FRAC", "CAPTION_GAP_FRAC", "CAPTION_NARROW_W", "UNLOCK_TILT_DIV")
 
 _ROOT_TSX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "remotion", "src", "Root.tsx")
@@ -86,8 +86,15 @@ def caption_band_px(w, h):
     """
     f = _fracs()
     lines = f["CAPTION_LINES"] + (1 if w < f["CAPTION_NARROW_W"] else 0)
+    # the caption's OWN strip (layout.ts `captionBandBare`): gates measure intrusion against it, while registers
+    # lay out against `captionBand` = this + the baseline unlock's tilt reserve (see caption_reserve_px)
     return int(round(min(w, h) * (f["CAPTION_SIZE_FRAC"] * f["CAPTION_LEAD"] * lines
                                   + f["CAPTION_MARGIN_FRAC"] + f["CAPTION_GAP_FRAC"])))
+
+
+def caption_reserve_px(w, h):
+    """What a register keeps clear, mirroring `captionBand(W, H)`: the caption's strip plus the unlock's tilt."""
+    return caption_band_px(w, h) + int(math.ceil(w / _fracs()["UNLOCK_TILT_DIV"])) + 1
 
 
 if __name__ == "__main__":

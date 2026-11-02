@@ -9,7 +9,7 @@ import os
 import re
 
 import device_script as ds
-from _caption_band import caption_band_px
+from _caption_band import caption_reserve_px
 
 _LAYOUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "runtime", "layout.ts")
 
@@ -103,7 +103,7 @@ def geometry(kind, look, W, H, placement="center", kicker=False, model=None):
                             ", ".join(S["placementX"])))
     p = proportions(kind, look, model)
     top = _content_top() if kicker else _r(H * S["zoneTopFrac"])
-    zone_h = max(1, (H - caption_band_px(W, H)) - top)
+    zone_h = max(1, (H - caption_reserve_px(W, H)) - top)   # what the TS lays out against (captionBand)
     zone_w = W * S["zoneWidthFill"]
     face_w = 1 + 2 * p["bl"]
     face_h = p["ratio"] * (1 + p["strip"]) + p["bt"] + p["bb"]

@@ -13,7 +13,7 @@ import type {TransitionPresentation} from '@remotion/transitions';
 import {fade} from '@remotion/transitions/fade';
 import {wipe} from '@remotion/transitions/wipe';
 import {clockWipe} from '@remotion/transitions/clock-wipe';
-import {captionBand, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
+import {captionBandBare, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
         CAPTION_LEAD, CAPTION_LEAD_CJK, cjkAdvance, latinAdvance,
         CONTENT_TOP, contentBottom} from './runtime/layout';
 import {ObjectIdleContext} from './runtime/objectSlot';
@@ -475,7 +475,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // fits, which is a guarantee rather than an estimate and holds for any language, length and aspect. In the
   // ordinary Latin two-line case the cap is well above the ideal size and nothing changes.
   // on a platform-safe film the band is the register frame's own band, scaled with it (runtime/safeZone)
-  const capBand = safe ? Math.round(safe.k * captionBand(width, height)) : captionBand(width, height);
+  const capBand = safe ? Math.round(safe.k * captionBandBare(width, height)) : captionBandBare(width, height);   // the caption's own strip
   const capBottom = safe ? Math.round(height - captionBottomY(height, safe, capMargin)) : capMargin;
   const perLine = Math.max(8, Math.floor(capTextW / (capSize * advanceFor(capText, dnaFontBody, dnaUniform))));
   // A CJK CAPTION IS DRAWN IN THE LINES captionBreak DECIDES — at word boundaries, never in front of closing

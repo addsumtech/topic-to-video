@@ -57,8 +57,21 @@ export const captionLines = (W: number) => CAPTION_LINES + (W < CAPTION_NARROW_W
 export const captionBlockH = (W: number, H: number) =>
   Math.min(W, H) * (CAPTION_SIZE_FRAC * CAPTION_LEAD * captionLines(W) + CAPTION_MARGIN_FRAC);
 
-export const captionBand = (W: number, H: number) =>
+// THE UNLOCK'S TILT, RESERVED. runtime/glide holds a 1/1024 skewY on moving type for its whole span, and the skew
+// tilts the element's BOX too: the ends of a box w px wide sit w/2048 px above and below where they were laid out
+// (0.94 px across a 1920 frame). A block laid flush on the band edge leant a corner into the caption strip once the
+// unlock stopped switching off at rest (RestsOn, 2026-11-02). The band reserves that lean, here, where every register
+// and the Python gates (scripts/_caption_band.py parses this constant) read it. = 2 / BASELINE_UNLOCK_SKEW (a test
+// holds them together; glide.ts is not imported here, to keep this file a leaf every module can read).
+export const UNLOCK_TILT_DIV = 2048;
+export const unlockTiltReserve = (W: number) => Math.ceil(W / UNLOCK_TILT_DIV) + 1;
+/** The strip the burned caption itself is drawn in — what the Film sizes the caption to and what every gate measures
+ *  intrusion against (scripts/_caption_band.py mirrors THIS). */
+export const captionBandBare = (W: number, H: number) =>
   Math.round(captionBlockH(W, H) + Math.min(W, H) * CAPTION_GAP_FRAC);
+/** What a register keeps clear: the caption's strip plus the unlock's tilt, so content laid flush against it never
+ *  leans into the strip the gates measure. Lay out against this (or contentBottom); measure against the bare one. */
+export const captionBand = (W: number, H: number) => captionBandBare(W, H) + unlockTiltReserve(W);
 export const contentBottom = (W: number, H: number) => H - captionBand(W, H);
 
 /**

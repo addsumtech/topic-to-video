@@ -24,7 +24,7 @@
 // runs to the edge loses nothing a viewer needed. Only TYPE carries meaning that a frame edge can destroy.
 import React from 'react';
 import {cancelRender, continueRender, delayRender, useCurrentFrame} from 'remotion';
-import {captionBand} from './layout';
+import {captionBandBare} from './layout';
 import {CJK_MIN_LEADING, hasCJK} from './cjkType';
 import {KIN_ALT, KIN_GLYPH, KIN_LINE, KIN_ROOT, kineticIdle} from './kineticDom';
 import {MATH_GLYPH, MATH_ROOT} from './mathDom';
@@ -1513,7 +1513,7 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
     // The caption strip is not a canvas edge — text inside it is not cut, it is COLLIDING with copy that
     // will be burned over it later. Same glyph-scaled floor, so a descender grazing the boundary is not a
     // finding and a whole title sitting in it is.
-    const bandTop = frame.bottom - captionBand(frame.width, frame.height);
+    const bandTop = frame.bottom - captionBandBare(frame.width, frame.height);   // the caption's own strip
     const intoBand = r.bottom - bandTop;
     const band = intoBand > floor ? Math.round(Math.min(intoBand, r.height)) : 0;
     // ON A DEVICE: the overlap of the text's box with a device body's, in its smaller dimension — a glyph-scaled
