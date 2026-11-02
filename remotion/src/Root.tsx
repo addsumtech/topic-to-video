@@ -37,6 +37,7 @@ import {FlowSankey, DURATION as D_FLOWSANKEY} from './shots/FlowSankey';
 import {FlightArcs, DURATION as D_FLIGHTARCS} from './shots/FlightArcs';
 import {GlobeFocus, DURATION as D_GLOBEFOCUS} from './shots/GlobeFocus';
 import {OpticsProbe, DURATION as OPD} from './runtime/__probe_optics';
+import {MotionProbe, DURATION as MBP} from './runtime/__probe_motion';
 import {OpticContext, opticState, dnaOptics} from './runtime/optics';
 import {VolumeProbe, DURATION as VPD} from './runtime/__probe_volume';
 import {LitMedium, DURATION as D_LITMEDIUM} from './shots/LitMedium';
@@ -579,6 +580,7 @@ export const RemotionRoot: React.FC = () => (
     {F('KineticProbe', KineticProbe, KPD)}
     {F('MathProbe', MathProbe, MPD)}
     {F('OpticsProbe', OpticsProbe, OPD)}
+    {F('MotionProbe', MotionProbe, MBP)}
     {F('VolumeProbe', VolumeProbe, VPD)}
     {F('CollaborativeCursors', CollaborativeCursors, CC)}
     {F('CommandSummon', CommandSummon, CS)}

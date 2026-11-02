@@ -719,6 +719,22 @@ a reading-held register for a beat planned shorter than the register's own lengt
   the climax payoff → `punch` (once). `seam_plan.py` proposes them from the anchors (`carry_anchors.py`); the
   director's part is to make them possible.
 
+## G · Speed, time and arrangement — moves the runtime draws for you
+
+A peer library reviewed card by card (video-shotcraft, 124 cards, 2026-11-02) leans on a handful of moves this
+library had only as one-off code inside a register. Each is now ONE runtime module, so a register asks for it
+instead of re-deriving it:
+
+- **Speed reads as speed — `runtime/motionBlur` (`SpeedBlur`).** Give it the element's pose as a pure function of
+  the frame (`at(f) => {x, y, s?, r?}`, the function that already places it) and it smears the element ALONG its
+  travel by what a 180-degree shutter would see (`shutter`, `maxSigma`), and draws nothing extra at rest — a settled
+  element is drawn exactly as it would be without it. `ghosts` adds fading copies at earlier poses for a throw along
+  an arc or a spin, which a one-axis blur cannot draw. Use it where something moves fast enough that a sharp copy
+  would read as a jump: a whip, a scroll braking to its row, a card thrown into place. Not on slow drifts (under a
+  pixel of smear it does nothing, by design), and not as a look. Not for a zoom toward the lens either: its earlier
+  poses lie inside it, so ghosts stutter. The numbers are `runtime/motionBlurCore` (tests/test_motion_blur.py); the
+  probe is the `MotionProbe` composition.
+
 ## Before you commit a change to this library — walk the case law
 
 `references/engineering-case-law.md` is the E-numbered case law for whoever EDITS the renderer, the runtime
