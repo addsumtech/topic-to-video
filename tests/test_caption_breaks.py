@@ -129,3 +129,26 @@ def test_the_film_draws_the_lines_the_gate_checks():
     for fn in ("splitCaption(", "fitCaption(", "cjkCaptionLines(", "captionBox("):
         assert fn in FILM, fn
     assert "const splitCaption" not in FILM and "const fitCaption" not in FILM, "a second copy in Film.tsx"
+
+
+@needs_node
+def test_a_chinese_caption_heavy_with_english_names_is_still_broken_as_chinese(tmp_path):
+    """「它是 Claude Code 和 Codex 里的求职 Skill，你只要直接说，这次想做什么。」 is 38% Han by length, so the "half CJK"
+    rule handed it to the browser, which broke it between 什 and 么 and burned 「么。」 alone on line two of a delivered
+    film — and the gate skipped it as Latin. Any caption holding a CJK word (two glyphs) is broken by captionBreak."""
+    cap = "它是 Claude Code 和 Codex 里的求职 Skill，你只要直接说，这次想做什么。"
+    b = {"meta": {"renderer": "remotion", "aspect": "16:9", "design_dna": "product", "language": "zh"},
+         "slides": [{"shot": "MapPlate", "narration": cap}, {"shot": "MapPlate", "narration": "Every frame was drawn by code."}]}
+    json.dump(b, open(tmp_path / "storyboard.json", "w"), ensure_ascii=False)
+    rep = cbq.check(str(tmp_path))
+    mixed = rep["beats"][0]["chunks"]
+    assert all(c["cjk"] and c["lines"] for c in mixed), mixed
+    assert not rep["errors"], rep["errors"]
+    for c in mixed:
+        last = c["lines"][-1].strip().rstrip("。，、！？")
+        assert len(last) > 1, c["lines"]
+    assert rep["beats"][1]["chunks"][0]["lines"] is None        # a Latin caption keeps the browser's spaces
+
+
+def test_one_rule_decides_which_captions_are_broken_as_cjk():
+    assert "breaksAsCJK(" in FILM and "cjkChars * 2" not in FILM, "Film.tsx keeps its own copy of the rule"

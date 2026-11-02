@@ -34,14 +34,20 @@ export const captionBox = (width: number, height: number, safe?: {right: number}
   return {capSize, capMeasure, capTextW: capMeasure - 2 * CAP_PAD_X};
 };
 
+/** Whether a caption is broken by `cjkCaptionLines` (word boundaries, kinsoku, no orphan) or left to the browser's
+ *  spaces. ANY CJK word (two glyphs) is enough: the browser breaks Chinese between any two characters, and a caption
+ *  that was "under half CJK" because it named Claude Code, Codex and a Skill burned 「么。」 alone on its second line
+ *  of a delivered film while the gate skipped it as Latin. The breaker keeps Latin words whole, so a mixed line loses
+ *  nothing by it. ONE rule: Film.tsx's CaptionTrack and the gate both ask this. */
+export const breaksAsCJK = (text: string): boolean => (text.match(/[\u3040-\u9fff\uac00-\ud7af]/g) ?? []).length >= 2;
+
 /** Every chunk a caption is burned as at this frame, and — for a CJK chunk — the lines it is drawn in: what the film
  *  shows, for the gate (scripts/caption_breaks_qa.py) to check. Mirrors CaptionTrack's own calls exactly. */
 export const captionPlan = (caption: string, width: number, height: number, safe: {right: number} | null,
                             fontStack?: string, uniform?: boolean, lines: number = CAPTION_LINES) => {
   const {capSize, capTextW} = captionBox(width, height, safe);
   return fitCaption(splitCaption(caption), capSize, capTextW, lines, fontStack, uniform).map((chunk) => {
-    const cjkChars = (chunk.match(/[\u3040-\u9fff\uac00-\ud7af]/g) ?? []).length;
-    const cjk = cjkChars * 2 >= chunk.length && cjkChars > 0;
+    const cjk = breaksAsCJK(chunk);
     return {chunk, cjk, lines: cjk ? cjkCaptionLines(chunk, capSize, capTextW, fontStack, uniform) : null};
   });
 };

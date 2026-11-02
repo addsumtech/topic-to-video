@@ -54,7 +54,7 @@ import {OpticContext, opticState, normalizeOptic, dnaLight, dnaOptics, SeamLeak,
 import {litMediumGround} from './runtime/material';
 import {CarryContext} from './runtime/carry';
 import {container, grow, throughWindow, punch, cut, SeamCopyContext} from './seams';
-import {splitCaption, fitCaption, advanceFor, cjkCaptionLines, captionBox, CAP_PAD_X, litThrough} from './captionBreak';
+import {splitCaption, fitCaption, advanceFor, cjkCaptionLines, captionBox, CAP_PAD_X, litThrough, breaksAsCJK} from './captionBreak';
 
 // The scene EDL. `bgLum` is the first of the shot-director-emitted continuity fields (an explicit ground-
 // luminance override; falls back to the measured shotLuma map). Future phases grow this schema (accent,
@@ -464,8 +464,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   // and NEGATIVE tracking on Han is wrong — it pulls square glyphs into each other. Decide per caption
   // from the text itself rather than from meta.language, so a mixed deck gets it right line by line.
   const capText = merged[idx] ?? '';
-  const cjkChars = (capText.match(/[\u3040-\u9fff\uac00-\ud7af]/g) ?? []).length;
-  const isCJK = cjkChars * 2 >= capText.length && cjkChars > 0;
+  const isCJK = breaksAsCJK(capText);   // captionBreak's one rule: the gate checks the lines this draws
   const capLead = isCJK ? CAPTION_LEAD_CJK : CAPTION_LEAD;
   const capTrack = isCJK ? '0' : '-0.01em';
   // THE CAPTION FITS THE BAND IT WAS GIVEN. The band is a static reserve every shot lays out against, and it

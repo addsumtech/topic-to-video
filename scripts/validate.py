@@ -1749,7 +1749,8 @@ def _caption_legibility(meta, slides, errors, warnings, out_dir=None):
         # the size, so approximate that split rather than measuring the whole paragraph
         chunks = [c for c in re.split(r"(?<=[.!?。！？])\s+", text) if c.strip()] or [text]
         for c in chunks:
-            cjk = len(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", c)) * 2 >= len(c) and len(c) > 0
+            # captionBreak.breaksAsCJK: any CJK word sets the caption as CJK (its leading, its line breaker)
+            cjk = len(re.findall(r"[\u3040-\u9fff\uac00-\ud7af]", c)) >= 2
             lead = f["CAPTION_LEAD"] * (1.7 / 1.26 if cjk else 1.0)
             per = max(8, int(measure / (ideal * (1.0 if cjk else 0.52))))
             # a long chunk gets cut at a clause boundary first — only a clause-free run stays whole
