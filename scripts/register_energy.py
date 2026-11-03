@@ -153,7 +153,29 @@ def evidence_props():
             if label:
                 cell[label.group(1)] = "fixture"
             out.setdefault(n, {})[prop] = [dict(cell) for _ in range(6)]
+    # ...AND A PHOTOGRAPH THAT COMES WITH ITS TRACED OUTLINES. `PhotoToDiagram` draws the photograph AND its line
+    # layer (scripts/photo_lines.py, which render_remotion runs for a film), and refuses without the second, so a
+    # sweep that handed it the photograph alone recorded a render failure. A register whose signature declares
+    # `lines?: string` beside an evidence src is handed the fixture's own trace — derived from the signature, like
+    # the rest, so the next register that draws a photograph's outlines is fed the day it is written.
+    for n in list(out):
+        sig = open(os.path.join(_SHOTS, n + ".tsx"), encoding="utf-8").read()
+        head = re.search(r"export const %s: React\.FC<\{(.*?)\}> =" % n, sig, re.S)
+        if head and re.search(r"\blines\s*\?\s*:\s*string", head.group(1)):
+            rel = ensure_fixture_lines()
+            if rel:
+                out[n]["lines"] = rel
     return out
+
+
+def ensure_fixture_lines():
+    """The stand-in photograph's outlines (scripts/photo_lines.py), traced once beside it in remotion/public/."""
+    if not ensure_fixture():
+        return None
+    import photo_lines as _pl
+    rel = os.path.splitext(_FIXTURE_REL)[0] + ".lines.png"
+    _pl.ensure(os.path.join(_REMOTION, "public", _FIXTURE_REL), os.path.join(_REMOTION, "public", rel))
+    return rel
 
 
 def ensure_fixture():

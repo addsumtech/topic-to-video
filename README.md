@@ -20,7 +20,7 @@ Chat with it in Claude Code or Codex. It isn't a text-to-video model painting fr
 What you get, and what to expect:
 
 - 🔎 **Sourced, not invented.** Every date and figure in the narration is pinned to a quote from a page it fetched. Where sources disagree, it picks the defensible reading and says so in the brief. If it can't source a number, the film says it qualitatively instead.
-- 🎬 **Designed shot by shot.** It picks from a library of 218 hand-built shot designs: cutaway plates, compare panels, routes, timelines, phone demos, data stages. When a film needs something the library doesn't have (a coffee puck in section, a scale's load cell, a city's growth drawn to scale), it builds that object or shot for the film, then checks it reads with the caption covered.
+- 🎬 **Designed shot by shot.** It picks from a library of 224 hand-built shot designs: cutaway plates, compare panels, routes, timelines, phone demos, data stages. When a film needs something the library doesn't have (a coffee puck in section, a scale's load cell, a city's growth drawn to scale), it builds that object or shot for the film, then checks it reads with the caption covered.
 - 🗣️ **Narrated and captioned in any language.** A free neural voice by default (edge-tts), word-synced captions burned onto the frame's own background, Chinese included. It can voice an English deck in Chinese, or the other way round.
 - 🧪 **Checked before you see it.** Text inside the frame, captions not colliding with content, audio in sync, no text jittering as the camera moves, no placeholder copy left on screen. The checks run on the rendered frames, not on the plan.
 - 📐 **Any canvas.** 16:9, vertical 9:16, square 1:1 and more. Each shot recomposes for the frame instead of being cropped.
@@ -95,7 +95,7 @@ Every film is made by one of two renderers. They're built for different jobs. Th
 
 | | **Cinematic tier** (Remotion) | **Page tier** (HTML) |
 | --- | --- | --- |
-| What a shot is | A hand-built animated shot from a library of 218 designs (cutaways, compare panels, routes, phone demos, data stages), plus objects the film builds for itself | A designed page per beat (flows, timelines, comparisons, tables, charts, code, equations), laid out for that content |
+| What a shot is | A hand-built animated shot from a library of 224 designs (cutaways, compare panels, routes, phone demos, data stages), plus objects the film builds for itself | A designed page per beat (flows, timelines, comparisons, tables, charts, code, equations), laid out for that content |
 | Motion | Camera pushes and pans, depth and 3D-style staging, cuts planned across the whole film | Each point appears on the word that names it, timed to the voice |
 | One look for the film | A design direction (type, colour, motif) carried through every shot | A theme and page styles; editorial and print looks suit it well |
 | Editing | Re-renders the shot you changed and the cut into the next one | Re-renders just the page you changed; a quick preview mode too |

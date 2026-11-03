@@ -32,11 +32,17 @@ const MIN_SCALE = 0.7;
 const LABEL_WORLD = 44;        // a label's size in world units — 30.8 px at MIN_SCALE, the floor
 
 export const LivingMap: React.FC<{nodes?: MapNode[]; edges?: GEdge[]; before?: string[]; after?: string[];
-  focusFrom?: string[]; focusTo?: string[]; title?: string}> = ({nodes = DEMO_NODES, edges = DEMO_EDGES,
-  before = ['a'], after = ['a', 'b', 'c', 'd'], focusFrom, focusTo, title = ''} = {}) => {
+  focusFrom?: string[]; focusTo?: string[]; title?: string}> = ({nodes: nodesIn, edges: edgesIn, before: beforeIn,
+  after: afterIn, focusFrom, focusTo, title = ''} = {}) => {
+  // The defaults follow the NODES they are given: the demo's edges and ids are the demo's alone, and a map of other
+  // nodes handed them named edges to nodes it does not have (a library sweep's fixture refused to render)
+  const nodes = nodesIn ?? DEMO_NODES;
   if (!Array.isArray(nodes) || nodes.length < 2 || nodes.length > 16) {
     throw new Error(`LivingMap needs 2-16 nodes in its map (got ${Array.isArray(nodes) ? nodes.length : typeof nodes})`);
   }
+  const edges = edgesIn ?? (nodesIn ? [] : DEMO_EDGES);
+  const after = afterIn ?? nodes.map((n) => n.id);
+  const before = beforeIn ?? after.slice(0, 1);
   const dna = useDNA();
   const t = useT();
   const glide = useGlide();

@@ -259,6 +259,20 @@
    "why": []
   },
   {
+   "shot": "Callback",
+   "bandY": {
+    "light": 0.8713672161102295,
+    "dark": 0.0003473562828730792
+   },
+   "fieldY": {
+    "light": 0.9210968613624573,
+    "dark": 0.0029776482842862606
+   },
+   "moved": 0.9996891609719059,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "CardFlip3D",
    "bandY": {
     "light": 0.8879231810569763,
@@ -449,6 +463,23 @@
     "field light reads dark",
     "only 1% of the frame moved",
     "ink: title+glow fall from 19.2:1 to 6.1:1 and the dark glow halo becomes a brown smudge on cream"
+   ]
+  },
+  {
+   "shot": "ColdOpen",
+   "bandY": {
+    "light": 0.1907295286655426,
+    "dark": 0.0005644387565553188
+   },
+   "fieldY": {
+    "light": 0.3919931650161743,
+    "dark": 0.0021328111179172993
+   },
+   "moved": 0.9993545937737282,
+   "ok": false,
+   "why": [
+    "band ink light wants #ffffff",
+    "field light reads mid"
    ]
   },
   {
@@ -1664,6 +1695,20 @@
    ]
   },
   {
+   "shot": "LivingMap",
+   "bandY": {
+    "light": 0.8802217245101929,
+    "dark": 0.0003254416224081069
+   },
+   "fieldY": {
+    "light": 0.9554768800735474,
+    "dark": 0.0020682814065366983
+   },
+   "moved": 0.9927842634776006,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "LowPolyForm",
    "bandY": {
     "light": 0.5232353806495667,
@@ -2140,6 +2185,20 @@
    ]
   },
   {
+   "shot": "PhotoToDiagram",
+   "bandY": {
+    "light": 0.8702178001403809,
+    "dark": 0.0003254416224081069
+   },
+   "fieldY": {
+    "light": 0.946099579334259,
+    "dark": 0.003319106763228774
+   },
+   "moved": 0.9928981586940016,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "PhysicsStack",
    "bandY": {
     "light": 0.8879231810569763,
@@ -2410,6 +2469,20 @@
     "dark": 0.002731743035838008
    },
    "moved": 0.6214241647684131,
+   "ok": true,
+   "why": []
+  },
+  {
+   "shot": "Rearrange",
+   "bandY": {
+    "light": 0.8796223998069763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 0.8591061234474182,
+    "dark": 0.004501659423112869
+   },
+   "moved": 0.9844177107061504,
    "ok": true,
    "why": []
   },
@@ -3145,6 +3218,20 @@
    "why": []
   },
   {
+   "shot": "WordDust",
+   "bandY": {
+    "light": 0.8802217245101929,
+    "dark": 0.0003254416224081069
+   },
+   "fieldY": {
+    "light": 0.9572349786758423,
+    "dark": 0.0021328111179172993
+   },
+   "moved": 0.9339739939255884,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "WordRoll",
    "bandY": {
     "light": 0.8879231810569763,
@@ -3405,10 +3492,16 @@
   "MagicMoveType": "20d05562c07d01e0",
   "AuroraCurtain": "85f530c8beb1d0b0",
   "LightShafts": "c9cf0d49bd392c48",
-  "NebulaField": "04e7303bdc781795"
+  "NebulaField": "04e7303bdc781795",
+  "Rearrange": "590b91fa2f3ae29f",
+  "WordDust": "843d72f1b83bc8ce",
+  "ColdOpen": "18e6ec321bbb53a6",
+  "Callback": "fe763c6ab112026f",
+  "LivingMap": "e8aad0f2a39b2bc9",
+  "PhotoToDiagram": "ed58b7d2ec8d4cec"
  },
  "failed": {},
- "universe": 218,
+ "universe": 224,
  "inkRefused": {
   "GlitchDatamosh": "display word 'SIGNAL' is #ffffff \u2014 1.14:1 on paper; the frame is empty (render read)",
   "HoloFoil": "subtitle is #fff \u2014 1.01:1 on paper",

@@ -7,10 +7,10 @@ export type Lum = 'dark' | 'mid' | 'light';
 // (KSpaceToImage added below with the map — a purpose-built dark shot)
 
 export const SHOT_LUMA: Record<string, Lum> = {
-  PhotoToDiagram: 'dark',   // PROVISIONAL — placeholder, not a measurement; run measure_ground_luma.py --luma --emit
-  LivingMap: 'dark',   // PROVISIONAL — placeholder, not a measurement; run measure_ground_luma.py --luma --emit
-  Callback: 'dark',   // PROVISIONAL — placeholder, not a measurement; run measure_ground_luma.py --luma --emit
-  ColdOpen: 'dark',   // PROVISIONAL — placeholder, not a measurement; run measure_ground_luma.py --luma --emit
+  PhotoToDiagram: 'dark',
+  LivingMap: 'dark',
+  Callback: 'dark',
+  ColdOpen: 'dark',
   WordDust: 'dark',
   Rearrange: 'dark',
   LandscapeWell: 'dark',
@@ -158,10 +158,10 @@ const literalGround = (tok: GroundSpec | undefined): string | null =>
 // `declared-only`, until measure_ground_luma.py replaces it with a measurement. Everything else is
 // measured.
 export const DNA_GROUND_TOKEN: Readonly<Record<string, GroundSpec>> = {
-  PhotoToDiagram: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  LivingMap: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  Callback: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
-  ColdOpen: 'bg',   // PROVISIONAL — replaced by measure_ground_luma; NOT the declared-only marker
+  PhotoToDiagram: 'bg',
+  LivingMap: 'bg',
+  Callback: 'bg',
+  ColdOpen: '#777777',   // @dark-world: this night on a light film (light probe), the film's own dark ground otherwise
   WordDust: 'bg',
   Rearrange: 'bg',
   LandscapeWell: 'bg',
@@ -431,35 +431,36 @@ export const GROUND_FOLLOWS_MEASURED: ReadonlySet<string> = new Set([
   'AcceptanceStamp', 'Aliasing', 'AnswerStream', 'AntiDesignChaos',
   'AtomOrbital', 'AverageHides', 'BeforeAfterSlider', 'BentoReveal',
   'BlockAssembly', 'BlueprintGrid', 'BreaksWhenAsked', 'BrutalistType',
-  'CardFlip3D', 'CardStack3D', 'CarryOver', 'CartoonPop',
-  'ChartLive', 'ChartRace', 'ChatThread', 'CinematicTitle',
-  'CircuitTrace', 'ClayStack', 'CollaborativeCursors', 'ComicPanels',
-  'CommandSummon', 'CompanionCard', 'CompressedSensingEq', 'ConveyorBelt',
-  'CraneUp', 'CroppedType', 'CubeRotate', 'CursorStory',
-  'DataMonolith', 'DataOrrery', 'DeviceDemo', 'DeviceHero',
-  'DiffusionDenoise', 'DollyZoom', 'EdCompare', 'EdStat',
-  'EdTimeline', 'ElasticType', 'EquationMorph', 'Escalation',
-  'ExplodedSchematic', 'ExtractionFlow', 'FallbackPath', 'FlightArcs',
-  'FlowCounter', 'FlowField', 'FlowSankey', 'ForkingAnswers',
-  'FractalTree', 'FrequencyEncode', 'FunctionPlot', 'GFactorNoise',
-  'GameOfLife', 'GaugeCluster', 'GazetteerEntry', 'GearTrain',
-  'GlobeFocus', 'GradientTilt', 'GrantedTree', 'GrowingFigure',
-  'HalftonePop', 'HandDrawn', 'HardBarrier', 'HeadlineReveal',
-  'HeldInstant', 'HudReticle', 'InOrder', 'InducedFID',
-  'InfiniteCanvas', 'InflateType', 'InkBloom', 'Inscription',
-  'IsoWorld', 'IsometricAssembly', 'KSpaceAnatomy', 'KSpaceReal',
-  'KSpaceToImage', 'LandscapeWell', 'LarmorPrecession', 'LightShellOrbit',
-  'LiquidFill', 'LiquidGlass', 'LiquidMetal', 'LiquidMorph',
-  'MRIPipeline', 'MagazineSpread', 'MagicMoveType', 'MagnetizationTip',
-  'MapPlate', 'MapRoutes', 'MaterialHero', 'MoleculeBallStick',
-  'MorphForms', 'MuseumLabel', 'NearTheLine', 'NeuralField',
-  'ObjectCompare', 'ObjectPath', 'ObjectStage', 'ObjectTurntable',
-  'OdometerRoll', 'OpenQuestions', 'OrbitClockGain', 'OverlapSeparation',
-  'PaperCutout', 'ParticleForm', 'PhaseEncodeStep', 'PhysicsStack',
-  'PlanPalimpsest', 'PlaneStack', 'PlatformSurfaces', 'PointerTour',
-  'PortRail', 'PositioningMatrix', 'PourSync', 'ProfileGrowth',
-  'PulledThread', 'QuadSplit', 'RackFocus', 'RadialBurst',
-  'RangeSpheres', 'RankRace', 'RansomZine', 'RealVersus',
+  'Callback', 'CardFlip3D', 'CardStack3D', 'CarryOver',
+  'CartoonPop', 'ChartLive', 'ChartRace', 'ChatThread',
+  'CinematicTitle', 'CircuitTrace', 'ClayStack', 'CollaborativeCursors',
+  'ComicPanels', 'CommandSummon', 'CompanionCard', 'CompressedSensingEq',
+  'ConveyorBelt', 'CraneUp', 'CroppedType', 'CubeRotate',
+  'CursorStory', 'DataMonolith', 'DataOrrery', 'DeviceDemo',
+  'DeviceHero', 'DiffusionDenoise', 'DollyZoom', 'EdCompare',
+  'EdStat', 'EdTimeline', 'ElasticType', 'EquationMorph',
+  'Escalation', 'ExplodedSchematic', 'ExtractionFlow', 'FallbackPath',
+  'FlightArcs', 'FlowCounter', 'FlowField', 'FlowSankey',
+  'ForkingAnswers', 'FractalTree', 'FrequencyEncode', 'FunctionPlot',
+  'GFactorNoise', 'GameOfLife', 'GaugeCluster', 'GazetteerEntry',
+  'GearTrain', 'GlobeFocus', 'GradientTilt', 'GrantedTree',
+  'GrowingFigure', 'HalftonePop', 'HandDrawn', 'HardBarrier',
+  'HeadlineReveal', 'HeldInstant', 'HudReticle', 'InOrder',
+  'InducedFID', 'InfiniteCanvas', 'InflateType', 'InkBloom',
+  'Inscription', 'IsoWorld', 'IsometricAssembly', 'KSpaceAnatomy',
+  'KSpaceReal', 'KSpaceToImage', 'LandscapeWell', 'LarmorPrecession',
+  'LightShellOrbit', 'LiquidFill', 'LiquidGlass', 'LiquidMetal',
+  'LiquidMorph', 'LivingMap', 'MRIPipeline', 'MagazineSpread',
+  'MagicMoveType', 'MagnetizationTip', 'MapPlate', 'MapRoutes',
+  'MaterialHero', 'MoleculeBallStick', 'MorphForms', 'MuseumLabel',
+  'NearTheLine', 'NeuralField', 'ObjectCompare', 'ObjectPath',
+  'ObjectStage', 'ObjectTurntable', 'OdometerRoll', 'OpenQuestions',
+  'OrbitClockGain', 'OverlapSeparation', 'PaperCutout', 'ParticleForm',
+  'PhaseEncodeStep', 'PhotoToDiagram', 'PhysicsStack', 'PlanPalimpsest',
+  'PlaneStack', 'PlatformSurfaces', 'PointerTour', 'PortRail',
+  'PositioningMatrix', 'PourSync', 'ProfileGrowth', 'PulledThread',
+  'QuadSplit', 'RackFocus', 'RadialBurst', 'RangeSpheres',
+  'RankRace', 'RansomZine', 'RealVersus', 'Rearrange',
   'ReplyWindow', 'RidgeField', 'RisoPrint', 'SameStuffChanged',
   'ScanReconstruct', 'ScreenBubble', 'SeamBetween', 'SectionRoute',
   'SharedBlindspot', 'ShorteningHold', 'SourceDeal', 'SpatialSlides',
@@ -471,8 +472,8 @@ export const GROUND_FOLLOWS_MEASURED: ReadonlySet<string> = new Set([
   'TermTable', 'TermThink', 'TermTree', 'TerrainFly',
   'TimelineTravel', 'TypeOnPath', 'UndersampledKspace', 'VariableTypeMorph',
   'VelocitySnap', 'VersusSplit', 'ViewSwitch', 'VoiceSignal',
-  'WeightedWheel', 'WireGlobe', 'WordRoll', 'WordTunnel',
-  'WorksThrough',
+  'WeightedWheel', 'WireGlobe', 'WordDust', 'WordRoll',
+  'WordTunnel', 'WorksThrough',
 ]);
 
 /** Does a declared ground reach this register? An unknown id answers false, so an unmeasured register is

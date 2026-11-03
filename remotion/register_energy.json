@@ -218,7 +218,13 @@
     "MagicMoveType": "20d05562c07d01e0",
     "AuroraCurtain": "a4e3636eb44540a0",
     "LightShafts": "989f51268220b855",
-    "NebulaField": "3f5694741aea861d"
+    "NebulaField": "3f5694741aea861d",
+    "Callback": "fe763c6ab112026f",
+    "ColdOpen": "18e6ec321bbb53a6",
+    "LivingMap": "e8aad0f2a39b2bc9",
+    "Rearrange": "590b91fa2f3ae29f",
+    "WordDust": "843d72f1b83bc8ce",
+    "PhotoToDiagram": "ed58b7d2ec8d4cec"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -226,7 +232,8 @@
     "PhotoPlate": "2f949a3c78",
     "RealVersus": "8be71ca530",
     "ScanReconstruct": "2f949a3c78",
-    "StateSheet": "ac4a7dea92"
+    "StateSheet": "ac4a7dea92",
+    "PhotoToDiagram": "0d8858144a"
   },
   "_basis": "each register rendered as VIDEO at its own DURATION, 16:9, under dna=product — the themed path, because every delivered film has a design system and the un-themed fallback is a mode none of them use",
   "_dna": "product",
@@ -235,6 +242,7 @@
       "MuseumLabel",
       "PageWrite",
       "PhotoPlate",
+      "PhotoToDiagram",
       "RealVersus",
       "ScanReconstruct",
       "StateSheet"
@@ -247,7 +255,7 @@
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 218,
+  "_universe": 224,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -368,6 +376,13 @@
       "seconds": 5.2,
       "footprint": 0.638
     },
+    "Callback": {
+      "motion_p75": 0.0022,
+      "ink_median": 0.037,
+      "luma_range": 0.038,
+      "seconds": 6.0,
+      "footprint": 0.543
+    },
     "CardFlip3D": {
       "motion_p75": 0.0038,
       "ink_median": 0.036,
@@ -458,6 +473,13 @@
       "luma_range": 0.015,
       "seconds": 5.0,
       "footprint": 0.99
+    },
+    "ColdOpen": {
+      "motion_p75": 0.0013,
+      "ink_median": 0.017,
+      "luma_range": 0.157,
+      "seconds": 4.0,
+      "footprint": 0.048
     },
     "CollaborativeCursors": {
       "motion_p75": 0.0112,
@@ -1040,6 +1062,13 @@
       "seconds": 5.5,
       "footprint": 0.154
     },
+    "LivingMap": {
+      "motion_p75": 0.0001,
+      "ink_median": 0.052,
+      "luma_range": 0.015,
+      "seconds": 6.0,
+      "footprint": 0.343
+    },
     "LowPolyForm": {
       "motion_p75": 0.0136,
       "ink_median": 0.022,
@@ -1264,6 +1293,13 @@
       "seconds": 5.8,
       "footprint": 0.446
     },
+    "PhotoToDiagram": {
+      "motion_p75": 0.0019,
+      "ink_median": 0.098,
+      "luma_range": 0.14,
+      "seconds": 7.0,
+      "footprint": 0.302
+    },
     "PhysicsStack": {
       "motion_p75": 0.0055,
       "ink_median": 0.047,
@@ -1396,6 +1432,13 @@
       "luma_range": 0.16,
       "seconds": 5.5,
       "footprint": 0.313
+    },
+    "Rearrange": {
+      "motion_p75": 0.0042,
+      "ink_median": 0.072,
+      "luma_range": 0.065,
+      "seconds": 8.0,
+      "footprint": 0.464
     },
     "ReplyWindow": {
       "motion_p75": 0.0,
@@ -1753,6 +1796,13 @@
       "luma_range": 0.007,
       "seconds": 5.5,
       "footprint": 0.24
+    },
+    "WordDust": {
+      "motion_p75": 0.0115,
+      "ink_median": 0.044,
+      "luma_range": 0.048,
+      "seconds": 6.0,
+      "footprint": 0.135
     },
     "WordRoll": {
       "motion_p75": 0.0008,

@@ -10,12 +10,13 @@
     "DeviceDemo",
     "DeviceHero",
     "EdCompare",
+    "LivingMap",
     "OverlapSeparation",
     "PageWrite",
     "VersusSplit"
   ],
   "_failed": {},
-  "_universe": 218,
+  "_universe": 224,
   "_source": {
     "AcceptanceStamp": "40c1d6c8a27d796f",
     "Aliasing": "1ae0cf09367a47f0",
@@ -234,7 +235,13 @@
     "LightShafts": "989f51268220b855",
     "NebulaField": "3f5694741aea861d",
     "DeviceDemo": "5dce88563ae182c5",
-    "DeviceHero": "0160eee7e481d8cd"
+    "DeviceHero": "0160eee7e481d8cd",
+    "Callback": "fe763c6ab112026f",
+    "ColdOpen": "18e6ec321bbb53a6",
+    "PhotoToDiagram": "ed58b7d2ec8d4cec",
+    "Rearrange": "590b91fa2f3ae29f",
+    "WordDust": "843d72f1b83bc8ce",
+    "LivingMap": "e8aad0f2a39b2bc9"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -258,7 +265,7 @@
     "CarryOver": "9670004fb8d449dc",
     "CartoonPop": "c5e5501470b3856d",
     "ChartLive": "abad258c7eb04bdf",
-    "ChartRace": "211be1813ae9b6ab",
+    "ChartRace": "a174cc3f2a14167c",
     "ChatThread": "f0a98d0836bc7fd3",
     "CinematicTitle": "80fd67cf87b605b5",
     "CircuitTrace": "5128da77383a8dd2",
@@ -356,7 +363,7 @@
     "ParticleForm": "c5e5501470b3856d",
     "PhaseEncodeStep": "c5e5501470b3856d",
     "PhotoPlate": "e9a97f71a26ea514",
-    "PhysicsStack": "bf80bab2e32c07c6",
+    "PhysicsStack": "49fb8eebffb51eaa",
     "PixelBuild": "ebe8c0c1ccbaaa4a",
     "PlanPalimpsest": "79586521fd485927",
     "PlaneStack": "50d26856b247e3c9",
@@ -454,7 +461,13 @@
     "LightShafts": "72e8db4e6e0657c5",
     "NebulaField": "70552a8bcb98f72f",
     "DeviceDemo": "06d58b283ec3de16",
-    "DeviceHero": "921666e8c8995ee6"
+    "DeviceHero": "921666e8c8995ee6",
+    "Callback": "6b7cbcb58f83de13",
+    "ColdOpen": "4c0280f2e599c917",
+    "PhotoToDiagram": "12bcd8046d7b2024",
+    "Rearrange": "7ad8029a62330219",
+    "WordDust": "1b73b04aab1110b9",
+    "LivingMap": "42ec6fec805de50e"
   },
   "registers": {
     "AcceptanceStamp": {
@@ -525,6 +538,10 @@
       "reach": 0.548,
       "prop_diff": 1.0
     },
+    "Callback": {
+      "reach": 0.262,
+      "prop_diff": 1.0
+    },
     "CardFlip3D": {
       "reach": 0.043,
       "prop_diff": 1.0
@@ -546,7 +563,7 @@
       "prop_diff": 1.0
     },
     "ChartRace": {
-      "reach": 0.605,
+      "reach": 0.579,
       "prop_diff": 1.0
     },
     "ChatThread": {
@@ -575,6 +592,10 @@
     },
     "CodeRain": {
       "reach": 0.464,
+      "prop_diff": 1.0
+    },
+    "ColdOpen": {
+      "reach": 0.699,
       "prop_diff": 1.0
     },
     "CollaborativeCursors": {
@@ -909,6 +930,10 @@
       "reach": 0.162,
       "prop_diff": 1.0
     },
+    "LivingMap": {
+      "reach": 0.357,
+      "prop_diff": 0.29
+    },
     "LowPolyForm": {
       "reach": 0.275,
       "prop_diff": 1.0
@@ -1037,8 +1062,12 @@
       "reach": 0.256,
       "prop_diff": 0.8
     },
+    "PhotoToDiagram": {
+      "reach": 0.413,
+      "prop_diff": 0.6
+    },
     "PhysicsStack": {
-      "reach": 0.134,
+      "reach": 0.135,
       "prop_diff": 1.0
     },
     "PixelBuild": {
@@ -1112,6 +1141,10 @@
     "RealVersus": {
       "reach": 0.023,
       "prop_diff": 0.67
+    },
+    "Rearrange": {
+      "reach": 0.314,
+      "prop_diff": 1.0
     },
     "ReplyWindow": {
       "reach": 0.724,
@@ -1315,6 +1348,10 @@
     },
     "WireGlobe": {
       "reach": 0.371,
+      "prop_diff": 1.0
+    },
+    "WordDust": {
+      "reach": 0.755,
       "prop_diff": 1.0
     },
     "WordRoll": {

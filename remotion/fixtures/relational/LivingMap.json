@@ -1,0 +1,7 @@
+{"_why": "LivingMap's before/after/focus lists and its edges NAME node ids, so a fixture that fills every string list with copy hands it ids no node has (graphLayout.frame: nothing to frame). The structure is fixed here — a five-node map, a chain with one side input, the beat adding two nodes and framing them — and only the copy paths get the fixture's words. See cjk_type_qa.relational_props.",
+ "props": {"title": "t",
+  "nodes": [{"id": "a", "label": "a", "note": "n"}, {"id": "b", "label": "b"}, {"id": "c", "label": "c", "note": "n"},
+            {"id": "d", "label": "d"}, {"id": "e", "label": "e"}],
+  "edges": [["a", "b"], ["b", "c"], ["d", "c"], ["c", "e"]],
+  "before": ["a", "b"], "after": ["a", "b", "c", "d"], "focusFrom": ["a", "b"], "focusTo": ["c", "d"]},
+ "copy": ["title", "nodes[].label", "nodes[].note"]}
