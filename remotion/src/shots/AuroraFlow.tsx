@@ -21,7 +21,7 @@ const BLOBS = [
   {c: '#FFB020', r: 560, sx: 0.00047, sy: 0.00050, px: 0.50, py: 0.52},
 ];
 
-export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines: lines_IN = ['Your AI team.', 'On your machine.']}) => {
+export const AuroraFlow: React.FC<{lines?: string[]}> = ({lines: lines_IN = ['A first line.', 'A second line.']}) => {
   const lines = rows<string>(lines_IN, 'lines', 'AuroraFlow');
   const dna = useDNA();
   const t = useT();

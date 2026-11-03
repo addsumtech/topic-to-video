@@ -145,7 +145,7 @@ export const CartoonPop: React.FC<{label?: string}> = ({label = 'DONE!'} = {}) =
         </g>
       </svg>
 
-      {/* WorkBuddy robot */}
+      {/* the demo robot */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <g transform={`translate(${cx - 120},${cy + 40 + robotBob + (1 - robotIn) * 420}) scale(${sx},${sy})`} opacity={robotIn > 0 ? 1 : 0}>
           {/* offset shadow */}

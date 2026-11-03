@@ -45,7 +45,7 @@ export const MAX_GRAPH_NODES = 8;
 export type GraphLink = [number | string, number | string];
 
 export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: GraphLink[]}> = ({
-  items = DEFAULT_ITEMS, hub: HUB = 'WorkBuddy', links: LINKS} = {}) => {
+  items = DEFAULT_ITEMS, hub: HUB = 'Wordmark', links: LINKS} = {}) => {
   if (!Array.isArray(items) || items.length < 1 || items.length > MAX_GRAPH_NODES) {
     throw new Error(`KnowledgeGraph needs 1-${MAX_GRAPH_NODES} \`items\` (got ${Array.isArray(items) ? items.length : typeof items}). ` +
       'Each is one node on the ring around the hub; past eight the labels collide — group the nodes or cast a list register.');
@@ -166,7 +166,7 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
           );
         })}
 
-        {/* central WorkBuddy node */}
+        {/* the central hub node */}
         {(() => {
           const pop = easeOutBack(seg(t, 0.02, 0.18));
           const pulse = 1 + Math.sin(t * Math.PI * 4) * 0.03;

@@ -12,7 +12,7 @@ import {useGlide} from '../runtime/glide';
 
 export const DURATION = 165; // 5.5s
 
-export const PaperCutout: React.FC<{label?: string; tagline?: string}> = ({label = 'DONE ✓', tagline = 'your ai team · on your machine'} = {}) => {
+export const PaperCutout: React.FC<{label?: string; tagline?: string}> = ({label = 'DONE ✓', tagline = 'a one-line tagline · here'} = {}) => {
   // LEVEL-C: cut-paper depth is a RAMP — each plane sits a step darker than the one behind it, which is what makes
   // the parallax read as stacked paper. On a themed DNA that ramp is generated from the film's accent receding into
   // its ground (`plane(f)`), so the diorama keeps its depth logic in the film's hues. Null DNA = the warm original.

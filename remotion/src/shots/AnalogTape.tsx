@@ -41,8 +41,8 @@ export const INTRINSIC_TEXT = [
   'SP',
 ];
 
-export const AnalogTape: React.FC<{title?: string; tagline?: string; date?: string}> = ({title: TITLE = 'WorkBuddy',
-  tagline: TAGLINE = 'ON YOUR MACHINE', date = 'AUG 12 2026'} = {}) => {
+export const AnalogTape: React.FC<{title?: string; tagline?: string; date?: string}> = ({title: TITLE = 'Wordmark',
+  tagline: TAGLINE = 'A ONE-LINE TAGLINE', date = 'AUG 12 2026'} = {}) => {
   const t = useT();
   const dna = useDNA();
   const frame = useCurrentFrame();

@@ -64,7 +64,7 @@ const DEMO_FOCAL = 4;
 export const MIN_FOCAL_ITEMS = 2, MAX_FOCAL_ITEMS = 9;
 
 export const FocalIsolation: React.FC<{focalLabel?: string; items?: string[]; focal?: number}> = ({
-  focalLabel = 'Your files · on your machine',
+  focalLabel = 'The one that matters',
   items = DEFAULT_ITEMS, focal: FOCAL,
 } = {}) => {
   if (!Array.isArray(items) || items.length < MIN_FOCAL_ITEMS || items.length > MAX_FOCAL_ITEMS) {

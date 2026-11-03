@@ -19,7 +19,7 @@ const HUB_RING_D0 = '#8f7bff';
 // verbatim, so not one of their pixels moves.
 const WHEEL_SEED = '#f04c4c';
 
-export const RadialBurst: React.FC<{hub?: string; tagline?: string}> = ({hub: HUB = 'WorkBuddy', tagline = 'EVERYTHING, IN ORBIT'} = {}) => {
+export const RadialBurst: React.FC<{hub?: string; tagline?: string}> = ({hub: HUB = 'Wordmark', tagline = 'EVERYTHING, IN ORBIT'} = {}) => {
   const t = useT();
   const dna = useDNA();
   // A MANDALA IS A FORM. It prints on paper — that is where mandalas come from — so it takes the film's ground

@@ -35,7 +35,7 @@ const DEMO_ACTIVE = 2;   // the demo's own page — used only while `nav` is DEF
 
 export const ScreenBubble: React.FC<{appTitle?: string; nav?: string[]; active?: number | null; action?: string;
   deliverable?: string; note?: string}> = ({
-  appTitle = 'workbuddy — untitled', nav: NAV = DEFAULT_NAV, active, action = '+ New',
+  appTitle = 'demo — untitled', nav: NAV = DEFAULT_NAV, active, action = '+ New',
   deliverable = 'Q3 board deck', note = 'created just now'} = {}) => {
   if (!Array.isArray(NAV) || NAV.length < 1 || NAV.length > MAX_NAV) {
     throw new Error(`ScreenBubble: \`nav\` takes 1-${MAX_NAV} sidebar labels (got ${Array.isArray(NAV) ? NAV.length : typeof NAV}). ` +

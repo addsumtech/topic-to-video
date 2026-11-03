@@ -39,7 +39,7 @@ const GRID = [
 const PX = 46;
 
 export const PixelBuild: React.FC<{hud?: string; label?: string}> = ({
-  hud = 'SCORE 9999',label = 'WORKBUDDY · COMPLETE'} = {}) => {
+  hud = 'SCORE 9999',label = 'WORDMARK · COMPLETE'} = {}) => {
   const t = useT();
   const glide = useGlide();
   const dna = useDNA();

@@ -46,7 +46,7 @@ const RD_PX0 = 26, RD_GAP = 16, RD_RULE = 17;
 const RD_ADV = {adv: 0.6 + 0.08, cjk: 1.2 + 0.08};
 
 export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?: string; scanLabel?: string; lockLabel?: string; object?: ObjectRef}> = ({
-  target: TARGET = 'WorkBuddy', readouts: READOUTS = ['SIGNAL · strong', 'SCOPE · full workspace', 'STATUS · ready'],
+  target: TARGET = 'Wordmark', readouts: READOUTS = ['SIGNAL · strong', 'SCOPE · full workspace', 'STATUS · ready'],
   title: TITLE = 'Locking on',
   scanLabel: SCAN_LABEL = 'SCANNING…', lockLabel: LOCK_LABEL = '● LOCKED', object: OBJECT} = {}) => {
   if (!Array.isArray(READOUTS) || READOUTS.length > MAX_READOUTS) {
@@ -120,7 +120,7 @@ export const HudReticle: React.FC<{target?: string; readouts?: string[]; title?:
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   const bo = lerp(120, 0, brackets) * s; // bracket offset from target (px)
   const half = R + 60 * s;
-  // THE TARGET IS FITTED INSIDE THE RING. It was a bare 84px, which holds 'WorkBuddy' in a 300px ring and
+  // THE TARGET IS FITTED INSIDE THE RING. It was a bare 84px, which holds 'Wordmark' in a 300px ring and
   // wraps a long name out across the ring's edge. The box is set on the element so the browser wraps in the
   // same measure the fit used.
   const innerR = R - 26 * s;

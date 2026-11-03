@@ -24,7 +24,7 @@ export const DURATION = 155; // ~5.2s
 const FOIL_D0 = ['#ff5db2', '#ffd45b', '#5bffcf', '#5bb4ff', '#b45bff'];
 const GLINT_D0 = '#fff', RIM_D0 = '#fff8';
 // CJK-EXEMPT (tight leading, no floor): the word is sized by fitTextPx to one line, so there is never a second line to collide with.
-export const HoloFoil: React.FC<{word?: string; tagline?: string}> = ({word: WORD = 'WORKBUDDY', tagline: TAGLINE = 'YOUR AI TEAM'} = {}) => {
+export const HoloFoil: React.FC<{word?: string; tagline?: string}> = ({word: WORD = 'WORDMARK', tagline: TAGLINE = 'A TAGLINE'} = {}) => {
   const t = useT();
   const glide = useGlide();
   const dna = useDNA();

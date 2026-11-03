@@ -33,7 +33,7 @@ const RING_GEOM = [
 ];
 
 export const DataOrrery: React.FC<{items?: string[]; hub?: string}> = ({
-  items = ['Docs', 'Code', 'Tasks', 'Comms'], hub: HUB = 'WorkBuddy'} = {}) => {
+  items = ['Docs', 'Code', 'Tasks', 'Comms'], hub: HUB = 'Wordmark'} = {}) => {
   const labels = (items ?? []).map((x) => String(x ?? '').trim()).filter(Boolean);
   if (!labels.length) {
     throw new Error(

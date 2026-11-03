@@ -26,7 +26,7 @@ const SUN_GAP_D0 = '#2a0b3f';       // the sky showing through the sun's scanlin
 const CHROME_D0 = 'linear-gradient(#fff, #a7e9ff 40%, #ff9ee0 60%, #ff2d95)';
 const HORIZON_D0 = '#ffd0f0';
 
-export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: TITLE = 'WORKBUDDY', tagline: TAGLINE = 'ON YOUR MACHINE'} = {}) => {
+export const NeonGrid: React.FC<{title?: string; tagline?: string}> = ({title: TITLE = 'WORDMARK', tagline: TAGLINE = 'A ONE-LINE TAGLINE'} = {}) => {
   const dna = useDNA();
   // DIRECT READS, not `var(--f-display, …)`. fitText below measures in a detached node OUTSIDE .dna-film, where
   // the CSS variables are undefined — it would have measured the FALLBACK face and returned a size for the wrong

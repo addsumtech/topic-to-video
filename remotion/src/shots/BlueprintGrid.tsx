@@ -46,7 +46,7 @@ export const BlueprintGrid: React.FC<{unit?: string; tag?: string; spec1?: strin
   metricLabel?: string;
   // A real measurement to set beside the crosshair, or nothing. NEVER a screen coordinate.
   readout?: string}> = ({
-  unit = 'workbuddy.unit', tag = 'local-only', spec1 = 'runs on your machine', spec2 = '0 cloud calls',
+  unit = 'demo.unit', tag = 'demo-tag', spec1 = 'a first spec line', spec2 = 'a second spec',
   metric = null, metricUnit = '', metricLabel = '', readout = ''} = {}) => {
   const dna = useDNA();
   const INK = dna?.fg ?? INK0, FAINT = dna?.line ?? FAINT0, ACC = dna?.accent ?? ACC0, BG = dna?.bg ?? '#f6f8fb';

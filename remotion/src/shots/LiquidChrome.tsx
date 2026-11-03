@@ -12,7 +12,7 @@ import {BASELINE_UNLOCK_SKEW} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
 export const LiquidChrome: React.FC<{word?: string; tagline?: string}> = ({
-  word: WORD = 'DELIVERED', tagline: SUB = 'your ai team · on your machine'} = {}) => {
+  word: WORD = 'DELIVERED', tagline: SUB = 'a one-line tagline · here'} = {}) => {
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();

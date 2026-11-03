@@ -26,7 +26,7 @@ export const MAX_SPOKES = 10;
 const PIN_START = 0.14, PIN_STEP = 0.05, PIN_DUR = 0.24;
 const LAND_BY = REDUCED_MOTION_T - 0.02;
 export const MapRoutes: React.FC<{items?: string[]; hub?: string; accent?: string}> = ({
-  items: SPOKES = ['GitHub', 'Slack', 'Notion', 'Drive', 'Jira', 'Gmail'], hub: HUB = 'WorkBuddy', accent: tealIn} = {}) => {
+  items: SPOKES = ['GitHub', 'Slack', 'Notion', 'Drive', 'Jira', 'Gmail'], hub: HUB = 'Wordmark', accent: tealIn} = {}) => {
   if (!Array.isArray(SPOKES) || SPOKES.length < 1 || SPOKES.length > MAX_SPOKES) {
     throw new Error(
       `MapRoutes needs 1-${MAX_SPOKES} \`items\` (got ${Array.isArray(SPOKES) ? SPOKES.length : typeof SPOKES}). ` +

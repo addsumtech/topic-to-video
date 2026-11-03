@@ -50,7 +50,7 @@ const BELT_F = 0.52, RAW_F = 0.60, INPAD_F = 0.68;
 // three parts at the old belt speed, closer together, each stopping at its slot on the pad
 const N_PARTS = 3, START = 0.06, STAGGER = 0.14, SLOT_GAP = 90, PART = 82;
 
-export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = ({items: RAW = ['Raw work', 'WorkBuddy', 'Delivered ✓']} = {}) => {
+export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = ({items: RAW = ['Raw work', 'Wordmark', 'Delivered ✓']} = {}) => {
   // THREE STATIONS, THREE LABELS. A fourth label used to be ignored and a missing third left the pad unnamed,
   // with no error; the diorama has exactly three stations, so anything else is refused.
   if (!Array.isArray(RAW) || RAW.length !== 3 || RAW.some((x) => !String(x ?? '').trim())) {
@@ -138,7 +138,7 @@ export const IsometricAssembly: React.FC<{items?: [string, string, string]}> = (
             the machine occludes a part nosing into it. They used to be painted after the machine, so for the
             last ~80 units before the intake a grey block sat pasted over the machine's front face. */}
         {drawOrder.filter((pt) => pt.x < mx).map(partEl)}
-        {/* the WorkBuddy MACHINE — static, with a glowing intake slot that brightens while processing */}
+        {/* the demo MACHINE — static, with a glowing intake slot that brightens while processing */}
         <Cuboid x={mx} y={y - 34} z={0} w={mw} d={218} h={200} top="#232a3a" ox={ox} oy={oy} />
         <Cuboid x={mx + 26} y={y - 6} z={200} w={mw - 52} d={150} h={16} top={busy ? GLOW : '#39415a'} ox={ox} oy={oy} />
         {/* OUT pad (green) where finished parts land */}

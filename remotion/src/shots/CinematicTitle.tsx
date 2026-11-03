@@ -12,7 +12,7 @@ import {fitText} from '@remotion/layout-utils';
 
 export const DURATION = 170; // ~5.7s
 export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?: string}> = ({
-  kicker: KICKER = 'A NEW KIND OF TEAMMATE', title: TITLE = 'WorkBuddy', tagline: TAG = 'your ai team · on your machine'} = {}) => {
+  kicker: KICKER = 'A SMALL KICKER LINE', title: TITLE = 'Wordmark', tagline: TAG = 'a one-line tagline · here'} = {}) => {
   const t = useT();
   const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();

@@ -50,7 +50,7 @@ const Sketch: React.FC<{d: string; t: number; at: number; color: string; sw?: nu
     {...drawOn(draw)} />;
 };
 
-export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'WorkBuddy', 'Done ✓']} = {}) => {
+export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'Wordmark', 'Done ✓']} = {}) => {
   if (!Array.isArray(items) || items.length < 1 || items.length > MAX_HAND_ITEMS) {
     throw new Error(
       `HandDrawn needs 1-${MAX_HAND_ITEMS} \`items\` (got ${Array.isArray(items) ? items.length : typeof items}). ` +

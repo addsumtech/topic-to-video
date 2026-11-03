@@ -36,7 +36,7 @@ const readPct = (pct: unknown): number | null => {
 export const LiquidFill: React.FC<{label?: string; pct?: number | string | null}> = ({
   // `label` is bound twice: `labelGiven` is what the film passed (undefined if nothing), `label` carries the
   // preview copy. Only "nothing passed at all" unlocks the preview's illustrative full vessel.
-  label: labelGiven, label = 'on your machine', pct} = {}) => {
+  label: labelGiven, label = 'a short label', pct} = {}) => {
   const t = useT();
   const dna = useDNA();
   const {width: W, height: H} = useVideoConfig();

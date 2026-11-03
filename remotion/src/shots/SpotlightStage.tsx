@@ -34,7 +34,7 @@ const FS_MIN = 38;
 export const OPTICS = ['bloom', 'halation'] as const;
 
 export const SpotlightStage: React.FC<{items?: string[]; wordmark?: string}> = ({
-  items: WORDS = DEFAULT_WORDS, wordmark: WORDMARK = 'WORKBUDDY'} = {}) => {
+  items: WORDS = DEFAULT_WORDS, wordmark: WORDMARK = 'WORDMARK'} = {}) => {
   if (!Array.isArray(WORDS) || WORDS.length < 1 || WORDS.length > MAX_SPOTLIGHT_WORDS) {
     throw new Error(`SpotlightStage needs 1-${MAX_SPOTLIGHT_WORDS} \`items\` (got ${Array.isArray(WORDS) ? WORDS.length : typeof WORDS}). ` +
       'The light reveals one word at a time along a single line with an arrow between each; past five, shorten the ' +

@@ -12,11 +12,11 @@ type Tok = {t: string; c: string};
 const C = {kw: '#ff7bd5', fn: '#7ee0ff', str: '#9df2a0', com: '#6b7688', num: '#ffd88a', pl: '#d9e0ea', op: '#c8b6ff'};
 // hand-tokenized so highlighting is deterministic + correct (no fragile regex at render time)
 const DEFAULT_LINES: Tok[][] = [
-  [{t: '# WorkBuddy runs locally — on your machine', c: C.com}],
+  [{t: '# demo — a comment line in the code', c: C.com}],
   [{t: 'def ', c: C.kw}, {t: 'handle', c: C.fn}, {t: '(task):', c: C.pl}],
-  [{t: '    plan   = ', c: C.pl}, {t: 'buddy', c: C.fn}, {t: '.think(task)', c: C.pl}],
-  [{t: '    draft  = ', c: C.pl}, {t: 'buddy', c: C.fn}, {t: '.draft(plan)', c: C.pl}],
-  [{t: '    result = ', c: C.pl}, {t: 'buddy', c: C.fn}, {t: '.review(draft)', c: C.pl}],
+  [{t: '    plan   = ', c: C.pl}, {t: 'agent', c: C.fn}, {t: '.think(task)', c: C.pl}],
+  [{t: '    draft  = ', c: C.pl}, {t: 'agent', c: C.fn}, {t: '.draft(plan)', c: C.pl}],
+  [{t: '    result = ', c: C.pl}, {t: 'agent', c: C.fn}, {t: '.review(draft)', c: C.pl}],
   [{t: '    return', c: C.kw}, {t: ' result', c: C.pl}, {t: '      # ✓ shipped', c: C.com}],
 ];
 const CHW = 20.4, LH = 58, FS = 34;
@@ -33,7 +33,7 @@ const lineText = (line: Tok[] | string): string =>
 
 export const CodeCompose: React.FC<{doneLabel?: string; filename?: string; lines?: (Tok[] | string)[]; status?: string}> = ({
   doneLabel = 'done',
-  filename = 'workbuddy.py', lines: LINESP, status: STATUS = '— shipped, on your machine'} = {}) => {
+  filename = 'demo.py', lines: LINESP, status: STATUS = '— done, ready to read'} = {}) => {
   const t = useT();
   const dna = useDNA();
   const frame = useCurrentFrame();

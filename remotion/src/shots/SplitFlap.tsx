@@ -10,7 +10,7 @@ import {useDNA, mix, readableOn, shade} from '../runtime/dna';
 
 export const DURATION = 155; // ~5.2s
 const CH = '▚ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789▸✓'.split('');
-const DEFAULT_ROWS = ['WORKBUDDY', 'DELIVERED'];
+const DEFAULT_ROWS = ['WORDMARK', 'DELIVERED'];
 
 /** A row, and OPTIONALLY the tone it is lit in — named from the film's own DNA, never a raw colour. */
 export type FlapRow = string | {text: string; tone?: 'accent' | 'accent2' | 'dim' | 'fg'};

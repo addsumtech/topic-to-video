@@ -31,7 +31,7 @@ export const HalftonePop: React.FC<{lead?: string; tail?: string; burstTop?: str
   // the JSX, so a film could set the prop and watch its copy vanish. Both halves are props now, each
   // defaulting to the literal it replaced, so every existing film renders identically.
   lead = 'MEANWHILE…', tail = 'delivers.',
-  burstTop = 'SHIP', burstBottom = 'IT!', brand = 'WorkBuddy'} = {}) => {
+  burstTop = 'SHIP', burstBottom = 'IT!', brand = 'Wordmark'} = {}) => {
   const dna = useDNA();
   const YEL = dna?.bg ?? YEL0, RED = dna?.accent ?? RED0, INK = dna?.fg ?? INK0, BLUE = dna?.accent2 ?? BLUE0;
   const BURST_SHADOW = dna ? BLUE : INK0;     // the offset copy: black ink on paper, a colour offset on dark stock

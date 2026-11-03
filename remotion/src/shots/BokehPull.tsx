@@ -19,7 +19,7 @@ const COLORS0 = ['#ffd48a', '#8ab6ff', '#ff9ec9', '#8affce', '#c9a2ff', '#fff2c0
 const OWN_NIGHT = 'radial-gradient(120% 120% at 50% 42%, #101828 0%, #070b14 66%, #04060c 100%)';
 const OWN_NIGHT_FLAT = '#070b14';                 // the same night as one colour, for darkGround to judge
 
-export const BokehPull: React.FC<{title?: string; tagline?: string}> = ({title = 'WorkBuddy', tagline = 'IN FOCUS'} = {}) => {
+export const BokehPull: React.FC<{title?: string; tagline?: string}> = ({title = 'Wordmark', tagline = 'IN FOCUS'} = {}) => {
   const t = useT();
   const dna = useDNA();
   // the film's ground while the film's ground is dark (all eight presets), this register's own night when it

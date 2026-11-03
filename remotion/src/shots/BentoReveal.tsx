@@ -89,7 +89,7 @@ const normalise = (items: (string | BentoCell)[]): BentoCell[] => {
 };
 
 export const BentoReveal: React.FC<{title?: string; hero?: string; items?: (string | BentoCell)[]; heroKicker?: string}> = ({
-  title: TITLE = 'WorkBuddy', hero: HEROSUB = 'your workspace, assembled',
+  title: TITLE = 'Wordmark', hero: HEROSUB = 'your workspace, assembled',
   // The hero cell's kicker used to be the literal string 'DASHBOARD', hardcoded — so every film that
   // reached for this register printed a product-demo word onto its own frame whatever it was about.
   heroKicker: HEROKICKER = 'DASHBOARD', items: ITEMS = DEFAULT_ITEMS} = {}) => {

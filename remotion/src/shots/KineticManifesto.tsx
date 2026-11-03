@@ -51,7 +51,7 @@ export const DURATION = 150; // 5s
 // line silently dropped. The stagger is now laid out for the count: the last phrase always starts where the
 // demo's third did, the ones before it share the time ahead of it, and past five there is too little time
 // per phrase to read, so it throws.
-const PHRASES = ['ONE PROMPT.', 'A HUNDRED EXPERTS.', 'YOUR AI TEAM.'];
+const PHRASES = ['ONE PHRASE.', 'A SECOND PHRASE.', 'A THIRD ONE.'];
 // the demo's own hero, used only while the demo's own phrases are showing — never for a film's manifesto
 const DEMO_HERO = 2;
 export const MAX_MANIFESTO_PHRASES = 5;

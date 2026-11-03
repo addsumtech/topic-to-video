@@ -24,7 +24,7 @@ const BG_D0 = '#ececec', INK_D0 = '#0a0a0a', ACC_D0 = '#ff3b00';
 
 export const BrutalistType: React.FC<{titleTop?: string; titleBottom?: string; meta?: string; statement1?: string; statement2?: string;
   counter?: string}> = ({
-  titleTop = 'WORK', titleBottom = 'BUDDY.', meta = 'WORKBUDDY / LOCAL-FIRST', statement1 = 'NO CLOUD.', statement2 = 'NO NONSENSE.',
+  titleTop = 'WORD', titleBottom = 'MARK.', meta = 'WORDMARK / CATEGORY', statement1 = 'ONE CLAIM.', statement2 = 'TWO CLAIMS.',
   counter} = {}) => {
   const dna = useDNA();
   const BG = dna?.bg ?? BG_D0, INK = dna?.fg ?? INK_D0, ACC = dna?.accent ?? ACC_D0;

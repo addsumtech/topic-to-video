@@ -18,12 +18,12 @@ export const DURATION = 165; // 5.5s
 export const INTRINSIC_TEXT = ['INDEX /'];
 const CREAM = '#f0ece1', INK = '#141414', RED = '#e8321f';
 const DEFAULT_WORDS = ['WORK.', 'SHIP.', 'DONE.'];
-const DEFAULT_TICKER = 'WORKBUDDY —— ON YOUR MACHINE —— YOUR AI TEAM —— NO CLOUD —— ';
+const DEFAULT_TICKER = 'WORDMARK —— A TAGLINE —— A SECOND LINE —— A THIRD —— ';
 
 // CJK-EXEMPT (tight leading, no floor): the word is whiteSpace:'nowrap' — it cannot wrap, so its lines cannot collide.
 export const SwissEditorial: React.FC<{items?: string[]; ticker?: string; wordmark?: string;
   colophon?: string}> = ({
-  items: WORDS = DEFAULT_WORDS, ticker: TICKER = DEFAULT_TICKER, wordmark: MARK = 'WORKBUDDY™',
+  items: WORDS = DEFAULT_WORDS, ticker: TICKER = DEFAULT_TICKER, wordmark: MARK = 'WORDMARK™',
   // was the literal '©2026 · LOCAL', printed onto every film that used this register whatever it was
   // about. A corner mark nobody can decode is furniture; pass one that means something, or nothing.
   colophon: COLOPHON = ''} = {}) => {
