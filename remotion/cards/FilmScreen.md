@@ -13,7 +13,8 @@
 | `name` | the film's own name over the monitor (mono) | short; it is a label, not a title |
 | `crop` | share of the clip's height masked off its bottom | 0.185 for a 16:9 film with burned captions, so its caption never doubles the film's own |
 | `region` | `{x, y, w}` shares: a close-up of part of the picture | at its own pixels a close-up is SMALLER on screen than the whole clip — choose it for the detail, not the size |
-| `note` + `noteAt` | one line pinned by a leader to a point (shares of the clip's frame) | one fact the viewer would miss |
+| `note` | one line pinned by a leader to a point of the clip | one fact the viewer would miss |
+| `noteAt` | where the leader points, `{x, y}` shares of the clip's frame | on the thing the note names, not beside it |
 | `run` | the film's beat frames (paths), passing beneath | the film running; frames are measured off the files and must be frame-shaped |
 | `reel` | the film's beat frames, a lit grid with its count | "this many beats" made visible; with a `run` too, the run passes beneath and the reel stands beside (below, in a tall frame) |
 
