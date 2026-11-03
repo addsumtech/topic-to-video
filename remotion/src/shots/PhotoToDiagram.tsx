@@ -53,7 +53,8 @@ export const PhotoToDiagram: React.FC<{src?: string; lines?: string; imageAspect
   // ---- the plate: fitted to the zone, never past the photograph's own pixels ----
   const aspect = imageAspect && isFinite(imageAspect) && imageAspect > 0 ? imageAspect : 4 / 3;
   const top = Math.max(CONTENT_TOP, Math.round(U * 0.07)) + (title ? Math.round(U * 0.06) : 0);
-  const creditPx = Math.round(U * 0.019);
+  // the licence line at the label floor (0.019 drew 21 px, 0.024 26 px: both text_safe_qa SMALL TYPE)
+  const creditPx = Math.round(U * 0.028);
   const bottom = contentBottom(W, H) - (credit ? Math.round(creditPx * 2) : 0) - Math.round(U * 0.015);
   let pw = Math.min(W * 0.62, (bottom - top) * aspect);
   if (imageW && isFinite(imageW)) pw = Math.min(pw, imageW * MAX_UPSCALE);

@@ -11,6 +11,7 @@
 | `beats` | 2–4 of the film's beat numbers (1-based), all LATER than this one | three is the trailer rhythm; two reads as a pause, four starts to feel like a montage |
 | `title` | the card the flashes lead to | the film's name or its claim, short |
 | `kicker` | the small caps line above the title | a category word; leave it out rather than fill it |
+| `place` | `centre` (default) or `lower-left` — the title card's composition | lower-left reads as a film's opening credit; choose it when the film's other beats centre their type |
 
 **Known traps:**
 - Teasers are frozen at t = 0.95: at the 0.88 the visual gates use, a register whose last step lands late (Rearrange) was caught mid-move.

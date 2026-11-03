@@ -78,7 +78,10 @@ export const LivingMap: React.FC<{nodes?: MapNode[]; edges?: GEdge[]; before?: s
   // 0.30-0.48 window put every node in before the voice reached it and then held the frame still for ~3 s, and a
   // hit-stop on the last node's word landed on that still frame and did nothing.
   const cue = useCues();
-  const first0 = before.length ? 0.16 : 0.08, span = 0.5;
+  // The defaults sit LATE (the last node by ~0.86): a cue only ever moves an entrance EARLIER, so a default before the
+  // word left the node landing early — on the test film 0.8 s before "distance", and a hit-stop on that word froze a
+  // frame that had already stopped moving. Late defaults are pulled onto their words; an unnamed node still comes in.
+  const first0 = before.length ? 0.2 : 0.08, span = before.length ? 0.56 : 0.6;
   const win: Record<string, [number, number]> = {};
   added.forEach((id, k) => {
     const a0 = first0 + (added.length > 1 ? (k / (added.length - 1)) * span : 0);

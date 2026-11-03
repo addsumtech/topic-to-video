@@ -30,13 +30,16 @@ const h01 = (i: number, s: number) => {
 
 /** The settled word: the canvas's text, at the canvas's size, centred in the same box. */
 const Word: React.FC<{text: string; px: number; x: number; y: number; w: number; h: number; ink: string; face: string;
-  opacity: number}> = ({text, px, x, y, w, h, ink, face, opacity}) => (
+  opacity: number; left?: boolean}> = ({text, px, x, y, w, h, ink, face, opacity, left}) => (
   <div style={{position: 'absolute', left: x, top: y, width: w, height: h, display: 'flex', alignItems: 'center',
-    justifyContent: 'center', whiteSpace: 'nowrap', color: ink, opacity, font: `800 ${px}px/1 ${face}`}}>{text}</div>
+    justifyContent: left ? 'flex-start' : 'center', whiteSpace: 'nowrap', color: ink, opacity, font: `800 ${px}px/1 ${face}`}}>{text}</div>
 );
 
-export const WordDust: React.FC<{from?: string; to?: string; note?: string}> = ({
-  from = 'Demo before', to = 'Demo after', note = ''} = {}) => {
+export const WordDust: React.FC<{from?: string; to?: string; note?: string; place?: 'centre' | 'left'}> = ({
+  from = 'Demo before', to = 'Demo after', note = '', place = 'centre'} = {}) => {
+  // `place` is a COMPOSITION choice the film makes against its neighbours (text_safe_qa names a film whose titles
+  // all sit in one place): the words centred, or set from the left edge of the content column
+  const left = place === 'left';
   if (!String(to ?? '').trim()) throw new Error('WordDust needs `to`: the word the dust settles into');
   const dna = useDNA();
   const t = useT();
@@ -49,10 +52,10 @@ export const WordDust: React.FC<{from?: string; to?: string; note?: string}> = (
 
   const top = Math.max(CONTENT_TOP, Math.round(U * 0.08)), bottom = contentBottom(W, H);
   const boxW = Math.round(W * 0.86), boxH = Math.round(Math.min(U * 0.3, (bottom - top) * 0.5));
-  const boxX = Math.round((W - boxW) / 2), boxY = Math.round(top + (bottom - top) * 0.42 - boxH / 2);
+  const boxX = left ? Math.round(W * 0.07) : Math.round((W - boxW) / 2), boxY = Math.round(top + (bottom - top) * 0.42 - boxH / 2);
   const step = Math.max(4, Math.round(U * 0.0048));
-  const A = useTextMark(from ? String(from) : '', FACE, boxW, boxH, {step, ink: FG});
-  const B = useTextMark(String(to), FACE, boxW, boxH, {step, ink: ACC});
+  const A = useTextMark(from ? String(from) : '', FACE, boxW, boxH, {step, ink: FG, align: left ? 'left' : 'center'});
+  const B = useTextMark(String(to), FACE, boxW, boxH, {step, ink: ACC, align: left ? 'left' : 'center'});
   if (!B || (from && !A)) return <AbsoluteFill style={{background: BG}} />;
 
   // with no first word, the dust starts as a loose cloud over the whole zone
@@ -77,13 +80,13 @@ export const WordDust: React.FC<{from?: string; to?: string; note?: string}> = (
   return (
     <AbsoluteFill style={{background: dna ? `radial-gradient(90% 80% at 50% 45%, ${mix(BG, ACC, 0.08)}, ${BG} 70%)` : BG}}>
       {A && solidA > 0 ? <Word text={String(from)} px={A.px} x={boxX} y={boxY} w={A.w} h={A.h} ink={FG} face={FACE}
-        opacity={solidA} /> : null}
+        opacity={solidA} left={left} /> : null}
       {pts.length ? <Dust pts={pts} r={r} color={col} glow={2.5 * Math.sin(Math.PI * flow)}
         style={{left: boxX, top: boxY, opacity: dust}} /> : null}
       {solidB > 0 ? <Word text={String(to)} px={B.px} x={boxX} y={boxY} w={B.w} h={B.h} ink={ACC} face={FACE}
-        opacity={solidB} /> : null}
+        opacity={solidB} left={left} /> : null}
       {note ? (
-        <div style={{position: 'absolute', left: 0, right: 0, top: boxY + boxH + Math.round(U * 0.02), textAlign: 'center',
+        <div style={{position: 'absolute', left: 0, right: 0, top: boxY + boxH + Math.round(U * 0.02), textAlign: left ? 'left' : 'center', paddingLeft: left ? boxX : 0,
           opacity: noteOn, color: mix(DIM, FG, 0.4), font: `500 ${notePx}px/${leading(note, 1.3)} ${BODY}`}}>{note}</div>
       ) : null}
     </AbsoluteFill>

@@ -319,6 +319,31 @@ def _stage_run_id(slide):
     return _sr.run_id(slide)
 
 
+def register_props(shot, props, out_dir, map_props=None):
+    """A beat's props as its REGISTER needs them, from what only the film and its files know — the ONE preparation both
+    the film (build_scenes) and every gate that renders a beat alone (film_shot_props) apply. They were prepared in
+    two places and drifted three ways (tests/test_prop_parity.py). Cue times and device scripts are resolved after
+    this, by both callers, from the beat's audio.
+      * LivingMap: the board's {map, add, focus} -> the whole map and what is on screen at the beat's two ends
+        (`map_props`, from expand_living_maps over the whole board);
+      * PhotoPlate: the photograph's proportions — the plate frames the WHOLE photograph (a portrait photo in the
+        default landscape plate lost 67% of its height, and every mark moved off what it named);
+      * PhotoToDiagram: its traced outlines and pixel width (photo_diagram_props)."""
+    if map_props is not None:
+        props = map_props
+    if shot == "PhotoPlate" and isinstance(props.get("src"), str) and not props.get("imageAspect"):
+        try:
+            from PIL import Image as _Im
+            with _Im.open(os.path.join(out_dir, props["src"])) as _im:
+                if _im.height:
+                    props = dict(props, imageAspect=round(_im.width / _im.height, 4))
+        except Exception:
+            pass                          # a missing or unreadable file is the renderer's problem, not ours
+    if shot == "PhotoToDiagram" and isinstance(props.get("src"), str):
+        props = photo_diagram_props(props, out_dir)
+    return props
+
+
 def photo_diagram_props(props, out_dir):
     """A PhotoToDiagram beat's photograph -> its traced outlines (scripts/photo_lines.py, cached by content) and its own
     proportions and pixel width, so the register can draw its lines and never draw the plate past the photograph's
@@ -522,13 +547,10 @@ def film_shot_props(slide, out_dir, fps=30):
     props = dict(slide.get("shot_props") or {})
     narration = slide.get("narration") or slide.get("script") or ""
     dur = slide.get("duration")
-    # the expansions build_scenes makes before a beat renders: a LivingMap beat's {map, add, focus} become the whole
-    # map plus what is on screen at its two ends (that needs the whole board), and a PhotoToDiagram's photograph gets
-    # its traced lines and pixel size — a gate rendering the beat alone without them measured the demo map, or failed
-    if slide.get("shot") == "LivingMap":
-        props = _board_map_props(slide, out_dir) or props
-    elif slide.get("shot") == "PhotoToDiagram" and isinstance(props.get("src"), str):
-        props = photo_diagram_props(props, out_dir)
+    # the SAME preparation build_scenes makes (register_props): a gate rendering the beat alone without it measured a
+    # LivingMap's demo map, failed a PhotoToDiagram and measured a PhotoPlate crop the film never draws
+    props = register_props(slide.get("shot"), props, out_dir,
+                           _board_map_props(slide, out_dir) if slide.get("shot") == "LivingMap" else None)
     if dur:
         props = resolve_cue_props(props, out_dir, slide.get("audio"), narration, float(dur), fps)
         if slide.get("shot") in ("DeviceDemo", "DeviceHero"):
@@ -792,22 +814,7 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh", 
         props = s.get("shot_props") or {}
         if not isinstance(props, dict):
             raise RuntimeError("scene #%s `shot_props` must be an object." % idx)
-        if _maps[i] is not None:
-            props = _maps[i]
-        # A PhotoPlate frames the WHOLE photograph, so it needs the picture's proportions. Read from the
-        # file here rather than asked of the author: measured, a portrait photograph in the register's
-        # default landscape plate lost 67% of its height, and since `marks` are plate fractions the crop
-        # also moved every mark off the thing it named.
-        if shot == "PhotoPlate" and isinstance(props.get("src"), str) and not props.get("imageAspect"):
-            try:
-                from PIL import Image as _Im
-                with _Im.open(os.path.join(out_dir, props["src"])) as _im:
-                    if _im.height:
-                        props = dict(props, imageAspect=round(_im.width / _im.height, 4))
-            except Exception:
-                pass                          # a missing or unreadable file is the renderer's problem, not ours
-        if shot == "PhotoToDiagram" and isinstance(props.get("src"), str):
-            props = photo_diagram_props(props, out_dir)
+        props = register_props(shot, props, out_dir, _maps[i])
         # THE EAR'S TEXT AND THE EYE'S TEXT ARE NOT THE SAME TEXT. `narration` is written to be SPOKEN, so a
         # film spells an initialism out — "没有用 T T S", "S S H", "A G P L 三点零" — to stop edge-tts reading
         # it as a word. That is correct for the voice and wrong on the frame, and it shipped: an independent

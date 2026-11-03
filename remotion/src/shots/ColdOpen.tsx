@@ -25,8 +25,11 @@ export const FLASH_F = 9;
 export const DARK_F = 12;
 const LEAD_F = 12;                 // the seam's held edge: the first flash starts after it
 
-export const ColdOpen: React.FC<{beats?: number[]; title?: string; kicker?: string}> = ({
-  beats = [2, 3, 4], title = 'Demo title', kicker = ''} = {}) => {
+export const ColdOpen: React.FC<{beats?: number[]; title?: string; kicker?: string; place?: 'centre' | 'lower-left'}> = ({
+  beats = [2, 3, 4], title = 'Demo title', kicker = '', place = 'centre'} = {}) => {
+  // `place`: the title card centred, or set lower-left over the dark like a film's opening credit — a composition the
+  // film chooses against its other beats (text_safe_qa names a film whose titles all sit in one place)
+  const low = place === 'lower-left';
   if (!Array.isArray(beats) || beats.length < 2 || beats.length > 4) {
     throw new Error(`ColdOpen needs 2-4 \`beats\` (the film's own beats to flash), got ${JSON.stringify(beats)}`);
   }
@@ -65,16 +68,17 @@ export const ColdOpen: React.FC<{beats?: number[]; title?: string; kicker?: stri
   const on = easeOutCubic(clamp01((frame - titleStart) / 14));
   const top = Math.max(CONTENT_TOP, Math.round(U * 0.08)), bottom = contentBottom(W, H);
   const titlePx = fitTextPx(title, W * 0.8, Math.round(U * 0.12), {usable: 0.95});
-  const kickPx = Math.max(Math.round(U * 0.026), Math.round(titlePx * 0.22));
+  const kickPx = Math.max(Math.round(U * 0.028), Math.round(titlePx * 0.22));   // the label floor (30 px at 1080)
   return (
     <AbsoluteFill style={{background: frame < titleStart ? darkGround : `radial-gradient(90% 80% at 50% 45%, ${mix(BG, ACC, 0.08 * on)}, ${darkGround} 75%)`}}>
       {frame >= titleStart ? (
         <div style={{position: 'absolute', left: 0, right: 0, top, height: bottom - top, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', opacity: on,
+          alignItems: low ? 'flex-start' : 'center', justifyContent: low ? 'flex-end' : 'center', opacity: on,
+          paddingLeft: low ? Math.round(W * 0.07) : 0, paddingBottom: low ? Math.round(U * 0.04) : 0, boxSizing: 'border-box',
           transform: glide(`translateY(${(1 - on) * U * 0.02}px)`, true)}}>
           {kicker ? <div style={{color: ACC, font: `600 ${kickPx}px/1 ${MONO}`, letterSpacing: dna?.labelSpacing ?? '0.16em',
             textTransform: 'uppercase', marginBottom: Math.round(U * 0.025)}}>{kicker}</div> : null}
-          <div style={{color: FG, font: `800 ${titlePx}px/${leading(title, 1.05)} ${DISPLAY}`, textAlign: 'center',
+          <div style={{color: FG, font: `800 ${titlePx}px/${leading(title, 1.05)} ${DISPLAY}`, textAlign: low ? 'left' : 'center',
             letterSpacing: '-0.02em', textWrap: 'balance', maxWidth: W * 0.84}}>{title}</div>
           <div style={{width: Math.round(U * 0.08 * on), height: Math.max(2, Math.round(U * 0.004)),
             background: mix(DIM, ACC, 0.6), marginTop: Math.round(U * 0.03)}} />

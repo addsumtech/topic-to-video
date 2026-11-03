@@ -220,11 +220,11 @@
     "LightShafts": "989f51268220b855",
     "NebulaField": "3f5694741aea861d",
     "Callback": "fe763c6ab112026f",
-    "ColdOpen": "18e6ec321bbb53a6",
-    "LivingMap": "6bd3cba079c1aa1a",
+    "ColdOpen": "bc751b6298ab1540",
+    "LivingMap": "3630d554ee90b127",
     "Rearrange": "47118a3a2bac8483",
-    "WordDust": "31ccac1a0cfa33eb",
-    "PhotoToDiagram": "56b130b8563aad3f"
+    "WordDust": "cb9212b0aa33306c",
+    "PhotoToDiagram": "51687456d2cd4789"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -1063,8 +1063,8 @@
       "footprint": 0.154
     },
     "LivingMap": {
-      "motion_p75": 0.0002,
-      "ink_median": 0.039,
+      "motion_p75": 0.0001,
+      "ink_median": 0.038,
       "luma_range": 0.015,
       "seconds": 6.0,
       "footprint": 0.343

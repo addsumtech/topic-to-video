@@ -93,3 +93,15 @@ def test_validate_names_a_time_the_runtime_would_refuse_before_any_render():
            {"narration": narr, "time": {"hitz": [1]}}]
     for s in bad:
         assert v.time_problems(s), s["time"]
+
+
+def test_a_hit_on_a_still_frame_is_named_after_the_render():
+    """A hit-stop freezes the drawing on an impact; on a frame where nothing is moving it freezes nothing. Measured on
+    the review's test film: a hit on a LivingMap beat's last word fell on a frame still for 3 s and showed nothing.
+    rhythm_qa reads the rendered film's motion and names a hit with no motion in the 0.4 s before it."""
+    import os, sys
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
+    import rhythm_qa as rq
+    motion = [0.0] * 60 + [2.0] * 30 + [0.0] * 30          # 12 fps: moving from 5.0 s to 7.5 s
+    assert rq.hits_on_still(motion, 12, [3.0, 6.0]) == [3.0]
+    assert rq.hits_on_still(motion, 12, []) == []

@@ -26,10 +26,10 @@ const measure = (text: string, weight: number, family: string, maxW: number, max
 
 /** The word, set in `family` to fit (maxW x maxH), as a picture and as points every `step` px. */
 export const useTextMark = (text: string, family: string, maxW: number, maxH: number, o: {weight?: number;
-  step?: number; ink?: string} = {}): Mark | null => {
-  const weight = o.weight ?? 800, step = o.step ?? 5, ink = o.ink ?? '#ffffff';
+  step?: number; ink?: string; align?: 'center' | 'left'} = {}): Mark | null => {
+  const weight = o.weight ?? 800, step = o.step ?? 5, ink = o.ink ?? '#ffffff', align = o.align ?? 'center';
   const W = Math.max(1, Math.round(maxW)), H = Math.max(1, Math.round(maxH));
-  const key = JSON.stringify([text, family, W, H, weight, step, ink]);
+  const key = JSON.stringify([text, family, W, H, weight, step, ink, align]);
   const [mark, setMark] = React.useState<Mark | null>(() => CACHE.get(key) ?? null);
   const [handle] = React.useState(() => (CACHE.has(key) || !text ? null
     : delayRender(`particles: setting "${text}"`, {timeoutInMilliseconds: 30000})));
@@ -47,9 +47,9 @@ export const useTextMark = (text: string, family: string, maxW: number, maxH: nu
         const g = cv.getContext('2d') as CanvasRenderingContext2D;
         g.font = `${weight} ${px}px ${family}`;
         g.fillStyle = ink;
-        g.textAlign = 'center';
+        g.textAlign = align;
         g.textBaseline = 'middle';
-        g.fillText(text, W / 2, H / 2);
+        g.fillText(text, align === 'left' ? 0 : W / 2, H / 2);
         const data = g.getImageData(0, 0, W, H).data;
         const alpha = new Uint8ClampedArray(W * H);
         for (let i = 0; i < W * H; i++) alpha[i] = data[i * 4 + 3];

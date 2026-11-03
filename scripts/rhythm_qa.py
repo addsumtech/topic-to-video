@@ -292,6 +292,48 @@ def check(out_dir):
     return r
 
 
+HIT_LOOKBACK_S = 0.4   # a hit-stop freezes an impact: something must have been moving just before it
+
+
+def hits_on_still(motion, fps, hits_s, still=None):
+    """The film times (s) of hits with no motion in the HIT_LOOKBACK_S before them — `motion` is craft_qa's per-frame
+    change at `fps`. A hit there freezes a frame that was not moving: it shows nothing."""
+    import craft_qa
+    still = craft_qa.STILL_DELTA if still is None else still
+    out = []
+    for h in hits_s:
+        f1 = int(h * fps)
+        f0 = max(0, f1 - max(1, int(round(HIT_LOOKBACK_S * fps))))
+        win = motion[f0:f1]
+        if not win or max(win) < still:
+            out.append(h)
+    return out
+
+
+def _hits_on_still(out_dir, data, m, r):
+    """Name each `slide.time` hit that landed on a still frame of the rendered film (see hits_on_still)."""
+    import film_energy_qa as fe
+    import render_remotion as rr
+    import craft_qa
+    slides = data.get("slides") or []
+    starts = {idx: (f0 - 1) / float(craft_qa.FPS) for idx, _shot, f0, _f1 in
+              fe.beat_spans(data, len(m["motion"]) + 1, craft_qa.FPS)}
+    for i, s in enumerate(slides, 1):
+        spec = s.get("time") if isinstance(s.get("time"), dict) else None
+        if not spec or not spec.get("hits") or i not in starts or not s.get("duration"):
+            continue
+        try:
+            got = rr.resolve_time(spec, out_dir, s.get("audio"), s.get("narration") or "", float(s["duration"]), 30,
+                                  "#%d" % i)
+        except (RuntimeError, SystemExit):
+            continue                         # validate names a bad time; this only reads a good one
+        dead = hits_on_still(m["motion"], craft_qa.FPS, [starts[i] + h for h in got.get("hits") or []])
+        for h in dead:
+            r["warnings"].append("scene %d (%s): a hit-stop at %.2fs (film) lands on a still frame — nothing moves in "
+                                 "the %.1fs before it, so the freeze shows nothing; move it to the word on which "
+                                 "something arrives" % (i, s.get("shot"), h, HIT_LOOKBACK_S))
+
+
 def _shot_holds(out_dir, board_path, data, r):
     """THE HELD-FRAME RULE ON A FILM OF REGISTERS, measured where it can be: the rendered film. A `shot` beat has no
     image to time — its register animates on its own clock — so the rule above inspected 0 of 25 beats of a
@@ -317,6 +359,7 @@ def _shot_holds(out_dir, board_path, data, r):
         r["errors"].append("held-frame check: out.mp4 could not be measured (%s)" % e)
         r["ok"] = False
         return
+    _hits_on_still(out_dir, data, m, r)
     shots = {s.get("index"): s.get("shot") for s in slides}
     for b in m["beats"]:
         if b["index"] not in shots:

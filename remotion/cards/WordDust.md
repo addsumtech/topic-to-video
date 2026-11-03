@@ -11,6 +11,7 @@
 | `from` | the word that dissolves (omit for a cloud) | a short word (1–3 words) keeps a dense, legible dust; a long phrase thins it |
 | `to` | the word the dust becomes | its dust is the first word's, so similar lengths read as "the same matter" |
 | `note` | one line under the settled word | the plain-language claim; it arrives after the word settles |
+| `place` | `centre` (default) or `left` — set from the content column's left edge | left reads as a statement in a column; choose it against centred neighbours |
 
 **Known traps:**
 - The solid words are the very canvas pictures the dust was taken from; drawing them as DOM text put them a pixel or two off their own dust.

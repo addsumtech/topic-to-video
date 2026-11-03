@@ -149,7 +149,9 @@ def measure(path, board=None):
            "longest_still_s": round(_longest_run(still) / float(FPS), 2),
            "still_share": round(float(still.mean()), 3),
            "motion_p90": round(float(np.percentile(d, 90)), 2),
-           "hierarchy": _hier_summary(hier), "beats": []}
+           "hierarchy": _hier_summary(hier), "beats": [],
+           # the per-frame change itself, for checks that ask WHEN something moved (rhythm_qa's hits on a still frame)
+           "motion": [round(float(x), 3) for x in d]}
     if board:
         import film_energy_qa as fe
         for idx, shot, f0, f1 in fe.beat_spans(board, len(g), FPS):

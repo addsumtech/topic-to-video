@@ -237,11 +237,11 @@
     "DeviceDemo": "5dce88563ae182c5",
     "DeviceHero": "0160eee7e481d8cd",
     "Callback": "fe763c6ab112026f",
-    "ColdOpen": "18e6ec321bbb53a6",
-    "PhotoToDiagram": "56b130b8563aad3f",
+    "ColdOpen": "bc751b6298ab1540",
+    "PhotoToDiagram": "51687456d2cd4789",
     "Rearrange": "47118a3a2bac8483",
-    "WordDust": "31ccac1a0cfa33eb",
-    "LivingMap": "6bd3cba079c1aa1a"
+    "WordDust": "cb9212b0aa33306c",
+    "LivingMap": "3630d554ee90b127"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -463,10 +463,10 @@
     "DeviceDemo": "06d58b283ec3de16",
     "DeviceHero": "921666e8c8995ee6",
     "Callback": "6b7cbcb58f83de13",
-    "ColdOpen": "4c0280f2e599c917",
+    "ColdOpen": "bfe9794d02ea3e0d",
     "PhotoToDiagram": "12bcd8046d7b2024",
     "Rearrange": "7ad8029a62330219",
-    "WordDust": "1b73b04aab1110b9",
+    "WordDust": "56a48ba09249bf13",
     "LivingMap": "42ec6fec805de50e"
   },
   "registers": {
@@ -596,7 +596,7 @@
     },
     "ColdOpen": {
       "reach": 0.699,
-      "prop_diff": 1.0
+      "prop_diff": 0.67
     },
     "CollaborativeCursors": {
       "reach": 0.744,
@@ -1063,7 +1063,7 @@
       "prop_diff": 0.8
     },
     "PhotoToDiagram": {
-      "reach": 0.413,
+      "reach": 0.45,
       "prop_diff": 0.6
     },
     "PhysicsStack": {
@@ -1352,7 +1352,7 @@
     },
     "WordDust": {
       "reach": 0.755,
-      "prop_diff": 1.0
+      "prop_diff": 0.75
     },
     "WordRoll": {
       "reach": 0.853,
