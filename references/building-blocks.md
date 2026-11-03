@@ -58,6 +58,14 @@ the frame; nothing extra at rest, so settled type is drawn exactly as without it
 **Smallest real use:** `<SpeedBlur at={(f) => ({x: xAt(f), y: 200})}><Card /></SpeedBlur>`
 **Exports:** `SpeedBlur`, `Pose`.
 
+### `cutCarry`
+The cut carry: on a film that cuts hard by tempo, the leaving beat drifts and leans into a hard cut and the arriving
+one comes out of the same drift at the same speed — one move through the cut frame instead of two still frames. Pure;
+Film.tsx applies it (CutCarry) when render_remotion turns it on (`cut_carry_on`: kinetic or scored, `meta.cut_carry`).
+**Reach for it:** never from a register — the Film carries every hard cut; read it to know why a beat's edges move.
+**Smallest real use:** `const {x, s} = cutCarryAt(frame, durF, TR, inCut, outCut, W)`
+**Exports:** `cutCarryAt`, `cutFrame`, `CARRY_F`, `CARRY_DRIFT`, `CARRY_LEAN`, `Carry`.
+
 ### `timeGrammar`
 A beat's time as grammar, on the register's clock (Film.tsx BeatClock, before the sync warp): `hits` (hit-stop),
 `freeze` (a look), `sakuga` (held drawings into ones). Every pause is repaid at up to 2x so later cues still land.
