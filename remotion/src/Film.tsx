@@ -1158,8 +1158,10 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
     case 'cut': return cut();
     // the hidden cut: a panel of the two grounds mixed (never brighter than both) passes the lens, the beat swaps
     // behind it on the seam's middle frame (seams.tsx)
-    case 'sweep': return sweep({W, H, direction: dir, panel: mix(mix(prevG?.bg ?? dna?.bg ?? '#000000',
-      nextG?.bg ?? dna?.bg ?? '#000000', 0.5), dna?.surface ?? '#202020', 0.25)});
+    // (a quarter of the way to the surface read as the ground itself on a dark film — a soft dark wipe, not a thing
+    // passing the lens; 0.6 toward the surface plus the accent edge makes it an object, still darker than a card)
+    case 'sweep': return sweep({W, H, direction: dir, edge: dna?.accent ?? '#7cc4ff',
+      panel: mix(mix(prevG?.bg ?? dna?.bg ?? '#000000', nextG?.bg ?? dna?.bg ?? '#000000', 0.5), dna?.surface ?? '#202020', 0.6)});
     default: return fade();
   }
 };

@@ -1704,7 +1704,7 @@
     "light": 0.9554768800735474,
     "dark": 0.0020682814065366983
    },
-   "moved": 0.9927842634776006,
+   "moved": 0.9929195140470767,
    "ok": true,
    "why": []
   },
@@ -3497,7 +3497,7 @@
   "WordDust": "31ccac1a0cfa33eb",
   "ColdOpen": "18e6ec321bbb53a6",
   "Callback": "fe763c6ab112026f",
-  "LivingMap": "4d3e5f9d73acaf19",
+  "LivingMap": "6bd3cba079c1aa1a",
   "PhotoToDiagram": "56b130b8563aad3f"
  },
  "failed": {},

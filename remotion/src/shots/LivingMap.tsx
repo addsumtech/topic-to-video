@@ -17,6 +17,7 @@ import {useDNA, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useGlide} from '../runtime/glide';
+import {useCues, REACH_CUBIC} from '../runtime/cue';
 import {rows} from '../runtime/rows';
 import {layoutGraph, frameNodes as frameOn, blendCam, NODE_W, NODE_H, type GNode, type GEdge} from '../runtime/graphLayout';
 
@@ -71,14 +72,27 @@ export const LivingMap: React.FC<{nodes?: MapNode[]; edges?: GEdge[]; before?: s
         'labels would fall under the type floor; focus a part of the map, or split it');
     }
   }
-  const move = easeInOutCubic(clamp01(seg(t, 0.08, 0.42)));
+  const added = after.filter((id) => !shownBefore.has(id));
+  // EACH ADDED NODE ARRIVES ON THE WORD THAT NAMES IT (runtime/cue: `nodes.<i>` by its label), its own window spread
+  // across the beat so a node the voice never names still comes in turn. Measured on a delivered test film, a fixed
+  // 0.30-0.48 window put every node in before the voice reached it and then held the frame still for ~3 s, and a
+  // hit-stop on the last node's word landed on that still frame and did nothing.
+  const cue = useCues();
+  const first0 = before.length ? 0.16 : 0.08, span = 0.5;
+  const win: Record<string, [number, number]> = {};
+  added.forEach((id, k) => {
+    const a0 = first0 + (added.length > 1 ? (k / (added.length - 1)) * span : 0);
+    win[id] = cue.win('nodes.' + nodes.findIndex((n) => n.id === id), a0, a0 + 0.1, REACH_CUBIC) as [number, number];
+  });
+  const addAt = (id: string) => (win[id] ? win[id][0] : 0);
+  // the camera travels from the beat's first arrival to its last, so the frame is moving while the map grows
+  const mv0 = added.length ? Math.min(...added.map((id) => win[id][0])) - 0.04 : 0.08;
+  const mv1 = added.length ? Math.max(...added.map((id) => win[id][1])) : 0.42;
+  const move = easeInOutCubic(clamp01(seg(t, Math.max(0.06, mv0), Math.max(mv0 + 0.2, mv1))));
   const cam = blendCam(c0, c1, move, wz);
   const S = (x: number, y: number) => ({x: (x * cam.s + cam.tx) * k, y: (y * cam.s + cam.ty) * k});
-  const added = after.filter((id) => !shownBefore.has(id));
-  // the first nodes of an EMPTY map arrive with the beat; later ones after the camera has started toward them
-  const addAt = (id: string) => (before.length ? 0.3 : 0.1) + (added.indexOf(id) / Math.max(1, added.length)) * 0.18;
-  const nodeOn = (id: string) => (shownBefore.has(id) ? 1 : shownAfter.has(id) ? easeOutBack(clamp01(seg(t, addAt(id), addAt(id) + 0.1))) : 0);
-  const lit = (id: string) => lerp(fFrom.includes(id) ? 1 : 0, fTo.includes(id) ? 1 : 0, easeInOutCubic(clamp01(seg(t, 0.36, 0.52))));
+  const nodeOn = (id: string) => (shownBefore.has(id) ? 1 : shownAfter.has(id) ? easeOutBack(clamp01(seg(t, win[id][0], win[id][1]))) : 0);
+  const lit = (id: string) => lerp(fFrom.includes(id) ? 1 : 0, fTo.includes(id) ? 1 : 0, move);
   const scale = cam.s * k;
   const labelPx = LABEL_WORLD * scale;
   // ONE label size for the whole map: the size at which every label fits its box (per-node fitting made a short word
@@ -126,10 +140,15 @@ export const LivingMap: React.FC<{nodes?: MapNode[]; edges?: GEdge[]; before?: s
         if (on <= 0) return null;
         const p = placed[n.id], c = S(p.x, p.y), L = lit(n.id);
         const w = NODE_W * scale, h = NODE_H * scale;
+        // A NODE THE CAMERA HAS LEFT BEHIND fades out before it reaches the frame's edge and is not drawn across it: a
+        // label half off the frame read as broken ("our receiver" on the test film, text_safe_qa CUT OFF)
+        const room = Math.min(c.x - w / 2, W - (c.x + w / 2));
+        const edgeFade = clamp01(room / (w * 0.35));
+        if (edgeFade <= 0.01) return null;
         const px = nodePx;
         return (
           <div key={n.id} style={{position: 'absolute', left: c.x - w / 2, top: c.y - h / 2, width: w, height: h, boxSizing: 'border-box',
-            opacity: clamp01(on * 1.3) * (1 - 0.35 * (1 - L) * (fTo.length < after.length ? 1 : 0)),
+            opacity: clamp01(on * 1.3) * edgeFade * (1 - 0.35 * (1 - L) * (fTo.length < after.length ? 1 : 0)),
             transform: glide(`scale(${lerp(0.85, 1, on)})`, true), transformOrigin: 'center',
             borderRadius: 18 * scale, border: `${Math.max(1.5, (2 + 2 * L) * scale)}px solid ${mix(EDGE, ACC, 0.2 + 0.8 * L)}`,
             background: `linear-gradient(160deg, ${mix(SURF, ACC, 0.06 + 0.14 * L)}, ${mix(SURF, BG, 0.35)})`,

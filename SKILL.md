@@ -150,11 +150,14 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     LIST the item the voice names leads while its peers recede (`render_remotion.attach_phrases`; `meta.phrase_camera:
     false` or a beat's `"phrase_camera": false` turns both off). Neither adds a camera to a beat nobody gave one: that
     was measured to make type tremble (pipeline-scripts.md, `phrase_steps.py`).
+  - **The hidden cut.** `transition_in: {type: "sweep"}` (alias `hidden-cut`): a panel passes the lens and the beat
+    changes behind it — two stops of one journey, "and on we go" (motion-grammar.md).
   - **Time** is grammar too, per beat and named by the words: `slide.time: {hits: [{cue}], hold: 2}` freezes the
     drawing on an impact (hit-stop), `freeze: {at: {cue}, hold: s}` holds a moment for a look, `sakuga: {until: {cue},
     every: 2|3}` moves on held drawings until the climax and on ones from it (runtime/timeGrammar; every pause is repaid
     within a few frames, so the beat stays on its voice; validate and Film refuse a hold past the bounds). Use it where
-    the beat has an impact, a moment to look at, or a climax — not as texture on every beat.
+    the beat has an impact, a moment to look at, or a climax — not as texture on every beat. A hit lands on a word
+    where something ARRIVES: on a still frame it shows nothing.
   - **One structure, many beats.** When the argument IS one structure (a pipeline, a system), name it once in
     `meta.maps` and build it with `LivingMap` beats (`shot_props: {map, add, focus}`): laid out once, added to beat by
     beat, the camera moving through it, every map cut invisible (remotion/cards/LivingMap.md).

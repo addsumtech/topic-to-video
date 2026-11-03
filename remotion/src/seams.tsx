@@ -778,7 +778,8 @@ const sweepEdge = (p: number) => {      // the leading edge, as a share of the f
 export const sweepCovers = (p: number) => { const e = sweepEdge(p); return e <= 0 && e + SWEEP_WIDE >= 1; };
 const SweepPresentation = ({presentationProgress: p, presentationDirection, passedProps, children}: any) => {
   const isEnter = presentationDirection === 'entering';
-  const {W, H, panel, direction} = passedProps as {W: number; H: number; panel: string; direction: string};
+  const {W, H, panel, direction, edge} = passedProps as {W: number; H: number; panel: string; direction: string;
+    edge?: string};
   const shown = isEnter ? p >= CUT_AT - 1e-9 : p < CUT_AT - 1e-9;
   const id = 'sw' + React.useId().replace(/[^a-zA-Z0-9]/g, '');
   if (!isEnter) return <AbsoluteFill style={shown ? undefined : {opacity: 0}}>{children}</AbsoluteFill>;
@@ -804,10 +805,12 @@ const SweepPresentation = ({presentationProgress: p, presentationDirection, pass
           </filter>
         </svg>
       ) : null}
-      <div style={{position: 'absolute', ...box, background: panel, filter: s ? `url(#${id})` : undefined}} />
+      <div style={{position: 'absolute', ...box, background: panel, filter: s ? `url(#${id})` : undefined,
+        // the LEADING edge lit in the film's accent, a few px: the panel reads as an object crossing the lens
+        boxShadow: edge ? `inset ${vertical ? 0 : flip * Math.max(3, W * 0.002)}px ${vertical ? flip * Math.max(3, H * 0.003) : 0}px 0 ${edge}` : undefined}} />
     </AbsoluteFill>
   );
 };
 /** The hidden cut: a panel the colour of the two grounds mixed crosses the frame and the beat changes behind it. */
-export const sweep = (o: {W: number; H: number; panel: string; direction?: string}): TransitionPresentation<any> => ({
-  component: SweepPresentation, props: {W: o.W, H: o.H, panel: o.panel, direction: o.direction ?? 'from-right'}});
+export const sweep = (o: {W: number; H: number; panel: string; direction?: string; edge?: string}): TransitionPresentation<any> => ({
+  component: SweepPresentation, props: {W: o.W, H: o.H, panel: o.panel, edge: o.edge, direction: o.direction ?? 'from-right'}});

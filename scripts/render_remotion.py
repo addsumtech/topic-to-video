@@ -522,6 +522,13 @@ def film_shot_props(slide, out_dir, fps=30):
     props = dict(slide.get("shot_props") or {})
     narration = slide.get("narration") or slide.get("script") or ""
     dur = slide.get("duration")
+    # the expansions build_scenes makes before a beat renders: a LivingMap beat's {map, add, focus} become the whole
+    # map plus what is on screen at its two ends (that needs the whole board), and a PhotoToDiagram's photograph gets
+    # its traced lines and pixel size — a gate rendering the beat alone without them measured the demo map, or failed
+    if slide.get("shot") == "LivingMap":
+        props = _board_map_props(slide, out_dir) or props
+    elif slide.get("shot") == "PhotoToDiagram" and isinstance(props.get("src"), str):
+        props = photo_diagram_props(props, out_dir)
     if dur:
         props = resolve_cue_props(props, out_dir, slide.get("audio"), narration, float(dur), fps)
         if slide.get("shot") in ("DeviceDemo", "DeviceHero"):
@@ -529,6 +536,22 @@ def film_shot_props(slide, out_dir, fps=30):
         return props
     return resolve_cue_props(props, out_dir, None, narration, 1.0, fps) if any(
         isinstance(v, dict) and "cue" in v for v in props.values()) else props
+
+
+def _board_map_props(slide, out_dir):
+    """This LivingMap beat's props as build_scenes expands them, read against the film's own board (storyboard.json);
+    None when the board cannot be read or does not hold this beat."""
+    try:
+        with open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8") as fh:
+            board = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    slides = board.get("slides") or []
+    pos = next((i for i, x in enumerate(slides) if x is slide or (slide.get("index") is not None
+                                                                   and x.get("index") == slide.get("index"))), None)
+    if pos is None:
+        return None
+    return expand_living_maps(slides, board.get("meta") or {})[pos]
 
 
 def _prepared_device_props(slide, props, out_dir, dur, fps):

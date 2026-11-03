@@ -241,7 +241,7 @@
     "PhotoToDiagram": "56b130b8563aad3f",
     "Rearrange": "47118a3a2bac8483",
     "WordDust": "31ccac1a0cfa33eb",
-    "LivingMap": "4d3e5f9d73acaf19"
+    "LivingMap": "6bd3cba079c1aa1a"
   },
   "_props": {
     "AcceptanceStamp": "12e20d0740fa7a78",
@@ -931,7 +931,7 @@
       "prop_diff": 1.0
     },
     "LivingMap": {
-      "reach": 0.357,
+      "reach": 0.334,
       "prop_diff": 0.29
     },
     "LowPolyForm": {

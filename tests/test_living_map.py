@@ -88,3 +88,45 @@ def test_two_beats_of_one_map_get_no_planned_seam_and_validate_names_a_broken_ma
     import render_remotion as rr
     with pytest.raises(RuntimeError, match="does not define"):
         rr.expand_living_maps(sl, {"maps": {}})
+
+
+def test_validate_accepts_the_board_words_a_living_map_is_written_in():
+    import validate as v
+    meta = {"renderer": "remotion", "maps": {"m": {"nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
+                                                   "edges": [["a", "b"]]}}}
+    slides = [{"index": 1, "shot": "LivingMap", "narration": "x", "shot_props": {"map": "m", "add": ["a", "b"], "focus": ["b"]}}]
+    errors, warnings = [], []
+    v._check_remotion(meta, slides, errors, warnings)
+    assert not [e for e in errors if "has no prop" in e], errors
+
+
+def test_a_gate_renders_a_map_beat_and_a_diagram_beat_with_the_props_the_film_plays(tmp_path):
+    """Every gate that renders a beat alone goes through render_remotion.film_shot_props. Measured on a test film:
+    text_safe_qa rendered PhotoToDiagram without its traced `lines` (render failed) and would have measured a
+    LivingMap beat on the register's DEMO map — the board's {map, add, focus} are expanded by the render, not by
+    the register."""
+    import json
+    import render_remotion as rr
+    from PIL import Image, ImageDraw
+    (tmp_path / "media").mkdir()
+    im = Image.new("RGB", (400, 300), (30, 30, 30))
+    ImageDraw.Draw(im).rectangle([100, 80, 300, 220], fill=(220, 220, 220))
+    im.save(tmp_path / "media" / "p.png")
+    maps = {"m": {"nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "edges": [["a", "b"]]}}
+    slides = [{"index": 1, "shot": "LivingMap", "narration": "a", "shot_props": {"map": "m", "add": ["a"]}},
+              {"index": 2, "shot": "LivingMap", "narration": "b", "shot_props": {"map": "m", "add": ["b"]}},
+              {"index": 3, "shot": "PhotoToDiagram", "narration": "c", "shot_props": {"src": "media/p.png"}}]
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {"maps": maps}, "slides": slides}), encoding="utf-8")
+    p2 = rr.film_shot_props(slides[1], str(tmp_path))
+    assert p2["before"] == ["a"] and p2["after"] == ["a", "b"] and "map" not in p2
+    p3 = rr.film_shot_props(slides[2], str(tmp_path))
+    assert p3["lines"] == "media/p.lines.png" and p3["imageW"] == 400
+
+
+def test_a_map_run_is_one_composition_for_the_title_placement_check():
+    """Three LivingMap beats in a row are one picture growing (the cut between them is invisible), so the check for a
+    repeated title position counts the run once — on the test film it reported 'beats 3, 4, 7' as three repeats."""
+    import text_safe_qa as ts
+    sl = [{"shot": "LivingMap", "shot_props": {"map": "m"}}, {"shot": "LivingMap", "shot_props": {"map": "m"}},
+          {"shot": "EdStat"}, {"shot": "LivingMap", "shot_props": {"map": "m"}}]
+    assert [ts.counts_as_its_own_title(sl, i) for i in range(4)] == [True, False, True, True]

@@ -204,6 +204,24 @@ register used unchanged is the exception that has to earn it. Per beat, in this 
    (`when` / `not` / `needs`), and `shot_fit.timing` when a kinetic register is proposed for a beat shorter than its
    own length. Of the three benchmark films that motivated it, none reached camera space, and the launch film tried
    all four kinetic registers and kept one.
+   **And §G — decisions that belong to the BOARD, not to one beat** (runtime moves a beat asks for instead of
+   re-deriving them):
+   * **One structure for the film?** When the argument IS one structure (a pipeline, a system, a chain of causes)
+     and several beats walk through it, name it once in `meta.maps[id] = {nodes: [{id, label, note?}], edges}` and
+     give those beats `shot: "LivingMap"`, `shot_props: {map, add, focus}` — laid out once, built up beat by beat,
+     every map-to-map cut invisible (`remotion/cards/LivingMap.md`). Each added node arrives on the word naming it,
+     so write node labels the narration actually says.
+   * **The ends of the film.** A launch/promo of 6+ beats may open COLD (`ColdOpen`, `beats`: 2-4 LATER beats) and
+     a film that long may end on `Callback` (`beats`: 3-6 EARLIER beats, one look each). `shot_director.py`
+     proposes both by position (`shot_fit.bookend`); keep them only when the film's pictures are worth seeing again.
+   * **Time on a beat** — `slide.time`: a hit-stop on an IMPACT the register draws (a node landing, a card slamming,
+     a counter ticking over), a freeze on a moment the voice points at, sakuga to the climax. A hit on a frame where
+     nothing moves shows nothing: name the word on which something ARRIVES.
+   * **The hidden cut** — `transition_in: {type: "sweep"}` between two stops of ONE journey or scan ("and on we
+     go"); never between unrelated topics, at most once or twice a film.
+   * **Two registers the subject may want:** `PhotoToDiagram` (a licence-clean photograph whose parts the narration
+     explains — the photo's own edges become its labelled drawing) and `Rearrange` (one set looked at again: peers,
+     the one that matters, an order by a sourced value, camps). `WordDust` when one thing literally becomes another.
 2. **Route — `shot_fit.verdict` + a one-clause `why`.**
    * **build** — the picture is drawn for this film: an OBJECT held in a library template's slot (`ObjectStage`
      one thing named · `ObjectCompare` two, one difference · `ObjectPath` through stations, changing ·

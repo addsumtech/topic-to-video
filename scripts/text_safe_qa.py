@@ -208,6 +208,13 @@ def _same_place(a, b):
                                                           for x in _anchors(a) for y in _anchors(b))
 
 
+def counts_as_its_own_title(slides, i):
+    """Does beat i (0-based) bring its own composition to the title-placement count? A LivingMap beat that continues
+    the map of the beat before is the same picture growing across an invisible cut: the run is counted once."""
+    import render_remotion as _rr
+    return not _rr.living_map_continues(slides, i)
+
+
 def title_repetition(titles):
     """A warning when most of a film's beats put their title in the same place, else None.
 
@@ -530,7 +537,7 @@ def scan_film(out_dir, warnings=None):
                 dirty = True
         if t and t.get("failed"):
             title_failed.append("scene %02d (%s): %s" % (i, shot, t["failed"]))
-        elif t:
+        elif t and counts_as_its_own_title(slides, i - 1):
             titles.append((i, shot, t, t.get("text", "")))
         for v in audit:
             if v.get("title"):

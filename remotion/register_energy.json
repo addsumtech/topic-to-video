@@ -221,7 +221,7 @@
     "NebulaField": "3f5694741aea861d",
     "Callback": "fe763c6ab112026f",
     "ColdOpen": "18e6ec321bbb53a6",
-    "LivingMap": "4d3e5f9d73acaf19",
+    "LivingMap": "6bd3cba079c1aa1a",
     "Rearrange": "47118a3a2bac8483",
     "WordDust": "31ccac1a0cfa33eb",
     "PhotoToDiagram": "56b130b8563aad3f"
@@ -1063,8 +1063,8 @@
       "footprint": 0.154
     },
     "LivingMap": {
-      "motion_p75": 0.0001,
-      "ink_median": 0.052,
+      "motion_p75": 0.0002,
+      "ink_median": 0.039,
       "luma_range": 0.015,
       "seconds": 6.0,
       "footprint": 0.343

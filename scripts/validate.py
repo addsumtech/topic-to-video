@@ -2902,7 +2902,10 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         # hybrid", two invented commits) on a frame about something else, with every gate green. Keys starting
         # with `_` are the author's own notes and are left alone.
         if isinstance(sp, dict) and shot in _declared_props_library():
-            _decl = _declared_props_library()[shot]
+            # a register whose BOARD props are expanded before it renders (LivingMap: `{map, add, focus}` ->
+            # nodes/edges/before/after/focusFrom/focusTo, render_remotion.expand_living_maps) declares the board's
+            # words too; refusing them refused every board that used the register as documented
+            _decl = set(_declared_props_library()[shot]) | _BOARD_PROPS.get(shot, set())
             for _k in sorted(k for k in sp if not str(k).startswith("_") and k not in _decl):
                 errors.append(f"{tag}: {shot} has no prop `{_k}` — the register never reads it, so whatever it "
                               f"was meant to set prints the demo default instead. Its props are: "
@@ -3641,7 +3644,9 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
 DESIGN_SHARE_FLOOR = 0.5
 BUILT_SHARE_FLOOR = 0.5
 _STRUCTURAL_ASPECTS = ("layout", "encoding", "structure")
-_TITLE_CARD_REGISTERS = {"CinematicTitle"}
+# the open/close cards: CinematicTitle, and the bookends built of the film's OWN beats (ColdOpen, Callback — runtime/
+# teaser), which draw nothing of their own to adapt; exempt only as the first or last beat, like the title card
+_TITLE_CARD_REGISTERS = {"CinematicTitle", "ColdOpen", "Callback"}
 _GENERIC_FIT = {"it fits", "fits", "fit", "good fit", "perfect fit", "fits well", "matches", "it matches",
                 "same", "as is", "as-is", "default", "适合", "合适", "正好", "符合", "匹配", "一样"}
 _REMOTION_SHOTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "shots")
@@ -3653,6 +3658,8 @@ _TIME_TS = os.path.join(os.path.dirname(_OPTICS_TS), "timeGrammar.ts")
 
 
 _TEASER = {"ColdOpen": (2, 4), "Callback": (3, 6)}
+# board-level props a register never sees under these names: render_remotion expands them first
+_BOARD_PROPS = {"LivingMap": {"map", "add", "focus"}}
 
 
 def teaser_problems(s, slides):

@@ -742,6 +742,8 @@ instead of re-deriving it:
   `freeze` (a LOOK — it eases to a stop, holds up to 1.5 s while the voice points at something, eases off), `sakuga`
   (held drawings on 2s or 3s until the climax, ones from it). Every pause is REPAID — the frames after it run the
   register up to twice as fast until it has caught up — so an item the voice names later still reads on its word.
+  A hit must land on a word where something ARRIVES on screen: on the test film a hit on a LivingMap beat's last word
+  fell on a frame that had been still for 3 s and showed nothing (the map now lands each node on its word).
   Applied before the sync warp, on the register only (camera, voice and caption stay on the film's clock); reduced
   motion has none of it. The film-wide stepping of a drawn style (`meta.style.motion.stepping`) is a different thing:
   a texture for the whole film, where `sakuga` is a change of texture AT a moment.

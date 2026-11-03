@@ -74,3 +74,14 @@ def test_an_explainer_does_not_open_cold_and_a_routed_or_short_film_is_left_alon
     assert {s["shot"] for s in routed} == {"EdStat"}, "a routed beat is the director's"
     short = [{"index": i, "shot": "EdStat", "shot_fit": {"verdict": "unjudged"}} for i in range(4)]
     assert sd.bookends({"meta": {"purpose": "launch"}, "slides": short}, None) == []
+
+
+def test_a_bookend_is_exempt_from_the_design_floor_only_at_its_end_of_the_film():
+    """ColdOpen and Callback draw only the film's own beats — nothing to adapt — so as the first or last beat they are
+    the open/close card (exempt, like CinematicTitle); anywhere else they are judged like any register."""
+    import validate as v
+    sl = [{"shot": "ColdOpen", "shot_props": {"beats": [2]}}, {"shot": "EdStat"},
+          {"shot": "Callback", "shot_props": {"beats": [2]}}, {"shot": "Callback", "shot_props": {"beats": [2]}}]
+    routes = {n: r for n, r, _ in v.design_routes({}, sl, None)}
+    assert routes[1] == "exempt" and routes[4] == "exempt"
+    assert routes[3] != "exempt", "a Callback in the middle of a film is not its closing card"
