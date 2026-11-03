@@ -95,7 +95,12 @@ def _type_bbox(path):
     import numpy as np
     a = np.asarray(Image.open(path).convert("L"), dtype=np.float32) / 255.0
     ground = float(np.median(a))
-    hit = np.abs(a - ground) > 0.45
+    # the subject's SOLID strokes, not its anti-aliased rim: a rim pixel is the type composited over whatever lies
+    # under it, and the room's hairlines move under the pinned type (that is the shot), so a fixed 0.45 cut let a rim
+    # pixel cross on one frame and not the other — a 1-px "move" of type that had not moved (suite at 3eac031: x1
+    # 1229 vs 1228; the flipped pixels sat over a hairline at 53 vs 31). Cut at 70% of the way to the ink's own level.
+    ink = float(np.percentile(np.abs(a - ground), 99.9))
+    hit = np.abs(a - ground) > 0.7 * ink
     assert hit.any(), "no bright ink on %s — the subject did not draw" % os.path.basename(path)
     ys, xs = np.nonzero(hit)
     return int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())
