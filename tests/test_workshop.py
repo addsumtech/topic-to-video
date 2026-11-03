@@ -940,3 +940,79 @@ def test_an_explicit_aspect_wins_over_the_one_a_props_file_carries(tmp_path):
     assert payload["aspect"] == "16:9", "the board's aspect is still the default"
     _c, payload, _d = ws.still_plan(out, "Wide", {"title": "x", "aspect": "1:1"})
     assert payload["aspect"] == "1:1", "without --aspect, props that name one keep it"
+
+
+def _png(path, w, h):
+    from PIL import Image
+    Image.new("RGB", (w, h), (20, 120, 200)).save(path)
+
+
+def test_media_add_registers_a_picture_with_its_own_size_and_a_path_the_render_ships(tmp_path):
+    """A film's own shots used to keep their pictures in a hand-written kit (the topic-to-video promo's kit/media.ts):
+    sizes typed in, a library of plates named by template so the render shipped none, a 2800x315 strip of phases taken
+    for a frame. `media add` measures the file, refuses what is not a frame, and writes workshop/assets/media.ts with every
+    path quoted in full — the form the render ships and keys."""
+    out = _film(tmp_path, shots=["A"])
+    src = tmp_path / "frame.png"
+    _png(str(src), 640, 360)
+    entry = ws.media_add(out, str(src), name="hero")
+    assert entry["src"] == "media/ws/hero.png" and (entry["w"], entry["h"]) == (640, 360) and entry["kind"] == "image"
+    assert entry["avg"].startswith("#") and len(entry["avg"]) == 7
+    ts = open(os.path.join(out, "workshop", "assets", "media.ts"), encoding="utf-8").read()
+    assert "'media/ws/hero.png'" in ts or '"media/ws/hero.png"' in ts
+    import remotion_segments as rs
+    assert "media/ws/hero.png" in rs.workshop_named_files(out), "the generated file is what the render reads"
+    strip = tmp_path / "strip.png"
+    _png(str(strip), 2800, 315)
+    with pytest.raises(ws.WorkshopError, match="not a frame"):
+        ws.media_add(out, str(strip), name="sheet")
+    with pytest.raises(ws.WorkshopError, match="already"):
+        ws.media_add(out, str(src), name="hero")
+    assert ws.media_add(out, str(src), name="hero", replace=True)["w"] == 640
+
+
+@pytest.mark.skipif(subprocess.run(["which", "ffmpeg"], capture_output=True).returncode != 0, reason="needs ffmpeg")
+def test_media_add_takes_a_frame_from_a_film_or_the_film_itself(tmp_path):
+    out = _film(tmp_path, shots=["A"])
+    mp4 = tmp_path / "f.mp4"
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=320x180:rate=30", "-t", "2",
+                    "-pix_fmt", "yuv420p", str(mp4)], check=True)
+    fr = ws.media_add(out, str(mp4), name="f_at_1", at=1.0)
+    assert fr["kind"] == "image" and (fr["w"], fr["h"]) == (320, 180) and fr["src"].endswith(".jpg")
+    clip = ws.media_add(out, str(mp4), name="film")
+    assert clip["kind"] == "clip" and abs(clip["seconds"] - 2.0) < 0.1 and clip["src"] == "media/ws/film.mp4"
+    with pytest.raises(ws.WorkshopError, match="past"):
+        ws.media_add(out, str(mp4), name="late", at=9.0)
+
+
+STILL_SHOT = """import React from 'react';
+import {AbsoluteFill} from 'remotion';
+export const DURATION = 60;
+export const GROUND = '#101010';
+export const PROVENANCE = 'product-ui';
+export const %(name)s: React.FC<{}> = () => (
+  <AbsoluteFill style={{background: '#101010'}}>
+    {/* @decor: a fixed panel */}
+    <div style={{position: 'absolute', left: 400, top: 300, width: 600, height: 300, background: '#3a6ea5'}} />
+  </AbsoluteFill>
+);
+"""
+MOVING_SHOT = STILL_SHOT.replace("import {AbsoluteFill} from 'remotion';",
+                                 "import {AbsoluteFill, useCurrentFrame} from 'remotion';").replace(
+    "export const %(name)s: React.FC<{}> = () => (",
+    "export const %(name)s: React.FC<{}> = () => { const f = useCurrentFrame(); return (").replace(
+    "left: 400,", "left: 200 + f * 18,").replace(");\n", "); };\n")
+
+
+@needs_toolchain
+def test_motion_says_whether_a_built_shot_keeps_moving(tmp_path):
+    """The promo film's built shots revealed and then sat still: the film failed film_energy_qa's motion floor only
+    after the full render. `workshop.py motion <Name>` measures one shot the way the film gate does, while it is built."""
+    out = _film(tmp_path, shots=["Still"], shot_src=STILL_SHOT)
+    with open(os.path.join(out, "workshop", "shots", "Moving.tsx"), "w", encoding="utf-8") as fh:
+        fh.write(MOVING_SHOT % {"name": "Moving"})
+    with open(os.path.join(out, "storyboard.json"), "w") as fh:
+        json.dump({"meta": {"aspect": "16:9"}, "slides": []}, fh)
+    still, moving = ws.measure_motion(out, "Still", {}), ws.measure_motion(out, "Moving", {})
+    assert still["p75"] < still["floor"] and not still["ok"]
+    assert moving["p75"] >= moving["floor"] and moving["ok"]

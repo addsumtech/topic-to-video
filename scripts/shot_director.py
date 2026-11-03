@@ -47,6 +47,7 @@ FAMILY = {
     "StrataColumn": "J",
     "MapPlate": "J",
     "CollaborativeCursors": "A", "CommandSummon": "A", "TemporalAccelerate": "A", "VelocitySnap": "A",
+    "FilmScreen": "A",
     "LandscapeWell": "A",
     "ReplyWindow": "A",
     "PourSync": "A",
@@ -176,6 +177,7 @@ FAMILY = {
 # only way out was to stop using them — which is how a gate gets switched off. `tests/test_provenance.py`
 # pins the subset so it cannot drift again.
 PROVENANCE = {
+    "FilmScreen":              'product-ui',
     "PhotoToDiagram":          'photographic',
     "LivingMap":               'data-viz',
     "Callback":                'motion-graphics',

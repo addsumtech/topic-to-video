@@ -341,7 +341,54 @@ def register_props(shot, props, out_dir, map_props=None):
             pass                          # a missing or unreadable file is the renderer's problem, not ours
     if shot == "PhotoToDiagram" and isinstance(props.get("src"), str):
         props = photo_diagram_props(props, out_dir)
+    if shot == "FilmScreen":
+        props = film_screen_props(props, out_dir)
     return props
+
+
+def film_screen_props(props, out_dir):
+    """A FilmScreen beat's files -> what the register needs to draw them at their own pixels: the clip's size and length
+    (ffprobe), and its run/reel frames' width (the narrowest bounds them all). The board names only the files; a typed
+    size is how a picture gets drawn past its pixels. A missing file, or a "frame" that is not one (a 2800x315 strip of
+    phases was drawn 2.1x past its pixels on the promo film), stops the render by name."""
+    import subprocess
+    out = dict(props)
+    v = out.get("video")
+    if isinstance(v, str):
+        v = {"src": v}
+    if isinstance(v, dict) and v.get("src") and not all(v.get(k) for k in ("w", "h", "seconds")):
+        path = os.path.join(out_dir, v["src"])
+        if not os.path.isfile(path):
+            raise RuntimeError("FilmScreen: %s does not exist in the film's folder" % v["src"])
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                            "stream=width,height:format=duration", "-of", "json", path], capture_output=True, text=True)
+        try:
+            j = json.loads(r.stdout)
+            st = j["streams"][0]
+            v = dict(v, w=int(st["width"]), h=int(st["height"]), seconds=round(float(j["format"]["duration"]), 3))
+        except (ValueError, KeyError, IndexError, TypeError):
+            raise RuntimeError("FilmScreen: %s is not a video ffprobe can read" % v["src"])
+    if v is not None:
+        out["video"] = v
+    from PIL import Image as _Im
+    for key in ("run", "reel"):
+        f = out.get(key)
+        if isinstance(f, list):
+            f = {"frames": f}
+        if not isinstance(f, dict) or not f.get("frames") or f.get("w"):
+            continue
+        widths = []
+        for src in f["frames"]:
+            path = os.path.join(out_dir, src)
+            if not os.path.isfile(path):
+                raise RuntimeError("FilmScreen: %s frame %s does not exist in the film's folder" % (key, src))
+            with _Im.open(path) as im:
+                if not 0.4 <= im.width / im.height <= 2.5:
+                    raise RuntimeError("FilmScreen: %s frame %s is %dx%d — not a frame (a strip or a sheet?); give one "
+                                       "settled frame per beat" % (key, src, im.width, im.height))
+                widths.append(im.width)
+        out[key] = dict(f, w=min(widths))
+    return out
 
 
 def photo_diagram_props(props, out_dir):

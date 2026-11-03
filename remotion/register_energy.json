@@ -224,7 +224,8 @@
     "LivingMap": "3630d554ee90b127",
     "Rearrange": "47118a3a2bac8483",
     "WordDust": "cb9212b0aa33306c",
-    "PhotoToDiagram": "51687456d2cd4789"
+    "PhotoToDiagram": "51687456d2cd4789",
+    "FilmScreen": "5db3130ec69a8811"
   },
   "_fed": {
     "MuseumLabel": "2f949a3c78",
@@ -255,7 +256,7 @@
     "luma_range": 0.005
   },
   "_failed": [],
-  "_universe": 224,
+  "_universe": 225,
   "registers": {
     "AcceptanceStamp": {
       "motion_p75": 0.0008,
@@ -676,6 +677,13 @@
       "luma_range": 0.006,
       "seconds": 6.3,
       "footprint": 0.262
+    },
+    "FilmScreen": {
+      "motion_p75": 0.0,
+      "ink_median": 0.018,
+      "luma_range": 0.0,
+      "seconds": 6.0,
+      "footprint": 0.075
     },
     "FlightArcs": {
       "motion_p75": 0.0001,
