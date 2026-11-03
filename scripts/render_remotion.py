@@ -965,6 +965,17 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh", 
     return scenes
 
 
+def cut_carry_on(meta):
+    """Whether a film's hard cuts carry the motion through (runtime/cutCarry): `meta.cut_carry` when the board says, else
+    on for a film that cuts hard by tempo (seam_plan.film_tempo kinetic or scored) and off for a calm one, whose cuts
+    are rare and whose dissolves already move."""
+    m = meta if isinstance(meta, dict) else {}
+    if isinstance(m.get("cut_carry"), bool):
+        return m["cut_carry"]
+    import seam_plan as _sp
+    return _sp.film_tempo(m)[0] in ("kinetic", "scored")
+
+
 def safe_zone(meta, aspect):
     """The platform-safe profile a film renders with: "social" for a full-screen vertical (9:16) film unless
     `meta.safe_zone` is "none", else None. A landscape, square or 4:5 film has no platform UI over it where the
@@ -1020,6 +1031,9 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
              # like it is drifting". A default that has to be switched off after you notice it is a default
              # set backwards, so it is now `meta.camera_bed: true` for a film that genuinely wants the floor.
              "cameraBed": meta.get("camera_bed") is True,
+             # THE CUT CARRY (runtime/cutCarry): a kinetic or scored film's hard cuts carry one move through the cut
+             # frame instead of joining two still ones; `meta.cut_carry` true/false says so outright
+             "cutCarry": cut_carry_on(meta),
              # Han/Latin spacing on the beats (Film.tsx `autospace`); `meta.cjk_autospace: false` leaves it out
              "autospace": meta.get("cjk_autospace") is not False,
              "reducedMotion": reduced, "aspect": aspect,

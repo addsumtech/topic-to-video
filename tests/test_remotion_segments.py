@@ -144,11 +144,13 @@ _KNOWN_READS = Counter({
                                    # are in the key)
     "scenes.length": 4,            # sceneStarts' bound, the caption loop's bound and closing window; and a teaser
                                    # beat's count of the film (runtime/teaser) -> that segment's `n`
-    "scenes.map": 3,               # sceneStarts: relative offsets, translation-invariant; and two per-beat tables
-                                   # (`arrived`, `camPlan`) filled below — each entry is written only from the
-                                   # beat itself and the one before it
+    "scenes.map": 4,               # sceneStarts: relative offsets, translation-invariant; and three per-beat tables
+                                   # (`arrived`, `camPlan`, `hardCutIn`) filled below — each entry is written only from
+                                   # the beat itself and the one before it; the cut carry reads hardCutIn[i + 1] too,
+                                   # so with it on a beat's key holds the NEXT beat's seam (`next_seam`)
     "scenes[i]": 3,                # joinedAt (twice): beat i's own run; the caption loop: the active beat's length
-    "scenes[i-1]": 1,              # joinedAt: the run of the beat before -> `prev`, and the whole run when joined
+    "scenes[i-1]": 2,              # joinedAt: the run of the beat before -> `prev`, and the whole run when joined;
+                                   # hardCutIn: the seam into beat i, from the beat before -> `prev`
     "scenes[active]": 1,
     "scenes[beat-1]": 1,           # a ColdOpen/Callback draws the beats it names (teaserOf) -> that segment's `teased`
     "(scenes||[]).some": 1,        # refuses drift+pan: throws, draws nothing
@@ -860,3 +862,21 @@ def test_a_picture_a_built_shot_names_in_its_code_is_part_of_its_beats_key(publi
     (public / "media" / "lib" / "x.png").write_bytes(b"new")
     k2 = _keys(props, public, code=None)
     assert [i for i, (a, b) in enumerate(zip(k1, k2)) if a != b] == [3], "a template's files key its beat too"
+
+
+def test_with_the_cut_carry_a_beat_is_keyed_on_the_seam_out_of_it(public):
+    """A carried hard cut moves the leaving beat's last visible frames (Film.tsx CutCarry), and whether the cut is hard
+    is the NEXT beat's seam: changing it must re-render the beat before it, which `prev`/`cur` alone never re-keyed."""
+    p = _props([60, 60, 60], cutCarry=True)
+    for sc in p["scenes"][1:]:
+        sc["transitionIn"] = {"type": "cut"}
+    k0 = _keys(p, public)
+    p2 = json.loads(json.dumps(p))
+    p2["scenes"][2]["transitionIn"] = {"type": "fade"}
+    k1 = _keys(p2, public)
+    assert [i for i, (a, b) in enumerate(zip(k0, k1)) if a != b] == [1, 2]
+    off = _props([60, 60, 60])
+    off2 = json.loads(json.dumps(off))
+    off2["scenes"][2]["transitionIn"] = {"type": "fade"}
+    assert [i for i, (a, b) in enumerate(zip(_keys(off, public), _keys(off2, public))) if a != b] == [2], \
+        "without the carry a seam keys only the beat it leads into"

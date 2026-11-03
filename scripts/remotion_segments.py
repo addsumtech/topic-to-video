@@ -392,6 +392,12 @@ def plan(props, public_dir, flags, tr=None, code=None):
             body["n"] = len(scenes)
             around = around + body["teased"]
             body["files"] = referenced_files(around, public_dir)
+        # THE CUT CARRY (Film.tsx CutCarry, runtime/cutCarry): with it on, a beat's last visible frames drift into the
+        # cut OUT of it, which exists only if the NEXT beat arrives by a hard cut — decided by that beat's seam, its
+        # ground and its register (Film.tsx hardCutIn) — so those of the next beat are in this one's key
+        if props.get("cutCarry") and k + 1 < len(scenes):
+            nxt = scenes[k + 1]
+            body["next_seam"] = {f: nxt.get(f) for f in ("transitionIn", "ground", "key", "shot", "stage")}
         if per_beat:
             body["ws"] = beat_code_hash(public_dir, around)
         segs.append({"k": k, "a": a, "b": b, "key": _sha(_canon(body))})

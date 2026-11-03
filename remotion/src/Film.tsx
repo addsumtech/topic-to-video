@@ -33,6 +33,7 @@ import {withCjkDisplay} from './runtime/cjkVoice';
 import {WorldBackdrop} from './runtime/world';
 import {handoffIn, handoffOut} from './runtime/handoff';
 import {BASELINE_UNLOCK, BaselineUnlockContext, unlockCoverScale, useGlide} from './runtime/glide';
+import {cutCarryAt, cutFrame, CARRY_F} from './runtime/cutCarry';
 import {DesignDNAContext, type DesignDNA, dnaFromTemplate, coerceDna, TerminalChrome, useDNA, mix} from './runtime/dna';
 import {StyleContext, resolveStyle, useStyle, type StyleSpec} from './runtime/styleSpec';
 import {stepFrame} from './runtime/styleMotion';
@@ -1307,6 +1308,30 @@ const BeatOptic: React.FC<{decl: OpticDecl; dna: DesignDNA | null; where: string
   return <OpticContext.Provider value={opticState(decl, dna, where)}>{children}</OpticContext.Provider>;
 };
 
+/** THE CUT CARRY (runtime/cutCarry): on a kinetic film, the beat's picture drifts and leans into a hard cut it leaves
+ *  and comes out of the drift after a hard cut it arrives by — the same move at the same speed either side of the cut
+ *  frame. Type inside rides the baseline unlock for the whole beat (held for the span, never switched with the motion). */
+const CutCarry: React.FC<{on: boolean; inCut: boolean; outCut: boolean; durF: number; unlock: boolean;
+  children: React.ReactNode}> = ({on, inCut, outCut, durF, unlock, children}) => {
+  const f = useCurrentFrame();
+  const {width} = useVideoConfig();
+  if (!on || (!inCut && !outCut)) return <>{children}</>;
+  const {x, s} = cutCarryAt(f, durF, TR, inCut, outCut, width);
+  // ARRIVING BY A CARRIED CUT, the picture's own clock runs ahead: first by `cutFrame(TR)`, the entry-hold frames
+  // the cut hides (seams.tsx CUT_AT), so on the frame it appears the register is already entering rather than held at
+  // its skeleton — measured on a three-beat probe, the arriving side moved 0.0000 a frame without it (a near-empty
+  // skeleton slid across a flat ground). Voice, captions and the timeline are untouched; the reveal lands that much
+  // earlier against the voice, the direction a cue already moves an entrance.
+  // ...and CARRY_F more, so it is MID-entrance, not starting it: with the hidden frames alone a probe's arriving EdStat
+  // showed a near-empty frame for 0.7 s after the cut (its figure lands later in its reveal) — a cut into nothing.
+  const lead = inCut ? cutFrame(TR) + CARRY_F : 0;
+  const body = lead ? <Sequence from={-lead} layout="none">{children}</Sequence> : children;
+  return (
+    <AbsoluteFill style={{transform: `translateX(${x.toFixed(2)}px) scale(${s.toFixed(5)})${unlock ? ' ' + BASELINE_UNLOCK : ''}`,
+      transformOrigin: '50% 50%'}}>{body}</AbsoluteFill>
+  );
+};
+
 export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; autospace?: boolean; cjkDisplay?: string | null; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
   typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string;
   mediaRes?: boolean;
@@ -1324,10 +1349,12 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   // the film's drawing style (meta.style, runtime/styleSpec.ts) — null draws every register exactly as it is
   style?: StyleSpec | null;
   // a GENERATED medium's tiles for that style (render_remotion.style_texture_props); absent: the procedural medium
-  styleTexture?: {light: string; dark: string} | null}> =
+  styleTexture?: {light: string; dark: string} | null;
+  // the cut carry (runtime/cutCarry): render_remotion turns it on for a kinetic or scored film; off, every cut is as before
+  cutCarry?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, autospace = false, cjkDisplay = null, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
     typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, safe, dither = false, optics = true,
-    safeEcho = true, frameUnlock = true, style = null, styleTexture = null}) => {
+    safeEcho = true, frameUnlock = true, style = null, styleTexture = null, cutCarry = false}) => {
   const activeStyle = React.useMemo(() => (style ? resolveStyle(style, styleTexture) : null), [style, styleTexture]);
   setStyleEase(activeStyle ? (activeStyle.motion as {easing?: string}).easing : null);
   const frame = useCurrentFrame();
@@ -1451,6 +1478,10 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                 dead — see bedPan's header for the measurements and the guarantees. An authored camera
                 (even 'hold') wins outright; un-themed films and drifting films get none. */}
             {/* a beat in a camera HAND-OFF is driven by its curves (HandoffCamera); every other beat by its own move */}
+            {/* the carry's own baseline unlock only where no camera already holds one: on a beat with an authored camera
+                the two unlocks stacked, and its list labels stepped 0.24-0.30 px under the push (jitter_qa, promo beat 25) */}
+            <CutCarry on={cutCarry && !reducedMotion} inCut={hardCutIn[i]} outCut={!!hardCutIn[i + 1]} durF={durF}
+              unlock={unlockAllowed && !sc.camera && !camPlan[i]}>
             <BeatCamera plan={camPlan[i]} phrase={sc.phrase} move={sc.camera?.move} amount={sc.camera?.amount}
               pan={sc.camera?.pan ?? (camPlan[i] ? undefined : bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)?.pan)}
               bed={!sc.camera && !camPlan[i] && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
@@ -1501,6 +1532,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                 </FrameUnlock>
               </AbsoluteFill>
             </BeatCamera>
+            </CutCarry>
             <BeatChrome chrome={sc.chrome} W={width} H={height} />
           </BeatGround>
           </NarrationContext.Provider>
@@ -1554,6 +1586,15 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   // seam the cut actually draws (seamDrawn), so a container the guard turned into a fade carries nothing in
   const cutGrounds = (a: SceneSpec, b: SceneSpec) =>
     [edgeGround(a, 'out') ?? activeDna, edgeGround(b, 'in') ?? activeDna] as const;
+  // which beats a HARD cut arrives by — the same resolution pickPresentation makes (a marked `cut`, or an unmarked seam
+  // whose DNA's native cut is the plain cut), so the carry moves exactly the cuts the viewer sees as cuts
+  const hardCutIn = scenes.map((sc, i) => {
+    if (!cutCarry || reducedMotion || i === 0 || joinedAt(scenes, i)) return false;
+    const prev = scenes[i - 1];
+    const [pg, ng] = cutGrounds(prev, sc);
+    const {t, harsh} = seamDrawn(prev, sc, activeDna, pg, ng, reducedMotion);
+    return t === 'cut' || (t === 'fade' && !harsh && !prev.camera?.handoff && activeDna?.seam?.type === 'cut');
+  });
   const arrived: (string | null)[] = scenes.map(() => null);
   // the seams a LEAK burns over: the seam INTO a unit whose first beat declares one (runtime/optics SeamLeak) — read
   // from that beat, which is the segment's own `cur` (remotion_segments.plan), so the per-beat cache keys it

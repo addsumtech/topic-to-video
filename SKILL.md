@@ -150,6 +150,14 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     LIST the item the voice names leads while its peers recede (`render_remotion.attach_phrases`; `meta.phrase_camera:
     false` or a beat's `"phrase_camera": false` turns both off). Neither adds a camera to a beat nobody gave one: that
     was measured to make type tremble (pipeline-scripts.md, `phrase_steps.py`).
+  - **The cut carries.** On a film that cuts hard by tempo (kinetic or scored; `meta.cut_carry` says so outright) every
+    hard cut carries one move through the cut frame (runtime/cutCarry): the leaving beat drifts and leans in, the
+    arriving one comes out of the same drift already mid-entrance. `scripts/seam_ledger.py <out_dir>` measures each cut
+    on out.mp4 and fails a kinetic film whose cuts join still frames.
+  - **Footage is shown as itself.** `FilmScreen` plays a delivered film or a recording at its own pixels (a close-up
+    region, the film's beats running beneath, a counted reel); a film's own pictures go in with
+    `workshop.py <out_dir> media add <file> [--at s]`, and `workshop.py <out_dir> motion <Name>` says whether a built
+    shot keeps moving after its reveal.
   - **The hidden cut.** `transition_in: {type: "sweep"}` (alias `hidden-cut`): a panel passes the lens and the beat
     changes behind it — two stops of one journey, "and on we go" (motion-grammar.md).
   - **Time** is grammar too, per beat and named by the words: `slide.time: {hits: [{cue}], hold: 2}` freezes the
@@ -387,6 +395,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   (sample, preview, final cut). It copies `out.mp4` + `out.srt` (or `sample.mp4` / `preview.mp4` with `--what`) to
   `~/Desktop` (else `~/Downloads`) and prints the path. Give the user THAT
   path, never one inside this skill, `~/.claude`, or a temp folder.
+  **The film is checked first** (`scripts/deliver_check.py`, its FAST tier, ~30 s, reused while the film is unchanged):
+  a failing gate refuses the hand-off; waive one by name with a reason (`meta.delivery_waivers`) or pass `--anyway`
+  (delivered as "(unchecked)"). Run `deliver_check.py <out_dir> --full` once for the cut that ships (+ media_res,
+  text_safe, jitter: ~10 min).
 
 **Library maintenance** (not part of a film run; full entries in the reference)
 - `scripts/register_shot.py <Id> <Family> --use-when "…"` scaffolds a new register at every sync point (`--check` verifies

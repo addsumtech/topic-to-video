@@ -10,7 +10,8 @@ overwrites a file already there: a second delivery of the same film lands as "<n
 The sign-off renders go the same way (`--what sample` for step 8's sample.mp4, `--what preview` for the html tier's
 preview.mp4), named "<film> - sample.mp4" so they are never mistaken for the film.
 
-CLI:  deliver.py <out_dir> [--to <folder>] [--what out|sample|preview]   prints each delivered path and the `open` line
+CLI:  deliver.py <out_dir> [--to <folder>] [--what out|sample|preview] [--anyway]   prints each delivered path and the `open` line
+      (the film itself is first put through scripts/deliver_check.py's fast tier; a failing check refuses it)
 API:  deliver(out_dir, to=None, home=None, what="out") -> [paths], destination(to=None, home=None) -> folder
 """
 import argparse
@@ -95,8 +96,9 @@ def _free(path):
 WHAT = ("out", "sample", "preview")
 
 
-def deliver(out_dir, to=None, home=None, what="out"):
-    """Copy <what>.mp4 (and its .srt) to the user's folder; return the delivered paths, the video first."""
+def deliver(out_dir, to=None, home=None, what="out", tag=""):
+    """Copy <what>.mp4 (and its .srt) to the user's folder; return the delivered paths, the video first. `tag` is added
+    to the name (" (unchecked)" for a film handed over past a failing delivery check)."""
     if what not in WHAT:
         raise SystemExit("deliver: --what must be one of %s, got %r" % (", ".join(WHAT), what))
     src = os.path.join(out_dir, what + ".mp4")
@@ -104,7 +106,7 @@ def deliver(out_dir, to=None, home=None, what="out"):
         hint = "render the film first" if what == "out" else "render the %s first" % what
         raise SystemExit("deliver: %s has no %s.mp4 — %s" % (out_dir, what, hint))
     folder = destination(to, home)
-    name = film_name(out_dir) + ("" if what == "out" else " - " + what)
+    name = film_name(out_dir) + ("" if what == "out" else " - " + what) + tag
     video = _free(os.path.join(folder, name + ".mp4"))
     shutil.copy2(src, video)
     delivered = [video]
@@ -128,8 +130,23 @@ def main(argv=None):
     ap.add_argument("--to", help="a folder the user browses (default: ~/Desktop, else ~/Downloads)")
     ap.add_argument("--what", default="out", choices=WHAT,
                     help="which render: the film (out, default), the step-8 sample, or the html preview")
+    ap.add_argument("--anyway", action="store_true",
+                    help="hand the film over although its delivery check failed — named \"(unchecked)\", the failures said")
     a = ap.parse_args(argv)
-    paths = deliver(a.out_dir, a.to, what=a.what)
+    tag = ""
+    if a.what == "out":
+        # THE FILM IS CHECKED BEFORE IT IS HANDED OVER (scripts/deliver_check.py, the fast tier, ~30 s, reused while the
+        # film is unchanged). The promo of 2026-11-03 reached the Desktop measuring as a slideshow, a gate nobody ran.
+        import deliver_check as _dc
+        rec = _dc.check(a.out_dir)
+        _dc.report(rec)
+        if not rec["ok"]:
+            if not a.anyway:
+                print("[deliver] NOT delivered: the delivery check failed (above). Fix it, waive a gate by name with a "
+                      "reason (meta.delivery_waivers), or hand it over as unchecked with --anyway")
+                return 1
+            tag = " (unchecked)"
+    paths = deliver(a.out_dir, a.to, what=a.what, tag=tag)
     for p in paths:
         print("[deliver] %s" % p)
     print("[deliver] hand the user this path; to open it: open %s" % _quote(paths[0]))
