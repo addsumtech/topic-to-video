@@ -43,6 +43,29 @@ beat-relative rate.
 **Smallest real use:** `const shown = typedCount(t, step.ta, step.t1, typeChunks(text));`
 **Exports:** `typeChunks`, `typedCount`, `caretOn`, `framesBetween`, `TapRipple`, `TouchPoint`, `CursorArrow`.
 
+### `motionBlurCore`
+The numbers of motion blur: the smear a 180-degree shutter sees between two poses one frame apart (`smear`, a box of
+length L drawn as a Gaussian of sd L/sqrt(12), capped; null at rest and under a pixel), and the earlier poses a throw
+or spin leaves behind (`ghosts`). Pure, tested in node.
+**Reach for it:** a register that draws its own trail or streak and wants the same physics as `SpeedBlur`.
+**Smallest real use:** `const s = smear(at(f), at(f - 1)); if (s) blurAlong(s.angle, s.sigma)`
+**Exports:** `smear`, `ghosts`, `Pose`, `Smear`, `Ghost`, `SmearOpts`, `GhostOpts`.
+
+### `motionBlur`
+`SpeedBlur` — an element blurred ALONG its own travel by what a shutter would see, from its pose as a pure function of
+the frame; nothing extra at rest, so settled type is drawn exactly as without it. Its ghosts prop adds fading earlier poses.
+**Reach for it:** anything fast enough that a sharp copy reads as a jump — a whip, a scroll braking, a card thrown in.
+**Smallest real use:** `<SpeedBlur at={(f) => ({x: xAt(f), y: 200})}><Card /></SpeedBlur>`
+**Exports:** `SpeedBlur`, `Pose`.
+
+### `timeGrammar`
+A beat's time as grammar, on the register's clock (Film.tsx BeatClock, before the sync warp): `hits` (hit-stop),
+`freeze` (a look), `sakuga` (held drawings into ones). Every pause is repaid at up to 2x so later cues still land.
+Boards write `slide.time`; this is the map and its bounds.
+**Reach for it:** never from a register — a beat asks for it on the board; read it to know what the bounds mean.
+**Smallest real use:** `grammarFrame(frame, {hits: [1.5], hold: 2}, 30)`
+**Exports:** `grammarFrame`, `checkTime`, `TimeSpec`, `HIT_HOLD`, `MAX_HIT_HOLD`, `MAX_HITS`, `MAX_FREEZE_S`, `FREEZE_EASE`, `MAX_REPAY_SLOPE`.
+
 ## Space, depth and camera
 
 ### `layout`
@@ -167,6 +190,23 @@ Points a react-three-fiber camera where the label arithmetic thinks it points (r
 **Reach for it:** any WebGL register that also places DOM labels.
 **Smallest real use:** `<AimCamera at={[0, 0, 0]} from={[0, 2, 8]} />`
 **Exports:** `AimCamera`.
+
+### `layoutMorph`
+One set of items between ARRANGEMENTS that are claims: `grid` (peers), `featured` (one matters; the long side of the
+box), `rank` (full-width rows in value order — draw the bar at `shares()` of the row), `groups` + `groupHeads` (what
+belongs together). Deterministic, non-overlapping, refusing an unreadable count; `morph` moves the same items between
+two on staggered, bowed paths and lands exactly.
+**Reach for it:** a beat that changes its mind about the same set (Rearrange).
+**Smallest real use:** `const r = morph(grid(n, box), rank(values, box), p, {stagger: 0.35, order: 'distance'})`
+**Exports:** `grid`, `featured`, `rank`, `shares`, `groups`, `groupHeads`, `groupOrder`, `morph`, `Box`, `Rect`, `MorphOpts`.
+
+### `graphLayout`
+A graph a film builds up over beats, laid out ONCE over all its nodes (longest-path columns, two barycentre sweeps,
+sources one column before what they feed) so adding a node never moves the rest; `frameNodes` is the camera that
+frames a set of nodes, `blendCam` moves between two cameras without swinging sideways.
+**Reach for it:** one structure across a film (LivingMap); any diagram whose nodes must keep their places.
+**Smallest real use:** `const p = layoutGraph(nodes, edges); const cam = frameNodes(p, focus, zone)`
+**Exports:** `layoutGraph`, `frameNodes`, `blendCam`, `NODE_W`, `NODE_H`, `DX`, `DY`, `GNode`, `GEdge`, `Placed`, `Zone`, `Cam`.
 
 ## The design system, light and colour
 
@@ -359,6 +399,30 @@ The film's own narration as a signal a shot can draw — real levels from the be
 **Reach for it:** an audio-reactive element that must follow what is actually said.
 **Smallest real use:** `<Voice samples={48} />`
 **Exports:** `Voice`, `NarrationContext`, `VoiceLevels`.
+
+### `particles`
+Particles taken FROM a mark: `sampleMask` (points where a mask is inked), `fitCount`/`pair` (two marks one size,
+paired in reading order), `particleAt` (exactly on the first mark at 0, exactly on the second at 1, scattered between),
+`burstAt` (a mark thrown outward and faded). Pure.
+**Reach for it:** one thing becoming another with nothing added — a dissolve that must read as conservation.
+**Smallest real use:** `pair(A.pts, B.pts).map((q, i) => particleAt(q, i, p))`
+**Exports:** `sampleMask`, `fitCount`, `pair`, `particleAt`, `burstAt`, `Pt`, `Pair`, `FlowOpts`, `BurstOpts`.
+
+### `particlesDom`
+`useTextMark` sets a word in the film's face on a canvas (the render waits for the face) and returns its sampled points
+and size; `Dust` draws particles as SVG circles. The settled word is drawn as REAL text at the mark's size, so the
+type audits see it.
+**Reach for it:** with `particles`, whenever the dust is a word's own.
+**Smallest real use:** `const A = useTextMark('Waste', face, w, h); <Dust pts={pts} r={2} color={() => ink} />`
+**Exports:** `useTextMark`, `Dust`, `Mark`.
+
+### `teaser`
+Other beats of the same film as pictures: Film.tsx provides `TeaserContext` to a beat built of beats, and
+`useTeaser().render(n)` draws beat n's own register on its own ground, frozen once landed (`SETTLED_T`, `frameAtT`).
+`checkTeaserBeats` refuses itself and other teaser-built beats.
+**Reach for it:** a cold open, a finale that gathers the film (ColdOpen, Callback); remotion_segments keys them on the beats they show.
+**Smallest real use:** `const pic = useTeaser()?.render(3)`
+**Exports:** `TeaserContext`, `useTeaser`, `TeaserRender`, `TEASER_SHOTS`, `SETTLED_T`, `frameAtT`, `checkTeaserBeats`.
 
 ## Devices
 

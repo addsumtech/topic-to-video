@@ -46,11 +46,11 @@ export const grid = (n: number, box: Box, o: {gap?: number; aspect?: number; min
 
 /** Item `hero` takes `share` of the box along its long side (the left of a landscape box, the top of a portrait
  *  one); the others grid in the rest. */
-export const hero = (n: number, box: Box, heroIndex: number, o: {gap?: number; share?: number; minCell?: number} = {}):
+export const featured = (n: number, box: Box, heroIndex: number, o: {gap?: number; share?: number; minCell?: number} = {}):
   Rect[] => {
   const gap = o.gap ?? GAP, share = o.share ?? 0.58;
   if (n <= 0) return [];
-  if (heroIndex < 0 || heroIndex >= n) throw new Error(`layoutMorph.hero: hero ${heroIndex} is not one of the ${n} items`);
+  if (heroIndex < 0 || heroIndex >= n) throw new Error(`layoutMorph.featured: hero ${heroIndex} is not one of the ${n} items`);
   if (n === 1) return [{...box}];
   // the hero takes the box's LONG side: the left part of a landscape box, the top of a portrait one
   const tall = box.h > box.w;

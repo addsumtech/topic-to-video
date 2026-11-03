@@ -17,7 +17,7 @@ export type Placed = {x: number; y: number; layer: number; order: number};
 export const NODE_W = 300, NODE_H = 116;
 export const DX = 400, DY = 190;
 
-export const layout = (nodes: GNode[], edges: GEdge[]): Record<string, Placed> => {
+export const layoutGraph = (nodes: GNode[], edges: GEdge[]): Record<string, Placed> => {
   const ids = nodes.map((n) => n.id);
   const known = new Set(ids);
   for (const e of edges) {
@@ -85,9 +85,9 @@ export type Zone = {x: number; y: number; w: number; h: number};
 export type Cam = {s: number; tx: number; ty: number};
 
 /** The camera that puts `ids` (their boxes plus `margin` world units) inside `zone`, scale capped at `maxScale`. */
-export const frame = (p: Record<string, Placed>, ids: string[], zone: Zone, o: {maxScale?: number; margin?: number} = {}): Cam => {
+export const frameNodes = (p: Record<string, Placed>, ids: string[], zone: Zone, o: {maxScale?: number; margin?: number} = {}): Cam => {
   const pts = ids.map((i) => p[i]).filter(Boolean);
-  if (!pts.length) throw new Error('graphLayout.frame: nothing to frame');
+  if (!pts.length) throw new Error('graphLayout.frameNodes: nothing to frame');
   const m = o.margin ?? 40;
   const x0 = Math.min(...pts.map((q) => q.x)) - NODE_W / 2 - m, x1 = Math.max(...pts.map((q) => q.x)) + NODE_W / 2 + m;
   const y0 = Math.min(...pts.map((q) => q.y)) - NODE_H / 2 - m, y1 = Math.max(...pts.map((q) => q.y)) + NODE_H / 2 + m;

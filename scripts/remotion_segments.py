@@ -309,6 +309,18 @@ def beat_code_hash(out_dir, scenes):
     return h.hexdigest()
 
 
+TEASER_SHOTS = {"ColdOpen", "Callback"}     # mirrors runtime/teaser.tsx TEASER_SHOTS
+
+
+def teaser_beats(scenes, k):
+    """The 0-based scenes that scene k draws as teasers (its `props.beats`, 1-based), [] for any other beat."""
+    sc = scenes[k] if 0 <= k < len(scenes) else {}
+    if sc.get("shot") not in TEASER_SHOTS:
+        return []
+    beats = (sc.get("props") or {}).get("beats") or []
+    return [b - 1 for b in beats if isinstance(b, int) and 1 <= b <= len(scenes) and b - 1 != k]
+
+
 def plan(props, public_dir, flags, tr=None, code=None):
     """([{k, a, b, key}], total). Pure given its inputs — the render and the `--plan` report ask the same
     function.
@@ -359,6 +371,15 @@ def plan(props, public_dir, flags, tr=None, code=None):
                 "files": referenced_files(around, public_dir)}
         if k in run_of:
             body["run"] = run_of[k]
+        # A BEAT BUILT OF OTHER BEATS (runtime/teaser: ColdOpen, Callback) draws each beat it names, frozen — so its
+        # frames depend on those beats' whole scenes (their props, their grounds, their lengths), wherever in the film
+        # they are. Keyed on them, an edit to a teased beat re-renders the cold open that flashes it.
+        teased = teaser_beats(scenes, k)
+        if teased:
+            body["teased"] = [scenes[j] for j in teased]
+            body["n"] = len(scenes)
+            around = around + body["teased"]
+            body["files"] = referenced_files(around, public_dir)
         if per_beat:
             body["ws"] = beat_code_hash(public_dir, around)
         segs.append({"k": k, "a": a, "b": b, "key": _sha(_canon(body))})

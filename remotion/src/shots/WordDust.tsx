@@ -69,6 +69,7 @@ export const WordDust: React.FC<{from?: string; to?: string; note?: string}> = (
   const dust = dustOn * (1 - solidB);
   const pts = dust > 0 ? pairs.map((q, i) => particleAt(q, i, flow, {scatter: boxH * 0.9, stagger: 0.25})) : [];
   const r = step * 0.42;
+  // @positional: every ninth grain a step lighter — sparkle in the dust, not a status of anything the film named
   const col = (i: number) => (i % 9 === 0 ? mix(FG, ACC, 0.3) : mix(FG, ACC, clamp01(flow * 1.2)));
   const noteOn = easeOutCubic(clamp01(seg(t, f1 + 0.06, f1 + 0.16)));
   const notePx = note ? Math.max(Math.round(U * 0.03), fitTextPx(note, W * 0.7, Math.round(U * 0.038))) : 0;

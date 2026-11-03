@@ -100,8 +100,9 @@ def test_gradient_flattens_to_mean_and_cel_quantizes():
 def test_style_mounts_on_both_register_paths():
     film = open(FILM, encoding="utf-8").read()
     # the plain path: the register's clock inside the style layer (the focus layer, which only multiplies opacity on
-    # the register's own elements, may sit between them — runtime/focusLead.tsx)
-    assert re.search(r"<StyleLayer beat=\{i\} skip=\{STYLE_HOOKS_BY_SHOT\[sc\.shot\]\}>\s*(<FocusLayer [^>]*>\s*)?<BeatClock warp=\{sc\.warp\}>\{C \? <C \{\.\.\.\(sc\.props \?\? \{\}\)\} /> : <Missing",
+    # the register's own elements, and the teaser provider, which only hands down other beats' pictures, may sit between
+    # them — runtime/focusLead.tsx, runtime/teaser.tsx)
+    assert re.search(r"<StyleLayer beat=\{i\} skip=\{STYLE_HOOKS_BY_SHOT\[sc\.shot\]\}>\s*(<FocusLayer [^>]*>\s*)?(<TeaserContext\.Provider [^>]*>\s*)?<BeatClock warp=\{sc\.warp\}(?: time=\{sc\.time\})?>\{C \? <C \{\.\.\.\(sc\.props \?\? \{\}\)\} /> : <Missing",
                      film), "the plain register path is not styled"
     # the platform-safe margin: the WHOLE echo inside a style layer, so its ground matches the beat's, and never a
     # style element between the echo's selectors and the register they hide (ECHO_GROUND_ONLY)

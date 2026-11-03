@@ -169,8 +169,9 @@ def evidence_props():
 
 
 def ensure_fixture_lines():
-    """The stand-in photograph's outlines (scripts/photo_lines.py), traced once beside it in remotion/public/."""
-    if not ensure_fixture():
+    """The stand-in photograph's outlines (scripts/photo_lines.py), traced once beside it in remotion/public/. The
+    photograph is drawn only if it is missing — the staleness readers draw it exactly once each, before they hash."""
+    if not os.path.exists(os.path.join(_REMOTION, "public", _FIXTURE_REL)) and not ensure_fixture():
         return None
     import photo_lines as _pl
     rel = os.path.splitext(_FIXTURE_REL)[0] + ".lines.png"

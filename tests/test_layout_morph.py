@@ -32,7 +32,7 @@ def _overlap(a, b):
 
 @pytest.mark.parametrize("n", [1, 2, 5, 7, 12])
 def test_every_arrangement_fits_the_box_and_no_two_items_overlap(n):
-    out = _run("const B = %s; out.g = lm.grid(%d, B); out.h = lm.hero(%d, B, 0); out.r = lm.rank([%s], B);"
+    out = _run("const B = %s; out.g = lm.grid(%d, B); out.h = lm.featured(%d, B, 0); out.r = lm.rank([%s], B);"
                "out.p = lm.groups([%s], B);" % (BOX, n, n, ",".join(str(i * 7 % 5) for i in range(n)),
                                                    ",".join("'%s'" % "abc"[i % 3] for i in range(n))))
     for k in ("g", "h", "r", "p"):
@@ -43,7 +43,7 @@ def test_every_arrangement_fits_the_box_and_no_two_items_overlap(n):
 
 
 def test_the_hero_is_the_largest_and_a_ranking_orders_by_value():
-    out = _run("const B = %s; out.h = lm.hero(6, B, 3); out.r = lm.rank([2, 9, 5], B); out.s = lm.shares([2, 9, 5]);" % BOX)
+    out = _run("const B = %s; out.h = lm.featured(6, B, 3); out.r = lm.rank([2, 9, 5], B); out.s = lm.shares([2, 9, 5]);" % BOX)
     areas = [r["w"] * r["h"] for r in out["h"]]
     assert areas.index(max(areas)) == 3
     r = out["r"]
@@ -53,7 +53,7 @@ def test_the_hero_is_the_largest_and_a_ranking_orders_by_value():
 
 
 def test_a_morph_starts_and_lands_exactly_and_staggers_on_the_way():
-    out = _run("const B = %s; const a = lm.grid(4, B), b = lm.hero(4, B, 2);"
+    out = _run("const B = %s; const a = lm.grid(4, B), b = lm.featured(4, B, 2);"
                "out.a = a; out.b = b; out.m0 = lm.morph(a, b, 0); out.m1 = lm.morph(a, b, 1);"
                "out.mid = lm.morph(a, b, 0.3, {stagger: 0.5});" % BOX)
     for m, ref in ((out["m0"], out["a"]), (out["m1"], out["b"])):
@@ -71,7 +71,7 @@ def test_a_layout_asked_to_hold_more_than_it_can_draw_refuses():
 
 
 def test_a_portrait_hero_takes_the_top_not_a_strip():
-    out = _run("out.h = lm.hero(5, {x: 0, y: 0, w: 900, h: 1400}, 2);")
+    out = _run("out.h = lm.featured(5, {x: 0, y: 0, w: 900, h: 1400}, 2);")
     h = out["h"][2]
     assert h["w"] == pytest.approx(900) and h["y"] == 0, "the hero spans the width at the top of a tall box"
     assert all(r["y"] >= h["h"] for i, r in enumerate(out["h"]) if i != 2)

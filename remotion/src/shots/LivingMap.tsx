@@ -17,7 +17,8 @@ import {useDNA, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {useGlide} from '../runtime/glide';
-import {layout, frame as frameOn, blendCam, NODE_W, NODE_H, type GNode, type GEdge} from '../runtime/graphLayout';
+import {rows} from '../runtime/rows';
+import {layoutGraph, frameNodes as frameOn, blendCam, NODE_W, NODE_H, type GNode, type GEdge} from '../runtime/graphLayout';
 
 export const DURATION = 180; // 6 s
 
@@ -42,6 +43,7 @@ export const LivingMap: React.FC<{nodes?: MapNode[]; edges?: GEdge[]; before?: s
   }
   const edges = edgesIn ?? (nodesIn ? [] : DEMO_EDGES);
   const after = afterIn ?? nodes.map((n) => n.id);
+  // @truncates: with no `before` (a standalone still) the map opens on its first node — nothing a film gave is dropped; a film always names it
   const before = beforeIn ?? after.slice(0, 1);
   const dna = useDNA();
   const t = useT();
@@ -53,10 +55,11 @@ export const LivingMap: React.FC<{nodes?: MapNode[]; edges?: GEdge[]; before?: s
   const DISPLAY = 'var(--f-display, Inter, system-ui, sans-serif)';
   const k = U / 1080;           // the map's world is sized for a 1080 short side
 
-  const placed = layout(nodes, edges);
+  const placed = layoutGraph(nodes, edges);
   const shownBefore = new Set(before), shownAfter = new Set(after);
-  const fFrom = focusFrom && focusFrom.length ? focusFrom : after;
-  const fTo = focusTo && focusTo.length ? focusTo : after;
+  const fromList = rows<string>(focusFrom, 'focusFrom', 'LivingMap'), toList = rows<string>(focusTo, 'focusTo', 'LivingMap');
+  const fFrom = fromList.length ? fromList : after;
+  const fTo = toList.length ? toList : after;
   const top = Math.max(CONTENT_TOP, Math.round(U * 0.07)) + (title ? Math.round(U * 0.06) : 0);
   const zone = {x: Math.round(W * 0.06), y: top, w: Math.round(W * 0.88), h: contentBottom(W, H) - top - Math.round(U * 0.02)};
   // the camera works in a world sized for 1080: scale the zone into it, frame, and scale back

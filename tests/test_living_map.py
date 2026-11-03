@@ -26,7 +26,7 @@ def _run(body):
 
 @pytest.mark.skipif(not tp.available(), reason="needs node + remotion/node_modules")
 def test_a_layered_layout_puts_every_edge_left_to_right_and_no_two_nodes_together():
-    out = _run("out.p = gl.layout(%s, %s);" % (NODES, EDGES))
+    out = _run("out.p = gl.layoutGraph(%s, %s);" % (NODES, EDGES))
     p = out["p"]
     for a, b in (("a", "b"), ("a", "c"), ("b", "d"), ("c", "d"), ("d", "e")):
         assert p[a]["layer"] < p[b]["layer"], (a, b)
@@ -38,17 +38,17 @@ def test_a_layered_layout_puts_every_edge_left_to_right_and_no_two_nodes_togethe
 @pytest.mark.skipif(not tp.available(), reason="needs node + remotion/node_modules")
 def test_a_cycle_does_not_hang_and_the_layout_is_deterministic():
     out = _run("const N = [{id:'a'},{id:'b'},{id:'c'}], E: [string, string][] = [['a','b'],['b','c'],['c','a']];"
-               "out.p = gl.layout(N, E); out.q = gl.layout(N, E);")
+               "out.p = gl.layoutGraph(N, E); out.q = gl.layoutGraph(N, E);")
     assert out["p"] == out["q"]
     assert len({v["layer"] for v in out["p"].values()}) >= 2
 
 
 @pytest.mark.skipif(not tp.available(), reason="needs node + remotion/node_modules")
 def test_the_camera_frames_the_focus_and_never_zooms_past_its_bounds():
-    out = _run("const p = gl.layout(%s, %s);"
+    out = _run("const p = gl.layoutGraph(%s, %s);"
                "const zone = {x: 100, y: 100, w: 1700, h: 700};"
-               "out.all = gl.frame(p, Object.keys(p), zone, {maxScale: 1.6});"
-               "out.one = gl.frame(p, ['e'], zone, {maxScale: 1.6});" % (NODES, EDGES))
+               "out.all = gl.frameNodes(p, Object.keys(p), zone, {maxScale: 1.6});"
+               "out.one = gl.frameNodes(p, ['e'], zone, {maxScale: 1.6});" % (NODES, EDGES))
     assert out["one"]["s"] == pytest.approx(1.6), "one node alone is capped, not blown up to the frame"
     assert out["all"]["s"] < out["one"]["s"]
 

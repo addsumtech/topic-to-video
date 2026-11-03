@@ -19,7 +19,7 @@ import {useDNA, dnaPalette, mix} from '../runtime/dna';
 import {Icon, type IconName} from '../runtime/icons';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
 import {useGlide} from '../runtime/glide';
-import {grid, hero, rank, groups, groupHeads, groupOrder, morph, shares, type Rect} from '../runtime/layoutMorph';
+import {grid, featured, rank, groups, groupHeads, groupOrder, morph, shares, type Rect} from '../runtime/layoutMorph';
 
 export const DURATION = 240; // 8 s: an entrance and two re-arrangements, each held long enough to read
 export const MAX_ITEMS = 12;
@@ -83,7 +83,7 @@ export const Rearrange: React.FC<{title?: string; items?: RearrangeItem[]; steps
 
   const layoutOf = (s: RearrangeStep): Rect[] => {
     if (s.layout === 'grid') return grid(items.length, box);
-    if (s.layout === 'hero') return hero(items.length, box, s.hero ?? 0);
+    if (s.layout === 'hero') return featured(items.length, box, s.hero ?? 0);
     if (s.layout === 'rank') {
       const miss = items.findIndex((it) => typeof it.value !== 'number');
       if (miss >= 0) throw new Error(`Rearrange: rank orders by value, and item ${miss + 1} (${items[miss].label}) has none`);

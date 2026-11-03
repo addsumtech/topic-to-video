@@ -64,6 +64,7 @@ export const PhotoToDiagram: React.FC<{src?: string; lines?: string; imageAspect
   const grey = easeInOutCubic(clamp01(seg(t, 0.2, 0.42)));
   const draw = easeInOutCubic(clamp01(seg(t, 0.26, 0.58)));
   const ghost = easeInOutCubic(clamp01(seg(t, 0.5, 0.64)));
+  // @fallback: with no marks the drawing grows from the plate's centre — where a reveal starts, not a claim about the photograph
   const ox = (marks[0]?.x ?? 0.5) * 100, oy = (marks[0]?.y ?? 0.5) * 100;
   const radius = draw * 150;                       // % of the plate: from the first mark outward past every corner
   const reveal = `radial-gradient(circle at ${ox}% ${oy}%, #000 ${Math.max(0, radius - 12)}%, transparent ${radius}%)`;

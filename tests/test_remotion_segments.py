@@ -142,13 +142,15 @@ def test_the_code_hash_reaches_the_fonts_outside_src():
 _KNOWN_READS = Counter({
     "scenes.reduce": 2,            # filmDuration (cuts, then frames) -> the outro, last segment only (its frames
                                    # are in the key)
-    "scenes.length": 3,            # sceneStarts' bound, the caption loop's bound and closing window
+    "scenes.length": 4,            # sceneStarts' bound, the caption loop's bound and closing window; and a teaser
+                                   # beat's count of the film (runtime/teaser) -> that segment's `n`
     "scenes.map": 3,               # sceneStarts: relative offsets, translation-invariant; and two per-beat tables
                                    # (`arrived`, `camPlan`) filled below — each entry is written only from the
                                    # beat itself and the one before it
     "scenes[i]": 3,                # joinedAt (twice): beat i's own run; the caption loop: the active beat's length
     "scenes[i-1]": 1,              # joinedAt: the run of the beat before -> `prev`, and the whole run when joined
     "scenes[active]": 1,
+    "scenes[beat-1]": 1,           # a ColdOpen/Callback draws the beats it names (teaserOf) -> that segment's `teased`
     "(scenes||[]).some": 1,        # refuses drift+pan: throws, draws nothing
     "scenes.forEach": 3,           # refuses bgLum/ground disagreement, and a non-monotone `warp`: throws, draws
                                    # nothing (each beat's warp is in its own key; a bad one fails every render);
@@ -797,3 +799,16 @@ def test_the_minimal_public_folder_holds_what_the_films_own_shots_name(public, t
     dest = rs.minimal_public(_props([60, 70]), str(public), str(tmp_path / "pub"))
     got = sorted(os.path.relpath(os.path.join(d, f), dest) for d, _n, fs in os.walk(dest) for f in fs)
     assert got == ["audio/01.mp3", "audio/02.mp3", "media/b3/logo_drive.png"], got
+
+
+def test_a_cold_open_is_re_rendered_when_a_beat_it_flashes_changes(tmp_path):
+    """A teaser beat draws OTHER beats (runtime/teaser), so its segment keys on them: an edit to beat 3 must
+    re-render the cold open that flashes it, and only the segments that draw beat 3."""
+    sc = [{"shot": "ColdOpen", "props": {"beats": [3]}, "durF": 60}, {"shot": "EdStat", "props": {"v": 1}, "durF": 60},
+          {"shot": "EdStat", "props": {"v": 2}, "durF": 60}, {"shot": "EdStat", "props": {"v": 3}, "durF": 60}]
+    a, _ = rs.plan({"scenes": sc}, str(tmp_path), {"gl": "angle"}, tr=TR, code="x")
+    sc2 = [dict(x) for x in sc]
+    sc2[2] = dict(sc2[2], props={"v": 99})
+    b, _ = rs.plan({"scenes": sc2}, str(tmp_path), {"gl": "angle"}, tr=TR, code="x")
+    changed = [s["k"] for s, t in zip(a, b) if s["key"] != t["key"]]
+    assert changed == [0, 2, 3], "the cold open, beat 3 itself, and the beat dissolving out of it: %r" % changed

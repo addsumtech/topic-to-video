@@ -62,8 +62,11 @@ def test_the_sweep_derives_its_fixture_list_from_the_call_sites():
     # register that draws a LIST of pictures — StateSheet's `cells: {src, label}[]` — matched no call site,
     # was rendered on its defaults (an empty sheet, which throws), and all three measurement scripts recorded
     # RENDER FAILED. Its fixture is derived from the TYPE: an array whose element declares `src: string`.
+    # SEVEN: `PhotoToDiagram` adopted the guard, and draws the photograph's traced outlines too — handed by the
+    # same derivation from its signature (`lines?: string` beside the guarded src), never by name.
     assert set(ev) == {"PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite",
-                       "StateSheet"}, ev
+                       "StateSheet", "PhotoToDiagram"}, ev
+    assert set(ev["PhotoToDiagram"]) == {"src", "lines"}, ev["PhotoToDiagram"]
     cells = ev["StateSheet"].get("cells")
     assert isinstance(cells, list) and len(cells) >= 2 and all(c.get("src") for c in cells), (
         "a list-of-pictures register must get a LIST of pictures, not one path: %r" % (cells,))
@@ -76,7 +79,7 @@ def test_the_sweep_derives_its_fixture_list_from_the_call_sites():
     body = inspect.getsource(reg.evidence_props)
     parts = body.split('"""')
     code = "\n".join(l.split("#")[0] for l in (parts[0] + parts[2]).splitlines())
-    for n in ("PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite", "StateSheet"):
+    for n in ("PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite", "StateSheet", "PhotoToDiagram"):
         assert n not in code, "evidence_props hardcodes %s instead of parsing the call sites or the type" % n
 
 
@@ -106,7 +109,7 @@ def test_the_measured_rows_describe_the_register_not_an_empty_box():
     absence of."""
     data = json.load(open(reg.MANIFEST, encoding="utf-8"))
     listed = sorted(data["_fixture"]["registers"])
-    assert listed == ["MuseumLabel", "PageWrite", "PhotoPlate", "RealVersus", "ScanReconstruct",
+    assert listed == ["MuseumLabel", "PageWrite", "PhotoPlate", "PhotoToDiagram", "RealVersus", "ScanReconstruct",
                       "StateSheet"], listed
     # THE QUESTION IS "EMPTY PLATE OR NOT", AND THE FILM'S INK FLOOR WAS ONLY EVER STANDING IN FOR IT. The
     # docstring above records the two populations: a register handed nothing measures 0.0-0.6%; reached with

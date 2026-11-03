@@ -1344,7 +1344,7 @@ MUTANTS["register_energy"] = {
         ('    _c.coverage("register_energy", len([n for n in regs if n in set(univ)]), len(univ), gaps)',
          '    _c.coverage("register_energy", len(regs), len(regs), {})'),
     "the guarded registers are swept with no image":
-        ("    return out\n\n\ndef ensure_fixture():", "    return {}\n\n\ndef ensure_fixture():"),
+        ("    return out\n\n\ndef ensure_fixture_lines():", "    return {}\n\n\ndef ensure_fixture_lines():"),
     "the render cache forgets what it rendered":
         ('            mp4 = os.path.join(tmp, "%s.%s.mp4" % (n, key))',
          '            mp4 = os.path.join(tmp, n + ".mp4")'),

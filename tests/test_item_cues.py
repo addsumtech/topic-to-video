@@ -157,7 +157,7 @@ def test_the_film_and_the_hook_share_one_warp_map():
     # other context providers (the idle clock's) may sit between the two; what matters is that the provider
     # and the clock read the SAME `sc.warp`, with no second BeatClock in between
     m = re.search(r"<CueContext\.Provider value=\{sc\.cues \? \{at: sc\.cues, warp: sc\.warp \?\? null\} : null\}>"
-                  r"(?:(?!BeatClock|</CueContext\.Provider>).)*?<BeatClock warp=\{sc\.warp\}>", film, re.S)
+                  r"(?:(?!BeatClock|</CueContext\.Provider>).)*?<BeatClock warp=\{sc\.warp\}(?: time=\{sc\.time\})?>", film, re.S)
     assert m, "the cues must reach the register with the SAME warp BeatClock applies"
 
 

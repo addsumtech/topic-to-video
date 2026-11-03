@@ -289,7 +289,7 @@ def test_attaching_twice_keeps_the_warp(tmp_path):
 
 def test_film_wraps_the_register_and_not_the_voice():
     src = open(os.path.join(_ROOT, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
-    m = re.search(r"<BeatClock warp=\{sc\.warp\}>(.*?)</BeatClock>", src, re.S)
+    m = re.search(r"<BeatClock warp=\{sc\.warp\}(?: time=\{sc\.time\})?>(.*?)</BeatClock>", src, re.S)
     assert m and "<C " in m.group(1) and "Audio" not in m.group(1)
     # the voice plays outside the warp, through BeatAudio (which only stays silent in a seam's second rendering of the
     # beat — seams.tsx container — so the first words are not heard twice)

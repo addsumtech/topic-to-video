@@ -974,7 +974,12 @@ def bookends(data, content_plan=None):
               for i, s in enumerate(slides)]
     open_ = lambda s: (s.get("shot_fit") or {}).get("verdict") in (None, "", "unjudged") and not _on_stage_run(s)
     first, last = slides[0], slides[-1]
-    if str(meta.get("purpose") or "").lower() in ("launch", "promo") and open_(first):
+    # FAMILY VARIETY STILL WINS: a bookend that would sit beside a beat of its own family is offered as a note only
+    clash = lambda shot, nb: FAMILY.get(shot) == FAMILY.get(nb.get("shot"))
+    if str(meta.get("purpose") or "").lower() in ("launch", "promo") and open_(first) and clash("ColdOpen", slides[1]):
+        notes.append("beat 1: a ColdOpen would open this film, but beat 2 is family %s too — re-route beat 2 to "
+                     "take it" % FAMILY.get("ColdOpen"))
+    elif str(meta.get("purpose") or "").lower() in ("launch", "promo") and open_(first):
         later = sorted(range(1, len(slides) - 1), key=lambda i: (-energy[i], i))[:3]
         beats = sorted(i + 1 for i in later)
         first["shot"], first["shot_props"] = "ColdOpen", dict(first.get("shot_props") or {}, beats=beats)
@@ -985,7 +990,10 @@ def bookends(data, content_plan=None):
         first.setdefault("shot_fit", {}).update({"material": "ColdOpen", "bookend": why})
         notes.append("beat 1: " + why)
     rel = str((plan[-1] if len(plan) >= len(slides) else {}).get("relation") or last.get("relation") or "")
-    if open_(last) and rel in ("close", "payoff", ""):
+    if open_(last) and rel in ("close", "payoff", "") and clash("Callback", slides[-2]):
+        notes.append("beat %d: a Callback could close this film, but beat %d is family %s too — re-route it to "
+                     "take it" % (len(slides), len(slides) - 1, FAMILY.get("Callback")))
+    elif open_(last) and rel in ("close", "payoff", ""):
         pool = [i for i in sorted(range(len(slides) - 1), key=lambda i: (-energy[i], i))
                 if slides[i].get("shot") not in ("ColdOpen", "Callback")]
         picked, fams = [], set()
