@@ -182,3 +182,37 @@ def test_a_strike_peaks_on_its_frame_in_the_built_track(tmp_path):
     win = int(0.005 * sfx.SR)
     env = np.sqrt(np.convolve(a ** 2, np.ones(win) / win, mode="same"))
     assert abs(np.argmax(env) / sfx.SR - 1.0) < 0.005
+
+
+@needs_node
+def test_a_typed_prop_keys_once_per_character_on_the_typing_curve_in_both_runtimes():
+    """Every UI film types — a command, a prompt, code — and until now it typed in silence: only two registers declared
+    any sound and none had a key (the peer launch skills put a key on each character's frame). `type` names a string
+    prop; one key sounds where each character appears on the register's own typing curve (`ease`)."""
+    decls = [{"kind": "key", "type": "command", "at": 0.14, "to": 0.44, "ease": "out-cubic"},
+             {"kind": "key", "type": "line", "at": 0.2, "to": 0.6}]
+    cases = [{"command": "npx skills add x"}, {"line": "ab"}, {}]
+    import json
+    r = _tsprobe.run_ts("import * as S from %s;\n" % _tsprobe.mod("sound"),
+                        "const D = %s; const C = %s;\nout.ts = C.map((p: any) => D.map((d: any) => S.soundTs(d, p)));"
+                        % (json.dumps(decls), json.dumps(cases)))
+    py = [[shot_sounds.decl_ts(d, p) for d in decls] for p in cases]
+    assert [[len(x) for x in row] for row in r["ts"]] == [[len(x) for x in row] for row in py] == [[16, 0], [0, 2], [0, 0]]
+    assert np.allclose(r["ts"][0][0], py[0][0]) and np.allclose(r["ts"][1][1], py[1][1])
+    ks = py[0][0]
+    assert ks == sorted(ks) and 0.14 < ks[0] and ks[-1] == pytest.approx(0.44)
+    assert ks[1] - ks[0] < ks[-1] - ks[-2], "out-cubic types fast first and slows into the last characters"
+    # the character count the register draws, floor(n * ease(u)), reaches i exactly at the i-th key
+    n = 16
+    for i, t in enumerate(ks, 1):
+        u = (t - 0.14) / 0.30
+        assert int(n * (1 - (1 - u) ** 3) + 1e-9) >= i
+    assert py[1][1] == [pytest.approx(0.4), pytest.approx(0.6)], "linear: evenly, the last on `to`"
+
+
+def test_a_type_declaration_needs_a_string_prop_name_and_a_known_ease():
+    for bad in ("export const SOUNDS = [{kind: 'key', type: 3, at: 0.1, to: 0.4}];",
+                "export const SOUNDS = [{kind: 'key', type: 'x', at: 0.1, to: 0.4, ease: 'bounce'}];",
+                "export const SOUNDS = [{kind: 'key', type: 'x', each: 'y', at: 0.1, to: 0.4}];"):
+        with pytest.raises(shot_sounds.SoundDeclError):
+            shot_sounds.parse_sounds(bad)

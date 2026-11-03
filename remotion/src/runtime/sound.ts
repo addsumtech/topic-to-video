@@ -28,7 +28,7 @@
 
 /** The sounds a picture can make. Each is synthesised by scripts/sfx.py `cue()` (no samples); a kind added here and
  *  not there is a test failure (tests/test_sfx.py). */
-export const SOUND_KINDS = ['click', 'tick', 'strike', 'whoosh', 'chime', 'swell'] as const;
+export const SOUND_KINDS = ['click', 'tick', 'strike', 'whoosh', 'chime', 'swell', 'key'] as const;
 export type SoundKind = (typeof SOUND_KINDS)[number];
 
 export type SoundDecl = {
@@ -39,6 +39,11 @@ export type SoundDecl = {
   to?: number;
   /** a list prop: one sound per item */
   each?: string;
+  /** a STRING prop the register types: one sound per character, where that character appears on the typing curve
+   *  from `at` to `to` (the register draws floor(n * ease(u)) characters — gesture's typing, CommandSummon's) */
+  type?: string;
+  /** with `type`: the typing curve — 'linear' (default) or 'out-cubic' */
+  ease?: 'linear' | 'out-cubic';
   /** relative level, (0, 1] — the mix sets the absolute one under the voice */
   gain?: number;
 };
@@ -54,6 +59,16 @@ export const soundTs = (decl: SoundDecl, props: Record<string, unknown> = {}, wh
   const at = typeof decl.at === 'string' ? props[decl.at] : decl.at;
   if (at === undefined || at === null) return [];
   if (!finite(at) || at < 0 || at > 1) throw new Error(`${where}: ${decl.kind} at ${JSON.stringify(at)} — a point on the clock, 0..1`);
+  if (decl.type !== undefined) {
+    const text = props[decl.type];
+    if (typeof text !== 'string' || !text.length) return [];
+    const to = decl.to ?? at;
+    if (!finite(to) || to < at || to > 1) throw new Error(`${where}: ${decl.kind} type ${decl.type}: to must be in [at, 1]`);
+    const n = Array.from(text).length;
+    // the i-th character appears when the curve first reaches i/n: invert it
+    const inv = (q: number) => (decl.ease === 'out-cubic' ? 1 - Math.cbrt(1 - q) : q);
+    return Array.from({length: n}, (_, i) => at + (to - at) * inv((i + 1) / n));
+  }
   if (decl.each === undefined) return [at];
   const list = props[decl.each];
   if (!Array.isArray(list) || !list.length) return [];

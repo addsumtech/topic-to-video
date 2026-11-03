@@ -71,10 +71,10 @@ export const PlatformSurfaces: React.FC<{
 }> = ({
   markLabel = 'THE PLATFORM',
   title = 'One platform, not one app', subtitle = 'everything runs on the same models',
-  tiles = [{label: 'API', note: 'developers build on it', glyph: 'api'},
-           {label: 'Sora', note: 'image + video', glyph: 'video'},
-           {label: 'Codex', note: 'coding agent', glyph: 'code'},
-           {label: 'Operator', note: 'browser agent', glyph: 'cursor'}],
+  tiles = [{label: 'Surface one', note: 'a first way in', glyph: 'api'},
+           {label: 'Surface two', note: 'a second way in', glyph: 'video'},
+           {label: 'Surface three', note: 'a third way in', glyph: 'code'},
+           {label: 'Surface four', note: 'a fourth way in', glyph: 'cursor'}],
   accent: accent0 = '#10a37f', accent2: accent20 = '#7aa2ff',
 } = {}) => {
   if (!Array.isArray(tiles) || tiles.length < 1 || tiles.length > MAX_PLATFORM_TILES) {

@@ -61,7 +61,7 @@ def _norm(x):
 # gains for the sounds a beat's own events ask for (plan_cues `events`): a stage's clicks, a register's declared
 # SOUNDS and a board's `slide.sounds` (scripts/shot_sounds.py). One per runtime/sound.ts SOUND_KINDS — a kind the
 # runtime offers and this table lacks is a test failure, never a silent no-op.
-EVENT_GAIN = {"click": 0.6, "tick": 0.45, "strike": 0.7, "whoosh": 0.45, "chime": 0.38, "swell": 0.5}
+EVENT_GAIN = {"click": 0.6, "tick": 0.45, "strike": 0.7, "whoosh": 0.45, "chime": 0.38, "swell": 0.5, "key": 0.3}
 # A register's sounds are the picture's own, but a picture that strikes forty times in a beat would machine-gun: two
 # of its events closer than this are one sound (the first is kept). 0.12 s is under the ~150 ms at which two clicks
 # start to read as a flam rather than a double (U).
@@ -99,6 +99,22 @@ def cue(name):
             return np.where(on, (ring + 0.35 * edge) * gain, 0.0)
 
         return _norm(knock(0.0, 1.0, 1.0) + knock(0.082, 1.12, 0.45)) * 0.85
+    if name == "key":                              # one keystroke: a keycap bottoming out, then its return
+        # A KEY IS A CLICK'S QUIETER, SHORTER COUSIN. Typing plays one per character (up to ~15 a second), so it has to
+        # sit under the voice as texture: the press and the return 40 ms apart (a click's are 82), a softer return, the
+        # cap's ring a little lower (1.3-3.8 kHz, inside the bus's high band) over a 160 Hz thock in its low band.
+        n = int(0.07 * SR); t = np.arange(n) / SR
+
+        def tap(t0, pitch, gain):
+            tt = np.maximum(0.0, t - t0)
+            on = t >= t0
+            ring = (1.00 * np.sin(2 * np.pi * 2300 * pitch * tt) * np.exp(-tt / 0.0020)
+                    + 0.45 * np.sin(2 * np.pi * 3800 * pitch * tt) * np.exp(-tt / 0.0012)
+                    + 0.35 * np.sin(2 * np.pi * 1300 * pitch * tt) * np.exp(-tt / 0.0035)
+                    + 0.30 * np.sin(2 * np.pi * 160 * tt) * np.exp(-tt / 0.008))
+            edge = np.convolve(rng.standard_normal(n) * np.exp(-tt / 0.0004), np.ones(4) / 4, mode="same")
+            return np.where(on, (ring + 0.3 * edge) * gain, 0.0)
+        return _norm(tap(0.0, 1.0, 1.0) + tap(0.040, 1.08, 0.35)) * 0.7
     if name == "tick":                             # a small focus/progress blip
         n = int(0.05 * SR); t = np.arange(n) / SR
         return _norm(np.sin(2 * np.pi * 3200 * t) * _env(n, 0.001, 0.014)) * 0.6

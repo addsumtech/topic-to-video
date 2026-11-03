@@ -19,8 +19,15 @@ import {useDNA} from '../runtime/dna';
 import {contentBottom, fitTextPx, wrapLines} from '../runtime/layout';
 import {caretOn, framesBetween} from '../runtime/gesture';
 import {useGlide} from '../runtime/glide';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 165; // 5.5s
+// a key on each character's frame as the command types (the typed count is floor(n * easeOutCubic(seg(t, 0.14, 0.44)))),
+// then the press that runs it, as the palette fires
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', type: 'command', at: 0.14, to: 0.44, ease: 'out-cubic'},
+  {kind: 'click', at: 0.45, gain: 0.7},
+] as const;
 
 // This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
 // graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the

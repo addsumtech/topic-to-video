@@ -23,8 +23,13 @@ import {useT, seg, clamp01, useAnimSpan, ENTRY_T, ReducedMotionContext} from '..
 import {useDNA, mix} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 import {caretOn, framesBetween} from '../runtime/gesture';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 160;
+// a key on each character of the command as it types (round(n * seg(t, 0.04, 0.17)))
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', type: 'cmd', at: 0.04, to: 0.17},
+] as const;
 
 // null-DNA fallbacks (the shot's original palette). Never put a literal INTO an expression that also uses a DNA
 // token — take the token, fall back to the D0 constant, so a themed film never gets an off-system colour.

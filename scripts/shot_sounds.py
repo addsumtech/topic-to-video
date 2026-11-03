@@ -62,7 +62,7 @@ def frame_at_t(T, dur):
 
 
 # ── the literal parser ──────────────────────────────────────────────────────────────────────────────────────────
-_KEYS = {"kind", "at", "to", "each", "gain"}
+_KEYS = {"kind", "at", "to", "each", "gain", "type", "ease"}
 
 
 def _js_literal_to_json(txt):
@@ -109,7 +109,7 @@ def check_decls(decls, where="SOUNDS"):
             raise SoundDeclError("%s[%d]: each sound is an object" % (where, k))
         extra = set(d) - _KEYS
         if extra:
-            raise SoundDeclError("%s[%d]: unknown key(s) %s — kind, at, to, each, gain" % (where, k, sorted(extra)))
+            raise SoundDeclError("%s[%d]: unknown key(s) %s — kind, at, to, each, type, ease, gain" % (where, k, sorted(extra)))
         if d.get("kind") not in kinds:
             raise SoundDeclError("%s[%d]: kind %r is not one of %s" % (where, k, d.get("kind"), ", ".join(kinds)))
         at = d.get("at")
@@ -118,6 +118,12 @@ def check_decls(decls, where="SOUNDS"):
                                  "one, got %r" % (where, k, at))
         if "each" in d and not (isinstance(d["each"], str) and d["each"]):
             raise SoundDeclError("%s[%d]: each names a list prop" % (where, k))
+        if "type" in d and not (isinstance(d["type"], str) and d["type"]):
+            raise SoundDeclError("%s[%d]: type names a string prop the register types" % (where, k))
+        if "type" in d and "each" in d:
+            raise SoundDeclError("%s[%d]: a sound per character (type) or per item (each), not both" % (where, k))
+        if "ease" in d and (d.get("ease") not in ("linear", "out-cubic") or "type" not in d):
+            raise SoundDeclError("%s[%d]: ease is 'linear' or 'out-cubic', with type" % (where, k))
         if "to" in d and (isinstance(d["to"], bool) or not isinstance(d["to"], (int, float)) or not 0 <= d["to"] <= 1):
             raise SoundDeclError("%s[%d]: to is a point on the clock, 0..1" % (where, k))
         g = d.get("gain", 1.0)
@@ -145,6 +151,17 @@ def decl_ts(decl, props):
     if isinstance(at, bool) or not isinstance(at, (int, float)) or not 0 <= at <= 1:
         raise SoundDeclError("%s at %r — the prop %r must hold a point on the clock, 0..1"
                              % (decl["kind"], at, decl["at"]))
+    if "type" in decl:
+        text = props.get(decl["type"])
+        if not isinstance(text, str) or not text:
+            return []
+        to = float(decl.get("to", at))
+        if to < at or to > 1:
+            raise SoundDeclError("%s type %s: to (%s) must be in [at, 1]" % (decl["kind"], decl["type"], to))
+        n = len(text)                                   # code points, as Array.from counts them
+        cubic = decl.get("ease") == "out-cubic"
+        inv = (lambda q: 1.0 - (1.0 - q) ** (1.0 / 3.0)) if cubic else (lambda q: q)
+        return [float(at) + (to - float(at)) * inv((i + 1) / float(n)) for i in range(n)]
     if "each" not in decl:
         return [float(at)]
     items = props.get(decl["each"])
