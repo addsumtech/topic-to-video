@@ -798,7 +798,28 @@ def test_the_minimal_public_folder_holds_what_the_films_own_shots_name(public, t
         "const nope = 'media/b3/missing.png'; const t = 'Drive';\n")
     dest = rs.minimal_public(_props([60, 70]), str(public), str(tmp_path / "pub"))
     got = sorted(os.path.relpath(os.path.join(d, f), dest) for d, _n, fs in os.walk(dest) for f in fs)
-    assert got == ["audio/01.mp3", "audio/02.mp3", "media/b3/logo_drive.png"], got
+    assert got == ["audio/01.mp3", "audio/02.mp3", "media/b3/logo_drive.png", "media/b3/unused.png"], got
+
+
+def test_a_path_built_from_a_template_ships_every_file_it_can_name(public, tmp_path):
+    """Measured 2026-11-03 on the topic-to-video promo: a shot drew its plates with `staticFile(`media/library/${k}.png`)`
+    and the minimal public folder shipped none of them (only fully quoted paths were read), so the beat failed on both
+    GL backends and the sync census sat idle on 27 missing images until the render lock killed it. A template is
+    resolved as the glob it can name — an extra file costs a copy, a missing one costs the beat. A template whose
+    fixed part names no folder (`${a}.png`) is not guessed at: it would ship the whole film."""
+    (public / "media" / "library").mkdir(parents=True)
+    for n in ("GlobeFocus", "DNAHelix"):
+        (public / "media" / "library" / (n + ".png")).write_bytes(b"png")
+    (public / "media" / "library" / "notes.txt").write_text("x")
+    (public / "media" / "other").mkdir(parents=True)
+    (public / "media" / "other" / "x.png").write_bytes(b"png")
+    (public / "workshop" / "shots").mkdir(parents=True)
+    (public / "workshop" / "shots" / "Wall.tsx").write_text(
+        "const src = (k: string) => staticFile(`media/library/${k}.png`);\n"
+        "const any = (a: string) => `${a}.png`;\n")
+    dest = rs.minimal_public(_props([60]), str(public), str(tmp_path / "pub"))
+    got = sorted(os.path.relpath(os.path.join(d, f), dest) for d, _n, fs in os.walk(dest) for f in fs)
+    assert got == ["audio/01.mp3", "media/library/DNAHelix.png", "media/library/GlobeFocus.png"], got
 
 
 def test_a_cold_open_is_re_rendered_when_a_beat_it_flashes_changes(tmp_path):
@@ -812,3 +833,30 @@ def test_a_cold_open_is_re_rendered_when_a_beat_it_flashes_changes(tmp_path):
     b, _ = rs.plan({"scenes": sc2}, str(tmp_path), {"gl": "angle"}, tr=TR, code="x")
     changed = [s["k"] for s, t in zip(a, b) if s["key"] != t["key"]]
     assert changed == [0, 2, 3], "the cold open, beat 3 itself, and the beat dissolving out of it: %r" % changed
+
+
+def test_a_picture_a_built_shot_names_in_its_code_is_part_of_its_beats_key(public):
+    """Measured 2026-11-03 on the topic-to-video promo: the reel images a FilmScreen shot names in its kit were
+    re-made at the same paths (the old ones were 2800x315 strips, drawn 2.1x past their pixels) and the render reused
+    all 26 cached beats — the per-beat key hashed the shot's code, not the files that code names, so out.mp4 kept the
+    soft strip while media_res_qa (which renders fresh) passed. A file a beat's own code names — quoted in full or
+    reached by a template — keys that beat, and only the beats whose code names it."""
+    (public / "media" / "reel").mkdir(parents=True)
+    (public / "media" / "reel" / "a.jpg").write_bytes(b"old")
+    (public / "media" / "lib").mkdir(parents=True)
+    (public / "media" / "lib" / "x.png").write_bytes(b"old")
+    ws = public / "workshop" / "shots"
+    ws.mkdir(parents=True)
+    (ws / "Run.tsx").write_text("export const Run = () => staticFile('media/reel/a.jpg');\n", encoding="utf-8")
+    (ws / "Wall.tsx").write_text("export const Wall = (k: string) => staticFile(`media/lib/${k}.png`);\n", encoding="utf-8")
+    props = _props([60, 60, 60, 60])
+    props["scenes"][1]["shot"], props["scenes"][1]["props"] = "Run", {}
+    props["scenes"][3]["shot"], props["scenes"][3]["props"] = "Wall", {}
+    k0 = _keys(props, public, code=None)
+    (public / "media" / "reel" / "a.jpg").write_bytes(b"new")
+    k1 = _keys(props, public, code=None)
+    changed = [i for i, (a, b) in enumerate(zip(k0, k1)) if a != b]
+    assert changed == [1, 2], "the beat that draws it, and the one dissolving out of it: %r" % changed
+    (public / "media" / "lib" / "x.png").write_bytes(b"new")
+    k2 = _keys(props, public, code=None)
+    assert [i for i, (a, b) in enumerate(zip(k1, k2)) if a != b] == [3], "a template's files key its beat too"

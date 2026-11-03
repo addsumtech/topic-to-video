@@ -901,3 +901,42 @@ def test_an_html_film_is_not_sent_to_the_remotion_contest(tmp_path, capsys):
     assert ws.main([out, "check"]) == 0
     said = capsys.readouterr().out
     assert "contest_sample.py" not in said and "validate.py" in said, said
+
+
+def test_check_refuses_a_media_path_the_render_cannot_ship(tmp_path):
+    """The render ships a workshop's media by reading the paths its code names (remotion_segments.workshop_named_files):
+    a full quoted path, or a template with a folder before its first `${`. A path glued together with `+`, a template
+    that starts with `${`, and a template that names no file all leave the picture out of the bundle — measured on the
+    topic-to-video promo as a beat failing on both GL backends and a census idle on 27 missing images. Said at check."""
+    import workshop as ws
+    (tmp_path / "media" / "library").mkdir(parents=True)
+    (tmp_path / "media" / "library" / "A.png").write_bytes(b"png")
+    shots = tmp_path / "workshop" / "shots"
+    shots.mkdir(parents=True)
+    (shots / "Good.tsx").write_text("const a = staticFile('media/library/A.png'); const b = staticFile(`media/library/${k}.png`);\n")
+    (shots / "Glued.tsx").write_text("const a = staticFile('media/library/' + k + '.png');\n")
+    (shots / "Bare.tsx").write_text("const a = staticFile(`${k}.png`);\n")
+    (shots / "Empty.tsx").write_text("const a = staticFile(`media/nothing/${k}.png`);\n")
+    probs = ws.media_path_problems(str(tmp_path))
+    joined = "\n".join(probs)
+    assert "Good.tsx" not in joined, joined
+    assert any("Glued.tsx" in p and "+" in p for p in probs), joined
+    assert any("Bare.tsx" in p for p in probs), joined
+    assert any("Empty.tsx" in p and "no file" in p for p in probs), joined
+    assert len(probs) == 3, joined
+
+
+def test_an_explicit_aspect_wins_over_the_one_a_props_file_carries(tmp_path):
+    """A still writes its props to _stills/<Name>.props.json WITH the board's aspect in it; handing that file back as
+    --props and asking --aspect 9:16 rendered 16:9 anyway (setdefault kept the file's), measured 2026-11-03
+    re-rendering a fridge-film shot for vertical. An aspect asked for on the command line is the one drawn; the
+    board's aspect stays only a default."""
+    out = _film(tmp_path, shots=["Wide"])
+    with open(os.path.join(out, "storyboard.json"), "w") as fh:
+        json.dump({"meta": {"aspect": "16:9"}, "slides": []}, fh)
+    _c, payload, _d = ws.still_plan(out, "Wide", {"title": "x", "aspect": "16:9"}, aspect="9:16")
+    assert payload["aspect"] == "9:16"
+    _c, payload, _d = ws.still_plan(out, "Wide", {"title": "x"})
+    assert payload["aspect"] == "16:9", "the board's aspect is still the default"
+    _c, payload, _d = ws.still_plan(out, "Wide", {"title": "x", "aspect": "1:1"})
+    assert payload["aspect"] == "1:1", "without --aspect, props that name one keep it"

@@ -306,6 +306,18 @@ def beat_code_hash(out_dir, scenes):
         h.update(b"\0")
         h.update(file_sha(p).encode("ascii"))
         h.update(b"\n")
+    # THE PICTURES THAT CODE NAMES. A kit that lists `media/reel/a.jpg` draws that file's bytes: re-made at the same
+    # path, the code is byte-identical and the beat was reused from the cache with the old picture in it
+    root = os.path.realpath(out_dir)
+    named = set()
+    for p in files:
+        with open(p, encoding="utf-8", errors="replace") as fh:
+            named |= code_named_files(root, fh.read())
+    for rel in sorted(named):
+        h.update(rel.encode("utf-8"))
+        h.update(b"\0")
+        h.update(file_sha(os.path.join(root, rel.lstrip("/"))).encode("ascii"))
+        h.update(b"\n")
     return h.hexdigest()
 
 
@@ -452,7 +464,22 @@ def normalized_segment(path, work):
 
 
 _QUOTED_PATH = re.compile(r"""['"`]([^'"`$\n]{1,300}\.[A-Za-z0-9]{2,5})['"`]""")
+# a path a shot BUILDS: `media/library/${k}.png` — read as the glob it can name (each ${…} one path segment's worth)
+_TEMPLATE_PATH = re.compile(r"""`([^`\n]{0,300}\$\{[^`\n]{1,300}\.[A-Za-z0-9]{2,5})`""")
 _CODE_EXTS = (".ts", ".tsx", ".js", ".jsx")
+
+
+def code_named_files(root, code):
+    """{name} of every file inside `root` that `code` names — a full quoted path, or a template's matches."""
+    found = set()
+    for m in _QUOTED_PATH.finditer(code):
+        v = m.group(1)
+        p = os.path.realpath(os.path.join(root, v.lstrip("/")))
+        if p.startswith(root + os.sep) and os.path.isfile(p) and not p.endswith(_CODE_EXTS):
+            found.add(v)
+    for m in _TEMPLATE_PATH.finditer(code):
+        found |= _template_files(root, m.group(1))
+    return found
 
 
 def workshop_named_files(public_dir):
@@ -466,12 +493,25 @@ def workshop_named_files(public_dir):
             if not f.endswith(_CODE_EXTS):
                 continue
             with open(os.path.join(d, f), encoding="utf-8", errors="replace") as fh:
-                for m in _QUOTED_PATH.finditer(fh.read()):
-                    v = m.group(1)
-                    p = os.path.realpath(os.path.join(root, v.lstrip("/")))
-                    if p.startswith(root + os.sep) and os.path.isfile(p) and not p.endswith(_CODE_EXTS):
-                        found.add(v)
+                found |= code_named_files(root, fh.read())
     return found
+
+
+def _template_files(root, template):
+    """{name} of every file in `root` a templated path can name. Its fixed part before the first `${` must name a
+    folder (`media/library/`): a template that starts with one (`${a}.png`) could be any file in the film, and
+    shipping the whole out_dir is what the minimal folder exists to avoid."""
+    import glob
+    head = template.split("${", 1)[0]
+    if "/" not in head.strip("/") and not head.endswith("/"):
+        return set()
+    pattern = re.sub(r"\$\{[^}]*\}", "*", template).lstrip("/")
+    out = set()
+    for p in glob.glob(os.path.join(root, pattern)):
+        rp = os.path.realpath(p)
+        if rp.startswith(root + os.sep) and os.path.isfile(rp) and not rp.endswith(_CODE_EXTS):
+            out.add(os.path.relpath(rp, root))
+    return out
 
 
 def minimal_public(props, public_dir, dest):

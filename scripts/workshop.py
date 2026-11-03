@@ -5,7 +5,7 @@
     python3 scripts/workshop.py <out_dir> new-object <Name> --means "<what the viewer must see>"
     python3 scripts/workshop.py <out_dir> new-shot <Name> --means "<the argument no register carries>"
     python3 scripts/workshop.py <out_dir> check                      # type-check, imports, content contract, words
-    python3 scripts/workshop.py <out_dir> still <Name> [--props p.json] [--host ObjectStage] [--frame N]
+    python3 scripts/workshop.py <out_dir> still <Name> [--props p.json] [--host ObjectStage] [--frame N] [--aspect 9:16]
     python3 scripts/workshop.py <out_dir> fidelity <Name> [--props p.json] [--host ObjectStage]  # vs its references
     python3 scripts/workshop.py <out_dir> new-component <Name> --means "<what the viewer must see>"   # HTML tier
     python3 scripts/workshop.py <out_dir> still <Component> [--attrs a.json] [--p 0.9] [--aspect 16:9|9:16]
@@ -877,6 +877,7 @@ def check(out_dir):
     probs += contract_problems(out_dir, files)
     probs += baked_words(out_dir, files)["problems"]
     probs += glide_problems(out_dir)
+    probs += media_path_problems(out_dir)
     if not index_blockers(out_dir) and has_items(out_dir):
         probs += typecheck(out_dir)
     if has_components(out_dir):
@@ -884,6 +885,37 @@ def check(out_dir):
     return probs
 
 
+
+
+# A picture's path as the render can ship it (remotion_segments.workshop_named_files reads paths out of the code):
+# a path glued together with `+`, or a template with no folder before its first `${`, is invisible to it
+_GLUED_PATH = re.compile(r"""['"]([^'"\n]*/)['"]\s*\+""")
+_BARE_TEMPLATE = re.compile(r"""staticFile\(\s*`\$\{""")
+
+
+def media_path_problems(out_dir):
+    """A picture a film's own shot or object names in a way the render cannot ship — the beat then fails on every GL
+    backend and the sync census waits on the missing file until the render lock kills it."""
+    import remotion_segments as rs
+    root = os.path.realpath(out_dir)
+    out = []
+    for f in source_files(out_dir):
+        rel = os.path.relpath(f, workshop_dir(out_dir))
+        code = open(f, encoding="utf-8", errors="replace").read()
+        for i, ln in enumerate(code.splitlines(), 1):
+            for m in _GLUED_PATH.finditer(ln):
+                if os.path.isdir(os.path.join(root, m.group(1).lstrip("/"))):
+                    out.append("%s:%d: '%s' + … builds a media path with `+` — the render ships only paths it can read "
+                               "in the code: write the full path, or a template `%s${name}.png`" % (rel, i, m.group(1), m.group(1)))
+            if _BARE_TEMPLATE.search(ln):
+                out.append("%s:%d: staticFile(`${…}`) starts with a variable — the render cannot tell which folder to "
+                           "ship: put the folder in the template (`media/<folder>/${name}.png`) or list full paths" % (rel, i))
+            for m in rs._TEMPLATE_PATH.finditer(ln):
+                head = m.group(1).split("${", 1)[0]
+                if ("/" in head.strip("/") or head.endswith("/")) and not rs._template_files(root, m.group(1)):
+                    out.append("%s:%d: `%s` names no file in the film — the picture would be missing from the render"
+                               % (rel, i, m.group(1)))
+    return out
 
 
 def glide_problems(out_dir):
@@ -1955,8 +1987,12 @@ def still_plan(out_dir, name, props=None, host="ObjectStage", aspect=None, slot=
     dna = dna or meta.get("design_dna") or meta.get("shot_template")
     if dna:
         payload.setdefault("dna", dna)
-    if aspect or meta.get("aspect"):
-        payload.setdefault("aspect", aspect or meta["aspect"])
+    # an aspect ASKED for wins (a props file from an earlier still carries the board's — setdefault kept that one and a
+    # `--aspect 9:16` still came out 16:9); the board's aspect is only the default
+    if aspect:
+        payload["aspect"] = aspect
+    elif meta.get("aspect"):
+        payload.setdefault("aspect", meta["aspect"])
     return comp, payload, dur
 
 
