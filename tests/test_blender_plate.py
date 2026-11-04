@@ -421,3 +421,21 @@ def test_a_plate_of_an_older_format_is_stale(tmp_path, monkeypatch):
     k_now = bp.plate_key(**base)
     monkeypatch.setattr(bp, "PLATE_FORMAT", bp.PLATE_FORMAT + 1)
     assert bp.plate_key(**base) != k_now
+
+
+def test_a_rebuilt_plate_re_renders_the_beat_that_draws_it(tmp_path, monkeypatch):
+    """The per-beat segment cache keys a beat on its workshop files and the files they NAME: plates.ts names the plate,
+    so new plate bytes must move the key of the beat whose shot imports it (else out.mp4 keeps the old picture)."""
+    import remotion_segments as rs
+    film = make_film(tmp_path, dict(GOOD, objects=["sat"]))
+    open(film + "/workshop/shots/PlateProbe.tsx", "w").write(
+        "import {PLATES} from '../assets/plates';\nexport const DURATION = 4;\nexport const GROUND = 'bg';\n"
+        "export const PROVENANCE = 'scientific';\nexport const PlateProbe = () => { void PLATES; return null; };\n")
+    _facts(monkeypatch)
+    monkeypatch.setattr(bp, "_run_blender", _fake_runner())
+    bp.build(film)
+    scene = [{"shot": "PlateProbe", "props": {}}]
+    k1 = rs.beat_code_hash(film, scene)
+    with open(os.path.join(bp.plate_dir(film, "sat"), "plate.webm"), "ab") as fh:
+        fh.write(b"\0")
+    assert k1 and rs.beat_code_hash(film, scene) != k1
