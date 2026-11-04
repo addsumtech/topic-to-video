@@ -4,6 +4,7 @@
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
+import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, lerp, clamp01, hash01} from '../runtime/motion';
 import {useDNA, tint} from '../runtime/dna';
 import {onLight, readsOn, ACCENT_CONTRAST_MIN} from '../runtime/light';
@@ -22,6 +23,7 @@ export const INTRINSIC_TEXT = [
 export const DiffusionDenoise: React.FC<{src?: string; accent?: string; label?: string; credit?: string}> = ({
   src, accent: ACC, label = 'Denoise into an image', credit = '',
 } = {}) => {
+  requireEvidence('DiffusionDenoise', 'src', src, 'the real image the noise is denoised into');
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();

@@ -64,8 +64,14 @@ def test_the_sweep_derives_its_fixture_list_from_the_call_sites():
     # RENDER FAILED. Its fixture is derived from the TYPE: an array whose element declares `src: string`.
     # SEVEN: `PhotoToDiagram` adopted the guard, and draws the photograph's traced outlines too — handed by the
     # same derivation from its signature (`lines?: string` beside the guarded src), never by name.
+    # ELEVEN: the four MRI registers that drew an empty plate (test_no_register_draws_an_optional_picture_into_an_empty_
+    # plate) adopted the guard; KSpaceAnatomy's three panels are each the proof, so each is required and filled.
     assert set(ev) == {"PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite",
-                       "StateSheet", "PhotoToDiagram"}, ev
+                       "StateSheet", "PhotoToDiagram", "KSpaceReal", "KSpaceAnatomy", "KSpaceToImage",
+                       "DiffusionDenoise", "ForkingAnswers"}, ev
+    # TWELVE: ForkingAnswers has no demo and refuses an empty call; its instance is a file, never a name here
+    assert ev["ForkingAnswers"]["trees"][0]["tree"]["children"], ev["ForkingAnswers"]
+    assert set(ev["KSpaceAnatomy"]) == {"srcK", "srcLow", "srcHigh"}, ev["KSpaceAnatomy"]
     assert set(ev["PhotoToDiagram"]) == {"src", "lines"}, ev["PhotoToDiagram"]
     cells = ev["StateSheet"].get("cells")
     assert isinstance(cells, list) and len(cells) >= 2 and all(c.get("src") for c in cells), (
@@ -187,3 +193,41 @@ def test_a_partial_sweep_refuses_to_blend_two_design_systems(tmp_path, monkeypat
     assert reg.main(["--only=PhotoPlate", "--dna=product"]) == 1
     assert "REFUSING to merge" in capsys.readouterr().out
     assert json.loads(man.read_text(encoding="utf-8"))["registers"] == {}, "it merged anyway"
+
+
+def test_no_register_draws_an_optional_picture_into_an_empty_plate():
+    """The general form of the four above. A library review (2026-11-03) rendered every register at a settled frame
+    and found four more drawing the furniture round an absent picture — KSpaceReal (a glow where the FFT magnitude
+    goes), DiffusionDenoise (an empty square under a 'denoising steps' bar), KSpaceAnatomy (two empty panels the arrows
+    point into), KSpaceToImage (a glow where the reconstruction goes). Each was written `src ? <Img …/> : null`, the
+    exact shape the guard ended in the first four. So the shape itself is the test: an image a register draws only
+    when given is evidence, and evidence is required."""
+    bad = []
+    for f in sorted(os.listdir(SHOTS)):
+        if not f.endswith(".tsx"):
+            continue
+        src = _shot(f[:-4])
+        if re.search(r"\{\s*(src|image|photo|img)\w*\s*\?\s*<Img\b", src) and "requireEvidence(" not in src:
+            bad.append(f[:-4])
+    assert not bad, "registers that draw an empty plate when the picture is missing: %r" % bad
+
+
+def test_a_register_with_no_demo_refuses_an_empty_call_and_is_measured_on_an_instance():
+    """ForkingAnswers drew the bare ground when given no tree — a film that forgot `trees` shipped a blank beat, and the
+    library manifest recorded the blank page as the register (ink 0.0, motion 0.0, the only empty row)."""
+    src = _shot("ForkingAnswers")
+    assert re.search(r"ForkingAnswers needs `trees`", src), "ForkingAnswers draws an empty page again"
+    inst = os.path.join(ROOT, "remotion", "fixtures", "instance")
+    for f in sorted(os.listdir(inst)):
+        n = f[:-5]
+        assert os.path.exists(os.path.join(SHOTS, n + ".tsx")), "an instance fixture for no register: %s" % f
+        spec = json.load(open(os.path.join(inst, f), encoding="utf-8"))
+        assert spec.get("_source") and spec.get("props"), "%s: an instance says where it came from" % f
+
+
+def test_the_manifest_records_no_empty_frame_as_a_register():
+    """A row with no ink is a measurement of a page the register did not draw — the fixture is missing, not the
+    register empty. density_advice and the director read these rows, so an empty one steers films away for nothing."""
+    rows = json.load(open(os.path.join(ROOT, "remotion", "register_energy.json"), encoding="utf-8"))["registers"]
+    empty = sorted(n for n, r in rows.items() if r.get("ink_median", 1) <= 0.0 or r.get("footprint", 1) <= 0.0)
+    assert not empty, "registers measured as an empty frame: %r" % empty

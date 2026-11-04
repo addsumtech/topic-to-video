@@ -5,6 +5,7 @@
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
+import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA, contrastOf, tint} from '../runtime/dna';
 import {onLight, INK_CONTRAST_MIN, ACCENT_CONTRAST_MIN} from '../runtime/light';
@@ -26,6 +27,7 @@ export const INTRINSIC_TEXT = [
 export const KSpaceReal: React.FC<{src?: string; accent?: string; label?: string; credit?: string}> = ({
   src, accent: ACC, label = 'k-space — not a picture', credit = '',
 } = {}) => {
+  requireEvidence('KSpaceReal', 'src', src, 'the real k-space magnitude (the FFT of the scan the film is about) this plot is of');
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();

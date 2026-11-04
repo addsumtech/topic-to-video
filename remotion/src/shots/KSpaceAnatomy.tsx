@@ -6,6 +6,7 @@
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
+import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, lerp, clamp01} from '../runtime/motion';
 import {useDNA, tint} from '../runtime/dna';
 import {ACCENT_CONTRAST_MIN, onLight, readsOn} from '../runtime/light';
@@ -27,6 +28,9 @@ export const KSpaceAnatomy: React.FC<{srcK?: string; srcLow?: string; srcHigh?: 
   accent?: string; accent2?: string; label?: string; credit?: string}> = ({
   srcK, srcLow, srcHigh, accent: ACC, accent2: ACC2, label = 'Reading k-space', credit = '',
 } = {}) => {
+  requireEvidence('KSpaceAnatomy', 'srcK', srcK, 'the real k-space the two partial reconstructions are taken from');
+  requireEvidence('KSpaceAnatomy', 'srcLow', srcLow, 'the centre-only reconstruction (the blurry contrast image)');
+  requireEvidence('KSpaceAnatomy', 'srcHigh', srcHigh, 'the edge-only reconstruction (the outlines)');
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();

@@ -8,14 +8,15 @@
 // WITHOUT `src` THERE IS NO ANATOMY. The fallback used to be a drawn BRAIN — skull ellipse, cortex outline,
 // midline fissure — so every film that reached for the register without an image reconstructed a head: a
 // knee film's k-space resolved into a brain, and a film about a sound spectrum did too. What the transform
-// produces is a claim about the subject, and only the film knows its subject. With no `src` the image side is
-// now an empty image frame holding a soft, structure-free glow at its centre: the smooth blob that a lattice
-// whose energy sits entirely at the centre transforms into, which says "the transform makes a coherent image"
-// and nothing about what the image is of. It is the same in the standalone demo — there is no way to tell a
-// demo render from a film that simply forgot `src`, so neither gets a picture the film did not choose.
+// produces is a claim about the subject, and only the film knows its subject. The brain gave way to a soft,
+// structure-free glow — and a glow in an image frame is the empty plate runtime/evidence ended in PhotoPlate:
+// read at a settled frame (library review 2026-11-03) it is a box with nothing in it under the words "inverse
+// Fourier transform", and there is no way to tell a demo render from a film that simply forgot `src`. So the
+// register now refuses without it (requireEvidence), and the author is told which picture to fetch.
 
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useVideoConfig} from 'remotion';
+import {requireEvidence} from '../runtime/evidence';
 import {useT, seg, lerp, clamp01, easeInOutCubic} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 
@@ -24,6 +25,7 @@ export const DURATION = 180; // 6s
 export const KSpaceToImage: React.FC<{accent?: string; accent2?: string; label?: string; src?: string}> = ({
   accent: ACC, accent2: ACC2, label = 'inverse Fourier transform', src,
 } = {}) => {
+  requireEvidence('KSpaceToImage', 'src', src, 'the real scan the inverse transform resolves into');
   const {width: W, height: H} = useVideoConfig();
   const dna = useDNA();
   const t = useT();

@@ -1,0 +1,165 @@
+{
+ "_why": "ForkingAnswers has no demo: every token, chance and count is a prop, and with none it refuses (an empty page is not a register). The measurement scripts read this instance through register_energy.evidence_props, so the library manifest measures a real tree rather than the blank page it recorded before (ink 0.0).",
+ "_source": "the llm-tokens film's beat 13 (film_work/craft/llm-after), chances and rolls measured on Qwen2.5-0.5B-Instruct",
+ "props": {
+  "trees": [
+   {
+    "prompt": "“What is the capital of France?” — five rolls",
+    "tree": {
+     "start": true,
+     "children": [
+      {
+       "token": "The",
+       "children": [
+        {
+         "token": " capital",
+         "children": [
+          {
+           "token": " of",
+           "children": [
+            {
+             "token": " France",
+             "children": [
+              {
+               "token": " is",
+               "children": [
+                {
+                 "token": " Paris",
+                 "children": [
+                  {
+                   "end": true,
+                   "rolls": "×4",
+                   "token": "."
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "chance": "86.8%",
+       "p": 86.8
+      },
+      {
+       "token": "Paris",
+       "children": [
+        {
+         "token": " is",
+         "children": [
+          {
+           "token": " the",
+           "children": [
+            {
+             "token": " capital",
+             "children": [
+              {
+               "token": " of",
+               "children": [
+                {
+                 "token": " France",
+                 "children": [
+                  {
+                   "end": true,
+                   "rolls": "×1",
+                   "token": "."
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "chance": "5.3%",
+       "p": 5.3
+      }
+     ]
+    }
+   },
+   {
+    "prompt": "“Describe the sky in one sentence.” — five rolls",
+    "tree": {
+     "start": true,
+     "children": [
+      {
+       "token": "The",
+       "children": [
+        {
+         "token": " sky",
+         "children": [
+          {
+           "token": " is",
+           "p": 55.1,
+           "children": [
+            {
+             "token": " a",
+             "children": [
+              {
+               "token": " vast",
+               "p": 75.2,
+               "children": [
+                {
+                 "token": ",",
+                 "p": 45.6,
+                 "children": [
+                  {
+                   "token": " infinite",
+                   "p": 4.9,
+                   "rolls": "×1"
+                  }
+                 ]
+                },
+                {
+                 "token": " and",
+                 "p": 24.6,
+                 "rolls": "×1"
+                }
+               ]
+              },
+              {
+               "token": " beautiful",
+               "p": 1.6,
+               "rolls": "×1"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "token": ",",
+           "p": 34.9,
+           "children": [
+            {
+             "token": " with",
+             "children": [
+              {
+               "token": " its",
+               "rolls": "×2"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ],
+  "title": "Ask again, get another reply",
+  "titleAt": "tl",
+  "source": "Chances and rolls: a small open model (Qwen2.5-0.5B-Instruct)",
+  "sourceAt": "br"
+ }
+}

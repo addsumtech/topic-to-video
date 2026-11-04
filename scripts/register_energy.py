@@ -165,6 +165,18 @@ def evidence_props():
             rel = ensure_fixture_lines()
             if rel:
                 out[n]["lines"] = rel
+    # ...AND A REGISTER WITH NO DEMO AT ALL. `ForkingAnswers` takes every token, chance and count as a prop and has no
+    # default to draw, so measured on its defaults it was a blank page — ink 0.0, motion 0.0, the only empty row in the
+    # manifest, and density_advice read it as the stillest register in the library. Such a register now refuses an
+    # empty call, and its measurement instance is a real one from the film it was built for, kept beside the
+    # relational fixtures at remotion/fixtures/instance/<Id>.json ({"_why", "_source", "props"}). A file there is the
+    # whole rule; a register gains one the day it is written without a demo.
+    for f in sorted(glob.glob(os.path.join(_REMOTION, "fixtures", "instance", "*.json"))):
+        n = os.path.basename(f)[:-5]
+        with open(f, encoding="utf-8") as fh:
+            inst = json.load(fh)
+        for k, v in (inst.get("props") or {}).items():
+            out.setdefault(n, {}).setdefault(k, v)
     return out
 
 

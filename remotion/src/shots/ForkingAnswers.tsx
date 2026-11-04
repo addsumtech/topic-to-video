@@ -9,7 +9,7 @@
 //
 // THE ARGUMENT SHAPE: branching under chance, grown in time. Hide the caption and the frame still says "the same
 // question went different ways, by different odds, one piece at a time". Every token, chance, count and verdict
-// arrives as a prop; with none, the page is empty.
+// arrives as a prop; with none, it refuses (an empty page is not this register).
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, springAt, useAnimSpan, SPRING_SEAT, lerp} from '../runtime/motion';
@@ -46,6 +46,14 @@ export const ForkingAnswers: React.FC<{
   const sourceAt = sourceAtIn ?? 'br';
   const trees = rows<Tree>(treesIn ?? [], 'trees', 'ForkingAnswers');
   if (trees.length > 2) throw new Error(`ForkingAnswers: one or two trees fit the page — got ${trees.length}`);
+  // AN EMPTY PAGE IS NOT THIS REGISTER. With no tree there is nothing to grow, and the frame was the bare ground —
+  // a film that forgot `trees` shipped a blank beat, and the library measured it as one (ink 0.0). Its measurement
+  // instance is remotion/fixtures/instance/ForkingAnswers.json, a tree a real film measured.
+  if (!trees.some((tr) => tr?.tree)) {
+    throw new Error('ForkingAnswers needs `trees` — one or two {prompt, tree}, each tree the paths its rolls actually ' +
+      'wrote, every token and chance from a real run. With none the page is empty; if the beat has no measured tree, ' +
+      'it wants a different register.');
+  }
   // ── flatten every tree, leaves in reading order ──
   const flat: Flat[] = [];
   const leafCount: number[] = [];
