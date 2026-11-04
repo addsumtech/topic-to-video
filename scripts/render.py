@@ -805,7 +805,7 @@ def _write_srt(data, path):
             lines.append(str(idx))
             lines.append(f"{_srt_time(t0 + c['start'])} --> {_srt_time(t0 + c['end'])}")
             lines.append(c["text"]); lines.append(""); idx += 1
-        t0 += s["duration"]
+        t0 += _frame_exact(s["duration"], data["meta"].get("fps", 30))[1]    # the clip's own length, whole frames
     with open(path, "w") as f:
         f.write("\n".join(lines))
 
@@ -1803,9 +1803,9 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
     vlabel = _limited_range(parts, vlabel)
     cmd = ["ffmpeg", "-y", "-framerate", str(fps), "-i", pattern,
            "-i", os.path.join(meta["_out"], audio_rel)] + extra_inputs + [
-        "-filter_complex", ";".join(parts), "-map", f"[{vlabel}]", "-map", "1:a",
-        "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
-        "-c:v", "libx264", "-crf", "18", "-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
+        "-filter_complex", ";".join(parts + [_apad_graph("1:a", "aclip")]), "-map", f"[{vlabel}]", "-map", "[aclip]",
+        ] + _clip_cut(dur, fps) + ["-r", str(fps), "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-crf", "18", "-c:a", "aac", "-ar", "48000", "-ac", "1", out_clip]
     _common.run(cmd)
     _write_caption_manifest(out_clip, records)
     return out_clip
@@ -1831,6 +1831,29 @@ def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
     segs = ((_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide))
             if burn_captions else [])
     return _encode_frames_clip(pattern, slide["audio"], dur, segs, meta, W, H, out_clip, workdir, slide=slide)
+
+# EVERY CLIP IS A WHOLE NUMBER OF FRAMES, video and audio cut to the same length. A scene lasts as long as its audio, which
+# is almost never a multiple of 1/fps, and cut with `-t <dur> -shortest` a clip's video stopped on its last whole frame
+# while its audio ran on to `dur`: the `-c copy` concat then started the next clip's video where the audio ended, leaving
+# a gap at the seam. A QR-code film had 13 of them (5072 frames for 169.4 s, its frame index 0.37 s behind its clock by
+# the end), and every gate that reads frames by index judged the wrong frame. So the length is rounded to whole frames,
+# the audio padded with silence to reach it, and both streams cut there (tests/test_frame_exact_clips.py).
+def _frame_exact(dur, fps):
+    """(frames, seconds) — `dur` rounded to whole frames, at least one."""
+    n = max(1, int(round(float(dur) * fps)))
+    return n, n / float(fps)
+
+
+def _apad_graph(src, label):
+    """A filtergraph chain padding audio `src` with silence (cut later by _clip_cut), output [label]."""
+    return "[%s]apad[%s]" % (src, label)
+
+
+def _clip_cut(dur, fps):
+    """The output options that cut a clip to whole frames: both streams end on the same frame."""
+    n, secs = _frame_exact(dur, fps)
+    return ["-frames:v", str(n), "-t", "%.6f" % secs]
+
 
 def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
     if slide.get("type", "slide") != "slide":
@@ -1953,14 +1976,14 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
         ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
         parts.extend(ep)
     vlabel = _limited_range(parts, vlabel)
-    fcomplex = ";".join(parts)
+    fcomplex = ";".join(parts + [_apad_graph("1:a", "aclip")])
 
     cmd = ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-framerate", str(fps),
            "-i", "pipe:0", "-i",
            os.path.join(meta["_out"], slide["audio"])] + extra_inputs + [
-        "-filter_complex", fcomplex, "-map", f"[{vlabel}]", "-map", "1:a",
-        "-t", f"{dur}", "-r", str(fps), "-pix_fmt", "yuv420p",
-        "-c:v", "libx264", "-crf", "18"] + _KB_X264 + ["-c:a", "aac", "-ar", "48000", "-ac", "1", "-shortest", out_clip]
+        "-filter_complex", fcomplex, "-map", f"[{vlabel}]", "-map", "[aclip]",
+        ] + _clip_cut(dur, fps) + ["-r", str(fps), "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-crf", "18"] + _KB_X264 + ["-c:a", "aac", "-ar", "48000", "-ac", "1", out_clip]
     _run_fed(cmd, feed)
     _write_caption_manifest(out_clip, records)
     return out_clip
