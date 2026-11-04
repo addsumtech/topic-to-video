@@ -357,3 +357,14 @@ def test_key_moves_when_a_scene_helper_changes(tmp_path):
     k1 = bp.plate_key(**base)
     (tmp_path / "film" / "blender" / "satkit.py").write_text("SIZE = 2\n")
     assert bp.plate_key(**base) != k1
+
+
+def test_workshop_check_says_how_to_make_plates_ts(tmp_path):
+    import workshop
+    film = make_film(tmp_path, GOOD)
+    open(film + "/workshop/shots/PlateProbe.tsx", "w").write(
+        "import {PLATES} from '../assets/plates';\nexport const DURATION = 4;\nexport const GROUND = 'bg';\n"
+        "export const PROVENANCE = 'scientific';\nexport const PlateProbe = () => { void PLATES; return null; };\n")
+    probs = workshop.check(film)
+    hit = [p for p in probs if "assets/plates" in p]
+    assert hit and "blender_plate.py" in hit[0], probs
