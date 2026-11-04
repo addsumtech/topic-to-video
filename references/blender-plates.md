@@ -87,6 +87,21 @@ round a sphere, that column drew a bright meridian.
 - validate WARNs on any 2:1 map whose edge column is a flat band unlike its neighbour (`asset_warnings`).
 - To fix it, make a copy, record `derived_from` and `change` in the copy's sidecar, and point the scene at the copy.
 
+**An opaque (`env`) plate must end in the shot's GROUND.** On a 9:16 film the shot is drawn in a scaled frame whose
+edge dissolves into the shot's own GROUND, and the margin never copies a picture. The glass plate's stripes and lit
+table ran to the plate's edge, so it read as a panel: frame_safe_qa measured steps of 171–194 levels at the left and
+right edges. Keep the plate's outer tenth in the room's own colour: stop props and backdrops short of it, and light
+the floor only where the subject is. The room colour also shifts under AgX: the world `#0b1220` at strength 1
+rendered (1, 6, 16), so measure a still's edge against the GROUND.
+
+**A 9:16 frame fits the sensor to its long side**, so a lens and distance chosen by eye fill a portrait frame with the
+subject; the first glass plate was all glass. Size the subject from `k.stage.frame_at(cam, 1.0)` (the frame's width
+and height one unit from the lens).
+
+**A plate keeps the voice's clock.** Film's sync warp re-times a register's entrances, so the register sees fractional
+frames. `usePlate` reads `PlateClock`, the beat's own frame with the time grammar applied but no warp and no stepping,
+and rounds it. Its cues come from the word times, so it is on the voice already.
+
 ## Commands
 
 - `python3 scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--preview] [--yes]` builds every stale plate.
@@ -108,6 +123,8 @@ round a sphere, that column drew a bright meridian.
 | EEVEE, first plate (satellite + 24k Earth), 1080p | 4.6 s (169 frames in 783 s) |
 | Cycles, GPU only, 64 spp + denoise, simple scene | 13–19 s |
 | ID pass (Workbench, half size) | 0.72 s |
+| acceptance plates, EEVEE: sat-broadcast 169 frames / orbit-gain 351 frames | 895 s / 1359 s (estimated 909 / 1877) |
+| `--preview` Cycles (glass, 540×960, 16 spp), 199 frames | 1027 s and 702 s: 0.31 and 0.21 of the full-build estimate |
 
 Four plates of 6 s each are about 55 min on EEVEE. Never enable the CPU device for Cycles: CPU+GPU at 128 spp
 measured 67 s a frame.

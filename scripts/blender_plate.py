@@ -329,7 +329,7 @@ class OverBudget(PlateError):
     pass
 
 
-PREVIEW_FACTOR = 0.25      # PROVISIONAL until measured: a quarter of the pixels, a quarter of the samples
+PREVIEW_FACTOR = 0.31      # measured: two glass previews (Cycles) ran 0.31 and 0.21 of the full-build model; the slower one
 
 
 def estimate_seconds(spec, frames, preview=False):
