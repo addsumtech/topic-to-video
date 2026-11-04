@@ -107,3 +107,14 @@ def test_anchor_pos_latin_anchor_touching_chinese():
     assert cues._anchor_pos(n, "TypeSafe") == n.index("TypeSafe")
     assert cues._anchor_pos("不是start", "art") == -1
     assert cues._anchor_pos("the brain", "AI") == -1
+
+
+def test_a_cjk_anchor_matches_an_edge_token_with_a_space_inside():
+    """edge-tts emits a number and its measure word as ONE token with a space inside ('28 个'). The CJK matcher stripped
+    the spaces from the anchor ('28个') but searched a stream that kept them, so the anchor never matched and its reveal
+    fell back to 0.15 s after the previous cue — on a QR-code film, '28 个' and '最多修 14 个' fired ~2 s early."""
+    import cues
+    words = [{"w": "修好", "t": 0.1}, {"w": "两个", "t": 2.04}, {"w": "纠错", "t": 2.34}, {"w": "所以", "t": 3.54},
+             {"w": "28 个", "t": 4.11}, {"w": "最多", "t": 4.96}, {"w": "修", "t": 5.33}, {"w": "14 个", "t": 5.55}]
+    assert cues.resolve_cues(words, ["修好", "两个纠错", "28 个", "最多修 14 个"]) == [0.1, 2.04, 4.11, 4.96]
+    assert cues.resolve_cues(words, ["28个"]) == [4.11]

@@ -45,7 +45,10 @@ def _find(words, phrase, start):
         owner, chars = [], []
         for i in range(start, len(words)):
             for ch in str(words[i].get("w", "")):
-                chars.append(ch); owner.append(i)
+                # the anchor's key drops its spaces, so the stream must too: edge-tts emits a number and its
+                # measure word as one token with a space inside ('28 个'), which a spaced stream never matched
+                if not ch.isspace():
+                    chars.append(ch); owner.append(i)
         s = "".join(chars).casefold()
         key = re.sub(r"\s+", "", a).casefold()          # CJK anchors carry no spaces
         pos = s.find(key)
