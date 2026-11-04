@@ -1214,6 +1214,27 @@ def _split_selectors(pre):
     return [p.strip() for p in parts if p.strip()]
 
 
+def _paint_mix_from_own(frames):
+    """The SVG paint property (`fill`/`stroke`) a @keyframes body interpolates from the element's own value to a
+    color-mix(), or None. Reproduced in headless Chrome: that one segment computes rgb(1,0,0) at rest and near-black
+    mid-way, a hex color-mix and a var() one alike; from an explicit step it is correct, and HTML `color` /
+    `background-color` are unaffected."""
+    steps = []
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", frames or ""):
+        for one in sel.split(","):
+            one = one.strip().lower()
+            at = 0.0 if one == "from" else 100.0 if one == "to" else float(one[:-1]) if re.fullmatch(r"[\d.]+%", one) else None
+            if at is not None:
+                steps.append((at, body))
+    steps.sort(key=lambda s: s[0])
+    for prop in ("fill", "stroke"):
+        first = next(((at, m.group(1)) for at, body in steps
+                      for m in [re.search(r"(?:^|;)\s*%s\s*:\s*([^;]*)" % prop, body)] if m), None)
+        if first and first[0] > 0 and "color-mix(" in first[1].replace(" ", ""):
+            return prop
+    return None
+
+
 def component_lint(name, js, css, label):
     """The component contract that reading the two files can judge, as sentences ([] when clean)."""
     probs = []
@@ -1276,6 +1297,11 @@ def component_lint(name, js, css, label):
                 km = re.match(r"@(?:-webkit-)?keyframes\s+([\w-]+)", pre)
                 pm = re.match(r"@property\s+(--[\w-]+)", pre)
                 if km:
+                    paint = _paint_mix_from_own(_body)
+                    if paint:
+                        probs.append("%s.css: @keyframes %s takes `%s` from the element's own value to a color-mix() — "
+                                     "Chrome computes that as black (rgb(1,0,0)); give the keyframes a `from{%s:…}` step, "
+                                     "or fade an overlay in the second colour instead" % (label, km.group(1), paint, paint))
                     if not km.group(1).startswith(tag + "-"):
                         probs.append("%s.css: @keyframes %s — name it %s-… (keyframe names are global: an unprefixed "
                                      "one can replace base.css's own `rise`/`fade` on every page)"

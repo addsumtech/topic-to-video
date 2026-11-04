@@ -374,3 +374,24 @@ def test_a_wide_unlocked_text_under_reduced_motion_is_not_called_moving(tmp_path
                "animation:label-gauge-rise .6s ease-out .4s forwards;")
     probs = _runtime(tmp_path, css=css)["problems"]
     assert not any("reduced motion" in p for p in probs), probs
+
+
+# THE SVG PAINT + color-mix() KEYFRAME TRAP (reproduced against a real headless Chrome, 2026-11-04): a keyframe that
+# animates `fill` or `stroke` from the element's own value (no `from`/`0%` step for it) to a color-mix() computes rgb(1,0,0) — black —
+# at rest and a near-black mid-way (a hex color-mix and a var() one alike). An explicit `from` computes correctly, and
+# HTML `color`/`background-color` are unaffected. A QR film's dimmed modules painted black on six beats.
+@pytest.mark.parametrize("frames, bad", [
+    ("to{fill:color-mix(in srgb,var(--fg) 22%,var(--bg))}", True),
+    ("to{stroke:color-mix(in oklab,#111 30%,#eee)}", True),
+    ("50%{fill:color-mix(in srgb,red 50%,blue)}to{fill:red}", True),
+    ("50%{fill:red}100%{fill:color-mix(in srgb,red 50%,blue)}", False),   # red -> color-mix: both explicit
+    ("from{fill:var(--fg)}to{fill:color-mix(in srgb,var(--fg) 22%,var(--bg))}", False),
+    ("0%{stroke:red}to{stroke:color-mix(in srgb,red 50%,blue)}", False),
+    ("to{color:color-mix(in srgb,var(--fg) 22%,var(--bg))}", False),
+    ("to{fill:var(--accent)}", False),
+])
+def test_an_svg_paint_keyframe_to_color_mix_needs_its_from(tmp_path, frames, bad):
+    css = CSS + "\n@keyframes label-gauge-dim{%s}\n" % frames
+    js, cssp = _component(tmp_path, css=css)
+    probs = ws.component_lint("LabelGauge", js, cssp, "c/LabelGauge")
+    assert any("color-mix" in p and "label-gauge-dim" in p for p in probs) == bad, probs

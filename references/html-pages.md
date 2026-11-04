@@ -751,6 +751,22 @@ reusable across the film's pages, and promotable to the library (`assets/html/co
   up in the delivered `out.mp4`, not `_keyframes/`. Anchor a component's own reveal to a phrase with real
   margin before the scene ends (ideally ≤ ~70-75%) so the burst window has time to fully resolve; check the
   actual rendered beat with `settled_frame.py`, not just `keyframe_qa`'s page-level sheet.
+- **Chrome traps a QR-code film's component hit (2026-11-04).** Each one rendered wrong with every check green:
+  - *SVG `fill`/`stroke` keyframed from the element's own value to a `color-mix()`* computes `rgb(1,0,0)`, which
+    paints black, at rest (and near-black mid-way). This happens with hex and `var()` mixes alike. An explicit
+    `from{fill:…}` step computes correctly, and HTML `color`/`background-color` are unaffected. `check` fails it.
+    Better still, put the second colour on an overlay part and fade its opacity.
+  - *An animated SVG inside a 3D-transformed parent* (`rotateX/Y`, `perspective`) rendered soft. Inside a 3D slab,
+    draw the resting state with `animation:none`; animate only outside the 3D context.
+  - *A CSS `px` inside an SVG child's `transform` is a user unit* (the viewBox's), not a screen pixel. Size such
+    moves in viewBox units.
+  - *A CSS `filter` on a clipped SVG group is clipped with it.* The filter is applied before the clip, so a drop-shadow
+    past the clip edge vanishes. Put the filter on an outer group around the clipped one.
+  - *A clip does not shrink an element's box* (`getBoundingClientRect` stays unclipped). keyframe_qa intersects
+    the box with the clip region now, but a parked part should still collapse (`scale(0)` + `visibility:hidden`)
+    instead of sitting off its card.
+  - *Several animations on one element* are fine: seek.js shifts each animation's own delay from the cue. Before
+    35a3c83 it used only the first, so a flip that had to wait for a veil fired as the element started.
 
 Worked example (the example `assets/html/examples/LabelGauge.{js,css}` — a labelled dial — is the full one):
 ```js
