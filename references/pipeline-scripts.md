@@ -855,6 +855,18 @@ agent on the beats it points at.
   `references/anti-ai-voice.md` before writing or revising narration. Its numbers mark where to LOOK —
   published practice says rules remove only ~40–50% of AI flavour and that over-applying them produces
   its own "rule voice", so the last pass is always a human read-aloud.
+- `scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--yes]` — **BLENDER PLATES**, remotion tier: for
+  each beat carrying `slide.blender`, runs Blender (≥ 5.0; `meta.blender` / `TTV_BLENDER` / the macOS app / PATH)
+  headless on `blender/runner.py` with the film's scene script, per frame an RGBA pass and a half-size Workbench ID
+  pass, and writes `media/blender/<id>/` (plate.webm VP9+alpha, anchors.json, boxes.json, camera.json, plate.json)
+  and `workshop/assets/plates.ts`. Keyed on scene + kit + assets + cue times + frames/size + engine/mode + Blender
+  version; a fresh plate is never rebuilt, a partial of an older key is discarded. Exit 0 built/fresh · 1 failed ·
+  2 no Blender · 3 over `meta.blender_budget_min` (default 60; the estimate uses the measured rates in
+  references/blender-plates.md — ask the user, then `--yes`).
+- `scripts/plate_qa.py <out_dir> [--every=N] [--json]` — **TYPE CLEAR OF PLATE OBJECTS**, remotion tier, blocking on a
+  film with a plate: renders the Film with `plateClear` armed (runtime/plateClear.tsx), captions off, and measures each
+  line of the shot's own type against every plate object's box (`data-plate-object`, from the ID pass) on every 3rd
+  frame. ERROR at ≥15% of a line's box on ≥2 sampled frames, WARN at ≥5%. Exit 0 / 1 / 2 unmeasured.
 - `scripts/media_res_qa.py <out_dir> [--every=N] [--json]` — **PICTURE RESOLUTION**, remotion tier: renders the Film
   with `mediaRes` armed (runtime/mediaRes.tsx, a census through `glide_frames.cjs --tag=MEDIA-RES_ --every=3`) and
   compares every img/video/canvas's natural pixels with the box it is drawn in, on every 3rd frame — seams, cameras

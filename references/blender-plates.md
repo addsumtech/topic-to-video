@@ -1,0 +1,104 @@
+# Blender plates
+
+A Blender plate is a 3D render that a film's own workshop shot draws its overlay on. Blender draws what 3D physicality
+*is* the content of. Remotion keeps words, captions, timing, data and layout. A plate is never a whole film, and never
+carries body text. Design: `docs/superpowers/specs/2026-11-04-blender-plates-design.md`.
+
+## When a beat may route to Blender
+
+Write the beat's ideal picture (`shot_fit.ideal`) first. A plate is allowed only when that picture needs one of the
+following. `slide.blender.why` names which, from a closed vocabulary:
+
+| `why` | for | why Remotion cannot |
+|---|---|---|
+| `real-world` | a real place or object with real data or scans: the Earth and planets (NASA imagery), terrain (elevation data), museum scans (Smithsonian CC0), molecules (PDB) | 2.5D only draws a diagram of it |
+| `material` | the material is the point: metal, glass, liquid, translucency, subsurface; a product hero with a known shape | CSS/SVG has no real reflection or refraction |
+| `physics` | the physical process is the content: rigid bodies, cloth, fluid, smoke, particles (baked) | Remotion can only approximate the motion by hand |
+| `optics` | caustics, refraction, volumetric light, macro depth of field | needs path tracing |
+| `space` | moving through a 3D structure, inside a machine, an exploded view with real parts | 2.5D parallax breaks under a large camera move |
+
+Never route a beat to Blender when the picture is any of these: words or layout, charts and data (the library has data
+registers), UI, diagrams, abstract ideas.
+
+Rules for choosing:
+- **Compare before choosing.** When a library register can say the beat, render a still of each, side by side. The
+  plate must be clearly better. The first plate (a GPS satellite) only matched the 2.5D register; its real Earth is
+  what won.
+- **A designed object needs references** (its fidelity record, as for any object). With none, it does not go to
+  Blender.
+- **Budget.** At most about 30% of a film's beats, and about 40 s of plate in total.
+  - `meta.blender_budget_min` (default 60) bounds the estimated render time. Over it, `blender_plate.py` exits 3 and
+    prints the estimate.
+  - Ask the user before re-running with `--yes`.
+- **Downloads.** At the start of a film, list every asset to download once: file name, source, size and licence. Ask
+  the user once, then ask again for any later addition. Every asset needs a `<file>.json` sidecar with `license` and
+  `source`, or the spec is refused.
+
+## The board contract: `slide.blender`
+
+```json
+"blender": {"id": "sat-broadcast", "scene": "blender/sat_broadcast.py", "why": "real-world",
+            "mode": "rgba", "engine": "eevee", "cues": ["广播"], "anchors": ["antenna", "limb"],
+            "objects": ["sat", "earth"], "assets": ["assets/earth/earth_24k.jpg"]}
+```
+
+- `id`: lower-case, digits and `-`, unique on the board. The plate is written to `media/blender/<id>/`.
+- `scene`: a `.py` file under `<out_dir>/blender/`.
+- `mode`:
+  - `rgba` (default): a transparent plate composited over the film's own ground, so the stars and ground stay the
+    film's;
+  - `env`: an opaque plate, for when the world itself is the content.
+- `engine`: `eevee` (default) or `cycles`. Cycles is for glass, caustics and heavy volumes only, and is GPU-only.
+- `cues`: spoken phrases whose times the scene receives as `k.cue[phrase]` (seconds into the beat). A phrase the
+  voice does not say is an error, never a guess.
+- `anchors` / `objects`: names the scene must build. Anchors become pixels per frame. Objects get an ID colour, and
+  so a box per frame.
+- `assets`: files the scene reads. They are hashed into the plate's key.
+- The beat's `shot` must be a workshop shot. It imports `BlenderPlate` and `usePlate` from `@runtime/blenderPlate`
+  and `PLATES` from `../assets/plates` (generated).
+
+## The scene-script API
+
+`build(k)` returns `{"objects": {name: obj}, "anchors": {name: (obj, (x, y, z) local)}}`. `pose(k, t)` sets the scene
+at `t` seconds into the beat (plate time 0 is the beat's first frame, which is when its voice starts).
+
+`k` carries:
+- `scene`, `camera` (made by the runner: at the origin, looking +Y; right = +X, up = +Z), `cue`, `fps`, `frames`, `w`,
+  `h`, `duration`, `mode`, `engine`;
+- `k.hexc('#rrggbb')`, a linear colour for nodes;
+- `k.stage`:
+  - `place(cam, obj, sx, sy, depth)` (screen fraction from the top-left);
+  - `face_toward(obj, '-Z', target, toward_lens)`;
+  - `screen_point`, `frame_at`;
+- `k.anchors`: `project`, and `sphere_limb_crossing` (the near crossing of a ray toward a sphere's limb).
+
+**Compose in camera space.** On the first plate, guessing in world space put the Earth off the frame and the satellite
+edge-on. Placing things by where they should fall in the picture fixed both.
+
+**Metal reflects its surroundings, and space is black.** On the first plate the gold foil came out black. Two fixes
+worked:
+- a reflection dome that the lens never sees (a Light Path *Is Camera Ray* mix in the world shader);
+- a soft key light from the lens' left.
+
+## Commands
+
+- `python3 scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--yes]` builds every stale plate.
+  - Exit codes: `0` built or fresh · `1` failed (the Blender log tail is printed) · `2` Blender missing or older
+    than 5.0 · `3` over budget.
+  - `--still F` renders one frame of each plate to look at, and writes no plate.
+- `python3 scripts/plate_qa.py <out_dir>`, a blocking delivery gate on films with a plate: the shot's own type must not
+  sit on a plate object (an ERROR at 15% of a line's box on 2 sampled frames).
+- `validate.py` refuses a beat whose plate is missing or stale. The key covers its scene, the kit, its assets, its
+  cue times, its frame count and size, its engine and mode, and the Blender version.
+
+## Costs (measured on an Apple M4 with a 10-core GPU, 2026-11-04)
+
+| pass | per frame |
+|---|---|
+| EEVEE, simple scene, 1080p | 3.4 s |
+| EEVEE, first plate (satellite + 24k Earth), 1080p | 4.6 s (169 frames in 783 s) |
+| Cycles, GPU only, 64 spp + denoise, simple scene | 13–19 s |
+| ID pass (Workbench, half size) | 0.72 s |
+
+Four plates of 6 s each are about 55 min on EEVEE. Never enable the CPU device for Cycles: CPU+GPU at 128 spp
+measured 67 s a frame.

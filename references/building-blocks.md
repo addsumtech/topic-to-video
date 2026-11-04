@@ -773,6 +773,22 @@ The same census reports every OBJECT's box (`censusObjects`: each kit device, ea
 `data-object="<name>"`) for `scripts/object_closeups.py`'s 100% close-up sheet — mark every built thing a shot draws.
 **Exports:** `MediaResAudit`, `censusMedia`, `censusObjects`, `MEDIA_RES_TAG`.
 
+### `blenderPlate`
+A Blender plate under a film's own shot (scripts/blender_plate.py, references/blender-plates.md): the plate video
+full-frame (`transparent` in rgba mode) and, per frame, its named points and objects scaled to the composition.
+**Reach for it:** only in a workshop shot whose beat carries `slide.blender` — never in a register. Draw every label
+on `usePlate(p).anchor(name)` so it stays on the thing while the camera moves; skip an anchor whose `visible` is false.
+**Smallest real use:** `const u = usePlate(PLATES['sat']); const a = u.anchor('antenna');` then
+`<BlenderPlate plate={PLATES['sat']} />` under the overlay (`PLATES` from `../assets/plates`, generated).
+**Exports:** `BlenderPlate`, `usePlate`, `Plate`, `PlateAnchor`, `PlateBox`.
+
+### `plateClear`
+The shot's own type against every Blender plate object's box (`data-plate-object`), per frame, read from the DOM.
+**Reach for it:** never in a register; know that `scripts/plate_qa.py` fails a line of type sitting over a plate object,
+so place labels beside the thing they name, not on it.
+**Smallest real use:** (rendered with `plateClear: true` on the Film by `scripts/plate_qa.py`)
+**Exports:** `PlateClearAudit`, `censusPlateClear`, `PLATE_CLEAR_TAG`.
+
 ### `fidelity`
 Whether a built thing that depicts a real thing is TRUE to it (references/object-authoring.md rule 7): the
 `Fidelity` record's type (`META.fidelity` — subject, references, sourced proportions, parts, materials), the probe
