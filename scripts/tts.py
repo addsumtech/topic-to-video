@@ -878,12 +878,39 @@ def _music_stage(out_dir, data, ref, lead, only=None, log=print):
     return doc
 
 
+MASTER_LUFS = -14.0       # EBU R128 integrated target of every speech clip (the platforms' voice level)
+MASTER_TP = -1.5          # dBTP ceiling
+MASTER_PASSES = 4         # renders of a clip at most while its measured level converges on the target
+MAX_MASTER_GAIN = 24.0    # dB: a clip quieter than this is a failed synthesis, not a quiet voice — never pump its noise
+
+
+def _integrated(path):
+    """Integrated loudness (LUFS) of a clip by EBU R128, or None when unmeasurable (silence, unreadable)."""
+    try:
+        e = subprocess.run(["ffmpeg", "-nostats", "-i", path, "-af", "ebur128", "-f", "null", "-"],
+                           capture_output=True, text=True, timeout=120).stderr
+        m = re.search(r"I:\s+(-?[\d.]+)\s+LUFS", e[e.rfind("Summary"):])
+        return float(m.group(1)) if m and float(m.group(1)) > -70 else None
+    except Exception:                                    # noqa: BLE001 — the caller falls back to one-pass loudnorm
+        return None
+
+
+def _level_filter(gain_db):
+    """A measured gain into a TRUE-peak limiter (at 4x the rate, where inter-sample peaks show). One-pass `loudnorm`
+    runs dynamic and left every clip of five films at -15.0..-18.6 LUFS; two-pass linear kept the peak by giving up
+    gain (-17.1 on a 2.7 s clip). This lands at the target with the peak at the ceiling."""
+    # the room goes in BEFORE the limiter: its reflections add to the peaks, so limiting first let them past the
+    # ceiling (-0.4..-0.7 dBTP measured)
+    return ("aresample=192000,volume=%.2fdB,%s,alimiter=limit=%.4f:level=false:attack=1:release=50:latency=1,"
+            "aresample=48000" % (gain_db, ECHO, 10 ** (MASTER_TP / 20.0)))
+
+
 def _master(path, meta=None, ref=None, lead=0.0, joined_next=False):
     """Loudness-normalise + trim TRAILING dead-air of a SPEECH clip, in place. Two problems at once:
     (1) raw TTS ships at wildly different loudness across providers/scenes with no master, so a
     carefully-placed climax has no consistent sonic level; (2) the trailing tail (esp. say/openai/
     minimax) inflates the ffprobe duration, so the pacing gate + clip length are computed against dead
-    air. loudnorm (EBU R128, I=-14) fixes level; a REVERSED silenceremove trims only the TAIL —
+    air. A measured gain into a true-peak limiter (EBU R128, I=MASTER_LUFS; _level_filter) fixes level; a REVERSED silenceremove trims only the TAIL —
     leading & internal timing are untouched, so edge-tts `audio/NN.words.json` stays aligned (word
     times are relative to the start, which never moves) and karaoke/cues keep syncing. A fixed 0.12s
     pad keeps a uniform short breath so scene-edge dips never clip a word. The render re-encodes every
@@ -920,7 +947,7 @@ def _master(path, meta=None, ref=None, lead=0.0, joined_next=False):
     # last moments into the silence so there is no discontinuity left at all. The fade is applied in the
     # REVERSED domain (a fade-IN at the reversed start == a fade-out on the tail), which needs no
     # knowledge of the clip's length.
-    af = ("loudnorm=I=-14:TP=-1.5:LRA=11," + ECHO + ","
+    tail = (","
           "areverse,silenceremove=start_periods=1:start_duration=0.06:"
           "start_threshold=-85dB:detection=peak,"
           # d=0.06, EXPONENTIAL — and the DURATION is the whole story here, twice over.
@@ -946,8 +973,22 @@ def _master(path, meta=None, ref=None, lead=0.0, joined_next=False):
           # a decay to keep — and 28 of 30 edge-tts clips simply do not.
           "afade=t=in:st=0:d=0.06:curve=exp,"
           f"areverse,apad=pad_dur={breath}")
+    level_in = _integrated(path)
     try:
-        _common.run(["ffmpeg", "-y", "-i", path, "-af", af, "-map_metadata", "-1", tmp])
+        if level_in is None:                             # unmeasurable: the old one-pass normaliser, as before
+            _common.run(["ffmpeg", "-y", "-i", path, "-af", "loudnorm=I=%s:TP=%s:LRA=11,%s" % (MASTER_LUFS, MASTER_TP, ECHO)
+                         + tail, "-map_metadata", "-1", tmp])
+        else:
+            # The room and the limiter take level back — the limiter more, the more it is pushed (+2.2 dB bought +1.1
+            # LU on a peaky clip) — so measure what came out and step the gain along the measured slope (secant).
+            gain, prev = min(MAX_MASTER_GAIN, MASTER_LUFS - level_in), None
+            for _ in range(MASTER_PASSES):
+                _common.run(["ffmpeg", "-y", "-i", path, "-af", _level_filter(gain) + tail, "-map_metadata", "-1", tmp])
+                out = _integrated(tmp)
+                if out is None or abs(MASTER_LUFS - out) <= 0.25 or gain >= MAX_MASTER_GAIN:
+                    break
+                slope = (out - prev[1]) / (gain - prev[0]) if prev and abs(gain - prev[0]) > 0.05 else 1.0
+                prev, gain = (gain, out), min(MAX_MASTER_GAIN, gain + (MASTER_LUFS - out) / max(0.2, min(1.0, slope)))
         # only adopt the mastered clip if it's a real, non-degenerate result (guards the pathological
         # case where a near-silent clip gets trimmed to ~nothing — keep the original instead)
         if os.path.getsize(tmp) > 0 and _common.audio_duration(tmp) >= 0.3:

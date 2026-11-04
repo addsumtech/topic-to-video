@@ -912,3 +912,36 @@ def test_the_seam_is_timed_at_the_films_own_frame_rate_whatever_the_board_says()
     assert tts._film_fps() == 30
     assert tts._seam_seconds({"renderer": "remotion", "fps": 60}) == tts._seam_seconds({"renderer": "remotion"})
     assert tts._seam_seconds({"renderer": "remotion"}) > 0 and tts._seam_seconds({"fps": 60}) == 0.0
+
+
+# THE MASTER REACHES ITS LEVEL. One-pass `loudnorm` runs in its dynamic mode and leaves speech short of I=-14: every
+# clip of five local films (zh and en, both tiers) measured -15.0..-18.6 LUFS, and a voice-only html film, which has no
+# final mix to lift it, shipped at -16.3. Two-pass linear loudnorm fell short too (-17.1 on a 2.7 s clip: it keeps the
+# true peak by giving up gain). A measured gain into a true-peak limiter lands at -14.
+def _speechlike(path, seconds, level_db):
+    """Pink noise in syllable-sized bursts, at a chosen level — loudness-gated like speech, peaky like speech."""
+    _common.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
+                 "anoisesrc=color=pink:amplitude=1:seed=7:d=%s" % seconds, "-af",
+                 "volume='if(lt(mod(t\\,0.37)\\,0.22)\\,1\\,0.03)':eval=frame,volume=%sdB" % level_db,
+                 "-ar", "24000", "-ac", "1", path])
+
+
+def _lufs(path):
+    import re as _re, subprocess as _sp2
+    e = _sp2.run(["ffmpeg", "-nostats", "-i", path, "-af", "ebur128=peak=true", "-f", "null", "-"],
+                 capture_output=True, text=True).stderr
+    s = e[e.rfind("Summary"):]
+    return float(_re.search(r"I:\s+(-?[\d.]+)", s).group(1)), float(_re.search(r"Peak:\s+(-?[\d.]+)", s).group(1))
+
+
+@pytest.mark.skipif(not _common.have_tool("ffmpeg"), reason="needs ffmpeg")
+@pytest.mark.parametrize("seconds, level_db", [(2.5, -12), (6.0, -4), (12.0, 2), (4.0, 10)])   # in: ~-30..-8 LUFS
+def test_master_lands_at_its_loudness_target(tmp_path, seconds, level_db):
+    p = str(tmp_path / "s.mp3")
+    _speechlike(p, seconds, level_db)
+    tts._master(p, {})
+    i, peak = _lufs(p)
+    assert abs(i - tts.MASTER_LUFS) <= 0.6, (seconds, level_db, i)
+    # the limiter holds MASTER_TP in PCM; the mp3 encode overshoots it on dense noise like this (+2.8 dB measured),
+    # far less on speech (nine real clips of four films: -1.2..-1.7 dBTP) — so here: never clipped
+    assert peak < 0.0, (seconds, level_db, peak)
