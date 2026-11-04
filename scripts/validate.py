@@ -281,7 +281,22 @@ def _composition_sig(html):
     # unmeasurable. And `jc_seen` must NOT rescue the verdict: flex properties do not lay out
     # absolutely-positioned children, so a page that declares justify-content AND positions its
     # content absolutely is exactly the confident-false-reading case, not an exemption from it.
-    abs_kids = len(re.findall(r'position\s*:\s*absolute', html[(sm.start() if sm else 0):]))
+    stage_src = html[(sm.start() if sm else 0):]
+    abs_kids = len(re.findall(r'position\s*:\s*absolute', stage_src))
+    # ...and the classes the page's own <style> makes absolute (`.abs{position:absolute}` + inline left/top): the
+    # same idiom with the declaration moved out of the style= attribute, which the count above never saw.
+    abs_cls = set()
+    for blk in re.findall(r'<style[^>]*>(.*?)</style>', html, re.S):
+        for sel, body in re.findall(r'([^{}]+)\{([^{}]*)\}', blk):
+            if re.search(r'position\s*:\s*(?:absolute|fixed)', body):
+                for one in sel.split(","):              # a bare `.name` selector only: `.stage .x` is context
+                    m = re.fullmatch(r'\s*\.([\w-]+)\s*', one)
+                    if m:
+                        abs_cls.add(m.group(1))
+    abs_cls.discard("stage")
+    if abs_cls:
+        abs_kids += sum(1 for cm in re.finditer(r'\bclass\s*=\s*"([^"]*)"', stage_src)
+                        if abs_cls & set(cm.group(1).split()))
     measurable = abs_kids < 5
     kicker_first = bool(re.search(r'class\s*=\s*"[^"]*\bstage\b[^"]*"[^>]*>\s*<[^>]*class\s*=\s*"[^"]*\bkicker\b', html))
     hero = bool(re.search(r'class\s*=\s*"[^"]*\bbg-photo\b', html))

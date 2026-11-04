@@ -1457,9 +1457,22 @@ def _comp_eval(tmp_path, page_html, n=6):
     return validate.evaluate(data, str(tmp_path))
 
 def test_absolute_deck_reports_abstention_not_a_false_zero(tmp_path):
+    # inline-placed pages route BESPOKE (html_page_route), which every diversity lint skips outright
     r = _comp_eval(tmp_path, _ABS_PAGE)
+    assert not any("break the centered column" in w or "CENTER-anchored" in w for w in r["warnings"])
+
+# placed by a CLASS the page's own <style> makes absolute: one CSS target, nothing inline — still stock-routed
+_CLASS_ABS_PAGE = ('<style>.abs{position:absolute}</style><div class="stage">'
+                   + "".join('<div class="abs" style="left:%dpx;top:%dpx">%s</div>' % (120 + 300 * i, 100 + 150 * i, c)
+                             for i, c in enumerate("abcde")) + '</div>')
+
+def test_class_placed_page_is_not_measurable():
+    assert validate._composition_sig(_CLASS_ABS_PAGE)["measurable"] is False
+
+def test_class_placed_deck_reports_abstention_not_a_false_zero(tmp_path):
+    r = _comp_eval(tmp_path, _CLASS_ABS_PAGE)
     assert any("NOT statically measurable" in w for w in r["warnings"])
-    assert not any("break the centered column" in w for w in r["warnings"])
+    assert not any("break the centered column" in w or "CENTER-anchored" in w for w in r["warnings"])
 
 def test_flex_deck_still_gets_the_real_composition_warning(tmp_path):
     centered = ('<div class="stage" style="text-align:center"><h1 class="title">t</h1></div>')
