@@ -82,6 +82,11 @@ worked:
 - a reflection dome that the lens never sees (a Light Path *Is Camera Ray* mix in the world shader);
 - a soft key light from the lens' left.
 
+**A real asset can carry a defect that no gate sees.** NASA's 24k Blue Marble on Commons has a white last column. Wrapped
+round a sphere, that column drew a bright meridian.
+- validate WARNs on any 2:1 map whose edge column is a flat band unlike its neighbour (`asset_warnings`).
+- To fix it, make a copy, record `derived_from` and `change` in the copy's sidecar, and point the scene at the copy.
+
 ## Commands
 
 - `python3 scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--yes]` builds every stale plate.

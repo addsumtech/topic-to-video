@@ -237,6 +237,43 @@ def plate_state(out_dir, board, i):
     return "fresh" if built == current_key(out_dir, board, i) else "stale"
 
 
+_IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".exr", ".hdr", ".webp")
+EDGE_DIFF = 40          # mean |difference| (0-255) between an edge column and its neighbour that reads as a line
+EDGE_FLAT = 6.0         # ...when the edge column itself is nearly one colour (a border, not the picture)
+
+
+def asset_warnings(spec, out_dir):
+    """Defects a real asset carries that no gate sees on the plate: an equirectangular map (2:1) whose first or last
+    column is a flat band unlike its neighbour draws a bright or dark MERIDIAN where the map wraps round a sphere.
+    NASA's 24k Blue Marble on Commons has a white last column (measured 2026-11-04) — fix a copy, record it in the
+    copy's sidecar (derived_from + change), and point the scene at the copy."""
+    from PIL import Image, ImageStat
+    Image.MAX_IMAGE_PIXELS = None
+    out = []
+    for a in spec.get("assets") or []:
+        p = os.path.join(out_dir, a)
+        if not a.lower().endswith(_IMAGE_EXT) or not os.path.isfile(p):
+            continue
+        try:
+            with Image.open(p) as im:
+                w, h = im.size
+                if not (1.9 <= w / max(1, h) <= 2.1) or w < 8:
+                    continue
+                im = im.convert("L")
+                for edge, nb in ((0, 1), (w - 1, w - 2)):
+                    col = im.crop((edge, 0, edge + 1, h))
+                    nxt = im.crop((nb, 0, nb + 1, h))
+                    from PIL import ImageChops
+                    diff = ImageStat.Stat(ImageChops.difference(col, nxt)).mean[0]
+                    if diff >= EDGE_DIFF and ImageStat.Stat(col).stddev[0] <= EDGE_FLAT:
+                        out.append("blender: asset %s — column %d is a flat band unlike its neighbour (mean diff %.0f): "
+                                   "wrapped round a sphere it draws a line along a meridian; fix a copy (copy the "
+                                   "neighbouring column over it) and record the change in that copy's sidecar" % (a, edge, diff))
+        except OSError as e:
+            out.append("blender: asset %s could not be read as an image (%s)" % (a, e))
+    return out
+
+
 def validate_blender(board, out_dir):
     """(errors, warns) for every beat carrying slide.blender: a valid spec, unique ids, a plate built and fresh."""
     errors, warns, seen = [], [], {}
@@ -253,6 +290,7 @@ def validate_blender(board, out_dir):
         except PlateError as e:
             errors.append(str(e))
             continue
+        warns.extend(asset_warnings(spec, out_dir))
         if st == "missing":
             errors.append("blender (beat %s): plate %r is not built — run scripts/blender_plate.py %s" % (slide.get("index"), spec["id"], out_dir))
         elif st == "stale":

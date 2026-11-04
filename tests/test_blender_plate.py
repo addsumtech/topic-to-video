@@ -378,3 +378,36 @@ def test_a_release_candidate_is_warned_once(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(bp, "_run_blender", _fake_runner(objects=()))
     bp.build(film)
     assert capsys.readouterr().out.count("release candidate") == 1
+
+
+def _equirect(path, bad_edge):
+    im = Image.new("RGB", (200, 100), (20, 40, 80))
+    for y in range(100):
+        for x in range(0, 200, 7):
+            im.putpixel((x, y), (30 + y % 40, 60, 90))           # some texture, so a real edge is not uniform either
+    if bad_edge:
+        for y in range(100):
+            im.putpixel((199, y), (253, 253, 253))
+    im.save(path)
+
+
+def test_an_equirect_asset_with_a_white_edge_column_is_warned(tmp_path):
+    film = make_film(tmp_path, dict(GOOD, assets=["assets/e.png"]))
+    os.makedirs(film + "/assets")
+    json.dump({"license": "PD", "source": "x"}, open(film + "/assets/e.png.json", "w"))
+    _equirect(film + "/assets/e.png", bad_edge=True)
+    warns = bp.asset_warnings(_spec(film), film)
+    assert len(warns) == 1 and "e.png" in warns[0] and "column 199" in warns[0]
+    _equirect(film + "/assets/e.png", bad_edge=False)
+    assert bp.asset_warnings(_spec(film), film) == []
+
+
+def test_a_non_equirect_asset_is_not_judged(tmp_path):
+    film = make_film(tmp_path, dict(GOOD, assets=["assets/p.png"]))
+    os.makedirs(film + "/assets")
+    json.dump({"license": "PD", "source": "x"}, open(film + "/assets/p.png.json", "w"))
+    im = Image.new("RGB", (100, 100), (0, 0, 0))
+    for y in range(100):
+        im.putpixel((99, y), (255, 255, 255))
+    im.save(film + "/assets/p.png")
+    assert bp.asset_warnings(_spec(film), film) == []
