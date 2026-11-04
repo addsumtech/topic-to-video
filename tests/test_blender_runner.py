@@ -103,3 +103,16 @@ def test_a_scene_imports_its_sibling_helper(tmp_path):
 def test_a_computed_anchor_is_taken_as_projected(tmp_path):
     out = run_fixture(tmp_path, frames=2, anchors="top,corner")
     assert json.load(open(out / "anchors.json"))["anchors"]["corner"] == [[40.0, 67.5, 1.0, True]] * 2
+
+
+@needs_blender
+def test_screen_point_right_after_the_camera_is_made(tmp_path):
+    out = tmp_path / "run"
+    r = subprocess.run([BLENDER, "-b", "--factory-startup", "--python-exit-code", "1", "--python",
+                        os.path.join(ROOT, "blender", "runner.py"), "--", "--scene",
+                        os.path.join(ROOT, "tests", "fixtures", "blender", "screen_scene.py"), "--out", str(out),
+                        "--frames", "1", "--fps", "30", "--w", "160", "--h", "90", "--anchors", "c", "--objects", "cube"],
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
+    x, y, _d, vis = json.load(open(out / "anchors.json"))["anchors"]["c"][0]
+    assert vis and abs(x - 80) < 2 and abs(y - 45) < 2

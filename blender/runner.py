@@ -96,6 +96,7 @@ def main(argv):
     sc.collection.objects.link(cam)
     cam.rotation_euler = (math.radians(90), 0, 0)
     sc.camera = cam
+    bpy.context.view_layer.update()
     k = Kit(a, cam)
     mod = _load(a.scene)
     built = mod.build(k) or {}

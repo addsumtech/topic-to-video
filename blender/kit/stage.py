@@ -10,6 +10,7 @@ def frame_at(cam, depth):
     """The camera's four frame corners at `depth` along its view, in world space (top-right, bottom-right,
     bottom-left, top-left — Blender's order)."""
     sc = bpy.context.scene
+    bpy.context.view_layer.update()           # a camera just made or moved has a stale matrix_world until this runs
     corners = cam.data.view_frame(scene=sc)
     scale = depth / -corners[0].z
     return [cam.matrix_world @ (c * scale) for c in corners]
