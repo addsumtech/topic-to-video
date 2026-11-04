@@ -6450,6 +6450,22 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
                             f"— only the first is kept, so the other point silently reveals on the wrong phrase's "
                             f"timing; give it its own index (a shared index anchored to the SAME phrase, for a "
                             f"deliberate co-reveal, is fine)")
+        # The converse: one phrase on DIFFERENT indices. cues.resolve_cues matches the anchors in index order, each
+        # after the last match, so the later index lands on the phrase's NEXT mention — or, said only once, is pushed
+        # past the last cue. Only a phrase said fewer times than the indices sharing it is certainly wrong.
+        idx_by_anchor = {}
+        for i, a in anchors_by_idx.items():
+            for one in a:
+                idx_by_anchor.setdefault(one, set()).add(int(i))
+        for a, idx in sorted(idx_by_anchor.items()):
+            said, pos = 0, _cues._anchor_pos(narration or "", a)
+            while pos >= 0 and said < len(idx):
+                said += 1
+                pos = _cues._anchor_pos(narration or "", a, pos + len(a))
+            if narration and len(idx) > 1 and said < len(idx):
+                warnings.append(f"{tag}: data-cue-index {sorted(idx)} anchor to the same data-cue phrase '{a}', which "
+                                f"the narration says {said} time(s) — each index waits for its OWN mention, so the "
+                                f"later one reveals late; points that land together share one index")
         # CUE-CONTIGUITY: indices should be 0..N-1 (a gap index resolves to sparse t=0, flashing in with
         # the header). Count all indices incl. connectors — a connector at the top index is legitimate.
         idxs = sorted({int(i) for i in cued_all})
