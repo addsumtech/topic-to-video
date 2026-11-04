@@ -107,3 +107,24 @@ def test_auto_and_underscored_languages_use_the_chinese_fit():
         f = pace.film(_board(beats, target=30, lang=lang))
         assert f["calibrated"] and abs(f["total"] - want) < 1e-9, (lang, f)
     assert pace.film_language({"language": "auto"}, [{"narration": "How does a phone know where it is?"}]) == "en"
+
+
+# THE TIER'S PAD. tts.py pads each clip with the dissolve the remotion tier eats (`_seam_seconds`, 0.40 s) and the html
+# tier does not. The Chinese terms were fitted on remotion-padded clips, so a Chinese html film was predicted ~0.4 s
+# long on every beat: a 31-beat QR-code film (2026-11-04) said 186.5 s and measured 169.6 s (+10%); without the pad
+# +2.7%, while the local zh remotion films (−0.5%, +2.9%) are untouched. English was fitted through tts.py at the
+# html pad, and moving it either way made every local English film worse, so it carries no correction.
+def test_a_chinese_html_beat_drops_the_dissolve_pad():
+    line = "八个比特拼成一个码字。"
+    rem, html = pace.beat_seconds(line, "zh", tier="remotion"), pace.beat_seconds(line, "zh", tier="html")
+    assert abs((rem - html) - pace._seam_seconds({}, "remotion")) < 1e-9
+    assert pace.beat_seconds(line, "zh") == rem                     # the default is the fitted tier
+    assert pace.beat_seconds("Eight bits make a codeword.", "en", tier="html") == \
+        pace.beat_seconds("Eight bits make a codeword.", "en", tier="remotion")
+
+
+def test_film_reads_the_board_tier():
+    beats = ["八个比特拼成一个码字。"] * 4
+    html = pace.film(_board(beats, target=20, lang="zh", renderer="local"))["total"]
+    rem = pace.film(_board(beats, target=20, lang="zh"))
+    assert abs(rem["total"] + rem["seams"] - html - 4 * pace._seam_seconds({}, "remotion")) < 1e-9

@@ -67,7 +67,8 @@ def _est_seconds(s, meta):
     # the ONE spoken-length model (scripts/pace.py, fitted on measured beats): its own guess here (~5 CJK chars/s
     # + 2.5 words/s, no pause) undercounted every beat by the ~1.2 s pause the film adds after it
     import pace as _pace
-    return max(2.0, _pace.beat_seconds(text, (meta or {}).get("language") or "zh", (meta or {}).get("tts_speed") or 1.0))
+    return max(2.0, _pace.beat_seconds(text, (meta or {}).get("language") or "zh", (meta or {}).get("tts_speed") or 1.0,
+                                       tier=_pace.board_tier(meta)))
 
 
 def _cjk_char(c):

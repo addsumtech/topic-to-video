@@ -40,9 +40,14 @@ import _common as _c  # noqa: E402
 
 # least-squares fit, see the docstring; refit with the films' measured beats when a voice or language is added
 ZH = {"cjk": 0.197, "digit": 0.244, "latin_word": 0.496, "comma": 0.275, "colon": 0.259, "stop": 0.767,
-      "beat": 1.243, "first": 0.554}
+      "beat": 1.243, "first": 0.554, "fit_tier": "remotion"}
 # measured on English (see the docstring); the stand-in for every space-separated language until one is measured
-EN = dict(ZH, latin_word=0.296, digit=0.175, comma=0.153, colon=0.364, stop=0.365)
+EN = dict(ZH, latin_word=0.296, digit=0.175, comma=0.153, colon=0.364, stop=0.365, fit_tier=None)
+# `fit_tier`: the tier whose clip pad the fit's `beat` term holds. tts.py pads a clip by the dissolve the remotion tier
+# eats (`_seam_seconds`) and the html tier does not, so a beat on the other tier differs by exactly that. Measured
+# 2026-11-04: a 31-beat Chinese html film predicted +10.0%, +2.7% without the pad, the zh remotion films untouched.
+# None = no correction: English was fitted through tts.py at the html pad, and moving it either way made every local
+# English film worse (remotion −4.6..+3.3% as is), so the evidence does not support one.
 LATIN = EN
 CALIBRATED = {"zh", "en"}
 _CJK = re.compile(r"[぀-ヿ㐀-鿿가-힯]")
@@ -85,11 +90,15 @@ def features(text):
             "stop": len(re.findall(r"[。！？.!?]", body))}
 
 
-def beat_seconds(text, lang="zh", speed=1.0, first=False):
-    """Predicted seconds of one beat's clip — the spoken line PLUS the pause the film adds after it."""
+def beat_seconds(text, lang="zh", speed=1.0, first=False, tier=None):
+    """Predicted seconds of one beat's clip — the spoken line PLUS the pause the film adds after it. `tier`
+    ("html" | "remotion", default the fit's own) sets the dissolve pad tts.py adds to the clip."""
     c, f, sp = _coef(lang), features(text), max(0.5, float(speed or 1.0))
+    pad = 0.0
+    if tier and c.get("fit_tier") and tier != c["fit_tier"]:
+        pad = _seam_seconds({}, tier) - _seam_seconds({}, c["fit_tier"])
     spoken = (c["cjk"] * f["cjk"] + c["digit"] * f["digit"] + c["latin_word"] * f["latin_word"]) / sp
-    return spoken + c["comma"] * f["comma"] + c["colon"] * f["colon"] + c["stop"] * f["stop"] + c["beat"] + \
+    return spoken + c["comma"] * f["comma"] + c["colon"] * f["colon"] + c["stop"] * f["stop"] + c["beat"] + pad + \
         (c["first"] if first else 0.0)
 
 
@@ -99,6 +108,11 @@ def budget_chars(seconds, lang="zh", speed=1.0, first=False):
     room = seconds - c["beat"] - c["comma"] - (c["first"] if first else 0.0)
     per = c["cjk"] if c is ZH else c["latin_word"]
     return max(0, int(room * float(speed or 1.0) / per))
+
+
+def board_tier(meta):
+    """"remotion" | "html" — which tier's clip pad tts.py gives this board's beats."""
+    return "remotion" if (meta or {}).get("renderer") in ("remotion", "remotion-bespoke") else "html"
 
 
 def _seam_seconds(meta, tier):
@@ -117,12 +131,12 @@ def film(board):
     meta = board.get("meta") or {}
     slides = [s for s in board.get("slides") or [] if isinstance(s, dict)]
     lang, speed = film_language(meta, slides), meta.get("tts_speed") or 1.0
-    tier = "remotion" if meta.get("renderer") in ("remotion", "remotion-bespoke") else "html"
+    tier = board_tier(meta)
     rows = []
     for i, s in enumerate(slides):
         text = s.get("narration") or ""
         d = s.get("duration")
-        rows.append({"index": s.get("index", i + 1), "predicted": beat_seconds(text, lang, speed, first=(i == 0)),
+        rows.append({"index": s.get("index", i + 1), "predicted": beat_seconds(text, lang, speed, first=(i == 0), tier=tier),
                      "measured": float(d) if isinstance(d, (int, float)) and d > 0 else None,
                      "chars": features(text)["cjk"] or features(text)["latin_word"]})
     import stage_runs as _sr                    # a beat continuing a stage run has no seam before it
@@ -157,13 +171,13 @@ def split_point(text):
     return text[:c], text[c:]
 
 
-def _pieces(text, lang, speed, limit):
-    if beat_seconds(text, lang, speed) <= limit:
+def _pieces(text, lang, speed, limit, tier=None):
+    if beat_seconds(text, lang, speed, tier=tier) <= limit:
         return [text]
     sp = split_point(text)
     if not sp or not sp[0].strip() or not sp[1].strip():
         return [text]
-    return _pieces(sp[0], lang, speed, limit) + _pieces(sp[1], lang, speed, limit)
+    return _pieces(sp[0], lang, speed, limit, tier) + _pieces(sp[1], lang, speed, limit, tier)
 
 
 LONG_BEAT_S = 8.0          # rhythm_qa.LONG_SHOT_S: past this one shot holds still (51-100% of measured beats)
@@ -182,13 +196,14 @@ def long_beats(board, limit=LONG_BEAT_S):
     for i, s in enumerate(slides):
         text = s.get("narration") or ""
         d = s.get("duration")
-        sec = float(d) if isinstance(d, (int, float)) and d > 0 else beat_seconds(text, lang, speed, first=(i == 0))
+        sec = float(d) if isinstance(d, (int, float)) and d > 0 else beat_seconds(text, lang, speed, first=(i == 0),
+                                                                                  tier=board_tier(meta))
         if sec <= limit or _sr.run_id(s):
             continue
         cam = s.get("camera") if isinstance(s.get("camera"), dict) else {}
         if cam.get("move") in ("push", "pull") and not cam.get("pan") and sec >= STEPPED_MOVE_S:
             continue
-        pieces = _pieces(text, lang, speed, limit)
+        pieces = _pieces(text, lang, speed, limit, board_tier(meta))
         out.append({"index": s.get("index", i + 1), "shot": s.get("shot"), "seconds": round(sec, 1), "pieces": pieces})
     return out
 
