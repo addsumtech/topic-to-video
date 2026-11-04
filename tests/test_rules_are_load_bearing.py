@@ -1629,8 +1629,8 @@ def _probe_peak_takes_the_liveliest(mod):
 PROBES["shot_director"]["picker_prefers_the_band"] = _probe_picker_prefers_the_band
 PROBES["shot_director"]["peak_takes_the_liveliest"] = _probe_peak_takes_the_liveliest
 MUTANTS["shot_director"]["the band is ignored in the pick"] = (
-    "    pool = sorted(pool, key=lambda c: (not in_band(c), lively(c), flips(c)))",
-    "    pool = sorted(pool, key=lambda c: (False, lively(c), flips(c)))")
+    "    pool = sorted(pool, key=lambda c: (not in_band(c), not subject(c), lively(c), flips(c)))",
+    "    pool = sorted(pool, key=lambda c: (False, not subject(c), lively(c), flips(c)))")
 MUTANTS["shot_director"]["the peak is not the liveliest"] = (
     '    lively = (lambda c: -motion.get(c, 0.0)) if (summit and motion) else (lambda c: 0.0)',
     '    lively = (lambda c: 0.0)')
