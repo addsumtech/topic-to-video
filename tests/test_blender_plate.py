@@ -439,3 +439,22 @@ def test_a_rebuilt_plate_re_renders_the_beat_that_draws_it(tmp_path, monkeypatch
     with open(os.path.join(bp.plate_dir(film, "sat"), "plate.webm"), "ab") as fh:
         fh.write(b"\0")
     assert k1 and rs.beat_code_hash(film, scene) != k1
+
+
+def test_preview_builds_half_size_at_low_samples_and_is_never_delivered(tmp_path, monkeypatch):
+    film = make_film(tmp_path, dict(GOOD, objects=["sat"]))
+    _facts(monkeypatch, frames=4, w=64, h=36)
+    seen = []
+    fake = _fake_runner()
+    monkeypatch.setattr(bp, "_run_blender", lambda cmd, log: (seen.append(cmd), fake(cmd, log))[1])
+    assert bp.build(film, preview=True)[0]["state"] == "built"
+    a = seen[0][seen[0].index("--") + 1:]
+    opt = {a[i]: a[i + 1] for i in range(0, len(a) - 1, 2) if a[i].startswith("--")}
+    assert (opt["--w"], opt["--h"], opt["--samples"]) == ("32", "18", str(bp.PREVIEW_SAMPLES))
+    pj = json.load(open(os.path.join(bp.plate_dir(film, "sat"), "plate.json")))
+    assert pj["preview"] is True and (pj["w"], pj["h"]) == (32, 18)
+    errs, _ = bp.validate_blender(json.load(open(film + "/storyboard.json")), film)
+    assert any("preview" in e for e in errs)
+    seen.clear()
+    assert bp.build(film)[0]["state"] == "built" and "--samples" in seen[0]       # the full build replaces it
+    assert json.load(open(os.path.join(bp.plate_dir(film, "sat"), "plate.json")))["preview"] is False

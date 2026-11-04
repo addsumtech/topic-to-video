@@ -235,10 +235,12 @@ def plate_state(out_dir, board, i):
     spec = spec_of(board["slides"][i], out_dir)
     pj = os.path.join(plate_dir(out_dir, spec["id"]), "plate.json")
     try:
-        built = json.load(open(pj, encoding="utf-8")).get("key")
+        built = json.load(open(pj, encoding="utf-8"))
     except (OSError, ValueError):
         return "missing"
-    return "fresh" if built == current_key(out_dir, board, i) else "stale"
+    if built.get("preview"):
+        return "preview"
+    return "fresh" if built.get("key") == current_key(out_dir, board, i) else "stale"
 
 
 _IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".exr", ".hdr", ".webp")
@@ -297,6 +299,9 @@ def validate_blender(board, out_dir):
         warns.extend(asset_warnings(spec, out_dir))
         if st == "missing":
             errors.append("blender (beat %s): plate %r is not built — run scripts/blender_plate.py %s" % (slide.get("index"), spec["id"], out_dir))
+        elif st == "preview":
+            errors.append("blender (beat %s): plate %r is a PREVIEW (half size, %d samples) — build it full before delivery: "
+                          "scripts/blender_plate.py %s --only %s" % (slide.get("index"), spec["id"], PREVIEW_SAMPLES, out_dir, spec["id"]))
         elif st == "stale":
             errors.append("blender (beat %s): plate %r is stale (its scene, kit, assets, cue times or beat length changed) — "
                           "rebuild it: scripts/blender_plate.py %s --only %s" % (slide.get("index"), spec["id"], out_dir, spec["id"]))
@@ -312,6 +317,8 @@ START_SECONDS = 10.0
 DEFAULT_BUDGET_MIN = 60
 RUNNER = os.path.join(KIT_DIR, "runner.py")
 ID_TOLERANCE = 8
+FULL_SAMPLES = 64          # EEVEE TAA samples / Cycles samples of a delivered plate
+PREVIEW_SAMPLES = 16       # --preview: half the frame each way, a quarter of the samples (spec §5) — never delivered
 
 
 class BlenderMissing(PlateError):
@@ -322,9 +329,12 @@ class OverBudget(PlateError):
     pass
 
 
-def estimate_seconds(spec, frames):
+PREVIEW_FACTOR = 0.25      # PROVISIONAL until measured: a quarter of the pixels, a quarter of the samples
+
+
+def estimate_seconds(spec, frames, preview=False):
     per = SEC_PER_FRAME[spec["engine"]] + (ID_SEC_PER_FRAME if spec.get("objects") else 0.0)
-    return START_SECONDS + frames * per
+    return START_SECONDS + frames * per * (PREVIEW_FACTOR if preview else 1.0)
 
 
 def boxes_from_ids(ids_dir, colors, frames, scale=2):
@@ -402,7 +412,7 @@ def write_plates_ts(out_dir):
     return path
 
 
-def build(out_dir, only=None, yes=False, still=None):
+def build(out_dir, only=None, yes=False, still=None, preview=False):
     """Build every stale plate on the board (or the one named `only`); a report per plate. Over the film's budget
     (meta.blender_budget_min, default 60) nothing is built unless `yes` — the agent asks the user first."""
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
@@ -417,8 +427,10 @@ def build(out_dir, only=None, yes=False, still=None):
         if only and spec["id"] != only:
             continue
         frames, fps, w, h = _frame_facts(out_dir, board, i)
+        if preview:
+            w, h = max(2, w // 2 // 2 * 2), max(2, h // 2 // 2 * 2)
         cue_t = cue_times(out_dir, slide.get("index", i + 1), spec["cues"])
-        key = plate_key(spec, out_dir, frames, fps, w, h, cue_t, version)
+        key = plate_key(spec, out_dir, frames, fps, w, h, cue_t, version) + ("-preview" if preview else "")
         pj = os.path.join(plate_dir(out_dir, spec["id"]), "plate.json")
         try:
             fresh = json.load(open(pj, encoding="utf-8")).get("key") == key
@@ -428,7 +440,7 @@ def build(out_dir, only=None, yes=False, still=None):
             reports.append({"id": spec["id"], "state": "fresh"})
             continue
         todo.append((slide, spec, frames, fps, w, h, cue_t, key))
-    est = sum(estimate_seconds(t[1], 1 if still else t[2]) for t in todo)
+    est = sum(estimate_seconds(t[1], 1 if still else t[2], preview) for t in todo)
     budget = float(meta.get("blender_budget_min", DEFAULT_BUDGET_MIN)) * 60
     if todo and est > budget and not yes:
         raise OverBudget("%d plate(s) to build, estimated %.0f min — over this film's budget of %.0f min "
@@ -446,7 +458,8 @@ def build(out_dir, only=None, yes=False, still=None):
                "--scene", os.path.join(out_dir, spec["scene"]), "--out", work, "--frames", str(frames),
                "--fps", str(fps), "--w", str(w), "--h", str(h), "--engine", spec["engine"], "--mode", spec["mode"],
                "--cues", json.dumps(cue_t, ensure_ascii=False), "--anchors", ",".join(spec["anchors"]),
-               "--objects", ",".join(spec["objects"])] + (["--still", str(still)] if still else [])
+               "--objects", ",".join(spec["objects"]), "--samples", str(PREVIEW_SAMPLES if preview else FULL_SAMPLES)] \
+            + (["--still", str(still)] if still else [])
         import time as _time
         t0 = _time.time()
         log = os.path.join(work, "runner.log")
@@ -472,7 +485,7 @@ def build(out_dir, only=None, yes=False, still=None):
         with open(os.path.join(pd, "plate.json"), "w", encoding="utf-8") as fh:
             json.dump({"key": key, "frames": frames, "fps": fps, "w": w, "h": h, "mode": spec["mode"],
                        "engine": spec["engine"], "why": spec["why"], "blender": version, "seconds": secs, "ids": run.get("ids") or {},
-                       "estimate": round(estimate_seconds(spec, frames), 1), "cues": cue_t, "assets": spec["assets"]},
+                       "estimate": round(estimate_seconds(spec, frames), 1), "cues": cue_t, "assets": spec["assets"], "preview": bool(preview)},
                       fh, ensure_ascii=False, indent=1)
         shutil.rmtree(work, ignore_errors=True)
         reports.append({"id": spec["id"], "state": "built", "seconds": secs, "estimate": round(estimate_seconds(spec, frames), 1)})
@@ -488,9 +501,11 @@ def main(argv=None):
     ap.add_argument("--only", help="build only this plate id")
     ap.add_argument("--still", type=int, help="render one frame of each plate to look at (no plate is written)")
     ap.add_argument("--yes", action="store_true", help="build although the estimate is over meta.blender_budget_min")
+    ap.add_argument("--preview", action="store_true", help="half size, %d samples: to look at motion and layout; "
+                    "validate refuses it for delivery" % PREVIEW_SAMPLES)
     a = ap.parse_args(argv)
     try:
-        reps = build(a.out_dir, only=a.only, yes=a.yes, still=a.still)
+        reps = build(a.out_dir, only=a.only, yes=a.yes, still=a.still, preview=a.preview)
     except BlenderMissing as e:
         print("[blender_plate] NOT BUILT — %s" % e)
         return 2

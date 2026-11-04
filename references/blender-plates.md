@@ -89,10 +89,12 @@ round a sphere, that column drew a bright meridian.
 
 ## Commands
 
-- `python3 scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--yes]` builds every stale plate.
+- `python3 scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--preview] [--yes]` builds every stale plate.
   - Exit codes: `0` built or fresh · `1` failed (the Blender log tail is printed) · `2` Blender missing or older
     than 5.0 · `3` over budget.
   - `--still F` renders one frame of each plate to look at, and writes no plate.
+- `--preview` builds every stale plate at half the frame each way and 16 samples, to check motion and layout
+  cheaply. validate refuses a preview plate for delivery. A full build replaces it.
 - `python3 scripts/plate_qa.py <out_dir>`, a blocking delivery gate on films with a plate: the shot's own type must not
   sit on a plate object (an ERROR at 15% of a line's box on 2 sampled frames).
 - `validate.py` refuses a beat whose plate is missing or stale. The key covers its scene, the kit, its assets, its

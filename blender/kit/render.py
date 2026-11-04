@@ -3,7 +3,7 @@ enabled it took 67 s a frame at 128 spp, against 13-19 s at 64 spp on the GPU al
 import bpy
 
 
-def configure(sc, engine, mode, w, h):
+def configure(sc, engine, mode, w, h, samples=64):
     sc.render.resolution_x, sc.render.resolution_y = int(w), int(h)
     sc.render.resolution_percentage = 100
     sc.render.film_transparent = mode == "rgba"
@@ -27,12 +27,12 @@ def configure(sc, engine, mode, w, h):
         if not gpus:
             raise RuntimeError("Cycles needs a GPU device here (CPU rendering measured ~4x slower and is refused)")
         sc.cycles.device = "GPU"
-        sc.cycles.samples = 64
+        sc.cycles.samples = int(samples)
         sc.cycles.use_denoising = True
     else:
         sc.render.engine = "BLENDER_EEVEE"
         if hasattr(sc.eevee, "taa_render_samples"):
-            sc.eevee.taa_render_samples = 64
+            sc.eevee.taa_render_samples = int(samples)
     sc.view_settings.view_transform = "AgX"
     try:
         sc.view_settings.look = "AgX - Medium High Contrast"

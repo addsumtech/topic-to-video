@@ -855,7 +855,7 @@ agent on the beats it points at.
   `references/anti-ai-voice.md` before writing or revising narration. Its numbers mark where to LOOK —
   published practice says rules remove only ~40–50% of AI flavour and that over-applying them produces
   its own "rule voice", so the last pass is always a human read-aloud.
-- `scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--yes]` — **BLENDER PLATES**, remotion tier: for
+- `scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--preview] [--yes]` — **BLENDER PLATES**, remotion tier: for
   each beat carrying `slide.blender`, runs Blender (≥ 5.0; `meta.blender` / `TTV_BLENDER` / the macOS app / PATH)
   headless on `blender/runner.py` with the film's scene script, per frame an RGBA pass and a half-size Workbench ID
   pass, and writes `media/blender/<id>/` (plate.webm VP9+alpha, anchors.json, boxes.json, camera.json, plate.json)

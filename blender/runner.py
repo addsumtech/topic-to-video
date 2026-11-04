@@ -57,6 +57,7 @@ def _args(argv):
     ap.add_argument("--anchors", default="")
     ap.add_argument("--objects", default="")
     ap.add_argument("--still", type=int)
+    ap.add_argument("--samples", type=int, default=64)
     a = ap.parse_args(argv)
     a.cues = json.loads(a.cues)
     a.anchors = [x for x in a.anchors.split(",") if x]
@@ -90,7 +91,7 @@ def main(argv):
         bpy.data.objects.remove(o)
     sc.render.fps = a.fps
     sc.frame_start, sc.frame_end = 1, a.frames
-    _render.configure(sc, a.engine, a.mode, a.w, a.h)
+    _render.configure(sc, a.engine, a.mode, a.w, a.h, samples=a.samples)
     cam_data = bpy.data.cameras.new("camera")
     cam = bpy.data.objects.new("camera", cam_data)
     sc.collection.objects.link(cam)
