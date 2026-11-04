@@ -16,8 +16,13 @@ import {useDNA, TermFrame} from '../runtime/dna';
 import {Figure} from '../runtime/atoms';
 import {parseFigure, figureAt, figureText} from '../runtime/figure';
 import {textWidthPx, monoFit} from '../runtime/layout';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 150;
+// a key on each character of the command as TermFrame types it (round(n * u) over [0.05, 0.16], runtime/dna.tsx)
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', type: 'cmd', at: 0.05, to: 0.16, draw: 'round'},
+] as const;
 
 export const TermCounter: React.FC<{cmd?: string; value?: string; unit?: string; note?: string; framed?: boolean}> = ({
   cmd = 'stat --value', value = '100', unit = '', note = '', framed = false} = {}) => {

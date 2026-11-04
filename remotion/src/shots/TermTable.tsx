@@ -28,7 +28,7 @@ import type {SoundDecl} from '../runtime/sound';
 export const DURATION = 160;
 // a key on each character of the command as it types (round(n * seg(t, 0.04, 0.17)))
 export const SOUNDS: readonly SoundDecl[] = [
-  {kind: 'key', type: 'cmd', at: 0.04, to: 0.17},
+  {kind: 'key', type: 'cmd', at: 0.04, to: 0.17, draw: 'round'},
 ] as const;
 
 // null-DNA fallbacks (the shot's original palette). Never put a literal INTO an expression that also uses a DNA

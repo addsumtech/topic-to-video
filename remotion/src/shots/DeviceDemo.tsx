@@ -23,8 +23,15 @@ import {ScreenImage, ScreenVideo, scrollRangePx, flingAt, type VideoSpan} from '
 import {typeChunks, typedCount, caretOn, framesBetween, TapRipple, TouchPoint, CursorArrow, fingerPx} from '../runtime/gesture';
 import {ObjectSlot, type ObjectRef} from '../runtime/objectSlot';
 import spec from '../runtime/deviceSpec.json';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 180;
+// the script SOUNDS as it is performed: a key on each chunk of a typed field where gesture.typedCount lands it,
+// a click on each tap and click as the ripple lands (runtime/sound.ts `step`, timed by device_script.prepare)
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', step: 'type'},
+  {kind: 'click', step: 'tap', gain: 0.7},
+] as const;
 
 type Pt = [number, number];
 type Field = {box: [number, number, number, number]; bg: string; ink: string; textFrac: number | null};

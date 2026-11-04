@@ -56,6 +56,16 @@ export const typedCount = (t: number, ta: number, t1: number, chunks: string[], 
   return Math.min(chunks.length, n);
 };
 
+/** The t at which each chunk lands — the instants typedCount steps up on (chunk k at the start of its share). A sound
+ *  keyed to the typing (runtime/sound.ts `step: 'type'`) reads these, so it cannot drift from the picture. */
+export const chunkTimes = (ta: number, t1: number, chunks: string[], seed = 1): number[] => {
+  const w = chunks.map((c, i) =>   // @decor: keystroke rhythm — typedCount's own weights
+    (CJK.test(c) ? spec.minSeconds.typeCjkWord : spec.minSeconds.typeLatinKey) * (0.65 + 0.7 * hash01(seed * 131 + i)));
+  const total = w.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  return w.map((x) => { const at = ta + (t1 - ta) * (acc / Math.max(1e-12, total)); acc += x; return at; });
+};
+
 /** Solid until the last keystroke; then on/off in phases of `caretPhaseFrames` (the TermLog/TermThink
  *  standard, ~0.53 s at 30 fps). Reduced motion: solid. */
 export const caretOn = (framesSinceLastKey: number | null, reduced: boolean): boolean => {

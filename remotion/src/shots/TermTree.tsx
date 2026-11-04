@@ -8,8 +8,13 @@ import {useT, seg, clamp01} from '../runtime/motion';
 import {rows} from '../runtime/rows';
 import {clipCells, fitMono, contentZoneBox, monoCells} from '../runtime/layout';
 import {useDNA, TermFrame} from '../runtime/dna';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 165;
+// a key on each character of the command as TermFrame types it (round(n * u) over [0.05, 0.16], runtime/dna.tsx)
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', type: 'cmd', at: 0.05, to: 0.16, draw: 'round'},
+] as const;
 type Item = {name?: string; note?: string; tag?: string};
 
 // The reveal window: the first row starts here, each row takes TREE_SPAN, and the LAST one lands at

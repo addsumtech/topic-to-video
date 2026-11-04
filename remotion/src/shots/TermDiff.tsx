@@ -21,8 +21,13 @@ import {useT, seg, clamp01, REDUCED_MOTION_T} from '../runtime/motion';
 import {useDNA, TermFrame, termInnerW} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, monoFit, wrapLines} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 160;
+// a key on each character of the command as TermFrame types it (round(n * u) over [0.05, 0.16], runtime/dna.tsx)
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', type: 'cmd', at: 0.05, to: 0.16, draw: 'round'},
+] as const;
 
 export const MAX_DIFF_LINES = 8;
 // Line i slides in over [LINE_START + i * step, … + LINE_DUR]; LINE_STEP is the original gap and only an upper

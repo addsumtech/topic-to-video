@@ -7,8 +7,13 @@ import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
 import {rows} from '../runtime/rows';
 import {useDNA, TermFrame} from '../runtime/dna';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 165;
+// a key on each character of the command as TermFrame types it (round(n * u) over [0.05, 0.16], runtime/dna.tsx)
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', type: 'cmd', at: 0.05, to: 0.16, draw: 'round'},
+] as const;
 type Line = {text?: string; kind?: 'run' | 'ok' | 'info'};
 
 export const TermLog: React.FC<{cmd?: string; lines?: Line[]; framed?: boolean}> = ({

@@ -28,13 +28,17 @@
 
 /** The sounds a picture can make. Each is synthesised by scripts/sfx.py `cue()` (no samples); a kind added here and
  *  not there is a test failure (tests/test_sfx.py). */
+import {chunkTimes, typeChunks} from './gesture';
 export const SOUND_KINDS = ['click', 'tick', 'strike', 'whoosh', 'chime', 'swell', 'key'] as const;
 export type SoundKind = (typeof SOUND_KINDS)[number];
 
 export type SoundDecl = {
   kind: SoundKind;
-  /** a point on the register's clock (0..1), or the NAME of a prop holding one */
-  at: number | string;
+  /** a point on the register's clock (0..1), or the NAME of a prop holding one (not with `step`) */
+  at?: number | string;
+  /** a gesture script in `props.steps` (DeviceDemo, timed by scripts/device_script.prepare): 'type' sounds once per
+   *  chunk of every `type` step, where gesture.typedCount lands it; 'tap' once per `tap` / `click` step, on its `ta` */
+  step?: 'type' | 'tap';
   /** with `each`: the last item's point; items are spread evenly from `at` to `to` */
   to?: number;
   /** a list prop: one sound per item */
@@ -44,6 +48,9 @@ export type SoundDecl = {
   type?: string;
   /** with `type`: the typing curve — 'linear' (default) or 'out-cubic' */
   ease?: 'linear' | 'out-cubic';
+  /** with `type`: how the register turns the curve into a count — 'floor' (default, floor(n * ease(u))) or 'round'
+   *  (Math.round, as TermFrame and TermTable draw it: character i shows half a character earlier, at (i - 0.5) / n) */
+  draw?: 'floor' | 'round';
   /** relative level, (0, 1] — the mix sets the absolute one under the voice */
   gain?: number;
 };
@@ -56,6 +63,18 @@ export const soundTs = (decl: SoundDecl, props: Record<string, unknown> = {}, wh
   if (!(SOUND_KINDS as readonly string[]).includes(decl.kind)) {
     throw new Error(`${where}: unknown sound ${JSON.stringify(decl.kind)} — one of ${SOUND_KINDS.join(', ')}`);
   }
+  if (decl.step !== undefined) {
+    if (decl.step !== 'type' && decl.step !== 'tap') throw new Error(`${where}: ${decl.kind} step is 'type' or 'tap'`);
+    if (decl.type !== undefined || decl.each !== undefined) throw new Error(`${where}: step, type and each are exclusive`);
+    const steps = Array.isArray(props.steps) ? (props.steps as Record<string, unknown>[]) : [];
+    const out: number[] = [];
+    for (const st of steps) {
+      if (!st || !finite(st.ta) || !finite(st.t1)) continue;
+      if (decl.step === 'tap' && (st.tap !== undefined || st.click !== undefined)) out.push(st.ta);
+      if (decl.step === 'type' && st.type !== undefined) out.push(...chunkTimes(st.ta, st.t1, typeChunks(st.type as string | string[])));
+    }
+    return out;
+  }
   const at = typeof decl.at === 'string' ? props[decl.at] : decl.at;
   if (at === undefined || at === null) return [];
   if (!finite(at) || at < 0 || at > 1) throw new Error(`${where}: ${decl.kind} at ${JSON.stringify(at)} — a point on the clock, 0..1`);
@@ -65,9 +84,13 @@ export const soundTs = (decl: SoundDecl, props: Record<string, unknown> = {}, wh
     const to = decl.to ?? at;
     if (!finite(to) || to < at || to > 1) throw new Error(`${where}: ${decl.kind} type ${decl.type}: to must be in [at, 1]`);
     const n = Array.from(text).length;
-    // the i-th character appears when the curve first reaches i/n: invert it
+    // the i-th character appears when the curve first reaches i/n (floor) or (i - 0.5)/n (round): invert it
+    if (decl.draw !== undefined && decl.draw !== 'floor' && decl.draw !== 'round') {
+      throw new Error(`${where}: ${decl.kind} type ${decl.type}: draw is 'floor' or 'round'`);
+    }
     const inv = (q: number) => (decl.ease === 'out-cubic' ? 1 - Math.cbrt(1 - q) : q);
-    return Array.from({length: n}, (_, i) => at + (to - at) * inv((i + 1) / n));
+    const half = decl.draw === 'round' ? 0.5 : 0;
+    return Array.from({length: n}, (_, i) => at + (to - at) * inv((i + 1 - half) / n));
   }
   if (decl.each === undefined) return [at];
   const list = props[decl.each];

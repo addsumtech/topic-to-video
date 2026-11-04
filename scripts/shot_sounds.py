@@ -14,6 +14,7 @@ Three sources, all resolved BEFORE the mix and none of them by rendering:
     python3 scripts/shot_sounds.py <Shot>            # print a register's declaration, parsed
 """
 import json
+import math
 import os
 import re
 import sys
@@ -61,8 +62,22 @@ def frame_at_t(T, dur):
     return int(round(pad + span * x))
 
 
+def first_frame_at_t(T, dur):
+    """The first beat frame whose t has REACHED T, or None when useT already stands past T on the held entry frames.
+    A register that draws a discrete count (a typed character) changes on this frame, not the nearest one: the
+    nearest is a frame early half the time. A character whose T is at or before ENTRY_T is drawn on the hold, before
+    anything moves — it was never typed in view, so it has no key."""
+    if float(T) <= ENTRY_T:
+        return None
+    dur = int(dur)
+    pad = min(SEAM_FRAMES, (max(0, dur - 1)) // 3)
+    span = max(1, dur - 1 - 2 * pad)
+    x = min(1.0, (float(T) - ENTRY_T) / (1.0 - ENTRY_T))
+    return int(math.ceil(pad + span * x - 1e-9))
+
+
 # ── the literal parser ──────────────────────────────────────────────────────────────────────────────────────────
-_KEYS = {"kind", "at", "to", "each", "gain", "type", "ease"}
+_KEYS = {"kind", "at", "to", "each", "gain", "type", "ease", "draw", "step"}
 
 
 def _js_literal_to_json(txt):
@@ -109,11 +124,18 @@ def check_decls(decls, where="SOUNDS"):
             raise SoundDeclError("%s[%d]: each sound is an object" % (where, k))
         extra = set(d) - _KEYS
         if extra:
-            raise SoundDeclError("%s[%d]: unknown key(s) %s — kind, at, to, each, type, ease, gain" % (where, k, sorted(extra)))
+            raise SoundDeclError("%s[%d]: unknown key(s) %s — kind, at, to, each, type, ease, draw, step, gain" % (where, k, sorted(extra)))
         if d.get("kind") not in kinds:
             raise SoundDeclError("%s[%d]: kind %r is not one of %s" % (where, k, d.get("kind"), ", ".join(kinds)))
+        if "step" in d:
+            if d["step"] not in ("type", "tap"):
+                raise SoundDeclError("%s[%d]: step is 'type' or 'tap' (a gesture script's steps)" % (where, k))
+            if "type" in d or "each" in d:
+                raise SoundDeclError("%s[%d]: step, type and each are exclusive" % (where, k))
         at = d.get("at")
-        if isinstance(at, bool) or not (isinstance(at, str) and at or isinstance(at, (int, float)) and 0 <= at <= 1):
+        if "step" in d and at is None:
+            pass
+        elif isinstance(at, bool) or not (isinstance(at, str) and at or isinstance(at, (int, float)) and 0 <= at <= 1):
             raise SoundDeclError("%s[%d]: at is a point on the register's clock (0..1) or the name of a prop holding "
                                  "one, got %r" % (where, k, at))
         if "each" in d and not (isinstance(d["each"], str) and d["each"]):
@@ -124,6 +146,8 @@ def check_decls(decls, where="SOUNDS"):
             raise SoundDeclError("%s[%d]: a sound per character (type) or per item (each), not both" % (where, k))
         if "ease" in d and (d.get("ease") not in ("linear", "out-cubic") or "type" not in d):
             raise SoundDeclError("%s[%d]: ease is 'linear' or 'out-cubic', with type" % (where, k))
+        if "draw" in d and (d.get("draw") not in ("floor", "round") or "type" not in d):
+            raise SoundDeclError("%s[%d]: draw is 'floor' or 'round', with type" % (where, k))
         if "to" in d and (isinstance(d["to"], bool) or not isinstance(d["to"], (int, float)) or not 0 <= d["to"] <= 1):
             raise SoundDeclError("%s[%d]: to is a point on the clock, 0..1" % (where, k))
         g = d.get("gain", 1.0)
@@ -143,8 +167,39 @@ def register_sounds(shot, out_dir=None):
     return []
 
 
+def _hash01(seed):
+    """runtime/motion.ts hash01."""
+    x = math.sin(seed * 127.1 + 311.7) * 43758.5453
+    return x - math.floor(x)
+
+
+def chunk_times(ta, t1, chunks, seed=1):
+    """runtime/gesture.tsx chunkTimes: the t each typed chunk lands at, on typedCount's own weights."""
+    import device_script as ds
+    ms = json.load(open(os.path.join(os.path.dirname(_MOTION_TS), "deviceSpec.json"), encoding="utf-8"))["minSeconds"]
+    w = [(ms["typeCjkWord"] if ds._CJK.search(c) else ms["typeLatinKey"]) * (0.65 + 0.7 * _hash01(seed * 131 + i))
+         for i, c in enumerate(chunks)]
+    total, acc, out = sum(w), 0.0, []
+    for x in w:
+        out.append(ta + (t1 - ta) * (acc / max(1e-12, total)))
+        acc += x
+    return out
+
+
 def decl_ts(decl, props):
     """The t's at which one declaration sounds against these props — runtime/sound.ts soundTs, line for line."""
+    if "step" in decl:
+        import device_script as ds
+        out = []
+        for st in props.get("steps") if isinstance(props.get("steps"), list) else []:
+            if not isinstance(st, dict) or not all(isinstance(st.get(k), (int, float)) and not isinstance(st.get(k), bool)
+                                                   for k in ("ta", "t1")):
+                continue
+            if decl["step"] == "tap" and ("tap" in st or "click" in st):
+                out.append(float(st["ta"]))
+            if decl["step"] == "type" and "type" in st:
+                out.extend(chunk_times(float(st["ta"]), float(st["t1"]), ds.type_chunks(st["type"])))
+        return out
     at = props.get(decl["at"]) if isinstance(decl["at"], str) else decl["at"]
     if at is None:
         return []
@@ -161,7 +216,8 @@ def decl_ts(decl, props):
         n = len(text)                                   # code points, as Array.from counts them
         cubic = decl.get("ease") == "out-cubic"
         inv = (lambda q: 1.0 - (1.0 - q) ** (1.0 / 3.0)) if cubic else (lambda q: q)
-        return [float(at) + (to - float(at)) * inv((i + 1) / float(n)) for i in range(n)]
+        half = 0.5 if decl.get("draw") == "round" else 0.0      # Math.round's count shows character i at (i - 0.5)/n
+        return [float(at) + (to - float(at)) * inv((i + 1 - half) / float(n)) for i in range(n)]
     if "each" not in decl:
         return [float(at)]
     items = props.get(decl["each"])
@@ -190,7 +246,10 @@ def scene_events(scene, fps, out_dir=None):
     out = []
     for d in decls:
         for T in decl_ts(d, props):
-            f = sync_qa.unwarp_frame(frame_at_t(T, dur), scene.get("warp"))
+            f0 = first_frame_at_t(T, dur) if ("type" in d or "step" in d) else frame_at_t(T, dur)
+            if f0 is None:
+                continue
+            f = sync_qa.unwarp_frame(f0, scene.get("warp"))
             out.append({"t": round(f / float(fps), 6), "name": d["kind"], "gain": float(d.get("gain", 1.0)),
                         "src": "shot"})
     return out

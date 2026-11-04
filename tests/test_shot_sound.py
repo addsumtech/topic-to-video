@@ -216,3 +216,117 @@ def test_a_type_declaration_needs_a_string_prop_name_and_a_known_ease():
                 "export const SOUNDS = [{kind: 'key', type: 'x', each: 'y', at: 0.1, to: 0.4}];"):
         with pytest.raises(shot_sounds.SoundDeclError):
             shot_sounds.parse_sounds(bad)
+
+
+def test_a_register_that_rounds_its_typed_count_keys_half_a_character_earlier_in_both_runtimes():
+    """TermFrame and TermTable draw round(n * u) characters, not floor: character i shows when n*u reaches i - 0.5, so
+    a key placed on floor's curve sounded half a character late — 27 ms on TermTable's command. `draw: 'round'`."""
+    decls = [{"kind": "key", "type": "cmd", "at": 0.05, "to": 0.16, "draw": "round"}]
+    cases = [{"cmd": "ls -la"}, {"cmd": "a"}]
+    import json
+    r = _tsprobe.run_ts("import * as S from %s;\n" % _tsprobe.mod("sound"),
+                        "const D = %s; const C = %s;\nout.ts = C.map((p: any) => D.map((d: any) => S.soundTs(d, p)));"
+                        % (json.dumps(decls), json.dumps(cases)))
+    py = [[shot_sounds.decl_ts(d, p) for d in decls] for p in cases]
+    assert np.allclose(r["ts"][0][0], py[0][0]) and np.allclose(r["ts"][1][0], py[1][0])
+    n = 6
+    for i, t in enumerate(py[0][0], 1):
+        u = (t - 0.05) / 0.11
+        assert int(n * u + 0.5 + 1e-9) == i, (i, t)        # Math.round's count on the key's own instant is i
+    assert py[1][0] == [pytest.approx(0.05 + 0.11 * 0.5)], "one character shows half-way along the curve"
+    with pytest.raises(shot_sounds.SoundDeclError):
+        shot_sounds.parse_sounds("export const SOUNDS = [{kind: 'key', type: 'x', at: 0.1, to: 0.4, draw: 'ceil'}];")
+
+
+def test_every_terminal_types_its_command_with_a_key_on_termframes_own_curve():
+    """TermFrame (runtime/dna.tsx) types `cmd` over [0.05, 0.05 + max(0.06, runAt - 0.09)] and draws round(n*u) of it;
+    every register that hands it a command declares the key on exactly that span, read from the code, so a register
+    that changes runAt or TermFrame that changes its curve fails here instead of keying off the picture."""
+    import re
+    dna = open(os.path.join(_SKILL, "remotion", "src", "runtime", "dna.tsx"), encoding="utf-8").read()
+    m = re.search(r"Math\.round\(chars\.length \* clamp01\(\(t - ([\d.]+)\) / Math\.max\(([\d.]+), runAt - ([\d.]+)\)\)\)", dna)
+    assert m, "TermFrame's typing curve changed — re-derive the terminals' key declarations"
+    t0, lo, sub = map(float, m.groups())
+    default_run = float(re.search(r"runAt = ([\d.]+), children\}\) =>", dna).group(1))
+    shots = os.path.join(_SKILL, "remotion", "src", "shots")
+    users = []
+    for f in sorted(os.listdir(shots)):
+        src = open(os.path.join(shots, f), encoding="utf-8").read()
+        tag = re.search(r"<TermFrame\b[^>]*\bcmd=\{cmd\}[^>]*>", src)
+        if not tag:
+            continue
+        users.append(f[:-4])
+        ra = re.search(r"runAt=\{([A-Z_]+|[\d.]+)\}", tag.group(0))
+        run = default_run
+        if ra:
+            v = ra.group(1)
+            run = float(v) if v[0].isdigit() else float(re.search(r"const %s = ([\d.]+)" % v, src).group(1))
+        keys = [d for d in shot_sounds.parse_sounds(src, where=f) if d["kind"] == "key"]
+        assert keys == [{"kind": "key", "type": "cmd", "at": t0, "to": pytest.approx(t0 + max(lo, run - sub)),
+                         "draw": "round"}], (f, keys)
+    assert len(users) >= 7, users
+
+
+def test_a_key_sounds_on_the_first_frame_its_character_is_drawn():
+    """Measured on a rendered TermLog (2026-11-04): every key sounded ONE frame before its character showed. A key's
+    instant T falls between frames, and the register draws the character on the first frame whose t reaches T — the
+    ceiling — while the point mirror rounds to the nearest. A strike drawn on a continuous curve is right on the
+    nearest frame; a discrete count is not. Simulated here on useT's own formula for every register that types."""
+    import math
+    import re
+    dur, fps = 165, 30
+    pad = min(shot_sounds.SEAM_FRAMES, (dur - 1) // 3)
+    span = dur - 1 - 2 * pad
+    t_of = lambda f: shot_sounds.ENTRY_T + (1 - shot_sounds.ENTRY_T) * min(1.0, max(0.0, (f - pad) / span))
+    d = {"kind": "key", "type": "cmd", "at": 0.05, "to": 0.16, "draw": "round"}
+    cmd = "build --pipeline"
+    shots = os.path.join(_SKILL, "remotion", "src", "shots")
+    assert re.search(r"to: 0\.16, draw: 'round'", open(os.path.join(shots, "TermLog.tsx"), encoding="utf-8").read())
+    ev = shot_sounds.scene_events({"shot": "TermLog", "props": {"cmd": cmd}, "durF": dur}, fps)
+    keys = sorted(round(e["t"] * fps) for e in ev if e["name"] == "key")
+    n = len(cmd)
+    count = lambda f: math.floor(n * min(1.0, max(0.0, (t_of(f) - 0.05) / 0.11)) + 0.5)
+    drawn = [next(f for f in range(dur) if count(f) >= i) for i in range(1, n + 1)]
+    typed = [f for f in drawn if f > pad]                 # a character already on the held entry was never typed in view
+    assert drawn[0] <= pad < drawn[1], "the case covers a character drawn on the hold"
+    assert keys == typed, (keys, typed)
+
+
+_DEVICE_STEPS = [{"screen": {"page": "a"}, "t0": 0.06, "ta": 0.06, "t1": 0.12},
+                 {"tap": [0.5, 0.3], "t0": 0.14, "ta": 0.2, "t1": 0.26},
+                 {"type": "hello 世界!", "into": [0.5, 0.4], "t0": 0.3, "ta": 0.32, "t1": 0.55},
+                 {"click": [0.2, 0.2], "t0": 0.6, "ta": 0.64, "t1": 0.7},
+                 {"mark": [0.4, 0.4], "t0": 0.72, "ta": 0.74, "t1": 0.8}]
+
+
+def test_a_device_script_keys_each_chunk_and_clicks_each_tap_in_both_runtimes():
+    """DeviceDemo types a field in CHUNKS on a jittered rhythm (gesture.typedCount: a Latin key or a two-glyph CJK word
+    per commit, each landing at the START of its share of [ta, t1]) and taps on `ta`; the steps' times come from
+    device_script.prepare. `step: 'type'` keys each chunk where typedCount reaches it; `step: 'tap'` clicks each tap and
+    click (a `mark` is a pointer, not a press). The times are checked against the runtime's own typedCount."""
+    import json
+    decls = [{"kind": "key", "step": "type"}, {"kind": "click", "step": "tap"}]
+    props = {"steps": _DEVICE_STEPS}
+    py = [shot_sounds.decl_ts(d, props) for d in decls]
+    r = _tsprobe.run_ts("import * as S from %s;\nimport * as G from %s;\n" % (_tsprobe.mod("sound"), _tsprobe.mod("gesture")),
+                        "const D = %s; const P = %s;\nout.ts = D.map((d: any) => S.soundTs(d, P));\n"
+                        "const st = P.steps[2]; const ch = G.typeChunks(st.type);\n"
+                        "const T = %s;\nout.after = T.map((t: number) => G.typedCount(t + 1e-9, st.ta, st.t1, ch));\n"
+                        "out.before = T.map((t: number) => G.typedCount(t - 1e-9, st.ta, st.t1, ch));\nout.n = ch.length;"
+                        % (json.dumps(decls), json.dumps(props), json.dumps(py[0])))
+    assert np.allclose(r["ts"][0], py[0]) and np.allclose(r["ts"][1], py[1])
+    assert len(py[0]) == r["n"] == 8, "h,e,l,l,o + space + 世界 as one commit + !"
+    # the k-th key is the instant the runtime's count steps from k-1 to k — neither before it nor after
+    assert r["after"] == list(range(1, r["n"] + 1)) and r["before"] == list(range(0, r["n"])), (r["before"], r["after"])
+    assert py[1] == [0.2, 0.64], "taps and clicks press; a mark does not"
+    assert shot_sounds.decl_ts(decls[0], {}) == [] and shot_sounds.decl_ts(decls[1], {"steps": []}) == []
+    for bad in ("export const SOUNDS = [{kind: 'key', step: 'swipe', at: 0}];",
+                "export const SOUNDS = [{kind: 'key', step: 'type', type: 'x', at: 0}];"):
+        with pytest.raises(shot_sounds.SoundDeclError):
+            shot_sounds.parse_sounds(bad)
+
+
+def test_device_demo_declares_its_keys_and_taps():
+    decls = shot_sounds.register_sounds("DeviceDemo")
+    assert {"kind": "key", "step": "type"} in [{k: v for k, v in d.items() if k != "gain"} for d in decls]
+    assert {"kind": "click", "step": "tap"} in [{k: v for k, v in d.items() if k != "gain"} for d in decls]

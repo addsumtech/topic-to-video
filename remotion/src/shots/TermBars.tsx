@@ -37,8 +37,13 @@ import {useDNA, TermFrame, type DesignDNA} from '../runtime/dna';
 import {Bar} from '../runtime/atoms';
 import {CONTENT_TOP, contentBottom, titleStyle, textWidthPx, monoFit} from '../runtime/layout';
 import {parseFigure, figureAt, figureText, figureValue} from '../runtime/figure';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 165;
+// a key on each character of the command as TermFrame types it (round(n * u) over [0.05, 0.11], runtime/dna.tsx)
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', type: 'cmd', at: 0.05, to: 0.11, draw: 'round'},
+] as const;
 
 // no-DNA fallbacks (the un-themed render) — every colour below is `dna?.token ?? *_D0`, never a literal
 // mixed into a themed expression.

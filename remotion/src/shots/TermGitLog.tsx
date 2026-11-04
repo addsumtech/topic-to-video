@@ -15,8 +15,13 @@ import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, REDUCED_MOTION_T} from '../runtime/motion';
 import {useDNA, TermFrame, termInnerW} from '../runtime/dna';
 import {CONTENT_TOP, clipCells, contentBottom, monoCells, monoFit} from '../runtime/layout';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 165;
+// a key on each character of the command as TermFrame types it (round(n * u) over [0.05, 0.16], runtime/dna.tsx)
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', type: 'cmd', at: 0.05, to: 0.16, draw: 'round'},
+] as const;
 
 // This register's own vocabulary — the labels that belong to the FORM the way an axis belongs to a
 // graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
