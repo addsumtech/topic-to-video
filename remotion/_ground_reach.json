@@ -517,10 +517,10 @@
     "dark": 0.0
    },
    "fieldY": {
-    "light": 0.8148466348648071,
-    "dark": 0.002731743035838008
+    "light": 0.8210980296134949,
+    "dark": 0.0024501304142177105
    },
-   "moved": 0.6290788724373576,
+   "moved": 0.6288629460895976,
    "ok": true,
    "why": []
   },
@@ -719,9 +719,9 @@
    },
    "fieldY": {
     "light": 1.0,
-    "dark": 0.0
+    "dark": 0.0003035269910469651
    },
-   "moved": 0.8073059035687168,
+   "moved": 0.8073035307517085,
    "ok": true,
    "why": []
   },
@@ -977,7 +977,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 1.0,
+   "moved": 0.9196991268033409,
    "ok": true,
    "why": []
   },
@@ -1420,9 +1420,9 @@
    },
    "fieldY": {
     "light": 1.0,
-    "dark": 0.0
+    "dark": 0.0009105809731408954
    },
-   "moved": 0.7908622817008353,
+   "moved": 0.7908551632498102,
    "ok": true,
    "why": []
   },
@@ -1434,9 +1434,9 @@
    },
    "fieldY": {
     "light": 1.0,
-    "dark": 0.0
+    "dark": 0.0012141079641878605
    },
-   "moved": 0.7245373006833713,
+   "moved": 0.7248078018223235,
    "ok": true,
    "why": []
   },
@@ -1450,7 +1450,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.8382528409090909,
+   "moved": 0.837163059984814,
    "ok": true,
    "why": []
   },
@@ -1516,7 +1516,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9783219438116932,
+   "moved": 0.9785212604403949,
    "ok": false,
    "why": [
     "ink: hub label was hardcoded near-white (17.41:1 native, 1.07:1 on the light key, render read); repaired 2026-09-21 and awaiting a re-measure by this sweep"
@@ -1836,7 +1836,7 @@
     "light": 1.0,
     "dark": 0.00023899714869912714
    },
-   "moved": 0.9873291571753986,
+   "moved": 0.9873220387243736,
    "ok": true,
    "why": []
   },
@@ -2959,7 +2959,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.981796875,
+   "moved": 0.9816367691723614,
    "ok": true,
    "why": []
   },
@@ -3001,7 +3001,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9992874053030303,
+   "moved": 0.9992478170083523,
    "ok": true,
    "why": []
   },
@@ -3043,7 +3043,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9986285117691723,
+   "moved": 0.9987020690964313,
    "ok": true,
    "why": []
   },
@@ -3320,7 +3320,7 @@
   "CodeRain": "d2f34665567067e5",
   "CollaborativeCursors": "b5e2d3e2cda41040",
   "ComicPanels": "365f83f34f753010",
-  "CommandSummon": "c36c17fa1e748627",
+  "CommandSummon": "b1e3b0c6dac1c42d",
   "CompanionCard": "45ab0d7d9897300a",
   "CompressedSensingEq": "802878ab61ea4364",
   "ConveyorBelt": "08ea60c4e5efb023",
@@ -3331,7 +3331,7 @@
   "DNAHelix": "80b4b5f7d6c4013a",
   "DataMonolith": "bb147b62af6180ff",
   "DataOrrery": "aec7688b0d167c46",
-  "DiffusionDenoise": "169d663ec258eaeb",
+  "DiffusionDenoise": "8fb45ac3cf997718",
   "DollyZoom": "2ac512ff428a4c0d",
   "EdCompare": "9145d230dd0fcfcd",
   "EdStat": "ee74eb35086f6165",
@@ -3369,12 +3369,12 @@
   "Inscription": "cd09356eed3f627c",
   "IsoWorld": "0684ecce41186927",
   "IsometricAssembly": "8b97dcedb60bbc1e",
-  "KSpaceAnatomy": "fef8b824ce0b418d",
-  "KSpaceReal": "44ce6c0bc46b488c",
-  "KSpaceToImage": "66d2f19c8f72c056",
+  "KSpaceAnatomy": "40897ca3a056fe50",
+  "KSpaceReal": "1604bf7b63d6a594",
+  "KSpaceToImage": "8613d38430245cbc",
   "KaleidoMandala": "a5007700a6030ad0",
   "KineticManifesto": "a593a7583998a073",
-  "KnowledgeGraph": "71879c2bd64e78da",
+  "KnowledgeGraph": "6e3fc81a5b172002",
   "LarmorPrecession": "a0cc9f00658d9771",
   "LastLeg": "2d843f66b60da817",
   "LightTrails": "4382f39f2eefa907",
@@ -3389,7 +3389,7 @@
   "MagazineSpread": "c582d194e891af09",
   "MagnetizationTip": "923fd073247fe559",
   "MapPlate": "c82844a173664826",
-  "MapRoutes": "a64cf68909e0f46f",
+  "MapRoutes": "1ad8bdde92dbdbf5",
   "MaterialHero": "d4c597b099990c3a",
   "MetaballMerge": "d11cf38b04dc313c",
   "MoleculeBallStick": "7dc6073c0e546e73",
@@ -3453,15 +3453,15 @@
   "TechnicalPlate": "bbc8c2d78367e982",
   "TemporalAccelerate": "70e86834c160e9b6",
   "TensionScale": "8be9f1305e72c8ef",
-  "TermBars": "41f4f3a558680ca7",
-  "TermCounter": "f35254d4ae9b6cea",
-  "TermDiff": "ce98b489efd86c2b",
-  "TermGitLog": "2e87c4b3eb58f94b",
-  "TermLog": "bbfab5d737973c46",
+  "TermBars": "aeb3577b9381efc4",
+  "TermCounter": "0d1f202372b78c70",
+  "TermDiff": "848a3eadbca2050f",
+  "TermGitLog": "c5ed0c0db5952153",
+  "TermLog": "8a964ed61967c6ac",
   "TermSpace": "e4b206aecc5590d2",
-  "TermTable": "d8e534dc57589c6f",
-  "TermThink": "7d6e235fa39d9e99",
-  "TermTree": "889b661f334b98a3",
+  "TermTable": "2a19b89273d52df3",
+  "TermThink": "5689f72553f760ce",
+  "TermTree": "6045a67c570f88fa",
   "TerrainFly": "1f53ae7c0bd52041",
   "TimelineTravel": "0b34ce765da5c2c1",
   "UndersampledKspace": "b75c553169687e15",
@@ -3474,7 +3474,7 @@
   "WireGlobe": "c0e34d2deca639f1",
   "WordTunnel": "ed13f47583ec5ed9",
   "WorksThrough": "9560991e0676b81d",
-  "DeviceDemo": "9cc7a03fca2608e5",
+  "DeviceDemo": "8b5278f3c2e1515d",
   "DeviceHero": "14b46a315ced4cd5",
   "ObjectStage": "1fdba661d74df6d9",
   "ObjectCompare": "378a56966c0c090c",
@@ -3488,7 +3488,7 @@
   "OrbitClockGain": "f97888ccac447448",
   "ReplyWindow": "7153b4d87253e60c",
   "WeightedWheel": "6e4a1dce7cf6539d",
-  "ForkingAnswers": "c2683e936b2bfca5",
+  "ForkingAnswers": "ecaf06d5feec6b44",
   "HeadlineReveal": "cbfecd2e6146298a",
   "WordRoll": "fc5bbeb2fd32bc47",
   "TypeOnPath": "51cfac636a5a2068",
@@ -3504,13 +3504,13 @@
   "LitMedium": "179ca0c8981b45b2",
   "LandscapeWell": "3acd2a353cdc36c2",
   "MagicMoveType": "20d05562c07d01e0",
-  "AuroraCurtain": "dfa445623cf1d208",
-  "LightShafts": "5cf0e74b719e45e9",
+  "AuroraCurtain": "44102c85cd396b21",
+  "LightShafts": "7716c00218013f07",
   "NebulaField": "04e7303bdc781795",
   "Rearrange": "47118a3a2bac8483",
   "WordDust": "cb9212b0aa33306c",
   "ColdOpen": "bc751b6298ab1540",
-  "Callback": "fe763c6ab112026f",
+  "Callback": "9cd17722ecb65d29",
   "LivingMap": "3630d554ee90b127",
   "PhotoToDiagram": "51687456d2cd4789",
   "FilmScreen": "5db3130ec69a8811"
