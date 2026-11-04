@@ -50,6 +50,28 @@ _OVERFLOW_JS = (
     "var wx=0,wy=0,wsum=0;"
     "var myst=0,mystEx='';"
     "var n=document.querySelectorAll('.stage *,.split *');"
+    # WHAT PAINTS. A rect is not ink: geometry inside a <clipPath>/<mask>/<defs> is a region, an element under
+    # `visibility:hidden` or below an opacity-0 ANCESTOR draws nothing (its own opacity is 1), and a clipped SVG
+    # element reports its UNclipped geometry. A component's clipPath sized past its card and a collapsed tear
+    # piece (a QR film, 2026-11-04) once read as content reaching the caption band.
+    "var PSEEN=new Map(),NOPAINT={defs:1,clippath:1,mask:1,symbol:1,pattern:1,marker:1,"
+    "lineargradient:1,radialgradient:1,filter:1};"
+    "function chain(el){if(!el||el===document.body||el===document.documentElement)return true;"
+    "if(PSEEN.has(el))return PSEEN.get(el);var c=getComputedStyle(el);"
+    "var v=!NOPAINT[el.tagName.toLowerCase()]&&c.display!=='none'&&parseFloat(c.opacity)>=0.05&&chain(el.parentElement);"
+    "PSEEN.set(el,v);return v;}"
+    "function clipTo(el,r){var L=r.left,T=r.top,R=r.right,B=r.bottom;"
+    "for(var a=el;a&&a.ownerSVGElement!==undefined&&a.tagName.toLowerCase()!=='foreignobject';a=a.parentElement){"
+    "var cp=getComputedStyle(a).clipPath,m=/url\\(\\s*[\"']?#([^\"')]+)/.exec(cp||'');"
+    "if(!m)continue;var k=document.getElementById(m[1]);"
+    "if(!k||!k.children.length||k.getAttribute('clipPathUnits')==='objectBoundingBox')continue;"
+    "var M=a.getScreenCTM();if(!M)continue;var kl=1e9,kt=1e9,kr=-1e9,kb=-1e9;"
+    "for(var j=0;j<k.children.length;j++){var q=k.children[j];if(!q.getBBox)continue;var bb=q.getBBox();"
+    "var pts=[[bb.x,bb.y],[bb.x+bb.width,bb.y],[bb.x,bb.y+bb.height],[bb.x+bb.width,bb.y+bb.height]];"
+    "for(var pp=0;pp<4;pp++){var X=M.a*pts[pp][0]+M.c*pts[pp][1]+M.e,Y=M.b*pts[pp][0]+M.d*pts[pp][1]+M.f;"
+    "if(X<kl)kl=X;if(X>kr)kr=X;if(Y<kt)kt=Y;if(Y>kb)kb=Y;}}"
+    "if(kr<kl)continue;L=Math.max(L,kl);T=Math.max(T,kt);R=Math.min(R,kr);B=Math.min(B,kb);}"
+    "return {left:L,top:T,right:R,bottom:B,width:Math.max(0,R-L),height:Math.max(0,B-T)};}"
     "var FILL='.meter,.segbar,.bar,.fill,.gauge,.track,.waffle,.isotype,.bullet,.spark';"
     "for(var i=0;i<n.length;i++){var e=n[i],r=e.getBoundingClientRect();"
     "if(r.width<1||r.height<1)continue;"
@@ -64,7 +86,7 @@ _OVERFLOW_JS = (
 # content bbox already; leaving it in the overflow measure was half a fix.)
     "if(e.tagName.toLowerCase()!=='svg'){"
     "var o=Math.max(r.right-W,r.bottom-H,-r.left,-r.top);if(o>worst)worst=o;}"
-    "var cs=getComputedStyle(e);if(cs.opacity!=='0'&&cs.display!=='none'){"
+    "var cs=getComputedStyle(e);if(cs.visibility!=='hidden'&&chain(e)&&(r=clipTo(e,r)).width>=1&&r.height>=1){"
     # An <svg> CONTAINER's box is the drawing surface it reserves, not ink. A page that overlays one
     # full-canvas transparent SVG and positions its strokes inside (a normal, and for hand-drawn
     # registers the natural, technique) would otherwise report content spanning y=0..H — tripping the
