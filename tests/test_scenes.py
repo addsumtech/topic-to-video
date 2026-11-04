@@ -699,8 +699,8 @@ def test_living_backdrop_classes_are_seekable():
     assert ".bg-live" in js and ".bg-drift" in js and "[data-ambient]" in js   # recognised as ambient
     import re as _re
     # whitespace-tolerant: a zero-behavior reformat must not break these
-    assert _re.search(r"s\.ambient\s*\?\s*m\s*:", js)     # ambient EXCLUDED from the reveal-stagger envelope
-    assert _re.search(r"-\s*\(\s*p\s*\*\s*s\.dur\s*\)", js)   # ambient is PROGRESS-driven (0->1 over the scene)
+    assert _re.search(r"s\.ambient\s*(\?\s*m\s*:|\)\s*return\s+m\b)", js)   # ambient EXCLUDED from the reveal-stagger envelope
+    assert _re.search(r"-\s*\(\s*p\s*\*\s*s\.durs?(\[\s*i\s*\])?\s*\)", js)   # ambient is PROGRESS-driven (0->1 over the scene)
 
 def test_reduced_motion_disables_living_backdrop():
     skill = os.path.dirname(os.path.dirname(os.path.abspath(scenes.__file__)))
