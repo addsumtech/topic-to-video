@@ -27,6 +27,8 @@ def _run(tmp_path, scene, frames, w=160, h=90, engine="eevee", mode="rgba", anch
            "--anchors", anchors, "--objects", objects]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
+    meta = json.load(open(out / "run.json"))
+    bp.assemble(str(out), meta["frames"], layout=meta["layout"])     # the runner leaves full frames + patches
     return out
 
 

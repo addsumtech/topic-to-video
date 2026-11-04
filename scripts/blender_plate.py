@@ -70,7 +70,7 @@ import json  # noqa: E402
 
 # What a built plate CONTAINS. Raise it whenever the build writes something new a reader depends on: a plate made by an
 # older build is then stale, not "fresh" without it (format 2 kept the ID pass, which plate_qa now reads).
-PLATE_FORMAT = 2
+PLATE_FORMAT = 3
 BLENDER_WHY = ("real-world", "material", "physics", "optics", "space")
 MODES = ("rgba", "env")
 ENGINES = ("eevee", "cycles")
@@ -172,6 +172,23 @@ def _file_sha(p):
     return h.hexdigest()
 
 
+def _code_sha(p):
+    """A .py file's CODE, not its text: comments, docstrings and layout do not change a plate, so editing them must
+    not rebuild every plate (a kit docstring edit staled both acceptance plates, 2026-11-04 — 38 GPU minutes).
+    A file that does not parse is hashed as bytes (it fails in Blender, loudly, anyway)."""
+    import ast
+    try:
+        tree = ast.parse(open(p, encoding="utf-8").read())
+    except (SyntaxError, UnicodeDecodeError, ValueError):
+        return _file_sha(p)
+    for node in ast.walk(tree):
+        body = getattr(node, "body", None)
+        if isinstance(body, list) and body and isinstance(body[0], ast.Expr) \
+                and isinstance(getattr(body[0], "value", None), ast.Constant) and isinstance(body[0].value.value, str):
+            node.body = body[1:] or [ast.Pass()]
+    return hashlib.sha256(ast.dump(tree, include_attributes=False).encode("utf-8")).hexdigest()
+
+
 def kit_files():
     """Every Blender-side file a plate is drawn by (blender/**/*.py), relative to the skill, sorted."""
     out = []
@@ -187,16 +204,16 @@ def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version):
         for p in parts:
             h_.update(str(p).encode("utf-8"))
             h_.update(b"\0")
-    put("scene", spec["scene"], _file_sha(os.path.join(out_dir, spec["scene"])))
+    put("scene", spec["scene"], _code_sha(os.path.join(out_dir, spec["scene"])))
     # a scene may import helpers beside it (two plates sharing one satellite): every .py under the film's blender/
     bdir = os.path.join(out_dir, "blender")
     for d, _n, fs in sorted(os.walk(bdir)):
         for f in sorted(fs):
             if f.endswith(".py"):
                 p = os.path.join(d, f)
-                put("scene-dir", os.path.relpath(p, bdir), _file_sha(p))
+                put("scene-dir", os.path.relpath(p, bdir), _code_sha(p))
     for rel in kit_files():
-        put("kit", rel, _file_sha(os.path.join(SKILL_ROOT, rel)))
+        put("kit", rel, _code_sha(os.path.join(SKILL_ROOT, rel)))
     for a in spec["assets"]:
         put("asset", a, _file_sha(os.path.join(out_dir, a)))
     for k in sorted(cue_t):
@@ -231,7 +248,7 @@ def current_key(out_dir, board, i):
 
 
 def plate_state(out_dir, board, i):
-    """'missing' | 'stale' | 'fresh': is slide i's built plate the one its board, scene and voice ask for now?"""
+    """'missing' | 'stale' | 'fresh' | 'preview' | 'layout': is slide i's built plate the one its board, scene and voice ask for now?"""
     spec = spec_of(board["slides"][i], out_dir)
     pj = os.path.join(plate_dir(out_dir, spec["id"]), "plate.json")
     try:
@@ -240,6 +257,8 @@ def plate_state(out_dir, board, i):
         return "missing"
     if built.get("preview"):
         return "preview"
+    if built.get("layout"):
+        return "layout"
     return "fresh" if built.get("key") == current_key(out_dir, board, i) else "stale"
 
 
@@ -302,6 +321,9 @@ def validate_blender(board, out_dir):
         elif st == "preview":
             errors.append("blender (beat %s): plate %r is a PREVIEW (half size, %d samples) — build it full before delivery: "
                           "scripts/blender_plate.py %s --only %s" % (slide.get("index"), spec["id"], PREVIEW_SAMPLES, out_dir, spec["id"]))
+        elif st == "layout":
+            errors.append("blender (beat %s): plate %r is a LAYOUT pass (the objects' silhouettes, no picture) — build it "
+                          "for delivery: scripts/blender_plate.py %s --only %s" % (slide.get("index"), spec["id"], out_dir, spec["id"]))
         elif st == "stale":
             errors.append("blender (beat %s): plate %r is stale (its scene, kit, assets, cue times or beat length changed) — "
                           "rebuild it: scripts/blender_plate.py %s --only %s" % (slide.get("index"), spec["id"], out_dir, spec["id"]))
@@ -332,9 +354,48 @@ class OverBudget(PlateError):
 PREVIEW_FACTOR = 0.31      # measured: two glass previews (Cycles) ran 0.31 and 0.21 of the full-build model; the slower one
 
 
-def estimate_seconds(spec, frames, preview=False):
+def estimate_seconds(spec, frames, preview=False, layout=False):
+    """The cost of rendering every frame whole — an upper bound: frames that did not change are not rendered."""
+    if layout:
+        return START_SECONDS + frames * ID_SEC_PER_FRAME
     per = SEC_PER_FRAME[spec["engine"]] + (ID_SEC_PER_FRAME if spec.get("objects") else 0.0)
     return START_SECONDS + frames * per * (PREVIEW_FACTOR if preview else 1.0)
+
+
+def assemble(work, frames_meta, layout=False):
+    """rgba/ and ids/ for EVERY frame, from the runner's full frames and patches (run.json `frames`): a copy is the
+    last frame again, a patch is pasted over it. A layout pass's picture is its ID pass at full size."""
+    from PIL import Image
+    for d, pd_, k in (("rgba", "patch", 1), ("ids", "idpatch", 2)):
+        if not os.path.isdir(os.path.join(work, d)) or (d == "rgba" and layout):
+            continue
+        for i, fm in enumerate(frames_meta, 1):
+            dest = os.path.join(work, d, "%04d.png" % i)
+            kind = fm["kind"]
+            if kind == "full":
+                if not os.path.isfile(dest):
+                    if d == "ids" and not os.listdir(os.path.join(work, "ids")):
+                        break                                # a plate that names no objects has no ID pass
+                    raise PlateError("the runner left no %s frame %04d (a full frame)" % (d, i))
+                continue
+            if i == 1:
+                raise PlateError("frame 1 is a %s, but there is nothing before it" % kind)
+            before = os.path.join(work, d, "%04d.png" % (i - 1))
+            if kind == "copy":
+                shutil.copyfile(before, dest)
+                continue
+            x0, y0, x1, y1 = [v // k for v in fm["rect"]]
+            with Image.open(before) as b, Image.open(os.path.join(work, pd_, "%04d.png" % i)) as p:
+                if p.size != (x1 - x0, y1 - y0):
+                    raise PlateError("patch %s/%04d is %dx%d, its rectangle %dx%d" % (pd_, i, p.size[0], p.size[1], x1 - x0, y1 - y0))
+                im = b.convert("RGBA")
+                im.paste(p.convert("RGBA"), (x0, y0))
+                im.save(dest)
+    if layout:
+        for i in range(1, len(frames_meta) + 1):
+            with Image.open(os.path.join(work, "ids", "%04d.png" % i)) as im:
+                im.convert("RGBA").resize((im.width * 2, im.height * 2), Image.NEAREST).save(
+                    os.path.join(work, "rgba", "%04d.png" % i))
 
 
 def boxes_from_ids(ids_dir, colors, frames, scale=2):
@@ -412,7 +473,7 @@ def write_plates_ts(out_dir):
     return path
 
 
-def build(out_dir, only=None, yes=False, still=None, preview=False):
+def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False, ids=None):
     """Build every stale plate on the board (or the one named `only`); a report per plate. Over the film's budget
     (meta.blender_budget_min, default 60) nothing is built unless `yes` — the agent asks the user first."""
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
@@ -424,13 +485,16 @@ def build(out_dir, only=None, yes=False, still=None, preview=False):
     version = _blender_version_str(meta, binary)
     todo, reports = [], []
     for i, slide, spec in _plates_on(board, out_dir):
-        if only and spec["id"] != only:
+        if (only and spec["id"] != only) or (ids is not None and spec["id"] not in ids):
             continue
         frames, fps, w, h = _frame_facts(out_dir, board, i)
         if preview:
             w, h = max(2, w // 2 // 2 * 2), max(2, h // 2 // 2 * 2)
         cue_t = cue_times(out_dir, slide.get("index", i + 1), spec["cues"])
-        key = plate_key(spec, out_dir, frames, fps, w, h, cue_t, version) + ("-preview" if preview else "")
+        if layout and not spec["objects"]:
+            continue                                      # nothing for a layout to judge: no named objects
+        key = plate_key(spec, out_dir, frames, fps, w, h, cue_t, version) + ("-preview" if preview else "") \
+            + ("-layout" if layout else "")
         pj = os.path.join(plate_dir(out_dir, spec["id"]), "plate.json")
         try:
             fresh = json.load(open(pj, encoding="utf-8")).get("key") == key
@@ -440,7 +504,7 @@ def build(out_dir, only=None, yes=False, still=None, preview=False):
             reports.append({"id": spec["id"], "state": "fresh"})
             continue
         todo.append((slide, spec, frames, fps, w, h, cue_t, key))
-    est = sum(estimate_seconds(t[1], 1 if still else t[2], preview) for t in todo)
+    est = sum(estimate_seconds(t[1], 1 if still else t[2], preview, layout) for t in todo)
     budget = float(meta.get("blender_budget_min", DEFAULT_BUDGET_MIN)) * 60
     if todo and est > budget and not yes:
         raise OverBudget("%d plate(s) to build, estimated %.0f min — over this film's budget of %.0f min "
@@ -459,7 +523,7 @@ def build(out_dir, only=None, yes=False, still=None, preview=False):
                "--fps", str(fps), "--w", str(w), "--h", str(h), "--engine", spec["engine"], "--mode", spec["mode"],
                "--cues", json.dumps(cue_t, ensure_ascii=False), "--anchors", ",".join(spec["anchors"]),
                "--objects", ",".join(spec["objects"]), "--samples", str(PREVIEW_SAMPLES if preview else FULL_SAMPLES)] \
-            + (["--still", str(still)] if still else [])
+            + (["--still", str(still)] if still else []) + (["--layout"] if layout else [])
         import time as _time
         t0 = _time.time()
         log = os.path.join(work, "runner.log")
@@ -471,6 +535,7 @@ def build(out_dir, only=None, yes=False, still=None, preview=False):
             reports.append({"id": spec["id"], "state": "still", "path": os.path.join(work, "still_%04d.png" % still)})
             continue
         run = json.load(open(os.path.join(work, "run.json"), encoding="utf-8"))
+        assemble(work, run.get("frames") or [{"kind": "full"}] * frames, layout)
         _encode(work, os.path.join(pd, "plate.webm"), fps, spec["mode"])
         boxes = boxes_from_ids(os.path.join(work, "ids"), run.get("ids") or {}, frames) if spec["objects"] else {}
         with open(os.path.join(pd, "boxes.json"), "w", encoding="utf-8") as fh:
@@ -485,13 +550,62 @@ def build(out_dir, only=None, yes=False, still=None, preview=False):
         with open(os.path.join(pd, "plate.json"), "w", encoding="utf-8") as fh:
             json.dump({"key": key, "frames": frames, "fps": fps, "w": w, "h": h, "mode": spec["mode"],
                        "engine": spec["engine"], "why": spec["why"], "blender": version, "seconds": secs, "ids": run.get("ids") or {},
-                       "estimate": round(estimate_seconds(spec, frames, preview), 1), "cues": cue_t, "assets": spec["assets"], "preview": bool(preview)},
+                       "estimate": round(estimate_seconds(spec, frames, preview, layout), 1), "cues": cue_t, "assets": spec["assets"], "preview": bool(preview),
+                       "layout": bool(layout), "reuse": run.get("reuse"), "reuse_off": run.get("reuse_off")},
                       fh, ensure_ascii=False, indent=1)
         shutil.rmtree(work, ignore_errors=True)
-        reports.append({"id": spec["id"], "state": "built", "seconds": secs, "estimate": round(estimate_seconds(spec, frames, preview), 1)})
+        reports.append({"id": spec["id"], "state": "built", "seconds": secs, "estimate": round(estimate_seconds(spec, frames, preview, layout), 1),
+                        "reuse": run.get("reuse"), "reuse_off": run.get("reuse_off")})
     if not still:
         write_plates_ts(out_dir)
     return reports
+
+
+# ── layout first ──────────────────────────────────────────────────────────────────────────────────────────────
+# THE EXPENSIVE PASS RUNS ONCE. The first acceptance plates were built whole three times (106 GPU minutes for 17 s of
+# film), and the last rebuild only moved the Earth because plate_qa — which needs the plate — found type over it. The
+# layout pass (the ID pass and the anchors, no picture: 0.72 s a frame) is enough for plate_qa, so a full build first
+# builds the layout of every plate whose layout has not passed, judges the film, and renders pictures only when the
+# layout is clean. A passed layout is recorded against the plate's key (layout.json): the same inputs never pay twice.
+LAYOUT_RECORD = "layout.json"
+
+
+def layout_passed(out_dir, board, i):
+    spec = spec_of(board["slides"][i], out_dir)
+    try:
+        rec = json.load(open(os.path.join(plate_dir(out_dir, spec["id"]), LAYOUT_RECORD), encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return rec.get("key") == current_key(out_dir, board, i)
+
+
+def layout_gate(out_dir, only=None, yes=False):
+    """(ok, lines): build the layout pass of every stale plate whose layout has not passed, and judge the film with
+    plate_qa. Nothing expensive has been rendered when this says no."""
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    need = {}
+    for i, _s, spec in _plates_on(board, out_dir):
+        if (only and spec["id"] != only) or not spec["objects"]:
+            continue
+        if plate_state(out_dir, board, i) == "fresh" or layout_passed(out_dir, board, i):
+            continue
+        need[spec["id"]] = i
+    if not need:
+        return True, []
+    t0 = __import__("time").time()
+    build(out_dir, yes=yes, layout=True, ids=set(need))
+    import plate_qa
+    r = plate_qa.scan_film(out_dir)
+    word, code = plate_qa.verdict(r)
+    lines = ["[blender_plate] layout pass of %s: %.0f s, plate_qa %s" % (", ".join(sorted(need)), __import__("time").time() - t0, word)]
+    lines += ["[plate_qa] ERROR " + e for e in r["errors"]] + ["[plate_qa] NOT MEASURED: " + u for u in r["unmeasured"]]
+    if code != 0:
+        return False, lines + ["[blender_plate] NOT BUILT — fix the layout (move the type, or stage.place the object) "
+                               "and re-run; no picture was rendered. --skip-layout builds anyway."]
+    for pid, i in need.items():
+        with open(os.path.join(plate_dir(out_dir, pid), LAYOUT_RECORD), "w", encoding="utf-8") as fh:
+            json.dump({"key": current_key(out_dir, board, i), "plate_qa": word, "warns": r["warns"]}, fh, ensure_ascii=False)
+    return True, lines + ["[plate_qa] WARN  " + w for w in r["warns"]]
 
 
 def main(argv=None):
@@ -501,11 +615,20 @@ def main(argv=None):
     ap.add_argument("--only", help="build only this plate id")
     ap.add_argument("--still", type=int, help="render one frame of each plate to look at (no plate is written)")
     ap.add_argument("--yes", action="store_true", help="build although the estimate is over meta.blender_budget_min")
+    ap.add_argument("--layout", action="store_true", help="the ID pass and anchors only (no picture), to judge "
+                    "the layout with plate_qa; validate refuses it for delivery")
+    ap.add_argument("--skip-layout", action="store_true", help="build pictures without first passing the layout")
     ap.add_argument("--preview", action="store_true", help="half size, %d samples: to look at motion and layout; "
                     "validate refuses it for delivery" % PREVIEW_SAMPLES)
     a = ap.parse_args(argv)
     try:
-        reps = build(a.out_dir, only=a.only, yes=a.yes, still=a.still, preview=a.preview)
+        if not (a.still or a.preview or a.layout or a.skip_layout):
+            ok, lines = layout_gate(a.out_dir, only=a.only, yes=a.yes)
+            for ln in lines:
+                print(ln)
+            if not ok:
+                return 4
+        reps = build(a.out_dir, only=a.only, yes=a.yes, still=a.still, preview=a.preview, layout=a.layout)
     except BlenderMissing as e:
         print("[blender_plate] NOT BUILT — %s" % e)
         return 2
@@ -517,7 +640,10 @@ def main(argv=None):
         return 1
     for r in reps:
         if r["state"] == "built":
-            print("[blender_plate] %s: built in %.0f s (estimated %.0f s)" % (r["id"], r["seconds"], r["estimate"]))
+            ru = r.get("reuse") or {}
+            print("[blender_plate] %s: built in %.0f s (estimated %.0f s rendering every frame whole; %d whole, "
+                  "%d copied, %d patched%s)" % (r["id"], r["seconds"], r["estimate"], ru.get("full", 0), ru.get("copy", 0),
+                                                 ru.get("patch", 0), "; reuse off: %s" % r["reuse_off"] if r.get("reuse_off") else ""))
         elif r["state"] == "still":
             print("[blender_plate] %s: still -> %s" % (r["id"], r["path"]))
         else:

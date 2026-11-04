@@ -85,7 +85,7 @@ def _film_with_label(tmp_path, at):
     b = json.load(open(film + "/storyboard.json"))
     b["slides"][0].update(duration=0.6, shot_props={"label": "LABEL TEXT", "at": at})
     json.dump(b, open(film + "/storyboard.json", "w"), ensure_ascii=False)
-    assert bp.main([film, "--yes"]) == 0
+    assert bp.main([film, "--yes", "--skip-layout"]) == 0     # a picture plate whatever its layout: plate_qa is what is tested
     return film
 
 
@@ -117,3 +117,23 @@ def test_type_of_another_beat_is_not_judged_against_a_plate(tmp_path):
         "font: '700 40px sans-serif', color: '#fff'}}>{label}</div></AbsoluteFill>);\n")
     r = plate_qa.scan_film(film, every=1)
     assert plate_qa.verdict(r) == ("ok", 0), r
+
+
+@needs_both
+def test_layout_gate_renders_no_picture_until_the_layout_passes(tmp_path):
+    # the expensive pass runs once: type over an object is found on the ID pass alone (exit 4, a LAYOUT plate, no
+    # picture rendered), and a clean layout is recorded so the picture build that follows does not judge it again
+    on = _film_with_label(tmp_path / "on", [880, 500])
+    import shutil as _sh
+    _sh.rmtree(bp.plate_dir(on, "sat"))
+    assert bp.main([on, "--yes"]) == 4
+    pj = json.load(open(os.path.join(bp.plate_dir(on, "sat"), "plate.json")))
+    assert pj["layout"] is True and not os.path.exists(os.path.join(bp.plate_dir(on, "sat"), bp.LAYOUT_RECORD))
+    off = _film_with_label(tmp_path / "off", [40, 40])
+    _sh.rmtree(bp.plate_dir(off, "sat"))
+    assert bp.main([off, "--yes"]) == 0
+    pd = bp.plate_dir(off, "sat")
+    assert json.load(open(os.path.join(pd, "plate.json")))["layout"] is False
+    assert os.path.exists(os.path.join(pd, bp.LAYOUT_RECORD))
+    board = json.load(open(off + "/storyboard.json"))
+    assert bp.layout_passed(off, board, 0) and bp.plate_state(off, board, 0) == "fresh"

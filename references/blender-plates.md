@@ -104,9 +104,15 @@ and rounds it. Its cues come from the word times, so it is on the voice already.
 
 ## Commands
 
-- `python3 scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--preview] [--yes]` builds every stale plate.
+- `python3 scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--layout] [--skip-layout] [--preview] [--yes]`
+  builds every stale plate, LAYOUT FIRST: the ID pass and anchors of every plate whose layout has not passed, the
+  film judged by plate_qa, and pictures only once that is clean. A passed layout is recorded (`layout.json`) against
+  the plate's key, so the same inputs are never judged twice.
   - Exit codes: `0` built or fresh · `1` failed (the Blender log tail is printed) · `2` Blender missing or older
-    than 5.0 · `3` over budget.
+    than 5.0 · `3` over budget · `4` the layout failed plate_qa (move the type or `stage.place` the object; no
+    picture was rendered).
+  - `--layout` builds only the layout pass (a plate of the objects' silhouettes; validate refuses it for delivery).
+    `--skip-layout` builds pictures without it.
   - `--still F` renders one frame of each plate to look at, and writes no plate.
 - `--preview` builds every stale plate at half the frame each way and 16 samples, to check motion and layout
   cheaply. validate refuses a preview plate for delivery. A full build replaces it.
@@ -114,6 +120,29 @@ and rounds it. Its cues come from the word times, so it is on the voice already.
   sit on a plate object (an ERROR at 15% of a line's box on 2 sampled frames).
 - `validate.py` refuses a beat whose plate is missing or stale. The key covers its scene, the kit, its assets, its
   cue times, its frame count and size, its engine and mode, and the Blender version.
+
+## Never pay twice
+
+The first two acceptance films (17 s and 6.6 s) cost about 135 GPU minutes: the GPS plates were built whole three
+times and the glass plate twice, the last GPS rebuild only to move the Earth out from under a title. Building a plate
+whole is the one expensive step, so it happens ONCE, after everything cheap has said yes:
+
+1. **Look at one still** (`--still F`, the beat's settled frame): composition, materials, light.
+2. **Pass the layout** (automatic in a plain build): the ID pass alone, a fraction of a picture frame, is what
+   plate_qa judges type against.
+3. **Build the pictures**, once.
+
+Inside a build, nothing that did not change is rendered (blender/kit/reuse.py):
+- `copy`: nothing the picture depends on changed since the last frame;
+- `patch`: only some objects moved under a still camera, lights and world, so only their rectangle (then and now, with a
+  margin) is rendered;
+- `full`: anything else.
+
+The signature reads every object's matrix, visibility and modifiers, every node value, every light and camera setting.
+The first reused frame of each run, and every 24th after it, is rendered whole as well and compared. A mismatch
+turns reuse off for the plate and re-renders the frames since the last good check, so a frame is never quietly
+wrong. A scene whose pose changes something else (a mesh's vertices) sets `k.reuse = False`. Keyframes, drivers, a
+Scene Time node or an image sequence turn reuse off on their own. run.json and plate.json record what each frame was.
 
 ## Costs (measured on an Apple M4 with a 10-core GPU, 2026-11-04)
 

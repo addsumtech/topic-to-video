@@ -200,8 +200,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     the Film and ERRORS past 1.25x — a film shipped its hero UI at 2.9x with every type gate green.
   - **Blender plates** (`slide.blender`, `references/blender-plates.md` — read it before routing a beat there): a 3D
     render under a workshop shot, ONLY where 3D physicality is the content (`why`: real-world, material, physics,
-    optics, space), compared against a register's still first. `scripts/blender_plate.py <out_dir>` builds it (over
-    `meta.blender_budget_min` it exits 3: ask the user); `scripts/plate_qa.py <out_dir>` fails type on a plate object.
+    optics, space), compared against a register's still first. `scripts/blender_plate.py <out_dir>` builds it LAYOUT FIRST:
+    the ID pass alone, judged by `scripts/plate_qa.py`, and pictures only once the layout is clean (exit 4 = move the
+    type or the object; nothing expensive was rendered). Look at ONE `--still F` before the build; never rebuild a
+    whole plate to check a layout or a look. Over `meta.blender_budget_min` it exits 3: ask the user.
   - **Authoring.** Each scene gets `shot_fit` `{ideal, form, verdict: fit|adapt|build, why, ref?, shares?}` — the ideal
     picture FIRST (no register named), then the route; `shares` on every as-is beat — plus `shot` (a register id or a
     workshop shot) + `shot_props` + `shot_adaptation` `{changes: [{aspect: layout|encoding|structure, what, why}], kept,

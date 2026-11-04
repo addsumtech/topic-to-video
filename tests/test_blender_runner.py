@@ -26,6 +26,9 @@ def run_fixture(tmp_path, frames=3, w=160, h=90, anchors="top,far", objects="cub
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     if check:
         assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
+        if (out / "run.json").exists():          # a still writes no run.json and has no frames to assemble
+            run = json.load(open(out / "run.json"))
+            bp.assemble(str(out), run["frames"], layout=run.get("layout", False))
     return out if check else r
 
 
@@ -66,9 +69,11 @@ def test_portrait_frame_size(tmp_path):
 @needs_blender
 def test_resume_skips_done_frames(tmp_path):
     out = run_fixture(tmp_path, frames=2)
-    before = {f: os.path.getmtime(out / "rgba" / f) for f in ("0001.png", "0002.png")}
+    kinds = [fm["kind"] for fm in json.load(open(out / "run.json"))["frames"]]
+    own = ["rgba/0001.png"] + ["%s/0002.png" % ("rgba" if kinds[1] == "full" else "patch")]   # what the runner rendered
+    before = {f: os.path.getmtime(out / f) for f in own}
     run_fixture(tmp_path, frames=3)
-    assert {f: os.path.getmtime(out / "rgba" / f) for f in before} == before
+    assert {f: os.path.getmtime(out / f) for f in own} == before
     assert (out / "rgba/0003.png").exists()
 
 

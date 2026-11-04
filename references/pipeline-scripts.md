@@ -855,14 +855,19 @@ agent on the beats it points at.
   `references/anti-ai-voice.md` before writing or revising narration. Its numbers mark where to LOOK —
   published practice says rules remove only ~40–50% of AI flavour and that over-applying them produces
   its own "rule voice", so the last pass is always a human read-aloud.
-- `scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--preview] [--yes]` — **BLENDER PLATES**, remotion tier: for
+- `scripts/blender_plate.py <out_dir> [--only ID] [--still F] [--layout] [--skip-layout] [--preview] [--yes]` — **BLENDER PLATES**, remotion tier: for
   each beat carrying `slide.blender`, runs Blender (≥ 5.0; `meta.blender` / `TTV_BLENDER` / the macOS app / PATH)
   headless on `blender/runner.py` with the film's scene script, per frame an RGBA pass and a half-size Workbench ID
   pass, and writes `media/blender/<id>/` (plate.webm VP9+alpha, anchors.json, boxes.json, camera.json, plate.json)
   and `workshop/assets/plates.ts`. Keyed on scene + kit + assets + cue times + frames/size + engine/mode + Blender
-  version; a fresh plate is never rebuilt, a partial of an older key is discarded. Exit 0 built/fresh · 1 failed ·
-  2 no Blender · 3 over `meta.blender_budget_min` (default 60; the estimate uses the measured rates in
-  references/blender-plates.md — ask the user, then `--yes`).
+  version (Python files by their CODE: comments and docstrings do not rebuild); a fresh plate is never rebuilt, a
+  partial of an older key is discarded. LAYOUT FIRST: a plain build first builds the ID pass of every plate whose
+  layout has not passed (`--layout` does only that), runs plate_qa, and renders pictures only when it is clean
+  (`layout.json` records the pass against the key; `--skip-layout` builds anyway). A frame that did not change is
+  copied and one where only some objects moved renders just their rectangle (blender/kit/reuse.py), each verified by
+  whole renders — a mismatch turns reuse off and re-renders. Exit 0 built/fresh · 1 failed · 2 no Blender · 3 over
+  `meta.blender_budget_min` (default 60; the estimate is every frame whole, an upper bound — ask the user, then
+  `--yes`) · 4 the layout failed plate_qa (no picture rendered).
 - `scripts/plate_qa.py <out_dir> [--every=N] [--json]` — **TYPE CLEAR OF PLATE OBJECTS**, remotion tier, blocking on a
   film with a plate: renders the Film with `plateClear` armed (runtime/plateClear.tsx), captions off, and measures each
   line of the shot's own type against every plate object's box (`data-plate-object`, from the ID pass) on every 3rd

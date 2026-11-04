@@ -211,7 +211,7 @@ def test_key_moves_with_each_input(tmp_path, monkeypatch):
     keys.add(bp.plate_key(**dict(base, w=1080, h=1920)))
     (kit / "blender" / "runner.py").write_text("b")
     keys.add(bp.plate_key(**base))
-    open(film + "/blender/s.py", "a").write("# edited\n")
+    open(film + "/blender/s.py", "a").write("EDITED = 1\n")             # code: a comment or docstring would not move it
     keys.add(bp.plate_key(**base))
     assert len(keys) == 8
 
