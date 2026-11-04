@@ -5085,6 +5085,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _image_attribution(slides, out_dir, errors, warnings)
         _caption_legibility(meta, slides, errors, warnings, out_dir)
         _figure_traceability(slides, out_dir, warnings, skips=skips)   # %/×/$ figures must trace to brief.json
+        _check_blender(data, slides, errors, warnings, out_dir)
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides),
                 "skipped": skips}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
@@ -5741,6 +5742,10 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # Truthful-content backstop: flag any statistic spoken/shown that doesn't trace to brief.json evidence.
     _figure_traceability(slides, out_dir, warnings)
 
+    # Blender plates are a remotion-tier capability (spec 2026-11-04 §9: the HTML tier comes later)
+    if any("blender" in s for s in slides):
+        errors.append("blender: slide.blender is a remotion-tier plate (meta.renderer = remotion); this film is not one")
+
     return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides),
             "skipped": skips}
 
@@ -5750,6 +5755,20 @@ _TREND_SHAPE = ("time", "trend", "over-time", "over time", "trajectory", "growth
 _SHARE_SHAPE = ("share", "part-of-whole", "part of whole", "proportion", "percent of", "split of",
                 "breakdown", "makeup", "composition of")
 _CATALOG_FORM = ("grid", "cards", "scorecard", "dash", "keypoints", "blocks")
+
+
+def _check_blender(data, slides, errors, warnings, out_dir):
+    """BLENDER PLATES (scripts/blender_plate.py): a beat that carries slide.blender needs a valid spec and a plate built
+    for the board, scene, voice and length it has NOW. A check that cannot run is an ERROR, never a pass."""
+    if not any("blender" in s for s in slides):
+        return
+    try:
+        import blender_plate as _bp
+        _be, _bw = _bp.validate_blender(data, out_dir)
+        errors.extend(_be)
+        warnings.extend(_bw)
+    except Exception as e:  # noqa: BLE001 — a broken check must surface
+        errors.append("blender: the plate check could not run (%s: %s)" % (type(e).__name__, e))
 
 
 def _design_plan_lints(out_dir, warnings, meta=None):
