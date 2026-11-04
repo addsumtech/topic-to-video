@@ -52,6 +52,11 @@ def _has_remotion():
                                            "..", "remotion", "node_modules"))
     return node and installed
 
+def _has_blender():
+    # a Blender plate (scripts/blender_plate.py) is a 3D render under a workshop shot; without Blender none builds
+    import blender_plate
+    return blender_plate.blender_bin() is not None
+
 CHECKS = [
     ("ffmpeg",      True,  _has_tool("ffmpeg"),   "rendering clips + concat",        "brew install ffmpeg"),
     ("ffprobe",     True,  _has_tool("ffprobe"),  "audio duration (slide timing)",   "comes with ffmpeg (brew install ffmpeg)"),
@@ -64,6 +69,7 @@ CHECKS = [
     ("bundled font", False, _has_bundled_font,    "default Latin captions",          "restore assets/fonts/DejaVuSans.ttf"),
     ("OCR (tesseract)", False, _has_ocr,       "text out of SCANNED / image-only PDFs at step 3 (grounding material)", "brew install tesseract && pip install pytesseract (without it a scan can only be READ AS IMAGES — fine for a few pages, not for a long document)"),
     ("transcription", False, _has_transcribe,   "audio/video source material at step 3 (a recorded talk, podcast, screen capture)", "pip install openai-whisper (or faster-whisper / mlx-whisper). WITHOUT IT SPEECH IS UNREACHABLE — say so in the interview rather than discovering it mid-pipeline"),
+    ("blender",     False, _has_blender,          "Blender plates (remotion beats carrying slide.blender)", "install Blender >= 5.0 from blender.org, or set TTV_BLENDER to its binary"),
     ("remotion",    False, _has_remotion,         "bespoke-shot cinematic tier (meta.renderer=remotion)", "install Node.js, then `cd remotion && npm install` (else use the default local renderer)"),
 ]
 
