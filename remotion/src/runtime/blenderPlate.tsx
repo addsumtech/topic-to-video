@@ -31,15 +31,30 @@ const known = (rec: Record<string, unknown>, what: string, name: string) => {
   }
 };
 
+/** Which of a plate's `frames` frames shows on beat frame `frame`: a whole frame, held at the plate's last past its
+ *  end. A warped or timed clock hands a register FRACTIONS (Film's BeatClock), and per-frame data indexed by 3.4 is
+ *  `undefined` — the glass film's full render died on exactly that, 2026-11-04. */
+export const plateFrame = (frame: number, frames: number): number => {
+  if (!Number.isFinite(frame)) throw new Error(`blender plate: the beat frame is ${frame}, not a number`);
+  return Math.min(frames - 1, Math.max(0, Math.round(frame)));
+};
+
+/** The beat's clock as its VOICE runs it, provided by Film's BeatClock around a register it re-times. A plate's motion
+ *  is on the voice already (its cues are baked from the word times), so the warp that moves a register's entrances
+ *  onto their words would move the plate OFF them; the beat's time grammar (a hit-stop, a freeze) is authored time and
+ *  stays in. Absent (a standalone still, an un-retimed beat) = the current frame, which is then that same clock. */
+export const PlateClock = React.createContext<number | null>(null);
+
 /** This frame of the plate, scaled to the composition: its anchors and its objects' boxes. The frame is the beat's
  *  own (plate time 0 = the beat's first frame = its voice's start), held at the last frame past the plate's end. */
 export const usePlate = (p: Plate) => {
-  const frame = useCurrentFrame();
+  const current = useCurrentFrame();
+  const clock = React.useContext(PlateClock);
   const {width: W, height: H} = useVideoConfig();
   if (!(p.w > 0) || !(p.h > 0) || !(p.frames > 0)) {
     throw new Error(`blender plate ${p.src}: a plate needs a positive size and length (got ${p.w}x${p.h}, ${p.frames} frames)`);
   }
-  const f = Math.min(p.frames - 1, Math.max(0, frame));
+  const f = plateFrame(clock ?? current, p.frames);
   const kx = W / p.w, ky = H / p.h;
   return {
     f,

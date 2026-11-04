@@ -447,7 +447,10 @@ def test_preview_builds_half_size_at_low_samples_and_is_never_delivered(tmp_path
     seen = []
     fake = _fake_runner()
     monkeypatch.setattr(bp, "_run_blender", lambda cmd, log: (seen.append(cmd), fake(cmd, log))[1])
-    assert bp.build(film, preview=True)[0]["state"] == "built"
+    rep = bp.build(film, preview=True)[0]
+    assert rep["state"] == "built"
+    spec = bp.spec_of(json.load(open(film + "/storyboard.json"))["slides"][0], film)
+    assert rep["estimate"] == round(bp.estimate_seconds(spec, 4, preview=True), 1)    # a preview's own estimate, not the full one's
     a = seen[0][seen[0].index("--") + 1:]
     opt = {a[i]: a[i + 1] for i in range(0, len(a) - 1, 2) if a[i].startswith("--")}
     assert (opt["--w"], opt["--h"], opt["--samples"]) == ("32", "18", str(bp.PREVIEW_SAMPLES))

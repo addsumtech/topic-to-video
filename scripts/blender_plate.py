@@ -485,10 +485,10 @@ def build(out_dir, only=None, yes=False, still=None, preview=False):
         with open(os.path.join(pd, "plate.json"), "w", encoding="utf-8") as fh:
             json.dump({"key": key, "frames": frames, "fps": fps, "w": w, "h": h, "mode": spec["mode"],
                        "engine": spec["engine"], "why": spec["why"], "blender": version, "seconds": secs, "ids": run.get("ids") or {},
-                       "estimate": round(estimate_seconds(spec, frames), 1), "cues": cue_t, "assets": spec["assets"], "preview": bool(preview)},
+                       "estimate": round(estimate_seconds(spec, frames, preview), 1), "cues": cue_t, "assets": spec["assets"], "preview": bool(preview)},
                       fh, ensure_ascii=False, indent=1)
         shutil.rmtree(work, ignore_errors=True)
-        reports.append({"id": spec["id"], "state": "built", "seconds": secs, "estimate": round(estimate_seconds(spec, frames), 1)})
+        reports.append({"id": spec["id"], "state": "built", "seconds": secs, "estimate": round(estimate_seconds(spec, frames, preview), 1)})
     if not still:
         write_plates_ts(out_dir)
     return reports

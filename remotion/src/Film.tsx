@@ -21,6 +21,7 @@ import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES,
         easeOutCubic, setStyleEase} from './runtime/motion';
 import {NarrationContext} from './runtime/voice';
 import {CueContext, warpFrame} from './runtime/cue';
+import {PlateClock} from './runtime/blenderPlate';
 import {groundLum, dnaGroundLum, dnaGroundY, groundGap, HARSH_GROUND_GAP, lumValue, lumFromY, DNA_GROUND_TOKEN,
         type Lum, type GroundColors} from './runtime/shotLuma';
 import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DARK, CAPTION_INK_LIGHT,
@@ -174,7 +175,12 @@ const BeatClock: React.FC<{warp?: [number, number][]; time?: TimeSpec; children:
   const timed = !time || reduced ? frame : grammarFrame(frame, time, fps);
   const warped = !warp || warp.length < 2 ? (timed === frame ? null : timed) : warpFrame(timed, warp);
   if (warped === null && step === 1) return <>{children}</>;
-  return <Freeze frame={stepFrame(warped ?? frame, step)}>{children}</Freeze>;
+  // a Blender plate under the register keeps the voice's clock: the grammar's, never the warp's or the steps
+  return (
+    <PlateClock.Provider value={timed}>
+      <Freeze frame={stepFrame(warped ?? frame, step)}>{children}</Freeze>
+    </PlateClock.Provider>
+  );
 };
 
 const TR = SEAM_FRAMES; // cross-dissolve length (frames) — rides the ~0.42s narration breath so speech barely

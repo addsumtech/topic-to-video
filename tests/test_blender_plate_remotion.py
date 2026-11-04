@@ -66,3 +66,40 @@ def test_plate_scales_to_frame(tmp_path, monkeypatch):
     x, y = anchor(film, 1)[:2]
     k = W / 270
     assert near(im.getpixel((round(x * k), round(y * k))), (255, 0, 255), tol=40)
+
+
+import _tsprobe  # noqa: E402
+
+
+@pytest.mark.skipif(not _tsprobe.available(), reason="needs the remotion toolchain")
+def test_plate_frame_is_whole_and_clamped():
+    # a warped or timed beat clock hands its register FRACTIONS of a frame (Film BeatClock -> Freeze): indexing the
+    # plate's per-frame anchors with 3.4 read `undefined` and crashed the glass film's full render, 2026-11-04
+    out = _tsprobe.run_ts("import {plateFrame} from %s;" % _tsprobe.mod("blenderPlate"),
+                          "out.v = [plateFrame(3.4, 10), plateFrame(3.6, 10), plateFrame(-2, 10), plateFrame(99, 10)];\n"
+                          "try { plateFrame(NaN, 10); out.nan = 'no error'; } catch (e) { out.nan = String(e); }")
+    assert out["v"] == [3, 4, 0, 9]
+    assert "frame" in out["nan"] and out["nan"] != "no error"
+
+
+@needs_both
+def test_plate_keeps_the_voice_clock_under_a_warp(tmp_path, monkeypatch):
+    # the warp re-times a REGISTER's entrances onto its voice; a plate's motion is on the voice already (its cues are
+    # baked from the word times), so the plate shows beat frame f on film frame f, and nothing crashes on a fraction
+    import plate_qa
+    import render_remotion as rr
+    from test_plate_qa import _film_with_label
+    film = _film_with_label(tmp_path, [880, 500])
+    real = rr.film_props
+
+    def warped(out_dir, board):
+        props, slides = real(out_dir, board)
+        props["scenes"][0]["warp"] = [[0, 0], [9, 5.5], [17, 17]]
+        return props, slides
+    monkeypatch.setattr(rr, "film_props", warped)
+    res, segs, slides, total = plate_qa.census_film(film, every=1)
+    n = json.load(open(os.path.join(bp.plate_dir(film, "sat"), "plate.json")))["frames"]
+    seen = {int(f): {h[2] for h in r.get("hits") or []} for f, r in (res.get("frames") or {}).items()}
+    assert len(seen) == total, res
+    hit = {f: s for f, s in seen.items() if s}
+    assert hit and all(s == {min(f, n - 1)} for f, s in hit.items()), hit
