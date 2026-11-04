@@ -330,15 +330,27 @@ def spoken_text(text, meta=None, prov="edge", name="zh-CN-XiaoxiaoNeural"):
 
 
 def written_words(words, back):
-    """Map the voice's word tokens back to the written spelling, so a caption's karaoke still matches."""
-    out = []
-    for w in words or []:
-        tok = str(w.get("w", ""))
+    """Map the voice's word tokens back to the written spelling, so a caption's karaoke still matches. A reading the
+    voice returns as SEVERAL tokens (a lexicon's 一比一比三比一比一 came back as 一 / 比 / 一 / 比 / 三比一比一) is
+    rejoined: the run of tokens that spells it becomes one written token, timed at its first."""
+    words = list(words or [])
+    out, i = [], 0
+    while i < len(words):
+        w = words[i]; tok = str(w.get("w", ""))
         if tok in back:
-            tok = back[tok]
-        elif _HYPHENATED.match(tok):
+            out.append(dict(w, w=back[tok])); i += 1; continue
+        joined, j = "", i
+        hit = None
+        while j < len(words) and len(joined) < max((len(k) for k in back), default=0):
+            joined += str(words[j].get("w", "")).replace(" ", "")
+            j += 1
+            if joined in back and j - i > 1:
+                hit = (j, back[joined]); break
+        if hit:
+            out.append(dict(w, w=hit[1])); i = hit[0]; continue
+        if _HYPHENATED.match(tok):
             tok = tok.replace("-", "")
-        out.append(dict(w, w=tok))
+        out.append(dict(w, w=tok)); i += 1
     return out
 
 

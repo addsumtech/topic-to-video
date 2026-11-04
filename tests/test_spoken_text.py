@@ -86,3 +86,17 @@ def test_synthesis_sends_the_spoken_form_and_keeps_the_narration(tmp_path, monke
     out = json.load(open(tmp_path / "storyboard.json"))
     assert out["slides"][0]["narration"] == "你的 AI 任务"
     assert json.load(open(tmp_path / "audio" / "01.words.json"))[0]["w"] == "AI"
+
+
+def test_a_lexicon_reading_the_voice_splits_into_several_tokens_maps_back_to_one_written_token():
+    """meta.tts_lexicon {"1:1:3:1:1": "一比一比三比一比一"}: edge-tts returned the reading as FIVE tokens
+    (一 / 比 / 一 / 比 / 三比一比一), none equal to the whole reading, so nothing was mapped back — words.json kept the
+    spoken form, nine characters the written narration does not have, and every gate that aligns the narration to the
+    word times (keyframe_qa's sync, the sync audit) read each later word ~1.7 s early on a QR-code film."""
+    import tts
+    _t, back = tts.spoken_text("切一刀，1:1:3:1:1，任何方向", {"tts_lexicon": {"1:1:3:1:1": "一比一比三比一比一"}})
+    words = [{"w": "切", "t": 0.1}, {"w": "一", "t": 3.12}, {"w": "比", "t": 3.27}, {"w": "一", "t": 3.46},
+             {"w": "比", "t": 3.67}, {"w": "三比一比一", "t": 3.89}, {"w": "任何", "t": 5.11}]
+    out = tts.written_words(words, back)
+    assert [w["w"] for w in out] == ["切", "1:1:3:1:1", "任何"], out
+    assert out[1]["t"] == 3.12 and out[2]["t"] == 5.11
