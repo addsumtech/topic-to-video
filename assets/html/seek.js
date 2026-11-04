@@ -1,5 +1,9 @@
 (function () {
   function sec(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
+  // an element may run SEVERAL animations: its delays and durations are lists, repeated to the number of names (as
+  // CSS repeats them). Reading only the first delay and writing one back ran every animation on the first one's clock
+  // — a module that faded in and flipped 1.45 s later flipped on its entrance (a QR-code film, 2026-11-04).
+  function list(v, k) { var a = String(v || '0s').split(',').map(sec), o = []; for (var i = 0; i < k; i++) o.push(a[i % a.length]); return o; }
   var q = new URLSearchParams(location.search);
   var p = parseFloat(q.get('p')); if (isNaN(p)) p = 1;
   var dur = parseFloat(q.get('dur'));
@@ -23,7 +27,9 @@
     // over the scene's first second while the patch itself sat at opacity 0 until its word — the ripple played
     // out unseen and the patch faded in already complete.
     var host = ambient ? null : el.closest('[data-cue-index]');
-    return { el: el, d: sec(cs.animationDelay), dur: sec(cs.animationDuration), ambient: ambient,
+    var k = String(cs.animationName).split(',').length;
+    var ds = list(cs.animationDelay, k), durs = list(cs.animationDuration, k);
+    return { el: el, d: ds[0], dur: durs[0], ds: ds, durs: durs, ambient: ambient,
              host: host, own: host === el };
   });
   var useCues = cues && !isNaN(dur) && dur > 0;
@@ -51,19 +57,27 @@
     if (!s.host) return;
     var start = hostStart(s.host);
     if (start === null) return;
-    if (s.own) { if (useCues) s.d = start; return; }   // a host's own reveal: on its cue (paced: as authored)
-    s.rel = s.d;                  // a part: its authored delay, now counted from the host's start
-    s.d = start + s.d;
+    if (s.own) {                  // a host's own reveal: on its cue (paced: as authored); its later animations
+      if (useCues) { var d0 = s.ds[0]; s.ds = s.ds.map(function (x) { return start + (x - d0); }); s.d = s.ds[0]; }
+      return;                     // keep their offsets from the first
+    }
+    s.rel = s.d;                  // a part: its authored delays, now counted from the host's start
+    s.ds = s.ds.map(function (x) { return start + x; });
+    s.d = s.ds[0];
   });
   // reveal-stagger envelope: max(delay+dur) over the REVEALS only (ambient backdrops excluded)
   var total = useCues ? dur : spans.reduce(function (m, s) {
-    return s.ambient ? m : Math.max(m, s.d + s.dur);
+    if (s.ambient) return m;
+    for (var i = 0; i < s.ds.length; i++) m = Math.max(m, s.ds[i] + s.durs[i]);
+    return m;
   }, 0.001);
   var T = p * total;
   spans.forEach(function (s) {
     // ambient: sit at fraction p through its own keyframe (spans the whole scene). reveal: freeze at
     // absolute time T = p*total via a negative delay.
-    s.el.style.animationDelay = (s.ambient ? -(p * s.dur) : (s.d - T)) + 's';
+    s.el.style.animationDelay = s.ds.map(function (d, i) {
+      return (s.ambient ? -(p * s.durs[i]) : (d - T)) + 's';
+    }).join(', ');
     s.el.style.animationPlayState = 'paused';
   });
   // what was scheduled, for the checks that must agree with it (workshop.py measures a component's parts here)
