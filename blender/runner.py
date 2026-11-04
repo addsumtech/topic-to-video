@@ -4,7 +4,7 @@
       --scene S --out DIR --frames N --fps F --w W --h H --engine eevee|cycles --mode rgba|env \
       --cues JSON --anchors a,b --objects o,p [--still F]
 
-A scene script defines `build(k)` -> {"objects": {name: obj}, "anchors": {name: (obj, (x, y, z) local)}} and
+A scene script defines `build(k)` -> {"objects": {name: obj}, "anchors": {name: (obj, (x, y, z) local) | fn(k)}} and
 `pose(k, t)` (t = seconds into the beat). The camera is made here, at the origin looking +Y (right = +X, up = +Z);
 a scene moves it in `pose` if it wants. Per frame (1-based) this writes rgba/NNNN.png, ids/NNNN.png (half size),
 and at the end anchors.json, camera.json and run.json. A frame whose two files already exist is not rendered again.
@@ -123,6 +123,12 @@ def main(argv):
         mod.pose(k, (f - 1) / a.fps)
         bpy.context.view_layer.update()
         for n in a.anchors:
+            if callable(anchors[n]):                  # computed on the picture this frame, already projected
+                v = [float(x) for x in anchors[n](k)]
+                if len(v) != 4:
+                    raise SystemExit("anchor %r returned %r — a computed anchor returns [x, y, depth, visible]" % (n, v))
+                rec["anchors"][n].append([round(v[0], 2), round(v[1], 2), round(v[2], 4), bool(v[3])])
+                continue
             obj, local = anchors[n]
             rec["anchors"][n].append(_anchors.project(sc, cam, obj.matrix_world @ _anchors.Vector(local)))
         cams.append({"lens": cam.data.lens, "sensor": cam.data.sensor_width,

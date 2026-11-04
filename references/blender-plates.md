@@ -59,7 +59,9 @@ Rules for choosing:
 
 ## The scene-script API
 
-`build(k)` returns `{"objects": {name: obj}, "anchors": {name: (obj, (x, y, z) local)}}`. `pose(k, t)` sets the scene
+`build(k)` returns `{"objects": {name: obj}, "anchors": {name: (obj, (x, y, z) local) | fn(k)}}`. A computed
+anchor `fn(k)` returns `[x, y, depth, visible]` in frame pixels, for a point found on the picture each frame, such as
+the near crossing of a sphere's limb. `pose(k, t)` sets the scene
 at `t` seconds into the beat (plate time 0 is the beat's first frame, which is when its voice starts).
 
 `k` carries:

@@ -97,3 +97,9 @@ def test_a_scene_imports_its_sibling_helper(tmp_path):
                         "--frames", "1", "--fps", "30", "--w", "64", "--h", "36", "--anchors", "top", "--objects", "cube"],
                        capture_output=True, text=True, timeout=300)
     assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
+
+
+@needs_blender
+def test_a_computed_anchor_is_taken_as_projected(tmp_path):
+    out = run_fixture(tmp_path, frames=2, anchors="top,corner")
+    assert json.load(open(out / "anchors.json"))["anchors"]["corner"] == [[40.0, 67.5, 1.0, True]] * 2

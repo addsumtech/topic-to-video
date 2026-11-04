@@ -18,7 +18,11 @@ def build(k):
     behind = bpy.data.objects.new("behind", None)
     bpy.context.scene.collection.objects.link(behind)
     behind.location = (0, -5, 0)                      # the camera looks +Y from the origin
-    return {"objects": {"cube": cube}, "anchors": {"top": (cube, (0, 0, 0.5)), "far": (behind, (0, 0, 0))}}
+    # a COMPUTED anchor: a point found per frame on the picture itself (a limb crossing, a contact point), already
+    # projected — [x, y, depth, visible] in frame pixels
+    corner = lambda kk: [kk.w * 0.25, kk.h * 0.75, 1.0, True]  # noqa: E731
+    return {"objects": {"cube": cube},
+            "anchors": {"top": (cube, (0, 0, 0.5)), "far": (behind, (0, 0, 0)), "corner": corner}}
 
 
 def pose(k, t):
