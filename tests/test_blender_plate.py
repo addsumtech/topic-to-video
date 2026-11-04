@@ -348,3 +348,12 @@ def test_plates_ts_names_its_files(tmp_path, monkeypatch):
     ts = open(os.path.join(film, "workshop/assets/plates.ts"), encoding="utf-8").read()
     assert "import type {Plate} from '@runtime/blenderPlate';" in ts
     assert "media/blender/sat/plate.webm" in rs.code_named_files(os.path.realpath(film), ts)
+
+
+def test_key_moves_when_a_scene_helper_changes(tmp_path):
+    film = make_film(tmp_path, GOOD)
+    (tmp_path / "film" / "blender" / "satkit.py").write_text("SIZE = 1\n")
+    base = dict(spec=_spec(film), out_dir=film, frames=10, fps=30, w=160, h=90, cue_t={}, blender_version="5.2.4")
+    k1 = bp.plate_key(**base)
+    (tmp_path / "film" / "blender" / "satkit.py").write_text("SIZE = 2\n")
+    assert bp.plate_key(**base) != k1

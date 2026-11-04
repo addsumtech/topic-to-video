@@ -82,3 +82,18 @@ def test_unknown_anchor_fails_loudly(tmp_path):
 def test_still_writes_one_frame_only(tmp_path):
     out = run_fixture(tmp_path, frames=3, extra=("--still", "2"))
     assert os.path.exists(out / "still_0002.png") and not os.path.exists(out / "rgba")
+
+
+@needs_blender
+def test_a_scene_imports_its_sibling_helper(tmp_path):
+    d = tmp_path / "scenes"
+    d.mkdir()
+    (d / "helper.py").write_text("SIZE = 0.8\n")
+    (d / "uses_helper.py").write_text(open(SCENE).read().replace(
+        "import bpy\n", "import bpy\n\nimport helper\n").replace("primitive_cube_add(size=1.0)", "primitive_cube_add(size=helper.SIZE)"))
+    out = tmp_path / "run"
+    r = subprocess.run([BLENDER, "-b", "--factory-startup", "--python-exit-code", "1", "--python",
+                        os.path.join(ROOT, "blender", "runner.py"), "--", "--scene", str(d / "uses_helper.py"), "--out", str(out),
+                        "--frames", "1", "--fps", "30", "--w", "64", "--h", "36", "--anchors", "top", "--objects", "cube"],
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]

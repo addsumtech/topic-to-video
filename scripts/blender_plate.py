@@ -184,7 +184,14 @@ def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version):
         for p in parts:
             h_.update(str(p).encode("utf-8"))
             h_.update(b"\0")
-    put("scene", _file_sha(os.path.join(out_dir, spec["scene"])))
+    put("scene", spec["scene"], _file_sha(os.path.join(out_dir, spec["scene"])))
+    # a scene may import helpers beside it (two plates sharing one satellite): every .py under the film's blender/
+    bdir = os.path.join(out_dir, "blender")
+    for d, _n, fs in sorted(os.walk(bdir)):
+        for f in sorted(fs):
+            if f.endswith(".py"):
+                p = os.path.join(d, f)
+                put("scene-dir", os.path.relpath(p, bdir), _file_sha(p))
     for rel in kit_files():
         put("kit", rel, _file_sha(os.path.join(SKILL_ROOT, rel)))
     for a in spec["assets"]:

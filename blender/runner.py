@@ -67,6 +67,8 @@ def _args(argv):
 
 
 def _load(path):
+    # a scene imports helpers beside it (scripts/blender_plate.py keys every .py in that folder)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(path)))
     spec = importlib.util.spec_from_file_location("plate_scene", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
