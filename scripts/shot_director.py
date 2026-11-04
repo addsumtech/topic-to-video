@@ -432,6 +432,70 @@ CANDIDATES = {
 }
 CLIMAX = ["ParticleForm", "RadialBurst", "FractureIn", "MorphForms", "SpectrumPulse", "EmberFlame", "LightTrails", "SpotlightStage", "LiquidFill"]
 
+# ── CURATION: one look once, a subject's picture for its subject (library review 2026-11-03) ──────────────────────────
+# TWINS say the same thing in a different finish: a film that shows a centred wordmark in liquid chrome, then in foil,
+# then in neon has shown one picture three times, and the variety rule — which refuses only a register already used and
+# an adjacent family — let it. A twin of a register the film uses is taken only when no fresh candidate is left.
+TWINS = {
+    "wordmark": ["CinematicTitle", "BokehPull", "HoloFoil", "LiquidChrome", "NeonGrid", "AnalogTape"],
+    "hub": ["KnowledgeGraph", "MapRoutes", "DataOrrery", "RadialBurst"],
+    "done": ["LightTrails", "LiquidFill", "LiquidMorph", "ParticleForm", "CartoonPop", "HalftonePop", "PixelBuild"],
+    "race": ["ChartRace", "RankRace"],
+}
+_TWIN_OF = {r: name for name, group in TWINS.items() for r in group}
+
+# TOPIC_ONLY registers are a picture of a SUBJECT: on a genetics film the helix is the subject, on a calendar app's film
+# it is wallpaper behind a word. Each is proposed only when the beat's argument (beat_argument) or the film's title
+# names its subject. Cues are specific and bilingual; a word in another sense ("fire up", "our DNA", "five-star") is
+# kept out, because a cue that fires on the wrong film puts the decoration back.
+TOPIC_ONLY = {
+    "DNAHelix": ("genetics", [r"\b(genes?|genetics?|genomes?|genomic|chromosomes?|double helix|nucleotides?|heredit\w*)\b",
+                              r"\bDNA (replication|sequenc\w*|strands?|molecules?|polymerase|copy|copies|is copied)\b",
+                              r"\bhow DNA\b", r"基因|染色体|双螺旋|脱氧核糖核酸|遗传"]),
+    "AtomOrbital": ("atoms", [r"\b(atoms?|atomic|electrons?|protons?|neutrons?|orbitals?|quantum)\b",
+                              r"原子|电子|质子|中子|量子"]),
+    "MoleculeBallStick": ("chemistry", [r"\b(molecules?|molecular|chemical bonds?|compounds?|benzene|chemistry|chemicals?)\b",
+                                        r"分子|化学键|化合物|苯环|化学"]),
+    "NebulaField": ("space", [r"\b(nebulae?|galaxy|galaxies|cosmos|cosmic|universe|interstellar|astronom\w*|telescopes?|"
+                              r"supernovae?|light[- ]years?|star formation|stars are born)\b", r"星云|星系|宇宙|恒星|天文|超新星|银河"]),
+    "StarfieldWarp": ("space travel", [r"\b(outer space|spacecraft|spaceships?|space travel|spaceflight|hyperspace|warp drive|"
+                                       r"light[- ]speed|interstellar|galaxy|galaxies|cosmos|universe|astronauts?)\b",
+                                       r"太空|宇宙|星际|飞船|光速|曲速|银河"]),
+    "AuroraCurtain": ("aurora", [r"\b(auroras?|aurorae|northern lights|southern lights|magnetosphere|solar wind|geomagnetic)\b",
+                                 r"极光|磁层|太阳风"]),
+    "FractalTree": ("growth and recursion", [r"\b(fractals?|recursion|recursive|self-similar\w*|trees|forests?|botan\w*|"
+                                             r"plant growth)\b", r"分形|递归|自相似|树木|森林|植物"]),
+    "RainGlass": ("rain and weather", [r"\b(rain|rainy|raindrops?|rainfall|storms?|weather|precipitation|monsoons?)\b",
+                                       r"下雨|雨滴|暴雨|雨季|天气|降水|降雨"]),
+    "EmberFlame": ("fire", [r"\b(flames?|blaze|wildfires?|combustion|embers?|burning|forest fires?|fire(?!\s+(up|off|away)\b)s?)\b",
+                            r"火焰|火灾|燃烧|山火|火苗|烈火"]),
+    "ClothWave": ("cloth", [r"\b(cloth|fabrics?|textiles?|silk|flags?|fashion|garments?|weaving)\b",
+                            r"布料|织物|纺织|丝绸|旗帜|服装"]),
+    "GameOfLife": ("emergence", [r"\b(cellular automat\w*|game of life|conway|emergence|emergent|self-organi[sz]\w*|"
+                                 r"artificial life)\b", r"元胞自动机|生命游戏|涌现|自组织"]),
+    "KaleidoMandala": ("symmetry", [r"\b(kaleidoscopes?|mandalas?|symmetry|symmetric\w*|meditation)\b",
+                                    r"万花筒|曼陀罗|对称|冥想"]),
+    "LowPolyForm": ("3D form", [r"\b(low[- ]poly|polygons?|meshes|mesh|3D model\w*|triangulat\w*|wireframes?)\b",
+                                r"多边形|网格|三维建模|三角剖分"]),
+    "RidgeField": ("signal", [r"\b(pulsars?|waveforms?|spectr(um|a|ogram)|sound waves?|seismic|terrain|mountains?|ridgelines?)\b",
+                              r"脉冲星|波形|频谱|声波|地震|山脉|地形"]),
+    "FlowField": ("flow", [r"\b(flow fields?|vector fields?|wind|winds|airflow|ocean currents?|air currents?|fluids?|"
+                           r"turbulen\w*|aerodynamic\w*)\b", r"流场|矢量场|风场|气流|洋流|流体|湍流"]),
+}
+_TOPIC_RE = {r: [re.compile(c, re.I) for c in cues] for r, (_subj, cues) in TOPIC_ONLY.items()}
+
+
+def topic_allows(shot, text):
+    """May `shot` be proposed for a beat whose argument (plus the film's title) is `text`? Always, unless it is a
+    TOPIC_ONLY register, which needs its subject named."""
+    pats = _TOPIC_RE.get(shot)
+    return True if not pats else any(p.search(text or "") for p in pats)
+
+
+def twin_set(shot):
+    """The TWINS set's name `shot` belongs to, or None."""
+    return _TWIN_OF.get(shot)
+
 # ── REACH: the argument's SHAPE → the capability built for it ─────────────────────────────────────────────────────────
 # The intent lists above match a KEYWORD (`metric`, `statement`), and three benchmark films (2026-10-24) found what that
 # costs: the kinetic registers were barely proposed, the data/geography and maths registers never were (none of
@@ -790,7 +854,8 @@ def _hard_flip(a, b):
     return abs(_LUM_RANK.get(a, 0) - _LUM_RANK.get(b, 0)) >= 2
 
 
-def _pick(cands, last_family, used, prefer=None, last_luma=None, soften=False, band=None, motion=None, summit=False):
+def _pick(cands, last_family, used, prefer=None, last_luma=None, soften=False, band=None, motion=None, summit=False,
+          allows=None):
     """First candidate whose family differs from the previous beat's; prefer unused registers. When `prefer`
     (the chosen template's family letters) is given, BIAS toward those families first — the template EMPHASIZES
     families without ever forcing two adjacent beats into the same one (variety still wins). When `band`
@@ -799,11 +864,17 @@ def _pick(cands, last_family, used, prefer=None, last_luma=None, soften=False, b
     candidates is taken, so a beat declared high is not handed one of the library's stillest registers. When
     `soften` (the previous seam already hard-flipped luminance), a stable TIE-BREAK prefers a candidate that
     does NOT flip again — smoothing the brightness arc WITHOUT overriding fit/family/freshness/energy (they
-    pre-order the pool)."""
+    pre-order the pool). `allows` (topic_allows over the beat's argument) drops a subject register the beat is not
+    about; a list it would empty is kept whole. A TWIN of a register already used ranks after every fresh one."""
+    if allows:
+        cands = [c for c in cands if allows(c)] or list(cands)
     if prefer:
         order = {c: i for i, c in enumerate(cands)}
         cands = sorted(cands, key=lambda c: (FAMILY.get(c) not in prefer, order[c]))
-    pool = ([c for c in cands if FAMILY.get(c) != last_family and c not in used]
+    sets = {_TWIN_OF[u] for u in used if u in _TWIN_OF}
+    twin = lambda c: c in used or _TWIN_OF.get(c) in sets
+    pool = ([c for c in cands if FAMILY.get(c) != last_family and not twin(c)]
+            or [c for c in cands if FAMILY.get(c) != last_family and c not in used]
             or [c for c in cands if FAMILY.get(c) != last_family] or list(cands))
     in_band = (lambda c: c in motion and band[0] <= motion[c] < band[1]) if (band and motion) else (lambda c: True)
     flips = (lambda c: _hard_flip(shot_luma(c), last_luma)) if (soften and last_luma is not None) else (lambda c: False)
@@ -811,7 +882,9 @@ def _pick(cands, last_family, used, prefer=None, last_luma=None, soften=False, b
     # in-band candidate, not the first. Otherwise the summit lands wherever a medium beat happened to draw
     # a lively register, which is what a delivered film measured (energy_skeleton.py, summit-off-peak).
     lively = (lambda c: -motion.get(c, 0.0)) if (summit and motion) else (lambda c: 0.0)
-    pool = sorted(pool, key=lambda c: (not in_band(c), lively(c), flips(c)))       # stable: band, summit, non-flips
+    # a subject register `allows` kept IS the beat's subject's picture: it leads the fitting candidates, not trails them
+    subject = (lambda c: c in _TOPIC_RE) if allows else (lambda c: False)
+    pool = sorted(pool, key=lambda c: (not in_band(c), not subject(c), lively(c), flips(c)))   # stable
     return pool[0]
 
 
@@ -925,8 +998,10 @@ def assign_shots(data, content_plan=None, template=None):
             else:
                 cands, how = FALLBACK, "FALLBACK (no candidate list for intent '%s')" % intent
             # color-arc: only SOFTEN after a flip (avoid a 2nd consecutive one) — isolated flips (contrast) survive
+            _about = beat_argument(s, beat, vocab) + " \n " + " ".join(
+                str(data["meta"].get(k) or "") for k in ("title", "topic"))
             shot = _pick(cands, last_family, used, prefer, last_luma, soften=prev_flip, band=band, motion=_motion,
-                         summit=(_energy == "peak"))
+                         summit=(_energy == "peak"), allows=lambda c, _t=_about: topic_allows(c, _t))
         s["shot"], s["shot_props"] = shot, s.get("shot_props") or {}
         # RECORD THAT NOBODY JUDGED THIS. The deterministic path matches an intent keyword to a candidate
         # list; it cannot ask whether the register's STRUCTURE carries the beat's argument, which is the

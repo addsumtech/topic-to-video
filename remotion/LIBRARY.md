@@ -35,6 +35,16 @@ notice when you are there because it fits, and when you are there because it was
 to the "use when" below, and vary the FAMILY across the film (never two adjacent shots from the same family).
 Every shot accepts overridable copy via constants at the top of its file (wordmark/tagline/labels).
 
+**Twins and subject pictures** (`scripts/shot_director.TWINS` / `TOPIC_ONLY`, library review 2026-11-03). Some sets say
+one thing in different finishes — a centred **wordmark** (CinematicTitle, BokehPull, HoloFoil, LiquidChrome, NeonGrid,
+AnalogTape), a **hub** with things round it (KnowledgeGraph, MapRoutes, DataOrrery, RadialBurst), a **done** check
+(LightTrails, LiquidFill, LiquidMorph, ParticleForm, CartoonPop, HalftonePop, PixelBuild), a bar **race** (ChartRace,
+RankRace). Use one of a set per film; validate WARNS on two. About fifteen registers are a picture of a SUBJECT —
+DNAHelix, AtomOrbital, MoleculeBallStick, NebulaField, StarfieldWarp, AuroraCurtain, FractalTree, RainGlass,
+EmberFlame, ClothWave, GameOfLife, KaleidoMandala, LowPolyForm, RidgeField, FlowField: on a film about that subject
+they depict it, on any other film they are wallpaper behind a word. The director proposes them only when the beat's
+argument or the film's title names the subject, and then first.
+
 **The family set is OPEN-ENDED — grow it.** Families are a variety axis, not a fixed taxonomy: when a bold new
 design language doesn't fit an existing bucket, **open a new family letter** (add it here + to
 `shot_director.FAMILY`). New families cost nothing mechanically (the variety rule only checks that adjacent

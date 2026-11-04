@@ -100,7 +100,9 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
    contest whose directions record no ideal, no built hero or no palette provenance. The winner's hero is the
    film's first BUILT shot: route its signature beat to it.
 6. **Apply it — after the ideals, as material.** The chosen direction BIASES which registers are proposed as
-   material toward its families (never two adjacent same-family). Do NOT run the skeleton yet: first derive the
+   material toward its families (never two adjacent same-family; one register of a TWINS set per film, and a
+   subject register such as DNAHelix or NebulaField only on a beat about its subject — LIBRARY.md "Twins and subject
+   pictures"). Do NOT run the skeleton yet: first derive the
    form vocabulary (Step 0.5) and write every beat's ideal picture (Step 0.55, step 1). Then
    `python scripts/shot_director.py <out> --template <seed-key>` (for a seed; for a conceived direction apply the
    lean by hand) proposes a register per beat as MATERIAL — `shot_fit.material`, verdict `unjudged` — to adapt,

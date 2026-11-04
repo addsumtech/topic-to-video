@@ -3208,6 +3208,7 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
             "Either re-pick that beat's register, or correct the `shot_fit.form` that is wrong."
             % "; ".join(_miscast))
 
+    warnings.extend(twin_warnings(slides))                # one look, shown twice in two finishes
     try:                                                   # family-variety: no two ADJACENT beats one look
         import shot_director as _sd
         fams = [_sd.FAMILY.get(x) if x else None for x in seq]
@@ -3762,6 +3763,28 @@ def optic_vocabulary():
     if set(caps) != set(kinds):
         raise RuntimeError("validate: OPTIC_MAX names %s but OPTIC_KINDS names %s" % (sorted(caps), sorted(kinds)))
     return kinds, caps
+
+
+def twin_warnings(slides):
+    """One line per shot_director.TWINS set a board draws from more than once (beats 1-based): the same picture in a
+    second finish (a wordmark in chrome, then in foil) reads as a repeat however far apart the beats are."""
+    try:
+        import shot_director as _sd
+    except Exception:                                      # noqa: BLE001 — no director, no table to read
+        return []
+    by_set = {}
+    for i, sl in enumerate(slides or []):
+        name = _sd.twin_set(sl.get("shot")) if isinstance(sl, dict) else None
+        if name:
+            by_set.setdefault(name, []).append((i + 1, sl["shot"]))
+    out = []
+    for name, uses in sorted(by_set.items()):
+        if len({sh for _, sh in uses}) > 1:
+            out.append("remotion: beats %s draw the '%s' picture in %d finishes (%s) — the same thing said twice; "
+                       "keep one and give the other beat a register that carries its own argument"
+                       % (", ".join(str(i) for i, _ in uses), name, len({sh for _, sh in uses}),
+                          ", ".join(sh for _, sh in uses)))
+    return out
 
 
 def register_optics(shot, out_dir=None):
