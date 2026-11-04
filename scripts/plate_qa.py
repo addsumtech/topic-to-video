@@ -12,11 +12,13 @@ green. runtime/blenderPlate.tsx marks each object's box on each frame, runtime/p
 the shot's own type against those boxes on the frames the Film really renders (captions off: the caption is the
 film's, drawn on the frame's ground by rule, not the shot's), and this judges the census:
 
-  ERROR  a line of type has at least ERROR_SHARE of its box over an object on at least MIN_FRAMES sampled frames
+  ERROR  at least ERROR_SHARE of a line's box is covered by an object's SILHOUETTE on at least MIN_FRAMES sampled frames
   WARN   at least WARN_SHARE
 
-A box is the object's bounding box, so a line beside a thin diagonal part can read as over it: the gate errs toward
-catching. THE FIX IS NEVER A THRESHOLD: move the type, or move the object (stage.place in the scene).
+The census finds lines over an object's BOX, in their own beat only (during a dissolve the leaving beat's type over the
+arriving beat's plate is a cross-fade); the share is then read from the plate's kept ID pass, so a line in the empty
+corner of a round object's box is beside it, not on it (measured: the Earth's quarter-disc box put every title of an
+orbit beat 'on' the Earth). THE FIX IS NEVER A THRESHOLD: move the type, or move the object (stage.place in the scene).
 """
 import json
 import os
@@ -34,20 +36,61 @@ TAG = "PLATE-CLEAR "
 DEFAULT_EVERY = 3
 
 
-def judge(frames, beat_of, labels):
-    """{"errors", "warns"} from {frame: census}; one finding per (beat, text, object), at its worst frame."""
+def mask_share(ids_dir, colors, frame, rect, scale=2):
+    """{object: share of `rect` (plate pixels, x0 y0 x1 y1) its SILHOUETTE covers} on plate frame `frame` (0-based),
+    read from the plate's ID pass (`ids/NNNN.png`, `scale`x smaller than the plate). A round object's box has empty
+    corners; the silhouette does not."""
+    from PIL import Image
+    path = os.path.join(ids_dir, "%04d.png" % (frame + 1))
+    if not os.path.isfile(path):
+        raise RuntimeError("the plate's ID pass has no frame %d (%s) — rebuild the plate" % (frame + 1, path))
+    im = Image.open(path).convert("RGBA")
+    W, H = im.size
+    x0, y0 = max(0, int(rect[0] // scale)), max(0, int(rect[1] // scale))
+    x1, y1 = min(W, int(-(-rect[2] // scale))), min(H, int(-(-rect[3] // scale)))
+    if x1 <= x0 or y1 <= y0:
+        return {n: 0.0 for n in colors}
+    px = list(im.crop((x0, y0, x1, y1)).getdata())
+    want = {n: tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for n, c in colors.items()}
+    out = {}
+    for n, (r, g, b) in want.items():
+        hit = sum(1 for p in px if p[3] > 0 and abs(p[0] - r) <= 8 and abs(p[1] - g) <= 8 and abs(p[2] - b) <= 8)
+        out[n] = hit / len(px)
+    return out
+
+
+def plate_coverage(out_dir):
+    """coverage(plate_id, frame, rect) -> {object: share}, from each built plate's kept ID pass."""
+    import blender_plate as bp
+    cache = {}
+
+    def cov(plate_id, frame, rect):
+        if plate_id not in cache:
+            pd = bp.plate_dir(out_dir, plate_id)
+            pj = json.load(open(os.path.join(pd, "plate.json"), encoding="utf-8"))
+            if not pj.get("ids"):
+                raise RuntimeError("plate %r has no ID colours in plate.json — rebuild it" % plate_id)
+            cache[plate_id] = (os.path.join(pd, "ids"), pj["ids"])
+        ids_dir, colors = cache[plate_id]
+        return mask_share(ids_dir, colors, int(frame), rect)
+    return cov
+
+
+def judge(frames, beat_of, labels, coverage):
+    """{"errors", "warns"} from {frame: census}; one finding per (beat, text, object), at its worst frame. A hit is a
+    line of type over a plate object's BOX; `coverage` says how much of it the object's silhouette really covers."""
     seen = {}
     for f in sorted(frames):
-        for text, obj, ov, area in frames[f].get("hits") or []:
-            share = ov / area if area else 0.0
-            if share < WARN_SHARE:
-                continue
-            k = (beat_of(f), text, obj)
-            s = seen.setdefault(k, {"n_err": 0, "n": 0, "worst": 0.0, "at": f})
-            s["n"] += 1
-            s["n_err"] += share >= ERROR_SHARE
-            if share > s["worst"]:
-                s["worst"], s["at"] = share, f
+        for text, plate_id, pf, rect in frames[f].get("hits") or []:
+            for obj, share in coverage(plate_id, pf, rect).items():
+                if share < WARN_SHARE:
+                    continue
+                k = (beat_of(f), text, obj)
+                s = seen.setdefault(k, {"n_err": 0, "n": 0, "worst": 0.0, "at": f})
+                s["n"] += 1
+                s["n_err"] += share >= ERROR_SHARE
+                if share > s["worst"]:
+                    s["worst"], s["at"] = share, f
     errors, warns = [], []
     for (beat, text, obj), s in sorted(seen.items(), key=lambda kv: (kv[0][0], -kv[1]["worst"])):
         line = "beat %s: %r sits %d%% over plate object %r (worst at film frame %d)" % (
@@ -98,7 +141,7 @@ def scan_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
                 return k
         return len(segs) - 1
 
-    out = judge(frames, beat_of, labels)
+    out = judge(frames, beat_of, labels, plate_coverage(out_dir))
     out.update(frames=total, sampled=len(frames), every=every, objects=max((r.get("objects", 0) for r in frames.values()), default=0),
                texts=max((r.get("texts", 0) for r in frames.values()), default=0), unmeasured=[why] if why else [],
                seconds=round(time.time() - t0, 1))
@@ -138,9 +181,9 @@ def main(argv):
         print("[plate_qa] NOT MEASURED: " + u)
     word, code = verdict(r)
     print("[plate_qa] scope: MEASURED — the shot's own type (captions off) against every Blender plate object's "
-          "bounding box, on %d of %d frames (every %d)" % (r["sampled"], r["frames"], r["every"]))
-    print("[plate_qa] scope: NOT MEASURED — the burned caption; frames between samples; type over an object's "
-          "transparent gaps (a box, not its silhouette)")
+          "silhouette (its ID pass), in the same beat, on %d of %d frames (every %d)" % (r["sampled"], r["frames"], r["every"]))
+    print("[plate_qa] scope: NOT MEASURED — the burned caption; frames between samples; type of another beat during "
+          "a dissolve; a silhouette finer than the half-size ID pass")
     print("[plate_qa] %s — %d plate object(s), %d line(s) of type, %.0f s" % (word, r["objects"], r["texts"], r["seconds"]))
     return code
 

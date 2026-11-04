@@ -286,7 +286,9 @@ def test_build_writes_the_contract(tmp_path, monkeypatch):
     assert rep[0]["id"] == "sat" and rep[0]["state"] == "built"
     pd = bp.plate_dir(film, "sat")
     assert sorted(f for f in os.listdir(pd) if not f.startswith(".")) == \
-        ["anchors.json", "boxes.json", "camera.json", "plate.json", "plate.webm"]
+        ["anchors.json", "boxes.json", "camera.json", "ids", "plate.json", "plate.webm"]
+    assert sorted(os.listdir(pd + "/ids")) == ["0001.png", "0002.png", "0003.png", "0004.png"]   # kept: the silhouettes plate_qa reads
+    assert json.load(open(pd + "/plate.json"))["ids"] == {"sat": "#ff0000"}
     probe = subprocess.run(["ffprobe", "-v", "error", "-show_streams", pd + "/plate.webm"], capture_output=True, text=True).stdout
     assert "alpha_mode=1" in probe.lower().replace("tag:", "")
     assert json.load(open(pd + "/boxes.json"))["sat"][0] == [4, 4, 12, 12]

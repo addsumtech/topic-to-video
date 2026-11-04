@@ -28,12 +28,20 @@ const overlap = (a: Rect, b: Rect) =>
   Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
 
 export const censusPlateClear = (root: HTMLElement) => {
-  const objects: [string, Rect][] = [];
-  root.querySelectorAll('[data-plate-object]').forEach((el) => {
+  // each beat is its own [data-beat] wrapper: during a dissolve two beats are mounted, and the leaving beat's type over
+  // the arriving beat's plate is a cross-fade, not a layout — a line is judged against the plates of its own beat only
+  const beatOf = (el: Element) => el.closest('[data-beat]') ?? root;
+  const plates = Array.from(root.querySelectorAll('[data-plate]')).map((el) => {
     const r = el.getBoundingClientRect();
-    if (r.width >= 1 && r.height >= 1) objects.push([el.getAttribute('data-plate-object') || '?', {x0: r.left, y0: r.top, x1: r.right, y1: r.bottom}]);
+    const boxes: Rect[] = [];
+    el.querySelectorAll('[data-plate-object]').forEach((o) => {
+      const b = o.getBoundingClientRect();
+      if (b.width >= 1 && b.height >= 1) boxes.push({x0: b.left, y0: b.top, x1: b.right, y1: b.bottom});
+    });
+    return {el, beat: beatOf(el), id: el.getAttribute('data-plate') || '?', f: Number(el.getAttribute('data-plate-frame')),
+      pw: Number(el.getAttribute('data-plate-w')), ph: Number(el.getAttribute('data-plate-h')), r, boxes};
   });
-  const hits: [string, string, number, number][] = [];
+  const hits: [string, string, number, number[]][] = [];
   let texts = 0;
   const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -46,13 +54,15 @@ export const censusPlateClear = (root: HTMLElement) => {
     if (r.width < 1 || r.height < 1) continue;
     texts += 1;
     const box = {x0: r.left, y0: r.top, x1: r.right, y1: r.bottom};
-    const area = r.width * r.height;
-    for (const [name, ob] of objects) {
-      const o = overlap(box, ob);
-      if (o > 0) hits.push([t.slice(0, 40), name, Math.round(o), Math.round(area)]);
+    const mine = beatOf(el);
+    for (const p of plates) {
+      if (p.beat !== mine || !p.boxes.some((b) => overlap(box, b) > 0)) continue;
+      const kx = p.pw / Math.max(1, p.r.width), ky = p.ph / Math.max(1, p.r.height);
+      hits.push([t.slice(0, 40), p.id, p.f, [(box.x0 - p.r.left) * kx, (box.y0 - p.r.top) * ky,
+        (box.x1 - p.r.left) * kx, (box.y1 - p.r.top) * ky].map((v) => Math.round(v * 10) / 10)]);
     }
   }
-  return {hits, texts, objects: objects.length};
+  return {hits, texts, objects: plates.reduce((m, p) => m + p.boxes.length, 0)};
 };
 
 export const PlateClearAudit: React.FC = () => {

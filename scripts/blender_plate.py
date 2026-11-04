@@ -383,7 +383,7 @@ def write_plates_ts(out_dir):
             bx = json.load(open(os.path.join(pd, "boxes.json"), encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        row = {"src": "media/blender/%s/plate.webm" % spec["id"], "w": pj["w"], "h": pj["h"], "fps": pj["fps"],
+        row = {"id": spec["id"], "src": "media/blender/%s/plate.webm" % spec["id"], "w": pj["w"], "h": pj["h"], "fps": pj["fps"],
                "frames": pj["frames"], "mode": pj["mode"], "anchors": an.get("anchors", {}), "boxes": bx}
         rows.append("  %s: %s," % (json.dumps(spec["id"]), json.dumps(row, ensure_ascii=False, separators=(",", ":"))))
     d = os.path.join(out_dir, "workshop", "assets")
@@ -460,10 +460,14 @@ def build(out_dir, only=None, yes=False, still=None):
             json.dump(boxes, fh)
         for f in ("anchors.json", "camera.json"):
             shutil.copyfile(os.path.join(work, f), os.path.join(pd, f))
+        # the ID pass stays: the objects' SILHOUETTES, which plate_qa judges type against (a box has empty corners)
+        shutil.rmtree(os.path.join(pd, "ids"), ignore_errors=True)
+        if spec["objects"]:
+            shutil.move(os.path.join(work, "ids"), os.path.join(pd, "ids"))
         secs = round(_time.time() - t0, 1)
         with open(os.path.join(pd, "plate.json"), "w", encoding="utf-8") as fh:
             json.dump({"key": key, "frames": frames, "fps": fps, "w": w, "h": h, "mode": spec["mode"],
-                       "engine": spec["engine"], "why": spec["why"], "blender": version, "seconds": secs,
+                       "engine": spec["engine"], "why": spec["why"], "blender": version, "seconds": secs, "ids": run.get("ids") or {},
                        "estimate": round(estimate_seconds(spec, frames), 1), "cues": cue_t, "assets": spec["assets"]},
                       fh, ensure_ascii=False, indent=1)
         shutil.rmtree(work, ignore_errors=True)

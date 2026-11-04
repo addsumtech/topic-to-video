@@ -11,6 +11,7 @@ import React from 'react';
 import {OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 
 export type Plate = {
+  id: string;
   src: string;
   w: number;
   h: number;
@@ -60,7 +61,10 @@ export const BlenderPlate: React.FC<{plate: Plate}> = ({plate}) => {
   const {width: W, height: H} = useVideoConfig();
   const u = usePlate(plate);
   return (
-    <>
+    // the plate, which of its frames is on screen, and its objects' boxes on that frame — one container, so
+    // runtime/plateClear.tsx maps type into THIS plate's pixels even when a shot draws two
+    <div data-plate={plate.id} data-plate-frame={u.f} data-plate-w={plate.w} data-plate-h={plate.h}
+      style={{position: 'absolute', left: 0, top: 0, width: W, height: H, pointerEvents: 'none'}}>
       <OffthreadVideo src={staticFile(plate.src)} muted transparent={plate.mode === 'rgba'}
         style={{position: 'absolute', left: 0, top: 0, width: W, height: H}} />
       {Object.keys(plate.boxes).map((name) => {
@@ -70,6 +74,6 @@ export const BlenderPlate: React.FC<{plate: Plate}> = ({plate}) => {
             style={{position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h, pointerEvents: 'none'}} />
         ) : null;
       })}
-    </>
+    </div>
   );
 };
