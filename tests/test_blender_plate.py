@@ -178,5 +178,6 @@ def test_blender_on_a_non_remotion_film_is_refused(tmp_path):
     film = make_film(tmp_path, GOOD)
     board = json.load(open(film + "/storyboard.json"))
     board["meta"]["renderer"] = "local"
+    board["slides"][0]["image"] = "frames/01.png"
     r = validate.evaluate(board, film)
     assert any("remotion-tier plate" in e for e in r["errors"])
