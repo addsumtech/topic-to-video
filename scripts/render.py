@@ -737,6 +737,11 @@ def _hardwrap(s, limit):
         out.append(cur.strip())
     return out
 
+# A CJK subtitle line holds 16 glyphs (the zh-Hans convention; validate.CJK_CHARS_PER_LINE gates it). The 84-unit
+# budget below is ~33 Han characters, which lays out as ONE ~30-glyph line at 16:9 — so every CJK film that left its
+# captions to this splitter tripped its own gate. A CJK-dominant sentence is chunked to one line's worth instead.
+CJK_CAPTION_LINE = 16
+
 def _split_caption_chunks(text, max_len=84, hard_wrap=True):
     """Split narration into readable, subtitle-sized chunks: first on sentence enders,
     then break any over-long sentence on commas/colons so a chunk fits 1-2 lines.
@@ -745,9 +750,10 @@ def _split_caption_chunks(text, max_len=84, hard_wrap=True):
     text = (text or "").strip()
     if not text:
         return []
-    limit = max_len
     chunks = []
     for s in _segment(text, _CJK_ENDERS, _LATIN_ENDERS):
+        han = sum(1 for c in s if _CJK_RE.match(c))
+        limit = min(max_len, _wlen("\u4e00" * CJK_CAPTION_LINE)) if han * 2 >= len(s.replace(" ", "")) else max_len
         if _wlen(s) <= limit:
             chunks.append(s); continue
         cur = ""
@@ -771,22 +777,65 @@ def _split_caption_chunks(text, max_len=84, hard_wrap=True):
     # doesn't put a 4+-line wall on screen even if the author ignores validate's warning.
     out = []
     for c in trimmed:
-        out.extend(_hardwrap(c, limit))
+        han = sum(1 for ch in c if _CJK_RE.match(ch))
+        out.extend(_hardwrap(c, min(max_len, _wlen("\u4e00" * CJK_CAPTION_LINE))
+                             if han * 2 >= len(c.replace(" ", "")) else max_len))
     return out
 
-def _captions_for(slide):
+CAPTION_LEAD = 0.1         # s a chunk appears before its first word: the eye lands on it as the voice starts
+
+def _word_timed_starts(chunks, words, narration):
+    """Each chunk's start from the voice's word times (audio/NN.words.json, already in written spelling), or None when
+    too few words match the narration to trust. The words are located in the narration in order, each within a small
+    window of the last; a chunk starts at the word that holds its first character."""
+    clean = lambda t: re.sub(r"[\W_]+", "", (t or "").casefold())   # noqa: E731
+    nar = clean(narration)
+    marks, pos, slack, toks = [], 0, 12, 0
+    for w in words or []:
+        tok = clean(str(w.get("w") or ""))
+        if not tok:
+            continue
+        toks += 1
+        f = nar.find(tok, pos)
+        if f < 0 or f - pos > slack:                 # a word the voice normalized (a number) — step past it
+            slack += 6
+            continue
+        marks.append((f, float(w.get("t") or 0.0)))
+        pos, slack = f + len(tok), 12
+    if not marks or len(marks) < max(2, toks // 2):
+        return None
+    starts, cpos = [], 0
+    for c in chunks:
+        cc = clean(c)
+        f = nar.find(cc, cpos) if cc else -1
+        if f < 0:
+            return None
+        held = [t for o, t in marks if o <= f]
+        starts.append(max(held) if held else marks[0][1])
+        cpos = f + len(cc)
+    return starts
+
+def _captions_for(slide, words=None):
     """Timed caption segments that TRACK THE NARRATION as it's spoken. If the slide
     provides an explicit multi-segment `captions` track, honour it. Otherwise split the
-    narration into subtitle chunks and time them across the slide's audio duration,
-    weighted by length (longer sentences take proportionally longer to say) — an
-    approximate but well-synced subtitle, far better than one static line per slide."""
+    narration into subtitle chunks; with the voice's word times (`words`) each chunk starts
+    as its first word is spoken, else they are timed across the slide's audio duration,
+    weighted by length (longer sentences take proportionally longer to say)."""
     caps = slide.get("captions") or []
     if len(caps) >= 2:                       # author-provided timed track wins
         return caps
     dur = float(slide.get("duration") or 0)
-    chunks = _split_caption_chunks(slide.get("narration") or (caps[0]["text"] if caps else ""))
+    narration = slide.get("narration") or (caps[0]["text"] if caps else "")
+    chunks = _split_caption_chunks(narration)
     if not chunks or dur <= 0:
         return []
+    starts = _word_timed_starts(chunks, words, narration) if words else None
+    if starts:
+        starts = [0.0] + [min(dur, max(0.0, t - CAPTION_LEAD)) for t in starts[1:]]
+        for i in range(1, len(starts)):              # a chunk never starts before the one ahead of it
+            starts[i] = max(starts[i], starts[i - 1])
+        ends = starts[1:] + [dur]
+        return [{"start": round(a, 3), "end": round(b, 3), "text": c} for a, b, c in zip(starts, ends, chunks)]
     weights = [max(1, _speak_wlen(c)) for c in chunks]   # speaking-time, not raw chars (mixed-script)
     total = sum(weights)
     segs, t = [], 0.0
@@ -800,8 +849,9 @@ def _captions_for(slide):
 def _write_srt(data, path):
     idx = 1; t0 = 0.0
     lines = []
+    out_dir = data["meta"].get("_out")
     for s in data["slides"]:
-        for c in _captions_for(s):
+        for c in _captions_for(s, _load_words(out_dir, s.get("index") or 0) if out_dir else None):
             lines.append(str(idx))
             lines.append(f"{_srt_time(t0 + c['start'])} --> {_srt_time(t0 + c['end'])}")
             lines.append(c["text"]); lines.append(""); idx += 1
@@ -925,6 +975,10 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     # the same bytes, so only html scenes are salted.
     if slide.get("type") == "html":
         fp["range"] = "tv1"
+    # a CJK beat's own caption chunks are one 16-glyph line now (CJK_CAPTION_LINE) and start on their first word; only
+    # a burned beat that leaves its captions to the splitter and has CJK text burns differently
+    if burn and len(slide.get("captions") or []) < 2 and _CJK_RE.search(slide.get("narration") or ""):
+        fp["capchunks"] = "cjk16-words"
     # an image slide's Ken Burns move is a float-window Lanczos resample now (_kenburns_frames), not zoompan's whole-
     # pixel crop: its pixels changed, so its key does — and only its key (html/programmatic clips stay cached).
     # source2: a moving window is resampled from the source's own pixels (_kenburns_master), not the fitted frame.
@@ -1828,7 +1882,8 @@ def _render_scene(slide, meta, W, H, out_clip, burn_captions, workdir):
     meta["_narration"] = slide.get("narration") or ""
     meta["_slide"] = slide          # its out-transition decides how late a cued reveal may start (scenes.py)
     pattern = renderer(slide.get("props") or {}, meta, W, H, frames, workdir, slide["index"])
-    segs = ((_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide))
+    segs = ((_caption_karaoke_segs(slide, meta, meta["_out"])
+             or _captions_for(slide, _load_words(meta["_out"], slide.get("index") or 0)))
             if burn_captions else [])
     return _encode_frames_clip(pattern, slide["audio"], dur, segs, meta, W, H, out_clip, workdir, slide=slide)
 
@@ -1934,7 +1989,8 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
             extra_inputs += ["-i", bug_png]
             parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0[v{n_in}]"); vlabel = f"v{n_in}"; n_in += 1
     band = _caption_band_px(meta, W, H)                # >0 -> captions in a strip BELOW the content
-    segs = (_caption_karaoke_segs(slide, meta, meta["_out"]) or _captions_for(slide)) if burn_captions else []
+    segs = ((_caption_karaoke_segs(slide, meta, meta["_out"])
+             or _captions_for(slide, _load_words(meta["_out"], slide.get("index") or 0))) if burn_captions else [])
 
     band_text = None; band_bg = None                   # per-scene sampled caption text colour + strip ground
     src_im = Image.open(frame).convert("RGB")

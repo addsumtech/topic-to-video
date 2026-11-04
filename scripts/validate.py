@@ -53,7 +53,7 @@ MAX_CAPTION_LINES = 3
 MIN_CAPTION_SECONDS = 0.833        # 5/6 s absolute floor, any length, any language
 MAX_CAPTION_SECONDS = 7.0          # ceiling — past this a caption reads as stuck
 CPS_CJK, CPS_LATIN = 9.0, 20.0     # adult reading speed, characters per second
-CJK_CHARS_PER_LINE = 16            # zh-Hans per-line ceiling
+CJK_CHARS_PER_LINE = rd.CJK_CAPTION_LINE   # zh-Hans per-line ceiling — the one render.py's own chunks are cut to
 # A Latin caption line that ends on a lone short word ("…to the / future") reads as a typo.
 DANGLING_WORD_MAX_CHARS = 8
 # A single cue denser than this is a wall even when it wraps to <= MAX_CAPTION_LINES (line count
@@ -5299,7 +5299,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             # minimum on-screen time (needs the timed segments, so only after tts)
             if not pre_tts and s.get("duration"):
                 shown_floor = shown_cps = shown_ceil = shown_cjk_line = False
-                for seg in rd._captions_for(s):
+                for seg in rd._captions_for(s, rd._load_words(out_dir, s.get("index") or 0) if out_dir else None):
                     ct2 = (seg.get("text") or "").strip()
                     if not ct2:
                         continue
