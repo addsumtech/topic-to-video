@@ -6,6 +6,7 @@ the type tremble. These tests pin the estimator against controls whose true path
 hand-made tracks, the census hand-off, and the gate's place among the blocking delivery gates.
 """
 import os
+import re
 import shutil
 
 import numpy as np
@@ -335,3 +336,19 @@ def test_the_slab_probe_at_9x16_splits_a_per_frame_layout_from_a_surface_view(tm
         assert lines, k
         worst[k] = {lv for lv, *_ in lines}
     assert worst["layout"] == {"error"} and worst["surface"] == {"clean"}, worst
+
+
+def test_type_an_author_distorts_under_a_filter_is_named_and_not_judged():
+    """TwoWays (the topic-to-video promo) warps its figure with an feDisplacementMap — 'a figure that will not hold' is
+    the beat — and jitter_qa reported the warp as a 0.96px tremble, an ERROR on an intended picture. The census marks a
+    line `d` only when the author declared `data-distort` AND the line is drawn under a spatial filter (so the claim
+    is a fact of the DOM, not a way to silence a tremble): such a pair is listed under its own reason, never judged."""
+    census = {0: {"lines": [_ln("/warp", 100, 100, fl="fd"), _ln("/plain", 100, 400, fl="f")]},
+              1: {"lines": [_ln("/warp", 100.4, 100.3, fl="fd"), _ln("/plain", 100.4, 400.3, fl="f")]}}
+    pairs, skip = jq.pairs_from_census(census, 1920, 1080)
+    assert [p[0] for p in pairs[0]] == ["/plain"], "a filtered line with no declaration is still judged"
+    assert any("deliberately distorted" in why for why in skip), skip
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "runtime",
+                            "textSafe.tsx"), encoding="utf-8").read()
+    assert re.search(r"c\.spatial && [^\n]*closest\?\.\('\[data-distort\]'\)", src), \
+        "the census grants `d` only under a spatial filter"

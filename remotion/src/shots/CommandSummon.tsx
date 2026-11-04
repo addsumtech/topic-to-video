@@ -100,9 +100,13 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
           command's caret, the row text, the ↵ run badge) for as long as either motion can still be running */}
       {/* the palette rises by a TRANSLATE: by its layout top it was rounded to whole pixels before anything was
           drawn, and stepped whatever unlocked it (it rests on whole pixels, 0 and -40, as before) */}
+      {/* NO BACKDROP-FILTER. The palette was frosted (`backdropFilter: blur(20px)`), and the browser draws a backdrop-
+          filter's content as a layer of its own, which the unlock does not reach: the command trembled 0.41px RMS as
+          the palette scaled, 0 without it (a one-beat film of the topic-to-video promo, jitter_qa, 2026-11-04). The
+          fill is 92% opaque, so the blur behind it was all but invisible anyway. */}
       <div style={{position: 'absolute', left: PX, top: 210, width: PW, opacity: clamp01(inP),
         transform: glide(`translateY(${palY}px) scale(${palScale})`, true), transformOrigin: '50% 0', background: 'rgba(20,25,35,0.92)',
-        border: '1px solid #2a3346', borderRadius: 20, boxShadow: '0 50px 120px rgba(0,0,0,.6)', backdropFilter: 'blur(20px)'}}>
+        border: '1px solid #2a3346', borderRadius: 20, boxShadow: '0 50px 120px rgba(0,0,0,.6)'}}>
         {/* input row */}
         <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: `34px ${CMD_PADX}px`, borderBottom: '1px solid #232c3d'}}>
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></svg>
@@ -120,10 +124,16 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
               <div key={i} style={{display: 'flex', alignItems: 'center', gap: 20, padding: `17px ${ROW_PADX}px`, borderRadius: 12,
                 opacity: clamp01(rev), transform: glide(`translateX(${lerp(-20, 0, clamp01(rev))}px)`, true),
                 background: (!fired && i === 0) ? `${ACCENT}1e` : 'transparent'}}>
-                {/* the tick is COPY-weight type: 34 px in a 44 px box, so it is ~32 px once the palette has scaled to 0.94 */}
+                {/* the tick fills its 44 px box less 10 px, ~32 px once the palette has scaled to 0.94 */}
                 <div style={{flex: 'none', boxSizing: 'border-box', width: TICK_BOX, height: TICK_BOX, borderRadius: 11, border: `2px solid ${tick ? '#59d98b' : '#3a475e'}`,
-                  background: tick ? '#59d98b' : 'transparent', color: '#0b0f17', font: '700 34px/1 var(--f-body, Inter)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'}}>{tick ? '✓' : ''}</div>
+                  background: tick ? '#59d98b' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                  {/* the tick is a PATH (runtime/icons' check stroke), not a '✓' glyph: Inter has no ✓, so it came from a
+                      fallback face, and as type it trembled 0.18px RMS under a camera push where a path glides
+                      (jitter_qa on a one-beat promo film, 2026-11-04) */}
+                  {tick ? <svg width={TICK_BOX - 10} height={TICK_BOX - 10} viewBox="5 6 14 12" fill="none" stroke="#0b0f17"
+                    strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M8 12.5l2.7 2.7L16 9" /></svg> : null}
+                </div>
                 <div style={{minWidth: 0, font: `500 ${rowFit}px/1 var(--f-body, Inter,system-ui,sans-serif)`, color: tick ? '#8f9bb0' : '#dfe6f0'}}>{r}</div>
                 {i === 0 && !fired && <div style={{marginLeft: 'auto', padding: '8px 16px', borderRadius: 8, background: '#2a3346',
                   font: '700 30px/1 var(--f-body, Inter)', color: ACCENT, whiteSpace: 'nowrap', flex: 'none'}}>↵ run</div>}

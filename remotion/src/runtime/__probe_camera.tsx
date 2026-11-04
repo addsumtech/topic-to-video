@@ -35,7 +35,7 @@ import {TypeGlideAudit} from './textSafe';
 const MASK = 'linear-gradient(90deg, transparent 0%, #000 4%, #000 96%, transparent 100%), ' +
   'linear-gradient(180deg, transparent 0%, #000 4%, #000 96%, transparent 100%)';
 
-export type ProbeLayer = 'none' | 'shadow' | 'saturate' | 'blur' | 'will-change' | 'mask' | 'frame';
+export type ProbeLayer = 'none' | 'shadow' | 'saturate' | 'blur' | 'will-change' | 'backdrop' | 'mask' | 'frame';
 const LAYER_STYLE: Record<ProbeLayer, React.CSSProperties> = {
   none: {},
   // the shadow is YELLOW so the measurement cannot mistake it for type (red missing) or for the rule (red without
@@ -44,6 +44,8 @@ const LAYER_STYLE: Record<ProbeLayer, React.CSSProperties> = {
   saturate: {filter: 'saturate(0.955)'},
   blur: {filter: 'blur(0.6px)'},
   'will-change': {willChange: 'transform'},
+  // a frosted panel (CommandSummon's palette had one): the browser rasterises a backdrop-filter's content as a layer
+  backdrop: {backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)'},
   // a feathered mask-image, as Film.tsx draws a platform-safe film's register frame (SAFE_FRAME_MASK): opaque in the
   // middle, so the measurement sees the type the mask passes through
   mask: {WebkitMaskImage: MASK, maskImage: MASK, WebkitMaskComposite: 'source-in', maskComposite: 'intersect'},

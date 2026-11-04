@@ -359,6 +359,11 @@ def pairs_from_census(census, W, H, seams=None):
             if ln.get("g"):
                 no("kinetic glyphs (judged glyph by glyph by text_safe_qa --glide)")
                 continue
+            if "d" in (ln.get("fl") or ""):
+                # the census grants `d` only to type the author marked `data-distort` that is drawn under a spatial
+                # filter (runtime/textSafe.tsx): a displacement warp moves the glyphs off their geometry on purpose
+                no("deliberately distorted (data-distort under a filter: the author's warp, not a tremble)")
+                continue
             if k not in b:
                 no("gone on the next frame")
                 continue

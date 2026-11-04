@@ -1716,7 +1716,10 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
       M, L, ls,
       op: up.op * (parseFloat(cs.opacity || '1') || 0),
       spatial: up.spatial || spatial,
-      will: up.will || /transform/.test(cs.willChange || ''),
+      // a BACKDROP-FILTER rasterises its content as a layer too: CommandSummon's frosted palette trembled 0.41px RMS
+      // with the unlock on its own transform, and 0 without the backdrop-filter (one-beat promo film, 2026-11-04)
+      will: up.will || /transform/.test(cs.willChange || '') || !/^(none)?$/.test(
+        String(cs.backdropFilter || (cs as unknown as {webkitBackdropFilter?: string}).webkitBackdropFilter || '')),
       steps: up.steps || el.hasAttribute('data-type-steps'),
       key: `${up.key}/${el.tagName.toLowerCase()}${childIndex.get(el) ?? 0}`,
       d3: up.d3 || cs.transformStyle === 'preserve-3d'
@@ -1772,7 +1775,11 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     const unlocked = !snapsBaseline(b);
     if (unlocked) u += 1;
     const r = inkRect(el) ?? el.getBoundingClientRect();
-    const fl = (c.spatial ? 'f' : '') + (c.steps ? 's' : '');
+    // `d`: the author DECLARED this type distorted (`data-distort` on it or an ancestor — a displacement warp, a glitch
+    // that is the beat) and it IS drawn under a spatial filter. Both, or it is judged like any other line: a marker on
+    // type no filter touches would only hide a tremble.
+    const distort = c.spatial && !!el.closest?.('[data-distort]');
+    const fl = (c.spatial ? 'f' : '') + (c.steps ? 's' : '') + (distort ? 'd' : '');
     // x, w, h ride along so a reader can cut the line's own pixels out of a rendered frame and check the census
     // against what was drawn (the pixel half of an accuracy check)
     lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, x: Math.round(r.left * 100) / 100,

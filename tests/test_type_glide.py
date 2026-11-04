@@ -263,6 +263,17 @@ def test_a_blur_or_drop_shadow_above_the_type_is_found_and_the_unlock_inside_it_
 
 
 @needs_toolchain
+def test_type_under_a_backdrop_filter_is_handed_to_the_pixels_not_read_as_unlocked(census_bundle):
+    """CommandSummon's palette carried `backdropFilter: blur(20px)` and the unlock on its own transform; the census read
+    the skew and called the command gliding, while the pixels trembled 0.41px RMS as the palette scaled (a one-beat
+    film of the promo's beat 25, jitter_qa, 2026-11-04) — and 0 with the backdrop-filter removed. The browser draws a
+    backdrop-filter's content as a layer of its own, so like will-change it is counted as composited (`z`), never
+    read as unlocked."""
+    got = _census(census_bundle, {"backdrop": {"move": "push", "layer": "backdrop"}})
+    assert got["backdrop"]["listed"] == 0 and got["backdrop"]["z"] > 0, got["backdrop"]
+
+
+@needs_toolchain
 def test_a_mask_over_composited_content_is_found_and_the_unlock_inside_it_is_clean(census_bundle):
     """A platform-safe film draws each register in a masked frame (Film.tsx). Measured in pixels
     (tests/test_camera_type.py): a mask alone passes the camera's unlock through, a mask whose content holds a

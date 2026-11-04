@@ -78,10 +78,13 @@ export const Callback: React.FC<{beats?: number[]; title?: string; note?: string
         const tilt = lerp((h01(i, 2) - 0.5) * 30, (h01(i, 3) - 0.5) * 7, easeOutBack(land));
         const pic = teaser ? teaser.render(beats[i]) : null;
         return (
-          <div key={i} style={{position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h, overflow: 'hidden',
+          // PLACED BY A TRANSLATE, never left/top: a layout position is rounded to whole pixels before Skia draws, so the
+          // cards' slow landing stepped and the earlier beats' type inside them trembled 0.17-0.23px RMS (jitter_qa on a
+          // one-beat-plus-sources film of the topic-to-video promo, 2026-11-04)
+          <div key={i} style={{position: 'absolute', left: 0, top: 0, width: r.w, height: r.h, overflow: 'hidden',
             borderRadius: Math.round(U * 0.012), border: `${Math.max(1, Math.round(U * 0.0015))}px solid ${mix(EDGE, FG, 0.25)}`,
             boxShadow: `0 ${Math.round(U * 0.025)}px ${Math.round(U * 0.06)}px #0007`,
-            transform: `rotate(${tilt}deg)`, transformOrigin: 'center'}}>
+            transform: `translate(${r.x}px, ${r.y}px) rotate(${tilt}deg)`, transformOrigin: 'center'}}>
             {pic ? (
               <div style={{position: 'absolute', left: 0, top: 0, width: W, height: H, transformOrigin: '0 0',
                 transform: `scale(${r.w / W})`}}>{pic}</div>
