@@ -21,7 +21,7 @@
 - The corner used to count 0→100 with a hardcoded `%` on every film, including a beat arguing that the nave was never finished. 99.5 settled as `100%`. `metric` now has no default.
 - The crosshair readout used to be the literal `x:960 y:540`, a screen coordinate posing as a measurement.
 - Don't pass `"62%"` together with `metricUnit: "%"`. The unit is appended, so the corner prints `62%%`.
-- Omitting copy prints the demo `workbuddy.unit`, `local-only`, `runs on your machine` and `0 cloud calls`.
+- Omitting copy prints the placeholders `demo.unit` and `demo-tag`; the metric, its label and the readout stay empty.
 - The spec, tag and figure-label greys are fixed, so they stay dark grey even when the drawing inverts on a dark DNA.
 
 **Reference:** `remotion/src/shots/BlueprintGrid.tsx`

@@ -8,7 +8,7 @@
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
-| `cmd` | the command typed above | leaving the demo `hermes --mode hybrid` prints a model name on any film |
+| `cmd` | the command typed above | leaving the demo `think --mode hybrid` prints a placeholder command on any film |
 | `question` | the `❯` prompt line | wraps. The demo is `solve it` |
 | `think` | the reasoning lines inside the box, each with a `│` gutter | more lines print faster and make the stack taller. The whole stack (question, box, answer) starts at 40px and steps down until it fits the zone, but never below about a third of that. The demo is `reason…` |
 | `answer` | the `=` line under the box, bold | wraps. The demo is `answer` |

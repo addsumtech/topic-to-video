@@ -11,7 +11,7 @@
 | `items` | exactly three labels: intake (dim), machine (large, to the right of its top face), pad (in the second accent). Anything other than three non-empty labels throws | each wraps, balanced, in a fixed 200–260px column; the intake and pad labels are kept above the caption band. Short labels sit on one line; long ones stack |
 
 **Known traps:**
-- Leaving out `items` prints the demo `Raw work / WorkBuddy / Delivered ✓`, which puts the demo product name on the machine.
+- Leaving out `items` prints the placeholder `Raw work / Wordmark / Delivered ✓`, which puts a placeholder name on the machine.
 - Two labels, four labels or a blank label throws. (It used to leave the pad unlabelled or drop the fourth silently.) For another number of stages use `InOrder` or `ExplodedSchematic`.
 - The whole scene, labels included, is scaled to the content zone and to the width, so on a 9:16 frame everything is drawn smaller. With a fixed origin, the pad's label once sat inside the caption band; the scene constants were measured off a render.
 - The three parts are anonymous units of work in a fixed palette (blue, violet, green); they are not the film's items and carry no count. The settled frame shows three because the diorama always runs three. Those colours, the green pad and the dark machine are semantic and are kept on any ground.

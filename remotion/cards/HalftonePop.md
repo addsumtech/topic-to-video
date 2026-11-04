@@ -15,7 +15,7 @@
 | `tail` | the end of the caption sentence | closes the sentence after the brand |
 
 **Known traps:**
-- `lead` used to be declared but never read, because the caption words were hard-coded. Every part is now a prop, but the defaults still print the demo `MEANWHILE… WorkBuddy delivers.` and `SHIP IT!`. A film that sets only some of the props gets demo words (including the demo brand) inside its own sentence.
+- `lead` used to be declared but never read, because the caption words were hard-coded. Every part is now a prop, but the defaults still print the demo `MEANWHILE… Wordmark delivers.` and `SHIP IT!`. A film that sets only some of the props gets demo words (including the demo brand) inside its own sentence.
 - A long Latin burst is not fitted and runs out of the burst. The fit applies only to CJK, where a Chinese line at 150px once ran off every edge.
 
 **Reference:** `remotion/src/shots/HalftonePop.tsx`

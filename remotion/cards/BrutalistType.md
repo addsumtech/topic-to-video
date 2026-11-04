@@ -17,7 +17,7 @@
 
 **Known traps:**
 - The accent block used to carry a literal `01/03`, making every beat "part one of three" of a series that didn't exist. `counter` has no default on purpose.
-- Omitting copy prints the demo `WORK` / `BUDDY.` / `WORKBUDDY / LOCAL-FIRST` / `NO CLOUD.` / `NO NONSENSE.`
+- Omitting copy prints the placeholders `WORD` / `MARK.` / `WORDMARK / CATEGORY` / `ONE CLAIM.` / `TWO CLAIMS.`
 - A fixed 300px headline once descended through the statement (`1674` over `A TORNADO CAME…`, a delivered beat). The headline is now sized from its room, the statement's counted lines and its width. Without the width fit, a six-glyph Chinese title ran 476px into the caption band.
 - The glitch copies are fixed red and cyan; ink, ground and accent follow the DNA.
 

@@ -9,7 +9,7 @@
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
 | `items` | the words on the stage, in order | 1–5, one shared size — the largest that leaves room for an arrow in every gap and keeps the outer words on frame. More or longer words set everything smaller; below the minimum size it refuses. Omitted, the demo `PLAN / BUILD / SHIP` prints |
-| `wordmark` | the widely spaced mono line under the row, shown at the widen | a brand or sign-off; fixed size, not fitted; omitted, the demo product name `WORKBUDDY` prints |
+| `wordmark` | the widely spaced mono line under the row, shown at the widen | a brand or sign-off; fixed size, not fitted; omitted, the placeholder `WORDMARK` prints |
 
 **Known traps:**
 - The arrows used to be exactly two at fixed offsets: with two words a stray reversed arrow crossed the last word, with four or five the chain stopped halfway, and even the demo's arrows ran through PLAN and BUILD. The light likewise never visited a fourth word. Now there are *n* − 1 arrows edge to edge and the light visits every word.

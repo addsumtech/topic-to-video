@@ -14,7 +14,7 @@
 
 **Known traps:**
 - `date` defaults to `AUG 12 2026`. That's a claim about when the footage was recorded, and it used to be a literal stamped on every film, including a 1994 home video. Pass the film's own date or `''`.
-- Omitting `title`/`tagline` prints the demo `WorkBuddy` / `ON YOUR MACHINE`.
+- Omitting `title`/`tagline` prints the placeholder `Wordmark` / `A ONE-LINE TAGLINE`.
 - The title used to be a flat 168px. Under the `cinematic` DNA (Bodoni Moda) it was cut off by about 85px on both sides in all three RGB copies, so it's now fitted with the split's excursion included.
 - `REC`, `SP`, `▶ PLAY` and the counter are the deck describing itself (`INTRINSIC_TEXT`, `INTRINSIC_READOUT`). The counter measures nothing.
 - **Dark world** (`@dark-world` in the shot). The three wordmark copies are composited with `mixBlendMode: screen` — additive light, which on a white ground is arithmetically nothing — and the scanlines, tracking band and barrel vignette all shape a lit tube. So the register takes the film's ground only while that ground is DARK and keeps its own tube-dark when the film's is light. A light film gets one deliberately dark beat here, which the seam guard and the caption ink already handle.

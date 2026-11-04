@@ -13,7 +13,7 @@
 | `tagline` | the spaced line under the title | fixed 30px mono, uppercased, 0.36em tracking, not fitted |
 
 **Known traps:**
-- Omitting props prints the demo `A NEW KIND OF TEAMMATE` / `WorkBuddy` / `your ai team · on your machine`.
+- Omitting props prints the placeholders `A SMALL KICKER LINE` / `Wordmark` / `a one-line tagline · here`.
 - The title's width used to be guessed as `len × 0.52`, which underestimates high-contrast faces (Bodoni Moda). Long titles wrapped and crowded the tagline at 9:16, so the string is now measured.
 - The flare and letterbox are skipped under ANY DNA (`!dna`), not only a terminal one, so a themed film gets neither.
 - The kicker and tagline are uppercased and widely tracked with no fit, so long copy wraps into wide, spaced blocks.

@@ -1,6 +1,6 @@
 # BlockAssembly
 
-**Identity:** a Notion-style document builds itself block by block from the top: a title, three placeholder text rules, an info callout, a to-do list (ticked and struck through only where the film says so), and a 3×3 table with a header row over em-dash cells.
+**Identity:** a block-editor document (the kind a notes app builds) builds itself block by block from the top: a title, three placeholder text rules, an info callout, a to-do list (ticked and struck through only where the film says so), and a 3×3 table with a header row over em-dash cells.
 
 **Use when:** the beat is a plan or brief being written up — a named document with a goal and 1–8 to-dos, some of which may be done. **Not when:** the table needs real cell data (its body is always em-dashes), or every step should end ticked (that's `CommandSummon`'s premise).
 

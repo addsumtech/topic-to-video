@@ -36,7 +36,7 @@ const NODE_PALETTE0 = ['#4c8dff', '#22d3c5', '#b06cff', '#ff8fc7', '#ffd23f', '#
 const RIM_D0 = '#eaf1ff';        // the ring on every node's edge
 const HUB_D0 = '#eaf1ff';        // the hub's name, under the hub
 
-const DEFAULT_ITEMS = ['Docs', 'Code', 'Slack', 'Calendar', 'Email', 'Tasks', 'Notes'];
+const DEFAULT_ITEMS = ['Docs', 'Code', 'Chat', 'Calendar', 'Email', 'Tasks', 'Notes'];
 // the demo's own chords, drawn only while the demo's own nodes are showing — never between a film's nodes
 // @decor: the standalone demo's chords only — used when `items` is the untouched demo list and `links` is absent; a film's nodes get only the links it passes
 const DEMO_LINKS: [number, number][] = [[0, 1], [1, 5], [2, 3], [4, 6], [5, 6]];

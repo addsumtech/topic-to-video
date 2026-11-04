@@ -17,7 +17,7 @@
 - The timing was once a fixed 0.27 per box, so even the demo's third label was only half in on the settled frame, a fourth box was half drawn when the clip ended and a fifth never started. It is laid out for the count now.
 - A four- or five-step flow on a 16:9 frame used to fall to a column at about half size; it now runs across, scaled to the width.
 - Fixed x positions once put the third box off a 1080-wide frame, and the first repair made the boxes overlap. The layout now switches to a column. That column once hung into the caption band on short frames, so it now scales down.
-- Leaving out `items` prints the demo `You / WorkBuddy / Done ✓`.
+- Leaving out `items` prints the placeholder `You / Wordmark / Done ✓`.
 
 **Refuses:** no `items`, more than five, or an item with an empty label.
 

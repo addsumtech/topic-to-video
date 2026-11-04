@@ -11,7 +11,7 @@
 | `messages` | the thread: `{side: 'you' \| 'wb', text, at}` | `'you'` goes right in the accent, `'wb'` left with the avatar; any other `side` throws. `at` is 0–0.9 (later is still fading in on the last frame, so it throws). The type (46px base) scales down until the whole thread fits the content zone, with a floor at 0.34 of full size; a thread that does not fit even there throws. A short thread is big and airy, and a long one is small and dense |
 
 **Known traps:**
-- Omitting `messages` prints the demo WorkBuddy exchange (`Build the Q3 board deck…`, `Done ✓ — 24 slides…`).
+- Omitting `messages` prints the demo exchange (`Build the Q3 board deck…`, `Done ✓ — 24 slides…`), whose count is invented: a film passes its own messages.
 - Bubbles stack in ARRAY order, but appear at their `at`. Keep `at` increasing down the list, or a later-timed bubble will pop in above ones already shown and push them down.
 - A thread too long for the 0.34 floor THROWS (it names the px it needed and the px the zone holds). Split the exchange over two ChatThread beats, or shorten it. A nine-turn Chinese exchange of 30–45 characters a turn needed 773px of the 710px a 16:9 frame holds.
 - The fit is an ESTIMATE, and emoji-heavy text beats it (an emoji counts 0.72em and renders wider). If a thread overflows anyway, the column is bottom-anchored, so the OLDEST message is the one clipped off the top and the newest stays in view. It used to be the reverse (laid out from the top, so the last reply was the one cut off).

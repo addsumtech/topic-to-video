@@ -9,8 +9,8 @@
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
 | `items` | the words, shown one at a time for an equal share of the clip | 2–3 words give each a long hold; more words make it a rapid-fire snap. All words share one size, measured in the DNA's display face so the **longest** fits across the frame (capped at 340px), so one long word shrinks them all. The last character is always drawn in the accent, which assumes each word ends in a full stop |
-| `ticker` | the text in the accent band, repeated and scrolling | a slogan run. `''` removes the band completely. Leaving the demo in place prints `WORKBUDDY —— ON YOUR MACHINE —— …` |
-| `wordmark` | the mono label top-left | a brand or section name. Leaving the demo in place prints `WORKBUDDY™` |
+| `ticker` | the text in the accent band, repeated and scrolling | a slogan run. `''` removes the band completely. Leaving the demo in place prints `WORDMARK —— A TAGLINE —— …` |
+| `wordmark` | the mono label top-left | a brand or section name. Leaving the demo in place prints `WORDMARK™` |
 | `colophon` | an accent corner mark under the index counter | empty by default, which draws nothing. Pass one only if it means something |
 
 **Known traps:**

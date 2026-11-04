@@ -267,7 +267,7 @@ anchor beats you pass `framed`). Do not stack them: they share family D so the a
 
 157. **ScanReconstruct** — a real fetched image is revealed by a reconstruction technique rather than a wipe. *Use: a real image revealed by the process that produces it.* `src` **(REQUIRED)**`, label, credit, accent, cols`
 156. **KSpaceReal** — the real FFT magnitude of an actual scan, not a decorative mandala. *Use: showing the real transform of real data.* `src, accent, label, credit`
-41. **HandDrawn** — riso ink sketch draws on (You→WorkBuddy→Done), and the LINEWORK BOILS: every box and arrow is redrawn from a different jitter 10×/s, cycling 3 drawings of the same shape (`boilPhase`, `runtime/draw`), with the misregistered riso under-layer on the same phase. *Use: human / hand-made.* Past that it throws: `items` 1–5.
+41. **HandDrawn** — riso ink sketch draws on (You→Wordmark→Done), and the LINEWORK BOILS: every box and arrow is redrawn from a different jitter 10×/s, cycling 3 drawings of the same shape (`boilPhase`, `runtime/draw`), with the misregistered riso under-layer on the same phase. *Use: human / hand-made.* Past that it throws: `items` 1–5.
 42. **CartoonPop** — cel-shaded cartoon mascot zaps tasks → DONE! *Use: playful / friendly.* `label` · PRODUCT-LOCKED: every film gets the same robot mascot zapping a pile of task papers into DONE — no prop can change that story. Cast it only for a beat whose claim IS that story.
 43. **HalftonePop** — comic Ben-Day pop-art burst "SHIP IT!". *Use: loud fun highlight.*
 44. **ClayStack** — soft pastel clay blocks stack + clay check. *Use: tactile approachable build.*
@@ -402,9 +402,9 @@ Written FOR the editorial DNA (they read `EdFrame`: a kicker + hairline accent r
 *(the single-letter families A–Z are full; add two-letter families AA+ when a new bold language needs one.)*
 
 ---
-## Generalization — every shot is topic-driven via props (defaults = the WorkBuddy demo)
+## Generalization — every shot is topic-driven via props (defaults = neutral placeholders)
 
-A design language is NOT tied to WorkBuddy: each shot reads its copy/data from **props with defaults**, so a
+A design language is NOT tied to its demo: each shot reads its copy/data from **props with defaults**, so a
 new topic just passes different strings (proven by re-skinning 8 shots to "MealMate" with zero code changes).
 Standard prop vocabulary: `title` / `tagline` / `kicker` (headline set) · `items: string[]` (a list/labels) ·
 `hub` (a centre node) · `label` (a single caption) · `accent` (primary colour) · plus shot-specific fields.

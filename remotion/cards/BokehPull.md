@@ -12,7 +12,7 @@
 | `tagline` | the spaced mono line under it | fixed 32px with 0.4em tracking, not fitted |
 
 **Known traps:**
-- Omitting the props prints the demo `WorkBuddy` / `IN FOCUS`.
+- Omitting the props prints the placeholder `Wordmark` / `IN FOCUS`.
 - The title isn't fitted and has no caption-band reserve (it centres on the frame), so long or Chinese titles can overflow.
 - **Dark world** (`@dark-world` in the shot). Bokeh is defocused points of LIGHT — additive glows inside a lens vignette — so the register takes the film's ground only while that ground is DARK and keeps its own night when the film's is light. On its own night it keeps its own orb palette too: a light film's accents were picked to read on paper and would be orbs nobody can see.
 - The orb palette follows the DNA of a dark-ground film; the wordmark is fixed near-white and the vignette always darkens the edges, both of which read because the ground is always dark.

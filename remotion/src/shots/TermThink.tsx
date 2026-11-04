@@ -8,11 +8,16 @@ import {useT, seg, clamp01} from '../runtime/motion';
 import {rows} from '../runtime/rows';
 import {useDNA, TermFrame, termInnerW} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, monoFit, wrapLines} from '../runtime/layout';
+import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 175;
+// a key on each character of the command as TermFrame types it (round(n * u) over [0.05, 0.16], runtime/dna.tsx)
+export const SOUNDS: readonly SoundDecl[] = [
+  {kind: 'key', type: 'cmd', at: 0.05, to: 0.16, draw: 'round'},
+] as const;
 
 export const TermThink: React.FC<{cmd?: string; question?: string; think?: string[]; answer?: string; framed?: boolean}> = ({
-  cmd = 'hermes --mode hybrid', question = 'solve it', think: think_IN = ['reason…'], answer = 'answer', framed = false} = {}) => {
+  cmd = 'think --mode hybrid', question = 'solve it', think: think_IN = ['reason…'], answer = 'answer', framed = false} = {}) => {
   const think = rows<string>(think_IN, 'think', 'TermThink');
   const t = useT();
   const frame = useCurrentFrame();

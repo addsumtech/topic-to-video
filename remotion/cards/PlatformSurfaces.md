@@ -11,7 +11,7 @@
 | `markLabel` | the small spaced mono caps at the top of the hero panel | a category word; omitted, the demo `THE PLATFORM` prints |
 | `title` | the hero panel's headline — drawn once | fixed large type, balanced wrap: a short name reads as a brand plate, a sentence wraps to several lines and fills the panel; omitted, the demo `One platform, not one app` prints |
 | `subtitle` | the line under the headline | a quiet one-liner; long copy wraps and pushes the block up; omitted, a demo line prints |
-| `tiles` | one tile each: `label`, optional `note`, optional `glyph` | laid out two to a row (a single tile takes the whole row; an odd last tile sits in the left half of its row): 1–2 tiles give big, calm cells, 5–6 give short, dense rows. `glyph` is one of `chat`, `api`, `video`, `code`, `cursor`, `node`; without one the tile draws no picture and its label sits at the bottom. Omitted, four demo tiles naming real products (API / Sora / Codex / Operator) print |
+| `tiles` | one tile each: `label`, optional `note`, optional `glyph` | laid out two to a row (a single tile takes the whole row; an odd last tile sits in the left half of its row): 1–2 tiles give big, calm cells, 5–6 give short, dense rows. `glyph` is one of `chat`, `api`, `video`, `code`, `cursor`, `node`; without one the tile draws no picture and its label sits at the bottom. Omitted, four placeholder tiles (`Surface one`…`Surface four`) print |
 | `accent` | the hero panel's gradient and the first tile's tone (overridden by the DNA accent) | plumbing |
 | `accent2` | the second tile's tone (overridden by the DNA's second accent) | plumbing |
 

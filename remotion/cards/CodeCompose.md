@@ -15,7 +15,7 @@
 
 **Known traps:**
 - The window is a fixed 620px tall with a 58px line pitch, and nothing clips the code layer. From the eighth line, code draws under the output strip and then below the window.
-- Omitting props prints the demo WorkBuddy Python, `workbuddy.py` and `— shipped, on your machine`.
+- Omitting props prints the demo Python, `demo.py` and `— done, ready to read`.
 - The caret used to count one cell per character and was drawn through the middle of Han glyphs (splitting 测). Wide characters count two cells, but the 20.4px cell is a constant for the default mono at 34px, so a DNA with a different mono face can drift the caret off the typing head.
 - The output strip's `▶` read as player chrome, so it's now `$`. The `✓` fell back to a hairline glyph, so it's now drawn as SVG.
 - The window chrome and token palette are fixed dark and syntax colours; only the ground follows the DNA.

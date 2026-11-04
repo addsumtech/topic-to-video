@@ -8,7 +8,7 @@
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
-| `appTitle` | the window's title-bar text | a file or app name; omitted, the demo `workbuddy — untitled` (a product name) prints |
+| `appTitle` | the window's title-bar text | a file or app name; omitted, the placeholder `demo — untitled` prints |
 | `nav` | the sidebar entries, 1–6 | a few short labels read as a real app; CJK labels wrap and fill the sidebar sooner. Your own list gets an even sidebar with nothing lit unless you pass `active` |
 | `active` | the index of the nav item being shown — lit, and used as the page heading | omitted or `null`: nothing highlighted and no page heading. Only the demo `nav` falls back to its own "Deliverables" page |
 | `action` | the button's label, the thing clicked | a short verb ("+ New", "导出"); `''` draws no button and the cursor goes straight to the row with no click. Omitted, the English demo `+ New` prints |

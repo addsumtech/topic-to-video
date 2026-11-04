@@ -12,7 +12,7 @@
 | `hub` | the name under the core | fixed 40px, not fitted |
 
 **Known traps:**
-- `hub` defaults to 'WorkBuddy' — omit it and a product name prints under the core of any film.
+- `hub` defaults to the placeholder 'Wordmark' — omit it and that word prints under the core of any film.
 - The orbits used to be filled by `labels[i % n]`, so two items each appeared twice and a fifth was dropped without a word; now there is one orbit per item and a fifth throws.
 - Labels used to vanish whenever their node crossed behind the core, so at the settled frame one of four was drawn; they recede now instead.
 - The hub's name and every node's core were literal near-whites, so on a light film they were white on warm paper: `ink_contrast_qa` measured 33.7% of the marks under 3:1, a median of 3.76:1 and a 0.30%-of-frame hole, and the hole was the hub's own word — the subject of the beat. Both take the film's ink now, and the hub's separation bloom is the film's ground rather than a fixed black under it.

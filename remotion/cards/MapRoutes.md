@@ -13,7 +13,7 @@
 | `accent` | the routes, pins, glows and tag borders | the whole network's colour; what you pass wins, unset it is the film's DNA accent, and only an un-themed film gets the original teal |
 
 **Known traps:**
-- Omitting `items` / `hub` prints a product demo: GitHub, Slack, Notion, Drive, Jira, Gmail around `WorkBuddy`.
+- Omitting `items` / `hub` prints placeholders: Code, Chat, Notes, Files, Tickets, Mail around `Wordmark`.
 - There used to be no cap on `items`: pins start 0.05 apart and take 0.24 to land, so past about a dozen spokes the last pins were still popping when the clip ended. It is capped at ten now — at twelve, neighbouring labels (北京/上海, 重庆/武汉) overlapped on a 1:1 frame.
 - Only Chinese hub text is fitted; a long English hub name keeps 30px and wraps out past the 130px disc.
 - The tags take the film's surface and ink, the graticule its `line`, and the hub disc is a tint of the accent with its word measured against that disc. Before this the labels read on a paper film only because each carried its own dark chip, while every route, pin and packet — the connections the register exists to draw — measured under 1.5:1 and the graticule authored as a faint hint became a hard dark web across the page.

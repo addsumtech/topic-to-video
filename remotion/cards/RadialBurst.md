@@ -8,7 +8,7 @@
 
 | Prop | What it sets | Feel of turning it |
 |---|---|---|
-| `hub` | the name set under the hub | fixed-size bold type, not fitted: a one- or two-word name reads as a label on the hub, a longer one wraps under it; omitted, the demo product name `WorkBuddy` prints |
+| `hub` | the name set under the hub | fixed-size bold type, not fitted: a one- or two-word name reads as a label on the hub, a longer one wraps under it; omitted, the placeholder `Wordmark` prints |
 | `tagline` | the widely spaced mono line near the bottom | fixed size and wide tracking, not fitted: a few words read as a stamp, a sentence wraps; omitted, the demo `EVERYTHING, IN ORBIT` prints |
 
 **Known traps:**
