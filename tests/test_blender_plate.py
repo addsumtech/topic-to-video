@@ -181,3 +181,170 @@ def test_blender_on_a_non_remotion_film_is_refused(tmp_path):
     board["slides"][0]["image"] = "frames/01.png"
     r = validate.evaluate(board, film)
     assert any("remotion-tier plate" in e for e in r["errors"])
+
+
+# ── the build: key, budget, run, encode, boxes, plates.ts ─────────────────────────────────────────────────────
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+
+from PIL import Image  # noqa: E402
+
+
+def _spec(film):
+    return bp.spec_of(json.load(open(film + "/storyboard.json"))["slides"][0], film)
+
+
+def test_key_moves_with_each_input(tmp_path, monkeypatch):
+    film = make_film(tmp_path, dict(GOOD, cues=["广播"]))
+    kit = tmp_path / "skill"
+    (kit / "blender").mkdir(parents=True)
+    (kit / "blender" / "runner.py").write_text("a")
+    monkeypatch.setattr(bp, "SKILL_ROOT", str(kit))
+    monkeypatch.setattr(bp, "KIT_DIR", str(kit / "blender"))
+    spec = _spec(film)
+    base = dict(spec=spec, out_dir=film, frames=169, fps=30, w=1920, h=1080, cue_t={"广播": 2.32}, blender_version="5.2.4")
+    keys = {bp.plate_key(**base)}
+    keys.add(bp.plate_key(**dict(base, frames=170)))
+    keys.add(bp.plate_key(**dict(base, cue_t={"广播": 2.4})))
+    keys.add(bp.plate_key(**dict(base, spec=dict(spec, engine="cycles"))))
+    keys.add(bp.plate_key(**dict(base, blender_version="5.3.0")))
+    keys.add(bp.plate_key(**dict(base, w=1080, h=1920)))
+    (kit / "blender" / "runner.py").write_text("b")
+    keys.add(bp.plate_key(**base))
+    open(film + "/blender/s.py", "a").write("# edited\n")
+    keys.add(bp.plate_key(**base))
+    assert len(keys) == 8
+
+
+def _ids_png(path, size, block=None, colour=(255, 0, 0), stray=None):
+    im = Image.new("RGBA", size, (0, 0, 0, 0))
+    if block:
+        x0, y0, x1, y1 = block
+        for x in range(x0, x1):
+            for y in range(y0, y1):
+                im.putpixel((x, y), (*colour, 255))
+    if stray:
+        im.putpixel(stray[0], stray[1])
+    im.save(path)
+
+
+def test_boxes_from_ids(tmp_path):
+    d = tmp_path / "ids"
+    d.mkdir()
+    _ids_png(d / "0001.png", (8, 8), block=(1, 1, 3, 3), stray=((3, 3), (254, 1, 0, 255)))   # a near-red edge pixel
+    _ids_png(d / "0002.png", (8, 8))
+    b = bp.boxes_from_ids(str(d), {"sat": "#ff0000"}, 2, scale=2)
+    assert b["sat"][0] == [2, 2, 8, 8] and b["sat"][1] is None
+
+
+def test_boxes_null_when_absent(tmp_path):
+    d = tmp_path / "ids"
+    d.mkdir()
+    _ids_png(d / "0001.png", (8, 8), block=(0, 0, 2, 2), colour=(0, 0, 0))                  # an unnamed (black) object
+    assert bp.boxes_from_ids(str(d), {"sat": "#ff0000"}, 1)["sat"] == [None]
+
+
+def test_boxes_refuse_a_missing_frame(tmp_path):
+    d = tmp_path / "ids"
+    d.mkdir()
+    with pytest.raises(bp.PlateError, match="0001"):
+        bp.boxes_from_ids(str(d), {"sat": "#ff0000"}, 1)
+
+
+def _facts(monkeypatch, frames=4, w=32, h=18):
+    monkeypatch.setattr(bp, "_frame_facts", lambda out_dir, board, i: (frames, 30, w, h))
+    monkeypatch.setattr(bp, "_blender_version_str", lambda meta: "5.2.4")
+    monkeypatch.setattr(bp, "require_blender", lambda meta=None: "/fake/Blender")
+
+
+def _fake_runner(objects=("sat",)):
+    """Stands in for Blender: writes what runner.py writes, for the arguments it was given."""
+    def run(cmd, log):
+        a = cmd[cmd.index("--") + 1:]
+        opt = {a[i]: a[i + 1] for i in range(0, len(a) - 1, 2) if a[i].startswith("--")}
+        out, n, w, h = opt["--out"], int(opt["--frames"]), int(opt["--w"]), int(opt["--h"])
+        os.makedirs(out + "/rgba", exist_ok=True)
+        os.makedirs(out + "/ids", exist_ok=True)
+        for f in range(1, n + 1):
+            im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            im.paste((200, 160, 60, 255), (4, 4, 12, 12))
+            im.save(out + "/rgba/%04d.png" % f)
+            _ids_png(out + "/ids/%04d.png" % f, (w // 2, h // 2), block=(2, 2, 6, 6))
+        json.dump({"w": w, "h": h, "fps": 30, "frames": n, "anchors": {}}, open(out + "/anchors.json", "w"))
+        json.dump({"frames": [{}] * n}, open(out + "/camera.json", "w"))
+        json.dump({"blender": "5.2.4", "ids": {o: "#ff0000" for o in objects}, "rendered": n, "seconds": 1.0},
+                  open(out + "/run.json", "w"))
+        return 0
+    return run
+
+
+def test_build_writes_the_contract(tmp_path, monkeypatch):
+    film = make_film(tmp_path, dict(GOOD, objects=["sat"]))
+    _facts(monkeypatch)
+    monkeypatch.setattr(bp, "_run_blender", _fake_runner())
+    rep = bp.build(film)
+    assert rep[0]["id"] == "sat" and rep[0]["state"] == "built"
+    pd = bp.plate_dir(film, "sat")
+    assert sorted(f for f in os.listdir(pd) if not f.startswith(".")) == \
+        ["anchors.json", "boxes.json", "camera.json", "plate.json", "plate.webm"]
+    probe = subprocess.run(["ffprobe", "-v", "error", "-show_streams", pd + "/plate.webm"], capture_output=True, text=True).stdout
+    assert "alpha_mode=1" in probe.lower().replace("tag:", "")
+    assert json.load(open(pd + "/boxes.json"))["sat"][0] == [4, 4, 12, 12]
+    board = json.load(open(film + "/storyboard.json"))
+    assert bp.plate_state(film, board, 0) == "fresh"
+    assert bp.build(film)[0]["state"] == "fresh"                 # nothing changed: nothing rebuilt
+
+
+def test_partial_of_old_key_discarded(tmp_path, monkeypatch):
+    film = make_film(tmp_path, GOOD)
+    _facts(monkeypatch)
+    monkeypatch.setattr(bp, "_run_blender", _fake_runner(objects=()))
+    old = os.path.join(bp.plate_dir(film, "sat"), ".work-deadbeef0000", "rgba")
+    os.makedirs(old)
+    open(old + "/0001.png", "wb").write(b"x")
+    bp.build(film)
+    assert not os.path.exists(os.path.dirname(old))
+
+
+def test_runner_failure_is_a_build_failure(tmp_path, monkeypatch, capsys):
+    film = make_film(tmp_path, GOOD)
+    _facts(monkeypatch)
+    monkeypatch.setattr(bp, "_run_blender", lambda cmd, log: (open(log, "w").write("Traceback: boom\n"), 1)[1])
+    assert bp.main([film]) == 1
+    assert "boom" in capsys.readouterr().out
+
+
+def test_over_budget_exits_3(tmp_path, monkeypatch, capsys):
+    film = make_film(tmp_path, GOOD)
+    board = json.load(open(film + "/storyboard.json"))
+    board["meta"]["blender_budget_min"] = 0.01
+    json.dump(board, open(film + "/storyboard.json", "w"), ensure_ascii=False)
+    _facts(monkeypatch, frames=169)
+    monkeypatch.setattr(bp, "_run_blender", _fake_runner(objects=()))
+    assert bp.main([film]) == 3
+    out = capsys.readouterr().out
+    assert "--yes" in out and "min" in out
+    assert not os.path.exists(os.path.join(bp.plate_dir(film, "sat"), "plate.json"))
+
+
+def test_no_blender_exits_2(tmp_path, monkeypatch):
+    film = make_film(tmp_path, GOOD)
+    monkeypatch.setattr(bp, "blender_bin", lambda meta=None: None)
+    assert bp.main([film]) == 2
+
+
+def test_estimate_uses_the_measured_rates():
+    spec = {"engine": "eevee", "objects": ["a"]}
+    assert bp.estimate_seconds(spec, 100) == pytest.approx(10 + 100 * (4.6 + 0.72))
+    assert bp.estimate_seconds(dict(spec, engine="cycles", objects=[]), 100) == pytest.approx(10 + 100 * 16.0)
+
+
+def test_plates_ts_names_its_files(tmp_path, monkeypatch):
+    film = make_film(tmp_path, dict(GOOD, objects=["sat"]))
+    _facts(monkeypatch)
+    monkeypatch.setattr(bp, "_run_blender", _fake_runner())
+    bp.build(film)
+    import remotion_segments as rs
+    ts = open(os.path.join(film, "workshop/assets/plates.ts"), encoding="utf-8").read()
+    assert "import type {Plate} from '@runtime/blenderPlate';" in ts
+    assert "media/blender/sat/plate.webm" in rs.code_named_files(os.path.realpath(film), ts)
