@@ -5273,6 +5273,16 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             caps = s.get("captions") or []
             texts = ([c.get("text", "") for c in caps] if len(caps) >= 2
                      else rd._split_caption_chunks(s.get("narration") or "", hard_wrap=False))
+            # an authored track keeps its times through `tts.py --only` — a re-voiced beat's track still ends where
+            # the OLD clip did. It may stop short of the clip by the tail pad (≤1.5 s), never run past it.
+            _ends = [c.get("end") for c in caps if sb._is_num(c.get("end"))] if len(caps) >= 2 else []
+            if _ends and sb._is_num(s.get("duration")):
+                _last, _dur = max(_ends), float(s["duration"])
+                if _last > _dur + 0.25 or _last < _dur - 1.6:
+                    warnings.append(f"{tag}: its `captions` track ends at {_last:.2f}s but the clip lasts {_dur:.2f}s — "
+                                    f"the track was timed for a different voice (a `tts.py --only` re-voice keeps it); "
+                                    f"re-time it from audio/{s.get('index', 0):02d}.words.json, or delete it and let "
+                                    f"render time its own chunks from the words")
             for txt in texts:
                 ct = (txt or "").strip()                  # NOT `t` — that is the scene type above
                 lines = _caption_lines(ct, meta, W, H)

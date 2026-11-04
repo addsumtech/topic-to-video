@@ -74,6 +74,27 @@ def pick(slides):
     return [(s.get("index", 0), s["narration"]) for s in want]
 
 
+def named(slides, beats):
+    """[(index, narration)] for the board indices in `beats`, in the order given — or RuntimeError naming the first one
+    that is not a beat or has nothing to say (a re-listen to a rewrite must hear exactly the rewritten beats)."""
+    by_index = {s.get("index", i): s for i, s in enumerate(slides)}
+    out = []
+    for b in beats:
+        s = by_index.get(b)
+        if s is None:
+            raise RuntimeError("beat %s is not on the board (its indices run %s..%s)"
+                               % (b, min(by_index, default="-"), max(by_index, default="-")))
+        if not (s.get("narration") or "").strip():
+            raise RuntimeError("beat %s has no narration — there is nothing in it to hear" % b)
+        out.append((b, s["narration"]))
+    return out
+
+
+def parse_beats(text):
+    """`--beats 9,13,24` -> [9, 13, 24]; ValueError on anything that is not a list of board indices."""
+    return [int(x) for x in str(text).replace(" ", "").split(",") if x != ""]
+
+
 def audition(out_dir, beats=None, out_name="audition.mp3", allow_paid=False):
     """Synthesize the picked beats through the board's OWN voice and join them with its own pause.
 
@@ -92,8 +113,8 @@ def audition(out_dir, beats=None, out_name="audition.mp3", allow_paid=False):
     board = os.path.join(out_dir, "storyboard.json")
     data = json.load(open(board, encoding="utf-8"))
     meta = data.get("meta") or {}
-    picked = pick(data.get("slides") or [])
-    if len(picked) < MIN_BEATS:
+    picked = named(data.get("slides") or [], beats) if beats else pick(data.get("slides") or [])
+    if not beats and len(picked) < MIN_BEATS:
         raise RuntimeError("only %d beat(s) carry narration — there is nothing to audition yet" % len(picked))
 
     prov, name, lang, _note = _tts.film_voice(meta, data.get("slides") or [])
@@ -142,11 +163,14 @@ def main():
                     "listens.")
     ap.add_argument("out_dir")
     ap.add_argument("--name", default="audition.mp3")
+    ap.add_argument("--beats", type=parse_beats, default=None,
+                    help="audition exactly these board indices, in this order (e.g. 9,13,24 — the beats you rewrote); "
+                         "default: hook, climax, close and two from the middle")
     ap.add_argument("--allow-paid", action="store_true",
                     help="speak through a paid engine (OpenAI/MiniMax) — only once the user has chosen it")
     a = ap.parse_args()
     try:
-        path, picked, voice = audition(a.out_dir, out_name=a.name, allow_paid=a.allow_paid)
+        path, picked, voice = audition(a.out_dir, beats=a.beats, out_name=a.name, allow_paid=a.allow_paid)
     except Exception as exc:                                                 # noqa: BLE001 — report, never skip
         print("[audition] COULD NOT AUDITION — %s" % exc)
         print("[audition] Do not treat the script checkpoint as met: nobody has heard this script.")

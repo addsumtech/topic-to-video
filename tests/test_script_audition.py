@@ -227,3 +227,28 @@ def test_it_names_a_beat_by_the_boards_own_index(tmp_path, monkeypatch, capsys):
     shown = [int(l.split()[1]) for l in capsys.readouterr().out.splitlines() if l.strip().startswith("beat ")]
     assert shown and set(shown) <= {1, 2, 3, 4}, "the audition labels beats %r on a board numbered 1-4" % shown
     assert 1 in shown, "the first beat (the hook) is labelled %r" % shown
+
+
+# --beats: a rewrite of three beats is re-heard as those three, not the five the picker would choose. audition() took a
+# `beats` argument and ignored it; the CLI had no way to pass one (a QR-code film, 2026-11-04, rewrote beats 9, 13, 24).
+def test_named_beats_are_auditioned_in_the_order_given(tmp_path, monkeypatch):
+    heard = []
+    monkeypatch.setattr(_tts, "_have_edge", lambda: True)
+    monkeypatch.setattr(_tts, "_edge", lambda text, out, voice, rate="+0%": (heard.append(text), _tone(out)))
+    _write(tmp_path, {"language": "zh", "voice": "auto"}, _ZH + ["第五拍。", "第六拍。", "第七拍。"])
+    _path, picked, _voice = sa.audition(str(tmp_path), beats=[3, 1])
+    assert [i for i, _t in picked] == [3, 1] and len(heard) == 2
+
+
+def test_an_unknown_or_silent_beat_is_refused_by_name(tmp_path):
+    _write(tmp_path, {"language": "zh", "voice": "auto"}, _ZH + [""])
+    with pytest.raises(RuntimeError, match="beat 9"):
+        sa.audition(str(tmp_path), beats=[1, 9])
+    with pytest.raises(RuntimeError, match="beat 4"):
+        sa.audition(str(tmp_path), beats=[1, 4])
+
+
+def test_the_cli_takes_beats():
+    assert sa.parse_beats("9, 13,24") == [9, 13, 24]
+    with pytest.raises(ValueError):
+        sa.parse_beats("9,x")
