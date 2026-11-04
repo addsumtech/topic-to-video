@@ -68,6 +68,9 @@ def require_blender(meta=None):
 import hashlib  # noqa: E402
 import json  # noqa: E402
 
+# What a built plate CONTAINS. Raise it whenever the build writes something new a reader depends on: a plate made by an
+# older build is then stale, not "fresh" without it (format 2 kept the ID pass, which plate_qa now reads).
+PLATE_FORMAT = 2
 BLENDER_WHY = ("real-world", "material", "physics", "optics", "space")
 MODES = ("rgba", "env")
 ENGINES = ("eevee", "cycles")
@@ -200,6 +203,7 @@ def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version):
         put("cue", k, "%.3f" % cue_t[k])
     put("frame", frames, fps, w, h, spec["engine"], spec["mode"], "|".join(spec["anchors"]), "|".join(spec["objects"]))
     put("blender", blender_version)
+    put("format", PLATE_FORMAT)
     return h_.hexdigest()
 
 

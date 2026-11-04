@@ -413,3 +413,11 @@ def test_a_non_equirect_asset_is_not_judged(tmp_path):
         im.putpixel((99, y), (255, 255, 255))
     im.save(film + "/assets/p.png")
     assert bp.asset_warnings(_spec(film), film) == []
+
+
+def test_a_plate_of_an_older_format_is_stale(tmp_path, monkeypatch):
+    film = make_film(tmp_path, GOOD)
+    base = dict(spec=_spec(film), out_dir=film, frames=10, fps=30, w=160, h=90, cue_t={}, blender_version="5.2.4")
+    k_now = bp.plate_key(**base)
+    monkeypatch.setattr(bp, "PLATE_FORMAT", bp.PLATE_FORMAT + 1)
+    assert bp.plate_key(**base) != k_now
