@@ -72,6 +72,8 @@ ALIGN_SECS_TOL = 1.2
 TRUNCATION_ERROR_FRAC = 0.90
 # Layout-diversity gate: warn when one form family exceeds this share of the html scenes.
 LAYOUT_FAMILY_MAX_SHARE = 0.45
+# html_design_routes' routes whose page draws its own picture, which the class/flex-reading diversity lints cannot read
+UNREADABLE_ROUTES = ("built", "bespoke")
 # When a callout is this far (in normalized frame units) from where the camera settles, the
 # motion isn't framing it — the highlight and the push disagree.
 MOTION_ALIGN_TOL = 0.25
@@ -122,6 +124,34 @@ def _has_static_opening_text(html):
         if re.sub(r"&[a-z#0-9]+;|\s", "", direct):    # real glyphs, not an entity or whitespace
             return True
     return False
+def _has_static_opening_picture(html):
+    """True when a PICTURE paints at t=0: an <img>/<svg>/<canvas> or a custom element (a built component) with no
+    reveal class on it or on any ancestor. A cue on a wrapper that does not reveal does not hide it — a card standing
+    on screen from the first frame, its words arriving on their cues, is not a blank opening."""
+    from html.parser import HTMLParser
+    VOID = {"img", "br", "hr", "input", "meta", "link", "source", "area", "col", "embed", "param", "track", "wbr"}
+
+    class P(HTMLParser):
+        def __init__(self):
+            super().__init__(); self.stack = []; self.found = False
+
+        def handle_starttag(self, tag, attrs):
+            cls = (dict(attrs).get("class") or "").split()
+            hidden = any(c == "reveal" or c.startswith("reveal-") for c in cls) or (self.stack and self.stack[-1])
+            if not hidden and (tag in ("img", "svg", "canvas", "video") or "-" in tag):
+                self.found = True
+            if tag not in VOID:
+                self.stack.append(bool(hidden))
+
+        def handle_endtag(self, tag):
+            if tag not in VOID and self.stack:
+                self.stack.pop()
+    body = html[html.find("<body"):] if "<body" in html else html
+    p = P()
+    p.feed(body)
+    return p.found
+
+
 _CONN = {"arrow", "hs-connect", "connector"}          # connectors — reveal WITH their destination block
 #   `.arrow`/`.hs-connect` are the archetype connectors; `.connector` is the GENERAL marker an author
 #   puts on ANY directional element that borrows a cue slot (a bespoke SVG arc/chevron/link that reveals
@@ -5112,6 +5142,12 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     prev_types = []
     families = []                         # per-html-scene layout family, for the diversity gate
     comps = []                            # per-html-scene composition signature, for the composition gate
+    # A BUILT or BESPOKE page (html_design_routes) draws its own picture — a component, its own CSS layout, a
+    # hand-placed composition — so the class/flex-reading diversity lints below cannot read it; it abstains.
+    try:
+        page_routes = {rel: route for _n, route, _w, rel in html_design_routes(meta, slides, out_dir) if rel}
+    except Exception:                                  # noqa: BLE001 — a page the route reader trips on just votes
+        page_routes = {}
     ai_look = meta.get("image_source") == "openai"
     soft = list(meta.get("soft_textures") or [])
     for s in slides:
@@ -5181,6 +5217,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                                    s.get("narration"), families,
                                    captions_on=bool((data.get("meta") or {}).get("captions", True)),
                                    ai_look=ai_look, soft_textures=soft, comps=comps, vertical=vertical,
+                                   route=page_routes.get(page),
                                    out_edge=(_common.out_edge_seconds(s, data.get("meta"), float(s["duration"]))
                                              if sb._is_num(s.get("duration")) else 0.0))
         elif t in ("keypoints", "timeline", "chart", "compare", "title"):
@@ -5376,6 +5413,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # Layout-diversity gate (html tier): a deck dominated by one form family reads as auto-generated.
     # Warn (not error) — a genuinely same-shape run is allowed with the design plan's form-ledger reason,
     # which design-critic (D1) judges. Skip small decks where a majority is unavoidable.
+    families = [f for f in families if f is not None]
     if len(families) >= 4:
         import collections
         fam, n = collections.Counter(families).most_common(1)[0]
@@ -5390,12 +5428,13 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # all reduce to "top kicker over a vertically-centered stack on a flat ground" — the templated look.
     # Guard the composition ENVELOPE (vertical anchor × balance) and background variety, parallel to the
     # form-family gate. Warning-only (design-critic D6b judges intent); skip small decks (<4 html scenes).
-    if len(comps) >= 4:
-        n = len(comps)
+    readable = [c for c in comps if c.get("route") not in UNREADABLE_ROUTES]
+    if len(readable) >= 4:
+        n = len(readable)
         # Only pages whose layout this gate can actually READ may vote on anchor/balance. An
         # absolute-positioned deck is invisible to a flex/class signature, so counting its default
         # "center"/"centered" would manufacture a false verdict (see _composition_sig).
-        meas = [c for c in comps if c.get("measurable", True)]
+        meas = [c for c in readable if c.get("measurable", True)]
         if len(meas) < max(4, 0.5 * n):
             warnings.append(f"composition diversity: NOT statically measurable — {n - len(meas)}/{n} html pages lay "
                             f"themselves out with absolutely-positioned children, which carry no flex/class "
@@ -5415,7 +5454,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         if all(c["kicker_first"] for c in comps):
             warnings.append("composition diversity: EVERY html page opens with a top .kicker hat — let ≥1 hero lead "
                             "with its number/image (no kicker) so the deck isn't one template")
-        non_hero = [c for c in comps if not c["hero"]]
+        non_hero = [c for c in readable if not c["hero"]]
         if non_hero:
             nflat = sum(1 for c in non_hero if c["flat"])
             if nflat / len(non_hero) > 0.6:
@@ -6215,7 +6254,7 @@ def _narration_tell_warnings(tag, narration):
 def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
                        anim_seconds=None, duration=None, narration=None, families=None,
                        captions_on=True, ai_look=False, soft_textures=None, comps=None, vertical=False,
-                       out_edge=0.0):
+                       out_edge=0.0, route=None):
     """Verify an html scene's page links resolve locally (base/theme/motifs css, seek.js,
     images), that its audio-synced cues will fire, and that its reveals won't lead/lag the audio."""
     path = os.path.join(out_dir, page_rel)
@@ -6225,10 +6264,11 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
     except OSError as e:
         errors.append(f"{tag}: cannot read html page '{page_rel}': {e}")
         return
+    unreadable = route in UNREADABLE_ROUTES            # its own picture: the diversity lints abstain on it
     if families is not None:
-        families.append(_layout_family(html))
+        families.append(None if unreadable else _layout_family(html))
     if comps is not None:
-        comps.append(_composition_sig(html))
+        comps.append(dict(_composition_sig(html), route=route))
     for url in _FILE_REF_RE.findall(html):
         local = _local_path_from_url(url)
         if local is False:
@@ -6475,7 +6515,7 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         # with one is never blank at the start. But a NO-header hero/pullquote whose FIRST reveal is
         # anchored to a phrase spoken well into the narration sits BLANK while the voice speaks the
         # opening — reads as broken. Anchor the first reveal to an OPENING phrase (or add a kicker/title).
-        header_early = _has_static_opening_text(html)
+        header_early = _has_static_opening_text(html) or _has_static_opening_picture(html)
         if not header_early and (narration or "").strip():
             pairs = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
             pairs += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
