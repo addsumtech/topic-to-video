@@ -155,7 +155,7 @@ def test_stale_plate_after_retime_is_an_error(tmp_path, monkeypatch):
     film = make_film(tmp_path, GOOD)
     board = json.load(open(film + "/storyboard.json"))
     monkeypatch.setattr(bp, "_frame_facts", lambda out_dir, board, i: (round(board["slides"][i]["duration"] * 30), 30, 1920, 1080))
-    monkeypatch.setattr(bp, "_blender_version_str", lambda meta: "5.2.4")
+    monkeypatch.setattr(bp, "_blender_version_str", lambda meta, binary=None: "5.2.4")
     os.makedirs(bp.plate_dir(film, "sat"))
     key = bp.current_key(film, board, 0)
     json.dump({"key": key}, open(os.path.join(bp.plate_dir(film, "sat"), "plate.json"), "w"))
@@ -253,7 +253,7 @@ def test_boxes_refuse_a_missing_frame(tmp_path):
 
 def _facts(monkeypatch, frames=4, w=32, h=18):
     monkeypatch.setattr(bp, "_frame_facts", lambda out_dir, board, i: (frames, 30, w, h))
-    monkeypatch.setattr(bp, "_blender_version_str", lambda meta: "5.2.4")
+    monkeypatch.setattr(bp, "_blender_version_str", lambda meta, binary=None: "5.2.4")
     monkeypatch.setattr(bp, "require_blender", lambda meta=None: "/fake/Blender")
 
 
@@ -368,3 +368,13 @@ def test_workshop_check_says_how_to_make_plates_ts(tmp_path):
     probs = workshop.check(film)
     hit = [p for p in probs if "assets/plates" in p]
     assert hit and "blender_plate.py" in hit[0], probs
+
+
+def test_a_release_candidate_is_warned_once(tmp_path, monkeypatch, capsys):
+    film = make_film(tmp_path, GOOD)
+    monkeypatch.setattr(bp, "blender_bin", lambda meta=None: "/fake/Blender")
+    monkeypatch.setattr(bp, "_version_line", lambda b: "Blender 5.2.4 LTS Release Candidate")
+    monkeypatch.setattr(bp, "_frame_facts", lambda out_dir, board, i: (4, 30, 32, 18))
+    monkeypatch.setattr(bp, "_run_blender", _fake_runner(objects=()))
+    bp.build(film)
+    assert capsys.readouterr().out.count("release candidate") == 1

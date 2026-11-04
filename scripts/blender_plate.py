@@ -213,8 +213,8 @@ def _frame_facts(out_dir, board, i):
     return int(props["scenes"][k]["durF"]), int(props.get("fps", 30)), int(w), int(h)
 
 
-def _blender_version_str(meta):
-    v = blender_version(require_blender(meta))
+def _blender_version_str(meta, binary=None):
+    v = blender_version(binary or require_blender(meta))
     return "%d.%d.%d%s" % (v[0], v[1], v[2], "-rc" if v[3] else "")
 
 
@@ -369,7 +369,7 @@ def build(out_dir, only=None, yes=False, still=None):
         binary = require_blender(meta)
     except PlateError as e:
         raise BlenderMissing(str(e)) from None
-    version = _blender_version_str(meta)
+    version = _blender_version_str(meta, binary)
     todo, reports = [], []
     for i, slide, spec in _plates_on(board, out_dir):
         if only and spec["id"] != only:
