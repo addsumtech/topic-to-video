@@ -47,6 +47,7 @@ import {StageRunContext, type StageBeat} from './runtime/stageRun';
 import {BlurFilter, blurOf} from './stage/surface';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
 import {MediaResAudit} from './runtime/mediaRes';
+import {PlateClearAudit} from './runtime/plateClear';
 import {TitleProbe} from './runtime/titleProbe';
 import {safeProfile, SafeZoneContext, SafeProfile, registerFrame, captionBottomY, SAFE_CAPTION_SCALE} from './runtime/safeZone';
 import {CAPTIONS} from './captions';
@@ -1335,6 +1336,7 @@ const CutCarry: React.FC<{on: boolean; inCut: boolean; outCut: boolean; durF: nu
 export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: boolean; autospace?: boolean; cjkDisplay?: string | null; reducedMotion?: boolean; theme?: Atmo; captions?: boolean; brand?: any; dna?: DesignDNA | null; template?: string; textSafe?: boolean;
   typeGlide?: boolean; typeSize?: boolean; typeCollisions?: boolean; titleProbe?: boolean; safe?: string;
   mediaRes?: boolean;
+  plateClear?: boolean;
   // the delivery dither (runtime/dither): render_remotion asks for it; a still for a gate or a test does not
   dither?: boolean;
   // `safeEcho: false`: a platform-safe film's margin is its ground TOKEN only, without the register's own root ground drawn
@@ -1353,7 +1355,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   // the cut carry (runtime/cutCarry): render_remotion turns it on for a kinetic or scored film; off, every cut is as before
   cutCarry?: boolean}> =
   ({scenes = WORKBUDDY_SCENES, camera = 0, cameraBed = true, autospace = false, cjkDisplay = null, reducedMotion = false, theme, captions = true, brand, dna, template, textSafe = false,
-    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, safe, dither = false, optics = true,
+    typeGlide = false, typeSize = false, typeCollisions = false, titleProbe = false, mediaRes = false, plateClear = false, safe, dither = false, optics = true,
     safeEcho = true, frameUnlock = true, style = null, styleTexture = null, cutCarry = false}) => {
   const activeStyle = React.useMemo(() => (style ? resolveStyle(style, styleTexture) : null), [style, styleTexture]);
   setStyleEase(activeStyle ? (activeStyle.motion as {easing?: string}).easing : null);
@@ -1662,6 +1664,9 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
       {/* The media-resolution census (runtime/mediaRes.tsx): per frame, every raster and how far it is magnified
           past its own pixels — judged by scripts/media_res_qa.py. Absent unless asked for. */}
       {mediaRes ? <MediaResAudit /> : null}
+      {/* The plate-clear census (runtime/plateClear.tsx): per frame, the shot's own type against every Blender plate
+          object's box — judged by scripts/plate_qa.py. Absent unless asked for. */}
+      {plateClear ? <PlateClearAudit /> : null}
       <DesignDNAContext.Provider value={activeDna}>
       <StyleContext.Provider value={activeStyle}>
       {/* THE ATMOSPHERE MUST BELONG TO THIS FILM. With no explicit `theme` it fell back to its own

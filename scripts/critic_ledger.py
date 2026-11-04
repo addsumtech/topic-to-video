@@ -212,6 +212,12 @@ def _cjk_copy(out_dir):
     return any(_HAS_CJK.search(json.dumps(s.get("shot_props") or {}, ensure_ascii=False)) for s in slides or [])
 
 
+def _has_blender(out_dir):
+    """True when a beat carries a Blender plate (slide.blender) — the films plate_qa judges."""
+    _meta, slides = _board(out_dir)
+    return any("blender" in s for s in slides or [])
+
+
 def _styled(out_dir):
     """True when the film has a drawing style (meta.style) — the films style_qa judges."""
     meta, _slides = _board(out_dir)
@@ -255,6 +261,9 @@ DELIVERY_GATES = {
         # A PICTURE magnified past its own pixels — every type gate measures text, none of them an image's pixels; a
         # product film shipped its hero UI at 2.9x and its bots row at 2.0x with all of them green (scripts/media_res_qa.py)
         ("PICTURES at their own resolution (every 3rd frame, census)", "media_res_qa.py", (), 300, True, None),
+        # TYPE ON A BLENDER PLATE'S OBJECT — the plate is a video, so its objects are pixels every DOM gate is blind to; a
+        # GPS satellite's wing tip sat under its label with all of them green (scripts/plate_qa.py)
+        ("TYPE clear of Blender plate objects (every 3rd frame, census)", "plate_qa.py", (), 300, True, _has_blender),
         # the only gates that judge the FILM rather than a frame: does it move, and does it move without vibrating
         ("FILM ENERGY — motion, light, light arc (density measured)", "film_energy_qa.py", (), 300, True, None),
         ("SHAKE — travelling vs vibrating", "shake_qa.py", (), 300, True, None),
