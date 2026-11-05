@@ -2650,6 +2650,31 @@ def _check_style(meta, errors, warnings, slides=None):
                             "film's ground" % (r["beat"], r["shot"], r["ground"], r["film"]))
 
 
+SLIDE_TITLE_SHARE = 0.4      # a header title on this share of the designed beats reads as a deck played back
+
+
+def _slide_titles(meta, slides):
+    """A FILM IS NOT A SLIDE DECK. A header `title` on most beats is the deck habit — a claim typed in the corner of
+    every frame while the voice says it (the anc film, 2026-11-05: the user, "你做的是视频，不是ppt，没有必要在头部
+    引入一个标题"). The picture and the voice carry the beat; words on the frame label what the picture shows.
+    Kinetic-type registers (family C), whose words ARE the picture, are exempt. Advisory: a chapter card may keep one."""
+    if (meta.get("renderer") or "") != "remotion":
+        return []
+    try:
+        from shot_director import FAMILY
+    except Exception:                                   # the family table is a lookup, never a reason to fail
+        FAMILY = {}
+    beats = [s for s in slides if isinstance(s.get("shot_props"), dict) and FAMILY.get(s.get("shot")) != "C"]
+    titled = [s for s in beats if str(s["shot_props"].get("title") or "").strip()]
+    if not beats or len(titled) < 3 or len(titled) < SLIDE_TITLE_SHARE * len(beats):
+        return []
+    return ["SLIDE TITLES — %d of %d designed beats set a header `title` (beats %s): a film is not a slide deck. "
+            "Drop the title and let the picture and the voice carry the beat (words on the frame label what it "
+            "shows; a statement beat is a type register); the content zone then starts at contentTop(W, H) (runtime/frame)"
+            % (len(titled), len(beats), ", ".join(str(s.get("index")) for s in titled[:12])
+               + (" ..." if len(titled) > 12 else ""))]
+
+
 def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, vertical=False):
     """Guardrails for the remotion bespoke-shot tier: a valid whole-film `shot_template` direction (+ its
     contest trace); every scene needs a valid `shot` id + object `shot_props`; a NUMBER-bearing register left on
@@ -5071,6 +5096,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         for _i, _s in enumerate(slides, 1):
             warnings.extend(_narration_tell_warnings("scene %d" % _i, _s.get("narration")))
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
+        warnings.extend(_slide_titles(meta, slides))
         _check_build(meta, slides, errors, warnings, out_dir, skips=skips)
         _design_first(meta, slides, errors, warnings, out_dir, "remotion")
         _shot_truncation(meta, slides, errors, warnings)

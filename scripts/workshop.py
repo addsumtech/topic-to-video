@@ -1946,7 +1946,8 @@ SHOT_SCAFFOLD = """// SHOT · %(name)s — %(means)s
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '@runtime/motion';
-import {CONTENT_TOP, contentBottom} from '@runtime/layout';
+import {contentBottom} from '@runtime/layout';
+import {contentTop} from '@runtime/frame';
 import {useDNA} from '@runtime/dna';
 import {useCues, REACH_CUBIC} from '@runtime/cue';
 
@@ -1957,18 +1958,21 @@ export const GROUND = 'bg';
 // the idiom world its look comes from — exactly one of: %(worlds)s
 export const PROVENANCE = '';
 
+// A FILM IS NOT A SLIDE DECK: no header title. The picture and the voice carry the beat; words on the frame LABEL
+// what the picture shows, beside the thing they name (validate warns on a film whose beats mostly carry a title).
 // @scaffold — replace this body with the real design, then delete this line.
-export const %(name)s: React.FC<{title?: string}> = ({title = ''}) => {
+export const %(name)s: React.FC<{label?: string}> = ({label = ''}) => {
   const dna = useDNA();
   const t = useT();
   const cue = useCues();
   const {width: W, height: H} = useVideoConfig();
-  const on = easeOutCubic(clamp01(seg(t, ...cue.win('title', 0.05, 0.3, REACH_CUBIC))));
+  const zTop = contentTop(W, H, false), zBot = contentBottom(W, H);
+  const on = easeOutCubic(clamp01(seg(t, ...cue.win('label', 0.05, 0.3, REACH_CUBIC))));
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? '#0a0f16', color: dna?.fg ?? '#e8eef6'}}>
-      <div style={{position: 'absolute', left: 0, right: 0, top: (CONTENT_TOP + contentBottom(W, H)) / 2,
+      <div style={{position: 'absolute', left: 0, right: 0, top: (zTop + zBot) / 2,
         textAlign: 'center', opacity: on,
-        font: `700 ${Math.round(W * 0.03)}px/1.2 var(--f-display, system-ui, sans-serif)`}}>{title}</div>
+        font: `600 ${Math.round(Math.min(W, H) * 0.036)}px/1.2 var(--f-body, system-ui, sans-serif)`}}>{label}</div>
     </AbsoluteFill>
   );
 };

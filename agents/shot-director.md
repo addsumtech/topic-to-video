@@ -269,7 +269,8 @@ more** shots, split the BUILDING and keep the DESIGNING:
    frames. Measured on the first parallel trial (two builders, twelve beats): each placed its titles alone and 15 of
    25 landed top-left (a text_safe ERROR), and each chose its own type size, so five of the twelve beats came out
    smaller and emptier than the beats around them.
-   - **Where each beat's title goes** — write `titleAt` (or `none`) per beat into the assignment, spread across the
+   - **Where each beat's title goes** — `none` by default (a film is not a slide deck: remotion-shot-authoring.md rule
+     5); write `titleAt` only for the few beats that keep one, spread across the
      film's compositions the way text_safe's TITLE PLACEMENT expects.
    - **The film's scale** — export it from the kit as constants (the main line's type size, the secondary readout's,
      the label floor, and how much of the content zone the subject fills) so a builder sizes from the kit, not by eye.

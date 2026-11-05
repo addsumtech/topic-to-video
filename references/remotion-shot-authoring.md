@@ -39,7 +39,13 @@ from `src/runtime/layout.ts` — do NOT hand-guess pixel positions.
    SUBSTRINGS of the string and draws them as content, with no error and every gate green — `StrataColumn`
    was one line of that shape. `Array.isArray(local)` counts as a guard too; 89 registers already had one.
    `tests/test_remotion.py` holds the line, and the 12 stragglers converted with zero measured drift.
-5. **Title band.** Put the shot title at `TITLE_Y` (use `titleStyle`); keep real content out of `[0, CONTENT_TOP)`.
+5. **No header title — a film is not a slide deck.** A claim typed in the corner of every frame while the voice says
+   it is the deck habit (the anc film, 2026-11-05: "你做的是视频，不是ppt，没有必要在头部引入一个标题"). The picture and
+   the voice carry the beat; the words on the frame LABEL what the picture shows, beside the thing they name. A
+   statement beat is a type register (HeadlineReveal, MagicMoveType…), and a chapter card may keep its one line.
+   Without a title the content starts at `contentTop(W, H)` (`runtime/frame`, an action-safe margin), so the picture gets
+   the band a title would have taken; `validate.py` warns (SLIDE TITLES) when most designed beats set one. A shot
+   that does keep a title puts it at `TITLE_Y` and its content below `CONTENT_TOP`.
 6. **Caption band.** The Film burns the caption in the bottom `CAPTION_BAND` px. Keep the shot's own text/labels
    out of `[H - CAPTION_BAND, H]` — the ONLY allowed thing down there is a small `credit` line at `bottom:8`.
    A shot label at `0.9·H` WILL overlap the caption.
