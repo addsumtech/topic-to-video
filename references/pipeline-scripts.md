@@ -56,7 +56,7 @@ finding it prints that you do not understand.
 - `scripts/style_spike.py <work> [--spec path] [--only=A,B]`: the engine's determinism and type-stillness measurement
   on `tests/fixtures/style/corpus.json` (twice, out of order across tabs, census lines matched by text).
 - `scripts/ingest.py <input> <out_dir>` — pptx/pdf/image-folder → `frames/` + skeleton `storyboard.json` (pulls speaker notes from pptx).
-- `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.wav` (rewrapped from say's AIFF, which the Remotion tier cannot read; no words.json). **`tts.py` REWRITES `storyboard.json`** (to store each clip's measured duration) — so run it (and any duration-editing pass of your own, e.g. tail-padding) **BEFORE you hand-set per-scene fields like `transition`**, or a later re-synth/duration pass that loads-then-saves the board will silently clobber those edits. Order: finalize audio & durations → THEN set transitions/motion → validate → render (render only READS the board, so it's safe after).
+- `scripts/tts.py <out_dir> [--only N]` — narration → `audio/` + real durations. With edge-tts, also writes `audio/NN.words.json` (per-word start times), used for audio-synced HTML reveals; emits `.mp3`. With macOS `say`, emits `.wav` (rewrapped from say's AIFF, which the Remotion tier cannot read; no words.json). **A voice the engine does not have is refused, never substituted:** `say -v <name>` exits 0 and reads in the system voice, so tts.py checks the name against `say -v ?` and errors (listing that language's installed voices); a bare edge id (`zh-CN-XiaoxiaoNeural`) is read as `edge:` (it used to go to `say`, wrong voice and no word times, silently), and the language's default `say` voice falls to an installed voice of that language. **`tts.py` REWRITES `storyboard.json`** (to store each clip's measured duration) — so run it (and any duration-editing pass of your own, e.g. tail-padding) **BEFORE you hand-set per-scene fields like `transition`**, or a later re-synth/duration pass that loads-then-saves the board will silently clobber those edits. Order: finalize audio & durations → THEN set transitions/motion → validate → render (render only READS the board, so it's safe after).
   **Every speech clip is MASTERED in place before its duration is measured:** loudness-normalised
   (EBU R128, I=-14) + trailing dead-air trimmed (tail-only — leading/internal timing untouched, so
   `words.json` word times stay valid), so levels are consistent across providers and the pacing gates
@@ -869,9 +869,12 @@ agent on the beats it points at.
   `meta.blender_budget_min` (default 60; the estimate is every frame whole, an upper bound — ask the user, then
   `--yes`) · 4 the layout failed plate_qa (no picture rendered).
 - `scripts/plate_qa.py <out_dir> [--every=N] [--json]` — **TYPE CLEAR OF PLATE OBJECTS**, remotion tier, blocking on a
-  film with a plate: renders the Film with `plateClear` armed (runtime/plateClear.tsx), captions off, and measures each
-  line of the shot's own type against every plate object's box (`data-plate-object`, from the ID pass) on every 3rd
-  frame. ERROR at ≥15% of a line's box on ≥2 sampled frames, WARN at ≥5%. Exit 0 / 1 / 2 unmeasured.
+  film with a plate: renders the Film with `plateClear` armed (runtime/plateClear.tsx), captions ON, and measures each
+  line of the shot's own type, and of the caption, against every plate object's silhouette (`data-plate-object`, then
+  the ID pass) on every 3rd frame, on the film as it will play (a missing warp is derived first, as the render does).
+  ERROR at ≥15% of a line's box on ≥2 sampled frames, WARN at ≥5%. A caption finding names the OBJECT to move: the
+  caption's place is fixed (GPS beat 2, 2026-11-04: the Earth's limb ran under it with every gate green while the
+  census had captions off). Exit 0 / 1 / 2 unmeasured.
 - `scripts/media_res_qa.py <out_dir> [--every=N] [--json]` — **PICTURE RESOLUTION**, remotion tier: renders the Film
   with `mediaRes` armed (runtime/mediaRes.tsx, a census through `glide_frames.cjs --tag=MEDIA-RES_ --every=3`) and
   compares every img/video/canvas's natural pixels with the box it is drawn in, on every 3rd frame — seams, cameras

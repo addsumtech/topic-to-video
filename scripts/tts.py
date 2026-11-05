@@ -354,17 +354,52 @@ def written_words(words, back):
     return out
 
 
+# An edge voice id written without its "edge:" prefix (zh-CN-XiaoxiaoNeural, zh-CN-liaoning-XiaobeiNeural) is still
+# an edge voice: read as a `say` voice it was voiced by the system voice instead (see say_voices).
+_EDGE_ID = re.compile(r"^[a-z]{2,3}-[A-Z]{2,4}(-[A-Za-z]+)?-[A-Za-z]+Neural$")
+
+
 def _provider(voice_spec):
     if ":" in voice_spec:
         prov, name = voice_spec.split(":", 1)
+    elif _EDGE_ID.match(voice_spec):
+        prov, name = "edge", voice_spec
     else:
         prov, name = "say", voice_spec
     return prov, name
 
+
+def _parse_say_voices(listing):
+    """{lower-case name: (name, locale)} from `say -v ?` ("Samantha (English (US)) en_US    # Hello! ...")."""
+    out = {}
+    for line in listing.splitlines():
+        m = re.match(r"^(.+?)\s+([a-z]{2,3}_[A-Z0-9]{2,3})\s+#", line)
+        if m:
+            name = re.sub(r"\s*\(.*$", "", m.group(1)).strip()
+            out.setdefault(name.lower(), (name, m.group(2)))
+    return out
+
+
+_SAY_VOICES = []
+
+
+def say_voices():
+    """The voices `say` has, or None when there is no `say` to ask. `say -v <name>` EXITS 0 for a voice it does
+    not have and reads in the system voice (probed 2026-11-05), so a voice is checked here, never by trying it."""
+    if not _SAY_VOICES:
+        listing = None
+        if _common.have_tool("say"):
+            try:
+                listing = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, timeout=20).stdout
+            except (OSError, subprocess.SubprocessError):
+                listing = None
+        _SAY_VOICES.append(_parse_say_voices(listing) if listing else None)
+    return _SAY_VOICES[0]
+
 # A sensible default macOS `say` voice per language, so non-English narration isn't
 # read by an English voice (which mangles the pronunciation). These are the common
-# built-in voices; if one isn't installed, `say` errors and tts.py falls back to
-# Samantha — install the voice via System Settings → Accessibility → Spoken Content.
+# built-in voices; one that is not installed is swapped for an installed voice of the same language (say_voices)
+# — install more via System Settings → Accessibility → Spoken Content.
 SAY_VOICE_BY_LANG = {
     "en": "Samantha", "zh": "Tingting", "ja": "Kyoko", "ko": "Yuna",
     "es": "Monica", "fr": "Thomas", "de": "Anna", "it": "Alice",
@@ -378,6 +413,10 @@ def _resolve_say_voice(name, language):
     lang = (language or "auto").lower().replace("_", "-").split("-")[0]
     if name == "Samantha" and lang not in ("", "en", "auto"):
         v = SAY_VOICE_BY_LANG.get(lang)
+        have = say_voices()
+        if v and have is not None and v.lower() not in have:
+            # the table's voice is not installed: any installed voice of the language, never the system voice
+            v = next((n for n, loc in sorted(have.values()) if loc.lower().startswith(lang + "_")), None)
         if v and v != name:
             return v, f"[tts] language={lang}: using say voice '{v}' (set meta.voice to override)"
     return name, None
@@ -1019,6 +1058,13 @@ def film_voice(meta, slides):
     note = None
     if prov == "say":
         name, note = _resolve_say_voice(name, lang)
+        have = say_voices()
+        if have is not None and name.lower() not in have:
+            same = sorted(n for n, loc in have.values() if loc.lower().startswith(lang.split("-")[0].lower() + "_"))
+            raise ValueError(
+                "meta.voice: `say` has no voice %r — it would read the film in the system voice. %s; or name the "
+                "engine: edge:<id> (python3 -m edge_tts --list-voices), minimax:<id>, openai:<voice>"
+                % (name, ("installed for %s: %s" % (lang, ", ".join(same[:8]))) if same else "none installed for %s" % lang))
     return prov, name, lang, note
 
 

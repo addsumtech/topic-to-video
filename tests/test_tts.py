@@ -945,3 +945,41 @@ def test_master_lands_at_its_loudness_target(tmp_path, seconds, level_db):
     # the limiter holds MASTER_TP in PCM; the mp3 encode overshoots it on dense noise like this (+2.8 dB measured),
     # far less on speech (nine real clips of four films: -1.2..-1.7 dBTP) — so here: never clipped
     assert peak < 0.0, (seconds, level_db, peak)
+
+
+# ── a voice name the engine does not have is never read by some other voice ────────────────────────────
+# `say -v <name>` exits 0 for a voice it does not have and reads in the system voice (probed 2026-11-05), so a
+# bare edge id in meta.voice gave a film the wrong voice, no word times, and no message (the GPS acceptance film).
+_INSTALLED = {"samantha": ("Samantha", "en_US"), "meijia": ("Meijia", "zh_TW"), "kyoko": ("Kyoko", "ja_JP")}
+
+
+@pytest.mark.parametrize("vid", ["zh-CN-XiaoxiaoNeural", "en-US-AvaMultilingualNeural", "zh-CN-liaoning-XiaobeiNeural"])
+def test_a_bare_edge_voice_id_is_the_edge_engine(vid):
+    assert tts._provider(vid) == ("edge", vid)
+
+
+def test_a_say_voice_that_is_not_installed_is_refused(monkeypatch):
+    monkeypatch.setattr(tts, "say_voices", lambda: _INSTALLED)
+    for spec in ("say:Nobody", "Nobody"):
+        with pytest.raises(ValueError, match="Nobody"):
+            tts.film_voice({"voice": spec, "language": "en"}, [])
+    assert tts.film_voice({"voice": "say:samantha", "language": "en"}, [])[:2] == ("say", "samantha")
+
+
+def test_the_language_default_say_voice_is_one_that_is_installed(monkeypatch):
+    monkeypatch.setattr(tts, "say_voices", lambda: _INSTALLED)
+    assert tts._resolve_say_voice("Samantha", "zh")[0] == "Meijia"        # Tingting is not installed here
+    assert tts._resolve_say_voice("Samantha", "ja")[0] == "Kyoko"
+
+
+def test_without_say_nothing_is_refused_for_it(monkeypatch):
+    monkeypatch.setattr(tts, "say_voices", lambda: None)
+    assert tts.film_voice({"voice": "say:Nobody", "language": "en"}, [])[:2] == ("say", "Nobody")
+
+
+def test_the_installed_voices_are_read_from_say():
+    listing = ("Albert              en_US    # Hello! My name is Albert.\n"
+               "Samantha (English (US)) en_US    # Hello! My name is Samantha.\n"
+               "Tingting (Chinese (China mainland)) zh_CN    # 你好！我叫婷婷。\n")
+    v = tts._parse_say_voices(listing)
+    assert v["samantha"] == ("Samantha", "en_US") and v["tingting"] == ("Tingting", "zh_CN") and "albert" in v
