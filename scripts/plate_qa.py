@@ -13,7 +13,8 @@ the shot's own type, and the film's caption, against those boxes on the frames t
 judges the census (the caption's place is fixed, so a finding on it names the OBJECT to move — GPS beat 2,
 2026-11-04: the Earth's limb ran under the caption with every gate green while this census had the captions off):
 
-  ERROR  at least ERROR_SHARE of a line's box is covered by an object's SILHOUETTE on at least MIN_FRAMES sampled frames
+  ERROR  at least ERROR_SHARE of a line's worst glyph-sized window (mask_share) is covered by an object's SILHOUETTE
+         on at least MIN_FRAMES sampled frames
   WARN   at least WARN_SHARE
 
 The census finds lines over an object's BOX, in their own beat only (during a dissolve the leaving beat's type over the
@@ -41,7 +42,9 @@ DEFAULT_EVERY = 3
 def mask_share(ids_dir, colors, frame, rect, scale=2):
     """{object: share of `rect` (plate pixels, x0 y0 x1 y1) its SILHOUETTE covers} on plate frame `frame` (0-based),
     read from the plate's ID pass (`ids/NNNN.png`, `scale`x smaller than the plate). A round object's box has empty
-    corners; the silhouette does not."""
+    corners; the silhouette does not. The share is of the WORST glyph-sized window of the line (a square as tall as
+    the line, slid along it): a share of the whole box dilutes with the line's length, and GPS beat 2's satellite wing
+    over 走快 — the last two glyphs of a 13-glyph title — measured under 5% of it and passed."""
     from PIL import Image
     path = os.path.join(ids_dir, "%04d.png" % (frame + 1))
     if not os.path.isfile(path):
@@ -53,13 +56,17 @@ def mask_share(ids_dir, colors, frame, rect, scale=2):
     if x1 <= x0 or y1 <= y0:
         return {n: 0.0 for n in colors}
     import numpy as np
-    px = np.asarray(im.crop((x0, y0, x1, y1)), dtype=np.int16).reshape(-1, 4)
-    seen = px[:, 3] > 0
+    px = np.asarray(im.crop((x0, y0, x1, y1)), dtype=np.int16)
+    if px.shape[0] > px.shape[1]:
+        px = px.transpose(1, 0, 2)                    # a vertical line is slid along its height
+    h, w = px.shape[:2]
+    seen = px[:, :, 3] > 0
     out = {}
     for n, c in colors.items():
         want = np.array([int(c[i:i + 2], 16) for i in (1, 3, 5)], dtype=np.int16)
-        hit = seen & (np.abs(px[:, :3] - want) <= 8).all(axis=1)
-        out[n] = float(hit.sum()) / len(px)
+        cols = (seen & (np.abs(px[:, :, :3] - want) <= 8).all(axis=2)).sum(axis=0)
+        win = np.convolve(cols, np.ones(h, dtype=np.int64), mode="valid")
+        out[n] = float(win.max()) / (h * h)
     return out
 
 

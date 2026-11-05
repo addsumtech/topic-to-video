@@ -33,7 +33,10 @@ export const censusPlateClear = (root: HTMLElement) => {
   // each beat is its own [data-beat] wrapper: during a dissolve two beats are mounted, and the leaving beat's type over
   // the arriving beat's plate is a cross-fade, not a layout — a line is judged against the plates of its own beat only
   const beatOf = (el: Element) => el.closest('[data-beat]') ?? root;
-  const plates = Array.from(root.querySelectorAll('[data-plate]')).map((el) => {
+  // a 9:16 film mounts each register twice: scaled in its frame, and full-frame in the margin echo (Film `SafeEcho`,
+  // only its ground shows). The echo's plate is not a picture anyone sees: judged against it, the glass film's caption
+  // 'sat 100% over' a glass drawn well above it
+  const plates = Array.from(root.querySelectorAll('[data-plate]')).filter((el) => !el.closest('[data-echo]')).map((el) => {
     const r = el.getBoundingClientRect();
     const boxes: Rect[] = [];
     el.querySelectorAll('[data-plate-object]').forEach((o) => {
@@ -59,7 +62,7 @@ export const censusPlateClear = (root: HTMLElement) => {
     const mine = beatOf(el);
     const cap = el.closest('[data-caption]') !== null;
     for (const p of plates) {
-      if ((!cap && p.beat !== mine) || !p.boxes.some((b) => overlap(box, b) > 0)) continue;
+      if ((cap ? p.beat === root : p.beat !== mine) || !p.boxes.some((b) => overlap(box, b) > 0)) continue;
       const kx = p.pw / Math.max(1, p.r.width), ky = p.ph / Math.max(1, p.r.height);
       hits.push([t.slice(0, 40), p.id, p.f, [(box.x0 - p.r.left) * kx, (box.y0 - p.r.top) * ky,
         (box.x1 - p.r.left) * kx, (box.y1 - p.r.top) * ky].map((v) => Math.round(v * 10) / 10), cap ? 1 : 0]);

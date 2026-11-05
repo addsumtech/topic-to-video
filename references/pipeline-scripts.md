@@ -872,7 +872,9 @@ agent on the beats it points at.
   film with a plate: renders the Film with `plateClear` armed (runtime/plateClear.tsx), captions ON, and measures each
   line of the shot's own type, and of the caption, against every plate object's silhouette (`data-plate-object`, then
   the ID pass) on every 3rd frame, on the film as it will play (a missing warp is derived first, as the render does).
-  ERROR at ≥15% of a line's box on ≥2 sampled frames, WARN at ≥5%. A caption finding names the OBJECT to move: the
+  ERROR at ≥15% of a line's worst glyph-sized window (a square as tall as the line, slid along it — a share of the
+  whole box diluted a satellite wing over the last two glyphs of a 13-glyph title to <5%) on ≥2 sampled frames,
+  WARN at ≥5%. On 9:16 the margin echo's copy of the plate is not judged (only its ground shows). A caption finding names the OBJECT to move: the
   caption's place is fixed (GPS beat 2, 2026-11-04: the Earth's limb ran under it with every gate green while the
   census had captions off). Exit 0 / 1 / 2 unmeasured.
 - `scripts/media_res_qa.py <out_dir> [--every=N] [--json]` — **PICTURE RESOLUTION**, remotion tier: renders the Film

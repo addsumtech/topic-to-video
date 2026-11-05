@@ -76,7 +76,7 @@ REMOTION_OK = os.path.isdir(os.path.join(ROOT, "remotion", "node_modules"))
 needs_both = pytest.mark.skipif(bp.blender_bin() is None or not REMOTION_OK, reason="needs Blender and remotion/")
 
 
-def _film_with_label(tmp_path, at, scene="cube_scene.py", seconds=0.6):
+def _film_with_label(tmp_path, at, scene="cube_scene.py", seconds=0.6, aspect=None):
     film = make_film(tmp_path, dict(GOOD, anchors=["top"], objects=["cube"]))
     shutil.copyfile(os.path.join(ROOT, "tests/fixtures/blender", scene), film + "/blender/s.py")
     shutil.copyfile(os.path.join(ROOT, "tests/fixtures/blender_film/PlateProbe.tsx"), film + "/workshop/shots/PlateProbe.tsx")
@@ -84,6 +84,8 @@ def _film_with_label(tmp_path, at, scene="cube_scene.py", seconds=0.6):
                     film + "/audio/01.mp3"], check=True)
     b = json.load(open(film + "/storyboard.json"))
     b["slides"][0].update(duration=seconds, shot_props={"label": "LABEL TEXT", "at": at})
+    if aspect:
+        b["meta"]["aspect"] = aspect
     json.dump(b, open(film + "/storyboard.json", "w"), ensure_ascii=False)
     assert bp.main([film, "--yes", "--skip-layout"]) == 0     # a picture plate whatever its layout: plate_qa is what is tested
     return film
@@ -191,3 +193,26 @@ def test_a_plate_object_under_the_caption_is_caught(tmp_path):
     film = _film_with_label(tmp_path / "low", [40, 40], scene="low_cube_scene.py", seconds=1.5)
     r = plate_qa.scan_film(film, every=3)
     assert plate_qa.verdict(r)[1] == 1 and any("caption" in e for e in r["errors"]), r
+
+
+def test_an_object_over_one_glyph_of_a_long_line_is_on_it(tmp_path):
+    # a share of the WHOLE line's box dilutes with its length: GPS beat 2's satellite wing over 走快, the last two glyphs
+    # of a 13-glyph title, measured under 5% and passed. Judged over the worst glyph-sized window, it is on the type.
+    from PIL import Image, ImageDraw
+    d = tmp_path / "ids"
+    d.mkdir()
+    im = Image.new("RGBA", (400, 40), (0, 0, 0, 0))
+    ImageDraw.Draw(im).rectangle((380, 10, 399, 29), fill=(0, 0, 255, 255))      # one glyph's square at the end
+    im.save(d / "0001.png")
+    share = plate_qa.mask_share(str(d), {"sat": "#0000ff"}, 0, (0, 10, 400, 30), scale=1)["sat"]
+    assert share >= plate_qa.ERROR_SHARE, share
+
+
+@needs_both
+def test_on_a_9_16_film_the_caption_is_judged_against_the_plate_as_drawn(tmp_path):
+    # a 9:16 film mounts each register twice: full-frame in the margin echo (only its ground shows) and scaled in its
+    # frame. The caption was judged against the ECHO's plate, so the glass film's caption 'sat 100% over' a glass drawn
+    # well above it (2026-11-05). Here the echo's cube is under the caption and the drawn one is clear of it.
+    film = _film_with_label(tmp_path / "tall", [40, 40], scene="echo_cube_scene.py", seconds=1.5, aspect="9:16")
+    r = plate_qa.scan_film(film, every=3)
+    assert plate_qa.verdict(r) == ("ok", 0), r
