@@ -207,11 +207,25 @@ _DEVICE_PART_TEXT = re.compile(r"\b(dynamic island|island|notch|bezels?|hinge|ho
 _COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
 
 
+_DEVICE_WORDS = {"phone", "phones", "iphone", "iphones", "smartphone", "smartphones", "laptop", "laptops", "tablet",
+                 "tablets", "ipad", "ipads", "macbook", "macbooks", "smartwatch", "smartwatches"}
+
+
+def _names_a_device(ident):
+    """Does an identifier NAME a device as one of its words? `phoneBody`, `iPhoneFrame`, `IPadScreen` do;
+    `microphone`, `earphoneTip`, `headphones` do not — the ANC film's every earbud shot was refused over 'phone'
+    found inside 'microphone'."""
+    parts = [w.lower() for w in re.findall(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|\d+", ident)]
+    joined = parts + [a + b for a, b in zip(parts, parts[1:])]
+    return any(w in _DEVICE_WORDS for w in joined)
+
+
 def _device_evidence(src):
     """The words in a source that say it DRAWS a device: device identifiers in its code (not pictograms), and a
     comment that names a device together with one of its parts."""
     code = _COMMENT.sub(" ", "\n".join(ln for ln in src.splitlines() if not ln.lstrip().startswith("import ")))
-    words = {m.group(0) for m in _DEVICE_IDENT.finditer(code) if not _PICTOGRAM.search(m.group(0))}
+    words = {m.group(0) for m in _DEVICE_IDENT.finditer(code)
+             if not _PICTOGRAM.search(m.group(0)) and _names_a_device(m.group(0))}
     for c in _COMMENT.findall(src):
         nouns, parts = _DEVICE_NOUN_TEXT.findall(c), _DEVICE_PART_TEXT.findall(c)
         if nouns and parts and not _PICTOGRAM.search(c):

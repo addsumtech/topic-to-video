@@ -204,3 +204,14 @@ def test_a_label_on_the_watch_band_is_reported_and_one_beside_it_is_not(tmp_path
     assert "ON THE DEVICE" in g._describe(on[0])
     clean = g.audit_shot("DeviceLabelCleanProbe", {"dna": "product"}, 30, str(tmp_path / "off.png"))
     assert not [v for v in clean if v.get("device")], clean
+
+
+def test_a_microphone_or_an_earphone_is_not_a_phone():
+    # the ANC film, 2026-11-05: every shot that drew an earbud's microphone was refused as "a hand-drawn device
+    # (its code names: microphone)" — 'phone' found inside 'microphone'
+    import device_fidelity_qa as dq
+    for ok in ("const microphone = 1;", "const innerMicrophone = 2;", "earphoneTip", "headphones", "drawMegaphone"):
+        assert not dq._device_evidence(ok), ok
+    for bad in ("const phone = 1;", "iPhoneFrame", "drawPhone()", "phoneBody", "laptopLid", "IPadScreen",
+                "macBookHinge", "smartphone", "tabletEdge"):
+        assert dq._device_evidence(bad), bad
