@@ -83,6 +83,14 @@ inside its box in any script.
 **Smallest real use:** `const zTop = CONTENT_TOP, zBot = contentBottom(W, H); const px = fitTextPx(title, W * 0.8, 64);`
 **Exports:** `CONTENT_TOP`, `TITLE_Y`, `contentBottom`, `captionBand`, `fitTextPx`, `fitBlockPx`, `wrapLines`, `textWidthPx`, `fitsBox`, `placeLabel`, `fitContentSquare`, `contentZoneBox`, `inkBlockH`, `bottomInset`.
 
+### `frame`
+Where a shot's content starts when it has NO header title — the default, since a film is not a slide deck
+(remotion-shot-authoring.md rule 5): an action-safe top margin, so the picture takes the band a title would have.
+**Reach for it:** every new shot without a title (the scaffold already uses it).
+**Smallest real use:** `const zTop = contentTop(W, H), zBot = contentBottom(W, H);` — pass `true` as the third
+argument only for a shot that keeps a title.
+**Exports:** `contentTop`.
+
 ### `pageCam2D`
 A camera over a page bigger than the frame: keys it moves between, and where a page point lands on screen.
 **Reach for it:** a tour across a document, a map, a long interface.
