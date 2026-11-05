@@ -504,7 +504,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   const fitSize = Math.max(12, Math.min(capSize, Math.floor((capBand - capMargin) / (capLead * capLines))));
   return (
     <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', pointerEvents: 'none', opacity: op}}>
-      <div style={{position: 'relative', maxWidth: capMeasure, boxSizing: 'border-box', margin: `0 auto ${capBottom}px`,
+      <div data-caption="" style={{position: 'relative', maxWidth: capMeasure, boxSizing: 'border-box', margin: `0 auto ${capBottom}px`,
         padding: `0 ${CAP_PAD_X}px`, textAlign: 'center',
         // WEIGHT 600, NOT 700. The caption is already in the DNA's body face, but at 700 it was the
         // heaviest thing on screen — heavier than the display headlines it sits under — so the frame's own

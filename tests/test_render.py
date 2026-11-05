@@ -723,7 +723,7 @@ def test_vf_caption_face_pinned_to_regular_weight():
     def ink(font):
         im = Image.new("L", (500, 70), 255)
         ImageDraw.Draw(im).text((5, 5), "Hamburg install 123", font=font, fill=0)
-        return sum(1 for px in im.getdata() if px < 128)
+        return sum(1 for px in render._pixels(im) if px < 128)
     raw = ImageFont.truetype(path, 48)               # default instance (Light 300)
     pinned = render._load_font(48, path)             # our loader (pins 400)
     assert ink(pinned) > ink(raw) * 1.1

@@ -76,14 +76,14 @@ REMOTION_OK = os.path.isdir(os.path.join(ROOT, "remotion", "node_modules"))
 needs_both = pytest.mark.skipif(bp.blender_bin() is None or not REMOTION_OK, reason="needs Blender and remotion/")
 
 
-def _film_with_label(tmp_path, at):
+def _film_with_label(tmp_path, at, scene="cube_scene.py", seconds=0.6):
     film = make_film(tmp_path, dict(GOOD, anchors=["top"], objects=["cube"]))
-    shutil.copyfile(os.path.join(ROOT, "tests/fixtures/blender/cube_scene.py"), film + "/blender/s.py")
+    shutil.copyfile(os.path.join(ROOT, "tests/fixtures/blender", scene), film + "/blender/s.py")
     shutil.copyfile(os.path.join(ROOT, "tests/fixtures/blender_film/PlateProbe.tsx"), film + "/workshop/shots/PlateProbe.tsx")
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", "0.6",
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", str(seconds),
                     film + "/audio/01.mp3"], check=True)
     b = json.load(open(film + "/storyboard.json"))
-    b["slides"][0].update(duration=0.6, shot_props={"label": "LABEL TEXT", "at": at})
+    b["slides"][0].update(duration=seconds, shot_props={"label": "LABEL TEXT", "at": at})
     json.dump(b, open(film + "/storyboard.json", "w"), ensure_ascii=False)
     assert bp.main([film, "--yes", "--skip-layout"]) == 0     # a picture plate whatever its layout: plate_qa is what is tested
     return film
@@ -137,3 +137,57 @@ def test_layout_gate_renders_no_picture_until_the_layout_passes(tmp_path):
     assert os.path.exists(os.path.join(pd, bp.LAYOUT_RECORD))
     board = json.load(open(off + "/storyboard.json"))
     assert bp.layout_passed(off, board, 0) and bp.plate_state(off, board, 0) == "fresh"
+
+
+def test_coverage_uses_no_deprecated_pillow_call(tmp_path):
+    # Image.getdata is gone in Pillow 14 (2027-10-15); the gate must keep working past it
+    import warnings
+    from PIL import Image
+    d = tmp_path / "ids"
+    d.mkdir()
+    Image.new("RGBA", (8, 8), (0, 0, 255, 255)).save(d / "0001.png")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        assert plate_qa.mask_share(str(d), {"earth": "#0000ff"}, 0, (0, 0, 8, 8), scale=1) == {"earth": 1.0}
+
+
+def test_the_census_is_of_the_film_as_it_will_play_warps_included(tmp_path, monkeypatch):
+    # the layout gate runs BEFORE the render, when a beat's warp is not derived yet: judged on the registers' own
+    # clocks, the type sits where it never will in the film (render_remotion derives the warps first; so must this)
+    import render_remotion as rr
+    import remotion_segments as rs
+    import sync_qa as sq
+    import text_safe_qa as ts
+    import workshop as ws
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {}, "slides": []}))
+    monkeypatch.setattr(rr, "film_props", lambda out, board: ({"scenes": [{"shot": "S", "durF": 30}]}, []))
+
+    def derive(out, board, props, slides, log=print):
+        props["scenes"] = [dict(props["scenes"][0], warp=[[0, 0], [10, 6], [30, 30]])]
+    monkeypatch.setattr(sq, "derive_warps", derive)
+    monkeypatch.setattr(ws, "prepare", lambda out: {})
+    monkeypatch.setattr(rs, "minimal_public", lambda props, out, dest: dest)
+    monkeypatch.setattr(ts, "glide_bundle", lambda *a, **k: "bundle")
+    seen = []
+    monkeypatch.setattr(ts, "glide_run", lambda jobs, *a, **k: (seen.append(jobs[0]["props"]), {"film": {}})[1])
+    monkeypatch.delenv("REMOTION_SYNC", raising=False)
+    plate_qa.census_film(str(tmp_path))
+    assert seen[0]["scenes"][0].get("warp") == [[0, 0], [10, 6], [30, 30]], seen
+
+
+def test_a_caption_on_an_object_is_one_finding_that_moves_the_object():
+    # the caption is the film's and its place is fixed: its karaoke text changes every frame, so it is judged as ONE
+    # line per beat and object, and the fix it names is the object's
+    frames = {f: {"hits": [["慢 7.2；净快约"[: 2 + f], "sat", f, [0, 0, 10, 10], 1]]} for f in range(0, 9, 3)}
+    out = plate_qa.judge(frames, lambda f: 0, [2], lambda pid, pf, rect: {"earth": 0.4})
+    assert len(out["errors"]) == 1 and "caption" in out["errors"][0] and "move the object" in out["errors"][0], out
+
+
+@needs_both
+def test_a_plate_object_under_the_caption_is_caught(tmp_path):
+    # GPS beat 2 (2026-11-04): the Earth's limb ran under the caption with every gate green — the census had the
+    # captions off, and the caption is not any beat's own type
+    # 1.5 s: the Film shows a caption from frame 14 to 16 frames before the end, so a shorter beat has none
+    film = _film_with_label(tmp_path / "low", [40, 40], scene="low_cube_scene.py", seconds=1.5)
+    r = plate_qa.scan_film(film, every=3)
+    assert plate_qa.verdict(r)[1] == 1 and any("caption" in e for e in r["errors"]), r

@@ -3,7 +3,9 @@
 // A Blender plate's objects are pixels of a video, so no DOM gate sees them: the first plate (a GPS satellite,
 // 2026-11-04) put its wing tip under the label 我在哪 with every gate green. runtime/blenderPlate.tsx marks each
 // object's box on each frame (`data-plate-object`); this measures the type over it, on the frames the Film really
-// renders, and scripts/plate_qa.py judges the census.
+// renders, and scripts/plate_qa.py judges the census. The CAPTION (Film's `[data-caption]`) is judged too: it is
+// nobody's own type, so it is checked against the plate on screen (its window is one beat's sole-visible window), and
+// its hits carry a 1 so the judge names the object as the thing to move (GPS beat 2: the Earth's limb under it).
 //
 // Mounted only by the Film when `plateClear` is set (Film.tsx), never imported by a register.
 import React from 'react';
@@ -41,7 +43,7 @@ export const censusPlateClear = (root: HTMLElement) => {
     return {el, beat: beatOf(el), id: el.getAttribute('data-plate') || '?', f: Number(el.getAttribute('data-plate-frame')),
       pw: Number(el.getAttribute('data-plate-w')), ph: Number(el.getAttribute('data-plate-h')), r, boxes};
   });
-  const hits: [string, string, number, number[]][] = [];
+  const hits: [string, string, number, number[], number][] = [];
   let texts = 0;
   const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -55,11 +57,12 @@ export const censusPlateClear = (root: HTMLElement) => {
     texts += 1;
     const box = {x0: r.left, y0: r.top, x1: r.right, y1: r.bottom};
     const mine = beatOf(el);
+    const cap = el.closest('[data-caption]') !== null;
     for (const p of plates) {
-      if (p.beat !== mine || !p.boxes.some((b) => overlap(box, b) > 0)) continue;
+      if ((!cap && p.beat !== mine) || !p.boxes.some((b) => overlap(box, b) > 0)) continue;
       const kx = p.pw / Math.max(1, p.r.width), ky = p.ph / Math.max(1, p.r.height);
       hits.push([t.slice(0, 40), p.id, p.f, [(box.x0 - p.r.left) * kx, (box.y0 - p.r.top) * ky,
-        (box.x1 - p.r.left) * kx, (box.y1 - p.r.top) * ky].map((v) => Math.round(v * 10) / 10)]);
+        (box.x1 - p.r.left) * kx, (box.y1 - p.r.top) * ky].map((v) => Math.round(v * 10) / 10), cap ? 1 : 0]);
     }
   }
   return {hits, texts, objects: plates.reduce((m, p) => m + p.boxes.length, 0)};

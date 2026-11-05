@@ -1,6 +1,7 @@
 import os
 import pytest
 from PIL import Image
+import render
 import scenes
 
 META = {"fps": 30, "language": "en"}
@@ -241,7 +242,7 @@ def test_timeline_accepts_when_what_keys(tmp_path):
     # the HTML .timeline archetype uses when/what — the programmatic renderer must not silently drop them
     from PIL import Image
     def ink(pat, n):
-        return sum(1 for px in Image.open(pat % (n - 1)).convert("L").getdata() if px > 30)
+        return sum(1 for px in render._pixels(Image.open(pat % (n - 1)).convert("L")) if px > 30)
     a = tmp_path / "a"; b = tmp_path / "b"; a.mkdir(); b.mkdir()
     ww = scenes.render_timeline({"events": [{"when": "2019", "what": "Kickoff"}, {"when": "2020", "what": "MVP"}]},
                                 META, 900, 520, 3, str(a), 0)
@@ -288,7 +289,7 @@ def test_keypoints_reveals_spread_across_scene_not_crammed(tmp_path):
     not be on screen yet, so an early frame carries clearly less ink than the final frame."""
     def ink(png):
         im = Image.open(png).convert("RGB"); bg = (13, 17, 23)
-        return sum(1 for px in im.getdata() if px != bg)
+        return sum(1 for px in render._pixels(im) if px != bg)
     props = {"title": "T", "points": [{"label": "Alpha"}, {"label": "Bravo"}, {"label": "Charlie"}]}
     pat = scenes.render_keypoints(props, META, 960, 540, 300, str(tmp_path), 1)
     early = ink(pat % 75)      # ~25% in — with spread, only the first point is appearing

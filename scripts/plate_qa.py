@@ -9,8 +9,9 @@ unmeasured.
 WHY THIS EXISTS. A Blender plate (scripts/blender_plate.py) is a video: its objects are pixels, so every DOM gate is
 blind to them. The first plate — a GPS satellite, 2026-11-04 — put a wing tip under the label 我在哪 with every gate
 green. runtime/blenderPlate.tsx marks each object's box on each frame, runtime/plateClear.tsx measures each line of
-the shot's own type against those boxes on the frames the Film really renders (captions off: the caption is the
-film's, drawn on the frame's ground by rule, not the shot's), and this judges the census:
+the shot's own type, and the film's caption, against those boxes on the frames the Film really renders, and this
+judges the census (the caption's place is fixed, so a finding on it names the OBJECT to move — GPS beat 2,
+2026-11-04: the Earth's limb ran under the caption with every gate green while this census had the captions off):
 
   ERROR  at least ERROR_SHARE of a line's box is covered by an object's SILHOUETTE on at least MIN_FRAMES sampled frames
   WARN   at least WARN_SHARE
@@ -30,6 +31,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 ERROR_SHARE = 0.15
+CAPTION = object()      # the key the caption's hits are judged under, whatever its text on the frame
 WARN_SHARE = 0.05
 MIN_FRAMES = 2           # one frame is a seam or an entrance passing
 TAG = "PLATE-CLEAR "
@@ -50,12 +52,14 @@ def mask_share(ids_dir, colors, frame, rect, scale=2):
     x1, y1 = min(W, int(-(-rect[2] // scale))), min(H, int(-(-rect[3] // scale)))
     if x1 <= x0 or y1 <= y0:
         return {n: 0.0 for n in colors}
-    px = list(im.crop((x0, y0, x1, y1)).getdata())
-    want = {n: tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for n, c in colors.items()}
+    import numpy as np
+    px = np.asarray(im.crop((x0, y0, x1, y1)), dtype=np.int16).reshape(-1, 4)
+    seen = px[:, 3] > 0
     out = {}
-    for n, (r, g, b) in want.items():
-        hit = sum(1 for p in px if p[3] > 0 and abs(p[0] - r) <= 8 and abs(p[1] - g) <= 8 and abs(p[2] - b) <= 8)
-        out[n] = hit / len(px)
+    for n, c in colors.items():
+        want = np.array([int(c[i:i + 2], 16) for i in (1, 3, 5)], dtype=np.int16)
+        hit = seen & (np.abs(px[:, :3] - want) <= 8).all(axis=1)
+        out[n] = float(hit.sum()) / len(px)
     return out
 
 
@@ -81,11 +85,14 @@ def judge(frames, beat_of, labels, coverage):
     line of type over a plate object's BOX; `coverage` says how much of it the object's silhouette really covers."""
     seen = {}
     for f in sorted(frames):
-        for text, plate_id, pf, rect in frames[f].get("hits") or []:
+        for hit in frames[f].get("hits") or []:
+            text, plate_id, pf, rect = hit[:4]
+            cap = len(hit) > 4 and bool(hit[4])
             for obj, share in coverage(plate_id, pf, rect).items():
                 if share < WARN_SHARE:
                     continue
-                k = (beat_of(f), text, obj)
+                # a karaoke caption's text changes every frame: it is ONE line per beat and object
+                k = (beat_of(f), CAPTION if cap else text, obj)
                 s = seen.setdefault(k, {"n_err": 0, "n": 0, "worst": 0.0, "at": f})
                 s["n"] += 1
                 s["n_err"] += share >= ERROR_SHARE
@@ -93,24 +100,31 @@ def judge(frames, beat_of, labels, coverage):
                     s["worst"], s["at"] = share, f
     errors, warns = [], []
     for (beat, text, obj), s in sorted(seen.items(), key=lambda kv: (kv[0][0], -kv[1]["worst"])):
-        line = "beat %s: %r sits %d%% over plate object %r (worst at film frame %d)" % (
-            labels[beat] if 0 <= beat < len(labels) else beat + 1, text, round(s["worst"] * 100), obj, s["at"])
+        line = "beat %s: %s sits %d%% over plate object %r (worst at film frame %d)" % (
+            labels[beat] if 0 <= beat < len(labels) else beat + 1, "the caption" if text is CAPTION else repr(text),
+            round(s["worst"] * 100), obj, s["at"])
         if s["n_err"] >= MIN_FRAMES:
-            errors.append(line + " — move the type or the object")
+            errors.append(line + (" — move the object (stage.place): the caption's place is fixed" if text is CAPTION
+                                  else " — move the type or the object"))
         elif s["n"] >= MIN_FRAMES:
             warns.append(line)
     return {"errors": errors, "warns": warns}
 
 
 def census_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
-    """(census, segs, slides, total) — the Film rendered once with the plate-clear census armed, captions off."""
+    """(census, segs, slides, total) — the Film rendered once with the plate-clear census armed, captions on."""
     import remotion_segments as _rs
     import render_remotion as rr
     import text_safe_qa as ts
     import workshop as _ws
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     props, slides = rr.film_props(out_dir, board)
-    props = dict(props, plateClear=True, captions=False)
+    # the film AS IT WILL PLAY: a beat whose warp is missing or stale is derived now, exactly as the render does
+    # first (the layout gate runs before any render, and type on its register's own clock is not where it will be)
+    if os.environ.get("REMOTION_SYNC", "1") != "0":
+        import sync_qa as _sq
+        _sq.derive_warps(out_dir, board, props, slides, log=print)
+    props = dict(props, plateClear=True, captions=True)
     segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
     env = _ws.prepare(out_dir)
     work = tempfile.mkdtemp(prefix="plate_clear_")
@@ -180,9 +194,9 @@ def main(argv):
     for u in r["unmeasured"]:
         print("[plate_qa] NOT MEASURED: " + u)
     word, code = verdict(r)
-    print("[plate_qa] scope: MEASURED — the shot's own type (captions off) against every Blender plate object's "
+    print("[plate_qa] scope: MEASURED — the shot's own type and the caption against every Blender plate object's "
           "silhouette (its ID pass), in the same beat, on %d of %d frames (every %d)" % (r["sampled"], r["frames"], r["every"]))
-    print("[plate_qa] scope: NOT MEASURED — the burned caption; frames between samples; type of another beat during "
+    print("[plate_qa] scope: NOT MEASURED — frames between samples; type of another beat during "
           "a dissolve; a silhouette finer than the half-size ID pass")
     print("[plate_qa] %s — %d plate object(s), %d line(s) of type, %.0f s" % (word, r["objects"], r["texts"], r["seconds"]))
     return code

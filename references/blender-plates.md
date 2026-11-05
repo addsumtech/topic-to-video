@@ -116,8 +116,9 @@ and rounds it. Its cues come from the word times, so it is on the voice already.
   - `--still F` renders one frame of each plate to look at, and writes no plate.
 - `--preview` builds every stale plate at half the frame each way and 16 samples, to check motion and layout
   cheaply. validate refuses a preview plate for delivery. A full build replaces it.
-- `python3 scripts/plate_qa.py <out_dir>`, a blocking delivery gate on films with a plate: the shot's own type must not
-  sit on a plate object (an ERROR at 15% of a line's box on 2 sampled frames).
+- `python3 scripts/plate_qa.py <out_dir>`, a blocking delivery gate on films with a plate: neither the shot's own type
+  nor the caption may sit on a plate object (an ERROR at 15% of a line's box on 2 sampled frames). The caption's place
+  is fixed, so keep every object out of the bottom caption band (`captionBand`) with `stage.place`.
 - `validate.py` refuses a beat whose plate is missing or stale. The key covers its scene, the kit, its assets, its
   cue times, its frame count and size, its engine and mode, and the Blender version.
 
