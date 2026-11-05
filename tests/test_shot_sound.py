@@ -251,6 +251,8 @@ def test_every_terminal_types_its_command_with_a_key_on_termframes_own_curve():
     shots = os.path.join(_SKILL, "remotion", "src", "shots")
     users = []
     for f in sorted(os.listdir(shots)):
+        if not f.endswith(".tsx"):              # a register is a .tsx file; a cache folder or a note is not
+            continue
         src = open(os.path.join(shots, f), encoding="utf-8").read()
         tag = re.search(r"<TermFrame\b[^>]*\bcmd=\{cmd\}[^>]*>", src)
         if not tag:
