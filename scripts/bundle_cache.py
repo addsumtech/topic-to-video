@@ -23,6 +23,7 @@ SKILL_ROOT = os.path.dirname(SCRIPTS)
 REMOTION = os.path.join(SKILL_ROOT, "remotion")
 KEEP = 8                    # bundles kept; the oldest go first
 BIG = 1 << 20
+PUBLIC = "--public-dir="  # the bundler's public-folder argument
 
 
 def cache_root():
@@ -67,15 +68,16 @@ def key(public_dir, env, args):
     for k in sorted(k for k in env if k.startswith(("SLIDES_", "REMOTION_"))):
         h.update(("%s=%s\0" % (k, env[k])).encode())
     # the public folder's PATH is a temp dir of each caller: its contents are keyed above, its name must not be
-    h.update("\0".join(a for a in args if not a.startswith("--public-dir=")).encode())
+    h.update("\0".join(a for a in args if not a.startswith(PUBLIC)).encode())
     h.update(b"public-dir" if public_dir else b"default-public")
     return h.hexdigest()
 
 
-def bundle(public_dir=None, env=None, extra=(), run=subprocess.run):
+def bundle(public_dir=None, env=None, extra=(), run=None):
     """The path of a Remotion bundle of the project (with the film's workshop when `env` carries SLIDES_WORKSHOP and
     `public_dir` as its public folder). Built once per key; a failed build raises and leaves nothing behind."""
-    args = ["src/index.ts", "--log=error"] + (["--public-dir=" + os.path.abspath(public_dir)] if public_dir else []) \
+    run = run or subprocess.run           # looked up per call: a default bound at import keeps whatever was patched then
+    args = ["src/index.ts", "--log=error"] + ([PUBLIC + os.path.abspath(public_dir)] if public_dir else []) \
         + list(extra)
     root = cache_root()
     k = key(public_dir, env, args) if root else None

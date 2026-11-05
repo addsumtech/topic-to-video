@@ -97,3 +97,10 @@ def test_the_same_media_in_another_temp_folder_is_the_same_bundle(project):
     os.link(one / "plate.webm", two / "plate.webm")             # minimal_public links the film's own file
     assert bc.bundle(str(one), run=project.run) == bc.bundle(str(two), run=project.run)
     assert len(project.calls) == 1
+
+
+def test_the_runner_is_looked_up_when_called_not_when_imported(project, monkeypatch):
+    # a test that patched subprocess.run while this module was first imported froze its lambda into the default,
+    # and every later bundle in that process went to the lambda (test_workshop_routing, 2026-11-05)
+    monkeypatch.setattr(bc.subprocess, "run", project.run)
+    assert os.path.isfile(os.path.join(bc.bundle(), "index.html")) and len(project.calls) == 1
