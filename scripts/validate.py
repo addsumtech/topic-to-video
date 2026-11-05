@@ -6884,6 +6884,23 @@ def coverage(out_dir, pre_tts=False, vertical=False):
                "rows": rows}
 
 
+def _grouped_warnings(warnings, keep=3):
+    """The warnings to PRINT: at most `keep` of one kind (the text before its first colon, numbers ignored), then one
+    line counting the rest. --json and --strict still see every warning; this is only what a person reads."""
+    def kind(w):
+        return re.sub(r"\d+", "N", w.split(":", 1)[0].strip())
+    seen, extra, out = {}, {}, []
+    for w in warnings:
+        k = kind(w)
+        seen[k] = seen.get(k, 0) + 1
+        if seen[k] <= keep:
+            out.append(w)
+        else:
+            extra[k] = extra.get(k, 0) + 1
+    out += ["… and %d more '%s' warning(s) of the same kind (--json lists every one)" % (n, k) for k, n in extra.items()]
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description="Pre-render gate for storyboard.json")
     ap.add_argument("out_dir")
@@ -6925,7 +6942,7 @@ def main():
               f"{r['scenes']} scene(s), {len(r['errors'])} error(s), {len(r['warnings'])} warning(s)")
         for e in r["errors"]:
             print(f"  ERROR: {e}")
-        for w in r["warnings"]:
+        for w in (r["warnings"] if a.strict else _grouped_warnings(r["warnings"])):
             print(f"  {'ERROR' if a.strict else 'warn '}: {w}")
         # A check that switched itself off because its INPUT was absent. Louder than a warning about the
         # film, because it is a statement about this gate: it did not look.
