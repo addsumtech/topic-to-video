@@ -138,11 +138,28 @@ Inside a build, nothing that did not change is rendered (blender/kit/reuse.py):
   margin) is rendered;
 - `full`: anything else.
 
-The signature reads every object's matrix, visibility and modifiers, every node value, every light and camera setting.
+The signature reads the camera, the lights, the view, node groups and the world (a change re-renders the whole frame).
+Per object it reads the matrix, visibility, modifiers, geometry (mesh vertices, curve points) and the node values of
+its own materials, so a fading material or a moving curve counts as that object changing. The ID pass is always
+rendered whole, because it is cheap.
 The first reused frame of each run, and every 24th after it, is rendered whole as well and compared. A mismatch
 turns reuse off for the plate and re-renders the frames since the last good check, so a frame is never quietly
 wrong. A scene whose pose changes something else (a mesh's vertices) sets `k.reuse = False`. Keyframes, drivers, a
-Scene Time node or an image sequence turn reuse off on their own. run.json and plate.json record what each frame was.
+Scene Time node or an image sequence turn reuse off on their own. run.json and plate.json record what each frame was
+and, for a whole frame, why it was rendered whole.
+
+Measured on orbit-gain (351 frames, EEVEE, M4, 2026-11-05):
+
+| pass | time |
+|---|---|
+| picture build, before reuse | 1359 s |
+| picture build, with reuse (273 frames patched, every check passed) | 860 s |
+| layout pass (ID + anchors) | 27–41 s, depending on CPU load |
+
+A patched frame differed from a whole render of it on 61 of 2.07M pixels, at anti-aliased line edges.
+
+Remotion side: the render and every census gate share ONE bundle per film state (scripts/bundle_cache.py). A miss
+measured 8.4 s and a hit 0.17 s; a delivery bundled the same project six to seven times before.
 
 ## Costs (measured on an Apple M4 with a 10-core GPU, 2026-11-04)
 
