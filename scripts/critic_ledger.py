@@ -1078,6 +1078,9 @@ def _waiver_rows(out_dir, led, by_id, warns):
     return errs
 
 
+UNWAIVABLE_GATES = ("check_av", "validate")    # sync and the board's contract: never waived by a delivery waiver
+
+
 def _gate_problems(out_dir, final, history_checked=False):
     """([errors], [warnings]) from the machine gates critic_brief.py ran on the CURRENT render. `--final` used to
     remove NOT_DELIVERED.md on a PASS ledger while validate.py and keyframe_qa were failing on the same film — and
@@ -1109,15 +1112,31 @@ def _gate_problems(out_dir, final, history_checked=False):
             probs.append("these delivery gates were never run on this render: %s — a gate nobody ran is not one "
                          "that passed. Re-run python3 scripts/critic_brief.py <out_dir> --gates (or the full brief), "
                          "then this gate" % ", ".join(missing))
-        failed = sorted("%s (exit %s)" % (name, g.get("exit")) for name, g in rec.items()
-                        if isinstance(g, dict) and g.get("blocking", True) and g.get("exit") != 0)
+        # A GATE THE USER WAIVED BY NAME (meta.delivery_waivers, the same record deliver.py honours: {"jitter_qa":
+        # "<their reason>"}) does not refuse the film — it is said, below, as waived. The anc film, 2026-11-05: the
+        # user accepted 7 sub-pixel jitter findings, deliver.py delivered, and this gate still refused it. A/V sync
+        # and the board's own contract are never the user's to waive.
+        waived_by = {str(k).strip(): str(v).strip() for k, v in (_board_meta(out_dir).get("delivery_waivers") or {}).items()
+                     if isinstance(v, str) and v.strip()}
+
+        def _waiver(name):
+            stem = name.split()[0][:-3] if name.split()[0].endswith(".py") else name.split()[0]
+            if stem in UNWAIVABLE_GATES:
+                return None
+            return waived_by.get(name) or waived_by.get(stem) or waived_by.get(name.replace(".py", ""))
+        bad = [(name, g) for name, g in rec.items()
+               if isinstance(g, dict) and g.get("blocking", True) and g.get("exit") != 0]
+        failed = sorted("%s (exit %s)" % (name, g.get("exit")) for name, g in bad if not _waiver(name))
+        waived = sorted("%s (exit %s; waived: %s)" % (name, g.get("exit"), _waiver(name)) for name, g in bad if _waiver(name))
         if failed:
             probs.append("the machine gates critic_brief.py ran on this render did not pass: %s — a review cannot "
                          "deliver a film its gates refuse. Fix them (re-render if the film changes), re-run python3 "
                          "scripts/critic_brief.py <out_dir>, then this gate; it never re-runs them itself"
                          % ", ".join(failed))
+    notes = (["machine gate(s) WAIVED by the user, delivered over: %s" % "; ".join(waived)]
+             if rec and waived else [])
     if final:
-        return probs, []
+        return probs, notes
     # AN INTERIM RUN IS OFTEN THE CRITIC'S, whose ledger is fine: say whose move this is, or a reviewer reads "re-run
     # critic_brief.py" — the maker's step, which rewrites the film directory — as its own
     return [], ["for the film's maker, not the review (record your verdict as usual; --final refuses until this is "

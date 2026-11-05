@@ -719,3 +719,22 @@ def test_a_waived_review_still_refuses_failing_gates_and_says_which_ran(tmp_path
     nd = open(os.path.join(out, "NOT_DELIVERED.md")).read()
     assert p.returncode == 0 and "all exited 0" in nd and "check_av.py" in nd and "film_energy_qa.py" in nd, \
         (p.stdout, nd)
+
+
+def test_a_gate_the_user_waived_by_name_does_not_refuse_delivery_but_av_and_the_contract_never_are(tmp_path):
+    # the anc film, 2026-11-05: the user accepted 7 sub-pixel jitter_qa findings (meta.delivery_waivers, which
+    # deliver.py honours), and --final still refused the film over that same gate — the two disagreed
+    w = {"jitter_qa": "user accepted: 7 labels tremble under 0.3 px"}
+    out = _out(tmp_path, {"tier": "none", "user_answer": "none", "preselected": "fast"}, meta_extra={"delivery_waivers": w})
+    out = _out(tmp_path, {"tier": "none", "user_answer": "none", "preselected": "fast", "render_sha256": _cur(out)},
+               meta_extra={"delivery_waivers": w})
+    cl.record_render(out, gates=_gates(out, jitter_qa__py=1))
+    errs, warns = cl.validate(out, final=True)[:2]
+    assert not any("did not pass" in e for e in errs), errs
+    assert any("jitter_qa.py" in m and "waived" in m for m in warns), warns
+    # sync and the board's own contract are never the user's to waive
+    out = _out(tmp_path, {"tier": "none", "user_answer": "none", "preselected": "fast", "render_sha256": _cur(out)},
+               meta_extra={"delivery_waivers": {"check_av": "no", "validate": "no"}})
+    cl.record_render(out, gates=_gates(out, check_av__py=1, validate__py=1))
+    errs = cl.validate(out, final=True)[0]
+    assert any("did not pass" in e and "check_av.py" in e and "validate.py" in e for e in errs), errs
