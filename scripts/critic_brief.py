@@ -37,6 +37,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1010,7 +1011,7 @@ def _cl_name(script, args):
 
 
 def _run_gate_rows(out_dir, rows, ran):
-    """[(script, args, output)] for every row, in the rows' order — the heavy gates one after another in one lane, the
+    """[(script, args, output, seconds)] for every row, in the rows' order — the heavy gates one after another in one lane, the
     light ones beside it on LIGHT_WORKERS threads. A gate main() already ran on this render (`ran`) is not re-run."""
     import concurrent.futures as _cf
     done = {}
@@ -1018,9 +1019,13 @@ def _run_gate_rows(out_dir, rows, ran):
     import progress as _pg
     _pg.write(out_dir, "gates", 0, len(rows), None)
 
+    took = {}
+
     def one(i):
         _label, script, args, timeout, _blocking = rows[i]
+        t0 = time.time()
         done[i] = ran[script] if (script in ran and not args) else _gate_run(script, out_dir, args, timeout=timeout)
+        took[i] = time.time() - t0
         _pg.write(out_dir, "gates", len(done), len(rows), _cl_name(script, args))
 
     heavy = [i for i, r in enumerate(rows) if r[1] in HEAVY_GATES]
@@ -1030,7 +1035,7 @@ def _run_gate_rows(out_dir, rows, ran):
         rest = [ex.submit(one, i) for i in light]
         for f in [lane, *rest]:
             f.result()
-    return [(rows[i][1], rows[i][2], done[i]) for i in range(len(rows))]
+    return [(rows[i][1], rows[i][2], done[i], round(took[i], 1)) for i in range(len(rows))]
 
 
 def _gates_only(out_dir, tier, ran, sheet_ok, made):
@@ -1043,12 +1048,14 @@ def _gates_only(out_dir, tier, ran, sheet_ok, made):
                                             ("validate", "validate.py", (), 240, True)]
     codes, bad = {}, []
     outs = _run_gate_rows(out_dir, rows, ran)
-    for (label, script, args, timeout, blocking), (_s, _a, out) in zip(rows, outs):
+    for (label, script, args, timeout, blocking), (_s, _a, out, secs) in zip(rows, outs):
         _note(codes, script, args, out)
         code = getattr(out, "code", None)
         name = _cl.gate_name(script, args)
         verdict = "ok" if code == 0 else ("advisory (exit %s)" % code if not blocking else "FAIL (exit %s)" % code)
-        print("[critic_brief] %-26s %s" % (name, verdict))
+        # each gate's own wall time: which gate to make faster is a measurement, not a guess (the ANC film's run
+        # took 21 min and nothing said which gate spent them)
+        print("[critic_brief] %-26s %-20s %6.0f s" % (name, verdict, secs))
         if blocking and code != 0:
             bad.append(name)
             for line in _failure_excerpt(out):

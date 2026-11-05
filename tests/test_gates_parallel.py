@@ -33,5 +33,6 @@ def test_light_gates_run_beside_the_heavy_lane_and_print_in_order(monkeypatch, c
     t0 = time.time()
     outs = cb._run_gate_rows("/film", rows, {})
     took = time.time() - t0
-    assert [s for s, _a, _o in outs] == [r[1] for r in rows]           # the board's order
+    assert [o[0] for o in outs] == [r[1] for r in rows]                 # the board's order
+    assert all(0.3 < o[3] < 3 for o in outs), [o[3] for o in outs]      # each gate's own seconds, measured
     assert peak[0] >= 2 and took < 6 * 0.4 * 0.8, (peak[0], took)       # ran side by side
