@@ -222,7 +222,7 @@ def scene_imports(scene_path, bdir):
     return sorted(seen)
 
 
-def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version):
+def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version, folder_wide=False):
     """What a plate is a function of: its scene, the kit, its assets, the cue times it uses, its frame and engine."""
     h_ = hashlib.sha256()
     def put(*parts):
@@ -233,7 +233,11 @@ def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version):
     # a scene may import helpers beside it (two plates sharing one satellite): the helpers IT imports, transitively —
     # not every .py under blender/ (the ANC film: one edit to explode.py rebuilt all three plates, ~11 min, twice)
     bdir = os.path.join(out_dir, "blender")
-    for p in scene_imports(os.path.join(out_dir, spec["scene"]), bdir):
+    if folder_wide:                                       # the key as it was before 2026-11-05 (key_matches reads it)
+        helpers = [os.path.join(d, f) for d, _n, fs in sorted(os.walk(bdir)) for f in sorted(fs) if f.endswith(".py")]
+    else:
+        helpers = scene_imports(os.path.join(out_dir, spec["scene"]), bdir)
+    for p in helpers:
         put("scene-dir", os.path.relpath(p, bdir), _code_sha(p))
     for rel in kit_files():
         put("kit", rel, _code_sha(os.path.join(SKILL_ROOT, rel)))
@@ -245,6 +249,13 @@ def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version):
     put("blender", blender_version)
     put("format", PLATE_FORMAT)
     return h_.hexdigest()
+
+
+def key_matches(stored, spec, out_dir, frames, fps, w, h, cue_t, blender_version, suffix=""):
+    """Is a stored key the key of these inputs? Either today's (the scene and what it imports) or the folder-wide key a
+    plate built before 2026-11-05 carries — the same plate, so it is not rebuilt for a change in what keys cover."""
+    a = (spec, out_dir, frames, fps, w, h, cue_t, blender_version)
+    return stored in (plate_key(*a) + suffix, plate_key(*a, folder_wide=True) + suffix)
 
 
 def _frame_facts(out_dir, board, i):
@@ -270,6 +281,15 @@ def current_key(out_dir, board, i):
     return plate_key(spec, out_dir, frames, fps, w, h, cue_t, _blender_version_str(board.get("meta")))
 
 
+def _key_args(out_dir, board, i):
+    slide = board["slides"][i]
+    spec = spec_of(slide, out_dir)
+    frames, fps, w, h = _frame_facts(out_dir, board, i)
+    cue_t = cue_times(out_dir, slide.get("index", i + 1), spec["cues"])
+    return dict(spec=spec, out_dir=out_dir, frames=frames, fps=fps, w=w, h=h, cue_t=cue_t,
+                blender_version=_blender_version_str(board.get("meta")))
+
+
 def plate_state(out_dir, board, i):
     """'missing' | 'stale' | 'fresh' | 'preview' | 'layout': is slide i's built plate the one its board, scene and voice ask for now?"""
     spec = spec_of(board["slides"][i], out_dir)
@@ -282,7 +302,7 @@ def plate_state(out_dir, board, i):
         return "preview"
     if built.get("layout"):
         return "layout"
-    return "fresh" if built.get("key") == current_key(out_dir, board, i) else "stale"
+    return "fresh" if key_matches(built.get("key"), **_key_args(out_dir, board, i)) else "stale"
 
 
 _IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".exr", ".hdr", ".webp")
@@ -551,7 +571,8 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
             + ("-layout" if layout else "")
         pj = os.path.join(plate_dir(out_dir, spec["id"]), "plate.json")
         try:
-            fresh = json.load(open(pj, encoding="utf-8")).get("key") == key
+            fresh = key_matches(json.load(open(pj, encoding="utf-8")).get("key"), spec, out_dir, frames, fps, w, h, cue_t,
+                                version, suffix=("-preview" if preview else "") + ("-layout" if layout else ""))
         except (OSError, ValueError):
             fresh = False
         if fresh and still is None:
@@ -565,7 +586,9 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
         raise OverBudget("%d plate(s) to build, estimated %.0f min — over this film's budget of %.0f min "
                          "(meta.blender_budget_min). Ask the user, then re-run with --yes"
                          % (len(todo), est / 60, budget / 60))
-    for slide, spec, frames, fps, w, h, cue_t, key in todo:
+    import progress as _pg
+    for n_done, (slide, spec, frames, fps, w, h, cue_t, key) in enumerate(todo):
+        _pg.write(out_dir, "layout" if layout else "plates", n_done, len(todo), spec["id"])
         pd = plate_dir(out_dir, spec["id"])
         os.makedirs(pd, exist_ok=True)
         work = os.path.join(pd, (".still-" if still else ".work-") + key[:12])
@@ -631,7 +654,7 @@ def layout_passed(out_dir, board, i):
         rec = json.load(open(os.path.join(plate_dir(out_dir, spec["id"]), LAYOUT_RECORD), encoding="utf-8"))
     except (OSError, ValueError):
         return False
-    return rec.get("key") == current_key(out_dir, board, i)
+    return key_matches(rec.get("key"), **_key_args(out_dir, board, i))
 
 
 def layout_gate(out_dir, only=None, yes=False):

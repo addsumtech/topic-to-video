@@ -735,7 +735,9 @@ def _render_film_on(out_dir, props, props_path, out_mp4, cli_flags, flags, log, 
 
 
 def _render_stale(stale, segs, props_path, out_dir, cache, cli_flags, run, serve, name, log, env=None):
+    import progress as _pg
     for i, s in enumerate(stale):
+        _pg.write(out_dir, "render", i, len(stale), "beat %s" % name(s["k"]))
         log("[segments] rendering beat %s (%d of %d to render, frames %d-%d)"
             % (name(s["k"]), i + 1, len(stale), s["a"], s["b"]))
         try:
@@ -749,6 +751,7 @@ def _render_stale(stale, segs, props_path, out_dir, cache, cli_flags, run, serve
                 "renders only the rest (REMOTION_CONCURRENCY=1 lowers memory)."
                 % (name(s["k"]), len(segs) - len(stale) + i, len(segs), CACHE_DIR))
             raise
+    _pg.write(out_dir, "render", len(stale), len(stale), None)
 
 
 def main(argv=None):

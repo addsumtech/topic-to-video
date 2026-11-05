@@ -996,6 +996,43 @@ def _failure_excerpt(out, n=6):
     return picked
 
 
+# THE GATES IN TWO LANES. Run one after another they took ~20 min on the ANC film. A HEAVY gate renders the Film again
+# (a census, a pixel track); two at once fight for the machine and run past their timeouts, so they keep ONE lane, in
+# order. Every other gate decodes out.mp4 or reads the board and runs beside it, a few at a time.
+HEAVY_GATES = frozenset({"text_safe_qa.py", "jitter_qa.py", "media_res_qa.py", "plate_qa.py", "cjk_type_qa.py",
+                         "shot_proof.py", "style_qa.py"})
+LIGHT_WORKERS = int(os.environ.get("TOPIC_VIDEO_GATE_WORKERS") or 2)
+
+
+def _cl_name(script, args):
+    import critic_ledger as _cl
+    return _cl.gate_name(script, args)
+
+
+def _run_gate_rows(out_dir, rows, ran):
+    """[(script, args, output)] for every row, in the rows' order — the heavy gates one after another in one lane, the
+    light ones beside it on LIGHT_WORKERS threads. A gate main() already ran on this render (`ran`) is not re-run."""
+    import concurrent.futures as _cf
+    done = {}
+
+    import progress as _pg
+    _pg.write(out_dir, "gates", 0, len(rows), None)
+
+    def one(i):
+        _label, script, args, timeout, _blocking = rows[i]
+        done[i] = ran[script] if (script in ran and not args) else _gate_run(script, out_dir, args, timeout=timeout)
+        _pg.write(out_dir, "gates", len(done), len(rows), _cl_name(script, args))
+
+    heavy = [i for i, r in enumerate(rows) if r[1] in HEAVY_GATES]
+    light = [i for i, r in enumerate(rows) if r[1] not in HEAVY_GATES]
+    with _cf.ThreadPoolExecutor(max_workers=1 + max(1, LIGHT_WORKERS)) as ex:
+        lane = ex.submit(lambda: [one(i) for i in heavy])
+        rest = [ex.submit(one, i) for i in light]
+        for f in [lane, *rest]:
+            f.result()
+    return [(rows[i][1], rows[i][2], done[i]) for i in range(len(rows))]
+
+
 def _gates_only(out_dir, tier, ran, sheet_ok, made):
     """`--gates`: run this film's delivery gates, record their exit codes against the render id WITHOUT counting a
     review round (the brief that follows on the same render does), print one line per gate and the tail of every
@@ -1005,8 +1042,8 @@ def _gates_only(out_dir, tier, ran, sheet_ok, made):
     rows = _gate_rows(out_dir) if tier else [("A/V", "check_av.py", (), 240, True),
                                             ("validate", "validate.py", (), 240, True)]
     codes, bad = {}, []
-    for label, script, args, timeout, blocking in rows:
-        out = ran[script] if (script in ran and not args) else _gate_run(script, out_dir, args, timeout=timeout)
+    outs = _run_gate_rows(out_dir, rows, ran)
+    for (label, script, args, timeout, blocking), (_s, _a, out) in zip(rows, outs):
         _note(codes, script, args, out)
         code = getattr(out, "code", None)
         name = _cl.gate_name(script, args)

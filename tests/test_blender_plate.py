@@ -518,3 +518,21 @@ def test_a_new_plate_borrows_the_films_other_plates_rate(tmp_path):
         json.dump({"frames": 100, "seconds": secs, "engine": "eevee"}, open(os.path.join(d, "plate.json"), "w"))
     assert bp.measured_sec_per_frame(film, spec) == pytest.approx(1.0)     # the median of 0.5, 1.0, 2.0
     assert bp.measured_sec_per_frame(film, dict(spec, engine="cycles")) is None
+
+
+def test_a_plate_built_under_the_folder_wide_key_is_still_fresh(tmp_path, monkeypatch):
+    # changing what a key covers must not rebuild every existing film's plates: a plate whose stored key is the
+    # FOLDER-WIDE key of the same inputs is the same plate
+    film = make_film(tmp_path, GOOD)
+    kit = tmp_path / "skill"
+    (kit / "blender").mkdir(parents=True)
+    (kit / "blender" / "runner.py").write_text("a")
+    monkeypatch.setattr(bp, "SKILL_ROOT", str(kit))
+    monkeypatch.setattr(bp, "KIT_DIR", str(kit / "blender"))
+    open(film + "/blender/helper.py", "w").write("X = 1\n")
+    args = dict(spec=_spec(film), out_dir=film, frames=10, fps=30, w=640, h=360, cue_t={}, blender_version="5.2.4")
+    old, new = bp.plate_key(**args, folder_wide=True), bp.plate_key(**args)
+    assert old != new
+    assert bp.key_matches(old, **args) and bp.key_matches(new, **args)
+    open(film + "/blender/s.py", "a").write("Y = 1\n")           # the scene itself changed: neither key matches
+    assert not bp.key_matches(old, **args) and not bp.key_matches(new, **args)
