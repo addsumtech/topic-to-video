@@ -355,6 +355,7 @@ def test_plates_ts_names_its_files(tmp_path, monkeypatch):
 def test_key_moves_when_a_scene_helper_changes(tmp_path):
     film = make_film(tmp_path, GOOD)
     (tmp_path / "film" / "blender" / "satkit.py").write_text("SIZE = 1\n")
+    open(film + "/blender/s.py", "a").write("\nimport satkit\n")      # the scene uses the helper
     base = dict(spec=_spec(film), out_dir=film, frames=10, fps=30, w=160, h=90, cue_t={}, blender_version="5.2.4")
     k1 = bp.plate_key(**base)
     (tmp_path / "film" / "blender" / "satkit.py").write_text("SIZE = 2\n")
@@ -461,3 +462,59 @@ def test_preview_builds_half_size_at_low_samples_and_is_never_delivered(tmp_path
     seen.clear()
     assert bp.build(film)[0]["state"] == "built" and "--samples" in seen[0]       # the full build replaces it
     assert json.load(open(os.path.join(bp.plate_dir(film, "sat"), "plate.json")))["preview"] is False
+
+
+def test_a_plate_keys_on_its_own_scene_and_what_it_imports_only(tmp_path, monkeypatch):
+    # the ANC film, 2026-11-05: three scenes shared budkit.py; one edit to explode.py rebuilt ALL three plates
+    # (~11 min, twice), because the key hashed every .py under blender/
+    film = make_film(tmp_path, GOOD)
+    kit = tmp_path / "skill"
+    (kit / "blender").mkdir(parents=True)
+    (kit / "blender" / "runner.py").write_text("a")
+    monkeypatch.setattr(bp, "SKILL_ROOT", str(kit))
+    monkeypatch.setattr(bp, "KIT_DIR", str(kit / "blender"))
+    b = film + "/blender/"
+    open(b + "budkit.py", "w").write("PARTS = 1\n")
+    open(b + "s.py", "w").write("import budkit\nfrom math import pi\nA = 1\n")
+    open(b + "other.py", "w").write("import budkit\nB = 1\n")
+    open(b + "unused.py", "w").write("C = 1\n")
+    base = dict(spec=_spec(film), out_dir=film, frames=10, fps=30, w=640, h=360, cue_t={}, blender_version="5.2.4")
+    k0 = bp.plate_key(**base)
+    open(b + "other.py", "a").write("B = 2\n")                 # another plate's scene
+    open(b + "unused.py", "a").write("C = 2\n")                # a file nobody imports
+    assert bp.plate_key(**base) == k0
+    open(b + "budkit.py", "a").write("PARTS = 2\n")            # the shared helper this scene imports
+    k1 = bp.plate_key(**base)
+    assert k1 != k0
+    open(b + "s.py", "a").write("A = 2\n")
+    assert bp.plate_key(**base) != k1
+
+
+def test_the_estimate_learns_from_the_plates_own_last_build(tmp_path):
+    # the ANC film: 4.6 s a frame assumed every frame whole — 61 min estimated, 12.7 min built, an over-budget prompt
+    film = make_film(tmp_path, GOOD)
+    spec = _spec(film)
+    blind = bp.estimate_seconds(spec, 200)
+    pd = bp.plate_dir(film, "sat")
+    os.makedirs(pd, exist_ok=True)
+    json.dump({"key": "old", "frames": 100, "seconds": 110.0, "preview": False, "layout": False},
+              open(os.path.join(pd, "plate.json"), "w"))
+    learned = bp.measured_sec_per_frame(film, spec)
+    assert learned == pytest.approx(1.0)                   # (110 s - the 10 s start) / 100 frames
+    assert bp.estimate_seconds(spec, 200, measured=learned) == pytest.approx(bp.START_SECONDS + 200)
+    assert bp.estimate_seconds(spec, 200, measured=learned) < blind / 2
+    # a preview or a layout build says nothing about a full build's cost
+    json.dump({"key": "old", "frames": 100, "seconds": 20.0, "preview": True, "layout": False},
+              open(os.path.join(pd, "plate.json"), "w"))
+    assert bp.measured_sec_per_frame(film, spec) is None
+
+
+def test_a_new_plate_borrows_the_films_other_plates_rate(tmp_path):
+    film = make_film(tmp_path, GOOD)
+    spec = _spec(film)
+    for pid, secs in (("a", 60.0), ("b", 110.0), ("c", 210.0)):
+        d = bp.plate_dir(film, pid)
+        os.makedirs(d, exist_ok=True)
+        json.dump({"frames": 100, "seconds": secs, "engine": "eevee"}, open(os.path.join(d, "plate.json"), "w"))
+    assert bp.measured_sec_per_frame(film, spec) == pytest.approx(1.0)     # the median of 0.5, 1.0, 2.0
+    assert bp.measured_sec_per_frame(film, dict(spec, engine="cycles")) is None

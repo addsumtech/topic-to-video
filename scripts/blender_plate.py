@@ -197,6 +197,31 @@ def kit_files():
     return sorted(out)
 
 
+def scene_imports(scene_path, bdir):
+    """The film's own blender/*.py modules a scene reaches by import, transitively, sorted (the scene itself not
+    included). A module that does not parse imports nothing we can read — it is hashed, and fails in Blender anyway."""
+    import ast
+    seen, todo = set(), [scene_path]
+    while todo:
+        p = todo.pop()
+        try:
+            tree = ast.parse(open(p, encoding="utf-8").read())
+        except (OSError, SyntaxError, UnicodeDecodeError, ValueError):
+            continue
+        names = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names |= {a.name.split(".")[0] for a in node.names}
+            elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+                names.add(node.module.split(".")[0])
+        for n in sorted(names):
+            q = os.path.join(bdir, n + ".py")
+            if os.path.isfile(q) and os.path.realpath(q) != os.path.realpath(scene_path) and q not in seen:
+                seen.add(q)
+                todo.append(q)
+    return sorted(seen)
+
+
 def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version):
     """What a plate is a function of: its scene, the kit, its assets, the cue times it uses, its frame and engine."""
     h_ = hashlib.sha256()
@@ -205,13 +230,11 @@ def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version):
             h_.update(str(p).encode("utf-8"))
             h_.update(b"\0")
     put("scene", spec["scene"], _code_sha(os.path.join(out_dir, spec["scene"])))
-    # a scene may import helpers beside it (two plates sharing one satellite): every .py under the film's blender/
+    # a scene may import helpers beside it (two plates sharing one satellite): the helpers IT imports, transitively —
+    # not every .py under blender/ (the ANC film: one edit to explode.py rebuilt all three plates, ~11 min, twice)
     bdir = os.path.join(out_dir, "blender")
-    for d, _n, fs in sorted(os.walk(bdir)):
-        for f in sorted(fs):
-            if f.endswith(".py"):
-                p = os.path.join(d, f)
-                put("scene-dir", os.path.relpath(p, bdir), _code_sha(p))
+    for p in scene_imports(os.path.join(out_dir, spec["scene"]), bdir):
+        put("scene-dir", os.path.relpath(p, bdir), _code_sha(p))
     for rel in kit_files():
         put("kit", rel, _code_sha(os.path.join(SKILL_ROOT, rel)))
     for a in spec["assets"]:
@@ -355,10 +378,38 @@ class OverBudget(PlateError):
 PREVIEW_FACTOR = 0.31      # measured: two glass previews (Cycles) ran 0.31 and 0.21 of the full-build model; the slower one
 
 
-def estimate_seconds(spec, frames, preview=False, layout=False):
-    """The cost of rendering every frame whole — an upper bound: frames that did not change are not rendered."""
+def measured_sec_per_frame(out_dir, spec):
+    """Seconds a frame this plate's LAST full build really took (start cost taken off), reuse included — or None
+    when there is no full build on record. The ANC film: the whole-frame model said 61 min, the builds took 12.7."""
+    def rate(path, engine=None):
+        try:
+            pj = json.load(open(path, encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        if pj.get("preview") or pj.get("layout") or not pj.get("frames") or not pj.get("seconds"):
+            return None
+        if engine and pj.get("engine", engine) != engine:
+            return None
+        return max(0.0, float(pj["seconds"]) - START_SECONDS) / float(pj["frames"])
+    own = rate(os.path.join(plate_dir(out_dir, spec["id"]), "plate.json"))
+    if own is not None:
+        return own
+    # a plate never built borrows the median rate of this film's other plates on the same engine
+    root = os.path.join(out_dir, "media", "blender")
+    rates = sorted(r for r in (rate(os.path.join(root, d, "plate.json"), spec.get("engine", "eevee"))
+                               for d in (os.listdir(root) if os.path.isdir(root) else []) if d != spec["id"])
+                   if r is not None)
+    return rates[len(rates) // 2] if rates else None
+
+
+def estimate_seconds(spec, frames, preview=False, layout=False, measured=None):
+    """The cost of a build. With `measured` (measured_sec_per_frame: this plate's own last build, reuse and all) it
+    is that rate; without one, the cost of rendering every frame whole — an upper bound, frames that did not change
+    are not rendered."""
     if layout:
         return START_SECONDS + frames * LAYOUT_SEC_PER_FRAME
+    if measured is not None and not preview:
+        return START_SECONDS + frames * measured
     per = SEC_PER_FRAME[spec["engine"]] + (ID_SEC_PER_FRAME if spec.get("objects") else 0.0)
     return START_SECONDS + frames * per * (PREVIEW_FACTOR if preview else 1.0)
 
@@ -507,7 +558,8 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
             reports.append({"id": spec["id"], "state": "fresh"})
             continue
         todo.append((slide, spec, frames, fps, w, h, cue_t, key))
-    est = sum(estimate_seconds(t[1], 1 if still else t[2], preview, layout) for t in todo)
+    est = sum(estimate_seconds(t[1], 1 if still else t[2], preview, layout, measured_sec_per_frame(out_dir, t[1]))
+              for t in todo)
     budget = float(meta.get("blender_budget_min", DEFAULT_BUDGET_MIN)) * 60
     if todo and est > budget and not yes:
         raise OverBudget("%d plate(s) to build, estimated %.0f min — over this film's budget of %.0f min "
