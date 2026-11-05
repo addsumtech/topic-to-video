@@ -60,9 +60,18 @@ def test_only_the_moving_objects_rectangle_is_rendered(tmp_path):
 
 
 @needs_blender
+def test_a_fading_material_is_its_object_changing(tmp_path):
+    out, meta = run(tmp_path, "fade_scene.py", "fade", objects="mover", anchors="c")
+    assert meta["reuse"]["patch"] >= 4 and meta["reuse_off"] is None, meta
+    whole, _ = run(tmp_path, "fade_scene.py", "whole", objects="mover", anchors="c", extra=("--no-reuse",))
+    for f in range(2, 7):
+        assert mean_diff(out / ("rgba/%04d.png" % f), whole / ("rgba/%04d.png" % f)) < 1.0, f
+
+
+@needs_blender
 def test_a_change_reuse_cannot_see_turns_it_off_loudly(tmp_path):
-    # the pose grows the cube by its VERTICES — no matrix, no node value moves — so the first copy's verification
-    # render differs, reuse goes off, and every frame is rendered whole (never a quietly frozen cube)
+    # the pose repaints the cube's IMAGE — no matrix, node value or vertex moves — so the first copy's verification
+    # render differs, reuse goes off, and every frame is rendered whole (never a quietly frozen paint)
     out, meta = run(tmp_path, "hidden_change_scene.py", "hidden")
     assert meta["reuse_off"] and "differs" in meta["reuse_off"], meta
     assert meta["reuse"] == {"full": 6, "copy": 0, "patch": 0}, meta

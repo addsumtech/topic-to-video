@@ -79,20 +79,45 @@ def blocked(sc):
     return None
 
 
+def _geometry(data):
+    """A mesh's vertices or a curve's points, as a digest: a pose may move them without moving the object."""
+    import hashlib
+    import numpy as np
+    h = hashlib.sha256()
+    if isinstance(data, bpy.types.Mesh):
+        a = np.empty(len(data.vertices) * 3, dtype=np.float32)
+        data.vertices.foreach_get("co", a)
+        h.update(a.tobytes())
+    elif isinstance(data, bpy.types.Curve):
+        for sp in data.splines:
+            for pts, n in ((sp.points, 4), (sp.bezier_points, 3)):
+                if len(pts):
+                    a = np.empty(len(pts) * n, dtype=np.float32)
+                    pts.foreach_get("co", a)
+                    h.update(a.tobytes())
+        h.update(repr(_props(data)).encode())
+    return h.hexdigest()
+
+
 def object_sig(o):
+    """Everything about ONE object its pixels depend on: placement, visibility, modifiers, its geometry, and the
+    node values of its own materials — so a fading material or a moving curve is that object moving, not the scene."""
     mods = tuple((m.name, _props(m)) for m in o.modifiers)
+    mats = tuple((s.material.name, _tree(s.material.node_tree)) for s in o.material_slots if s.material)
+    geo = _geometry(o.data) if o.data is not None and o.type in ("MESH", "CURVE") else None
     return (_r(tuple(x for row in o.matrix_world for x in row)), o.hide_render, o.visible_camera, o.visible_shadow,
-            o.data.name if o.data else None, mods, _r(tuple(o.color)))
+            o.data.name if o.data else None, mods, _r(tuple(o.color)), mats, geo)
 
 
 def scene_sig(sc, cam):
-    """(the whole picture's settings except object placement, {object name: its own signature})."""
+    """(what the WHOLE picture depends on — camera, lights, node groups, world, view — and {object name: its own
+    signature}). A change in the first renders the frame whole; one in the second renders those objects' rectangle."""
     world = sc.world
     lights = tuple((l.name, _props(l)) for l in bpy.data.lights)
     cams = (_r(tuple(x for row in cam.matrix_world for x in row)), _props(cam.data))
-    mats = tuple((m.name, _tree(m.node_tree)) for m in bpy.data.materials)
+    view = _props(sc.view_settings)
     groups = tuple((g.name, _tree(g)) for g in bpy.data.node_groups)
-    shared = (cams, lights, mats, groups, _tree(world.node_tree) if world else None)
+    shared = (cams, lights, view, groups, _tree(world.node_tree) if world else None)
     objs = {o.name: object_sig(o) for o in sc.objects if o.type != "CAMERA"}
     lamp_objs = tuple(sorted((n, s) for n, s in objs.items() if sc.objects[n].type == "LIGHT"))
     return (shared, lamp_objs), objs
@@ -155,8 +180,11 @@ def set_border(sc, rect):
     H = r.resolution_y * r.resolution_percentage / 100
     r.use_border = True
     r.use_crop_to_border = True
-    r.border_min_x, r.border_max_x = rect[0] / W, rect[2] / W
-    r.border_min_y, r.border_max_y = 1 - rect[3] / H, 1 - rect[1] / H
+    # Blender truncates border * size to whole pixels, and 1 - 875/1080 times 540 is 164.99999: a quarter pixel in
+    # keeps every edge on the pixel meant at full AND half size (the ID pass) — measured a row short without it
+    q = 0.25
+    r.border_min_x, r.border_max_x = (rect[0] + q) / W, (rect[2] + q) / W
+    r.border_min_y, r.border_max_y = (H - rect[3] + q) / H, (H - rect[1] + q) / H
 
 
 def load(path):

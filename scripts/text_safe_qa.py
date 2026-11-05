@@ -720,13 +720,23 @@ def glide_concurrency():
 
 def glide_bundle(dest, public_dir=None, env=None):
     """Bundle the remotion project once for a census, with a film's workshop when `env` carries one."""
+    # one bundle per film state, shared with the render and every other census (scripts/bundle_cache.py); `dest` is
+    # where it is built only when the cache is off
+    import bundle_cache
+    try:
+        return bundle_cache.bundle(public_dir, env) if bundle_cache.cache_root() else _bundle_into(dest, public_dir, env)
+    except RuntimeError as e:
+        raise RuntimeError("the census bundle failed: %s" % e)
+
+
+def _bundle_into(dest, public_dir, env):
     import workshop as _ws
     cmd = ["npx", "remotion", "bundle", "src/index.ts", "--out-dir=" + dest, "--log=error"]
     if public_dir:
         cmd.append("--public-dir=" + os.path.abspath(public_dir))
     r = subprocess.run(cmd, cwd=_REMOTION, capture_output=True, text=True, **_ws.env_kwargs(env))
     if r.returncode != 0 or not os.path.isfile(os.path.join(dest, "index.html")):
-        raise RuntimeError("the census bundle failed: %s" % ((r.stdout or "") + (r.stderr or ""))[-600:])
+        raise RuntimeError(((r.stdout or "") + (r.stderr or ""))[-600:])
     return dest
 
 

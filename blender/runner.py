@@ -202,7 +202,13 @@ def main(argv):
             continue
         shared, objs = _reuse.scene_sig(sc, cam)
         rects = {n: _reuse.screen_rect(sc, cam, [sc.objects[n]]) for n in objs if sc.objects[n].type != "LIGHT"}
-        kind, rect = "full", None
+        kind, rect, why = "full", None, "the first frame"
+        if prev is not None and shared != prev[0]:
+            parts = ("camera", "lights", "view", "node groups", "world")
+            why = "changed: " + ", ".join([parts[j] for j in range(5) if shared[0][j] != prev[0][0][j]]
+                                          + (["a light's placement"] if shared[1] != prev[0][1] else []))
+        elif prev is not None and set(objs) != set(prev[1]):
+            why = "objects were added or removed"
         if prev is not None and shared == prev[0] and set(objs) == set(prev[1]):
             moved = [n for n in objs if objs[n] != prev[1][n]]
             if not moved:
@@ -211,24 +217,30 @@ def main(argv):
                 box = [0, 0, 0, 0]
                 for n in moved:
                     box = _reuse.union(box, _reuse.union(rects.get(n, None), prev[2].get(n, None)))
-                rect = _reuse.patch_rect(box, W, H)
+                # the ID pass is cheap whole (Workbench, half size): only a PICTURE is worth patching — measured, a
+                # layout pass of patched ID frames ran 42 s against 27 s whole
+                rect = _reuse.patch_rect(box, W, H) if beauty else None
                 kind = "patch" if rect else "full"
+                why = None if rect else "moving: %s — over %d%% of the frame or behind the lens" % (
+                    ", ".join(moved[:4]), round(_reuse.MAX_PATCH * 100))
         prev = (shared, objs, rects)
         if kind == "full":
             full(f)
+            kinds[f]["why"] = why
             need_check = True
             continue
         if kind == "patch":
-            for L in layers():
-                d, r = ("patch", rect) if L == "rgba" else ("idpatch", [v // 2 for v in rect])
-                if not _done(path(d, f)):
-                    (render_beauty if L == "rgba" else render_ids)(path(d, f), rect)
-                    rendered += L == "rgba"
-                try:
-                    cur[L] = _reuse.paste(arr(L), _reuse.load(path(d, f)), r)
-                except ValueError as e:              # Blender cropped to another size: no patching on this machine
-                    off = "a patch came back the wrong size (%s)" % e
-                    break
+            if a.objects:                            # the ID pass whole, every patched frame
+                if not _done(path("ids", f)):
+                    render_ids(path("ids", f))
+                last_full["ids"], cur["ids"] = path("ids", f), None
+            if not _done(path("patch", f)):
+                render_beauty(path("patch", f), rect)
+                rendered += 1
+            try:
+                cur["rgba"] = _reuse.paste(arr("rgba"), _reuse.load(path("patch", f)), rect)
+            except ValueError as e:                  # Blender cropped to another size: no patching on this machine
+                off = "a patch came back the wrong size (%s)" % e
             if off:
                 for g in pending:
                     pose_at(g)
@@ -240,14 +252,14 @@ def main(argv):
         else:
             for L in layers():
                 arr(L)
-        kinds[f] = {"kind": kind, **({"rect": rect} if rect else {})}
+        kinds[f] = {"kind": kind, **({"rect": rect, "ids": "full"} if rect else {})}
         pending.append(f)
         if need_check or len(pending) >= _reuse.CHECK_EVERY or f == a.frames:
             bad = None
             for L in layers():
                 chk = os.path.join(a.out, "check", "%s_%04d.png" % (L, f))
                 (render_beauty if L == "rgba" else render_ids)(chk)
-                why = _reuse.differs(_reuse.load(chk), cur[L])
+                why = _reuse.differs(_reuse.load(chk), arr(L))
                 bad = bad or (why and "%s: %s" % (L, why))
                 os.remove(chk)
             if bad:

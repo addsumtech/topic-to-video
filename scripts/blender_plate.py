@@ -372,6 +372,8 @@ def assemble(work, frames_meta, layout=False):
         for i, fm in enumerate(frames_meta, 1):
             dest = os.path.join(work, d, "%04d.png" % i)
             kind = fm["kind"]
+            if d == "ids" and fm.get("ids") == "full":
+                kind = "full"                            # a patched picture's ID pass is rendered whole
             if kind == "full":
                 if not os.path.isfile(dest):
                     if d == "ids" and not os.listdir(os.path.join(work, "ids")):

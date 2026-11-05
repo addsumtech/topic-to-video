@@ -544,7 +544,14 @@ def minimal_public(props, public_dir, dest):
 
 
 def _bundle(dest, public, run=subprocess.run, env=None):
-    """Bundle the film ONCE for all the segments of this render — with the film's workshop, when it has one."""
+    """Bundle the film ONCE for all the segments of this render — with the film's workshop, when it has one — and
+    share it with every census gate of the same film state (scripts/bundle_cache.py)."""
+    import bundle_cache
+    if run is subprocess.run and bundle_cache.cache_root():
+        try:
+            return bundle_cache.bundle(public, env)
+        except RuntimeError as e:
+            raise subprocess.CalledProcessError(1, "remotion bundle", output=str(e))
     run(["npx", "remotion", "bundle", "src/index.ts", "--out-dir=" + dest, "--public-dir=" + public,
          "--log=error"], cwd=REMOTION, check=True, **_wk(env))
     if not os.path.isfile(os.path.join(dest, "index.html")):
