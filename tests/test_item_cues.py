@@ -145,7 +145,7 @@ def test_a_new_workshop_register_reads_cues_from_its_first_draft(tmp_path):
     import workshop as ws
     ws.scaffold(str(tmp_path), "shot", "FreshShot", "a test shot")
     assert sq.register_takes_cues("FreshShot", str(tmp_path))
-    assert "cue.win('title'" in (tmp_path / "workshop" / "shots" / "FreshShot.tsx").read_text()
+    assert "cue.win('label'" in (tmp_path / "workshop" / "shots" / "FreshShot.tsx").read_text()
 
 
 def test_the_film_and_the_hook_share_one_warp_map():
