@@ -583,7 +583,14 @@ def render_segment(seg, last, props_path, public_dir, cache, cli_flags, run=subp
     # a segment whose process tree stops working is killed, said, and re-run; one that hangs twice fails like any
     # other render (exit 124), so it falls back like one.
     import _common as _c
-    (_c.watched_run if run is _c._REAL_RUN else run)(cmd, cwd=REMOTION, check=True, **_wk(env))
+    # A render can also BREAK and keep its CPU busy (a network change killed Chrome's page and it spun 1 h 35 min):
+    # its fatal lines and a per-beat wall-clock cap (generous: 300 s + 2 s a frame; a beat renders in seconds) are
+    # watched too, and retried like a hang.
+    if run is _c._REAL_RUN:
+        _c.watched_run(cmd, cwd=REMOTION, check=True, fatal=_c.RENDER_FATAL,
+                       cap_s=300 + 2 * (seg["b"] - seg["a"] + 1), **_wk(env))
+    else:
+        run(cmd, cwd=REMOTION, check=True, **_wk(env))
     got, want = video_frames(tmp), seg["b"] - seg["a"] + 1
     if got != want:
         os.remove(tmp)

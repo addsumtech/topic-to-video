@@ -127,3 +127,51 @@ def test_run_render_watches_only_the_real_run(monkeypatch, tmp_path):
                                      ("00:00:05", 5.0)])
 def test_ps_time_formats(txt, sec):
     assert abs(c._cpu_seconds(txt) - sec) < 1e-6
+
+
+# ── a render that BREAKS but keeps burning CPU (the anc film, 2026-11-05) ────────────────────────────────────────
+# The Mac's network changed mid-render: Chrome lost Remotion's local server (net::ERR_NETWORK_CHANGED, then "A
+# network error occurred" and "Session closed"), kept spinning on "Could not extract frame from compositor", and the
+# idle watch — CPU only — never fired. The render sat 1 h 35 min on one beat.
+
+BREAKS_ONCE = ("import os, sys, time\n"
+               "m = sys.argv[1]\n"
+               "if not os.path.exists(m):\n"
+               "    open(m, 'w').close()\n"
+               "    sys.stderr.write('[http://localhost:3000/x.ttf] Failed to load resource: net::ERR_NETWORK_CHANGED\\n')\n"
+               "    sys.stderr.flush()\n"
+               "    t = time.time()\n"
+               "    while time.time() - t < 60: pass\n"
+               "print('ok', flush=True)\n")
+
+
+def test_a_render_that_logs_a_fatal_error_while_busy_is_killed_and_retried(tmp_path, capsys):
+    t0 = time.time()
+    r = c.watched_run([sys.executable, "-c", BREAKS_ONCE, str(tmp_path / "m")], idle_s=30, fatal=c.RENDER_FATAL)
+    took = time.time() - t0
+    assert r.returncode == 0                               # the retry, on a clean run, renders
+    assert took < 20, "a fatal line took %.1f s to act on" % took
+    err = capsys.readouterr().err
+    assert "ERR_NETWORK_CHANGED" in err                    # the child's own stderr still reaches the log
+    assert "RenderBrokeError" in err and "retrying once" in err
+
+
+def test_a_busy_render_past_its_cap_is_killed_and_reported():
+    t0 = time.time()
+    r = c.watched_run([sys.executable, "-c", BURN % 60], idle_s=30, cap_s=2, retries=0, capture_output=True, text=True)
+    assert r.returncode == 124 and time.time() - t0 < 15
+    assert "RenderHangError" in r.stderr and "longer than its cap" in r.stderr
+
+
+def test_a_render_segment_is_watched_for_fatal_lines_and_capped(monkeypatch):
+    import remotion_segments as rs
+    seen = {}
+
+    def fake(cmd, **kw):
+        seen.update(kw)
+        raise RuntimeError("stop")
+    monkeypatch.setattr(c, "watched_run", fake)
+    with pytest.raises(RuntimeError):
+        rs.render_segment({"key": "k", "a": 0, "b": 99, "k": 0}, False, "/p.json", "/pub", "/tmp", [],
+                          run=c._REAL_RUN, serve="/b")
+    assert seen.get("fatal") is c.RENDER_FATAL and seen.get("cap_s", 0) >= 300

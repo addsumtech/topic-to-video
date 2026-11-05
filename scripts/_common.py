@@ -508,6 +508,10 @@ def run_render(run, *args, **kw):
 RENDER_IDLE_S = 120.0       # no work for this long = hung (TOPIC_VIDEO_RENDER_IDLE_S overrides)
 _IDLE_CPU_PER_S = 0.01      # "no work": under 1% of one core across the tree, averaged over the idle window
 _POLL_S = 2.0
+# Lines a render prints when it is BROKEN although its tree keeps working (busy-looping on a dead page): the anc
+# film, 2026-11-05 — the Mac's network changed, Chrome lost Remotion's local server and spun for 1 h 35 min on one
+# beat, CPU never idle. A matching line on the render's stderr kills the tree and retries it like a hang.
+RENDER_FATAL = re.compile(r"net::ERR_NETWORK_CHANGED|A network error occurred|Session closed\. Most likely the page has been closed")
 _REAL_RUN = subprocess.run
 
 
@@ -611,17 +615,40 @@ def _say_cmd(cmd):
     return " ".join(words[:7])[:200]
 
 
-def _watch_once(cmd, idle_s, timeout, feed, kw):
+def _watch_once(cmd, idle_s, timeout, feed, kw, fatal=None, cap_s=None):
     """One watched attempt: (returncode, stdout, stderr, hang) — `hang` is None, or (CPU-s in the idle window,
-    processes in the tree, diagnostics folder) when the tree stopped working and was killed."""
+    processes in the tree, diagnostics folder, why) when the tree stopped working (why 'idle'), printed a `fatal`
+    line on its stderr ('fatal: <line>') or ran past `cap_s` seconds ('cap'), and was killed."""
+    import threading
     import time
+    # to read a fatal line the watch must OWN the child's stderr: it is piped through, line by line, to ours
+    scan = fatal is not None and kw.get("stderr") is None
+    broke = []
+    if scan:
+        kw = dict(kw, stderr=subprocess.PIPE)
     proc = subprocess.Popen(cmd, **kw)
+    if scan:
+        def _pump():
+            for raw in iter(proc.stderr.readline, b"" if not kw.get("text") and not kw.get("universal_newlines") else ""):
+                line = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw
+                sys.stderr.write(line)
+                sys.stderr.flush()
+                if not broke and fatal.search(line):
+                    broke.append(line.strip())
+        pump = threading.Thread(target=_pump, daemon=True)
+        pump.start()
     t0 = time.time()
     seen, work, window = {}, 0.0, [(t0, 0.0)]
     while True:
         try:
-            out, err = proc.communicate(input=feed, timeout=_POLL_S)
-            return proc.returncode, out, err, None
+            if scan:
+                proc.wait(timeout=_POLL_S)
+                pump.join(timeout=5)
+                out, err = (proc.stdout.read() if proc.stdout else None), None
+            else:
+                out, err = proc.communicate(input=feed, timeout=_POLL_S)
+            if not broke:
+                return proc.returncode, out, err, None
         except subprocess.TimeoutExpired:
             feed = None                                  # communicate() keeps what it was given the first time
         table = _proc_table()
@@ -637,28 +664,37 @@ def _watch_once(cmd, idle_s, timeout, feed, kw):
         spent = work - window[0][1]
         hung = now - window[0][0] >= idle_s and spent < idle_s * _IDLE_CPU_PER_S
         late = timeout is not None and now - t0 > timeout
-        if not (hung or late):
+        capped = cap_s is not None and now - t0 > cap_s
+        if not (hung or late or capped or broke):
             continue
+        why = "idle" if hung else ("fatal: " + broke[0]) if broke else "cap" if capped else "late"
         where = _record_hang(table, tree, cmd, idle_s, spent, "") if hung else None
         _kill_tree(table, tree)
         try:
-            out, err = proc.communicate(timeout=20)
+            if scan:
+                proc.wait(timeout=20)
+                out, err = (proc.stdout.read() if proc.stdout else None), None
+            else:
+                out, err = proc.communicate(timeout=20)
         except subprocess.TimeoutExpired:
             proc.kill()
             out, err = proc.communicate()
-        if late:
+        if late and not capped:
             raise subprocess.TimeoutExpired(cmd, timeout, output=out, stderr=err)
-        return 124, out, err, (spent, len(tree), where)
+        return 124, out, err, (spent, len(tree), where, why)
 
 
-def watched_run(cmd, idle_s=None, retries=1, **kw):
+def watched_run(cmd, idle_s=None, retries=1, fatal=None, cap_s=None, **kw):
     """`subprocess.run(cmd, **kw)` for one renderer call, KILLED when its whole process tree stops working: less than
     1% of a core for `idle_s` seconds (default RENDER_IDLE_S; env TOPIC_VIDEO_RENDER_IDLE_S). The tree is killed —
     detached Chrome included — the hang is said LOUDLY on stderr with a diagnostics folder, and the call is retried
     `retries` times. A render that hangs every time comes back as returncode 124 with a `RenderHangError:` line in its
     stderr (raised as CalledProcessError under check=True), so a caller's "render failed: <reason>" names the hang
     instead of waiting on it; a retry that worked carries the same line, so the hang is never silent.
-    `timeout` keeps subprocess.run's meaning: a wall-clock cap that raises TimeoutExpired."""
+    `timeout` keeps subprocess.run's meaning: a wall-clock cap that raises TimeoutExpired. A render can also BREAK and
+    keep working (a dead page spun on for 1 h 35 min at full CPU): `fatal` (a compiled regex, e.g. RENDER_FATAL) is
+    searched in its stderr, which is piped through to ours, and `cap_s` bounds one attempt's wall clock — either one
+    kills the tree and is retried and reported exactly like a hang."""
     idle_s = float(os.environ.get("TOPIC_VIDEO_RENDER_IDLE_S") or idle_s or RENDER_IDLE_S)
     timeout = kw.pop("timeout", None)
     check = kw.pop("check", False)
@@ -669,13 +705,20 @@ def watched_run(cmd, idle_s=None, retries=1, **kw):
         kw["stdin"] = subprocess.PIPE
     said = []
     for attempt in range(retries + 1):
-        rc, out, err, hang = _watch_once(cmd, idle_s, timeout, feed, kw)
+        rc, out, err, hang = _watch_once(cmd, idle_s, timeout, feed, kw, fatal=fatal, cap_s=cap_s)
         if hang is None:
             break
-        spent, n, where = hang
-        said.append("RenderHangError: `%s` made no CPU progress for %.0f s (%.2f CPU-s across its %d processes) and "
-                    "was killed (attempt %d of %d)%s" % (_say_cmd(cmd), idle_s, spent, n, attempt + 1, retries + 1,
-                                                         "; diagnostics in " + where if where else ""))
+        spent, n, where, why = hang
+        if why.startswith("fatal: "):
+            said.append("RenderBrokeError: `%s` printed %r — its page is dead though its processes keep working — and "
+                        "was killed (attempt %d of %d)" % (_say_cmd(cmd), why[7:][:160], attempt + 1, retries + 1))
+        elif why == "cap":
+            said.append("RenderHangError: `%s` ran longer than its cap of %.0f s and was killed (attempt %d of %d)"
+                        % (_say_cmd(cmd), cap_s, attempt + 1, retries + 1))
+        else:
+            said.append("RenderHangError: `%s` made no CPU progress for %.0f s (%.2f CPU-s across its %d processes) "
+                        "and was killed (attempt %d of %d)%s" % (_say_cmd(cmd), idle_s, spent, n, attempt + 1,
+                                                                 retries + 1, "; diagnostics in " + where if where else ""))
         sys.stderr.write("[render] %s%s\n" % (said[-1], "; retrying once" if attempt < retries
                                                 else "; not retried again: reported as a failed render"))
         sys.stderr.flush()
