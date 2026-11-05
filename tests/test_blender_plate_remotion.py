@@ -103,3 +103,23 @@ def test_plate_keeps_the_voice_clock_under_a_warp(tmp_path, monkeypatch):
     assert len(seen) == total, res
     hit = {f: s for f, s in seen.items() if s}
     assert hit and all(s == {min(f, n - 1)} for f, s in hit.items()), hit
+
+
+@pytest.mark.skipif(not REMOTION_OK, reason="needs remotion/ (tsc)")
+def test_the_generated_plates_index_type_checks(tmp_path):
+    # the anc film, 2026-11-05: write_plates_ts writes each anchor as [x, y, depth, visible] with visible a JSON
+    # boolean, while Plate typed anchors number[][] — 2220 tsc errors on a three-plate film, every one a
+    # validate ERROR, the shots themselves fine
+    import workshop
+    film = make_film(tmp_path, dict(GOOD, anchors=["top"], objects=["cube"]))
+    shutil.copyfile(os.path.join(ROOT, "tests/fixtures/blender_film/PlateProbe.tsx"), film + "/workshop/shots/PlateProbe.tsx")
+    pd = bp.plate_dir(film, "sat")
+    os.makedirs(pd, exist_ok=True)
+    json.dump({"w": 64, "h": 36, "fps": 30, "frames": 2, "mode": "rgba"}, open(os.path.join(pd, "plate.json"), "w"))
+    json.dump({"anchors": {"top": [[1.5, 2.5, 3.0, True], [1.5, 2.5, 3.0, False]]}}, open(os.path.join(pd, "anchors.json"), "w"))
+    json.dump({"cube": [[0, 0, 4, 4], None]}, open(os.path.join(pd, "boxes.json"), "w"))
+    bp.write_plates_ts(film)
+    assert "true" in open(film + "/workshop/assets/plates.ts").read()
+    workshop.write_index(film)
+    probs = workshop.typecheck(film)
+    assert not [p for p in probs if "plates.ts" in p], probs

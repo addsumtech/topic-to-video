@@ -132,6 +132,31 @@ def shot_source_path(out_dir, name):
     return None
 
 
+def shot_part_source(out_dir, name):
+    """A film shot's source WITH the film's own helpers it imports ('./x', '../x' inside the workshop), read for the
+    parts it marks: a shot that draws its thing through a kit marks the parts there (the anc film's earbud lives in
+    shots/ancKit.ts), and reading the shot alone said it "marks none of them". Other gates keep reading the shot."""
+    src = shot_source(out_dir, name)
+    path = shot_source_path(out_dir, name)
+    if src is None or not path or not out_dir:
+        return src
+    root = os.path.realpath(workshop_dir(out_dir))
+    seen, todo, out = {os.path.realpath(path)}, [(path, src)], [src]
+    while todo:
+        p, text = todo.pop()
+        for spec in re.findall(r"""from\s+['"](\.{1,2}/[^'"]+)['"]""", text):
+            base = os.path.normpath(os.path.join(os.path.dirname(p), spec))
+            for cand in (base, base + ".ts", base + ".tsx"):
+                real = os.path.realpath(cand)
+                if os.path.isfile(cand) and real.startswith(root + os.sep) and real not in seen:
+                    seen.add(real)
+                    t = _read(cand)
+                    out.append(t)
+                    todo.append((cand, t))
+                    break
+    return "\n".join(out)
+
+
 def shot_source(out_dir, name):
     p = shot_source_path(out_dir, name)
     return _read(p) if p else None

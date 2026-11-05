@@ -485,3 +485,27 @@ def test_the_sheet_of_a_library_thing_under_a_drawing_style(tmp_path, name):
     assert fid.errors_of(res["problems"]) == [], res["problems"]
     rep = json.load(open(res["json"], encoding="utf-8"))
     assert rep.get("style") == _STYLED["name"], "the sheet does not say it measured the styled drawing"
+
+
+# ── marks a shot makes through a helper it imports ──────────────────────────────────────────────────────────────
+
+def test_create_element_part_marks_are_read():
+    # a .ts kit has no JSX: it marks parts as createElement props — the same mark, in the other spelling
+    src = "h('path', {key: 'tip', 'data-part': 'ear-tip'}); h('g', {\"data-part\": \"shell\"});"
+    names, dynamic = fid.source_part_names(src)
+    assert {"ear-tip", "shell"} <= names and dynamic is False
+
+
+def test_a_shot_drawing_its_thing_through_a_local_kit_has_its_marks_read(tmp_path):
+    # the anc film: every earbud part is drawn (and marked) in workshop/shots/ancKit.ts, which the shots import;
+    # validate read only the shot's own file and said the shot "marks none of them"
+    import validate as v
+    shots = tmp_path / "workshop" / "shots"
+    shots.mkdir(parents=True)
+    (shots / "kit.ts").write_text("export const body = () => h('g', {'data-part': 'body'}, h('g', {'data-part': 'lid'}));\n")
+    (shots / "OrbitDial.tsx").write_text("import {body} from './kit';\nexport const OrbitDial = () => body();\n")
+    rec = _good(tmp_path)
+    errs, warns = [], []
+    v._check_build_fidelity({"OrbitDial": _shot_entry(fidelity=rec)}, {"OrbitDial": "shot"}, errs, warns, str(tmp_path))
+    assert not any("marks none" in m for m in errs + warns), errs + warns
+    assert not any("never marks" in m for m in warns), warns

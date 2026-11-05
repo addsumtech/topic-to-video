@@ -18,7 +18,7 @@ export type Plate = {
   fps: number;
   frames: number;
   mode: 'rgba' | 'env';
-  anchors: Record<string, number[][]>;           // per frame [x, y, depth, visible] in the plate's pixels
+  anchors: Record<string, [number, number, number, boolean][]>;   // per frame [x, y, depth, visible] in the plate's pixels
   boxes: Record<string, (number[] | null)[]>;    // per frame [x0, y0, x1, y1] in the plate's pixels, or null
 };
 

@@ -418,6 +418,22 @@ def source_part_names(src):
             names |= {v.strip() for q, v in lits if not (q == "`" and "${" in v)}
         else:
             dynamic = True
+    # the same mark as a createElement prop — a .ts helper has no JSX: {'data-part': 'x'} / {"data-part": a ? 'x' : 'y'}
+    for m in re.finditer(r"""(['"])data-part\1\s*:\s*""", code):
+        i = m.end()
+        if i < len(code) and code[i] in "'\"":
+            j = _skip_string(code, i)
+            names.add(code[i + 1:j - 1].strip())
+            continue
+        k, depth = i, 0
+        while k < len(code) and not (depth == 0 and code[k] in ",}"):
+            depth += code[k] in "([{"
+            depth -= code[k] in ")]}" and depth > 0
+            k += 1
+        lits = re.findall(r"""(['"`])((?:(?!\1).)*)\1""", code[i:k])
+        if not lits or any(q == "`" and "${" in v for q, v in lits):
+            dynamic = True
+        names |= {v.strip() for q, v in lits if not (q == "`" and "${" in v)}
     return names, dynamic
 
 
@@ -1020,7 +1036,7 @@ def record_for(out_dir, name):
         e = next((x for x in (board.get("meta") or {}).get("build_list") or []
                   if isinstance(x, dict) and x.get("id") == name), None)
         rec = (e or {}).get("fidelity")
-        return rec, out_dir, ws.shot_source(out_dir, name), "meta.build_list `%s`" % name, "shot"
+        return rec, out_dir, ws.shot_part_source(out_dir, name), "meta.build_list `%s`" % name, "shot"
     if name in ws.object_names(out_dir):
         src = ws.object_source(out_dir, name)
         rec, why = object_fidelity(src)

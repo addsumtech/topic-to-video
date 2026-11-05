@@ -3450,7 +3450,7 @@ def _check_build_fidelity(entries, items, errors, warnings, out_dir):
                               "\"abstract\"} for a chart or a metaphor, or \"real\" with its references, "
                               "proportions and parts (references/object-authoring.md rule 7)" % where)
                 continue
-            src = _ws.shot_source(out_dir, eid) if out_dir and eid in items else None
+            src = _ws.shot_part_source(out_dir, eid) if out_dir and eid in items else None
             for lv, m in _fid.problems(rec, out_dir or ".", where, _fid.source_part_names(src) if src else None):
                 (errors if lv == "ERROR" else warnings).append(m)
         elif e.get("kind") == "object" and e.get("fidelity") is not None:
