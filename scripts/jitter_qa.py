@@ -50,6 +50,7 @@ import argparse
 import gzip
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -769,6 +770,14 @@ def report(rep, out=sys.stdout):
     word, code = verdict(rep)
     out.write("%s %s  %d line(s) jitter, %d warn — %d lines tracked · %.0fs\n"
               % (TAG, word, len(errors), len(warns), len(rep["lines"]), rep["seconds"]))
+    if word == "FAIL":
+        # how big, and what to do when it is too small to see: the ANC film's seven findings (0.12-0.26 px) were
+        # accepted by the user, and the waiver that delivers over them was named nowhere in this report
+        sizes = [float(x) for _lv, text, *_ in errors for x in re.findall(r"([\d.]+)px RMS", text)]
+        if sizes:
+            out.write("%s worst %.2f px RMS. Fix it in the shot (runtime/glide, a still layer under the type) — or, when "
+                      "the user has watched it and accepts it, waive it by name: meta.delivery_waivers {\"jitter_qa\": "
+                      "\"<their words>\"} (deliver.py and critic_ledger --final honour it)\n" % (TAG, max(sizes)))
     if word == "UNMEASURED":
         out.write("%s NOT MEASURED — the film has type and none of it could be judged from the pixels (see coverage); "
                   "this is not a pass\n" % TAG)
