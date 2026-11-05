@@ -2677,6 +2677,34 @@ def _audio_demo_problems(slides, out_dir):
     return out
 
 
+def _through_object(meta, slides):
+    """ONE CONTINUOUS WORLD (spec 2026-11-05 C2). `meta.through_object = {name, beats: [indexes]}` names the thing the
+    film keeps returning to; each adjacent pair of its beats should be JOINED — one continuous stage (the same
+    `stage.run`), a `container` seam carrying it across the cut, or the same shot — not redrawn from scratch (the ANC
+    film drew its earbud six different ways in six shots). Advisory: names each unjoined pair."""
+    t = meta.get("through_object")
+    if t is None:
+        return []
+    if not isinstance(t, dict) or not str(t.get("name") or "").strip() or not isinstance(t.get("beats"), list):
+        return ["meta.through_object is {name, beats: [beat indexes]} — the thing the film keeps returning to"]
+    by = {s.get("index"): s for s in slides}
+    beats = [b for b in t["beats"] if b in by]
+    loose = []
+    for a, b in zip(beats, beats[1:]):
+        x, y = by[a], by[b]
+        run = (x.get("stage") or {}).get("run") if isinstance(x.get("stage"), dict) else None
+        same_run = run and run == ((y.get("stage") or {}).get("run") if isinstance(y.get("stage"), dict) else None)
+        ti = y.get("transition_in") if isinstance(y.get("transition_in"), dict) else {}
+        carried = ti.get("type") == "container" and (b == a + 1)
+        if not (same_run or carried or x.get("shot") == y.get("shot")):
+            loose.append("%s→%s" % (a, b))
+    if not loose:
+        return []
+    return ["THROUGH-OBJECT — the %s is redrawn from scratch between beats %s: join them (one continuous stage run, a "
+            "`container` seam carrying it, or the same shot changed by its props) so it keeps its place, size and "
+            "identity across the cut" % (t["name"], ", ".join(loose))]
+
+
 SLIDE_TITLE_SHARE = 0.4      # a header title on this share of the designed beats reads as a deck played back
 
 
@@ -5124,6 +5152,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             warnings.extend(_narration_tell_warnings("scene %d" % _i, _s.get("narration")))
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
         warnings.extend(_slide_titles(meta, slides))
+        warnings.extend(_through_object(meta, slides))
         errors.extend(_audio_demo_problems(slides, out_dir))
         _check_build(meta, slides, errors, warnings, out_dir, skips=skips)
         _design_first(meta, slides, errors, warnings, out_dir, "remotion")

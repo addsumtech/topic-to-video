@@ -213,6 +213,15 @@ register used unchanged is the exception that has to earn it. Per beat, in this 
      give those beats `shot: "LivingMap"`, `shot_props: {map, add, focus}` — laid out once, built up beat by beat,
      every map-to-map cut invisible (`remotion/cards/LivingMap.md`). Each added node arrives on the word naming it,
      so write node labels the narration actually says.
+   * **The film's THROUGH-OBJECT.** Name the one thing the film keeps returning to — the subject the viewer should
+     come to know as a single object (an earbud, a satellite, a cell) — in `meta.through_object = {name, beats}`, and
+     JOIN its beats: one continuous stage (`stage.run`), a `container` seam carrying it across the cut, or one shot
+     changed by its props. The reference films keep an object's identity and MORPH it (Manim's Transform) instead of
+     cutting to a new drawing; the ANC film drew its earbud six different ways in six shots and read as a slide set.
+     validate names each pair that redraws it from scratch (THROUGH-OBJECT, advisory).
+   * **Fill the frame.** Size the subject from the kit's scale constants and give each beat a second read (a detail,
+     a readout, the thing's surroundings) the sentence does not carry: the ANC film's median ink was 12% of the content
+     zone against 28.8% on the GPS film the user approved; shot_proof's SPARSE warning names the emptiest beats first.
    * **The ends of the film.** A launch/promo of 6+ beats may open COLD (`ColdOpen`, `beats`: 2-4 LATER beats) and
      a film that long may end on `Callback` (`beats`: 3-6 EARLIER beats, one look each). `shot_director.py`
      proposes both by position (`shot_fit.bookend`); keep them only when the film's pictures are worth seeing again.
