@@ -335,6 +335,7 @@ def validate_blender(board, out_dir):
 # satellite and a 24k Earth), Cycles 13-19 s on the GPU alone at 64 spp, the ID pass 0.72 s, Blender's start 10 s.
 SEC_PER_FRAME = {"eevee": 4.6, "cycles": 16.0}
 ID_SEC_PER_FRAME = 0.72
+LAYOUT_SEC_PER_FRAME = 0.09  # measured: a layout pass alone (half-size Workbench IDs), orbit-gain 351 f in 22-31 s past start
 START_SECONDS = 10.0
 DEFAULT_BUDGET_MIN = 60
 RUNNER = os.path.join(KIT_DIR, "runner.py")
@@ -357,14 +358,14 @@ PREVIEW_FACTOR = 0.31      # measured: two glass previews (Cycles) ran 0.31 and 
 def estimate_seconds(spec, frames, preview=False, layout=False):
     """The cost of rendering every frame whole — an upper bound: frames that did not change are not rendered."""
     if layout:
-        return START_SECONDS + frames * ID_SEC_PER_FRAME
+        return START_SECONDS + frames * LAYOUT_SEC_PER_FRAME
     per = SEC_PER_FRAME[spec["engine"]] + (ID_SEC_PER_FRAME if spec.get("objects") else 0.0)
     return START_SECONDS + frames * per * (PREVIEW_FACTOR if preview else 1.0)
 
 
 def assemble(work, frames_meta, layout=False):
     """rgba/ and ids/ for EVERY frame, from the runner's full frames and patches (run.json `frames`): a copy is the
-    last frame again, a patch is pasted over it. A layout pass's picture is its ID pass at full size."""
+    last frame again, a patch is pasted over it. A layout pass has no picture: _encode makes its video from ids/."""
     from PIL import Image
     for d, pd_, k in (("rgba", "patch", 1), ("ids", "idpatch", 2)):
         if not os.path.isdir(os.path.join(work, d)) or (d == "rgba" and layout):
@@ -393,11 +394,6 @@ def assemble(work, frames_meta, layout=False):
                 im = b.convert("RGBA")
                 im.paste(p.convert("RGBA"), (x0, y0))
                 im.save(dest)
-    if layout:
-        for i in range(1, len(frames_meta) + 1):
-            with Image.open(os.path.join(work, "ids", "%04d.png" % i)) as im:
-                im.convert("RGBA").resize((im.width * 2, im.height * 2), Image.NEAREST).save(
-                    os.path.join(work, "rgba", "%04d.png" % i))
 
 
 def boxes_from_ids(ids_dir, colors, frames, scale=2):
@@ -426,12 +422,17 @@ def _run_blender(cmd, log):
         return subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT).returncode
 
 
-def _encode(work, dest, fps, mode):
+def _encode(work, dest, fps, mode, layout=False):
+    """The plate's VP9 video. A LAYOUT plate's is its half-size ID pass, doubled in the encoder and encoded fast: nobody
+    watches it (validate refuses it for delivery), the census only needs it to play, and upscaling 351 PNGs then
+    encoding them at delivery quality was 48 s of an 84 s layout pass (orbit-gain, 2026-11-05)."""
     tmp = dest + ".part.webm"
     pix = "yuva420p" if mode == "rgba" else "yuv420p"
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-framerate", str(fps), "-i", os.path.join(work, "rgba", "%04d.png"),
-                        "-c:v", "libvpx-vp9", "-pix_fmt", pix, "-crf", "12", "-b:v", "0", "-auto-alt-ref", "0", tmp],
-                       capture_output=True, text=True)
+    src = os.path.join(work, "ids" if layout else "rgba", "%04d.png")
+    how = (["-vf", "scale=iw*2:ih*2:flags=neighbor", "-crf", "40", "-deadline", "realtime", "-cpu-used", "8"] if layout
+           else ["-crf", "12"])
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-framerate", str(fps), "-i", src, "-c:v", "libvpx-vp9",
+                        "-pix_fmt", pix, *how, "-b:v", "0", "-auto-alt-ref", "0", tmp], capture_output=True, text=True)
     if r.returncode != 0:
         raise PlateError("ffmpeg could not encode the plate: %s" % r.stderr.strip()[-300:])
     if mode == "rgba":
@@ -538,7 +539,7 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
             continue
         run = json.load(open(os.path.join(work, "run.json"), encoding="utf-8"))
         assemble(work, run.get("frames") or [{"kind": "full"}] * frames, layout)
-        _encode(work, os.path.join(pd, "plate.webm"), fps, spec["mode"])
+        _encode(work, os.path.join(pd, "plate.webm"), fps, spec["mode"], layout)
         boxes = boxes_from_ids(os.path.join(work, "ids"), run.get("ids") or {}, frames) if spec["objects"] else {}
         with open(os.path.join(pd, "boxes.json"), "w", encoding="utf-8") as fh:
             json.dump(boxes, fh)
@@ -557,7 +558,7 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
                       fh, ensure_ascii=False, indent=1)
         shutil.rmtree(work, ignore_errors=True)
         reports.append({"id": spec["id"], "state": "built", "seconds": secs, "estimate": round(estimate_seconds(spec, frames, preview, layout), 1),
-                        "reuse": run.get("reuse"), "reuse_off": run.get("reuse_off")})
+                        "reuse": run.get("reuse"), "reuse_off": run.get("reuse_off"), "layout": layout})
     if not still:
         write_plates_ts(out_dir)
     return reports
@@ -641,7 +642,10 @@ def main(argv=None):
         print("[blender_plate] FAILED — %s" % e)
         return 1
     for r in reps:
-        if r["state"] == "built":
+        if r["state"] == "built" and r.get("layout"):
+            print("[blender_plate] %s: layout pass in %.0f s (estimated %.0f s): the ID pass only, no picture"
+                  % (r["id"], r["seconds"], r["estimate"]))
+        elif r["state"] == "built":
             ru = r.get("reuse") or {}
             print("[blender_plate] %s: built in %.0f s (estimated %.0f s rendering every frame whole; %d whole, "
                   "%d copied, %d patched%s)" % (r["id"], r["seconds"], r["estimate"], ru.get("full", 0), ru.get("copy", 0),

@@ -84,9 +84,10 @@ def test_a_change_reuse_cannot_see_turns_it_off_loudly(tmp_path):
 def test_layout_pass_renders_no_picture(tmp_path):
     out, meta = run(tmp_path, "patch_scene.py", "layout", objects="mover", anchors="c", extra=("--layout",))
     assert meta["rendered"] == 0 and meta["layout"] is True
-    with Image.open(out / "ids/0003.png") as ids, Image.open(out / "rgba/0003.png") as pic:
-        assert pic.size == (320, 180) and ids.size == (160, 90)
-        assert pic.resize(ids.size, Image.NEAREST).convert("RGBA").tobytes() == ids.convert("RGBA").tobytes()
+    # not even an upscaled copy of the ID pass: 351 of those and their VP9 encode were 48 s of an 84 s layout pass
+    assert not os.path.isdir(out / "rgba") or not os.listdir(out / "rgba")
+    with Image.open(out / "ids/0003.png") as ids:
+        assert ids.size == (160, 90)
 
 
 def test_key_ignores_comments_and_docstrings(tmp_path):
@@ -111,3 +112,16 @@ def test_layout_plates_are_refused_for_delivery(tmp_path, monkeypatch):
     assert rep["estimate"] == round(bp.estimate_seconds(spec, 4, layout=True), 1)
     errs, _ = bp.validate_blender(json.load(open(film + "/storyboard.json")), film)
     assert any("LAYOUT" in e for e in errs), errs
+
+
+def test_a_layout_plate_is_encoded_from_its_id_pass_at_the_plate_size(tmp_path):
+    work = tmp_path / "work"
+    (work / "ids").mkdir(parents=True)
+    for i in (1, 2, 3):
+        im = Image.new("RGBA", (32, 18), (0, 0, 0, 0))
+        im.paste((255, 0, 0, 255), (4 * i, 4, 4 * i + 8, 12))
+        im.save(work / "ids" / ("%04d.png" % i))
+    dest = str(tmp_path / "plate.webm")
+    bp._encode(str(work), dest, 30, "rgba", layout=True)
+    probe = subprocess.run(["ffprobe", "-v", "error", "-show_streams", dest], capture_output=True, text=True).stdout
+    assert "width=64" in probe and "height=36" in probe and "alpha_mode=1" in probe.lower().replace("tag:", ""), probe

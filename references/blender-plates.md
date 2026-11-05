@@ -155,7 +155,7 @@ Measured on orbit-gain (351 frames, EEVEE, M4, 2026-11-05):
 |---|---|
 | picture build, before reuse | 1359 s |
 | picture build, with reuse (273 frames patched, every check passed) | 860 s |
-| layout pass (ID + anchors) | 27–41 s, depending on CPU load |
+| layout pass (ID + anchors) | 36 s (Blender 32 s; the video encoded from the half-size ID pass): was 84 s while it upscaled and delivery-encoded a picture nobody watches |
 
 A patched frame differed from a whole render of it on 61 of 2.07M pixels, at anti-aliased line edges.
 
