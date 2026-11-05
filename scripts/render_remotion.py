@@ -745,6 +745,8 @@ def _remotion_deliverables(out_dir, scenes, out_mp4, fps, segments=None):
             continue
         a = (starts[i] * fps) + ((0 if joined[i] else half) if i > 0 else 14)   # window in FRAMES on the output timeline
         b = (starts[i] * fps) + sc["durF"] - (((1 if joined[i + 1] else tr - half)) if i + 1 < len(scenes) else 16)
+        if sc.get("captionUntil") is not None:          # a sound demo follows the voice: the caption gives way to it
+            b = min(b, starts[i] * fps + float(sc["captionUntil"]) * fps)
         span = max(1.0, b - a)
         lens = [max(1, len(c)) for c in chunks]
         tot = float(sum(lens))
@@ -895,6 +897,11 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh", 
         spans = _caption_word_spans(out_dir, audio, caption)
         if spans:
             scene["capWords"] = spans
+        # A SOUND DEMO (slide.audio_demo) plays after the voice: the caption gives way to it at the demo's start, or
+        # the beat's last line ("Listen.") sits on screen through the whole sound
+        demo = s.get("audio_demo")
+        if isinstance(demo, dict) and isinstance(demo.get("at_s"), (int, float)):
+            scene["captionUntil"] = float(demo["at_s"])
         # a MARKED seam → Film's kinetic transition; else the safe fade. The beat before is passed for its match_cut.
         tin = _transition_in(s, _travels.get(i), slides[i - 1] if i > 0 else None)
         if tin:

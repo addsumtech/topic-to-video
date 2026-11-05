@@ -74,6 +74,7 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // than word indices because this tier re-chunks the caption to fit its band, and an index into "word 3 of
   // chunk 2" means something different after every re-wrap while an offset into the string does not.
   capWords?: {t: number; a: number; b: number}[];
+  captionUntil?: number;   // seconds into the beat where a sound demo starts: the caption gives way to it
   // PHRASE STEPS (scripts/phrase_steps.py, runtime/phrase.ts): seconds on the beat's clock at which an AUTHORED push or
   // pull takes its next step, on the voice's next clause. Absent: the beat's camera is what it always was.
   phrase?: number[];
@@ -394,6 +395,11 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
   }
   const sc = active >= 0 ? scenes[active] : undefined;
   if (!sc || !sc.caption) return null;
+  // a sound demo (slide.audio_demo) follows the voice: the caption gives way at its start (out.srt does the same)
+  if (sc.captionUntil != null) {
+    we = Math.min(we, starts[active] + Math.round(sc.captionUntil * fps));
+    if (frame > we) return null;
+  }
   // the measure the caption actually wraps in — must match the <div> below, or the fit is estimated against
   // a width the browser never used. The block is `capMeasure` wide border to border and its text wraps
   // INSIDE its side padding, so the lines are `capMeasure - 2 * CAP_PAD_X` long: fitted against the whole
