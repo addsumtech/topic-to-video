@@ -321,6 +321,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 - `scripts/voice_qa.py <out_dir> [--json]`: narration voice signals (AI-slop vocabulary + rhythm). It is advisory and always
   exits 0. Run it after the script step and after any rewrite, in every language, and read `references/anti-ai-voice.md`
   before writing narration. The last pass is always a human read-aloud.
+- `scripts/audio_demo.py cancel <out.wav>`: a sound the viewer HEARS (a synthesized A/B, marked so) for a beat whose
+  point is a sound; `slide.audio_demo: {clip}` and `tts.py` appends it after the beat's voice at its own level.
+- `scripts/progress.py <out_dir>`: where a long step is — plates, render and gates write `_progress.json` and a
+  self-reloading `_progress.html` (open it once and watch).
 - `scripts/sources.py add|list|verify <out_dir>`: captures the source text behind each claim into `sources/`, so a
   `source_ref` (`<sid>#<literal quote>`) resolves. `--tier primary|secondary|community|self` (default `secondary`) records
   where the support comes from; `--as-of` dates a time-sensitive fact.

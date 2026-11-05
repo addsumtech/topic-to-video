@@ -754,6 +754,16 @@ the opacity cap — together these once let five PAID generated images ship cont
   is stepped on the voice (10 s and over, render_remotion.LONG_BEAT) is not named. Advisory (warnings) except ONE hard defect — a MEASURED static frame held
   past ~16s → non-zero exit; a missing climax is only a WARNING (an estimate never gates a render). Run
   after tts, before the full render.
+- `scripts/audio_demo.py cancel <out.wav> [--seconds 2.5] [--gap 0.4] [--gain 0.94] [--lag-ms 0.1]` — a sound the
+  viewer HEARS, for a beat whose point is a sound. `cancel` synthesizes the noise-cancelling A/B: a low hum, a gap, then
+  the hum with its inverted copy a hair short and late — the small residual a real canceller leaves — with a sidecar
+  `<out>.json` (`kind: synthesized`, `switch_s`). Put it on the beat as `slide.audio_demo: {clip, gap?, gain_db?}`:
+  `tts.py` appends it after the beat's voice and before the pause that ends it, at its own level (not ducked), and
+  records `at_s` / `switch_s` on the board for the picture to time to. validate ERRORs on a missing clip or one whose
+  sidecar does not say where it came from. Why: the ANC film explained noise cancelling for 157 s and played none of it.
+- `scripts/progress.py <out_dir>` — one line: where a long step is (plates, the per-beat render, the delivery gates
+  write `_progress.json` and a self-reloading `_progress.html` as they go), with an ETA from the items done so far.
+  Why: the ANC render sat 1 h 35 min on one beat behind an empty, block-buffered log.
 - `scripts/sources.py add|list|verify <out_dir>` — capture the SOURCE TEXT behind each claim into
   `<out_dir>/sources/` (extract verbatim + origin + kind + fetch date), so `source_ref` becomes a
   pointer a critic can follow rather than a string nobody reads. Refs are `<sid>#<literal quote>`;

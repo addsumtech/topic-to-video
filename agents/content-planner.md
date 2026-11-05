@@ -105,6 +105,12 @@ plan. You do not write final narration; you design content beats.
    climax entrance), `close` (the final hold). Never leave the choice random — the design-director maps it
    to the transition rhythm. Typically 2–4 `new-topic` seams in a 2–3 min video; a video that is ALL seams
    (or none) has a section-structure problem.
+7b. **Can the viewer HEAR or SEE the real thing? (`demo`)** When a beat's point IS a sound (a hum cancelled, a tone
+   falling out of step, a voice through a mask) or a real motion, plan the demonstration, not only a drawing of it:
+   `"demo": {"kind": "audio", "what": "<the A/B the viewer hears>", "cue": "<the narration's invitation, e.g. Listen.>"}`.
+   It becomes `slide.audio_demo` (a clip appended after the beat's voice, at its own level; `scripts/audio_demo.py`
+   synthesizes the cancellation A/B and marks it synthesized). The ANC film explained noise cancelling for 157 s and
+   never let anyone hear it. At most one or two per film, on the beats where hearing it IS the understanding.
 8. **Learning arc + prerequisite ordering (build understanding step by step).** Beyond the tension arc,
    scaffold the KNOWLEDGE via each beat's `stage`: (1) after the `hook`, ≥1 `ground` beat anchors the topic
    in something the audience already knows BEFORE the first `build` (name the familiar anchor in

@@ -2650,6 +2650,33 @@ def _check_style(meta, errors, warnings, slides=None):
                             "film's ground" % (r["beat"], r["shot"], r["ground"], r["film"]))
 
 
+def _audio_demo_problems(slides, out_dir):
+    """ERRORs for `slide.audio_demo` (a sound the viewer hears, appended by tts.py): the clip must exist under the film,
+    and its sidecar `<clip>.json` must say where it came from — `kind: synthesized` (scripts/audio_demo.py), or a
+    licence and a source for a recording — like every picture the film shows."""
+    out = []
+    for s in slides:
+        d = s.get("audio_demo")
+        if d is None:
+            continue
+        where = "beat %s audio_demo" % s.get("index")
+        if not isinstance(d, dict) or not str(d.get("clip") or "").strip():
+            out.append("%s: {clip, gap?, gain_db?} — `clip` is the sound file, relative to the film" % where)
+            continue
+        path = os.path.join(out_dir or ".", d["clip"])
+        if not os.path.isfile(path):
+            out.append("%s: %s does not exist (scripts/audio_demo.py makes a synthesized one)" % (where, d["clip"]))
+            continue
+        try:
+            side = json.load(open(path + ".json", encoding="utf-8"))
+        except (OSError, ValueError):
+            side = None
+        if not isinstance(side, dict) or not (side.get("kind") == "synthesized" or (side.get("license") and side.get("source"))):
+            out.append("%s: %s has no sidecar saying where it came from (%s.json: kind \"synthesized\", or a licence "
+                       "and a source for a recording)" % (where, d["clip"], d["clip"]))
+    return out
+
+
 SLIDE_TITLE_SHARE = 0.4      # a header title on this share of the designed beats reads as a deck played back
 
 
@@ -5097,6 +5124,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             warnings.extend(_narration_tell_warnings("scene %d" % _i, _s.get("narration")))
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
         warnings.extend(_slide_titles(meta, slides))
+        errors.extend(_audio_demo_problems(slides, out_dir))
         _check_build(meta, slides, errors, warnings, out_dir, skips=skips)
         _design_first(meta, slides, errors, warnings, out_dir, "remotion")
         _shot_truncation(meta, slides, errors, warnings)

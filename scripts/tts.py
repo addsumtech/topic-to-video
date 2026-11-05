@@ -782,6 +782,23 @@ def _pad_clip(path, before=0.0, after=0.0):
     return False
 
 
+def append_demo(path, demo, gap=0.4, gain_db=0.0):
+    """Put an audio demo (`slide.audio_demo`) after the voice of a mastered clip and before the pause that ends it,
+    in place, at the demo's own level shifted by `gain_db` — the voice keeps its mastered loudness and the demo is
+    heard as itself, not ducked. Returns the seconds into the clip where the demo starts, for the picture to time to."""
+    tail = _tail_silence(path)
+    dur = _common.audio_duration(path)
+    core = max(0.0, dur - tail)
+    tmp = path + ".demo" + os.path.splitext(path)[1]
+    fc = ("[0:a]atrim=end=%.6f,aresample=48000,aformat=channel_layouts=mono[v];"
+          "[1:a]aresample=48000,aformat=channel_layouts=mono,volume=%.2fdB,adelay=%d:all=1[d];"
+          "[v][d]concat=n=2:v=0:a=1,apad=pad_dur=%.3f[o]") % (core, gain_db, round(gap * 1000), tail)
+    _common.run(["ffmpeg", "-y", "-v", "error", "-i", path, "-i", demo, "-filter_complex", fc, "-map", "[o]",
+                 "-map_metadata", "-1", tmp])
+    os.replace(tmp, path)
+    return round(core + gap, 3)
+
+
 def _apply_holds(out_dir, data, only=None):
     """Open and close the film on a held picture — see OPEN_HOLD_S. Returns (added_before, added_after)."""
     spoken = [s for s in data["slides"] if (s.get("narration") or "").strip() and s.get("audio")]
@@ -1224,6 +1241,17 @@ def synthesize(out_dir, only=None):
         k = pos.get(id(s), -1)
         nxt = order[k + 1] if 0 <= k < len(order) - 1 else None
         _master(dest, data["meta"], ref=ref, lead=lead, joined_next=_sr.joined(s, nxt))
+        demo = s.get("audio_demo")
+        if isinstance(demo, dict) and demo.get("clip"):
+            clip = os.path.join(out_dir, demo["clip"])
+            if not os.path.isfile(clip):
+                raise ValueError("beat %s: audio_demo.clip %s does not exist" % (s.get("index"), demo["clip"]))
+            demo["at_s"] = append_demo(dest, clip, float(demo.get("gap", 0.4)), float(demo.get("gain_db", 0.0)))
+            try:
+                demo["switch_s"] = round(demo["at_s"] + float(json.load(open(clip + ".json"))["switch_s"]), 3)
+            except (OSError, ValueError, KeyError, TypeError):
+                demo.pop("switch_s", None)
+            print("[tts] beat %s: audio demo %s starts at %.2fs" % (s.get("index"), demo["clip"], demo["at_s"]))
         s["duration"] = round(_common.audio_duration(dest), 3)
     held = _apply_holds(out_dir, data, only) if pending else (0.0, 0.0)
     if any(held):
