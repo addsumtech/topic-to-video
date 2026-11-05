@@ -1430,6 +1430,7 @@ def render(out_dir, vertical=False, reduced_motion=False, sample=None, log="erro
 
 
 def main():
+    import sys
     # line by line even into a file or a pipe: a render watched through its log must show where it is (the anc film's
     # log stayed EMPTY for minutes, block-buffered, while beats rendered)
     try:

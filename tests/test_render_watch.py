@@ -175,3 +175,10 @@ def test_a_render_segment_is_watched_for_fatal_lines_and_capped(monkeypatch):
         rs.render_segment({"key": "k", "a": 0, "b": 99, "k": 0}, False, "/p.json", "/pub", "/tmp", [],
                           run=c._REAL_RUN, serve="/b")
     assert seen.get("fatal") is c.RENDER_FATAL and seen.get("cap_s", 0) >= 300
+
+
+def test_render_remotion_starts():
+    # the line-buffering change used `sys` the script never imported: every render died before its first beat,
+    # and no test ran the entry point
+    r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "render_remotion.py"), "--help"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
