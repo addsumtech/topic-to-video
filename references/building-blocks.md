@@ -886,3 +886,19 @@ A screen that does not exist yet is an object drawn for a device: `DeviceDemo` `
 with taps and drags at coordinates, and the typing and scrolling done inside the object from its `t` (a progressive
 slice is `// @truncates:`). Every word — labels, the typed text, the button — is a prop. Reference:
 `references/object-examples/ComposeScreen.tsx`. A REAL product's screens are screenshots, not objects.
+
+## The object and the world it moves through (runtime/track.ts, reacts.ts, character.ts — 2026-11-06)
+A through-object (`meta.through_object`) reaches its shot as the `track` prop; read it, never re-place it by hand:
+```tsx
+import {trackAt} from '../runtime/track';
+import {react, contactTimes} from '../runtime/reacts';
+import {hop, stagger} from '../runtime/character';
+const p = trackAt(track, t / dur);                     // where the object is (frame fractions), eased in and out
+// a row of keys that press as the object lands on them: distance in KEY WIDTHS
+keys.map((k, i) => { const r = react('press', (p.x - k.cx) / k.w); return <Key key={i} dy={r.dy * k.h} glow={r.glow} />; });
+const h = hop((t % hopDur) / hopDur);                  // crouch, arc, land; sx * sy == 1 every frame
+<g transform={`translate(${p.x * W} ${p.y * H + h.y * H}) scale(${h.sx} ${h.sy})`}>…</g>
+```
+`contactTimes(samples, items)` says when the object reaches each item, so a key sound or a ripple (`react('ripple',
+d, {since})`) is timed to the contact, not guessed. Parts settle one after another with `stagger(i, n, t)`. Type never
+rides the hop: labels sit still and appear when the object comes to rest.
