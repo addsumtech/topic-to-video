@@ -84,3 +84,28 @@ def test_cli_add_list_brief(ledger, capsys):
 def test_a_long_rule_id_ends_on_a_whole_word(ledger):
     e = tl.add("x", "each beat's environment comes from its own subject, never one decorative world", "design")
     assert e["id"] == "each-beat-s-environment-comes-from-its-own" and len(e["id"]) <= 48
+
+
+def test_a_ledger_that_parses_but_is_malformed_is_named_not_crashed_on(tmp_path, monkeypatch):
+    """Review I1: {"entries": ["oops"]} crashed `check` with an AttributeError, and an entry with no rule raised a bare
+    KeyError — neither named the file. Each entry is checked when the ledger is read."""
+    p = tmp_path / "l.json"
+    monkeypatch.setenv("TTV_TASTE_LEDGER", str(p))
+    for bad in ({"entries": ["oops"]}, {"entries": [{"id": "x", "said": "s", "stage": "design", "status": "active"}]},
+                {"entries": [{"id": "x", "said": "s", "rule": "r", "stage": "colour", "status": "active"}]}):
+        p.write_text(json.dumps(bad))
+        with pytest.raises(tl.LedgerError, match=str(p)):
+            tl.load()
+
+
+def test_an_unwritable_ledger_folder_is_a_named_error(tmp_path, monkeypatch):
+    d = tmp_path / "ro"
+    d.mkdir()
+    d.chmod(0o500)
+    monkeypatch.setenv("TTV_TASTE_LEDGER", str(d / "l.json"))
+    try:
+        with pytest.raises(tl.LedgerError, match="cannot be written"):
+            tl.add("x", "a rule", "design")
+        assert tl.main(["add", "--said", "x", "--rule", "a rule", "--stage", "design"]) == 1
+    finally:
+        d.chmod(0o700)

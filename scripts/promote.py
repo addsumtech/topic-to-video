@@ -89,7 +89,7 @@ def user_waived(out_dir):
     wv, wprobs = cl.waiver(out_dir)
     if wv is None or wprobs:
         return None
-    errs, _w = cl.validate(out_dir, final=True)
+    errs, _w = cl.validate(out_dir, final=True, taste=False)   # taste is asked at delivery, not again here
     return None if errs else cl.render_id(out_dir)
 
 

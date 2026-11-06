@@ -21,6 +21,10 @@ plate's last fifth); the beat's `slide.sketch` hero rect; `--box` for an old fil
 that differ from the ground at its border. A hero beat with none of these is NOT MEASURED and exits 1: a check that
 cannot find the subject must say so, never pass it.
 
+SCOPE. A `macro` hero is measured UN-ZOOMED: proof frames are each shot's own composition, where no hero camera
+runs (review I5); text_safe on out.mp4 is what sees the macro's frames. Nothing runs this in the delivery gates: it is
+run by hand on the hero beats.
+
 Thresholds come from our own films (GPS, HTTPS, ANC — references/craft-bar.md, "Calibration"); until a measure
 separates the films the user judged, it is REPORTED, not enforced (THRESHOLDS stays empty for it).
 """
@@ -65,7 +69,12 @@ def _shrink(rgb, mask):
         return rgb, mask
     size = (max(1, int(round(w * f))), max(1, int(round(h * f))))
     im = Image.fromarray((np.clip(rgb, 0, 1) * 255).astype(np.uint8)).resize(size, Image.BILINEAR)
-    m = Image.fromarray((mask * 255).astype(np.uint8)).resize(size, Image.NEAREST)
+    # the mask is GROWN by the shrink factor before it is sampled: a 1-px stroke fell between the samples of a 3:1
+    # nearest-neighbour shrink and a line drawing measured as an empty subject (review I4)
+    from PIL import ImageFilter
+    k = int(np.ceil(1.0 / f)) | 1
+    mi = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(k))
+    m = mi.resize(size, Image.NEAREST)
     return np.asarray(im, float) / 255.0, np.asarray(m) > 127
 
 
@@ -130,7 +139,8 @@ def _plate_box(out_dir, slide, w, h):
     fw = 1920.0
     try:
         with open(os.path.join(out_dir, "media", "blender", pid, "plate.json"), encoding="utf-8") as fh:
-            fw = float((json.load(fh) or {}).get("width") or fw)
+            pj = json.load(fh) or {}
+            fw = float(pj.get("w") or pj.get("width") or fw)      # plates write "w" (review I3)
     except (OSError, ValueError, TypeError):
         pass
     got = []
@@ -198,7 +208,13 @@ def run(out_dir, beats=None, box=None):
             rows.append((n, None, why, n in heroes))
             continue
         m, src = subject_mask(out_dir, s, rgb, box)
-        rows.append((n, measure(rgb, m) if m is not None else None, src, n in heroes))
+        if m is None:
+            rows.append((n, None, src, n in heroes))
+            continue
+        try:
+            rows.append((n, measure(rgb, m), src, n in heroes))
+        except ValueError as e:                       # one beat that cannot be measured never ends the run
+            rows.append((n, None, "%s: %s" % (src, e), n in heroes))
     return rows
 
 

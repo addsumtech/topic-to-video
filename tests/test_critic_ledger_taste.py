@@ -77,3 +77,16 @@ def test_a_corrupt_ledger_is_a_final_error_naming_the_file(tmp_path, ledger):
     ledger.write_text("{nope")
     errs, _w = cl.validate(_film(tmp_path), final=True)
     assert any(str(ledger) in e for e in errs)
+
+
+def test_promotion_of_a_delivered_film_does_not_reread_the_taste_ledger(tmp_path, ledger, monkeypatch):
+    """Review I8: promote.user_waived calls critic_ledger.validate(final=True); a film the user shipped before a rule
+    was taught would become unpromotable the moment any rule exists. Taste is asked at delivery, not at promotion."""
+    tl.add("每个元素1秒看懂", "every element decodable in ~1 s", "design")
+    monkeypatch.setattr(cl, "_validate", lambda d, final=False: ([], []))
+    monkeypatch.setattr(cl, "waiver", lambda d: ({"reason": "r"}, []))
+    monkeypatch.setattr(cl, "render_id", lambda d: "rid")
+    import promote
+    assert promote.user_waived(_film(tmp_path)) == "rid"
+    errs, _w = cl.validate(str(tmp_path / "film"), final=True)
+    assert _taste(errs)                                  # delivery still asks

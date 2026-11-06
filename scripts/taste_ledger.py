@@ -52,15 +52,27 @@ def load(path=None):
                           % (path, e))
     if not isinstance(data, dict) or not isinstance(data.get("entries"), list):
         raise LedgerError("the taste ledger %s is not {version, entries: [...]}" % path)
+    # every entry is checked HERE, where the path is known: a malformed entry crashed `check` with a bare
+    # AttributeError / KeyError that named neither the file nor the entry (review I1)
+    for i, e in enumerate(data["entries"]):
+        bad = (not isinstance(e, dict) and "is not an object") or next(
+            ("has no %s" % k for k in ("id", "said", "rule", "stage", "status") if not str(e.get(k) or "").strip()), None) \
+            or (e.get("stage") not in STAGES and "has stage %r, not one of %s" % (e.get("stage"), "/".join(STAGES))) \
+            or (e.get("status") not in STATUSES and "has status %r, not active/retired" % e.get("status"))
+        if bad:
+            raise LedgerError("the taste ledger %s: entry %d %s — fix or remove it" % (path, i + 1, bad))
     return data
 
 
 def _save(data, path):
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, ensure_ascii=False, indent=1)
-    os.replace(tmp, path)
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False, indent=1)
+        os.replace(tmp, path)
+    except OSError as e:
+        raise LedgerError("the taste ledger %s cannot be written (%s) — nothing was recorded" % (path, e))
 
 
 def _slug(text):

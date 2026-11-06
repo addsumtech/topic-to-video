@@ -78,7 +78,10 @@ def _coverage(rects):
 
 
 def _same(a, b):
-    ra, rb = sorted(_rects(a)), sorted(_rects(b))
+    """One composition: the same rects in the same places, whatever the parts are called — sorted by GEOMETRY (the
+    hero first), never by name (review I7: renamed parts passed a repeated layout as varied)."""
+    key = lambda r: (not r[2], r[1][0], r[1][1])
+    ra, rb = sorted(_rects(a), key=key), sorted(_rects(b), key=key)
     if not ra or len(ra) != len(rb):
         return False
     return all(abs(p - q) <= SAME_TOL for (_n1, r1, _h1), (_n2, r2, _h2) in zip(ra, rb) for p, q in zip(r1, r2))

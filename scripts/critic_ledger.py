@@ -1158,9 +1158,11 @@ NOT_APPLICABLE = ("this film has no authored page — the 原样配音 tier (eve
                   "agents/critic-av.md on out.mp4, and it is NOT recorded or checked here.")
 
 
-def validate(out_dir, final=False):
+def validate(out_dir, final=False, taste=True):
+    """`taste`: the delivery gate asks every taught rule; a caller judging an ALREADY-delivered film (promote.py)
+    passes False — a rule taught after the user shipped it must not take back their decision (review I8)."""
     errs, warns = _validate(out_dir, final)
-    if final and NOT_APPLICABLE not in errs:
+    if final and taste and NOT_APPLICABLE not in errs:
         t_errs, t_warns = _taste_problems(out_dir)
         errs, warns = errs + t_errs, warns + t_warns
     return errs, warns

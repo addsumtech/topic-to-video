@@ -316,7 +316,7 @@ def test_a_film_the_user_shipped_without_a_critic_promotes_and_says_so(tmp_path,
     out = _film(tmp_path)
     open(os.path.join(out, "NOT_DELIVERED.md"), "w").write("# Delivered WITHOUT a critic review\n")
     monkeypatch.setattr(cl, "waiver", lambda o: ({"reason": "none", "_from": "review"}, []))
-    monkeypatch.setattr(cl, "validate", lambda o, final=False: ([], []))
+    monkeypatch.setattr(cl, "validate", lambda o, final=False, taste=True: ([], []))
     monkeypatch.setattr(cl, "render_id", lambda o: "95df6db6b59437e8" + "0" * 48)
     pr.promote(out, "EspressoPuck")
     lib, _calls = sandbox
@@ -325,7 +325,7 @@ def test_a_film_the_user_shipped_without_a_critic_promotes_and_says_so(tmp_path,
     # the gates are not waived with it: a record that is missing or red refuses, as before
     out2 = _film(tmp_path / "two")
     open(os.path.join(out2, "NOT_DELIVERED.md"), "w").write("# Delivered WITHOUT a critic review\n")
-    monkeypatch.setattr(cl, "validate", lambda o, final=False: (["these delivery gates were never run"], []))
+    monkeypatch.setattr(cl, "validate", lambda o, final=False, taste=True: (["these delivery gates were never run"], []))
     with pytest.raises(pr.PromoteError) as e:
         pr.promote(out2, "EspressoPuck")
     assert any("no review waiver the user gave holds" in p for p in e.value.problems), e.value.problems

@@ -92,3 +92,14 @@ def test_a_hero_layer_can_move_about_its_own_point():
     src = open(os.path.join(_ROOT, "remotion", "src", "runtime", "heroCamera.tsx"), encoding="utf-8").read()
     assert "export const useHeroLayer = (depth: number, origin: [number, number] = [0.5, 0.5])" in src
     assert "transformOrigin: `${origin[0] * 100}% ${origin[1] * 100}%`" in src
+
+
+@needs_node
+def test_reduced_motion_stills_the_hero_move_and_shows_its_labels():
+    """Review I6: SceneCamera zeroes its move under reduced motion; the hero layers still moved up to 1.6x and blurred,
+    and their labels stayed hidden until 78 % of the beat."""
+    o = tp.run_ts("import {heroLayerPose, labelOpacity} from %s;" % tp.mod("heroCamera.tsx"), """
+out.p = heroLayerPose('macro', 0.5, 0.5, true); out.q = heroLayerPose('macro', 0.5, 0.5, false);
+out.l = labelOpacity('macro', 0.1, true); out.m = labelOpacity('macro', 0.1, false);""")
+    assert o["p"] == {"tx": 0, "ty": 0, "scale": 1, "blur": 0} and o["q"]["scale"] > 1
+    assert o["l"] == 1 and o["m"] == 0

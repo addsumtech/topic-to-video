@@ -2787,6 +2787,45 @@ def _sketch_one(n, sk):
     return out
 
 
+SKETCH_KEY = "sketch_keep"
+
+
+def sketch_keep(meta, slides):
+    """The beats the user kept without a sketch (`--keep-sketch`): a film made before the sketch rule — every
+    design-first film until 2026-11-06 — keeps its beats while each keeps the shot it had; a beat whose shot changed is
+    sketched like any new one. Review C1: without it a one-word caption fix on such a film meant sketching every beat."""
+    rec = (meta or {}).get(SKETCH_KEY)
+    if not isinstance(rec, dict) or not isinstance(rec.get("kept"), list):
+        return set()
+    now = {s.get("index", pos): s.get("shot") for pos, s in enumerate(slides or [], 1) if isinstance(s, dict)}
+    return {k["beat"] for k in rec["kept"] if isinstance(k, dict) and k.get("beat") in now
+            and now[k["beat"]] == k.get("shot")}
+
+
+def keep_sketches(out_dir, answer):
+    """--keep-sketch: record the user's keep for every remotion beat that has no sketch NOW. (ok, message)."""
+    path = os.path.join(out_dir, "storyboard.json")
+    try:
+        data = json.load(open(path, encoding="utf-8"))
+        meta, slides = data["meta"], data["slides"]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        return False, "cannot read %s (%s)" % (path, e)
+    if film_tier(meta, slides) != "remotion":
+        return False, "the sketch rule is the remotion tier's — there is nothing to keep on this board"
+    import critic_ledger as _cl
+    ans = str(answer or "").strip()
+    if _cl._non_answer(ans) or len(ans) < 2:
+        return False, ("%r is not the user's answer — keeping a film without sketches is their decision, in their own "
+                       "words; a default, an inference or auto mode is not one. Ask them (AskUserQuestion)." % ans)
+    kept = [{"beat": s.get("index", pos), "shot": s.get("shot")} for pos, s in enumerate(slides, 1)
+            if isinstance(s, dict) and s.get("type") != "slide" and "sketch" not in s]
+    meta[SKETCH_KEY] = {"user_answer": ans, "kept": kept}
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2, ensure_ascii=False)
+    return True, ("recorded meta.%s: the user kept %d beat(s) without a sketch (%s); each stays exempt while it keeps "
+                  "its shot" % (SKETCH_KEY, len(kept), ", ".join(str(k["beat"]) for k in kept[:20])))
+
+
 def _sketch_problems(meta, slides, tier, kept=frozenset()):
     """(errors, warnings) for the sketches and the film's hero moments. Remotion only; a supplied slide
     (`type: slide`) has no picture to plan, and a beat the user kept (`--keep-design`) keeps its old design."""
@@ -2796,11 +2835,15 @@ def _sketch_problems(meta, slides, tier, kept=frozenset()):
     beats = [(s.get("index", pos), s) for pos, s in enumerate(slides, 1)
              if isinstance(s, dict) and s.get("type") != "slide"]
     missing = [n for n, s in beats if "sketch" not in s and n not in kept]
+    kept_unsketched = [n for n, s in beats if "sketch" not in s and n in kept]
+    if kept_unsketched:
+        warns.append("sketch: kept without a sketch by the user's decision — beat(s) %s; each is exempt while it keeps "
+                     "its shot" % ", ".join(map(str, kept_unsketched[:20])))
     if missing and len(missing) == len([n for n, _s in beats if n not in kept]) and len(missing) > 1:
         errs.append("sketch: SKETCH BEFORE BUILD — none of the film's %d beats has a slide.sketch — the design-director writes "
                     "one per beat at 3.6 (metaphor, hero, layout) and the user approves scripts/sketch_sheet.py's "
-                    "sheet before any shot is built. An older film the user keeps as it is: validate.py <out_dir> "
-                    "--keep-design \"<their words>\"" % len(missing))
+                    "sheet before any shot is built. A film made before this rule that the user keeps as it is: validate.py "
+                    "<out_dir> --keep-sketch \"<their words>\"" % len(missing))
     else:
         errs.extend("sketch: beat %d has no slide.sketch — sketch it (metaphor, hero, layout) and show the sheet before building"
                     % n for n in missing)
@@ -5356,7 +5399,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             _kept = design_first_keep(meta, slides, "remotion", out_dir)[0]
         except Exception:                                    # noqa: BLE001 — a bad keep record is _design_first's
             _kept = set()
-        _sk_e, _sk_w = _sketch_problems(meta, slides, "remotion", kept=_kept)
+        _sk_e, _sk_w = _sketch_problems(meta, slides, "remotion", kept=set(_kept) | sketch_keep(meta, slides))
         errors.extend(_sk_e)
         warnings.extend(_sk_w)
         _check_build(meta, slides, errors, warnings, out_dir, skips=skips)
@@ -7123,11 +7166,19 @@ def main():
                          "headline otherwise reads as if all ~360 of its checks ran.")
     ap.add_argument("--coverage-detail", action="store_true",
                     help="list every check that was not evaluated, with the guard that stopped it")
+    ap.add_argument("--keep-sketch", metavar="USER_WORDS",
+                    help="the user keeps this film's beats without sketches (a film made before the sketch rule); "
+                         "their own words, recorded in meta.sketch_keep")
     ap.add_argument("--keep-design", metavar="USER_WORDS",
                     help="record the USER's decision to keep a pre-design-first film's existing design for this edit "
                          "(meta.design_first, every beat on the board now), in their own words — only on a board where "
                          "no beat has an ideal; then validate as usual")
     a = ap.parse_args()
+    if getattr(a, "keep_sketch", None):
+        ok, msg = keep_sketches(a.out_dir, a.keep_sketch)
+        print("[validate] --keep-sketch: %s%s" % ("" if ok else "REFUSED — ", msg))
+        if not ok:
+            sys.exit(2)
     if a.keep_design is not None:
         ok, msg = keep_design(a.out_dir, a.keep_design)
         print("[validate] --keep-design: %s%s" % ("" if ok else "REFUSED — ", msg))

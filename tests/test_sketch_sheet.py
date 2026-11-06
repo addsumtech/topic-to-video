@@ -95,3 +95,14 @@ def test_chinese_metaphor_is_drawn_with_a_cjk_face(tmp_path):
     board = {"meta": {"renderer": "remotion"}, "slides": _slides([_sk(metaphor="轴体是一扇带弹簧的小门")] + _varied(2)[1:])}
     (tmp_path / "storyboard.json").write_text(json.dumps(board))
     assert ss.main([str(tmp_path), "--no-desktop"]) == 0
+
+
+def test_the_same_geometry_under_different_names_is_still_one_layout():
+    """Review I7: rects were compared sorted by NAME, so three beats with one composition and different part names
+    (the keyboard film's section beats) passed as varied."""
+    def named(a, b):
+        return {"metaphor": "m", "hero": a, "camera": "hold", "environment": "e",
+                "layout": [{"name": a, "rect": [0.30, 0.20, 0.40, 0.50], "hero": True},
+                           {"name": b, "rect": [0.74, 0.30, 0.18, 0.10]}]}
+    f = ss.findings(_slides([named("section", "gap"), named("contact", "signal"), named("dome", "callout")]), 1920, 1080)
+    assert any("same layout" in x for x in f), f

@@ -774,12 +774,15 @@ the opacity cap — together these once let five PAID generated images ship cont
   camera intent; the metaphor under each tile; `meta.through_object` as a ribbon. Writes `_sketch_review.png` and a
   copy on the Desktop; exit 1 with findings: a beat with no sketch, a hero under 12 % of the frame, a sparse film
   (median coverage under shot_proof's 14 % line), one layout 3 beats running, a rect reaching into the caption band.
-  Rects are fractions of the WHOLE frame. The user approves the sheet at 3.6 before any shot is built. Why: every
+  Rects are fractions of the WHOLE frame. The user approves the sheet at 3.6 before any shot is built. A film made
+  before the sketch rule that the user keeps as it is: `validate.py <out_dir> --keep-sketch "<their words>"` (each
+  kept beat stays exempt while it keeps its shot). Why: every
   composition problem on the ANC film was found by gates after fourteen shots were built.
 - `scripts/subject_craft_qa.py <out_dir> [--beat N --box x,y,w,h] [--json]` — the hero subject's light range, rim
   separation, highlight, surface detail and flat-fill share on each `meta.hero_moments` beat's settled frame
   (`_proof/beat_NN.png`; run shot_proof first). The subject is found from a plate's boxes, else the sketch's hero
-  rect, else `--box`, then cut to the pixels that differ from the ground. REPORT-ONLY: calibrated on GPS and ANC,
+  rect, else `--box`, then cut to the pixels that differ from the ground (a macro hero is measured un-zoomed; run
+  by hand, no gate runs it). REPORT-ONLY: calibrated on GPS and ANC,
   no measure separated the film the user found lacking from the one they found okay (craft-bar.md), so nothing is
   enforced; a hero it cannot locate is NOT MEASURED and exits 1.
 - Density and real use (2026-11-06): shot_proof's film-wide ink median leaves out `meta.hero_moments` and title

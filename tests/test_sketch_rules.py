@@ -48,7 +48,8 @@ def test_keep_design_beat_is_exempt():
     slides = _slides(3)
     del slides[0]["sketch"]
     assert _run({}, slides, )[0]
-    assert v._sketch_problems({"renderer": "remotion"}, slides, "remotion", kept={1}) == ([], [])
+    errs, warns = v._sketch_problems({"renderer": "remotion"}, slides, "remotion", kept={1})
+    assert errs == [] and any("beat(s) 1" in w for w in warns)        # exempt, and said so
 
 
 def test_layout_needs_exactly_one_hero_and_2_to_6_rects():
@@ -91,3 +92,42 @@ def test_html_tier_and_slide_type_boards_get_no_sketch_rule():
     assert _run({}, _slides(9, sketch=False), tier=None) == ([], [])
     slides = [{"index": 1, "type": "slide"}, {"index": 2, "shot": "S2", "sketch": _sk()}]
     assert _run({}, slides) == ([], [])
+
+
+# ── review C1: a design-first film made before the sketch rule ─────────────────────────────────────────────────────
+import json  # noqa: E402
+
+
+def _old_film(tmp_path, n=3):
+    slides = [{"index": i + 1, "shot": "S%d" % (i + 1), "shot_fit": {"ideal": "the frame %d" % i}} for i in range(n)]
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {"renderer": "remotion"}, "slides": slides}))
+    return str(tmp_path), slides
+
+
+def test_a_design_first_film_without_sketches_can_be_kept_by_the_user(tmp_path):
+    d, slides = _old_film(tmp_path)
+    assert v._sketch_problems({"renderer": "remotion"}, slides, "remotion")[0]       # the rule still fires
+    ok, msg = v.keep_sketches(d, "保持原样，只改字幕")
+    assert ok, msg
+    b = json.loads((tmp_path / "storyboard.json").read_text())
+    assert v.sketch_keep(b["meta"], b["slides"]) == {1, 2, 3}
+    errs, warns = v._sketch_problems(b["meta"], b["slides"], "remotion", kept=v.sketch_keep(b["meta"], b["slides"]))
+    assert errs == [] and any("kept" in w for w in warns)
+
+
+def test_a_kept_beat_whose_shot_changed_must_be_sketched_and_a_non_answer_is_refused(tmp_path):
+    d, _ = _old_film(tmp_path)
+    assert not v.keep_sketches(d, "auto")[0]
+    assert v.keep_sketches(d, "保持原样")[0]
+    b = json.loads((tmp_path / "storyboard.json").read_text())
+    b["slides"][1]["shot"] = "NewShot"
+    assert v.sketch_keep(b["meta"], b["slides"]) == {1, 3}
+
+
+def test_validate_on_a_kept_old_film_has_no_sketch_error(tmp_path):
+    d, _ = _old_film(tmp_path)
+    v.keep_sketches(d, "保持原样")
+    b = json.loads((tmp_path / "storyboard.json").read_text())
+    for s in b["slides"]:
+        s.update({"narration": "x", "duration": 4.0, "audio": "a.mp3"})
+    assert not [e for e in v.evaluate(b, d)["errors"] if e.startswith("sketch:")]

@@ -14,7 +14,7 @@
 // it nothing moves, so nothing can tremble.
 import React from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
-import {SceneDurationContext} from './motion';
+import {SceneDurationContext, ReducedMotionContext} from './motion';
 
 export const HERO_MOVES = ['reveal', 'macro', 'context'] as const;
 export type HeroMove = typeof HERO_MOVES[number];
@@ -45,8 +45,13 @@ export const heroCamera = (move: HeroMove, t01: number, depths: number[]): HeroL
   });
 };
 
-export const labelOpacity = (move: HeroMove | null | undefined, t01: number): number =>
-  move ? clamp01((t01 - HERO_SETTLE) / LABEL_FADE) : 1;
+export const labelOpacity = (move: HeroMove | null | undefined, t01: number, reduced = false): number =>
+  move && !reduced ? clamp01((t01 - HERO_SETTLE) / LABEL_FADE) : 1;
+
+/** One layer's pose; under reduced motion the frame is the composed, settled one at once — no move, no blur — as
+ *  SceneCamera zeroes its own move (review I6). */
+export const heroLayerPose = (move: HeroMove, t01: number, depth: number, reduced = false): HeroLayerPose =>
+  reduced ? {tx: 0, ty: 0, scale: 1, blur: 0} : heroCamera(move, t01, [depth])[0];
 
 export const HeroCameraContext = React.createContext<HeroMove | null>(null);
 
@@ -61,13 +66,15 @@ const useBeatT = () => {
  *  `origin` (shares of the frame) is the point the move closes in on — a macro goes TO the part it is about. */
 export const useHeroLayer = (depth: number, origin: [number, number] = [0.5, 0.5]): React.CSSProperties => {
   const move = React.useContext(HeroCameraContext);
+  const reduced = React.useContext(ReducedMotionContext);
   const t = useBeatT();
   const {width: W, height: H} = useVideoConfig();
-  if (!move) return {};
-  const p = heroCamera(move, t, [depth])[0];
+  if (!move || reduced) return {};
+  const p = heroLayerPose(move, t, depth);
   return {transform: `translate(${p.tx * W}px, ${p.ty * H}px) scale(${p.scale})`, transformOrigin: `${origin[0] * 100}% ${origin[1] * 100}%`,
     filter: p.blur ? `blur(${p.blur}px)` : undefined};
 };
 
 /** The opacity a label carries on this beat: 0 while a hero move is moving, 1 once it has settled. */
-export const useHeroLabel = (): number => labelOpacity(React.useContext(HeroCameraContext), useBeatT());
+export const useHeroLabel = (): number =>
+  labelOpacity(React.useContext(HeroCameraContext), useBeatT(), React.useContext(ReducedMotionContext));

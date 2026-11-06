@@ -125,3 +125,33 @@ def test_a_measured_hero_reports_and_passes_while_nothing_is_enforced(tmp_path, 
     sk = {"hero": "ball", "layout": [{"name": "ball", "rect": [0.3, 0.1, 0.4, 0.8], "hero": True}]}
     d = _film(tmp_path, [{"index": 1, "shot": "S", "sketch": sk}], {"hero_moments": [1]})
     assert sc.main([d]) == 0
+
+
+def test_a_plate_box_is_scaled_by_the_plates_own_width(tmp_path):
+    """Review I3: plates write their width as "w"; reading "width" fell back to 1920 and every box on a 1080-wide
+    (9:16) plate was scaled by 1080/1920."""
+    d = tmp_path / "media" / "blender" / "p"
+    d.mkdir(parents=True)
+    (d / "boxes.json").write_text(json.dumps({"obj": [[100, 200, 300, 400]] * 5}))
+    (d / "plate.json").write_text(json.dumps({"w": 540, "h": 960}))
+    box, _src = sc._plate_box(str(tmp_path), {"blender": {"id": "p"}}, 1080, 1920)
+    assert box == (200.0, 400.0, 600.0, 800.0)
+
+
+def test_a_line_drawing_is_measured_not_crashed_on():
+    """Review I4: a 1-px line subject on a 1080x1920 frame lost its mask in the shrink and raised; the run aborted."""
+    img = np.full((1920, 1080, 3), 0.1)
+    m = np.zeros((1920, 1080), bool)
+    for r in range(402, 1400, 51):                    # every row = 0 mod 3: the rows a 3:1 shrink drops
+        img[r, 200:900] = 0.9
+        m[r, 200:900] = True
+    res = sc.measure(img, m)
+    assert res["lum_range"] >= 0 and 0 <= res["flat_share"] <= 1
+
+
+def test_a_beat_whose_measure_fails_is_a_not_measured_row(tmp_path, monkeypatch, capsys):
+    sk = {"hero": "ball", "layout": [{"name": "ball", "rect": [0.3, 0.1, 0.4, 0.8], "hero": True}]}
+    d = _film(tmp_path, [{"index": 1, "shot": "S", "sketch": sk}], {"hero_moments": [1]})
+    monkeypatch.setattr(sc, "measure", lambda rgb, m: (_ for _ in ()).throw(ValueError("empty")))
+    assert sc.main([d]) == 1
+    assert "NOT MEASURED" in capsys.readouterr().out
