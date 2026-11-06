@@ -13,6 +13,7 @@
 | `name` | the film's own name over the monitor (mono) | short; it is a label, not a title |
 | `crop` | share of the clip's height masked off its bottom | 0.185 for a 16:9 film with burned captions, so its caption never doubles the film's own |
 | `region` | `{x, y, w}` shares: a close-up of part of the picture | at its own pixels a close-up is SMALLER on screen than the whole clip — choose it for the detail, not the size |
+| `focusTrack` | `[{t, x, y}]`: the close-up's centre over the beat (s, shares of the clip) | moves the `region` along the action at its own size, smoothed; refused when it would travel more than 2 % of the picture a frame — space the keys |
 | `note` | one line pinned by a leader to a point of the clip | one fact the viewer would miss |
 | `noteAt` | where the leader points, `{x, y}` shares of the clip's frame | on the thing the note names, not beside it |
 | `run` | the film's beat frames (paths), passing beneath | the film running; frames are measured off the files and must be frame-shaped |
@@ -23,6 +24,6 @@
 - Its library energy row is ~0: standalone it has no clip and draws its skeleton. Its motion IS the footage — choose a `from` where the clip moves, then check the beat with `workshop.py motion` or the film's `film_energy_qa`.
 - A typed `w`/`h` is how a clip gets drawn past its pixels: the render reads them off the file and ignores none it can measure.
 
-**Refuses:** a clip with no measured size or length; a stretch that runs past the clip's end; `crop` ≥ 0.5; a region outside the picture; fewer than 2 frames; a frame drawn past its own pixels.
+**Refuses:** a clip with no measured size or length; a stretch that runs past the clip's end; `crop` ≥ 0.5; a region outside the picture; fewer than 2 frames; a frame drawn past its own pixels; a focus track with no region, or one too fast to follow.
 
 **Reference:** `remotion/src/shots/FilmScreen.tsx`, `scripts/render_remotion.py` `film_screen_props`

@@ -709,8 +709,10 @@ def cjk_props(name, offset=0):
         # `material` NAMES the medium (paper | water | metal | clay), a closed set like `page`, never copy.
         # `model` NAMES a real device (runtime/deviceSpec.json `models`), a closed set read off the screenshot — fed a
         # sentence, the device layer refuses it by name and prop_reach read DeviceDemo / DeviceHero as NOT MEASURED.
+        # `focusTrack` is FilmScreen's close-up path [{t, x, y}] (runtime/focusTrack): geometry over time, never copy;
+        # unset, the close-up holds its region, which is what a library sweep measures.
         if prop in ("accent", "accent2", "imageAspect", "aspect", "dna", "page",
-                    "face", "d", "tex", "mediumColor", "material", "model") or re.match(r"^src[A-Z]?", prop):
+                    "face", "d", "tex", "mediumColor", "material", "model", "focusTrack") or re.match(r"^src[A-Z]?", prop):
             # colours / images / plumbing, not copy. The `src` test is a PREFIX: KSpaceAnatomy declares
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.
