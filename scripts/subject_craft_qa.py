@@ -53,12 +53,31 @@ def _morph(mask, r, grow):
     return np.asarray(im) > 127
 
 
+MEASURE_SHORT = 360        # frames are measured at this short side: the edge bands' filters cost O(k^2) per pixel,
+                           # and at 1080 one hero beat took over 10 s; every measure is a share or a mean, so scale-free
+
+
+def _shrink(rgb, mask):
+    from PIL import Image
+    h, w = rgb.shape[:2]
+    f = MEASURE_SHORT / float(min(h, w))
+    if f >= 1:
+        return rgb, mask
+    size = (max(1, int(round(w * f))), max(1, int(round(h * f))))
+    im = Image.fromarray((np.clip(rgb, 0, 1) * 255).astype(np.uint8)).resize(size, Image.BILINEAR)
+    m = Image.fromarray((mask * 255).astype(np.uint8)).resize(size, Image.NEAREST)
+    return np.asarray(im, float) / 255.0, np.asarray(m) > 127
+
+
 def measure(rgb, mask):
     """The five measures of a subject `mask` (bool HxW) on an image `rgb` (float HxWx3 in 0..1)."""
     mask = np.asarray(mask, bool)
     if not mask.any():
         raise ValueError("the subject mask is empty")
     rgb = np.asarray(rgb, float)
+    rgb, mask = _shrink(rgb, mask)
+    if not mask.any():
+        raise ValueError("the subject mask is empty at the measuring size")
     lum = _lum(rgb)
     inside = lum[mask]
     ys, xs = np.nonzero(mask)

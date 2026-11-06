@@ -67,3 +67,26 @@ the phone clock (10 %), the fix point (4 %) and the closing title (10 %) — bea
 dark frame, which fits the user's "lacks beauty" verdict. The sixth (beat 12's clock reaching the caption band at 82 %)
 is an artefact of eyeballing: the built frame passed keyframe_qa. HERO_MIN (12 %) is set from this one board and has
 NOT been checked against ANC; it stays a sheet finding for the user to judge, never a delivery gate.
+
+### Subject craft on GPS and ANC (2026-11-06)
+`subject_craft_qa.py` on settled proof frames (boxes by eye, except ANC 8/9/20 from the plates' own boxes; HTTPS is no
+longer on disk, so the corpus is two films). Numbers in `tests/fixtures/subject_craft_corpus.json`.
+
+| film | beat | subject | light range | rim | highlight | flat fill |
+|---|---|---|---|---|---|---|
+| GPS | 3 | satellite | 0.59 | 0.21 | 0.49 | 0.16 |
+| GPS | 5 | satellite | 0.58 | 0.21 | 0.53 | 0.08 |
+| GPS | 1 | phone | 0.46 | 0.05 | 0.26 | 0.61 |
+| GPS | 14 | map circle | 0.53 | 0.13 | 0.02 | 0.76 |
+| ANC | 8 | parts (Blender) | 0.44 | 0.24 | 0.04 | 0.63 |
+| ANC | 9 | earbud (Blender) | 0.12 | 0.18 | 0.05 | 0.75 |
+| ANC | 20 | tip seal (Blender) | 0.20 | 0.22 | 0.13 | 0.40 |
+| ANC | 11 | earbud section | 0.64 | 0.33 | 0.23 | 0.29 |
+
+**No measure separates the film the user found lacking from the one they found okay.** GPS's foil satellites are
+the most lit, highlighted and detailed subjects of either film; ANC's Blender plates are soft, low-contrast matte
+objects. So the GPS verdict is not about the subject's lighting. What the sketch sheet found on the same board — the
+hero small in a large dark frame on five beats — and the one dark ground repeated across thirteen of fifteen beats
+fit it better. THRESHOLDS stays empty: the tool REPORTS the hero's numbers (and fails a hero it cannot locate), and
+the judgement stays with the user. ANC's plates also show what "Apple-like" would add that they lack: a highlight
+(0.04-0.13) and a rim — the three-point rig of `blender/kit/stage.py product_rig` is aimed at exactly that.

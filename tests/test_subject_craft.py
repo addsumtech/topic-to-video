@@ -97,3 +97,31 @@ def test_a_box_given_on_the_command_line_locates_an_old_films_subject(tmp_path, 
     d = _film(tmp_path, [{"index": 1, "shot": "S"}])
     sc.main([d, "--beat", "1", "--box", "0.3,0.1,0.4,0.8"])
     assert "lum_range" in capsys.readouterr().out
+
+
+def test_a_full_hd_frame_is_measured_in_seconds():
+    import time
+    big = np.asarray(Image.fromarray((_lit_sphere() * 255).astype(np.uint8)).resize((1920, 1080)), float) / 255.0
+    m = sc.mask_from_box(big, (0, 0, 1920, 1080))
+    t = time.time()
+    res = sc.measure(big, m)
+    assert time.time() - t < 3.0 and res["lum_range"] > 0.3
+
+
+def test_no_measure_separates_the_films_the_user_judged_so_none_is_enforced():
+    """Calibration (spec D2): a threshold ships only if it fails GPS ("lacks beauty") and passes ANC ("okay"). On the
+    recorded corpus no measure puts every ANC subject above every GPS one — GPS's satellites score HIGHER on light
+    range, highlight and detail than ANC's plates — so THRESHOLDS stays empty and the tool reports. Adding a threshold
+    means re-measuring a corpus where one does separate."""
+    with open(os.path.join(_ROOT, "tests", "fixtures", "subject_craft_corpus.json"), encoding="utf-8") as fh:
+        c = json.load(fh)
+    for k in ("lum_range", "rim_sep", "highlight", "detail"):
+        assert not min(v[k] for v in c["anc"].values()) > max(v[k] for v in c["gps"].values()), k
+    assert not max(v["flat_share"] for v in c["anc"].values()) < min(v["flat_share"] for v in c["gps"].values())
+    assert sc.THRESHOLDS == {}
+
+
+def test_a_measured_hero_reports_and_passes_while_nothing_is_enforced(tmp_path, capsys):
+    sk = {"hero": "ball", "layout": [{"name": "ball", "rect": [0.3, 0.1, 0.4, 0.8], "hero": True}]}
+    d = _film(tmp_path, [{"index": 1, "shot": "S", "sketch": sk}], {"hero_moments": [1]})
+    assert sc.main([d]) == 0

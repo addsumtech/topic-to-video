@@ -776,6 +776,12 @@ the opacity cap — together these once let five PAID generated images ship cont
   (median coverage under shot_proof's 14 % line), one layout 3 beats running, a rect reaching into the caption band.
   Rects are fractions of the WHOLE frame. The user approves the sheet at 3.6 before any shot is built. Why: every
   composition problem on the ANC film was found by gates after fourteen shots were built.
+- `scripts/subject_craft_qa.py <out_dir> [--beat N --box x,y,w,h] [--json]` — the hero subject's light range, rim
+  separation, highlight, surface detail and flat-fill share on each `meta.hero_moments` beat's settled frame
+  (`_proof/beat_NN.png`; run shot_proof first). The subject is found from a plate's boxes, else the sketch's hero
+  rect, else `--box`, then cut to the pixels that differ from the ground. REPORT-ONLY: calibrated on GPS and ANC,
+  no measure separated the film the user found lacking from the one they found okay (craft-bar.md), so nothing is
+  enforced; a hero it cannot locate is NOT MEASURED and exits 1.
 - `scripts/progress.py <out_dir>` — one line: where a long step is (plates, the per-beat render, the delivery gates
   write `_progress.json` and a self-reloading `_progress.html` as they go), with an ETA from the items done so far.
   Why: the ANC render sat 1 h 35 min on one beat behind an empty, block-buffered log.

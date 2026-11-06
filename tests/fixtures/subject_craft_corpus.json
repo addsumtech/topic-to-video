@@ -1,0 +1,105 @@
+{
+ "note": "subject_craft_qa measures, 2026-11-06, settled proof frames; boxes eyeballed except ANC 8/9/20 (plate boxes). The user judged GPS 'lacks beauty', ANC 'okay'.",
+ "gps": {
+  "1": {
+   "lum_range": 0.457,
+   "rim_sep": 0.052,
+   "highlight": 0.261,
+   "detail": 0.011,
+   "flat_share": 0.608
+  },
+  "3": {
+   "lum_range": 0.588,
+   "rim_sep": 0.209,
+   "highlight": 0.486,
+   "detail": 0.029,
+   "flat_share": 0.155
+  },
+  "5": {
+   "lum_range": 0.579,
+   "rim_sep": 0.214,
+   "highlight": 0.526,
+   "detail": 0.025,
+   "flat_share": 0.081
+  },
+  "7": {
+   "lum_range": 0.533,
+   "rim_sep": 0.032,
+   "highlight": 0.754,
+   "detail": 0.029,
+   "flat_share": 0.431
+  },
+  "12": {
+   "lum_range": 0.676,
+   "rim_sep": 0.288,
+   "highlight": 0.633,
+   "detail": 0.005,
+   "flat_share": 0.338
+  },
+  "14": {
+   "lum_range": 0.525,
+   "rim_sep": 0.129,
+   "highlight": 0.017,
+   "detail": 0.0,
+   "flat_share": 0.763
+  }
+ },
+ "anc": {
+  "8": {
+   "lum_range": 0.435,
+   "rim_sep": 0.241,
+   "highlight": 0.044,
+   "detail": 0.004,
+   "flat_share": 0.625
+  },
+  "9": {
+   "lum_range": 0.123,
+   "rim_sep": 0.181,
+   "highlight": 0.046,
+   "detail": 0.003,
+   "flat_share": 0.748
+  },
+  "20": {
+   "lum_range": 0.199,
+   "rim_sep": 0.218,
+   "highlight": 0.132,
+   "detail": 0.003,
+   "flat_share": 0.398
+  },
+  "11": {
+   "lum_range": 0.642,
+   "rim_sep": 0.334,
+   "highlight": 0.226,
+   "detail": 0.003,
+   "flat_share": 0.289
+  },
+  "13": {
+   "lum_range": 0.545,
+   "rim_sep": 0.333,
+   "highlight": 0.228,
+   "detail": 0.002,
+   "flat_share": 0.279
+  },
+  "5": {
+   "lum_range": 0.603,
+   "rim_sep": 0.294,
+   "highlight": 0.225,
+   "detail": 0.006,
+   "flat_share": 0.228
+  },
+  "1": {
+   "lum_range": 0.197,
+   "rim_sep": 0.167,
+   "highlight": 0.528,
+   "detail": 0.015,
+   "flat_share": 0.767
+  },
+  "7": {
+   "lum_range": 0.627,
+   "rim_sep": 0.472,
+   "highlight": 0.361,
+   "detail": 0.0,
+   "flat_share": 0.082
+  }
+ }
+}
