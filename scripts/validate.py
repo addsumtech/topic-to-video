@@ -2705,6 +2705,84 @@ def _through_object(meta, slides):
             "identity across the cut" % (t["name"], ", ".join(loose))]
 
 
+# ── SKETCH BEFORE BUILD (spec 2026-11-06 B) ──────────────────────────────────────────────────────────────────────
+# On the ANC film every composition problem (titles at the top, labels in the caption band, no light arc) was found
+# by gates AFTER fourteen shots were built. Kurzgesagt settles each scene's visual metaphor in a sketching phase
+# before illustration. Each remotion beat carries `slide.sketch` {metaphor, hero, layout, camera, environment,
+# carries?}; scripts/sketch_sheet.py draws them as greyboxes the user approves before any shot is built.
+SKETCH_LAYOUT_MIN, SKETCH_LAYOUT_MAX = 2, 6
+HERO_MOMENTS_FROM = 8        # a film this long names its showpiece frames
+HERO_MOMENTS_MAX = 3
+
+
+def _sketch_one(n, sk):
+    """Problems with one beat's sketch, each naming the beat."""
+    if not isinstance(sk, dict):
+        return ["sketch: beat %d: slide.sketch must be {metaphor, hero, layout, camera, environment}" % n]
+    out = []
+    for f in ("metaphor", "hero"):
+        if not str(sk.get(f) or "").strip():
+            out.append("sketch: beat %d has no %s — %s" % (n, f, "what the picture stands for, in one sentence"
+                                                              if f == "metaphor" else "the ONE thing the eye lands on"))
+    lay = sk.get("layout")
+    if not isinstance(lay, list) or not SKETCH_LAYOUT_MIN <= len(lay) <= SKETCH_LAYOUT_MAX:
+        out.append("sketch: beat %d: the layout needs %d-%d named rects, got %s" % (
+            n, SKETCH_LAYOUT_MIN, SKETCH_LAYOUT_MAX, len(lay) if isinstance(lay, list) else "none"))
+        return out
+    heroes = 0
+    for r in lay:
+        name = str((r or {}).get("name") or "?") if isinstance(r, dict) else "?"
+        rect = r.get("rect") if isinstance(r, dict) else None
+        ok = (isinstance(rect, (list, tuple)) and len(rect) == 4 and all(isinstance(x, (int, float)) for x in rect))
+        if not ok:
+            out.append("sketch: beat %d: rect %r must be [x, y, w, h] in content-zone fractions" % (n, name))
+            continue
+        x, y, w, h = rect
+        if w <= 0 or h <= 0 or x < 0 or y < 0 or x + w > 1.0001 or y + h > 1.0001:
+            out.append("sketch: beat %d: rect %r %s runs outside the content zone (0..1)" % (n, name, list(rect)))
+        heroes += bool(r.get("hero"))
+    if heroes != 1:
+        out.append("sketch: beat %d: the layout marks %d heroes — a frame has one hero" % (n, heroes))
+    return out
+
+
+def _sketch_problems(meta, slides, tier, kept=frozenset()):
+    """(errors, warnings) for the sketches and the film's hero moments. Remotion only; a supplied slide
+    (`type: slide`) has no picture to plan, and a beat the user kept (`--keep-design`) keeps its old design."""
+    if tier != "remotion":
+        return [], []
+    errs, warns = [], []
+    beats = [(s.get("index", pos), s) for pos, s in enumerate(slides, 1)
+             if isinstance(s, dict) and s.get("type") != "slide"]
+    missing = [n for n, s in beats if "sketch" not in s and n not in kept]
+    if missing and len(missing) == len([n for n, _s in beats if n not in kept]) and len(missing) > 1:
+        errs.append("sketch: SKETCH BEFORE BUILD — none of the film's %d beats has a slide.sketch — the design-director writes "
+                    "one per beat at 3.6 (metaphor, hero, layout) and the user approves scripts/sketch_sheet.py's "
+                    "sheet before any shot is built. An older film the user keeps as it is: validate.py <out_dir> "
+                    "--keep-design \"<their words>\"" % len(missing))
+    else:
+        errs.extend("sketch: beat %d has no slide.sketch — sketch it (metaphor, hero, layout) and show the sheet before building"
+                    % n for n in missing)
+    for n, s in beats:
+        if "sketch" in s:
+            errs.extend(_sketch_one(n, s["sketch"]))
+    hm = meta.get("hero_moments")
+    on_board = {n for n, _s in beats}
+    if hm is None:
+        if len(beats) >= HERO_MOMENTS_FROM:
+            warns.append("sketch: meta.hero_moments is not set: a film of %d beats names 1-%d showpiece frames — the ones meant "
+                         "to stop the viewer — and gives them the budget (references/craft-bar.md)"
+                         % (len(beats), HERO_MOMENTS_MAX))
+    elif (not isinstance(hm, list) or not 1 <= len(hm) <= HERO_MOMENTS_MAX
+          or not all(isinstance(b, int) for b in hm)):
+        errs.append("sketch: meta.hero_moments must list 1-%d beat numbers, got %r" % (HERO_MOMENTS_MAX, hm))
+    else:
+        off = [b for b in hm if b not in on_board]
+        if off:
+            errs.append("sketch: meta.hero_moments names beat(s) %s, which are not on the board" % ", ".join(map(str, off)))
+    return errs, warns
+
+
 SLIDE_TITLE_SHARE = 0.4      # a header title on this share of the designed beats reads as a deck played back
 
 
@@ -5154,6 +5232,13 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         warnings.extend(_slide_titles(meta, slides))
         warnings.extend(_through_object(meta, slides))
         errors.extend(_audio_demo_problems(slides, out_dir))
+        try:
+            _kept = design_first_keep(meta, slides, "remotion", out_dir)[0]
+        except Exception:                                    # noqa: BLE001 — a bad keep record is _design_first's
+            _kept = set()
+        _sk_e, _sk_w = _sketch_problems(meta, slides, "remotion", kept=_kept)
+        errors.extend(_sk_e)
+        warnings.extend(_sk_w)
         _check_build(meta, slides, errors, warnings, out_dir, skips=skips)
         _design_first(meta, slides, errors, warnings, out_dir, "remotion")
         _shot_truncation(meta, slides, errors, warnings)

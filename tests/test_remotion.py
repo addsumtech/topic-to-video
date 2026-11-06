@@ -23,8 +23,9 @@ def _deck(n=6):
 def _ok(r):
     """No errors OTHER than the design-first floor. `_deck` is a minimal board of library registers used as-is,
     which validate._design_share refuses by design (tests/test_design_first.py owns that rule); the tests that
-    call this are about other gates and must stay judged on those alone."""
-    return not [e for e in r["errors"] if not e.startswith("design-first:")]
+    call this are about other gates and must stay judged on those alone. The same holds for the sketch rule
+    (tests/test_sketch_rules.py owns it): `_deck` carries no `slide.sketch`."""
+    return not [e for e in r["errors"] if not e.startswith(("design-first:", "sketch:"))]
 
 
 def test_shotluma_covers_all_shots():
@@ -177,7 +178,7 @@ def test_valid_deck_passes():
     # structurally valid — its ONLY errors are the design-first floor, since every beat is a register as-is
     r = v.evaluate(_deck(6), "/tmp")
     assert _ok(r), r["errors"]
-    assert r["errors"] and all(e.startswith("design-first:") for e in r["errors"]), r["errors"]
+    assert r["errors"] and all(e.startswith(("design-first:", "sketch:")) for e in r["errors"]), r["errors"]
     assert r["scenes"] == 6
 
 

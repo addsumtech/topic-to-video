@@ -252,6 +252,10 @@ def test_validate_accepts_the_world_stage_board_the_reach_describes():
     assert any(n.get("stage") == "WorldStage" for n in probe["slides"][0]["shot_fit"]["reach"])
     for sl in slides[1:]:                                   # the director keeps the reach record beside its route
         sl["shot_fit"]["reach"] = probe["slides"][0]["shot_fit"]["reach"]
+    for sl in slides:                                       # a complete board is sketched before it is built
+        sl["sketch"] = {"metaphor": "one journey across scales", "hero": "earth", "camera": "hold",
+                        "environment": "space", "layout": [{"name": "earth", "rect": [0.3, 0.2, 0.4, 0.5], "hero": True},
+                                                           {"name": "label", "rect": [0.72, 0.3, 0.2, 0.08]}]}
     r = validate.evaluate(board, tempfile.mkdtemp())
     assert r["ok"] and not r["errors"], r["errors"]
     # and the same run with a camera that frames nothing is refused, by the world check, before any render

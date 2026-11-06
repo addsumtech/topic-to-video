@@ -2510,7 +2510,8 @@ def test_the_idiom_world_gate_actually_refuses_the_wrong_world():
 
     def errs(b):
         # the design-first floor (tests/test_design_first.py) is a different rule over the same minimal board
-        return [e for e in v.evaluate(b, "/tmp")["errors"] if not e.startswith("design-first:")]
+        # (and the sketch rule, tests/test_sketch_rules.py)
+        return [e for e in v.evaluate(b, "/tmp")["errors"] if not e.startswith(("design-first:", "sketch:"))]
 
     assert not errs(board()), errs(board())
 
@@ -2561,7 +2562,7 @@ def test_every_beat_must_name_a_form_the_film_derived():
             mutate(b)
         return b
 
-    assert not [e for e in v.evaluate(board(), "/tmp")["errors"] if not e.startswith("design-first:")]
+    assert not [e for e in v.evaluate(board(), "/tmp")["errors"] if not e.startswith(("design-first:", "sketch:"))]
 
     def drop(b):
         del b["slides"][2]["shot_fit"]["form"]
