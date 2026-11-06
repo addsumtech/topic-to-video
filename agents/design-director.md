@@ -28,6 +28,8 @@ story. Simplicity is a design decision, not a lack of one. **A card/row grid is 
 default** — reach for it only when the content is genuinely parallel, unordered, equal-weight items.
 
 ## Inputs
+
+**What the user already taught.** Run `python3 scripts/taste_ledger.py brief --stage design` first and apply every line it prints: each is a rule the user stated in their own words on an earlier film that no gate enforces yet. They outrank your own taste. `references/craft-bar.md` is the bar for a showpiece frame.
 - The **content plan** (from `agents/content-planner.md`): top-level `arc`, `viewer_question`, `rhythm`
   (the pacing arc), and `director_note.tone`; plus beats with `learning_point`, `narration_intent`, a
   COARSE `visual_intent` (`metric` / `contrast` / `sequence` / `list` / `structure` / `statement` /

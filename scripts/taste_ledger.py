@@ -65,7 +65,9 @@ def _save(data, path):
 
 def _slug(text):
     s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-    return s[:48].rstrip("-") or "rule"
+    if len(s) > 48:                                   # cut on a word: "...its-own-subje" names nothing
+        s = s[:49].rsplit("-", 1)[0] if "-" in s[:49] else s[:48]
+    return s.rstrip("-") or "rule"
 
 
 def add(said, rule, stage, film=None, gate=None, path=None):
@@ -114,6 +116,68 @@ def brief(stage, path=None):
     return [e["rule"] for e in active(path, stage)]
 
 
+# Where an answer's artifact may sit: the film's own sheets, proofs and frames — never the segment cache or audio.
+_PIN_SKIP_DIRS = {".remotion_segments", "audio", "node_modules", ".assets", "frames"}
+WAIVER_NAME = "taste_ledger"                         # meta.delivery_waivers key, as deliver.py and --final read it
+
+
+def _board_meta(out_dir):
+    try:
+        with open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8") as fh:
+            return (json.load(fh) or {}).get("meta") or {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _film_shas(out_dir, depth=2):
+    import hashlib
+    out = set()
+    base = os.path.abspath(out_dir)
+    for root, dirs, files in os.walk(base):
+        rel = os.path.relpath(root, base)
+        dirs[:] = [d for d in dirs if d not in _PIN_SKIP_DIRS and (rel == "." or rel.count(os.sep) < depth - 1)]
+        for f in files:
+            if f == "storyboard.json":
+                continue
+            h = hashlib.sha256()
+            with open(os.path.join(root, f), "rb") as fh:
+                for chunk in iter(lambda: fh.read(1 << 20), b""):
+                    h.update(chunk)
+            out.add(h.hexdigest())
+    return out
+
+
+def waived(out_dir):
+    """The user's reason when they waived the taste check by name (meta.delivery_waivers), else None."""
+    v = (_board_meta(out_dir).get("delivery_waivers") or {}).get(WAIVER_NAME)
+    return v.strip() if isinstance(v, str) and v.strip() else None
+
+
+def check(out_dir, path=None):
+    """One problem per ACTIVE rule this film has not answered. An answer is `meta.taste_review[<id>] = {answer,
+    sha256}`, the sha256 of a file of THIS film the rule was judged on (the sketch sheet, a proof frame) — the same
+    pin the review ledger requires, so an answer cannot be written without looking at something."""
+    rules = active(path)
+    if not rules:
+        return []
+    answers = _board_meta(out_dir).get("taste_review") or {}
+    shas = None
+    probs = []
+    for e in rules:
+        a = answers.get(e["id"]) if isinstance(answers, dict) else None
+        if not isinstance(a, dict) or not str(a.get("answer") or "").strip():
+            probs.append("taste rule %s is unanswered for this film — %s (the user said: %s). Judge it on the "
+                         "picture and record meta.taste_review[%r] = {answer, sha256 of the file you judged}"
+                         % (e["id"], e["rule"], e["said"], e["id"]))
+            continue
+        if shas is None:
+            shas = _film_shas(out_dir)
+        if str(a.get("sha256") or "").strip().lower() not in shas:
+            probs.append("taste rule %s's answer pins sha256 %s, and no file of this film has it — pin the sheet or "
+                         "frame it was judged on" % (e["id"], str(a.get("sha256") or "")[:12] or "(empty)"))
+    return probs
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description="The user's taught taste rules")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -129,6 +193,8 @@ def main(argv):
     r.add_argument("--gate", required=True)
     b = sub.add_parser("brief")
     b.add_argument("--stage", required=True, choices=STAGES)
+    c = sub.add_parser("check")
+    c.add_argument("out_dir")
     args = ap.parse_args(argv)
     try:
         if args.cmd == "add":
@@ -146,6 +212,14 @@ def main(argv):
             print("[taste] %d taught rule(s) for the %s stage — apply every one:" % (len(lines), args.stage))
             for line in lines:
                 print("  - " + line)
+        elif args.cmd == "check":
+            why = waived(args.out_dir)
+            probs = [] if why else check(args.out_dir)
+            for p in probs:
+                print("[taste] " + p)
+            print("[taste] %s" % ("waived by the user: " + why if why else
+                                  "%d unanswered taught rule(s)" % len(probs) if probs else "every taught rule answered"))
+            return 1 if probs else 0
     except (LedgerError, KeyError, ValueError) as e:
         print("[taste] " + str(e).strip("'\""), file=sys.stderr)
         return 1

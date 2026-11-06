@@ -23,6 +23,8 @@ description: "Reviews a rendered Remotion-tier topic-to-video film shot by shot.
 
 ## START HERE — and do not re-derive what is already decided
 
+**What the user already taught.** Run `python3 scripts/taste_ledger.py brief --stage render` first and apply every line it prints: each is a rule the user stated in their own words on an earlier film that no gate enforces yet. They outrank your own taste. `references/craft-bar.md` is the bar for a showpiece frame.
+
 Run `python3 scripts/critic_brief.py <out_dir>`, then read **`<out_dir>/_critic_brief.md`** and
 **`<out_dir>/_contact_sheet.png`**. The brief carries every machine verdict already run, the whole film as
 ONE image, the catalogue entries for only the registers this film uses, and the repetition/family/growth

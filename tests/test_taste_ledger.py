@@ -79,3 +79,8 @@ def test_cli_add_list_brief(ledger, capsys):
                     "--stage", "design"]) == 0
     assert tl.main(["brief", "--stage", "design"]) == 0
     assert "every element decodable" in capsys.readouterr().out
+
+
+def test_a_long_rule_id_ends_on_a_whole_word(ledger):
+    e = tl.add("x", "each beat's environment comes from its own subject, never one decorative world", "design")
+    assert e["id"] == "each-beat-s-environment-comes-from-its-own" and len(e["id"]) <= 48

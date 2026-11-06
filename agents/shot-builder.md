@@ -11,6 +11,8 @@ description: "Builds an assigned set of a Remotion film's own shots, in parallel
 > theirs at the same moment, in the same workshop.
 
 ## What you are given
+
+**What the user already taught.** Run `python3 scripts/taste_ledger.py brief --stage build` first and apply every line it prints: each is a rule the user stated in their own words on an earlier film that no gate enforces yet. They outrank your own taste. `references/craft-bar.md` is the bar for a showpiece frame.
 - `out_dir`, your builder name (`b1`, `b2`, …) and the list of shots you OWN, with the beats each one renders.
 - The board (`storyboard.json`): each beat's `shot_fit.ideal` / `form` / `composition`, narration intent, `relation`,
   and the evidence its numbers come from (`brief.json`). **Read it; never write it.**

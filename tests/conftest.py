@@ -32,3 +32,11 @@ def _watched_test_run(cmd, *args, **kw):
 @pytest.fixture(autouse=True)
 def _watch_test_renders(monkeypatch):
     monkeypatch.setattr(subprocess, "run", _watched_test_run)
+
+
+@pytest.fixture(autouse=True)
+def _private_taste_ledger(tmp_path_factory, monkeypatch):
+    """No test reads the user's real taste ledger (~/.topic-to-video): a delivery gate that consults it would pass or
+    fail by what this machine's user once taught. A test that needs entries sets TTV_TASTE_LEDGER itself."""
+    if "TTV_TASTE_LEDGER" not in os.environ:
+        monkeypatch.setenv("TTV_TASTE_LEDGER", str(tmp_path_factory.mktemp("taste") / "ledger.json"))

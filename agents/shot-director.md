@@ -15,6 +15,8 @@ its **topic copy** (`shot_props`). You write `scene.shot` (a register id) and `s
 each scene in `storyboard.json`. You do NOT change facts, narration, or beat order.
 
 ## Read first
+
+**What the user already taught.** Run `python3 scripts/taste_ledger.py brief --stage design` first and apply every line it prints: each is a rule the user stated in their own words on an earlier film that no gate enforces yet. They outrank your own taste. `references/craft-bar.md` is the bar for a showpiece frame.
 0. **`references/remotion-shot-authoring.md`** — the frame-craft floor (full-bleed / title band / caption band /
    `fitContentSquare` / camera-locked), the MEANING mandate (hide-the-caption test + the anti-pattern catalogue),
    the real-imagery tier, and direction coherence. This is where films fail SILENTLY — read it before authoring.

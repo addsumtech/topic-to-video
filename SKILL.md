@@ -63,6 +63,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   Run it after ingest and BEFORE the shot-director. It never overwrites an authored DNA without `--force` and fails
   loudly when there is nothing to derive from. The html tier's `theme.py` is untouched.
 
+- `scripts/taste_ledger.py add|list|retire|brief|check`: what the user taught about taste, in their words, kept OUTSIDE this public repo (`~/.topic-to-video/taste-ledger.json`). Directors read `brief --stage S`; when the user corrects a design, `add` it (their words verbatim) before fixing the film; `retire` it once a gate enforces it. `critic_ledger --final` refuses a film while an active rule has no `meta.taste_review` answer pinned to a file of the film (a user waiver by name, `meta.delivery_waivers.taste_ledger`, passes it).
+
 **Imagery**
 - `scripts/imagegen.py <out_dir> [--key KEY]`: OPTIONAL **paid** step. Generates AI atmosphere art for scenes carrying
   an `image_prompt`, cached under `.assets/`. It acts only when `meta.image_source == "openai"` (`meta.image_provider`

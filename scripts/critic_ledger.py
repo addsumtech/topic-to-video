@@ -1159,6 +1159,28 @@ NOT_APPLICABLE = ("this film has no authored page — the 原样配音 tier (eve
 
 
 def validate(out_dir, final=False):
+    errs, warns = _validate(out_dir, final)
+    if final and NOT_APPLICABLE not in errs:
+        t_errs, t_warns = _taste_problems(out_dir)
+        errs, warns = errs + t_errs, warns + t_warns
+    return errs, warns
+
+
+def _taste_problems(out_dir):
+    """--final: every ACTIVE rule the user taught (scripts/taste_ledger.py) is answered on this film's own picture, or
+    the user waived the check by name (meta.delivery_waivers {"taste_ledger": reason}). A waiver of the REVIEW does
+    not waive this: the rules are the user's own words, not a critic's taste."""
+    import taste_ledger as _tl
+    why = _tl.waived(out_dir)
+    if why:
+        return [], ["taste rules WAIVED by the user for this film: %s" % why]
+    try:
+        return _tl.check(out_dir), []
+    except _tl.LedgerError as e:
+        return [str(e)], []
+
+
+def _validate(out_dir, final=False):
     errs, warns = [], []
     if film_tier(out_dir) is None:
         # Not a pass: a gate that has nothing to check says so as an ERROR, so no caller can read silence as a review

@@ -761,6 +761,14 @@ the opacity cap — together these once let five PAID generated images ship cont
   `tts.py` appends it after the beat's voice and before the pause that ends it, at its own level (not ducked), and
   records `at_s` / `switch_s` on the board for the picture to time to. validate ERRORs on a missing clip or one whose
   sidecar does not say where it came from. Why: the ANC film explained noise cancelling for 157 s and played none of it.
+- `scripts/taste_ledger.py add --said "<the user's words>" --rule "<the rule>" --stage plan|design|build|render` (also `list`, `retire <id> --gate G`, `brief --stage S`, `check <out_dir>`) — what the user taught about taste.
+  The file is `~/.topic-to-video/taste-ledger.json` (`TTV_TASTE_LEDGER` overrides; the test suite always points it
+  at a temp file), never this repo: it quotes the user. An entry is RETIRED once a gate enforces it, so the briefs
+  carry only taught-but-ungated taste. `check` (and `critic_ledger --final`) names each active rule without a
+  `meta.taste_review[<id>] = {answer, sha256}` answer whose sha256 is a file of this film; a corrupt ledger is an
+  error naming the file, never an empty ledger. Waive by name: `meta.delivery_waivers.taste_ledger`. Why: every
+  design correction so far came from the user (header titles, a landscape behind a satellite, a red palette for
+  satellites, wireframe 3D) and nothing carried the next mistake of the same kind.
 - `scripts/progress.py <out_dir>` — one line: where a long step is (plates, the per-beat render, the delivery gates
   write `_progress.json` and a self-reloading `_progress.html` as they go), with an ETA from the items done so far.
   Why: the ANC render sat 1 h 35 min on one beat behind an empty, block-buffered log.
