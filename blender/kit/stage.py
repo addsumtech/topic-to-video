@@ -59,14 +59,18 @@ def _bounds(obj):
 KEY_E, FILL_E, RIM_E = 3.0, 0.7, 12.0
 
 
-def product_rig(subject, cam, key_az=35, rim_strength=1.0):
+def product_rig(subject, cam, key_az=35, rim_strength=1.0, exposure=1.0):
     """The craft bar's product light around `subject`, placed from the CAMERA (references/craft-bar.md): a soft key
     in front and to one side, a fill low on the other, and a rim BEHIND the subject that traces its silhouette. The rim
     is light-linked to the subject alone, so it never lifts the floor or the background — the reason product films
     use light linking at all. Sizes and energies scale with the subject. Returns {key, fill, rim} light objects.
 
     Measured why (2026-11-06): ANC's plates were soft matte objects with almost no highlight (0.04-0.13) and the
-    subject_craft numbers of a flat pass."""
+    subject_craft numbers of a flat pass.
+
+    `exposure` scales every light alike, keeping the balance: the energies were tuned on a mid-grey sphere, and a
+    near-black subject (a switch housing, albedo ~0.03) under the same light rendered as a silhouette with black sides —
+    a photographer lights a dark product harder, not differently."""
     import math
     centre, size = _bounds(subject)
     to_cam = cam.matrix_world.translation - centre
@@ -84,7 +88,7 @@ def product_rig(subject, cam, key_az=35, rim_strength=1.0):
     rig = {}
     for name, (offset, watts, soft) in spots.items():
         data = bpy.data.lights.new("rig_" + name, "AREA")
-        data.energy = watts * (size * offset.length) ** 2
+        data.energy = exposure * watts * (size * offset.length) ** 2
         data.size = soft * size
         obj = bpy.data.objects.new("rig_" + name, data)
         bpy.context.scene.collection.objects.link(obj)

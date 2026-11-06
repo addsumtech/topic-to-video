@@ -63,6 +63,11 @@ coll = rim.light_linking.receiver_collection
 out = {k: list(v.location) for k, v in rig.items()}
 out["rim_receivers"] = sorted(o.name for o in coll.all_objects) if coll else None
 out["types"] = {k: v.data.type for k, v in rig.items()}
+e1 = {k: v.data.energy for k, v in rig.items()}
+for o in list(bpy.data.objects):
+    if o.name.startswith("rig_"): bpy.data.objects.remove(o)
+rig4 = stage.product_rig(cube, cam, exposure=4.0)
+out["ratio"] = {k: rig4[k].data.energy / e1[k] for k in e1}
 print("RIG " + json.dumps(out))
 """
 
@@ -80,3 +85,4 @@ def test_product_rig_rims_the_subject_only_from_behind():
     assert rig["rim"][1] > 0 > rig["key"][1]                       # rim behind the subject, key in front (camera at -y)
     assert rig["key"][0] * rig["fill"][0] < 0                      # key and fill on opposite sides
     assert set(rig["types"].values()) <= {"AREA", "SPOT", "POINT"}
+    assert all(abs(r - 4.0) < 1e-6 for r in rig["ratio"].values())   # a dark subject gets more light, same balance
