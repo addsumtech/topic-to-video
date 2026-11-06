@@ -102,7 +102,9 @@ beauty" anchor), films/https (line-drawn subjects, median ink 7.0 %), ~/code_pro
 ## G. Proof: one new film
 - One new film through the full pipeline, exercising A-F: sketch sheet approved before building, 1-3 hero moments, a
   tracked object handed across beats with an environment that answers it, a lit subject, real-use beats, F2 camera.
-  Topic: the user's pick. Acceptance is the user's look; alongside it, measured against ANC with the same
+  Topic (the user's pick, 2026-11-06): 机械键盘为什么好按 — why a mechanical keyboard feels good to press — narrated
+  in Chinese. The switch is the lit hero (macro on the stem, spring and contact leaf); an object hopping across the
+  keycaps that press as it lands is C2's proof; a typing UI rebuilt natively is the real-use beat. Acceptance is the user's look; alongside it, measured against ANC with the same
   instruments: craft_qa, subject_craft_qa on the heroes, jitter_qa 0 ERROR, sketch findings 0 at build.
 - Every new check is run over GPS, HTTPS and ANC before it ships (a measurement change is diffed on a corpus).
 
