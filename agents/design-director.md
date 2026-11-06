@@ -123,6 +123,23 @@ A SEPARATE artifact from the content plan (the assistant merges the two into the
   is line-final") so the page author sets an explicit `animation-duration`. `validate.py` ERRORs on
   a cued animation under ~90% complete at the cut.
 
+## Sketch every beat BEFORE anything is built (remotion tier)
+For each beat write `slide.sketch` and for the film `meta.hero_moments`, then run
+`python3 scripts/sketch_sheet.py <out_dir>` and show `_sketch_review.png` (it lands on the Desktop) at the 3.6
+checkpoint. The user approves the sheet before any shot is built; the built `_design_review.png` is the second look.
+```json
+"sketch": {"metaphor": "ONE sentence: what the picture stands for (the switch is a tiny spring-loaded gate)",
+           "hero": "the ONE thing the eye lands on", 
+           "layout": [{"name": "switch", "rect": [0.30, 0.20, 0.40, 0.50], "hero": true},
+                      {"name": "label", "rect": [0.72, 0.30, 0.20, 0.08]}],
+           "camera": "hold | push | pull | reveal | macro | context",
+           "environment": "where the subject actually is (from the subject, never one world for the film)",
+           "carries": "the through-object it inherits from the previous beat (optional)"}
+```
+Rects are fractions of the whole frame, 2-6 of them, exactly one hero; keep every rect out of the shaded caption band (the sheet names one that reaches into it).
+`meta.hero_moments`: 1-3 beat numbers — the frames meant to stop the viewer (references/craft-bar.md); they get the
+budget (a Blender plate, a lit material, the hero camera). validate refuses a remotion beat with no sketch.
+
 ## Concept → form (reason from the data relationship — never map page-type to a template)
 Read the content's coarse intent (and the idea itself) and name its **data relationship** — order / magnitude /
 part-whole / two-axes / time / causality / structure / one-claim — then choose the form that SAYS it. The ONE

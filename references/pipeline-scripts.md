@@ -769,6 +769,13 @@ the opacity cap — together these once let five PAID generated images ship cont
   error naming the file, never an empty ledger. Waive by name: `meta.delivery_waivers.taste_ledger`. Why: every
   design correction so far came from the user (header titles, a landscape behind a satellite, a red palette for
   satellites, wireframe 3D) and nothing carried the next mistake of the same kind.
+- `scripts/sketch_sheet.py <out_dir> [--no-desktop]` — every remotion beat's `slide.sketch` as a greybox tile
+  (PIL, seconds): ground, the aspect's caption band shaded, the hero dark, the other rects as named tone blocks, the
+  camera intent; the metaphor under each tile; `meta.through_object` as a ribbon. Writes `_sketch_review.png` and a
+  copy on the Desktop; exit 1 with findings: a beat with no sketch, a hero under 12 % of the frame, a sparse film
+  (median coverage under shot_proof's 14 % line), one layout 3 beats running, a rect reaching into the caption band.
+  Rects are fractions of the WHOLE frame. The user approves the sheet at 3.6 before any shot is built. Why: every
+  composition problem on the ANC film was found by gates after fourteen shots were built.
 - `scripts/progress.py <out_dir>` — one line: where a long step is (plates, the per-beat render, the delivery gates
   write `_progress.json` and a self-reloading `_progress.html` as they go), with an ETA from the items done so far.
   Why: the ANC render sat 1 h 35 min on one beat behind an empty, block-buffered log.

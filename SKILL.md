@@ -65,6 +65,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 
 - `scripts/taste_ledger.py add|list|retire|brief|check`: what the user taught about taste, in their words, kept OUTSIDE this public repo (`~/.topic-to-video/taste-ledger.json`). Directors read `brief --stage S`; when the user corrects a design, `add` it (their words verbatim) before fixing the film; `retire` it once a gate enforces it. `critic_ledger --final` refuses a film while an active rule has no `meta.taste_review` answer pinned to a file of the film (a user waiver by name, `meta.delivery_waivers.taste_ledger`, passes it).
 
+- `scripts/sketch_sheet.py <out_dir>`: the remotion tier's picture BEFORE building — each beat's `slide.sketch`
+  (metaphor, one hero, 2-6 rects in frame fractions, camera, environment) as greyboxes in `_sketch_review.png` on the
+  Desktop, with findings (no sketch, small hero, sparse, repeated layout, caption band). The user approves it at 3.6.
+
 **Imagery**
 - `scripts/imagegen.py <out_dir> [--key KEY]`: OPTIONAL **paid** step. Generates AI atmosphere art for scenes carrying
   an `image_prompt`, cached under `.assets/`. It acts only when `meta.image_source == "openai"` (`meta.image_provider`
@@ -944,7 +948,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      continuity through-line) AND the design plan (**motif** + theme palette + per-beat forms), and get
      the user's OK before authoring narration. **On the remotion tier the design plan is SHOWN as
      `_design_review.png` (3.6 ④, on the Desktop)** — the user judges composition, type and the subject on the
-     picture; a list of form names is not a design they can approve. If the user changes the register/style HERE (after a
+     picture; a list of form names is not a design they can approve. **Before that, and before any shot is built, the user approves
+     `_sketch_review.png`** (`scripts/sketch_sheet.py`: each beat's `slide.sketch` as a greybox — metaphor, the one
+     hero, the layout; validate refuses a remotion beat with no sketch). If the user changes the register/style HERE (after a
      contest), re-record `register_contest.winner` (`user_pick: true`) to match — the committed
      register and the recorded winner must agree.
 4. **Write the manuscript — dispatch `agents/scriptwriter.md` (the WRITE specialist).** Give it

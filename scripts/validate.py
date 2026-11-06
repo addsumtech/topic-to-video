@@ -2735,11 +2735,11 @@ def _sketch_one(n, sk):
         rect = r.get("rect") if isinstance(r, dict) else None
         ok = (isinstance(rect, (list, tuple)) and len(rect) == 4 and all(isinstance(x, (int, float)) for x in rect))
         if not ok:
-            out.append("sketch: beat %d: rect %r must be [x, y, w, h] in content-zone fractions" % (n, name))
+            out.append("sketch: beat %d: rect %r must be [x, y, w, h] in fractions of the frame" % (n, name))
             continue
         x, y, w, h = rect
         if w <= 0 or h <= 0 or x < 0 or y < 0 or x + w > 1.0001 or y + h > 1.0001:
-            out.append("sketch: beat %d: rect %r %s runs outside the content zone (0..1)" % (n, name, list(rect)))
+            out.append("sketch: beat %d: rect %r %s runs outside the frame (0..1)" % (n, name, list(rect)))
         heroes += bool(r.get("hero"))
     if heroes != 1:
         out.append("sketch: beat %d: the layout marks %d heroes — a frame has one hero" % (n, heroes))

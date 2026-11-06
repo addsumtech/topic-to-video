@@ -59,3 +59,11 @@ this skill come from our OWN films (GPS, HTTPS, ANC), never from these pages.
 - Negative space — https://www.studiobinder.com/camera-shots/composition/negative-space-in-film/
 
 ## Calibration (filled in as each check is measured on GPS / HTTPS / ANC)
+
+### Sketch sheet on the GPS board (2026-11-06)
+GPS sketches were back-filled by eye from its `_design_review.png` (rects are estimates, ±5 % of the frame), then
+`sketch_sheet.py` was run: 6 findings. Five are hero size — the phone in beat 1 (6 %), the flash-to-bang bars (10 %),
+the phone clock (10 %), the fix point (4 %) and the closing title (10 %) — beats whose subject sits small in a large
+dark frame, which fits the user's "lacks beauty" verdict. The sixth (beat 12's clock reaching the caption band at 82 %)
+is an artefact of eyeballing: the built frame passed keyframe_qa. HERO_MIN (12 %) is set from this one board and has
+NOT been checked against ANC; it stays a sheet finding for the user to judge, never a delivery gate.
