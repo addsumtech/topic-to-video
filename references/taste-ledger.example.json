@@ -1,0 +1,11 @@
+{
+ "version": 1,
+ "entries": [
+  {"id": "environment-per-beat-from-its-subject", "said": "<the user's words, verbatim>",
+   "rule": "environment per beat from its subject", "stage": "design", "film": "<film>",
+   "date": "2026-11-06", "status": "active", "gate": null},
+  {"id": "no-header-title-per-beat", "said": "<the user's words, verbatim>",
+   "rule": "no header title per beat", "stage": "design", "film": "<film>",
+   "date": "2026-11-05", "status": "retired", "gate": "validate SLIDE TITLES"}
+ ]
+}
