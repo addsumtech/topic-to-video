@@ -86,3 +86,9 @@ def test_validate_knows_the_hero_moves():
          "audio": "a.mp3"}]}
     r = v.evaluate(board, "/tmp")
     assert not any("silently drop" in m for m in r["errors"] + r["warnings"]), r["errors"] + r["warnings"]
+
+
+def test_a_hero_layer_can_move_about_its_own_point():
+    src = open(os.path.join(_ROOT, "remotion", "src", "runtime", "heroCamera.tsx"), encoding="utf-8").read()
+    assert "export const useHeroLayer = (depth: number, origin: [number, number] = [0.5, 0.5])" in src
+    assert "transformOrigin: `${origin[0] * 100}% ${origin[1] * 100}%`" in src

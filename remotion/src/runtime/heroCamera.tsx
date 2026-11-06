@@ -57,14 +57,15 @@ const useBeatT = () => {
   return clamp01(frame / Math.max(1, dur));
 };
 
-/** A shot's layer at `depth` under the beat's hero move: a style to spread on its wrapper (identity on other beats). */
-export const useHeroLayer = (depth: number): React.CSSProperties => {
+/** A shot's layer at `depth` under the beat's hero move: a style to spread on its wrapper (identity on other beats).
+ *  `origin` (shares of the frame) is the point the move closes in on — a macro goes TO the part it is about. */
+export const useHeroLayer = (depth: number, origin: [number, number] = [0.5, 0.5]): React.CSSProperties => {
   const move = React.useContext(HeroCameraContext);
   const t = useBeatT();
   const {width: W, height: H} = useVideoConfig();
   if (!move) return {};
   const p = heroCamera(move, t, [depth])[0];
-  return {transform: `translate(${p.tx * W}px, ${p.ty * H}px) scale(${p.scale})`, transformOrigin: '50% 50%',
+  return {transform: `translate(${p.tx * W}px, ${p.ty * H}px) scale(${p.scale})`, transformOrigin: `${origin[0] * 100}% ${origin[1] * 100}%`,
     filter: p.blur ? `blur(${p.blur}px)` : undefined};
 };
 
