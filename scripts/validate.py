@@ -2677,32 +2677,73 @@ def _audio_demo_problems(slides, out_dir):
     return out
 
 
+TRACK_TOL = 0.01             # frame fractions (and degrees): a hand-on within this is the same pose
+_POSE_KEYS = ("x", "y", "scale", "rot")
+
+
+def _pose_gap(a, b):
+    """None when pose `a` (beat N's out) is pose `b` (beat N+1's in) within TRACK_TOL, else the first field that
+    differs as (field, a, b). A pose missing a field never matches."""
+    for k in _POSE_KEYS:
+        va, vb = (a or {}).get(k), (b or {}).get(k)
+        if not isinstance(va, (int, float)) or not isinstance(vb, (int, float)) or abs(va - vb) > TRACK_TOL:
+            return k, va, vb
+    return None
+
+
 def _through_object(meta, slides):
-    """ONE CONTINUOUS WORLD (spec 2026-11-05 C2). `meta.through_object = {name, beats: [indexes]}` names the thing the
-    film keeps returning to; each adjacent pair of its beats should be JOINED — one continuous stage (the same
-    `stage.run`), a `container` seam carrying it across the cut, or the same shot — not redrawn from scratch (the ANC
-    film drew its earbud six different ways in six shots). Advisory: names each unjoined pair."""
+    """ONE CONTINUOUS WORLD (spec 2026-11-05 C2, 2026-11-06 C1). `meta.through_object = {name, beats: [indexes],
+    waive?: [{pair: "3→4", reason}]}` names the thing the film keeps returning to; each adjacent pair of its beats (in
+    the order listed) is JOINED — one continuous stage (the same `stage.run`), a `container` seam carrying it across
+    the cut, the same shot, or a HAND-ON: beat N's `slide.track.out` pose equal to beat N+1's `track.in` — not redrawn
+    from scratch (the ANC film drew its earbud six different ways in six shots). validate ERRORS on each unjoined pair
+    and on a hand-on whose poses jump at the cut; a pair the user split on purpose is waived with a reason."""
     t = meta.get("through_object")
     if t is None:
         return []
     if not isinstance(t, dict) or not str(t.get("name") or "").strip() or not isinstance(t.get("beats"), list):
         return ["meta.through_object is {name, beats: [beat indexes]} — the thing the film keeps returning to"]
+    out = []
+    waived = set()
+    for w in t.get("waive") or []:
+        pair = str((w or {}).get("pair") or "").replace("->", "→").replace(" ", "") if isinstance(w, dict) else ""
+        if not pair or not str((w or {}).get("reason") or "").strip():
+            out.append("meta.through_object.waive entry %r needs a pair (\"3→4\") and a reason" % (w,))
+            continue
+        waived.add(pair)
     by = {s.get("index"): s for s in slides}
+    off = [b for b in t["beats"] if b not in by]
+    if off:
+        out.append("meta.through_object names beat(s) %s, which are not on the board" % ", ".join(map(str, off)))
     beats = [b for b in t["beats"] if b in by]
-    loose = []
+    loose, jumps = [], []
     for a, b in zip(beats, beats[1:]):
+        pair = "%s→%s" % (a, b)
         x, y = by[a], by[b]
+        tx = x.get("track") if isinstance(x.get("track"), dict) else None
+        ty = y.get("track") if isinstance(y.get("track"), dict) else None
+        if tx and ty:
+            gap = _pose_gap(tx.get("out"), ty.get("in"))
+            if gap is None:
+                continue
+            if pair not in waived:
+                jumps.append("%s (%s: %s leaves at %s, %s picks it up at %s)" % (pair, gap[0], a, gap[1], b, gap[2]))
+            continue
         run = (x.get("stage") or {}).get("run") if isinstance(x.get("stage"), dict) else None
         same_run = run and run == ((y.get("stage") or {}).get("run") if isinstance(y.get("stage"), dict) else None)
         ti = y.get("transition_in") if isinstance(y.get("transition_in"), dict) else {}
         carried = ti.get("type") == "container" and (b == a + 1)
-        if not (same_run or carried or x.get("shot") == y.get("shot")):
-            loose.append("%s→%s" % (a, b))
-    if not loose:
-        return []
-    return ["THROUGH-OBJECT — the %s is redrawn from scratch between beats %s: join them (one continuous stage run, a "
-            "`container` seam carrying it, or the same shot changed by its props) so it keeps its place, size and "
-            "identity across the cut" % (t["name"], ", ".join(loose))]
+        if not (same_run or carried or x.get("shot") == y.get("shot")) and pair not in waived:
+            loose.append(pair)
+    if loose:
+        out.append("THROUGH-OBJECT — the %s is redrawn from scratch between beats %s: join them (a hand-on — beat N's "
+                   "slide.track.out equal to beat N+1's track.in —, one continuous stage run, a `container` seam "
+                   "carrying it, or the same shot changed by its props) so it keeps its place, size and identity "
+                   "across the cut; or waive the pair with a reason" % (t["name"], ", ".join(loose)))
+    if jumps:
+        out.append("THROUGH-OBJECT — the %s jumps at the cut: %s. The pose a beat hands on is the pose the next one "
+                   "picks up" % (t["name"], "; ".join(jumps)))
+    return out
 
 
 # ── SKETCH BEFORE BUILD (spec 2026-11-06 B) ──────────────────────────────────────────────────────────────────────
@@ -5230,7 +5271,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             warnings.extend(_narration_tell_warnings("scene %d" % _i, _s.get("narration")))
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
         warnings.extend(_slide_titles(meta, slides))
-        warnings.extend(_through_object(meta, slides))
+        errors.extend(_through_object(meta, slides))
         errors.extend(_audio_demo_problems(slides, out_dir))
         try:
             _kept = design_first_keep(meta, slides, "remotion", out_dir)[0]

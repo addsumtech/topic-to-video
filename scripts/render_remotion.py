@@ -346,6 +346,14 @@ def register_props(shot, props, out_dir, map_props=None):
     return props
 
 
+def with_track(props, slide):
+    """The beat's `slide.track` (the through-object's in/out pose, runtime/track.ts) handed to its shot as the `track`
+    prop. On the board it sits beside shot_props, not in them, so validate can hold one beat's out to the next one's in
+    without reading every register's props."""
+    tr = (slide or {}).get("track")
+    return dict(props, track=tr) if isinstance(tr, dict) else props
+
+
 def film_screen_props(props, out_dir):
     """A FilmScreen beat's files -> what the register needs to draw them at their own pixels: the clip's size and length
     (ffprobe), and its run/reel frames' width (the narrowest bounds them all). The board names only the files; a typed
@@ -598,6 +606,7 @@ def film_shot_props(slide, out_dir, fps=30):
     # LivingMap's demo map, failed a PhotoToDiagram and measured a PhotoPlate crop the film never draws
     props = register_props(slide.get("shot"), props, out_dir,
                            _board_map_props(slide, out_dir) if slide.get("shot") == "LivingMap" else None)
+    props = with_track(props, slide)
     if dur:
         props = resolve_cue_props(props, out_dir, slide.get("audio"), narration, float(dur), fps)
         if slide.get("shot") in ("DeviceDemo", "DeviceHero"):
@@ -864,6 +873,7 @@ def build_scenes(slides, out_dir, valid, fps=30, frame=(1920, 1080), lang="zh", 
         if not isinstance(props, dict):
             raise RuntimeError("scene #%s `shot_props` must be an object." % idx)
         props = register_props(shot, props, out_dir, _maps[i])
+        props = with_track(props, s)
         # THE EAR'S TEXT AND THE EYE'S TEXT ARE NOT THE SAME TEXT. `narration` is written to be SPOKEN, so a
         # film spells an initialism out — "没有用 T T S", "S S H", "A G P L 三点零" — to stop edge-tts reading
         # it as a word. That is correct for the voice and wrong on the frame, and it shipped: an independent
