@@ -161,7 +161,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     arriving one comes out of the same drift already mid-entrance. `scripts/seam_ledger.py <out_dir>` measures each cut
     on out.mp4 and fails a kinetic film whose cuts join still frames.
   - **Footage is shown as itself.** `FilmScreen` plays a delivered film or a recording at its own pixels (a close-up
-    region, the film's beats running beneath, a counted reel); a film's own pictures go in with
+    region — which `focusTrack: [{t, x, y}]` moves along the action, smoothed, at its own pixels — the film's beats running beneath, a counted reel); a film's own pictures go in with
     `workshop.py <out_dir> media add <file> [--at s]`, and `workshop.py <out_dir> motion <Name>` says whether a built
     shot keeps moving after its reveal.
   - **The hidden cut.** `transition_in: {type: "sweep"}` (alias `hidden-cut`): a panel passes the lens and the beat

@@ -13,6 +13,7 @@ import React from 'react';
 import {AbsoluteFill, Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeInOutCubic, SceneDurationContext} from '../runtime/motion';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
+import {focusAt, checkFocusTrack, type FocusKey} from '../runtime/focusTrack';
 import {useDNA, mix} from '../runtime/dna';
 import {useCues, REACH_CUBIC} from '../runtime/cue';
 import {drawOn} from '../runtime/draw';
@@ -38,6 +39,9 @@ export const FilmScreen: React.FC<{
   crop?: number;
   /** a close-up: the part of the picture shown, as shares of its width (`w`) from its left and top (`x`, `y`) */
   region?: {x: number; y: number; w: number};
+  /** the close-up FOLLOWS the action: its centre over the beat [{t: s into the beat, x, y: shares of the clip}] at
+   *  the region's own size (runtime/focusTrack) — smoothed, and refused when it would whip across the frame */
+  focusTrack?: FocusKey[];
   /** one line pinned to a point of the picture (`noteAt`, shares of the clip's frame) by a leader */
   note?: string;
   noteAt?: {x: number; y: number};
@@ -45,7 +49,7 @@ export const FilmScreen: React.FC<{
   run?: Frames;
   /** one frame per beat in a grid beside the monitor, lit in turn, the count under it */
   reel?: Frames;
-}> = ({video, from = 0, name = '', crop = 0, region, note = '', noteAt, run, reel} = {}) => {
+}> = ({video, from = 0, name = '', crop = 0, region, focusTrack, note = '', noteAt, run, reel} = {}) => {
   const dna = useDNA();
   const t = useT();
   const cue = useCues();
@@ -64,6 +68,8 @@ export const FilmScreen: React.FC<{
   if (region && (!(region.w > 0) || region.x < 0 || region.y < 0 || region.x + region.w > 1)) {
     throw new Error(`FilmScreen: region ${JSON.stringify(region)} is outside the picture`);
   }
+  if (focusTrack && !region) throw new Error('FilmScreen: a focus track moves a close-up — give it a `region` (its size)');
+  if (focusTrack && region) checkFocusTrack(focusTrack, region, fps);
   for (const [k, f] of [['run', run], ['reel', reel]] as const) {
     if (f && (!Array.isArray(f.frames) || f.frames.length < 2 || !(f.w > 0))) {
       throw new Error(`FilmScreen: \`${k}\` needs 2+ frames and their pixel width`);
@@ -89,19 +95,22 @@ export const FilmScreen: React.FC<{
   // shown: the region's part of the picture (or all of it) above the masked caption strip
   const rw = region ? region.w : 1;
   const shownH = region ? Math.min(1 - crop - region.y, (rw * vw0 * 9) / 16 / vh0) : 1 - crop;
+  // the close-up's place this frame: the board's region, or where the focus track has carried it (same size)
+  const rgn = region && focusTrack
+    ? {...region, ...focusAt(focusTrack, frame / fps, region, shownH, 1 - crop - shownH)} : region;
   const mwMax = Math.min(rw * vw0 / LEAN, availW, (availH / (shownH * vh0)) * (rw * vw0));
   const k = mwMax / (rw * vw0);                          // drawn px per clip px — ≤ 1/LEAN, so the lean-in stays sharp
   const vw = vw0 * k, vh = vh0 * k, mw = rw * vw, mh = shownH * vh;
   const mx = side + (availW - mw) / 2, my = top + headH + (availH - mh) / 2;
   const on = easeOutCubic(clamp01(seg(t, 0, 0.08)));
   const lean = 1 + (LEAN - 1) * easeInOutCubic(clamp01(t));
-  const ox = region ? region.x + region.w / 2 : 0.5, oy = region ? region.y + shownH / 2 : (1 - crop) * 0.45;
+  const ox = rgn ? rgn.x + rgn.w / 2 : 0.5, oy = rgn ? rgn.y + shownH / 2 : (1 - crop) * 0.45;
 
   // ── the note ──
   const noteOn = note ? easeOutCubic(clamp01(seg(t, ...cue.win('note', 0.3, 0.45, REACH_CUBIC)))) : 0;
   const notePx = note ? fitTextPx(note, W * 0.3, Math.round(U * 0.028)) : 0;
-  const px = noteAt ? mx + (noteAt.x - (region ? region.x : 0)) * vw : 0;
-  const py = noteAt ? my + (noteAt.y - (region ? region.y : 0)) * vh : 0;
+  const px = noteAt ? mx + (noteAt.x - (rgn ? rgn.x : 0)) * vw : 0;
+  const py = noteAt ? my + (noteAt.y - (rgn ? rgn.y : 0)) * vh : 0;
   const toRight = noteAt ? px < mx + mw / 2 : true;
   const nx = toRight ? Math.min(mx + mw - U * 0.02, px + mw * 0.28) : Math.max(mx + U * 0.02, px - mw * 0.28);
   const ny = Math.max(my + U * 0.04, py - mh * 0.16);
@@ -168,7 +177,7 @@ export const FilmScreen: React.FC<{
         {video ? (
           <Sequence from={0} durationInFrames={Math.max(1, dur)} layout="none">
             <OffthreadVideo src={staticFile(video.src)} muted trimBefore={Math.round(from * fps)}
-              style={{position: 'absolute', left: -(region ? region.x : 0) * vw, top: -(region ? region.y : 0) * vh, width: vw,
+              style={{position: 'absolute', left: -(rgn ? rgn.x : 0) * vw, top: -(rgn ? rgn.y : 0) * vh, width: vw,
                 height: vh, transform: `scale(${lean})`, transformOrigin: `${ox * 100}% ${oy * 100}%`}} />
           </Sequence>
         ) : (
