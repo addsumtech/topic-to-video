@@ -28,6 +28,7 @@ import {BeatGround, groundAt, captionInk, hexGround, LIGHT_KEY_Y, CAPTION_INK_DA
         type SceneGroundDecl} from './runtime/light';
 import {Atmosphere, type Atmo} from './runtime/atmosphere';
 import {SceneCamera, bedPan, ACTION_SAFE_FRAC, cameraBudget, type CameraMove} from './runtime/depth';
+import {HeroCameraContext, HERO_MOVES, type HeroMove} from './runtime/heroCamera';
 import {phraseExtra} from './runtime/phrase';
 import {FocusLayer} from './runtime/focusLead';
 import {withCjkDisplay} from './runtime/cjkVoice';
@@ -105,7 +106,9 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // A MOTIVATED camera move for THIS beat: `push` (look closer at what is here), `pull` (here is the whole
   // of it), `hold` (most beats). Optional; absent = hold. This is not the film-wide ambient drift below —
   // that one had no relationship to anything being said, which is precisely why it read as a wobble.
-  camera?: {move?: CameraMove; amount?: number; pan?: [number, number];
+  // …or, on a hero beat, `reveal` / `macro` / `context` (runtime/heroCamera): the shot's layers move by depth and the
+  // frame itself holds — SceneCamera never sees these.
+  camera?: {move?: CameraMove | HeroMove; amount?: number; pan?: [number, number];
     /** the move runs INTO the cut instead of coming to rest, and the next beat — a continuation, with no camera of
      *  its own — starts with this move's velocity and lets it decay (runtime/depth `handoff`) */
     handoff?: boolean};
@@ -1183,6 +1186,13 @@ const pickPresentation = (prev: SceneSpec, next: SceneSpec, W: number, H: number
 // the camera hand-off's curves live in runtime/handoff.ts (pure, so a test can run them)
 type CamPlan = {out?: {amp: number; move: 'push' | 'pull'}; in?: {rate: number; limit: number}};
 
+/** A hero move moves the shot's layers (HeroCameraContext), never the frame: SceneCamera gets a hold for it. */
+const isHeroMove = (m: unknown): m is HeroMove => (HERO_MOVES as readonly string[]).includes(m as string);
+const heroMove = (m: CameraMove | HeroMove | undefined): HeroMove | null => (isHeroMove(m) ? m : null);
+const frameMove = (m: CameraMove | HeroMove | undefined): CameraMove | undefined => (isHeroMove(m) ? undefined : m);
+const frameCam = <C extends {move?: CameraMove | HeroMove}>(c: C | undefined) =>
+  c ? {...c, move: frameMove(c.move)} : undefined;
+
 /** The beat's camera: SceneCamera exactly as before, or — on a beat in a hand-off — HandoffCamera. */
 const BeatCamera: React.FC<React.ComponentProps<typeof SceneCamera> & {plan: CamPlan | null; phrase?: number[]}> =
   ({plan, phrase, ...rest}) =>
@@ -1496,9 +1506,10 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                 the two unlocks stacked, and its list labels stepped 0.24-0.30 px under the push (jitter_qa, promo beat 25) */}
             <CutCarry on={cutCarry && !reducedMotion} inCut={hardCutIn[i]} outCut={!!hardCutIn[i + 1]} durF={durF}
               unlock={unlockAllowed && !sc.camera && !camPlan[i]}>
-            <BeatCamera plan={camPlan[i]} phrase={sc.phrase} move={sc.camera?.move} amount={sc.camera?.amount}
-              pan={sc.camera?.pan ?? (camPlan[i] ? undefined : bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)?.pan)}
-              bed={!sc.camera && !camPlan[i] && !!bedPan(i, !!activeDna, ambient, sc.camera, cameraBed)}
+            <HeroCameraContext.Provider value={heroMove(sc.camera?.move)}>
+            <BeatCamera plan={camPlan[i]} phrase={sc.phrase} move={frameMove(sc.camera?.move)} amount={sc.camera?.amount}
+              pan={sc.camera?.pan ?? (camPlan[i] ? undefined : bedPan(i, !!activeDna, ambient, frameCam(sc.camera), cameraBed)?.pan)}
+              bed={!sc.camera && !camPlan[i] && !!bedPan(i, !!activeDna, ambient, frameCam(sc.camera), cameraBed)}
                          driftExtra={driftExtraFor(ambient, width, height, unlockAllowed)}
                          driftTranslate={(reducedMotion ? 0 : Math.max(0, camera)) * DRIFT_MAX_TRANSLATE_Y}>
               {/* `data-beat` marks THIS beat's register for the sync audit (scripts/sync_qa.py reads it from the
@@ -1546,6 +1557,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                 </FrameUnlock>
               </AbsoluteFill>
             </BeatCamera>
+            </HeroCameraContext.Provider>
             </CutCarry>
             <BeatChrome chrome={sc.chrome} W={width} H={height} />
           </BeatGround>

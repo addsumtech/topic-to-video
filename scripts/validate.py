@@ -2074,7 +2074,7 @@ def _camera_vocabulary(meta, slides, errors, warnings):
     """
     # A camera move the tier does not have is DROPPED by render_remotion — silently, so the author's
     # intent vanishes with no signal at all. Measured: `{"move":"orbit","amount":3}` produced not one word.
-    cam_vocab = {"push", "pull", "hold"}
+    cam_vocab = {"push", "pull", "hold"} | set(HERO_MOVES)
     bad_cam, wild_amt = [], []
     for i, sl in enumerate(slides, 1):
         c = sl.get("camera")
@@ -2859,6 +2859,44 @@ def _real_use(meta, slides):
             out.append("the most valuable moment comes late: no hero moment (%s) is seen in the first 5 s — open "
                        "on it, or flash it in a ColdOpen" % ", ".join(map(str, heroes)))
     return out
+
+
+# ── THE HERO CAMERA (spec 2026-11-06 F) ───────────────────────────────────────────────────────────────────────────
+# `reveal` / `macro` / `context` move a hero beat's LAYERS by their depth (runtime/heroCamera.tsx). Film does not
+# move the frame for them, so on a shot that never reads its layers (useHeroLayer) the move would be a silent hold.
+HERO_MOVES = ("reveal", "macro", "context")
+
+
+def _shot_source(out_dir, shot):
+    for p in ((os.path.join(out_dir, "workshop", "shots", shot + ".tsx")) if out_dir else None,
+              os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "shots", shot + ".tsx")):
+        if p and os.path.exists(p):
+            try:
+                with open(p, encoding="utf-8") as fh:
+                    return fh.read()
+            except OSError:
+                return None
+    return None
+
+
+def _hero_camera(meta, slides, out_dir):
+    errs, warns = [], []
+    heroes = {b for b in (meta.get("hero_moments") or []) if isinstance(b, int)}
+    for pos, s in enumerate(slides, 1):
+        c = s.get("camera") if isinstance(s.get("camera"), dict) else {}
+        move = str(c.get("move") or "").lower()
+        if move not in HERO_MOVES:
+            continue
+        n = s.get("index", pos)
+        src = _shot_source(out_dir, str(s.get("shot") or ""))
+        if src is not None and "useHeroLayer" not in src:
+            errs.append("beat %d: camera %r on %s, which never reads its layers (useHeroLayer) — the move would be a "
+                        "silent hold; build the shot's layers with useHeroLayer(depth) or use push/pull"
+                        % (n, move, s.get("shot")))
+        if n not in heroes:
+            warns.append("beat %d: the hero camera %r belongs to the film's showpieces — add the beat to "
+                         "meta.hero_moments or use push/pull/hold" % (n, move))
+    return errs, warns
 
 
 SLIDE_TITLE_SHARE = 0.4      # a header title on this share of the designed beats reads as a deck played back
@@ -5310,6 +5348,9 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         warnings.extend(_slide_titles(meta, slides))
         errors.extend(_through_object(meta, slides))
         warnings.extend(_real_use(meta, slides))
+        _hc_e, _hc_w = _hero_camera(meta, slides, out_dir)
+        errors.extend(_hc_e)
+        warnings.extend(_hc_w)
         errors.extend(_audio_demo_problems(slides, out_dir))
         try:
             _kept = design_first_keep(meta, slides, "remotion", out_dir)[0]

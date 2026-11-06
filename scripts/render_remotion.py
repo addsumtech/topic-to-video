@@ -231,7 +231,8 @@ def _transition_in(slide, travel=None, prev=None):
     return match_cut_seam(prev)
 
 
-_CAMERA_MOVES = ("push", "pull", "hold")
+_HERO_MOVES = ("reveal", "macro", "context")      # runtime/heroCamera.tsx — a hero beat's showpiece grammar
+_CAMERA_MOVES = ("push", "pull", "hold") + _HERO_MOVES
 
 
 def _camera(slide):

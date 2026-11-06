@@ -126,3 +126,16 @@ scene type. (This is the same pattern as the `terminal` element's collapse-to-li
 **Discipline:** one gesture per film; reserve bridges for meaningful seams; every advance control must be
 viewer-decodable in ~1s AND legible at the held medium framing (which reinforces the anti-over-zoom rule);
 every bridge resolves to the safe frame.
+
+
+## The hero camera — reveal, macro, context (runtime/heroCamera.tsx, 2026-11-06)
+For `meta.hero_moments` beats only (validate warns elsewhere). Apple-style product films run the hero REVEAL, the
+DETAILS, the product in CONTEXT, slowly (references/craft-bar.md). These moves do not move the frame: the shot's
+layers move by their DEPTH (1 = the subject's plane, >1 behind, <1 in front), so perspective changes the way a dolly's
+does and a 2D zoom's cannot.
+- `reveal` — a slow arc in that comes to rest on the composed frame.
+- `macro` — close on the subject's plane; layers off it blur by their distance (depth of field).
+- `context` — starts close, pulls back to the subject in its world.
+A shot takes part by wrapping each layer: `<div style={useHeroLayer(depth)}>…</div>`; labels carry
+`opacity: useHeroLabel()` and appear only after the move settles (70 % of the beat) — type under a moving camera
+trembles. validate ERRORS on a hero move over a shot that never calls useHeroLayer: it would be a silent hold.
