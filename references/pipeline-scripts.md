@@ -782,6 +782,11 @@ the opacity cap — together these once let five PAID generated images ship cont
   rect, else `--box`, then cut to the pixels that differ from the ground. REPORT-ONLY: calibrated on GPS and ANC,
   no measure separated the film the user found lacking from the one they found okay (craft-bar.md), so nothing is
   enforced; a hero it cannot locate is NOT MEASURED and exits 1.
+- Density and real use (2026-11-06): shot_proof's film-wide ink median leaves out `meta.hero_moments` and title
+  beats; under 6 % (a line of type per beat) it is an ERROR unless `meta.sparse_reason` names the minimal register,
+  6-14 % stays the SPARSE warning (calibrated: the ANC film the user found okay measures 12.9 %). validate warns
+  a launch/promo film with under a third `real_use` beats (FilmScreen and DeviceDemo count) or no hero moment in
+  its first 5 s.
 - `scripts/progress.py <out_dir>` — one line: where a long step is (plates, the per-beat render, the delivery gates
   write `_progress.json` and a self-reloading `_progress.html` as they go), with an ETA from the items done so far.
   Why: the ANC render sat 1 h 35 min on one beat behind an empty, block-buffered log.

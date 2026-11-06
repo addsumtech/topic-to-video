@@ -1032,6 +1032,29 @@ def _content_box(png, thresh=26):
 SPARSE_MEDIAN = 14.0
 
 
+def _title_beat(slide):
+    return "title" in str(((slide or {}).get("shot_fit") or {}).get("form") or "").lower()
+
+
+def tonal_findings(ink_by_beat, meta, slides):
+    """(errors, warnings): the film-wide ink distribution, with a THIN film (median under 6 %, a line of type per beat;
+    a delivered film measured 5.6 %) an ERROR (spec 2026-11-06 E1) unless `meta.sparse_reason` names the minimal
+    register on purpose. Hero moments and title cards leave the median: a showpiece may be one
+    object in space and a title one line, and neither says whether the film's frames carry their subject."""
+    heroes = {b for b in ((meta or {}).get("hero_moments") or []) if isinstance(b, int)}
+    titles = {s.get("index", i) for i, s in enumerate(slides or [], 1) if _title_beat(s)}
+    kept = [(b, v) for b, v in ink_by_beat if b not in heroes and b not in titles] or list(ink_by_beat)
+    warns = tonal_warnings(kept, len(slides or []) or len(ink_by_beat))
+    # Only the near-empty film is an ERROR. SPARSE (under 14 %) stays a warning: calibrated on our films, the one the
+    # user found okay (ANC) measures 12.9 %, and a gate that fails the okay film fails the rule it was written for.
+    thin = [w for w in warns if "TONAL REGISTER is thin" in w]
+    rest = [w for w in warns if w not in thin]
+    reason = str((meta or {}).get("sparse_reason") or "").strip()
+    if thin and reason:
+        return [], rest + ["%s (kept: meta.sparse_reason — %s)" % (w, reason) for w in thin]
+    return thin, rest
+
+
 def tonal_warnings(ink_by_beat, n_beats):
     """The film-wide ink distribution's warnings, from [(beat, ink %)] over `n_beats` beats."""
     out = []
@@ -1532,7 +1555,9 @@ def _prove(argv, out_dir, board, ws_durs):
     # page. No per-beat check can see that; only the distribution can, so it is computed here where every
     # beat's still already exists.
     if inks:
-        warns.extend(tonal_warnings(ink_by_beat, len(beats)))
+        _t_errs, _t_warns = tonal_findings(ink_by_beat, board.get("meta") or {}, board.get("slides") or [])
+        errors.extend(_t_errs)
+        warns.extend(_t_warns)
     elif "--no-stills" not in argv and beats:
         unmeasured.append("the film's TONAL REGISTER: no beat yielded an ink measurement, so the "
                           "distribution check did not run at all")

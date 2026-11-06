@@ -111,6 +111,11 @@ plan. You do not write final narration; you design content beats.
    It becomes `slide.audio_demo` (a clip appended after the beat's voice, at its own level; `scripts/audio_demo.py`
    synthesizes the cancellation A/B and marks it synthesized). The ANC film explained noise cancelling for 157 s and
    never let anyone hear it. At most one or two per film, on the beats where hearing it IS the understanding.
+7c. **Is there a real thing to show? (`real_use`)** For every beat ask whether the viewer could see the REAL thing —
+   a recording of the product in use, its real interface, the object itself in a hand — instead of a drawing of it.
+   Mark such beats `"real_use": true`. On a launch or promo film about a third of the beats show real use (validate
+   warns below that), and its most valuable moment — a `meta.hero_moments` beat — is seen in the first 5 s, opened on
+   or flashed in a ColdOpen. The user's own example of a film worth watching was a product intro woven with real use.
 8. **Learning arc + prerequisite ordering (build understanding step by step).** Beyond the tension arc,
    scaffold the KNOWLEDGE via each beat's `stage`: (1) after the `hook`, ≥1 `ground` beat anchors the topic
    in something the audience already knows BEFORE the first `build` (name the familiar anchor in

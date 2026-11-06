@@ -2824,6 +2824,43 @@ def _sketch_problems(meta, slides, tier, kept=frozenset()):
     return errs, warns
 
 
+# ── REAL USE AND THE VALUABLE MOMENT FIRST (spec 2026-11-06 E2, E4) ─────────────────────────────────────────────
+# A launch film earns trust by showing the product IN USE (the user's example: a product intro woven with real use),
+# and leads with its most valuable moment. Explainers are not asked: their subject is often not a product.
+REAL_USE_PURPOSES = ("launch", "promo")
+REAL_USE_SHOTS = ("FilmScreen", "DeviceDemo")
+REAL_USE_SHARE = 1 / 3.0
+HOOK_S = 5.0
+
+
+def _real_use(meta, slides):
+    if str(meta.get("purpose") or "").lower() not in REAL_USE_PURPOSES:
+        return []
+    beats = [s for s in slides if isinstance(s, dict) and s.get("type") != "slide"]
+    if not beats:
+        return []
+    out = []
+    real = [s for s in beats if s.get("real_use") is True or s.get("shot") in REAL_USE_SHOTS]
+    if len(real) < REAL_USE_SHARE * len(beats) - 1e-9:
+        out.append("real use: %d of %d beats show the product in use (a recording, the real UI, the object in a "
+                   "hand) — a launch film needs about a third; mark such beats `real_use: true`"
+                   % (len(real), len(beats)))
+    heroes = [b for b in (meta.get("hero_moments") or []) if isinstance(b, int)]
+    if heroes:
+        t, early = 0.0, set()
+        for s in beats:
+            if t >= HOOK_S:
+                break
+            early.add(s.get("index"))
+            if s.get("shot") == "ColdOpen":
+                early.update(b for b in ((s.get("shot_props") or {}).get("beats") or []) if isinstance(b, int))
+            t += float(s.get("duration") or 0) or HOOK_S
+        if not early & set(heroes):
+            out.append("the most valuable moment comes late: no hero moment (%s) is seen in the first 5 s — open "
+                       "on it, or flash it in a ColdOpen" % ", ".join(map(str, heroes)))
+    return out
+
+
 SLIDE_TITLE_SHARE = 0.4      # a header title on this share of the designed beats reads as a deck played back
 
 
@@ -5272,6 +5309,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
         warnings.extend(_slide_titles(meta, slides))
         errors.extend(_through_object(meta, slides))
+        warnings.extend(_real_use(meta, slides))
         errors.extend(_audio_demo_problems(slides, out_dir))
         try:
             _kept = design_first_keep(meta, slides, "remotion", out_dir)[0]
