@@ -175,3 +175,11 @@ measured 8.4 s and a hit 0.17 s; a delivery bundled the same project six to seve
 
 Four plates of 6 s each are about 55 min on EEVEE. Never enable the CPU device for Cycles: CPU+GPU at 128 spp
 measured 67 s a frame.
+
+## The product light (`kit.stage.product_rig`, 2026-11-06)
+`stage.product_rig(subject, cam, key_az=35, rim_strength=1.0)` lights a hero the way the craft bar describes
+(references/craft-bar.md): a soft area KEY in front and to one side, a low FILL on the other, and a RIM behind the
+subject, light-linked to the subject alone so it lifts the silhouette and never the floor. Positions come from the
+camera, energy from each light's distance, so exposure holds at any subject size. Tuned on a rendered grey sphere: the
+first fixed-watt version blew it out to flat white with no rim; the shipped values give a key pool, a rim along the
+top edge and no clipping (p99 luminance 0.81). Use it for `meta.hero_moments` plates; judge one `--still` first.

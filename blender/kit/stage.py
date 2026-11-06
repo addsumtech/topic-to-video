@@ -46,3 +46,52 @@ def face_toward(obj, local_axis, target, toward_lens=0.0, cam=None):
     up = "Z" if local_axis.lstrip("-") != "Z" else "Y"
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = want.to_track_quat(local_axis, up)
+
+
+def _bounds(obj):
+    bpy.context.view_layer.update()
+    pts = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+    return (lo + hi) / 2, max((hi - lo).length, 1e-3)
+
+
+KEY_E, FILL_E, RIM_E = 3.0, 0.7, 12.0
+
+
+def product_rig(subject, cam, key_az=35, rim_strength=1.0):
+    """The craft bar's product light around `subject`, placed from the CAMERA (references/craft-bar.md): a soft key
+    in front and to one side, a fill low on the other, and a rim BEHIND the subject that traces its silhouette. The rim
+    is light-linked to the subject alone, so it never lifts the floor or the background — the reason product films
+    use light linking at all. Sizes and energies scale with the subject. Returns {key, fill, rim} light objects.
+
+    Measured why (2026-11-06): ANC's plates were soft matte objects with almost no highlight (0.04-0.13) and the
+    subject_craft numbers of a flat pass."""
+    import math
+    centre, size = _bounds(subject)
+    to_cam = cam.matrix_world.translation - centre
+    to_cam.z = 0
+    f = to_cam.normalized() if to_cam.length > 1e-6 else Vector((0, -1, 0))
+    up = Vector((0, 0, 1))
+    right = f.cross(up).normalized()
+    side = math.tan(math.radians(key_az))
+    # irradiance at the subject (W/m^2 before Blender's own falloff): energy = this x distance^2, so the exposure
+    # holds whatever the subject's size. KEY/FILL/RIM_E were tuned on a rendered grey sphere (2026-11-06): the first
+    # fixed-watt rig blew the sphere out to flat white with no visible rim.
+    spots = {"key": (2.2 * f + 2.2 * side * right + 1.5 * up, KEY_E, 1.4),
+             "fill": (2.0 * f - 2.4 * right + 0.4 * up, FILL_E, 2.0),
+             "rim": (-2.6 * f + 0.5 * right + 1.9 * up, RIM_E * rim_strength, 0.6)}
+    rig = {}
+    for name, (offset, watts, soft) in spots.items():
+        data = bpy.data.lights.new("rig_" + name, "AREA")
+        data.energy = watts * (size * offset.length) ** 2
+        data.size = soft * size
+        obj = bpy.data.objects.new("rig_" + name, data)
+        bpy.context.scene.collection.objects.link(obj)
+        obj.location = centre + size * offset
+        face_toward(obj, "-Z", centre)
+        rig[name] = obj
+    receivers = bpy.data.collections.new("rig_rim_receivers")
+    receivers.objects.link(subject)
+    rig["rim"].light_linking.receiver_collection = receivers
+    return rig

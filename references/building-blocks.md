@@ -902,3 +902,9 @@ const h = hop((t % hopDur) / hopDur);                  // crouch, arc, land; sx 
 `contactTimes(samples, items)` says when the object reaches each item, so a key sound or a ripple (`react('ripple',
 d, {since})`) is timed to the contact, not guessed. Parts settle one after another with `stagger(i, n, t)`. Type never
 rides the hop: labels sit still and appear when the object comes to rest.
+
+## Light a built subject (runtime/lighting.tsx — 2026-11-06)
+A flat fill with a stroke reads as a diagram. Give a hero subject the product light as SVG:
+`rimGradient(box, 'left'|'right'|'top'|'bottom', strength)` → a `<linearGradient>` laid over the silhouette (clip it to
+the subject's path), `keyFalloff(box, [fx, fy])` → a `<radialGradient>` pool where the key falls, `contactShadow(box,
+groundY)` → a soft `<ellipse>` under it. All three are functions of the box, never of the frame.
