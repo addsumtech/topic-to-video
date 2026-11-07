@@ -58,6 +58,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   nudged toward ≥3:1, an explicit `--accent` never touched. `--brand-logo`, or `meta.brand.logo` when no accent flag is
   passed, makes the logo's hue the accent. Re-run it on an out_dir themed before the contrast fix. Printed/filmic
   styles get fixed-seed grain; a data-heavy page opts out with `<body class="no-grain">`.
+- `scripts/brand_mark.py <out_dir>`: reads every brand mark the film uses (OCR, light and dark ground) and records whose name it spells in its sidecar; validate refuses one never read, changed since, naming another product, or a symbol nobody confirmed. Name the product in `meta.product` (or `meta.brand.name`); a third-party mark names its owner in its sidecar's `"brand"`. **Run it before deriving anything (a palette first) from a fetched mark**: a docs site can serve a sibling product's logo.
 - `scripts/dna_from_deck.py <out_dir> [--pptx deck.pptx] [--mode light|dark] [--dry-run] [--force]`: remotion tier.
   Writes `meta.design_dna` (with a `provenance` block) from the deck's OWN pptx theme (`scripts/pptx_theme.py`) and frames.
   Run it after ingest and BEFORE the shot-director. It never overwrites an authored DNA without `--force` and fails

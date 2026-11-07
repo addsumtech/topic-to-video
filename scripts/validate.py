@@ -5417,6 +5417,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _caption_legibility(meta, slides, errors, warnings, out_dir)
         _figure_traceability(slides, out_dir, warnings, skips=skips)   # %/×/$ figures must trace to brief.json
         _check_blender(data, slides, errors, warnings, out_dir)
+        _brand_identity(out_dir, errors, warnings)
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides),
                 "skipped": skips}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
@@ -6058,6 +6059,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # endcard lockups must already be AUTHORED into the first/last pages — lint both before a full
     # render bakes a missing or broken mark into every frame.
     _brand_lints(meta, slides, out_dir, errors, warnings)
+    _brand_identity(out_dir, errors, warnings)
 
     # WHAT AN HTML FILM BUILT — its components (workshop/html/), their build-list entries, and every custom
     # tag a page uses. A board with no workshop/html/, no component entry and no custom tag returns at once.
@@ -6230,6 +6232,22 @@ def _design_plan_lints(out_dir, warnings, meta=None):
 
 
 _BRAND_PLACEMENTS = ("cover", "endcard", "bug")
+
+
+def _brand_identity(out_dir, errors, warnings):
+    """Every brand mark the film uses was READ and says the product's name (scripts/brand_mark.py). The WorkBuddy
+    film built its palette from a sibling product's mark served by the same docs site (2026-11-07); a file's name and
+    its source page never said whose mark it was."""
+    if not out_dir or not os.path.isdir(out_dir):
+        return
+    try:
+        import brand_mark as _bm
+        e, w = _bm.lint(out_dir)
+    except Exception as ex:                       # noqa: BLE001 - said: a gate that could not look has not passed
+        errors.append("brand mark: could not check the film's marks (%s: %s)" % (type(ex).__name__, ex))
+        return
+    errors.extend(e)
+    warnings.extend(w)
 
 
 def _brand_lints(meta, slides, out_dir, errors, warnings):

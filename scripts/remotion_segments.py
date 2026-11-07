@@ -130,6 +130,53 @@ def write_record(out_dir, record):
     return path
 
 
+def stale_beats(record, segs):
+    """The beats (0-based k) whose frames in the recorded render are not the frames the board draws now: each beat's
+    key in the render record against `plan`'s key for it. A different number of beats makes every beat stale. None
+    when the record cannot say (absent, a whole render that kept no keys, unreadable) — never "nothing changed"."""
+    rec = record.get("segments") if isinstance(record, dict) else None
+    if not isinstance(rec, list) or not rec:
+        return None
+    try:
+        have = [str(r[2]) for r in rec]
+    except (TypeError, IndexError):
+        return None
+    now = [s["key"] for s in segs]
+    if len(have) != len(now):
+        return list(range(len(now)))
+    return [i for i, (h, n) in enumerate(zip(have, now)) if h != n]
+
+
+def render_currency(out_dir, video=None):
+    """('current' | 'stale' | 'unknown', [the stale beats' board indices], why) — is `video` (out.mp4) a render of
+    the board AS IT IS NOW? A gate that reads the picture against something computed from the current board (the
+    jitter census) measures garbage on a stale render; the frame count is no guard, because an edit that keeps every
+    beat's length keeps it. Asked of the render record's keys with the backend the film was really drawn on."""
+    import render_remotion as rr
+    import storyboard as sb
+    video = video or os.path.join(out_dir, "out.mp4")
+    rp = os.path.join(out_dir, RECORD)
+    try:
+        record = json.load(open(rp, encoding="utf-8"))
+    except (OSError, ValueError):
+        return "unknown", [], "no render record (%s) beside the video — re-render to write one" % RECORD
+    if os.path.basename(video) != record.get("out", "out.mp4"):
+        return "unknown", [], "the render record describes %s, not %s" % (record.get("out"), os.path.basename(video))
+    if os.path.exists(video) and os.path.getmtime(video) > os.path.getmtime(rp) + 5:
+        return "unknown", [], "%s was replaced after the render that wrote %s" % (os.path.basename(video), RECORD)
+    data = sb.load(os.path.join(out_dir, "storyboard.json"))
+    props, slides = rr.film_props(out_dir, data)
+    segs, _total = plan(props, out_dir, pixel_flags(record.get("gl") or default_gl()))
+    stale = stale_beats(record, segs)
+    if stale is None:
+        return "unknown", [], "the render record keeps no per-beat keys (mode %s)" % record.get("mode")
+    if not stale:
+        return "current", [], "every beat's key matches the render"
+    labels = [slides[k].get("index", k + 1) if k < len(slides) else k + 1 for k in stale]
+    return "stale", labels, "beat(s) %s changed since %s was rendered" % (
+        ", ".join(str(x) for x in labels), os.path.basename(video))
+
+
 class ModelMismatch(RuntimeError):
     """The segment model disagrees with what Remotion rendered. Never shipped: the caller renders whole."""
 

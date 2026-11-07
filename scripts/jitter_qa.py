@@ -668,6 +668,18 @@ def scan_film(out_dir, video=None, census_path=None):
                            % video)
     tier = "remotion" if census_path else film_tier(out_dir)
     extra_skip, scope, seams = {}, [], None
+    if tier == "remotion" and not census_path:
+        # THE PICTURE MUST BE THIS BOARD'S. The census below is rendered from the board as it is now; read against an
+        # older out.mp4 it reports trembles that are in no frame (WorkBuddy, 2026-11-07). The frame count is no guard:
+        # an edit that keeps every beat's length keeps it. The render record's per-beat keys are.
+        import remotion_segments as _rs
+        state, _beats, why = _rs.render_currency(out_dir, video)
+        if state == "stale":
+            raise RuntimeError("%s is not a render of the board as it is now: %s — re-render, then judge" % (
+                os.path.basename(video), why))
+        if state == "unknown":
+            scope.append("could not tell whether %s is a render of the current board (%s)"
+                         % (os.path.basename(video), why))
     if census_path:
         census = load_census(census_path)
     elif tier == "remotion":

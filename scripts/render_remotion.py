@@ -1297,6 +1297,14 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
                   "(software ANGLE; slower)." % (gl, fb))
             subprocess.run(_rs.with_gl(cmd, fb), cwd=_REMOTION2_DIR, check=True, **wk)
             record.update(gl=fb, gl_fallback_from=gl, gl_reason="whole render failed on --gl=%s: %s" % (gl, e))
+        # the keys this board gives each beat on the backend that drew it: what a picture gate asks of the record
+        # (remotion_segments.render_currency) to know out.mp4 is still a render of the board as it is now
+        try:
+            record["segments"] = [[s["a"], s["b"], s["key"]]
+                                  for s in _rs.plan(props, out_dir, _rs.pixel_flags(record["gl"]))[0]]
+        except Exception as e:                       # noqa: BLE001 - said; the film is rendered, only its keys are not
+            print("[render_remotion] NOTE: the per-beat keys of this whole render were not recorded (%s: %s) — "
+                  "picture gates will report it as of unknown currency" % (type(e).__name__, e))
     if sample is None:
         _rs.write_record(out_dir, record)
         if record.get("gl_fallback_from"):
