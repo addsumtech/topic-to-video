@@ -1326,6 +1326,12 @@ def test_brand_authored_lockups_and_valid_brand_clean(tmp_path):
     body = '<div class="stage"><img class="lockup" src="assets/brand/logo.png"><h1 class="title">x</h1></div>'
     slides = [_html_scene(tmp_path, 0, "pages/s0.html", body),
               _html_scene(tmp_path, 1, "pages/s1.html", body)]
+    # a well-formed brand's mark has been READ and spells its name (scripts/brand_mark.py writes this record)
+    import hashlib
+    lp = os.path.join(str(tmp_path), logo)
+    with open(lp + ".json", "w", encoding="utf-8") as fh:
+        json.dump({"identity": {"sha256": hashlib.sha256(open(lp, "rb").read()).hexdigest(), "name": "ACME Institute",
+                                "reads": ["ACME Institute"], "verdict": "match"}}, fh)
     r = _brand_eval(tmp_path, {"logo": logo, "name": "ACME Institute"}, slides=slides)   # default placement
     # two title cards and nothing built: the design-first floor (no BUILT page) is a separate, deliberate finding
     assert [e for e in r["errors"] if not e.startswith("design-first:")] == []
