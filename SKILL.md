@@ -207,7 +207,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
     the Film and ERRORS past 1.25x — a film shipped its hero UI at 2.9x with every type gate green.
   - **Blender plates** (`slide.blender`, `references/blender-plates.md` — read it before routing a beat there): a 3D
     render under a workshop shot, ONLY where 3D physicality is the content (`why`: real-world, material, physics,
-    optics, space), compared against a register's still first. `scripts/blender_plate.py <out_dir>` builds it LAYOUT FIRST:
+    optics, space, or `device`: the product's interface on a real MacBook, `scene: "kit:laptop_screen"` + `screen`
+    {shot, props, px}), compared against a register's still first. `scripts/blender_plate.py <out_dir>` builds it LAYOUT FIRST:
     the ID pass alone, judged by `scripts/plate_qa.py`, and pictures only once the layout is clean (exit 4 = move the
     type or the object; nothing expensive was rendered). Look at ONE `--still F` before the build; never rebuild a
     whole plate to check a layout or a look. Over `meta.blender_budget_min` it exits 3: ask the user.

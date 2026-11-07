@@ -16,9 +16,11 @@ following. `slide.blender.why` names which, from a closed vocabulary:
 | `physics` | the physical process is the content: rigid bodies, cloth, fluid, smoke, particles (baked) | Remotion can only approximate the motion by hand |
 | `optics` | caustics, refraction, volumetric light, macro depth of field | needs path tracing |
 | `space` | moving through a 3D structure, inside a machine, an exploded view with real parts | 2.5D parallax breaks under a large camera move |
+| `device` | the product's own interface ON the real device it runs on (a MacBook's screen), lit as a product: `screen` names the shot that draws the interface | a DOM window tilted a few degrees reads as "2D mostly" (the WorkBuddy film, 2026-11-07) |
 
 Never route a beat to Blender when the picture is any of these: words or layout, charts and data (the library has data
-registers), UI, diagrams, abstract ideas.
+registers), UI, diagrams, abstract ideas. The one way UI reaches a plate is `why: device`: the interface stays the
+shot's (drawn by Remotion, every word a prop), and Blender draws the device it is shown on.
 
 Rules for choosing:
 - **Compare before choosing.** When a library register can say the beat, render a still of each, side by side. The
@@ -121,6 +123,39 @@ and rounds it. Its cues come from the word times, so it is on the voice already.
   is fixed, so keep every object out of the bottom caption band (`captionBand`) with `stage.place`.
 - `validate.py` refuses a beat whose plate is missing or stale. The key covers its scene, the kit, its assets, its
   cue times, its frame count and size, its engine and mode, and the Blender version.
+
+## Device screens (`why: device`)
+
+The product's interface, played on a real device in a lit studio. The interface is still drawn by a shot: the plate
+build renders `screen.shot` with `screen.props` frame by frame at `screen.px` and on the beat's own clock
+(`holdFrames`), and the device's screen plays those pictures. Every word stays a prop, and editing the shot rebuilds
+the screen and the plate.
+
+```json
+"blender": {"id": "plan-3d", "scene": "kit:laptop_screen", "why": "device", "engine": "cycles", "mode": "env",
+            "screen": {"shot": "Workspace", "props": {"state": "plan", "bare": true}, "px": [2560, 1664]},
+            "params": {"focus": [0.30, 0.22], "end_d": 3.0}}
+```
+
+- `scene: "kit:laptop_screen"`: the kit's own scene (`blender/kit/scenes/`), a MacBook Air 13 built to
+  `deviceSpec.json` (`blender/kit/macbook.py`) on a studio sweep lit by a CC0 HDRI (`blender/kit/studio.py`). Its
+  docstring lists `params`. `focus` is where the push ends, as fractions of the screen from its top-left.
+- `screen.shot`: a workshop shot of the film or a library register. Give it its device frame: a shot that draws a
+  window over a ground (Workspace) needs its bare state (`bare: true`), the window filling the frame.
+- `screen.px`: the device's own pixels (MacBook Air 13: 2560 x 1664). **The lens must not stretch them**: the runner
+  projects the screen every frame, and a build that draws one screen pixel across more than 1.25 frame pixels is
+  refused, saying how many pixels it needs (or end the camera farther away, `end_d`).
+- Partial-frame reuse is off (the picture changes every frame), so every frame is rendered whole. Measured on the
+  WorkBuddy film's beat 6: Cycles at 24 samples, 25 s a 1920x1080 frame on an M4; 7.6 s of beat ≈ 95 minutes. Give a
+  film two or three device beats, not every interface beat, and set `meta.blender_budget_min` to match.
+- `mode: env` shows the sweep (its colour is `params.ground`: make it the shot's GROUND); `rgba` over the film's own
+  ground keeps only the laptop and, in Cycles, its shadow (the sweep becomes a shadow catcher).
+- The shot that draws the plate is still the film's workshop shot. For a device beat it usually draws nothing over the
+  plate: the caption is the Film's, and the interface's own words are on the screen.
+- What the spike measured (2026-11-07): three soft boxes alone left the aluminium empty, and the user read it as "not
+  a real MacBook". The studio HDRI is what the metal needed. A slab laptop read as fake; the kit model has real
+  keycaps, a dark keyboard well, polished bevels, a glass trackpad and the notch. Cycles beat EEVEE on that model
+  (contact shadows, the metal's reflections); EEVEE is about 5x faster for a preview.
 
 ## Never pay twice
 

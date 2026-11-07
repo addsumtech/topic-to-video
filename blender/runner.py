@@ -31,6 +31,7 @@ from blender.kit import color as _color  # noqa: E402
 from blender.kit import idpass as _idpass  # noqa: E402
 from blender.kit import render as _render  # noqa: E402
 from blender.kit import reuse as _reuse  # noqa: E402
+from blender.kit import screenseq as _screenseq  # noqa: E402
 from blender.kit import stage as _stage  # noqa: E402
 
 
@@ -48,6 +49,8 @@ class Kit:
         self.anchors = _anchors
         self.hexc = _color.hexc
         self.reuse = True          # a scene whose pose changes what kit/reuse.py cannot see (mesh vertices) sets False
+        self.params = a.params     # slide.blender.params: the kit scene's own settings
+        self.screen = _screenseq.frames_in(a.screen)   # a device's screen: the beat's own shot, one picture per frame
 
 
 def _args(argv):
@@ -67,8 +70,13 @@ def _args(argv):
     ap.add_argument("--samples", type=int, default=64)
     ap.add_argument("--layout", action="store_true", help="the ID pass and anchors only, no picture")
     ap.add_argument("--no-reuse", dest="reuse", action="store_false", help="render every frame whole")
+    ap.add_argument("--screen", default="", help="a folder of pictures a device's screen plays, one per beat frame")
+    ap.add_argument("--params", default="{}", help="slide.blender.params as JSON")
     a = ap.parse_args(argv)
     a.cues = json.loads(a.cues)
+    a.params = json.loads(a.params)
+    if a.screen and not _screenseq.frames_in(a.screen):
+        raise SystemExit("--screen %s holds no pictures" % a.screen)
     a.anchors = [x for x in a.anchors.split(",") if x]
     a.objects = [x for x in a.objects.split(",") if x]
     if a.frames < 1 or a.fps < 1 or a.w < 2 or a.h < 2:
@@ -115,10 +123,33 @@ def main(argv):
     if missing:
         raise SystemExit("the scene does not build %s (it builds objects %s, anchors %s)"
                          % (", ".join(missing), sorted(objects), sorted(anchors)))
+    screen = built.get("screen")
+    if k.screen and not screen:
+        raise SystemExit("--screen was given and the scene builds no screen (return \"screen\": {node, corners})")
+    mag = {"max": 0.0, "frame": None}
+
+    def show_screen(f):
+        """The beat frame's own picture on the device, and how far the lens stretches it."""
+        if not screen:
+            return
+        node = screen["node"]
+        path = k.screen[_screenseq.index(f, a.frames, len(k.screen))]
+        old = node.image
+        node.image = bpy.data.images.load(path, check_existing=True)
+        if old is not None and old is not node.image and old.users == 0:
+            bpy.data.images.remove(old)
+        bpy.context.view_layer.update()
+        px = node.image.size
+        quad = [_anchors.project(sc, cam, p)[:2] for p in screen["corners"]()]
+        m = _screenseq.magnification(quad, (px[0], px[1]))
+        if m > mag["max"]:
+            mag.update(max=round(m, 3), frame=f)
+
     os.makedirs(a.out, exist_ok=True)
     if a.still:
         sc.frame_set(a.still)
         mod.pose(k, (a.still - 1) / a.fps)
+        show_screen(a.still)
         sc.render.filepath = os.path.join(a.out, "still_%04d.png" % a.still)
         bpy.ops.render.render(write_still=True)
         print("RUNNER-DONE " + json.dumps({"still": a.still, "seconds": round(time.time() - t0, 1)}))
@@ -135,6 +166,8 @@ def main(argv):
     beauty = not a.layout
     off = None if (a.reuse and k.reuse) else ("--no-reuse" if not a.reuse else "the scene set k.reuse = False")
     off = off or _reuse.blocked(sc)
+    if screen and not off:
+        off = "the screen plays a new picture every frame (a texture change kit/reuse.py cannot see)"
     kinds = {}                                   # frame -> {"kind": full|copy|patch, "rect": [...]}
     cur = {"rgba": None, "ids": None}            # the last frame as assembled (arrays), loaded only when reused from
     last_full = {"rgba": None, "ids": None}
@@ -183,6 +216,7 @@ def main(argv):
         sc.frame_set(f)
         mod.pose(k, (f - 1) / a.fps)
         bpy.context.view_layer.update()
+        show_screen(f)
 
     for f in range(1, a.frames + 1):
         pose_at(f)
@@ -279,6 +313,8 @@ def main(argv):
     run = {"blender": bpy.app.version_string, "ids": colors, "rendered": rendered, "layout": bool(a.layout),
            "frames": [kinds[f] for f in range(1, a.frames + 1)], "reuse": tally, "reuse_off": off,
            "seconds": round(time.time() - t0, 1)}
+    if screen:
+        run["screen_mag"] = mag
     json.dump(run, open(os.path.join(a.out, "run.json"), "w"))
     print("RUNNER-DONE " + json.dumps(run))
 

@@ -71,12 +71,28 @@ import json  # noqa: E402
 # What a built plate CONTAINS. Raise it whenever the build writes something new a reader depends on: a plate made by an
 # older build is then stale, not "fresh" without it (format 2 kept the ID pass, which plate_qa now reads).
 PLATE_FORMAT = 3
-BLENDER_WHY = ("real-world", "material", "physics", "optics", "space")
+BLENDER_WHY = ("real-world", "material", "physics", "optics", "space", "device")
 MODES = ("rgba", "env")
 ENGINES = ("eevee", "cycles")
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KIT_DIR = os.path.join(SKILL_ROOT, "blender")
+KIT_SCENES = os.path.join(KIT_DIR, "kit", "scenes")
+SCREEN_PX = (256, 8192)        # a device's screen picture: wide enough to be read, small enough to render
+SCREEN_MAG = 1.25              # the lens may draw a screen pixel across this many frame pixels (media_res_qa's bound)
+
+
+def kit_scenes():
+    return sorted(f[:-3] for f in os.listdir(KIT_SCENES) if f.endswith(".py") and not f.startswith("_")) \
+        if os.path.isdir(KIT_SCENES) else []
+
+
+def scene_path(out_dir, scene):
+    """The scene script a spec names: `kit:<name>` is the kit's own (blender/kit/scenes/<name>.py), anything else a
+    file under the film's blender/."""
+    if isinstance(scene, str) and scene.startswith("kit:"):
+        return os.path.join(KIT_SCENES, scene[4:] + ".py")
+    return os.path.join(out_dir, scene)
 
 
 def _inside(root, rel):
@@ -101,10 +117,15 @@ def spec_of(slide, out_dir):
     if not isinstance(pid, str) or not _ID.match(pid):
         bad.append("id %r: lower-case letters, digits and - (up to 40)" % (pid,))
     scene = b.get("scene")
-    sp = _inside(os.path.join(out_dir, "blender"), os.path.relpath(os.path.join(out_dir, scene), os.path.join(out_dir, "blender"))) \
-        if isinstance(scene, str) and scene.endswith(".py") else None
-    if not sp or not os.path.isfile(sp):
-        bad.append("scene %r: a .py file under <out_dir>/blender/ that exists" % (scene,))
+    if isinstance(scene, str) and scene.startswith("kit:"):
+        if scene[4:] not in kit_scenes():
+            bad.append("kit scene %r: the kit has %s" % (scene, ", ".join("kit:" + n for n in kit_scenes()) or "none"))
+    else:
+        sp = _inside(os.path.join(out_dir, "blender"), os.path.relpath(os.path.join(out_dir, scene), os.path.join(out_dir, "blender"))) \
+            if isinstance(scene, str) and scene.endswith(".py") else None
+        if not sp or not os.path.isfile(sp):
+            bad.append("scene %r: a .py file under <out_dir>/blender/ that exists, or a kit scene (%s)"
+                       % (scene, ", ".join("kit:" + n for n in kit_scenes())))
     if b.get("why") not in BLENDER_WHY:
         bad.append("why %r: one of %s — what 3D physicality IS this beat's content?" % (b.get("why"), ", ".join(BLENDER_WHY)))
     mode, engine = b.get("mode", "rgba"), b.get("engine", "eevee")
@@ -132,9 +153,56 @@ def spec_of(slide, out_dir):
             bad.append("asset %r has no licence sidecar (%s with license + source)" % (a, os.path.basename(side)))
     if slide.get("shot") not in _ws.shot_names(out_dir):
         bad.append("shot %r: a Blender plate is drawn by a workshop shot (the film's own overlay code)" % slide.get("shot"))
+    screen = _screen_of(b, out_dir, bad)
+    params = b.get("params", {})
+    if not isinstance(params, dict):
+        bad.append("params %r: an object (the kit scene's settings)" % (params,))
+        params = {}
     if bad:
         raise PlateError("blender (beat %s): %s" % (slide.get("index", "?"), "; ".join(bad)))
-    return {"id": pid, "scene": scene, "why": b["why"], "mode": mode, "engine": engine, **lists}
+    out = {"id": pid, "scene": scene, "why": b["why"], "mode": mode, "engine": engine, **lists}
+    if screen is not None:
+        out["screen"] = screen
+    if screen is not None or b.get("params") is not None:
+        out["params"] = params
+    return out
+
+
+def _screen_of(b, out_dir, bad):
+    """slide.blender.screen {shot, props, px}: the picture a device's screen plays — the beat's own interface, drawn
+    by a shot (the film's workshop or the library) at the screen's pixels. `why: device` needs one."""
+    sc = b.get("screen")
+    if sc is None:
+        if b.get("why") == "device":
+            bad.append("why 'device' needs a screen {shot, props, px}: the interface the device shows, drawn by a shot")
+        return None
+    if not isinstance(sc, dict):
+        bad.append("screen %r: an object {shot, props, px}" % (sc,))
+        return None
+    import workshop as _ws
+    shot = sc.get("shot")
+    known = set(_ws.shot_names(out_dir)) | _library_shots()
+    if not isinstance(shot, str) or shot not in known:
+        bad.append("screen.shot %r: a workshop shot of this film or a library register" % (shot,))
+    props = sc.get("props", {})
+    if not isinstance(props, dict):
+        bad.append("screen.props %r: an object (the shot's props)" % (props,))
+        props = {}
+    px = sc.get("px")
+    lo, hi = SCREEN_PX
+    if not (isinstance(px, list) and len(px) == 2 and all(isinstance(v, int) and lo <= v <= hi for v in px)):
+        bad.append("screen.px %r: [width, height] in whole pixels, each %d-%d (the device's own, e.g. a MacBook Air "
+                   "13's 2560 x 1664)" % (px, lo, hi))
+        px = None
+    return {"shot": shot, "props": props, "px": px}
+
+
+def _library_shots():
+    try:
+        import render_remotion as _rr
+        return set(_rr._remotion_shot_ids())
+    except Exception:                       # noqa: BLE001 - no library list: only the film's own shots are known
+        return set()
 
 
 def cue_times(out_dir, index, phrases):
@@ -190,11 +258,73 @@ def _code_sha(p):
 
 
 def kit_files():
-    """Every Blender-side file a plate is drawn by (blender/**/*.py), relative to the skill, sorted."""
+    """Every Blender-side file a plate is drawn by (blender/**/*.py, and the studio's HDRI), relative to the skill,
+    sorted."""
     out = []
     for d, _n, fs in os.walk(KIT_DIR):
-        out += [os.path.relpath(os.path.join(d, f), SKILL_ROOT) for f in fs if f.endswith(".py")]
+        out += [os.path.relpath(os.path.join(d, f), SKILL_ROOT) for f in fs if f.endswith((".py", ".hdr"))]
     return sorted(out)
+
+
+def screen_code(out_dir, screen):
+    """The code a device's screen picture is drawn by: the library, the workshop files its shot is built from, and the
+    files its props name — remotion_segments keys a beat the same way. NOT the whole workshop: the plate build writes
+    workshop/assets/plates.ts, and a key over that file staled the screen it had just rendered."""
+    import remotion_segments as _rs
+    parts = [_rs.code_hash(None), _rs.beat_code_hash(out_dir, [{"shot": screen["shot"], "props": screen["props"]}]),
+             _rs.referenced_files(screen["props"], out_dir)]
+    return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+def screen_command(out_dir, spec, frames, dest):
+    """(cmd, subprocess kwargs, props) that render the screen's shot to PNGs in `dest`, at its pixels, on the beat's
+    clock (holdFrames = the plate's frames)."""
+    import workshop as _ws
+    import remotion_segments as _rs
+    sc = spec["screen"]
+    _comp, payload, _dur = _ws.still_plan(out_dir, sc["shot"], dict(sc["props"]))
+    props = dict(payload, holdFrames=int(frames))
+    pf = dest.rstrip(os.sep) + ".props.json"
+    cmd = ["npx", "remotion", "render", "src/index.ts", sc["shot"], dest, "--sequence", "--image-format=png",
+           "--width=%d" % sc["px"][0], "--height=%d" % sc["px"][1], "--gl=" + _rs.default_gl(), "--log=error",
+           "--props=" + pf, "--public-dir=" + os.path.abspath(out_dir)]
+    kw = dict(_ws.run_kwargs(out_dir), cwd=os.path.join(SKILL_ROOT, "remotion"))
+    return cmd, kw, props
+
+
+def _screen_ready(out_dir, spec, frames, pd):
+    """The plate's screen pictures for these inputs, rendered once: `<plate>/screen/` with the key it was drawn for."""
+    dest = os.path.join(pd, "screen")
+    key = hashlib.sha256(json.dumps([spec["screen"], int(frames), screen_code(out_dir, spec["screen"])], sort_keys=True,
+                                    ensure_ascii=False).encode("utf-8")).hexdigest()
+    rec = os.path.join(pd, "screen.json")
+    try:
+        same = json.load(open(rec, encoding="utf-8")).get("key") == key and \
+            len([f for f in os.listdir(dest) if f.endswith(".png")]) == frames
+    except (OSError, ValueError):
+        same = False
+    if not same:
+        os.makedirs(pd, exist_ok=True)
+        render_screen(out_dir, spec, frames, dest)
+        with open(rec, "w", encoding="utf-8") as fh:
+            json.dump({"key": key, "shot": spec["screen"]["shot"], "px": spec["screen"]["px"], "frames": frames}, fh)
+    return dest
+
+
+def render_screen(out_dir, spec, frames, dest):
+    """The screen's pictures, one per beat frame, in `dest` (rendered whole into a scratch folder, then moved in)."""
+    cmd, kw, props = screen_command(out_dir, spec, frames, dest + ".part")
+    shutil.rmtree(dest + ".part", ignore_errors=True)
+    with open(dest + ".part.props.json", "w", encoding="utf-8") as fh:
+        json.dump(props, fh, ensure_ascii=False)
+    r = subprocess.run(cmd, capture_output=True, text=True, **kw)
+    got = len([f for f in os.listdir(dest + ".part") if f.endswith(".png")]) if os.path.isdir(dest + ".part") else 0
+    if r.returncode != 0 or got != frames:
+        raise PlateError("the screen of plate %r (%s) did not render: %d of %d picture(s); %s" % (
+            spec["id"], spec["screen"]["shot"], got, frames, (r.stderr or r.stdout or "").strip()[-600:]))
+    shutil.rmtree(dest, ignore_errors=True)
+    os.replace(dest + ".part", dest)
+    os.remove(dest + ".part.props.json")
 
 
 def scene_imports(scene_path, bdir):
@@ -229,18 +359,25 @@ def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version, folder_w
         for p in parts:
             h_.update(str(p).encode("utf-8"))
             h_.update(b"\0")
-    put("scene", spec["scene"], _code_sha(os.path.join(out_dir, spec["scene"])))
+    put("scene", spec["scene"], _code_sha(scene_path(out_dir, spec["scene"])))
+    if spec.get("screen"):
+        put("screen", json.dumps(spec["screen"], sort_keys=True, ensure_ascii=False), screen_code(out_dir, spec["screen"]))
+    if spec.get("params"):
+        put("params", json.dumps(spec["params"], sort_keys=True, ensure_ascii=False))
     # a scene may import helpers beside it (two plates sharing one satellite): the helpers IT imports, transitively —
     # not every .py under blender/ (the ANC film: one edit to explode.py rebuilt all three plates, ~11 min, twice)
     bdir = os.path.join(out_dir, "blender")
-    if folder_wide:                                       # the key as it was before 2026-11-05 (key_matches reads it)
+    if spec["scene"].startswith("kit:"):
+        helpers = []                                      # a kit scene's imports are the kit: keyed below
+    elif folder_wide:                                     # the key as it was before 2026-11-05 (key_matches reads it)
         helpers = [os.path.join(d, f) for d, _n, fs in sorted(os.walk(bdir)) for f in sorted(fs) if f.endswith(".py")]
     else:
-        helpers = scene_imports(os.path.join(out_dir, spec["scene"]), bdir)
+        helpers = scene_imports(scene_path(out_dir, spec["scene"]), bdir)
     for p in helpers:
         put("scene-dir", os.path.relpath(p, bdir), _code_sha(p))
     for rel in kit_files():
-        put("kit", rel, _code_sha(os.path.join(SKILL_ROOT, rel)))
+        p = os.path.join(SKILL_ROOT, rel)
+        put("kit", rel, _code_sha(p) if rel.endswith(".py") else _file_sha(p))
     for a in spec["assets"]:
         put("asset", a, _file_sha(os.path.join(out_dir, a)))
     for k in sorted(cue_t):
@@ -597,11 +734,14 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
                 shutil.rmtree(os.path.join(pd, d), ignore_errors=True)    # a partial of an OLDER key: never mixed in
         os.makedirs(work, exist_ok=True)
         cmd = [binary, "-b", "--factory-startup", "--python-exit-code", "1", "--python", RUNNER, "--",
-               "--scene", os.path.join(out_dir, spec["scene"]), "--out", work, "--frames", str(frames),
+               "--scene", scene_path(out_dir, spec["scene"]), "--out", work, "--frames", str(frames),
                "--fps", str(fps), "--w", str(w), "--h", str(h), "--engine", spec["engine"], "--mode", spec["mode"],
                "--cues", json.dumps(cue_t, ensure_ascii=False), "--anchors", ",".join(spec["anchors"]),
                "--objects", ",".join(spec["objects"]), "--samples", str(PREVIEW_SAMPLES if preview else FULL_SAMPLES)] \
-            + (["--still", str(still)] if still else []) + (["--layout"] if layout else [])
+            + (["--still", str(still)] if still else []) + (["--layout"] if layout else []) \
+            + ["--params", json.dumps(spec.get("params") or {}, ensure_ascii=False)]
+        if spec.get("screen"):
+            cmd += ["--screen", _screen_ready(out_dir, spec, frames, pd)]
         import time as _time
         t0 = _time.time()
         log = os.path.join(work, "runner.log")
@@ -613,6 +753,14 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
             reports.append({"id": spec["id"], "state": "still", "path": os.path.join(work, "still_%04d.png" % still)})
             continue
         run = json.load(open(os.path.join(work, "run.json"), encoding="utf-8"))
+        mag = (run.get("screen_mag") or {}).get("max") or 0.0
+        if spec.get("screen") and not preview and mag > SCREEN_MAG:
+            px = spec["screen"]["px"]
+            raise PlateError("plate %r draws its screen at %.2fx its own pixels on frame %s (the bound is %.2fx): the "
+                             "interface would read soft — render the screen with more pixels (slide.blender.screen.px, "
+                             "now %dx%d: at least %dx%d), or end the camera farther away (params end_d)" % (
+                                 spec["id"], mag, (run.get("screen_mag") or {}).get("frame"), SCREEN_MAG, px[0], px[1],
+                                 int(px[0] * mag / SCREEN_MAG + 1), int(px[1] * mag / SCREEN_MAG + 1)))
         assemble(work, run.get("frames") or [{"kind": "full"}] * frames, layout)
         _encode(work, os.path.join(pd, "plate.webm"), fps, spec["mode"], layout)
         boxes = boxes_from_ids(os.path.join(work, "ids"), run.get("ids") or {}, frames) if spec["objects"] else {}
