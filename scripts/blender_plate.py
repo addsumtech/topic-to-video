@@ -312,19 +312,22 @@ def _screen_ready(out_dir, spec, frames, pd):
 
 
 def render_screen(out_dir, spec, frames, dest):
-    """The screen's pictures, one per beat frame, in `dest` (rendered whole into a scratch folder, then moved in)."""
-    cmd, kw, props = screen_command(out_dir, spec, frames, dest + ".part")
-    shutil.rmtree(dest + ".part", ignore_errors=True)
-    with open(dest + ".part.props.json", "w", encoding="utf-8") as fh:
+    """The screen's pictures, one per beat frame, in `dest` (rendered whole into a scratch folder, then moved in). The
+    scratch folder's name has no extension: Remotion refuses `--sequence screen.part` as a file."""
+    part = dest + "_part"
+    cmd, kw, props = screen_command(out_dir, spec, frames, part)
+    pf = part + ".props.json"
+    shutil.rmtree(part, ignore_errors=True)
+    with open(pf, "w", encoding="utf-8") as fh:
         json.dump(props, fh, ensure_ascii=False)
     r = subprocess.run(cmd, capture_output=True, text=True, **kw)
-    got = len([f for f in os.listdir(dest + ".part") if f.endswith(".png")]) if os.path.isdir(dest + ".part") else 0
+    got = len([f for f in os.listdir(part) if f.endswith(".png")]) if os.path.isdir(part) else 0
     if r.returncode != 0 or got != frames:
         raise PlateError("the screen of plate %r (%s) did not render: %d of %d picture(s); %s" % (
             spec["id"], spec["screen"]["shot"], got, frames, (r.stderr or r.stdout or "").strip()[-600:]))
     shutil.rmtree(dest, ignore_errors=True)
-    os.replace(dest + ".part", dest)
-    os.remove(dest + ".part.props.json")
+    os.replace(part, dest)
+    os.remove(pf)
 
 
 def scene_imports(scene_path, bdir):

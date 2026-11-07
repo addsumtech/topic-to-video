@@ -200,3 +200,23 @@ def test_the_kit_scene_renders_a_laptop_whose_screen_plays_the_sequence(tmp_path
     run = json.load(open(out / "run.json"))
     assert 0 < run["screen_mag"]["max"] < 1.25
     assert run.get("reuse_off"), "a screen that changes every frame cannot reuse frames"
+
+
+def test_the_screen_is_rendered_into_a_folder_whose_name_has_no_extension(tmp_path, monkeypatch):
+    # Remotion reads `--sequence <out>` with an extension (`screen.part`) as a FILE and refuses the render: the first
+    # real build (WorkBuddy beat 6, 2026-11-07) drew 0 of 227 pictures
+    film = _film(tmp_path, DEVICE)
+    seen = {}
+
+    def run(cmd, capture_output=True, text=True, **kw):
+        seen["out"] = cmd[5]
+        os.makedirs(cmd[5], exist_ok=True)
+        for i in range(3):
+            Image.new("RGB", (8, 6)).save(os.path.join(cmd[5], "element-%03d.png" % i))
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+    monkeypatch.setattr(bp.subprocess, "run", run)
+    dest = str(tmp_path / "plate" / "screen")
+    os.makedirs(os.path.dirname(dest))
+    bp.render_screen(film, _spec(film), 3, dest)
+    assert "." not in os.path.basename(seen["out"]), seen["out"]
+    assert len(os.listdir(dest)) == 3
