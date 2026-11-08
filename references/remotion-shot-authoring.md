@@ -268,6 +268,8 @@ yes, you text-swapped a template — redesign the content. Concretely:
   chart / ring / sparkline per tile encodes nothing — each tile must carry a glyph that MEANS its item (API → `{ }`
   braces, a video product → a play-frame, a coding agent → a code block, a browser agent → a cursor-on-window).
   A tile's picture should be decodable as *that* thing with the label hidden.
+  **What the voice names, the picture shows as itself** — never a blank stand-in ("three blank files, waiting" under
+  "a report, a spreadsheet, a deck" failed the WorkBuddy film). Declare each in `shot_fit.shows`; named_objects_qa reads it.
 - **Match the layout to the content's SHAPE.** A register built for a short SEQUENCE with connecting arrows
   (`PLAN → BUILD → SHIP`) is wrong for three PARALLEL open questions — the arrows assert an order that isn't
   there and collide with the long text. Re-lay it out (stack them, drop the arrows) so the layout states the

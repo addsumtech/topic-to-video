@@ -82,6 +82,46 @@ SCREEN_PX = (256, 8192)        # a device's screen picture: wide enough to be re
 SCREEN_MAG = 1.25              # the lens may draw a screen pixel across this many frame pixels (media_res_qa's bound)
 
 
+KIT_SCENE_MODELS = {"laptop_screen": "macbook-air-13"}     # the deviceSpec model each kit device scene builds
+
+
+def _device_model_ids():
+    try:
+        spec = json.load(open(os.path.join(SKILL_ROOT, "remotion", "src", "runtime", "deviceSpec.json"),
+                              encoding="utf-8"))
+        return sorted(spec.get("models") or {}, key=len, reverse=True)
+    except (OSError, ValueError):
+        return []
+
+
+def device_model_lints(board):
+    """A device the film shows in two plates is drawn by ONE model. The WorkBuddy film's beat 4 kept the film's own
+    slab laptop (blender/laptop.py) after beat 6 moved to the kit's MacBook — the user: 20秒左右的笔记本还是很糙.
+    The model a plate depicts: its kit scene's, else a deviceSpec model id its shot's fidelity record names."""
+    ids = _device_model_ids()
+    fid = {e.get("id"): json.dumps((e.get("fidelity") or {}).get("subject") or "")
+           for e in ((board.get("meta") or {}).get("build_list") or []) if isinstance(e, dict)}
+    seen = {}
+    for i, sl in enumerate(board.get("slides") or []):
+        b = sl.get("blender")
+        if not isinstance(b, dict) or not isinstance(b.get("scene"), str):
+            continue
+        scene = b["scene"]
+        model = KIT_SCENE_MODELS.get(scene[4:]) if scene.startswith("kit:") else None
+        if model is None:
+            model = next((m for m in ids if m in fid.get(sl.get("shot"), "")), None)
+        if model:
+            seen.setdefault(model, {}).setdefault(scene, []).append(sl.get("index", i + 1))
+    out = []
+    for model, scenes in sorted(seen.items()):
+        if len(scenes) > 1:
+            kit = [sc for sc in scenes if sc.startswith("kit:")]
+            out.append("one device, two models: %s is drawn by %s — draw it with one model%s" % (
+                model, "; ".join("%s (beat %s)" % (sc, ", ".join(str(x) for x in bs)) for sc, bs in scenes.items()),
+                " (the kit's: %s)" % kit[0] if kit else ""))
+    return out
+
+
 def kit_scenes():
     return sorted(f[:-3] for f in os.listdir(KIT_SCENES) if f.endswith(".py") and not f.startswith("_")) \
         if os.path.isdir(KIT_SCENES) else []

@@ -36,6 +36,7 @@ GATES = (
     ("film_energy_qa", "fast", ("remotion",)),
     ("rhythm_qa", "fast", ("remotion", "local")),
     ("seam_ledger", "fast", ("remotion",)),
+    ("named_objects_qa", "fast", ("remotion",)),
     ("media_res_qa", "full", ("remotion",)),
     ("text_safe_qa", "full", ("remotion",)),
     ("jitter_qa", "full", ("remotion",)),

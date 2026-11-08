@@ -5418,6 +5418,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _figure_traceability(slides, out_dir, warnings, skips=skips)   # %/×/$ figures must trace to brief.json
         _check_blender(data, slides, errors, warnings, out_dir)
         _brand_identity(out_dir, errors, warnings)
+        _content_names(data, errors, warnings)
         return {"ok": not errors, "errors": errors, "warnings": warnings, "scenes": len(slides),
                 "skipped": skips}
     # visual_style is the declared single source of truth — a typo/hallucinated key degrades silently to the
@@ -6060,6 +6061,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     # render bakes a missing or broken mark into every frame.
     _brand_lints(meta, slides, out_dir, errors, warnings)
     _brand_identity(out_dir, errors, warnings)
+    _content_names(data, errors, warnings)
 
     # WHAT AN HTML FILM BUILT — its components (workshop/html/), their build-list entries, and every custom
     # tag a page uses. A board with no workshop/html/, no component entry and no custom tag returns at once.
@@ -6232,6 +6234,15 @@ def _design_plan_lints(out_dir, warnings, meta=None):
 
 
 _BRAND_PLACEMENTS = ("cover", "endcard", "bug")
+
+
+def _content_names(data, errors, warnings):
+    """What the voice names is shown as itself (named_lists: the lists, said once and alike) and a device is one model
+    (blender_plate.device_model_lints) — the WorkBuddy film, 2026-11-08."""
+    import named_lists as _nl
+    warnings.extend(_nl.lint(data))
+    import blender_plate as _bp
+    errors.extend(_bp.device_model_lints(data))
 
 
 def _brand_identity(out_dir, errors, warnings):
