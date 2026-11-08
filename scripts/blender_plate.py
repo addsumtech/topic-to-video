@@ -94,7 +94,24 @@ def _device_model_ids():
         return []
 
 
-def device_model_lints(board):
+KIT_MODEL_IMPORT = re.compile(r"from\s+blender\.kit\s+import\s+[^\n]*\bmacbook\b|import\s+blender\.kit\.macbook")
+
+
+def _drawn_by(scene, out_dir):
+    """Which MODEL draws a plate's device: the kit's MacBook (a kit scene, or a film scene that builds
+    blender.kit.macbook) or the scene's own."""
+    if scene.startswith("kit:"):
+        return "kit:macbook" if scene[4:] in KIT_SCENE_MODELS else scene
+    if out_dir:
+        try:
+            if KIT_MODEL_IMPORT.search(open(os.path.join(out_dir, scene), encoding="utf-8").read()):
+                return "kit:macbook"
+        except OSError:
+            pass
+    return scene
+
+
+def device_model_lints(board, out_dir=None):
     """A device the film shows in two plates is drawn by ONE model. The WorkBuddy film's beat 4 kept the film's own
     slab laptop (blender/laptop.py) after beat 6 moved to the kit's MacBook — the user: 20秒左右的笔记本还是很糙.
     The model a plate depicts: its kit scene's, else a deviceSpec model id its shot's fidelity record names."""
@@ -111,11 +128,11 @@ def device_model_lints(board):
         if model is None:
             model = next((m for m in ids if m in fid.get(sl.get("shot"), "")), None)
         if model:
-            seen.setdefault(model, {}).setdefault(scene, []).append(sl.get("index", i + 1))
+            seen.setdefault(model, {}).setdefault(_drawn_by(scene, out_dir), []).append(sl.get("index", i + 1))
     out = []
     for model, scenes in sorted(seen.items()):
         if len(scenes) > 1:
-            kit = [sc for sc in scenes if sc.startswith("kit:")]
+            kit = ["kit:laptop_screen or a scene built from blender.kit.macbook"] if "kit:macbook" in scenes else []
             out.append("one device, two models: %s is drawn by %s — draw it with one model%s" % (
                 model, "; ".join("%s (beat %s)" % (sc, ", ".join(str(x) for x in bs)) for sc, bs in scenes.items()),
                 " (the kit's: %s)" % kit[0] if kit else ""))

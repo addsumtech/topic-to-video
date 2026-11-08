@@ -213,3 +213,18 @@ def test_one_device_drawn_by_one_model_twice_is_fine():
              "slides": [{"index": 4, "shot": "DevicePlate", "blender": {"id": "a", "scene": "kit:laptop_screen"}},
                         {"index": 6, "shot": "DevicePlate", "blender": {"id": "b", "scene": "kit:laptop_screen"}}]}
     assert bp.device_model_lints(board) == []
+
+
+def test_a_film_scene_that_builds_the_kit_s_macbook_is_the_kit_model(tmp_path):
+    # beat 4 opens the lid in a film scene of its own, built from blender.kit.macbook: the same model as kit:laptop_screen
+    import blender_plate as bp
+    (tmp_path / "blender").mkdir()
+    (tmp_path / "blender" / "laptop_open.py").write_text("from blender.kit import macbook, studio\n")
+    (tmp_path / "blender" / "laptop.py").write_text("import docskit\n")
+    board = {"meta": {"build_list": [
+        {"id": "LaptopPlate", "kind": "shot", "fidelity": {"subject": "macbook-air-13"}}]},
+        "slides": [{"index": 4, "shot": "LaptopPlate", "blender": {"id": "laptop", "scene": "blender/laptop_open.py"}},
+                   {"index": 6, "shot": "DevicePlate", "blender": {"id": "plan-3d", "scene": "kit:laptop_screen"}}]}
+    assert bp.device_model_lints(board, str(tmp_path)) == []
+    board["slides"][0]["blender"]["scene"] = "blender/laptop.py"
+    assert bp.device_model_lints(board, str(tmp_path))
