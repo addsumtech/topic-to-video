@@ -190,7 +190,8 @@ def test_the_kit_scene_renders_a_laptop_whose_screen_plays_the_sequence(tmp_path
     cmd = [_BLENDER, "-b", "--factory-startup", "--python-exit-code", "1", "--python", bp.RUNNER, "--",
            "--scene", os.path.join(_ROOT, "blender", "kit", "scenes", "laptop_screen.py"), "--out", str(out),
            "--frames", "2", "--fps", "30", "--w", "160", "--h", "90", "--engine", "eevee", "--mode", "env",
-           "--samples", "4", "--screen", str(seq), "--params", json.dumps({"start_d": 6.6, "end_d": 6.6})]
+           "--samples", "4", "--screen", str(seq), "--objects", "keyboard",
+           "--params", json.dumps({"start_d": 6.6, "end_d": 6.6, "start_focus": [0.5, 0.4]})]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
     a, b = (Image.open(out / "rgba" / ("%04d.png" % f)).convert("RGB") for f in (1, 2))
@@ -200,6 +201,8 @@ def test_the_kit_scene_renders_a_laptop_whose_screen_plays_the_sequence(tmp_path
     run = json.load(open(out / "run.json"))
     assert 0 < run["screen_mag"]["max"] < 1.25
     assert run.get("reuse_off"), "a screen that changes every frame cannot reuse frames"
+    # the keyboard is an object plate_qa can keep out of the caption band (dark keys under a caption: black on black)
+    assert "keyboard" in run["ids"]
 
 
 def test_the_screen_is_rendered_into_a_folder_whose_name_has_no_extension(tmp_path, monkeypatch):

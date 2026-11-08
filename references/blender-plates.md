@@ -140,6 +140,12 @@ the screen and the plate.
 - `scene: "kit:laptop_screen"`: the kit's own scene (`blender/kit/scenes/`), a MacBook Air 13 built to
   `deviceSpec.json` (`blender/kit/macbook.py`) on a studio sweep lit by a CC0 HDRI (`blender/kit/studio.py`). Its
   docstring lists `params`. `focus` is where the push ends, as fractions of the screen from its top-left.
+- **Name the keyboard and keep it out of the caption.** `"objects": ["keyboard"]` lets plate_qa's layout pass (the
+  ID pass only, ~30 s) judge it against the caption band. Dark keys under the caption read black on black: WorkBuddy
+  beat 6 pushed in from the whole machine and the keyboard crossed the band for 1.3 s (contrast 1.8:1; plate_qa: the
+  caption 96% over it). The fix was the shot, not the caption: beat 4 had already shown the laptop, so beat 6 starts on
+  its screen (`params.start_focus`), closer and lower (`start_d` 3.9, `start_up` 0.06), and the screen is all the
+  caption ever sits on. Tune params with `--layout` + plate_qa, then render once.
 - `screen.shot`: a workshop shot of the film or a library register. Give it its device frame: a shot that draws a
   window over a ground (Workspace) needs its bare state (`bare: true`), the window filling the frame.
 - `screen.px`: the device's own pixels (MacBook Air 13: 2560 x 1664). **The lens must not stretch them**: the runner
