@@ -77,11 +77,10 @@ cd ~/.claude/skills/topic-to-video/remotion && npm install   # cinematic rendere
 ```
 
 <details>
-<summary>Other ways to install: Claude Code plugin, npx skills, ClawHub</summary>
+<summary>Other ways to install: Claude Code plugin, npx skills</summary>
 
 - **Claude Code plugin:** `/plugin marketplace add addsumtech/topic-to-video`, then `/plugin install topic-to-video@topic-to-video`. Remove any copy in `~/.claude/skills/` first, or the skill shows up twice. Update with `/plugin marketplace update topic-to-video`.
 - **npx skills:** `npx skills add addsumtech/topic-to-video`.
-- **ClawHub / OpenClaw:** [clawhub.ai/dong845/skills/topic-to-video](https://clawhub.ai/dong845/skills/topic-to-video).
 
 However you install it, the tools in step 1 still apply, and for the cinematic renderer run `npm install` once inside the skill's `remotion/` folder.
 </details>

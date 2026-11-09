@@ -77,11 +77,10 @@ cd ~/.claude/skills/topic-to-video/remotion && npm install   # 电影分支，�
 ```
 
 <details>
-<summary>其他安装方式：Claude Code 插件、npx skills、ClawHub</summary>
+<summary>其他安装方式：Claude Code 插件、npx skills</summary>
 
 - **Claude Code 插件：** `/plugin marketplace add addsumtech/topic-to-video`，然后 `/plugin install topic-to-video@topic-to-video`。先删掉 `~/.claude/skills/` 里已有的副本，否则会出现两个同名技能。更新用 `/plugin marketplace update topic-to-video`。
 - **npx skills：** `npx skills add addsumtech/topic-to-video`。
-- **ClawHub / OpenClaw：** [clawhub.ai/dong845/skills/topic-to-video](https://clawhub.ai/dong845/skills/topic-to-video)。
 
 不管用哪种方式安装，第 1 步的工具都需要；要用电影分支，在技能的 `remotion/` 文件夹里运行一次 `npm install`。
 </details>
