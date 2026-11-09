@@ -1,7 +1,8 @@
-# topic-to-video：给一个主题，做成一条短视频
+# topic-to-video
 
 <p align="center">
-  <a href="README.md"><strong>English</strong></a>
+  <a href="README.md"><strong>English</strong></a> ·
+  <a href="https://video.addsum.top/cn/"><strong>看成片</strong></a>
 </p>
 
 <p align="center">
@@ -13,111 +14,58 @@
   <a href="https://clawhub.ai/dong845/skills/topic-to-video"><img alt="ClawHub" src="https://img.shields.io/badge/ClawHub-get_it-e8590c"></a>
 </p>
 
-> **给它一个题目，比如"意式咖啡机是怎么萃取出一杯浓缩的"、"深圳是怎么从边境小镇长成超大城市的"，就能拿到一条一到两分钟、带配音和字幕的讲解短视频。画面上的每个事实，都能告诉你出处。**
+> **一句话进去，一条讲解短片出来。** 说一个主题，或者丢给它一份幻灯片：它查资料、写讲稿、配音、逐个设计镜头、渲染成带字幕的视频，并在交给你之前先检查一遍。
 
-在 Claude Code 或 Codex 里用聊天的方式调用。它不是"文字生成视频"的大模型，不靠 AI 去画每一帧。它更像一个小型讲解视频工作室：查资料（或者读你的幻灯片），写讲稿，配音，按每句话在讲什么来设计镜头；素材库里没有的画面元素就现场造出来；最后渲染成片，检查过后再交给你。
+这是一个 Claude Code / Codex 技能。它不是靠大模型去"画"每一帧：**每一帧都是用代码画出来的**，文字、图表、数据都是真的。所以事实准确、标注不会错位，每一帧都能被检查。
 
-你能得到什么，以及需要知道的：
+## 用它做的片子
 
-- 🔎 **有出处，不编造。** 解说里的每个日期和数字，都对应它抓到的网页原文里的一句话。几个来源说法不一致时，它会挑最站得住的那个，并在简报里写明取舍。找不到出处的数字，片子里就不说具体数，只做定性描述。
-- 🎬 **逐个镜头设计。** 它从 225 种手工打磨的镜头设计里挑：剖面图、对比面板、路线图、时间线、手机演示、数据展台等。片子需要而库里没有的东西，比如一块咖啡粉饼的剖面、一台秤里的称重传感器、按真实比例画出的城市扩张，它会为这部片专门造出来，并确认遮住字幕也能看懂。
-- 🗣️ **任何语言都能配音、配字幕。** 默认用免费的神经语音（edge-tts），字幕逐词同步，直接压在画面自己的背景上，中文同样支持。英文幻灯片也能配成中文解说，反过来也行。
-- 🧪 **交给你之前先检查。** 文字有没有出画、字幕有没有压住内容、声画是否同步、镜头移动时文字会不会抖、有没有残留的占位文字。检查对象是渲染出来的真实画面，不是计划。
-- 📐 **适配各种画幅。** 横屏 16:9、竖屏 9:16、方屏 1:1 等。每个镜头会针对画幅重新排版，而不是简单裁切。
-
-需要提前说明的限制：它在本地运行，产出的是**文件**（MP4 加 SRT 字幕，会复制到你的桌面），没有云端版本，也没有分享链接。一条精致的五镜头短片需要实打实的工作时间：我们的测试片每条用了一到两个小时，大部分花在策划、制作和检查上；渲染本身只要几分钟。
-
-<p align="center">
-  <a href="#示例短片"><strong>示例短片</strong></a> ·
-  <a href="#和其他工具有什么不同"><strong>有什么不同</strong></a> ·
-  <a href="#两个分支怎么选"><strong>两个分支</strong></a> ·
-  <a href="#工作流程"><strong>工作流程</strong></a> ·
-  <a href="#快速开始"><strong>快速开始</strong></a> ·
-  <a href="#常见问题"><strong>常见问题</strong></a>
-</p>
-
-## 示例短片
-
-下面是四部短片的截图，每部都只给了一个题目，用中文制作。图里的画面元素都是片子自己画出来的，没有用素材库的现成图片。
+下面每一部都起于聊天里的一句话请求。点击可在 **[video.addsum.top](https://video.addsum.top/cn/)** 观看。
 
 <table>
   <tr>
-    <td align="center" width="33%">
-      <img src="docs/assets/mri-precession.jpg" alt="MRI 短片：质子被射频脉冲扳倒后继续旋转，在线圈里感应出信号"><br/>
-      <sub><strong>磁共振是怎么把人体内部变成图像的</strong><br/>质子被射频扳倒后继续转动，线圈里就有了信号</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/assets/espresso-puck.jpg" alt="咖啡短片：松散的粉里水顺着缝隙漏下去，压实的粉饼让水均匀往下走"><br/>
-      <sub><strong>意式咖啡机怎么萃取一杯浓缩</strong><br/>松散的粉有缝隙，水会抄近路；压实后水均匀往下走</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/assets/espresso-extraction.jpg" alt="咖啡短片：三种研磨粗细并排对比，太快偏酸、约 25 秒刚好、太慢偏苦"><br/>
-      <sub><strong>同一部片的高潮</strong><br/>阻力决定时间，时间决定味道</sub>
-    </td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#workbuddy-promo"><img src="docs/assets/films/workbuddy-promo.jpg" alt="WorkBuddy 产品宣传片"></a><br/><sub><strong>产品宣传片</strong> · 英文 · 2:16<br/>照截图重建应用界面，六个镜头用 Blender 渲染</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#anc-headphones"><img src="docs/assets/films/anc-headphones.jpg" alt="主动降噪是怎么回事"></a><br/><sub><strong>主动降噪是怎么回事</strong> · 英文 · 2:43<br/>反相的波、两只麦克风、极短的时间窗口</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#slide-maker-promo"><img src="docs/assets/films/slide-maker-promo.jpg" alt="slide-maker 发布短片"></a><br/><sub><strong>发布短片</strong> · 英文 · 2:48<br/>按配乐剪辑，画面里每页幻灯片都是真实产出</sub></td>
   </tr>
   <tr>
-    <td align="center" width="33%">
-      <img src="docs/assets/scale-cutaway.jpg" alt="产品发布短片：智能咖啡秤的剖面图，零件编号标注"><br/>
-      <sub><strong>发布一台概念智能咖啡秤</strong><br/>剖面图：重量压弯传感器，主板读数，再用蓝牙发出去</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/assets/scale-app-sync.jpg" alt="产品发布短片：秤和手机 App 同时显示同一次注水的 240 克"><br/>
-      <sub><strong>同一部片的高潮</strong><br/>同一次注水，秤上和手机上同时看到</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/assets/shenzhen-growth.jpg" alt="城市短片：深圳建成区按真实比例画出，从 3 到 962 平方公里"><br/>
-      <sub><strong>深圳：从边境小镇到超大城市</strong><br/>建成区按比例画出，3 → 962 平方公里，越过了当年特区的线</sub>
-    </td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#qr-code-explainer"><img src="docs/assets/films/qr-code-explainer.jpg" alt="二维码是怎么被读出来的"></a><br/><sub><strong>二维码是怎么被读出来的</strong> · 中文 · 2:49<br/>片中每个二维码都真实生成，并用解码器验证过</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#mri-explainer"><img src="docs/assets/films/mri-explainer.jpg" alt="MRI 是怎么成像的"></a><br/><sub><strong>MRI 是怎么成像的</strong> · 英文 · 2:17<br/>画面里的 k 空间是实际计算出的傅里叶变换</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#job-hunt-promo"><img src="docs/assets/films/job-hunt-promo.jpg" alt="job-hunt 产品宣传片"></a><br/><sub><strong>产品宣传片</strong> · 中文 · 2:32<br/>找岗位、判断匹配、改简历、练面试，一条故事线讲完</sub></td>
   </tr>
 </table>
 
-## 和其他工具有什么不同
+## 有什么不同
 
-现在的"AI 视频"工具大多分两类。一类是生成式模型，动起来很好看，但事实容易出错，标签也很难放准位置。另一类是模板幻灯片，把你的文字铺在素材视频上。topic-to-video 走的是第三条路：**每一帧都是用代码画出来的**，文字、图表、数据都是真的，所以能做到准确，也能被检查。
+- 🔎 **有出处，不编造。** 解说里的每个日期和数字都对应它抓到的网页原文。找不到出处的数字，片子里只做定性描述。
+- 🎬 **逐个镜头设计。** 从 225 种手工打磨的镜头设计里挑（剖面图、对比面板、路线、时间线、手机演示、数据展台），库里没有的就为这部片现场造。较重的 3D 镜头交给 Blender 渲染。
+- 👁️ **画面本身在说话。** 每个镜头都按那句解说的意思来做：遮住字幕，画面也能把意思讲清楚。
+- 🗣️ **任何语言，免费配音。** 默认用 edge-tts，字幕逐词同步，中文同样支持。英文幻灯片可以配中文解说，反过来也行。
+- 🧪 **检查的是渲染出来的画面。** 文字出画、字幕压住内容、声画不同步、运镜时文字抖动、残留占位文字，都会被查出来。
+- 📐 **任何画幅。** 16:9、9:16、1:1、4:5、4:3，镜头按画幅重新排版，而不是裁切。
+- ✏️ **审美由你把关。** 先给你看一版早期渲染，你说改哪里，只重渲改动的镜头。
 
-- **画面在说同一件事。** 每个镜头都按它那句解说要表达的意思来挑、来造。遮住字幕，画面本身也应该能把意思讲清楚。自建的元素在渲染前就会按这个标准检验。
-- **事实有凭据。** 简报里每个数字旁边都附着它的原文出处，你可以逐句核对一部片。
-- **真实的地方，署名清楚。** 需要真实照片或地图时，它从维基共享资源找许可干净的图片，并在画面上标注作者和授权。
-- **它会自己找毛病。** 检查都针对渲染出来的视频。比如有一项检查会逐帧找出镜头缓慢移动时文字一像素一像素跳动的问题，这种毛病看截图是发现不了的。
-- **审美由你说了算。** 它会先给你看一版，你说哪里要改，它只重渲改动过的镜头。
+## 两种渲染方式
 
-## 两个分支怎么选
-
-每部片由两个渲染分支之一来做，两者各有擅长的事。它会根据视频的用途给出建议，最终由你决定。
-
-| | **电影分支**（Remotion） | **页面分支**（HTML） |
+| | **电影分支**（Remotion） | **网页分支**（HTML） |
 | --- | --- | --- |
-| 镜头是什么 | 从 225 种手工设计里挑一个动画镜头（剖面、对比、路线、手机演示、数据展台等），加上片子为自己造的元素 | 每一拍一张精心设计的页面（流程、时间线、对比、表格、图表、代码、公式），按内容排版 |
-| 动态 | 镜头推拉平移、景深和类 3D 的空间感，整部片统一规划转场 | 每个要点在解说念到它的那个词时出现，和配音同步 |
-| 整片风格 | 一套设计方向（字体、配色、视觉母题）贯穿每个镜头 | 一套主题和页面样式；很适合杂志、印刷类的编辑风格 |
-| 修改 | 只重渲改动的镜头和它衔接下一个镜头的那一段 | 只重渲改动的那一页；另有快速预览模式 |
-| 需要 | Node.js（装一次 `npm install`），内存要求高一些 | 只需要 Chrome |
-| **最适合** | **产品发布、宣传片、讲故事、讲某个机制怎么运作**：靠动态把道理讲清楚的片子 | **教学讲解、操作教程、研究汇报、给幻灯片配解说**：表格、图表、分步骤文字比较多的片子 |
+| 一个镜头是 | 从 225 种设计里挑的动画镜头，加上为这部片造的物件 | 每一段一张为内容设计的页面：流程、表格、图表、代码、公式 |
+| 运动方式 | 运镜、纵深、整部片统一规划的转场 | 每个要点在说到它的那个词时出现 |
+| 最适合 | 产品发布、宣传片、故事、讲清一个机制 | 教学、操作指南、研究汇报、给幻灯片配解说 |
+| 需要 | Node.js | 只要 Chrome |
 
-路演和概览类两种都可以：重证据、重数据的适合页面分支，重故事、重品牌的适合电影分支。如果只是想让你自己的幻灯片原样配上解说，还有第三种方式：每页幻灯片全屏显示、带轻微运动，只需要 ffmpeg。
-
-## 工作流程
-
-1. **简报。** 先问你几个问题：视频用来做什么、什么语言、多长、竖屏还是横屏、用哪个分支。然后查资料或读你的幻灯片，把事实整理成带出处的简报。
-2. **策划。** 写讲稿，一拍讲一个意思，并定下整部片的设计方向：字体、配色、镜头怎么切。
-3. **制作。** 每一拍从库里挑镜头；库里没有合适的，就在这部片自己的工作区里造需要的元素或镜头。
-4. **配音。** 逐拍配音，字幕和画面上元素的出现时机都对齐到说出的词。
-5. **渲染和检查。** 渲染成片，跑画面、字幕、声画、运动等检查，然后把 MP4 和 SRT 复制到你的桌面。
+只想给自己的幻灯片原样配上解说？还有第三种模式：每页幻灯片全屏展示、带轻微动效，只需要 ffmpeg。
 
 ## 快速开始
 
-### 第一步：安装
+**1. 装好工具：** Python 3.9+、ffmpeg、Google Chrome。电影分支另需 Node.js，输入 .pptx 需要 LibreOffice，3D 镜头可选装 Blender。
 
-> **想从技能市场安装？** topic-to-video 也已上架 [ClawHub](https://clawhub.ai/dong845/skills/topic-to-video)，可以直接装进 [OpenClaw](https://openclaw.ai)。按那个页面的说明安装后，再回来装下面这些工具；不管用哪种方式安装都需要它们。
+```bash
+# macOS（Linux：apt install ffmpeg libreoffice）
+brew install ffmpeg && brew install --cask libreoffice
+```
 
-需要 **Python 3.9+**、**ffmpeg** 和 **Google Chrome**（无界面运行，用来绘制画面）。用电影分支需要再装 **Node.js**；要输入 .pptx 文件需要 **LibreOffice**。
-
-| 系统 | ffmpeg | LibreOffice（输入 .pptx 时需要） |
-| --- | --- | --- |
-| macOS | `brew install ffmpeg` | `brew install --cask libreoffice` |
-| Linux | `sudo apt install ffmpeg` | `sudo apt install libreoffice` |
-
-然后安装技能和它的 Python 依赖：
+**2. 安装技能：**
 
 ```bash
 # Claude Code
@@ -126,57 +74,36 @@ git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.claude/s
 git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.agents/skills/topic-to-video
 
 python3 -m pip install pillow pymupdf python-pptx edge-tts
+cd ~/.claude/skills/topic-to-video/remotion && npm install   # 电影分支，只需一次
 ```
 
-要用电影分支，再执行一次：
+<details>
+<summary>其他安装方式：Claude Code 插件、npx skills、ClawHub</summary>
 
-```bash
-cd ~/.claude/skills/topic-to-video/remotion && npm install
-```
+- **Claude Code 插件：** `/plugin marketplace add addsumtech/topic-to-video`，然后 `/plugin install topic-to-video@topic-to-video`。先删掉 `~/.claude/skills/` 里已有的副本，否则会出现两个同名技能。更新用 `/plugin marketplace update topic-to-video`。
+- **npx skills：** `npx skills add addsumtech/topic-to-video`。
+- **ClawHub / OpenClaw：** [clawhub.ai/dong845/skills/topic-to-video](https://clawhub.ai/dong845/skills/topic-to-video)。
 
-也可以用 [`npx skills`](https://github.com/vercel-labs/skills) 只装技能本身：`npx skills add addsumtech/topic-to-video`。上面那些工具仍然需要另外装好。
+不管用哪种方式安装，第 1 步的工具都需要；要用电影分支，在技能的 `remotion/` 文件夹里运行一次 `npm install`。
+</details>
 
-**在 Claude Code 里也可以作为插件安装**，由 Claude Code 的插件系统统一管理：
-
-```text
-/plugin marketplace add addsumtech/topic-to-video
-/plugin install topic-to-video@topic-to-video
-```
-
-安装前先删掉 `~/.claude/skills/` 里已有的副本，否则会看到两个同名技能。要用电影分支，在安装好的技能文件夹里的 `remotion/` 下运行一次 `npm install`（在技能文件夹里运行 `python3 scripts/doctor.py` 会告诉你是否缺少）。以后更新：`/plugin marketplace update topic-to-video`。
-
-### 第二步：告诉它你要什么视频
-
-开一个对话，直接描述：
+**3. 直接说你要什么视频**，不用提"技能"两个字：
 
 ```text
 做一个讲解视频：深圳是怎么从边境小镇变成超大城市的，竖屏，中文配音。
-```
-
-```text
 Make a 90-second video explaining how an espresso machine pulls a shot.
+把 slides/q3-review.pptx 做成带中文配音的讲解视频。
 ```
 
-```text
-把 slides/q3-review.pptx 做成带中文解说的视频。
-```
+它会先问几个问题，给你看计划和一版早期渲染，最后把 MP4 和 SRT 复制到你的桌面。
 
-它会简单问你几个问题，给你看计划，然后渲染，最后告诉你文件放在哪里。不用特意说"技能"两个字，只要说想做一个关于某个主题、或者从幻灯片做的视频就行。
+## 需要知道的
 
-## 适合的场景
-
-- **讲解和教学**：某个东西怎么运作、某件事为什么会发生，一拍讲一个意思。
-- **产品发布和演示**：概念产品、手机上的 App 操作流程、功能讲解。
-- **地方和历史**：一座城市、一个年代、一条时间线，需要时配上署名的真实照片。
-- **给现成的幻灯片配解说**：把一场分享或一份报告变成视频，可以用原语言，也可以换一种语言。
-- **和 [slide-maker](https://github.com/addsumtech/slides_maker) 搭配**：在那里做幻灯片，在这里配成视频。
-
-## 常见问题
-
-- **缺了什么工具？** 在技能文件夹里运行 `python3 scripts/doctor.py`，它会列出每个工具的用途和对应的安装命令。
-- **没有声音 / edge-tts 失败：** edge-tts 需要联网。在 macOS 上离线时，会自动改用系统自带的 `say` 语音。
-- **没有出现电影分支的选项：** 在 `remotion/` 里运行 `npm install`（见第一步）。
-- **找不到视频：** 它会复制到你的桌面（桌面不可写时放到"下载"文件夹），文件名就是片名。
+- **本地文件，不是云服务。** 产出是 MP4 加 SRT 字幕，没有账号，也没有分享链接。
+- **好片子需要时间。** 我们的测试片每条用了一到两个小时，大部分花在策划、制作和检查上；渲染本身只要几分钟。
+- **缺了什么工具？** 运行 `python3 scripts/doctor.py`，它会列出每个工具和对应的安装命令。
+- **没有声音？** edge-tts 需要联网。macOS 离线时会改用系统自带的 `say` 语音。
+- **和 [slide-maker](https://github.com/addsumtech/slides_maker) 搭配：** 在那边做幻灯片，在这里配成视频。
 
 ## 许可证
 

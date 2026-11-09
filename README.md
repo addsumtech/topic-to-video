@@ -1,7 +1,8 @@
-# topic-to-video: any topic, made into a short video
+# topic-to-video
 
 <p align="center">
-  <a href="README_CN.md"><strong>简体中文</strong></a>
+  <a href="README_CN.md"><strong>简体中文</strong></a> ·
+  <a href="https://video.addsum.top"><strong>Watch the films</strong></a>
 </p>
 
 <p align="center">
@@ -13,111 +14,58 @@
   <a href="https://clawhub.ai/dong845/skills/topic-to-video"><img alt="ClawHub" src="https://img.shields.io/badge/ClawHub-get_it-e8590c"></a>
 </p>
 
-> **Give it a subject — "how does an espresso machine make a shot", "why a city grew past its own border" — and get back a one-to-two-minute narrated video with captions, where every fact on screen comes from a source it can show you.**
+> **One sentence in, a finished explainer out.** Ask for a video about a topic, or hand it your slides. It researches, writes and voices the script, designs every shot, renders the film with captions and checks it before you see it.
 
-Chat with it in Claude Code or Codex. It isn't a text-to-video model painting frames. It works the way a small explainer studio does: it researches the topic (or reads your slides), writes a script, voices it, designs each shot around what that line is saying, builds the drawings the topic needs when its library doesn't have them, renders the film, and checks the result before handing it over.
+A skill for Claude Code and Codex. It is not a model painting frames: **every frame is drawn as code**, with real type, real diagrams and real data. That means facts stay exact, labels land in the right place, and every frame can be checked.
 
-What you get, and what to expect:
+## Made with it
 
-- 🔎 **Sourced, not invented.** Every date and figure in the narration is pinned to a quote from a page it fetched. Where sources disagree, it picks the defensible reading and says so in the brief. If it can't source a number, the film says it qualitatively instead.
-- 🎬 **Designed shot by shot.** It picks from a library of 225 hand-built shot designs: cutaway plates, compare panels, routes, timelines, phone demos, data stages. When a film needs something the library doesn't have (a coffee puck in section, a scale's load cell, a city's growth drawn to scale), it builds that object or shot for the film, then checks it reads with the caption covered.
-- 🗣️ **Narrated and captioned in any language.** A free neural voice by default (edge-tts), word-synced captions burned onto the frame's own background, Chinese included. It can voice an English deck in Chinese, or the other way round.
-- 🧪 **Checked before you see it.** Text inside the frame, captions not colliding with content, audio in sync, no text jittering as the camera moves, no placeholder copy left on screen. The checks run on the rendered frames, not on the plan.
-- 📐 **Any canvas.** 16:9, vertical 9:16, square 1:1 and more. Each shot recomposes for the frame instead of being cropped.
-
-Honest limits: it runs locally and makes a **file** (MP4 plus SRT, copied to your Desktop). No cloud, no share links. A polished five-shot film takes real agent time: our test films took one to two hours each, most of it planning, building and checking; a full render itself takes a couple of minutes.
-
-<p align="center">
-  <a href="#example-films"><strong>Example films</strong></a> ·
-  <a href="#what-makes-it-different"><strong>What's different</strong></a> ·
-  <a href="#two-tiers-which-one-to-pick"><strong>Two tiers</strong></a> ·
-  <a href="#how-it-works"><strong>How it works</strong></a> ·
-  <a href="#quick-start"><strong>Quick start</strong></a> ·
-  <a href="#troubleshooting"><strong>Troubleshooting</strong></a>
-</p>
-
-## Example films
-
-Stills from four films made from a one-line topic, in Chinese. Each drawing below was built by the film itself, not picked from stock.
+Every film below began as a single request in a chat. Click one to watch it on **[video.addsum.top](https://video.addsum.top)**.
 
 <table>
   <tr>
-    <td align="center" width="33%">
-      <img src="docs/assets/mri-precession.jpg" alt="MRI film: a proton tipped flat by a radio pulse, still turning, inducing a signal in a coil"><br/>
-      <sub><strong>How MRI turns the body into an image</strong><br/>a proton tipped by a radio pulse keeps turning and sends a signal to the coil</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/assets/espresso-puck.jpg" alt="Espresso film: loose grounds leak water down channels; a tamped puck lets it down evenly"><br/>
-      <sub><strong>How an espresso machine pulls a shot</strong><br/>loose grounds leak through channels; a tamped puck lets water down evenly</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/assets/espresso-extraction.jpg" alt="Espresso film: three grinds side by side — too fast and sour, about 25 seconds and balanced, too slow and bitter"><br/>
-      <sub><strong>Same film, the payoff</strong><br/>resistance sets the time, and the time sets the taste</sub>
-    </td>
+    <td width="33%"><a href="https://video.addsum.top/#workbuddy-promo"><img src="docs/assets/films/workbuddy-promo.jpg" alt="WorkBuddy product film"></a><br/><sub><strong>Product film</strong> · English · 2:16<br/>App UI rebuilt from screenshots, six shots rendered in Blender</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/#anc-headphones"><img src="docs/assets/films/anc-headphones.jpg" alt="How noise cancelling works"></a><br/><sub><strong>How noise cancelling works</strong> · English · 2:43<br/>The flipped wave, the two mics, the tiny time window</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/#slide-maker-promo"><img src="docs/assets/films/slide-maker-promo.jpg" alt="slide-maker launch film"></a><br/><sub><strong>Launch film</strong> · English · 2:48<br/>Cut to music; every deck page on screen is real output</sub></td>
   </tr>
   <tr>
-    <td align="center" width="33%">
-      <img src="docs/assets/scale-cutaway.jpg" alt="Product launch film: cutaway of a smart coffee scale with numbered parts"><br/>
-      <sub><strong>Launching a concept smart scale</strong><br/>a cutaway plate: weight bends the load cell, the board reads it, Bluetooth sends it</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/assets/scale-app-sync.jpg" alt="Product launch film: the scale and the phone app show the same 240 g pour at once"><br/>
-      <sub><strong>Same film, the climax</strong><br/>one pour, read live on the scale and on the phone</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/assets/shenzhen-growth.jpg" alt="City film: Shenzhen's built-up area drawn to scale, from 3 to 962 square kilometres"><br/>
-      <sub><strong>Shenzhen: from border town to megacity</strong><br/>built-up area drawn to scale, 3 → 962 km², past the old zone's line</sub>
-    </td>
+    <td width="33%"><a href="https://video.addsum.top/#qr-code-explainer"><img src="docs/assets/films/qr-code-explainer.jpg" alt="How a QR code is read"></a><br/><sub><strong>How a QR code is read</strong> · Chinese · 2:49<br/>Every code on screen is real and decoder-checked</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/#mri-explainer"><img src="docs/assets/films/mri-explainer.jpg" alt="How MRI makes an image"></a><br/><sub><strong>How MRI makes an image</strong> · English · 2:17<br/>The k-space on screen is a computed Fourier transform</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/#job-hunt-promo"><img src="docs/assets/films/job-hunt-promo.jpg" alt="job-hunt product film"></a><br/><sub><strong>Product film</strong> · Chinese · 2:32<br/>Roles, fit, CV and interview practice in one story</sub></td>
   </tr>
 </table>
 
-## What makes it different
+## Why it's different
 
-Most "AI video" tools fall into one of two camps. Some are generative models: impressive motion, but they can't keep a fact straight or put a label in the right place. Others are template slideshows: your text over stock footage. topic-to-video sits elsewhere. **Every frame is drawn as code**: real type, real diagrams, real data. So it can be exact, and it can be checked.
+- 🔎 **Sourced, not invented.** Every date and figure in the narration is pinned to a quote from a page it fetched. If a number can't be sourced, the film says it qualitatively.
+- 🎬 **Designed shot by shot.** It picks from 225 hand-built shot designs (cutaways, compare panels, routes, timelines, phone demos, data stages) and builds what the library lacks. Heavier 3D shots render in Blender.
+- 👁️ **The picture says the thing.** Each shot is built for what its line claims. Hide the caption and the picture should still carry the idea.
+- 🗣️ **Any language, free voice.** edge-tts by default, word-synced captions, Chinese included. It can voice an English deck in Chinese, or the reverse.
+- 🧪 **Checked on the rendered frames.** Text out of frame, captions over content, audio sync, text jitter during camera moves, leftover placeholders.
+- 📐 **Any canvas.** 16:9, 9:16, 1:1, 4:5, 4:3. Shots recompose for the frame instead of being cropped.
+- ✏️ **You keep the taste.** You see an early render, say what to change, and only the changed shots re-render.
 
-- **The visual says the thing.** Each shot is chosen and built for what its line of narration claims. Hide the caption and the picture should still carry the idea. Built objects are tested against exactly that before rendering.
-- **Facts carry receipts.** The brief keeps each figure next to the quote it came from, so you can audit a film line by line.
-- **Real places, real credits.** When a topic needs a real photo or map, it fetches a license-clean image from Wikimedia Commons and credits it on screen.
-- **It notices its own mistakes.** Its checks measure the rendered video. One example: a check reads every frame for text that steps a pixel at a time during a slow camera move, a flaw no screenshot shows.
-- **You stay in charge of taste.** It shows you a render early, you say what to change, and it re-renders only the shots that changed (and the cut into the next one).
+## Two renderers
 
-## How it works
-
-1. **Brief.** It asks a few questions (what the video is for, language, length, vertical or wide, which visual tier), then researches the topic or reads your deck. Facts go into a sourced brief.
-2. **Plan.** A script, one beat per idea, and a design direction for the whole film: type, colour, how shots cut.
-3. **Build.** For each beat it picks a shot from the library, or builds the object or shot the beat needs in the film's own workshop.
-4. **Voice.** It narrates each beat and times captions and on-screen reveals to the spoken words.
-5. **Render and check.** It renders the film and runs the frame, caption, audio and motion checks, then copies the MP4 and SRT to your Desktop.
-
-## Two tiers: which one to pick
-
-Every film is made by one of two renderers. They're built for different jobs. The skill suggests one from what the video is for, and you choose.
-
-| | **Cinematic tier** (Remotion) | **Page tier** (HTML) |
+| | **Cinematic** (Remotion) | **Page** (HTML) |
 | --- | --- | --- |
-| What a shot is | A hand-built animated shot from a library of 225 designs (cutaways, compare panels, routes, phone demos, data stages), plus objects the film builds for itself | A designed page per beat (flows, timelines, comparisons, tables, charts, code, equations), laid out for that content |
-| Motion | Camera pushes and pans, depth and 3D-style staging, cuts planned across the whole film | Each point appears on the word that names it, timed to the voice |
-| One look for the film | A design direction (type, colour, motif) carried through every shot | A theme and page styles; editorial and print looks suit it well |
-| Editing | Re-renders the shot you changed and the cut into the next one | Re-renders just the page you changed; a quick preview mode too |
-| Needs | Node.js (`npm install` once) and a bit more memory | Chrome only |
-| **Best for** | **Product launches, promos, stories, how-a-mechanism-works films**, anything where motion carries the explanation | **Teaching, how-tos, research briefings, narrating a deck**, anything with dense tables, figures or step-by-step text |
+| A shot is | An animated shot from 225 designs, plus objects built for the film | A designed page per beat: flows, tables, charts, code, equations |
+| Motion | Camera moves, depth, cuts planned across the film | Each point appears on the word that names it |
+| Best for | Launches, promos, stories, how a mechanism works | Teaching, how-tos, research briefings, narrating a deck |
+| Needs | Node.js | Chrome only |
 
-Pitches and overviews can go either way: evidence-heavy ones suit pages, story-led ones suit the cinematic tier. If you just want your own slides narrated as they are, there's a third option that shows each slide full-frame with gentle motion and needs only ffmpeg.
+Just want your own slides narrated as they are? A third mode shows each slide full-frame with gentle motion and needs only ffmpeg.
 
 ## Quick start
 
-### Step 1: Install
+**1. Install the tools:** Python 3.9+, ffmpeg and Google Chrome. Add Node.js for the cinematic renderer, LibreOffice for .pptx input, and Blender (optional) for 3D shots.
 
-> **Prefer a marketplace?** topic-to-video is also on [ClawHub](https://clawhub.ai/dong845/skills/topic-to-video), which installs straight into [OpenClaw](https://openclaw.ai). Follow the install steps on that page, then come back for the tools below; they apply however you install.
+```bash
+# macOS (Linux: apt install ffmpeg libreoffice)
+brew install ffmpeg && brew install --cask libreoffice
+```
 
-You need **Python 3.9+**, **ffmpeg**, and **Google Chrome** (used headless to draw frames). Add **Node.js** for the cinematic tier, and **LibreOffice** if you'll feed it .pptx files.
-
-| OS | ffmpeg | LibreOffice (for .pptx input) |
-| --- | --- | --- |
-| macOS | `brew install ffmpeg` | `brew install --cask libreoffice` |
-| Linux | `sudo apt install ffmpeg` | `sudo apt install libreoffice` |
-
-Then install the skill and its Python packages:
+**2. Install the skill:**
 
 ```bash
 # Claude Code
@@ -126,57 +74,36 @@ git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.claude/s
 git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.agents/skills/topic-to-video
 
 python3 -m pip install pillow pymupdf python-pptx edge-tts
+cd ~/.claude/skills/topic-to-video/remotion && npm install   # cinematic renderer, once
 ```
 
-For the cinematic tier, run this once:
+<details>
+<summary>Other ways to install: Claude Code plugin, npx skills, ClawHub</summary>
 
-```bash
-cd ~/.claude/skills/topic-to-video/remotion && npm install
-```
+- **Claude Code plugin:** `/plugin marketplace add addsumtech/topic-to-video`, then `/plugin install topic-to-video@topic-to-video`. Remove any copy in `~/.claude/skills/` first, or the skill shows up twice. Update with `/plugin marketplace update topic-to-video`.
+- **npx skills:** `npx skills add addsumtech/topic-to-video`.
+- **ClawHub / OpenClaw:** [clawhub.ai/dong845/skills/topic-to-video](https://clawhub.ai/dong845/skills/topic-to-video).
 
-Or install the skill alone with [`npx skills`](https://github.com/vercel-labs/skills): `npx skills add addsumtech/topic-to-video`. You still need the tools above.
+However you install it, the tools in step 1 still apply, and for the cinematic renderer run `npm install` once inside the skill's `remotion/` folder.
+</details>
 
-**On Claude Code you can also install it as a plugin**, managed by Claude Code's plugin system:
-
-```text
-/plugin marketplace add addsumtech/topic-to-video
-/plugin install topic-to-video@topic-to-video
-```
-
-Remove any copy in `~/.claude/skills/` first, or you'll see the skill twice. For the cinematic tier, run `npm install` once inside the installed skill's `remotion/` folder (`python3 scripts/doctor.py`, run from the skill folder, tells you if it's missing). To update later: `/plugin marketplace update topic-to-video`.
-
-### Step 2: Ask for a video
-
-Start a chat and describe the video:
+**3. Ask for a video.** You don't have to say "skill":
 
 ```text
 Make a 90-second video explaining how an espresso machine pulls a shot.
-```
-
-```text
 做一个讲解视频：深圳是怎么从边境小镇变成超大城市的，竖屏，中文配音。
-```
-
-```text
 Turn slides/q3-review.pptx into a narrated video with a Chinese voice-over.
 ```
 
-It interviews you briefly, shows you the plan, renders, and tells you where the file landed. You don't have to say "skill". Asking for a video about a topic or from slides is enough.
+It asks a few questions, shows you the plan and an early render, then copies the MP4 and SRT to your Desktop.
 
-## Best-fit scenarios
+## Good to know
 
-- **Explainers and teaching:** how something works, why something happens, one idea per beat.
-- **Product launches and demos:** a concept product, an app flow on a phone, a feature walkthrough.
-- **Places and history:** a city, an era, a timeline, with real credited photos where they help.
-- **Your existing deck, narrated:** a talk or report turned into a video, in its own language or another.
+- **Local files, not a cloud service.** You get an MP4 plus an SRT. No accounts, no share links.
+- **Quality takes agent time.** Our test films took one to two hours each, mostly planning, building and checking. The render itself takes minutes.
+- **Something missing?** `python3 scripts/doctor.py` lists each tool and the exact command to install it.
+- **No voice?** edge-tts needs a network connection. Offline on macOS, it falls back to the system `say` voice.
 - **Pairs with [slide-maker](https://github.com/addsumtech/slides_maker):** make the deck there, narrate it here.
-
-## Troubleshooting
-
-- **Something missing?** Run `python3 scripts/doctor.py` from the skill folder. It lists each tool, what it's for, and the exact install command.
-- **No voice / edge-tts fails:** edge-tts needs a network connection. Offline on macOS, it falls back to the system `say` voice.
-- **Cinematic tier not offered:** run `npm install` in `remotion/` (see Step 1).
-- **Can't find the video:** it's copied to your Desktop (or Downloads if the Desktop isn't writable), named after the film's title.
 
 ## License
 
