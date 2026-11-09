@@ -11,7 +11,6 @@
   <img alt="Codex" src="https://img.shields.io/badge/Codex-supported-111827">
   <img alt="Output: MP4 + SRT" src="https://img.shields.io/badge/output-MP4_%2B_SRT-0f766e">
   <img alt="Free by default" src="https://img.shields.io/badge/voice-free_by_default-2f6feb">
-  <a href="https://clawhub.ai/dong845/skills/topic-to-video"><img alt="ClawHub" src="https://img.shields.io/badge/ClawHub-get_it-e8590c"></a>
 </p>
 
 > **一句话进去，一条讲解短片出来。** 说一个主题，或者丢给它一份幻灯片：它查资料、写讲稿、配音、逐个设计镜头、渲染成带字幕的视频，并在交给你之前先检查一遍。

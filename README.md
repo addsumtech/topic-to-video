@@ -11,7 +11,6 @@
   <img alt="Codex" src="https://img.shields.io/badge/Codex-supported-111827">
   <img alt="Output: MP4 + SRT" src="https://img.shields.io/badge/output-MP4_%2B_SRT-0f766e">
   <img alt="Free by default" src="https://img.shields.io/badge/voice-free_by_default-2f6feb">
-  <a href="https://clawhub.ai/dong845/skills/topic-to-video"><img alt="ClawHub" src="https://img.shields.io/badge/ClawHub-get_it-e8590c"></a>
 </p>
 
 > **One sentence in, a finished explainer out.** Ask for a video about a topic, or hand it your slides. It researches, writes and voices the script, designs every shot, renders the film with captions and checks it before you see it.
