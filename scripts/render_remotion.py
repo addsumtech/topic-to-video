@@ -1109,6 +1109,14 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     _sq.attach_cues(out_dir, data, props, slides)
     _sq.attach_warps(out_dir, data, props, slides)
     attach_phrases(props, slides, meta, fps)
+    # COVERAGE (scripts/coverage_plan.py, runtime/coverage.tsx): a beat cut between framings on its voice — after the
+    # phrases, because a beat with an authored camera (and so phrase steps) is never also covered
+    import coverage_plan as _cov
+    _cov.attach(props, slides, meta, fps, total=len(data.get("slides") or slides))
+    for sc in props["scenes"]:
+        sc.pop("captionOnScreen", None)
+        if meta.get("caption_on_screen") is not False and caption_on_screen(sc):
+            sc["captionOnScreen"] = True
     return props, slides
 
 
@@ -1142,6 +1150,29 @@ def _register_p75(shot):
             _ENERGY = {}
     row = _ENERGY.get(shot) or {}
     return row.get("motion_p75")
+
+
+# Registers whose own type can BE the spoken line, and the prop that holds it.
+TYPE_SETS_LINE = {"HeadlineReveal": "lines"}
+CAPTION_ON_SCREEN_MIN = 0.85
+
+
+def caption_on_screen(sc):
+    """True when the beat's own headline says the narration (>= CAPTION_ON_SCREEN_MIN of it, as text): the burned
+    caption would then set the same words twice, one of them designed (TE, Apple and Arc set the line itself and no
+    caption at all). out.srt keeps the line either way. A headline that only shares some words is not the line."""
+    import difflib
+    key = TYPE_SETS_LINE.get(sc.get("shot") or "")
+    cap = sc.get("caption") or ""
+    if not key or not cap:
+        return False
+    val = (sc.get("props") or {}).get(key)
+    text = " ".join(str(x) for x in val) if isinstance(val, list) else str(val or "")
+    norm = lambda s: re.sub(r"[\W_]+", "", s.replace("*", "")).lower()
+    a, b = norm(text), norm(cap)
+    if not a or not b:
+        return False
+    return difflib.SequenceMatcher(None, a, b).ratio() >= CAPTION_ON_SCREEN_MIN
 
 
 def attach_phrases(props, slides, meta, fps):

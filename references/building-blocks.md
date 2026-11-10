@@ -137,6 +137,15 @@ The listed item the voice names leads the frame and its peers recede — Film mo
 **Smallest real use:** `<FocusLayer plan={sc.focus} items={sc.focusItems}>{register}</FocusLayer>`
 **Exports:** `FocusLayer`, `focusWeights`, `findContainers`, `FOCUS_RECEDE`, `FOCUS_EASE_S`.
 
+### `coverage`
+One beat cut between STATIC framings on its voice — wide, a close-up on the listed item the narration names, a
+punch-in on a clause — measured on frozen copies of the register (three frames per step) and refused (left wide) where
+a crop would cut a line of type or a card, or magnify a raster. The caption band stays the register's own ground.
+**Reach for it:** nothing to import: `scripts/coverage_plan.py` plans it at render time. A built shot can say what an
+item looks like with `data-cover="<prop path>"` on the item's drawing; `"coverage": false` on a slide turns it off.
+**Smallest real use:** `<Coverage plan={sc.coverage} items={sc.coverageItems} beat={i} durF={d}>{register}</Coverage>`
+**Exports:** `Coverage`, `coverFraming`, `itemRegion`, `tooAlike`, `punchCore`, `stepAt`, `probeFrame`, `probeFrames`.
+
 ### `phrase`
 An authored push or pull delivered in steps on the voice's clauses (Film.tsx `PhraseCamera`), not a creep over the beat.
 **Reach for it:** nothing to import: author `camera:{move:'push'}` on a beat of 10 s or more.

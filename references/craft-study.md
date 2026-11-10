@@ -1,0 +1,109 @@
+# Craft study — what 26 published brand films do, measured against ours (2026-11-10)
+
+The user's verdict on our Remotion films was "差点意思" — close, not there. Instead of guessing, 26 official films were
+downloaded from the brands' own channels and decomposed shot by shot (each shot's early and late frame side by side),
+then measured with ONE instrument together with four of our films (fridge, keyboard, ANC, WorkBuddy). Read this before
+designing a film's shots: it says which differences are real (measured), which are seen but not measured, and which
+impressions turned out wrong.
+
+**Corpus.** Teenage Engineering (OP–1 field, OP–XY, OB–4, OP–1 field overview) · Bang & Olufsen (Beosound Theatre,
+Beolab 90, Theatre acoustics) · Nothing (Phone (3), Phone (3a) series, Ear (open)) · Apple (AirPods Pro 3, iPhone Air,
+MacBook Pro, Watch Series 11, HomePod mini 2) · Dyson (V15 Detect, Flyaway) · Linear Agent · Arc 1.0 · Raycast 2026 ·
+Notion 3.0 · Framer 3.0 · OpenAI GPT-5 · Stripe Sessions 2024 · Kurzgesagt "How small is an atom". The videos and
+frames stay on the machine that studied them (third-party work); this page keeps only what was learned.
+
+**Evidence tags.** **[M]** measured and separates ours from theirs · **[O]** observed on the shot sheets, not measured ·
+**[–]** measured and does NOT separate (a wrong impression, dropped).
+
+## What did not separate us [–]
+- **Tonal key.** Ours are high-key (highlight share 0.58–0.87) like Apple, Notion and Kurzgesagt; the fridge film is
+  low-key like B&O. "Our films look grey and flat" was an impression the pixels did not support.
+- Colourfulness, the spread of luminance across shots, the change inside a shot: overlapping ranges.
+- Bookends: ours already close on their opening image, as MacBook Pro (its "V" of light) and Watch (the headline) do.
+
+## P1 · Rhythm has contrast — bursts and holds [M]
+p90/p10 of shot lengths: **ours 1.6–1.9**, every reference with cuts **2.7–37** (most 4–8). Shots under 1.5 s: **ours
+0 %**, theirs 7–68 %. Nothing (3) accelerates 1.3 → 0.6 s into its climax and releases on a 3.5 s wide; MacBook Pro cuts
+its UI demos at 0.9–1.5 s and holds hero + type for 7–9 s; Arc cuts archival "1.0s" at 0.7 s between 1.2 s word cards.
+**Why ours was a metronome:** one beat = one sentence = one shot, and nothing cut inside a beat.
+→ **coverage** (`scripts/coverage_plan.py`, `runtime/coverage.tsx`): a beat is cut between framings on its voice — a
+listed item the voice names gets a close-up, a long beat a punch-in on a clause — and `scripts/cut_rhythm_qa.py`
+reports the delivered film's numbers beside this band.
+
+## P2 · Scale has range; fragments come before the whole [M on explainers, O on product films]
+Foreground share p90−p10: ANC 0.19, fridge 0.18, keyboard 0.26 against Kurzgesagt 0.51 and the product films 0.45–0.68;
+a big subject running off two or more edges: ours 0–0.21, hardware films 0.2–0.82. TE shows keycap, chamfer, port and
+engraving in macro and the whole product only at the end; B&O keeps the Theatre mostly in shadow, lamellas in raking
+light, and gives the room at 26 s; OP–XY is black on black, its form only rim and pin highlights.
+→ coverage's item close-ups end on the WHOLE; on a hero object, plan the reveal fragments-first (`hero_moments`:
+`macro` before `reveal`/`context`); `shot_fit.composition` should range from `macro` to `wide` across the film.
+
+## P3 · Type is designed, not appended [O]
+Type and product take turns rather than share a frame (TE, iPhone Air, Watch, HomePod, Arc). Text builds in place
+("thinner," → "thinner, louder, better."; "Knows you by" → "Knows you by heart"); key words dark or coloured, the rest
+grey; the scale goes to extremes — TE at ~2 % of the frame height in a sea of white, Notion's prompt at ~25 % with the
+camera on the caret; the device can sit inside the sentence ("for smarter [phone] group selfies").
+→ a **type beat as punctuation** between subject beats: `HeadlineReveal` (`reveal: "word"`, `*emphasis*` for the dark
+words, `size: "whisper"` for one quiet line in a sea of ground), `MagicMoveType` for a phrase that becomes the next.
+When the headline IS the spoken line the burned caption yields to it (`captionOnScreen`; out.srt keeps the line).
+
+## P4 · One signature material makes the invisible visible — and carries the film [O]
+AirPods Pro 3: sound = refractive glass rings with spectral edges around black silhouettes. B&O Theatre: sound = violet
+cloth; an eye morphs into a cloth canyon and the cloth carries every transition. Framer 3.0: "new" = refractive light
+ribbons that carry the words. Dyson V15: the green laser reveals the dust and leads into the microscopic world.
+Kurzgesagt: a multitude = a particle field. One material per film, recurring, and the medium of its transitions.
+Ours: ANC's particle field (good, never a transition), fridge's thermal false colour (a good signature), WorkBuddy's
+blank paper cards (weak, unnamed).
+→ `meta.signature_material = {name, shows, beats}` (validate asks for one on a film of 8+ beats); derive it from the
+subject (a satellite's is not a forest); let a seam carry it (`optic: leak`, `runtime/material` grounds, a `container`
+seam on it).
+
+## P5 · An interface is a lit object in space, not a screenshot [O]
+Linear Agent: one 45 s glide over the real UI laid on a tilted plane, falloff into darkness, focus where the action is,
+no cut and no overlay. Raycast: one component per shot, oversized and cropped off the edge, shallow depth of field,
+satin abstract ground. Framer: UI parts lifted out and glowing. Nothing (3a): the UI full-screen in the phone, then its
+elements leave the device and float beside it. Notion: the app window inset on a saturated brand matte. Ours
+(WorkBuddy): flat front-on windows at medium scale on light grey.
+→ the tools exist — reach for them: `surface3d` (`View`/`Slab`: the UI ON a tilted surface, sharing its vanishing
+point), `lighting` (`keyFalloff` as the light pool over that surface), `focus` (`focusAt`/`focusFilter`: blur and dim
+by distance from the action), FilmScreen `focusTrack` (the close-up that follows the action), `stage3d` (panels the
+camera flies between). Three recipes:
+  1. **Tilted plane** — the real UI on a `Slab` at 18–28°, a `keyFalloff` pool on the action, the far edge falling to
+     the ground; the camera glides on the action, nothing overlaid.
+  2. **Oversized component** — one component at 2–3× its UI size, cropped by the frame, everything but its active
+     part through `focusFilter`; one feature per shot.
+  3. **Lift-out** — the element the voice names rises off the window (`carry` anchor) and floats beside it.
+
+## P6 · The product's own signature element does the telling [O]
+Nothing's Glyph Matrix plays spin-the-bottle; Dyson draws the data on its own screen, not as an overlay; HomePod mini
+seen from above becomes coloured dots that choreograph; the Watch's own face is the feature card.
+→ before drawing a chart over a device, ask whether the device can show it (`DeviceDemo` screens, an object's own
+readout).
+
+## P7 · Restraint [O]
+One line of type and one to three objects per frame (HomePod, TE, iPhone Air); one warm element in a cool world (B&O's
+oak in violet); the brand colour as LIGHT, not as boxes (Stripe, Framer).
+
+## P8 · Objects are built like products — form, material, craft [O + earlier M]
+Edges catch light: chamfers and pin highlights (OP–XY's keys), the lid's edge light (MacBook Pro), brushed aluminium in
+every Beolab 90 frame; materials contrast (aluminium + wood, glass + fabric). Lighting practice (tutorial sources, not
+studio disclosures): a rim/back light separates the silhouette, a gradient sweep is a soft light falling off across
+the surface, hard-edged highlights show which surfaces are polished and which matte. Measured earlier
+(`craft-bar.md`): ANC's Blender earbud highlight 0.04–0.13 — matte, unlit plastic.
+→ `blender/kit/stage.py product_rig` (three-point, rim linked to the subject), `runtime/lighting` (rim, key falloff,
+contact shadow), `subject_craft_qa.py` (light range, rim separation, highlight on the settled hero frame). An object
+the film draws should have: a chamfer or edge that catches a highlight, a seam where its parts meet, at least two
+materials that differ in roughness.
+
+## P9 · Explanation runs on continuity [O]
+Kurzgesagt: five minutes without a cut — scale journeys and morphs (fist → marble → atom), an object becoming the
+container of the next scene; a fixed chapter tab and tag-chip labels. Linear / TE overview: one locked or gliding take
+in which the product's own state is the animation. → `WorldStage` (scale-zoom between named framings), stage runs,
+anchored seams — capability the library has; the gap was reaching for it.
+
+## Sources (web — used only where noted; the films themselves are the primary source)
+- B&O Beolab 28 brand film, "inside out" approach — https://www.stashmedia.tv/?p=79583
+- Product lighting practice (rim, gradient falloff, hard-edged highlights) —
+  https://petapixel.com/how-to-create-gradients-of-light-product-photography/ ;
+  https://lightmap.co.uk/learning/easy-product-lighting-tutorial
+- Linear reels: one job per reel, minimal narration — https://www.moonb.io/blog/product-launch-video

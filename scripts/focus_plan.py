@@ -137,8 +137,10 @@ def _named(clause, items):
     return best[1] if best else None
 
 
-def focus_plan(props, spans, caption, duration, shot=None):
-    """[{t, key}] — at second t the item `key` leads (None: every item at full weight again). [] for no plan."""
+def focus_plan(props, spans, caption, duration, shot=None, min_lead=None):
+    """[{t, key}] — at second t the item `key` leads (None: every item at full weight again). [] for no plan.
+    `min_lead` overrides MIN_LEAD_S: coverage (scripts/coverage_plan.py) CUTS between items, and a cut every 0.5 s is
+    a burst, where a lead that dims and restores that often is flicker."""
     items = item_texts_for_focus(props, shot=shot)
     if not items or not spans or not caption:
         return []
@@ -154,6 +156,7 @@ def focus_plan(props, spans, caption, duration, shot=None):
             plan.append({"t": round(t, 3), "key": None})
             current = None
         after_sentence = ends
-    if any(b["t"] - a["t"] < MIN_LEAD_S for a, b in zip(plan, plan[1:])):
+    floor = MIN_LEAD_S if min_lead is None else min_lead
+    if any(b["t"] - a["t"] < floor for a, b in zip(plan, plan[1:])):
         return []
     return plan

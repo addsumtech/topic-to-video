@@ -2691,6 +2691,38 @@ def _pose_gap(a, b):
     return None
 
 
+SIGNATURE_MIN_BEATS = 8
+
+
+def _signature_material(meta, slides):
+    """THE FILM'S SIGNATURE MATERIAL (craft study 2026-11-10, references/craft-study.md P4) — ADVISORY. Published films
+    make their invisible subject visible through ONE material and keep returning to it: AirPods Pro 3's refractive
+    glass rings for sound, B&O Theatre's violet cloth, Framer's light ribbons, Dyson's green laser, Kurzgesagt's particle
+    fields. `meta.signature_material = {name, shows, beats: [indexes]}` names it — what it is, what invisible thing it
+    shows, the beats it appears on (two or more: a material seen once is a prop, not a signature)."""
+    sm = meta.get("signature_material")
+    if sm is None:
+        if len(slides) >= SIGNATURE_MIN_BEATS:
+            return ["signature material: none named. The craft study's films each make their invisible subject visible "
+                    "through ONE material they keep returning to (AirPods' glass rings for sound, B&O's cloth, "
+                    "Framer's light ribbons, Dyson's laser): name this film's in meta.signature_material = {name, "
+                    "shows, beats} — derived from the subject — or state why it has none (references/craft-study.md P4)"]
+        return []
+    if not isinstance(sm, dict) or not str(sm.get("name") or "").strip() or not str(sm.get("shows") or "").strip() \
+            or not isinstance(sm.get("beats"), list):
+        return ["meta.signature_material is {name, shows, beats: [beat indexes]} — the material, the invisible thing "
+                "it makes visible, and the beats it appears on"]
+    idx = {s.get("index") for s in slides}
+    off = [b for b in sm["beats"] if b not in idx]
+    out = []
+    if off:
+        out.append("meta.signature_material names beat(s) %s, which are not on the board" % ", ".join(map(str, off)))
+    if len([b for b in sm["beats"] if b in idx]) < 2:
+        out.append("meta.signature_material %r appears on fewer than two beats — a material seen once is a prop; a "
+                   "signature recurs (and a seam can carry it from one beat to the next)" % sm.get("name"))
+    return out
+
+
 def _through_object(meta, slides):
     """ONE CONTINUOUS WORLD (spec 2026-11-05 C2, 2026-11-06 C1). `meta.through_object = {name, beats: [indexes],
     waive?: [{pair: "3→4", reason}]}` names the thing the film keeps returning to; each adjacent pair of its beats (in
@@ -5390,6 +5422,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         _check_remotion(meta, slides, errors, warnings, out_dir, skips=skips, vertical=vertical)
         warnings.extend(_slide_titles(meta, slides))
         errors.extend(_through_object(meta, slides))
+        warnings.extend(_signature_material(meta, slides))
         warnings.extend(_real_use(meta, slides))
         _hc_e, _hc_w = _hero_camera(meta, slides, out_dir)
         errors.extend(_hc_e)

@@ -56,8 +56,15 @@ export const HeadlineReveal: React.FC<{
    *  line; `still` — nothing (a slide's hold) */
   hold?: 'alive' | 'still';
   accent?: string;
+  /** `fit` — the headline fills its zone (the default); `whisper` — one quiet line in a sea of ground, ~3.6% of the
+   *  short side, centred and still unless `align`/`hold` say otherwise */
+  size?: 'fit' | 'whisper';
 }> = ({kicker = 'IN ONE BREATH', lines: linesIn = DEMO, note = 'and the emphasis lands last',
-       reveal = 'line', align = 'left', hold = 'alive', accent: accIn} = {}) => {
+       reveal = 'line', align: alignIn, hold: holdIn, accent: accIn, size = 'fit'} = {}) => {
+  const whisper = size === 'whisper';
+  // a breathing light on a quiet line is noise; a whisper sits in the middle of its emptiness
+  const align = alignIn ?? (whisper ? 'center' : 'left');
+  const hold = holdIn ?? (whisper ? 'still' : 'alive');
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -99,7 +106,13 @@ export const HeadlineReveal: React.FC<{
   // IN A TALL FRAME WHOLE ENTRIES ARE KEPT ONLY DOWN TO A HIGHER FLOOR. Kept whole to the landscape floor, a
   // nine-glyph Chinese end line came out ~100 px in a 1920-tall frame — 4.9% ink, small type in an empty field
   // (bench-launch b8). Past U·0.11 an entry wraps (at a word, Chinese included) at a size that fills the column.
-  const head = useKinetic({text: LINES, w: colW, h: headH, fit: 'box', maxLines: MAX_LINES + 2, align,
+  // A WHISPER is one quiet line in a sea of ground — TE's "thinner, louder, better.", Apple's spec cards: set small and
+  // left small; the frame's emptiness is the emphasis (craft study 2026-11-10).
+  const head = useKinetic(whisper
+    ? {text: LINES, w: colW, h: headH, fit: 'box', maxLines: MAX_LINES + 2, align, axes: {wght: [480, 640]},
+      wrap: 'balance', font: {family: DISPLAY, weight: 480, size: Math.round(U * (portrait ? 0.05 : 0.036)),
+        minSize: Math.ceil(U * 0.03), lineHeight: 1.3, tracking: cjk ? 0.02 : 0}}
+    : {text: LINES, w: colW, h: headH, fit: 'box', maxLines: MAX_LINES + 2, align,
     // portrait: whole entries down to U·0.11; then ONE extra line at U·0.12 (「一个题目，/一条成片」, not three lines
     // that cut 一个/题目 apart at the column's full size); only then any wrap
     fitTiers: portrait ? [{maxLines: LINES.length, minSize: Math.round(U * 0.11)},
@@ -134,7 +147,7 @@ export const HeadlineReveal: React.FC<{
   // EMPHASIS IS COLOUR AND WEIGHT, NOT A RULE. A rule under the run was the first build; at display size it ran
   // straight through the descenders ("by", "pay") and read as a strike in the wrong place. The run takes the accent
   // and thickens, each letter a beat after the last, once its own line has landed.
-  headMotion.emph = {after: 0.18, stagger: cjk ? 0.06 : 0.028, dur: 0.45, wght: 760};
+  headMotion.emph = {after: 0.18, stagger: cjk ? 0.06 : 0.028, dur: 0.45, wght: whisper ? 640 : 760};
   // HELD TYPE STAYS ALIVE (runtime/kinetic `idle`): once a line lands, a breath of tracking and, every few seconds, a
   // light that passes along it in the accent — continuous, so the baseline unlock glides it instead of stepping
   if (hold === 'alive') headMotion.idle = {breathe: 0.005, period: 3.6, delay: 0.35,

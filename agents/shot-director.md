@@ -824,6 +824,27 @@ nothing; a push into a photograph, a plate, a schematic with detail in it is the
 what the beat's shot actually holds before marking it. `seam_plan.py` fills these on the same rule and skips any
 beat you authored.
 
+## Craft-study decisions — five per film (references/craft-study.md; 26 published films measured against ours)
+
+Read `references/craft-study.md` once per film. What it measured, and what each decision now asks of you:
+1. **Rhythm (P1, measured).** Ours cut once per beat (shot-length p90/p10 1.6–1.9 against 2.7–37). COVERAGE now cuts
+   inside a beat on its voice by itself (`scripts/coverage_plan.py`): a list the narration names becomes a burst of
+   close-ups that ends on the whole, a long unnamed beat gets one punch-in. Help it: give a listed beat its items as a
+   list prop the narration names in order; mark what an item LOOKS like with `data-cover="<prop path>"` when you build
+   a shot (otherwise the runtime frames the item's label and the drawing nearest it). Turn it off on a beat with
+   `"coverage": false` only for a reason (a composition whose crop would mean something else). After the render,
+   `scripts/cut_rhythm_qa.py` prints the film beside the published band.
+2. **Scale (P2, measured).** Plan `shot_fit.composition` from `macro` to `wide` across the film; on the hero object
+   give fragments before the whole (`macro` before `reveal`/`context`).
+3. **Type as punctuation (P3).** Between subject beats, a beat of type alone — `HeadlineReveal` with `reveal: "word"`,
+   `*emphasis*` on the words that carry the claim, `size: "whisper"` for one quiet line in a sea of ground. When the
+   headline IS the spoken line, the burned caption yields to it (automatic).
+4. **One signature material (P4).** Name it in `meta.signature_material = {name, shows, beats}` — the material that
+   makes this film's invisible thing visible, derived from the subject — and let a seam carry it between its beats.
+5. **Interfaces are lit objects (P5).** A product UI is never a flat front-on screenshot on grey: put it ON a tilted
+   `surface3d` slab with a `lighting.keyFalloff` pool on the action, or show one component oversized with `focus`
+   depth of field, or lift the named element off the window — the three recipes in craft-study.md P5.
+
 ## Color-arc (a SOFT sequencing pass — after fit/family/boldness are settled)
 Each shot has a ground LUMINANCE (dark / mid / light — `remotion/src/runtime/shotLuma.ts`). A film that flips
 **dark↔light on nearly every beat STROBES**: even though each seam is smooth (the renderer forces a gentle fade

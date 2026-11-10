@@ -88,6 +88,21 @@ that has a slot for one — `ObjectStage`, `ObjectCompare`, `ObjectPath`, `Objec
 it), for an object that draws its own 3D from `yaw`, `turns: true` (objects/DemoForm is the reference), and for a
 static diagram the idle clock must never move, `idle: false`, and always `fidelity` (rule 7).
 
+## Built like a product (craft study 2026-11-10, references/craft-study.md P8)
+
+The published product films (TE, B&O, Apple, Nothing) show their objects as MANUFACTURED things, and the difference is
+readable in a still: an edge that catches light, a seam where two parts meet, two materials that differ. Before an
+object ships, check it has:
+- **an edge that takes a highlight** — a chamfer or a rounded rim drawn as its own lighter band (OP–XY's keys, the
+  MacBook lid's edge light), not a flat fill meeting the ground;
+- **a seam or a split line** where the parts meet (a lid, a button's gap, a housing's parting line) — the eye reads
+  assembly from it;
+- **two materials that differ in roughness** (brushed metal + matte plastic, glass + fabric, a glossy screen in a satin
+  body) — one material all over reads as a toy;
+- **a rim against the ground** — `runtime/lighting` rim/key falloff in 2D, `blender/kit/stage.py product_rig` in
+  Blender; `subject_craft_qa.py` reports light range, rim separation and highlight on the settled hero frame
+  (ANC's Blender earbud measured a highlight of 0.04–0.13: matte, unlit plastic).
+
 ## Three good objects
 
 ### A mechanism in cutaway — `PuckInSection`

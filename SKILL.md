@@ -321,6 +321,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 - `scripts/split_beats.py <out_dir> [--beat N]`: a remotion beat over 8 s on one shot holds still (51-100% of 311
   measured beats past 3 s). validate names each with where it splits; this lists them, and `--beat N` splits one at
   sentence ends BEFORE tts. The new beats get NO shot (validate refuses that) — design each, then run tts.
+- `scripts/cut_rhythm_qa.py <out_dir> [--json]`: remotion, after the render — the delivered film's cut rhythm (shot-length
+  p90/p10, share under 1.5 s) and scale range beside the band 26 published films sit in (references/craft-study.md);
+  coverage cuts (`scripts/coverage_plan.py`) are counted only when the pixels confirm them. Advisory.
 - `scripts/rhythm_qa.py <out_dir> [--json]`: pacing gate. Run after tts, before the full render. It is advisory except
   for a MEASURED static frame held past ~16 s. It names a remotion beat over 8 s on one shot: measured on 311 beats,
   those held a frame still past 3 s in 51-100% of cases. Split it, have the voice walk a list it shows, or author a

@@ -31,6 +31,7 @@ import {SceneCamera, bedPan, ACTION_SAFE_FRAC, cameraBudget, type CameraMove} fr
 import {HeroCameraContext, HERO_MOVES, type HeroMove} from './runtime/heroCamera';
 import {phraseExtra} from './runtime/phrase';
 import {FocusLayer} from './runtime/focusLead';
+import {Coverage, type CoverStep} from './runtime/coverage';
 import {withCjkDisplay} from './runtime/cjkVoice';
 import {WorldBackdrop} from './runtime/world';
 import {handoffIn, handoffOut} from './runtime/handoff';
@@ -76,6 +77,9 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // chunk 2" means something different after every re-wrap while an offset into the string does not.
   capWords?: {t: number; a: number; b: number}[];
   captionUntil?: number;   // seconds into the beat where a sound demo starts: the caption gives way to it
+  // THE BEAT'S OWN TYPE SAYS THE NARRATION (scripts/render_remotion.py `caption_on_screen`): a headline that IS the spoken
+  // line is the caption, designed — the burned caption would set the same words twice. out.srt keeps them.
+  captionOnScreen?: boolean;
   // PHRASE STEPS (scripts/phrase_steps.py, runtime/phrase.ts): seconds on the beat's clock at which an AUTHORED push or
   // pull takes its next step, on the voice's next clause. Absent: the beat's camera is what it always was.
   phrase?: number[];
@@ -84,6 +88,10 @@ export type SceneSpec = SceneGroundDecl & {shot: string; props?: Record<string, 
   // THE LEAD (scripts/focus_plan.py, runtime/focusLead.tsx): which listed item leads while the voice talks about it.
   focus?: {t: number; key: string | null}[];
   focusItems?: Record<string, string>;
+  // COVERAGE (scripts/coverage_plan.py, runtime/coverage.tsx): the beat seen in several static framings, cut on the
+  // voice — wide, a close-up on the listed item it names, or a punch-in on a clause boundary. Absent = one framing.
+  coverage?: CoverStep[];
+  coverageItems?: Record<string, string>;
   // TERMINAL CHROME per scene (remotion + DNA only): a command-path + status readout the Film frames every beat
   // with (see runtime/dna.tsx TerminalChrome). Optional; inert unless the active DNA speaks 'breadcrumb'.
   chrome?: {path?: string; status?: string; root?: string};
@@ -149,6 +157,21 @@ const checkCues = (cues: Record<string, number>, i: number, shot: string) => {
         'second (inside the beat) at which that item should read; re-derive it (scripts/sync_qa.py attach_cues)');
     }
   }
+};
+
+/** Refuses a coverage plan that is not a strictly increasing list of seconds inside the beat. */
+const checkCoverage = (plan: CoverStep[], durS: number, i: number, shot: string) => {
+  plan.forEach((s, k) => {
+    const bad = typeof s.t !== 'number' || !Number.isFinite(s.t) || s.t < 0 || s.t >= durS
+      || (k > 0 && !(s.t > plan[k - 1].t))
+      || !(s.frame === 'wide' || (typeof s.frame === 'object' && s.frame !== null
+        && (typeof (s.frame as {key?: unknown}).key === 'string'
+          || (typeof (s.frame as {punch?: unknown}).punch === 'number' && (s.frame as {punch: number}).punch > 1))));
+    if (bad) {
+      throw new Error(`scene ${i} (${shot}) has coverage step ${k} = ${JSON.stringify(s)} — a step is {t: a second inside ` +
+        'the beat, after the step before it; frame: "wide" | {key} | {punch > 1}} (scripts/coverage_plan.py)');
+    }
+  });
 };
 
 /** Refuses a warp that is not a monotone map — a register run backwards or frozen is never what was meant. */
@@ -397,7 +420,7 @@ const CaptionTrack: React.FC<{scenes: SceneSpec[]; groundBg?: string; dna?: Desi
     if (frame >= a && frame <= b) { active = i; ws = a; we = b; break; }
   }
   const sc = active >= 0 ? scenes[active] : undefined;
-  if (!sc || !sc.caption) return null;
+  if (!sc || !sc.caption || sc.captionOnScreen) return null;
   // a sound demo (slide.audio_demo) follows the voice: the caption gives way at its start (out.srt does the same)
   if (sc.captionUntil != null) {
     we = Math.min(we, starts[active] + Math.round(sc.captionUntil * fps));
@@ -1427,6 +1450,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
     if (sc.warp) checkWarp(sc.warp, i, sc.shot);
     if (sc.time) checkTime(sc.time, `scene ${i} (${sc.shot}) time`, sc.durF / fps, fps, TR);
     if (sc.cues) checkCues(sc.cues, i, sc.shot);
+    if (sc.coverage) checkCoverage(sc.coverage, sc.durF / fps, i, sc.shot);
     // an optic is checked on every frame (normalizeOptic throws on an unknown kind or an intensity past its cap); a
     // LEAK burns over the seam INTO the beat, so a beat with no seam before it has nowhere to draw one
     const o = normalizeOptic(sc.optic, `scene ${i} (${sc.shot}) optic`);
@@ -1542,6 +1566,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                   <ObjectIdleContext.Provider value={sc.objectIdle !== false}>
                     {/* the anchor a container carried INTO this beat, which the register then draws in place */}
                     <CarryContext.Provider value={arrived[i] ?? null}>
+                      <Coverage plan={sc.coverage} items={sc.coverageItems} beat={i} durF={Math.max(1, Math.round(sc.durF))}>
                       <BeatOptic decl={optics ? sc.optic : undefined} dna={activeDna} where={`scene ${i} (${sc.shot}) optic`}>
                         <StyleLayer beat={i} skip={STYLE_HOOKS_BY_SHOT[sc.shot]}>
                           <FocusLayer plan={sc.focus} items={sc.focusItems}>
@@ -1551,6 +1576,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
                           </FocusLayer>
                         </StyleLayer>
                       </BeatOptic>
+                      </Coverage>
                     </CarryContext.Provider>
                   </ObjectIdleContext.Provider>
                 </CueContext.Provider>
