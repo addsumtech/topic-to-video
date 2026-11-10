@@ -73,6 +73,11 @@ camera flies between). Three recipes:
   2. **Oversized component** — one component at 2–3× its UI size, cropped by the frame, everything but its active
      part through `focusFilter`; one feature per shot.
   3. **Lift-out** — the element the voice names rises off the window (`carry` anchor) and floats beside it.
+  Two things the WorkBuddy redesign (2026-11-10) learned the hard way: a lit staging moves the beat onto a DARK ground,
+  and a shot's ground is its static `GROUND` export (the caption's ink and the seams read it, and a register that does
+  not follow `slide.ground` refuses one) — so give the lit staging its own film-local shot that declares the night
+  ground and renders the window with the staging; and a beat that already frames one component oversized sets
+  `"coverage": false`, or the punch-in lands on a close-up.
 
 ## P6 · The product's own signature element does the telling [O]
 Nothing's Glyph Matrix plays spin-the-bottle; Dyson draws the data on its own screen, not as an overlay; HomePod mini

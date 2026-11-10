@@ -832,7 +832,8 @@ Read `references/craft-study.md` once per film. What it measured, and what each 
    close-ups that ends on the whole, a long unnamed beat gets one punch-in. Help it: give a listed beat its items as a
    list prop the narration names in order; mark what an item LOOKS like with `data-cover="<prop path>"` when you build
    a shot (otherwise the runtime frames the item's label and the drawing nearest it). Turn it off on a beat with
-   `"coverage": false` only for a reason (a composition whose crop would mean something else). After the render,
+   `"coverage": false` only for a reason (a composition whose crop would mean something else, or a shot that already
+   frames one component oversized). After the render,
    `scripts/cut_rhythm_qa.py` prints the film beside the published band.
 2. **Scale (P2, measured).** Plan `shot_fit.composition` from `macro` to `wide` across the film; on the hero object
    give fragments before the whole (`macro` before `reveal`/`context`).
