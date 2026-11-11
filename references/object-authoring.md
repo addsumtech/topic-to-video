@@ -99,6 +99,11 @@ object ships, check it has:
   assembly from it;
 - **two materials that differ in roughness** (brushed metal + matte plastic, glass + fabric, a glossy screen in a satin
   body) — one material all over reads as a toy;
+- **a named finish per part** (2026-11-11, craft-study P0): every part is a manufactured finish — `gloss_plastic`,
+  `anodized_alu`, `copper`, `silicone`… — `blender/kit/materials.finish` on a plate, `runtime/solid` (`solid`, `tube`)
+  in 2D, one key for the whole film. A physical HERO (the product, the machine the film is about) is a Blender plate
+  under `kit.studio.product_light`: measured, 2D finishes on a vector diagram barely change how it reads, a rendered
+  object does;
 - **a rim against the ground** — `runtime/lighting` rim/key falloff in 2D, `blender/kit/stage.py product_rig` in
   Blender; `subject_craft_qa.py` reports light range, rim separation and highlight on the settled hero frame
   (ANC's Blender earbud measured a highlight of 0.04–0.13: matte, unlit plastic).

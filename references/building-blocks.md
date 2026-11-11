@@ -245,6 +245,16 @@ The product light for built (SVG) subjects: `rimGradient` (`rimGradient(box, sid
 **Reach for it:** a hero subject that is a flat fill with a stroke.
 **Smallest real use:** `const rim = rimGradient(box, 'right', 0.8)` → stops on a `<linearGradient>` rotated by `rim.angle`
 
+### `solid`
+A drawn object as a MANUFACTURED, LIT solid in 2D (craft study 2026-11-11, references/craft-study.md P0): `solid`
+(`solid(id, tag, shapeProps, box, colour, finish, edgeWidth)`) fills a shape with its finish's form shade toward the
+film's one key (`STUDIO_KEY`), chamfers its edges with `chamferFilter` and clips the finish's `reflectionBands` inside
+it; `tube` draws a pipe, wire or cable as a lit cylinder along a path; `groundShadow` sets it down. `FINISHES` are the
+same names as `blender/kit/materials.py`. Measured: on a vector DIAGRAM the change is small — a physical hero wants a
+Blender plate under `kit.studio.product_light`; use these so the 2D parts share its lamp and finishes.
+**Reach for it:** a part drawn as one flat fill (a shell, a battery, a pipe, a panel).
+**Smallest real use:** `tube('cond', d, 11, '#b8733b', 'copper')` in place of a stroked path
+
 ### `heroCamera`
 The showpiece camera of a `meta.hero_moments` beat — `reveal`, `macro`, `context` — moving the shot's LAYERS by depth
 (parallax a dolly has and a zoom has not), blurring off the focus plane on `macro`, every move settled by

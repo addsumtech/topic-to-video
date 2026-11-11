@@ -824,9 +824,17 @@ nothing; a push into a photograph, a plate, a schematic with detail in it is the
 what the beat's shot actually holds before marking it. `seam_plan.py` fills these on the same rule and skips any
 beat you authored.
 
-## Craft-study decisions — five per film (references/craft-study.md; 26 published films measured against ours)
+## Craft-study decisions — six per film (references/craft-study.md; 28 published films measured against ours)
 
 Read `references/craft-study.md` once per film. What it measured, and what each decision now asks of you:
+0. **A physical subject is a lit surface (P0, measured — the gap the eye sees first).** In product films 54–92 % of
+   frames show the subject as a surface the light has modelled; ours 10–29 %. When the film is about a physical
+   thing (a product, a machine, a part), its HERO beats are a Blender plate (`references/blender-plates.md`) under
+   `k.studio.product_light`, every part a named finish (`k.materials.finish`); the 2D parts that remain use
+   `runtime/solid` (`solid`, `tube`) so the film shares one lamp. Measured: finishes painted on a vector diagram do
+   not change how it reads — a diagram stays a diagram. After the render `scripts/surface_qa.py` prints the film's
+   lit-frame share beside the band. A flat-graphic register is flat by design (Kurzgesagt 0.22): this is for a film
+   whose subject you could hold.
 1. **Rhythm (P1, measured).** Ours cut once per beat (shot-length p90/p10 1.6–1.9 against 2.7–37). COVERAGE now cuts
    inside a beat on its voice by itself (`scripts/coverage_plan.py`): a list the narration names becomes a burst of
    close-ups that ends on the whole, a long unnamed beat gets one punch-in. Help it: give a listed beat its items as a

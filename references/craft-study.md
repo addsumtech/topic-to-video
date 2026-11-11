@@ -8,12 +8,61 @@ impressions turned out wrong.
 
 **Corpus.** Teenage Engineering (OP–1 field, OP–XY, OB–4, OP–1 field overview) · Bang & Olufsen (Beosound Theatre,
 Beolab 90, Theatre acoustics) · Nothing (Phone (3), Phone (3a) series, Ear (open)) · Apple (AirPods Pro 3, iPhone Air,
-MacBook Pro, Watch Series 11, HomePod mini 2) · Dyson (V15 Detect, Flyaway) · Linear Agent · Arc 1.0 · Raycast 2026 ·
+MacBook Pro, Watch Series 11, HomePod mini 2) · Dyson (V15 Detect, Flyaway) · Beolab 28 ×2 and TE field system / TP-7 (added 2026-11-11) · Linear Agent · Arc 1.0 · Raycast 2026 ·
 Notion 3.0 · Framer 3.0 · OpenAI GPT-5 · Stripe Sessions 2024 · Kurzgesagt "How small is an atom". The videos and
 frames stay on the machine that studied them (third-party work); this page keeps only what was learned.
 
 **Evidence tags.** **[M]** measured and separates ours from theirs · **[O]** observed on the shot sheets, not measured ·
 **[–]** measured and does NOT separate (a wrong impression, dropped).
+
+## P0 · Surfaces are lit, not filled — the gap the eye sees first [M, added 2026-11-11]
+The user's verdict after the first round ("设计上和之前没有太大区别") was right, and the phase-1 instrument had missed
+it: tonal key measures the whole frame, not whether the SUBJECT is a surface the light has modelled. Measured with
+one instrument (`craft_study/tools/surface.py`: a region of the subject whose luminance ramps >= 25 inside it counts
+as modelled; a frame is LIT when such regions cover >= 5 % of it):
+- **lit frames** — TE field system (TP-7) 0.87, B&O 0.70–0.87, Dyson 0.85–0.92, Nothing 0.58–0.90, Apple iPhone Air / MacBook Pro / Watch
+  0.59–0.73, Raycast 0.89, Framer 0.70 · **ours: ANC 0.27, fridge 0.29, keyboard 0.25, WorkBuddy 0.10**.
+- What does NOT separate: flat-graphic registers are flat by design — Kurzgesagt 0.22, Notion 0.00, Linear 0.00; and
+  restraint films that live in black (OP–XY 0.23, OB–4 0.17) carry their form in tiny highlights instead.
+  So this is a gap only where the subject is a PHYSICAL object (a product, a machine, a part).
+- What closes it, tested (2026-11-11, ANC earbud plate): the same Blender model, the same camera — with
+  `blender/kit/materials.py` finishes (gloss_plastic shell, silicone tip, brushed_steel cell, anodized_alu magnet)
+  and `blender/kit/studio.product_light` (HDRI mirrored by gloss, broad key, two tall strip lights behind, an
+  overhead strip) — went from a clay model to a product render. What did NOT close it: finishes painted onto 2D
+  vector diagrams (`runtime/solid.ts`) — on the fridge's flow diagram the change was invisible beside the glowing
+  refrigerant, on the earbud section modest. A diagram stays a diagram; a physical hero wants a rendered object.
+→ For a physical subject, the hero beats are a Blender plate under `product_light` with each part's finish named
+  (see "Design intelligence" below); 2D parts that remain take `runtime/solid` finishes so the film's objects share
+  one lamp and one material vocabulary.
+
+## Design intelligence — what the guide's design sources say, made usable [O + sources]
+The guide asks for five lenses on every reference (form, material, craft, philosophy, presentation). Per brand, from
+the films' own frames:
+| | Form language | Material | Craft (made how) | Philosophy | Presentation |
+|---|---|---|---|---|---|
+| Teenage Engineering | rectilinear slabs with generous radii, ~30° diagonal in frame; round keys on a strict grid; tiny type as ornament | white/alu tone-on-tone, bead-blasted anodised grey (TP-7 field system); ONE accent per product (a red LED, orange caps) | machined chamfers, engraved legends, woven mesh grilles, visible Torx screws | function shown, playful restraint | macro fragments, whole only at the end; type alternates with product |
+| B&O | lamellas, cylinders, one sculptural gesture | oak against aluminium against fabric; one warm element in a cool world | grinding, polishing, anodising shown as the story | material honesty, longevity | low key, raking light, violet cloth as the medium of sound |
+| Nothing | transparent back showing the organised inside; dot-matrix glyph | clear polycarbonate over parts; LED light | internals laid out as a composition | the inside is the design | product's own light does the telling; diptych light/dark |
+| Apple | one continuous form (unibody), edge-on thinness | anodised/titanium, glass; white gloss plastic | invisible seams, every edge finished | care, "as little design as possible" | white or black void, edge light, product huge in frame |
+| Dyson | engineered parts on show (cyclones, translucent bin) | translucent coloured polycarbonate, nickel, gold anodised | cutaway of the real mechanism | engineering as the aesthetic | macro dive into the microscopic, data on the product's own screen |
+
+Principles distilled for a film's OBJECTS (sources below):
+- **Proportion before polish** (Eric Strebel): an object reads as designed when its masses rank — one DOMINANT, one
+  SUB-DOMINANT, one SUBORDINATE — never two equal masses fighting; their axes give the eye a path ("gesture"); a cube
+  is the dull extreme. Check a drawn object's three biggest parts for that ranking.
+- **Every part has a finish and a process** (Strebel's "design guide": material, thickness, finish, how it is made,
+  corners softened). Name each part's finish (`materials.FINISHES` / `solid.FINISHES`) before drawing it; a part
+  without one is drawn as a fill.
+- **Minimalism needs perfect execution** (Design Theory on Rams): with few elements every detail is under a spotlight
+  — "simple and elegant versus boring and basic". Our frames were minimal in COUNT but basic in EXECUTION.
+- **Rams' ten principles** (Vitsœ): innovative, useful, aesthetic, understandable, unobtrusive, honest, long-lasting,
+  thorough down to the last detail, environmentally friendly, as little design as possible. For a film: honest =
+  the object's real parts and real finish; thorough = chamfers, seams, the reflection on the back side too.
+- **Fukasawa's "without thought" / Super Normal**: the ordinary object, quietly right; no decoration that the object
+  would not have. **Ive**: "the most important thing is that you actually care"; materials are a big part of the
+  experience of an object (Core77).
+- **Character and universe** (Sam Does Design): a design is given a character (joyful, rugged, wise) and its parts
+  belong to one universe; a film's objects must all come from the same one (the same lamp, the same finishes).
 
 ## What did not separate us [–]
 - **Tonal key.** Ours are high-key (highlight share 0.58–0.87) like Apple, Notion and Kurzgesagt; the fridge film is
@@ -107,6 +156,16 @@ in which the product's own state is the animation. → `WorldStage` (scale-zoom 
 anchored seams — capability the library has; the gap was reaching for it.
 
 ## Sources (web — used only where noted; the films themselves are the primary source)
+- Dieter Rams, ten principles for good design — https://www.vitsoe.com/gb/about/good-design
+- Naoto Fukasawa, "without thought" / Super Normal — https://en.wikipedia.org/wiki/Naoto_Fukasawa
+- Jony Ive on care and materials — https://appleinsider.com/articles/13/10/10/apples-jony-ive-on-design-the-most-important-thing-is-that-you-care ;
+  https://core77.com/posts/22519/Jonathan-Ive-Talks-Design
+- Eric Strebel, "Understanding Basic PROPORTIONS" (YouTube 05noF6uuzK8), "Sketch to Functional Prototype" (xnLTS6vjkoY),
+  "Why you need a Design Guide to manufacture a product" (0DR8MN7uKZo) — transcripts read 2026-11-11
+- Design Theory, "Minimalism is Getting Absurd: Updating Dieter Rams' 10 Principles" (p5InhRf2JrU)
+- Sam Does Design, "What do Industrial Designers Actually Do?" (2e7DSZzKK0A)
+- B&O Beolab 28 official films (YouTube bZ60CQ43OuE, AF35ExsNOOE) — the ManvsMachine cut the guide names is on Vimeo
+  behind a login and was not used
 - B&O Beolab 28 brand film, "inside out" approach — https://www.stashmedia.tv/?p=79583
 - Product lighting practice (rim, gradient falloff, hard-edged highlights) —
   https://petapixel.com/how-to-create-gradients-of-light-product-photography/ ;

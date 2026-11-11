@@ -217,6 +217,18 @@ measured 8.4 s and a hit 0.17 s; a delivery bundled the same project six to seve
 Four plates of 6 s each are about 55 min on EEVEE. Never enable the CPU device for Cycles: CPU+GPU at 128 spp
 measured 67 s a frame.
 
+## The product studio (`kit.studio.product_light` + `kit.materials`, 2026-11-11)
+`k.studio.product_light(objects, k.camera)` is the studio of the craft study's product films: the CC0 studio HDRI as
+what gloss and metal mirror, a broad soft key high on the lens' left, two TALL STRIP lights behind left and right (the
+long gradient reflections and the rim that cut a curved product out of its ground) and an overhead strip (a highlight
+along every top edge). `k.materials.finish("gloss_plastic", "#f6f6f4")` builds each part as a manufactured finish
+(gloss_plastic, satin_plastic, soft_touch, silicone, anodized_alu, brushed_steel, polished_metal, copper, enamel, pcb,
+ceramic, glass, fabric, wood); `k.materials.chamfer(ob, width)` bevels hard edges so they catch the strips. Call the
+studio AFTER the subject is posed (it sizes and places itself from the objects' bounds). Measured on the ANC earbud
+(2026-11-11): the same model under a flat-colour world and one key rendered as a clay model; under the studio, with
+finishes named per part, as a product (references/craft-study.md P0). `tests/test_product_studio.py` pins the ramp
+and the highlight on a glossy sphere. Prefer it to `product_rig` for any plate whose subject is a physical product.
+
 ## The product light (`kit.stage.product_rig`, 2026-11-06)
 `stage.product_rig(subject, cam, key_az=35, rim_strength=1.0)` lights a hero the way the craft bar describes
 (references/craft-bar.md): a soft area KEY in front and to one side, a low FILL on the other, and a RIM behind the

@@ -109,3 +109,62 @@ def tune_cycles(samples=24):
     sc.cycles.max_bounces, sc.cycles.glossy_bounces, sc.cycles.diffuse_bounces = 6, 4, 3
     sc.cycles.caustics_reflective = sc.cycles.caustics_refractive = False
     sc.render.use_persistent_data = True
+
+
+def product_light(objs, cam, strength=1.7, hdri_strength=0.7, key_side=-1, rim_strength=1.0):
+    """The product studio of the craft study's films, around the objects `objs`, placed from the CAMERA:
+      * the studio HDRI as what gloss and metal mirror (the WorkBuddy spike: soft boxes alone left metal EMPTY);
+      * a broad soft KEY high on `key_side` (-1 = the lens' left) — the ramp across every large surface;
+      * two tall STRIP lights behind-left and behind-right — the long gradient reflections and the rim that cut
+        a curved product's silhouette out of its ground (B&O's lamellas in raking light, AirPods' edge lines);
+      * a horizontal strip overhead — a highlight along every top edge and chamfer;
+      * a weak FILL low on the other side so the shadow side keeps its form.
+    Measured why (2026-11-11): under a flat-colour world with one key and one rim the ANC earbud rendered as a clay
+    model (craft-study surface measure: 0 % modelled frames). Sizes and energies scale with the objects' extent,
+    so the balance holds at any scene scale. `strength` scales every light alike. Returns the light objects."""
+    import math
+    objs = [o for o in objs if o.type == "MESH"]
+    if not objs:
+        raise ValueError("studio.product_light: no mesh objects to light")
+    bpy.context.view_layer.update()
+    pts = [o.matrix_world @ Vector(c) for o in objs for c in o.bound_box]
+    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+    centre, size = (lo + hi) / 2, max((hi - lo).length, 1e-3)
+    world(strength=hdri_strength)
+    sc = bpy.context.scene
+    try:
+        sc.view_settings.view_transform = "AgX"
+        sc.view_settings.look = "AgX - Medium High Contrast"
+    except TypeError:
+        pass
+    f = cam.matrix_world.translation - centre
+    f = f.normalized() if f.length > 1e-6 else Vector((0, -1, 0))
+    up = Vector((0, 0, 1))
+    right = f.cross(up).normalized() if abs(f.dot(up)) < 0.98 else Vector((1, 0, 0))
+    up = right.cross(f).normalized()
+    s = key_side
+    # (offset in object sizes along (toward lens, right, up), irradiance factor, light size (w, h) in object sizes)
+    rig = {
+        "key": ((1.6, 1.4 * s, 1.5), 3.2, (1.6, 1.6)),
+        "fill": ((1.8, -1.6 * s, -0.4), 0.5, (2.0, 2.0)),
+        "strip_l": ((-1.2, -1.7, 0.3), 9.0 * rim_strength, (0.12, 2.2)),
+        "strip_r": ((-1.0, 1.8, 0.4), 7.0 * rim_strength, (0.12, 2.2)),
+        "strip_top": ((0.2, 0.0, 2.0), 2.4, (2.4, 0.14)),
+    }
+    out = []
+    for name, ((a, b, c), irr, (w, h)) in rig.items():
+        loc = centre + size * (a * f + b * right + c * up)
+        data = bpy.data.lights.new("pl_" + name, "AREA")
+        data.shape = "RECTANGLE"
+        data.size, data.size_y = w * size, h * size
+        dist = (loc - centre).length
+        data.energy = strength * irr * dist ** 2
+        ob = bpy.data.objects.new("pl_" + name, data)
+        sc.collection.objects.link(ob)
+        ob.location = loc
+        # aim -Z at the centre; keep the strip's long side (local Y) along the frame's up (or right for the top one)
+        q = (centre - loc).to_track_quat("-Z", "Y" if name != "strip_top" else "X")
+        ob.rotation_euler = q.to_euler()
+        out.append(ob)
+    return out

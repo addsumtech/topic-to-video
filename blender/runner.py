@@ -33,6 +33,8 @@ from blender.kit import render as _render  # noqa: E402
 from blender.kit import reuse as _reuse  # noqa: E402
 from blender.kit import screenseq as _screenseq  # noqa: E402
 from blender.kit import stage as _stage  # noqa: E402
+from blender.kit import studio as _studio  # noqa: E402
+from blender.kit import materials as _materials  # noqa: E402
 
 
 class Kit:
@@ -46,6 +48,8 @@ class Kit:
         self.duration = a.frames / a.fps
         self.mode, self.engine = a.mode, a.engine
         self.stage = _stage
+        self.studio = _studio            # product_light: the craft study's studio (HDRI + strips + key)
+        self.materials = _materials      # manufactured finishes (gloss_plastic, anodized_alu, ...)
         self.anchors = _anchors
         self.hexc = _color.hexc
         self.reuse = True          # a scene whose pose changes what kit/reuse.py cannot see (mesh vertices) sets False

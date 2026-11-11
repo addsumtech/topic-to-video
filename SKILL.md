@@ -321,6 +321,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 - `scripts/split_beats.py <out_dir> [--beat N]`: a remotion beat over 8 s on one shot holds still (51-100% of 311
   measured beats past 3 s). validate names each with where it splits; this lists them, and `--beat N` splits one at
   sentence ends BEFORE tts. The new beats get NO shot (validate refuses that) — design each, then run tts.
+- `scripts/surface_qa.py <out_dir> [--json]`: remotion, after the render — the share of frames whose subject is a LIT
+  SURFACE (a modelled luminance ramp) rather than a flat fill, beside the published product-film band (advisory;
+  applies to a physical subject — references/craft-study.md P0).
 - `scripts/cut_rhythm_qa.py <out_dir> [--json]`: remotion, after the render — the delivered film's cut rhythm (shot-length
   p90/p10, share under 1.5 s) and scale range beside the band 26 published films sit in (references/craft-study.md);
   coverage cuts (`scripts/coverage_plan.py`) are counted only when the pixels confirm them. Advisory.
