@@ -11,6 +11,7 @@
     "DeviceHero",
     "EdCompare",
     "ForkingAnswers",
+    "HeadlineReveal",
     "KSpaceAnatomy",
     "LivingMap",
     "OverlapSeparation",
@@ -219,7 +220,7 @@
     "WeightedWheel": "6e4a1dce7cf6539d",
     "ForkingAnswers": "ecaf06d5feec6b44",
     "CroppedType": "0afa8647ddb68497",
-    "HeadlineReveal": "cbfecd2e6146298a",
+    "HeadlineReveal": "b8ac4cea9bc6ad13",
     "TypeOnPath": "51cfac636a5a2068",
     "WordRoll": "fc5bbeb2fd32bc47",
     "EquationMorph": "d668c4d8cd72dc87",
@@ -446,7 +447,7 @@
     "WeightedWheel": "e8b07c6de983fde6",
     "ForkingAnswers": "edde5e900d2b05ff",
     "CroppedType": "6724aa07c65cbebb",
-    "HeadlineReveal": "2c5df3e699246ff6",
+    "HeadlineReveal": "8310a6aa01eb8064",
     "TypeOnPath": "f6c5d19736bde437",
     "WordRoll": "88b5eccc7006dcb2",
     "EquationMorph": "b2117e2df586042d",
@@ -816,7 +817,7 @@
     },
     "HeadlineReveal": {
       "reach": 0.828,
-      "prop_diff": 0.5
+      "prop_diff": 0.43
     },
     "HeldInstant": {
       "reach": 0.99,

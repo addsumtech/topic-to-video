@@ -14,6 +14,7 @@
 | `reveal` | what rises: `line`, `word` or `char` | line is the calmest and most premium; char is the most energetic and needs the most time |
 | `align` | `left` (editorial, with the kicker's rule) or `center` | centred drops the rule |
 | `hold` | what the landed type does while it holds: `alive` (default) — a breath of tracking and, every few seconds, a light passing along the line; `still` — nothing | alive keeps a held line from reading as a slide's hold; still is for a beat that must be utterly quiet |
+| `size` | `fit` (default) — the headline as large as the frame allows; `whisper` — one quiet line at ~3.6 % of the frame's short side, centred, regular weight, still | whisper is type as punctuation in a sea of ground (TE's tiny lines): it reads as calm and confident, and it needs a short line to work |
 
 **Known traps:**
 - The emphasis was first an underline. At display size it ran straight through the descenders ("by", "pay") and read as a strike in the wrong place, so emphasis is colour and weight, which also cannot collide with the next line.
