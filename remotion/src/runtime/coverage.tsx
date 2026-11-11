@@ -49,6 +49,10 @@ export const STILL_IOU = 0.7;          // the composition's hull must overlap it
 export const JUMP_SCALE = 1.2;        // two framings this close in scale…
 export const JUMP_SHIFT = 0.25;       // …and centred this close (share of the frame) are one framing, not a cut
 const EDGE_TOL = 2;                    // px: a box this close to an edge counts as inside it
+// A line of type a framing keeps in view sits at least this share of the frame's short side inside the zone's edges:
+// a crop that keeps a label whole but presses its last glyph against the frame edge reads as cut (the fridge film's
+// "在这儿沸腾吸热" touched the right edge under a punch-in, 2026-11-11). Otherwise it goes fully out.
+export const TEXT_SAFE = 0.025;
 const GROUND_FRAC = 0.45;              // an element covering this share of the frame is ground, not content
 const BOX_MAX_FRAC = 0.3;
 const REGION_MAX_FRAC = 0.35;          // an item's region past this share of the frame is the whole diagram              // a card up to this share of the frame is kept whole; a bigger panel may be cropped
@@ -116,6 +120,8 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
     else if (up <= cap && o.want && up <= o.want * 1.25) scales.push(up);
   }
   const cx = t.x + t.w / 2, cy = t.y + t.h / 2;
+  const M = TEXT_SAFE * Math.min(W, H);
+  const textOk = (m: Rect) => inside(m, M, M, W - M, bandTop - M) || outside(m, 0, 0, W, bandTop);
   let best: {f: Framing; score: number} | null = null;
   for (const s of scales) {
     const clampX = (x: number) => Math.min(0, Math.max(W - s * W, x));
@@ -125,6 +131,10 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
     for (const r of texts.concat(o.boxes ?? [])) {
       txs.add(Math.round(clampX(W - s * r.x + 1)));            // push it out past the right edge
       txs.add(Math.round(clampX(-s * (r.x + r.w) - 1)));       // push it out past the left edge
+    }
+    for (const r of texts) {
+      txs.add(Math.round(clampX(W - M - s * (r.x + r.w))));    // or bring it in, clear of the right edge
+      txs.add(Math.round(clampX(M - s * r.x)));                // or clear of the left edge
     }
     for (const tx0 of txs) {
       const ty0 = clampY(bandTop / 2 - s * cy);
@@ -137,8 +147,8 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
       for (const ty1 of tys) {
         const f = {s, tx: tx0, ty: ty1};
         if (!inside(map(see, f), 0, 0, W, bandTop)) continue;
-        if (texts.some((r) => { const m = map(r, f); return !inside(m, 0, 0, W, bandTop) && !outside(m, 0, 0, W, bandTop); })) {
-          continue;                                            // a line of type would be cut by the zone's edge
+        if (texts.some((r) => !textOk(map(r, f)))) {
+          continue;                                            // a line of type would be cut by, or pressed against, the edge
         }
         // (a card is judged by its own size as composed: one that a close-up enlarges is still one object)
         if ((o.boxes ?? []).some((r) => { const m = map(r, f);

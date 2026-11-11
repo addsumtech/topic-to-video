@@ -120,12 +120,12 @@ def test_the_film_and_the_slide_can_turn_it_off():
 
 # ---- the runtime's pure framing --------------------------------------------------------------------------------------
 
-def _ts(body):
+def _ts(body, extra=""):
     import _tsprobe
     if not _tsprobe.available():
         pytest.skip("node/esbuild not available")
-    return _tsprobe.run_ts("import {coverFraming, itemRegion, tooAlike, punchCore, stepAt, probeFrame, probeFrames, iou, MIN_GAIN} from %s;"
-                           % _tsprobe.mod("coverage.tsx"), body)
+    names = "coverFraming, itemRegion, tooAlike, punchCore, stepAt, probeFrame, probeFrames, iou, MIN_GAIN" + (", " + extra if extra else "")
+    return _tsprobe.run_ts("import {%s} from %s;" % (names, _tsprobe.mod("coverage.tsx")), body)
 
 
 def test_a_close_up_shows_its_target_whole_and_cuts_no_type():
@@ -219,3 +219,27 @@ def test_an_item_region_reads_what_the_frame_shows_and_not_the_whole_diagram():
     """)
     d = out["r"]["drawing"]
     assert d["y"] >= 0 and d["w"] * d["h"] <= 0.35 * 1920 * 1080
+
+
+def test_a_kept_line_of_type_clears_the_frame_edge():
+    # the fridge film (2026-11-11): a punch-in kept "在这儿沸腾吸热" whole but pressed its last glyph against the right
+    # edge. A line a framing keeps sits TEXT_SAFE of the short side inside every edge of the zone, or goes fully out.
+    out = _ts("""
+      const W = 1920, H = 1080, bandTop = 878;
+      const target = {x: 900, y: 250, w: 500, h: 400};
+      const texts = [{x: 1560, y: 300, w: 300, h: 40}, {x: 1560, y: 345, w: 330, h: 30}, {x: 60, y: 120, w: 240, h: 40}];
+      const res: any[] = [];
+      for (const want of [1.2, 1.3, 1.5, 1.8]) {
+        const f = coverFraming({W, H, bandTop, target, want, content: [target, ...texts], texts});
+        if (!f) continue;
+        res.push(texts.map((r) => ({x: r.x * f.s + f.tx, y: r.y * f.s + f.ty, w: r.w * f.s, h: r.h * f.s})));
+      }
+      out.res = res; out.M = 0.025 * Math.min(W, H);
+    """, extra="TEXT_SAFE")
+    M = out["M"] - 2
+    assert out["res"], "a punch should be possible here"
+    for rs in out["res"]:
+        for r in rs:
+            kept = r["x"] >= M and r["y"] >= M and r["x"] + r["w"] <= 1920 - M and r["y"] + r["h"] <= 878 - M
+            gone = r["x"] + r["w"] <= 2 or r["x"] >= 1918 or r["y"] + r["h"] <= 2 or r["y"] >= 876
+            assert kept or gone, r

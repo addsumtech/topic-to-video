@@ -834,7 +834,8 @@ Read `references/craft-study.md` once per film. What it measured, and what each 
    `runtime/solid` (`solid`, `tube`) so the film shares one lamp. Measured: finishes painted on a vector diagram do
    not change how it reads — a diagram stays a diagram. After the render `scripts/surface_qa.py` prints the film's
    lit-frame share beside the band. A flat-graphic register is flat by design (Kurzgesagt 0.22): this is for a film
-   whose subject you could hold.
+   whose subject you could hold. A hero ALREADY drawn as a 2D kit takes the studio as a registered still
+   (`references/blender-plates.md`, "a 2D kit object re-rendered as a REGISTERED STILL") — its overlays stay.
 1. **Rhythm (P1, measured).** Ours cut once per beat (shot-length p90/p10 1.6–1.9 against 2.7–37). COVERAGE now cuts
    inside a beat on its voice by itself (`scripts/coverage_plan.py`): a list the narration names becomes a burst of
    close-ups that ends on the whole, a long unnamed beat gets one punch-in. Help it: give a listed beat its items as a

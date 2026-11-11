@@ -229,6 +229,27 @@ studio AFTER the subject is posed (it sizes and places itself from the objects' 
 finishes named per part, as a product (references/craft-study.md P0). `tests/test_product_studio.py` pins the ramp
 and the highlight on a glossy sphere. Prefer it to `product_rig` for any plate whose subject is a physical product.
 
+## Recipe: a 2D kit object re-rendered as a REGISTERED STILL (craft study, fridge film, 2026-11-11)
+When a film already draws its hero as a 2D kit (one geometry in its own units, many beats framing it through an SVG
+viewBox, overlays — flow, glows, callouts — drawn on that geometry), the object can take the product studio WITHOUT a
+video plate and without moving a single overlay:
+1. **Export the geometry** the kit draws: a small TS file bundled with esbuild imports the kit's constants and samples
+   every path with `@remotion/paths` (`getLength` / `getPointAtLength`, every 2–4 units) into `blender/geom.json`.
+2. **Build it in Blender in the same units** (`S = 0.01`: X = x·S, Z = −y·S, the section plane at Y = 0): outlines as
+   2D curves extruded back (`fill_mode = "BOTH"`, holes as extra splines, a small `bevel_depth` so edges catch the
+   strips), lines as curve tubes (`bevel_depth` = the tube's radius), every part a `k.materials.finish`.
+3. **Frame the kit's BOX exactly** with an ORTHOGRAPHIC camera looking +Y (`ortho_scale` = the box's larger side ·S,
+   resolution in the box's aspect at ≥ the closest framing's px per unit), light with `k.studio.product_light`, render
+   ONE still (`runner.py --frames 1`), `workshop.py media add` it.
+4. **Draw it in the kit** as `<image href={staticFile(media(..).src)} x/y/width/height = BOX>` in place of the SVG parts;
+   keep the MEANING layers on top: a semantic colour laid over a metal tube as `mixBlendMode: 'color'` (the tube keeps
+   its highlights and takes the hue), a translucent fill for a state (cold air), the glows.
+Measured on the fridge film: every FridgeLoop beat changed from flat neon fills to a lit enamel cabinet, copper tubes
+and a glossy painted-steel compressor, with the flow, labels and coverage framings untouched; one 3300×4422 EEVEE
+still renders in ~30 s. Gotchas: a flat metal face square to an orthographic lens mirrors only the dark room (the
+fridge's aluminium handle rendered black — give it a painted finish); a foam-coloured section wall read as cardboard
+beside the film's white fridge (keep the cut in the object's own colour).
+
 ## The product light (`kit.stage.product_rig`, 2026-11-06)
 `stage.product_rig(subject, cam, key_az=35, rim_strength=1.0)` lights a hero the way the craft bar describes
 (references/craft-bar.md): a soft area KEY in front and to one side, a low FILL on the other, and a RIM behind the
