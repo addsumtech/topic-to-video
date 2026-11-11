@@ -224,7 +224,9 @@ long gradient reflections and the rim that cut a curved product out of its groun
 along every top edge). `k.materials.finish("gloss_plastic", "#f6f6f4")` builds each part as a manufactured finish
 (gloss_plastic, satin_plastic, soft_touch, silicone, anodized_alu, brushed_steel, polished_metal, copper, enamel, pcb,
 ceramic, glass, fabric, wood); `k.materials.chamfer(ob, width)` bevels hard edges so they catch the strips. Call the
-studio AFTER the subject is posed (it sizes and places itself from the objects' bounds). Measured on the ANC earbud
+studio AFTER the subject is posed (it sizes and places itself from the objects' bounds). Every light hangs from one
+pivot at the subject's centre: `k.studio.turn_light(lights, degrees)` swings the whole studio round the frame's up
+axis (absolute, per frame from `pose`), so the highlights travel while the object and camera hold still. Measured on the ANC earbud
 (2026-11-11): the same model under a flat-colour world and one key rendered as a clay model; under the studio, with
 finishes named per part, as a product (references/craft-study.md P0). `tests/test_product_studio.py` pins the ramp
 and the highlight on a glossy sphere. Prefer it to `product_rig` for any plate whose subject is a physical product.
@@ -244,6 +246,14 @@ video plate and without moving a single overlay:
 4. **Draw it in the kit** as `<image href={staticFile(media(..).src)} x/y/width/height = BOX>` in place of the SVG parts;
    keep the MEANING layers on top: a semantic colour laid over a metal tube as `mixBlendMode: 'color'` (the tube keeps
    its highlights and takes the hue), a translucent fill for a state (cold air), the glows.
+5. **Let the light travel** (optional, 2026-11-11): render N frames of ONE loop instead of one still — `pose(k, t)`
+   calls `k.studio.turn_light(lights, A * sin(2 pi i / N))` with `i = round(t * k.fps)` and `k.reuse = False` (the
+   studio swings round the object; object and camera stay, so every frame registers). Register each frame as media
+   (`<name>_00` …), and in the kit draw the two neighbouring frames for the film's clock (`u = t / period * N mod N`)
+   with the upper one at opacity `u - floor(u)`, holding the frame with `delayRender` until both `<image>`s have
+   decoded (an SVG `<image>` swapped per frame is not waited for). Fridge: N = 24, A = 26°, period 10 s; 24 frames
+   at 3300×4422 in ~12 min; the compressor dome's reflections and the cavity's glow drift, the overlays do not move.
+   Watch EEVEE's "Shadow buffer full" at this size: check a frame for missing shadows before the whole loop.
 Measured on the fridge film: every FridgeLoop beat changed from flat neon fills to a lit enamel cabinet, copper tubes
 and a glossy painted-steel compressor, with the flow, labels and coverage framings untouched; one 3300×4422 EEVEE
 still renders in ~30 s. Gotchas: a flat metal face square to an orthographic lens mirrors only the dark room (the

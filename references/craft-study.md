@@ -46,6 +46,12 @@ the films' own frames:
 | Apple | one continuous form (unibody), edge-on thinness | anodised/titanium, glass; white gloss plastic | invisible seams, every edge finished | care, "as little design as possible" | white or black void, edge light, product huge in frame |
 | Dyson | engineered parts on show (cyclones, translucent bin) | translucent coloured polycarbonate, nickel, gold anodised | cutaway of the real mechanism | engineering as the aesthetic | macro dive into the microscopic, data on the product's own screen |
 
+Round 5 (2026-11-11, the guide's remaining sources): TE EP–40 names each feature by freezing the hands into a
+two-tone still in the product's OWN colours with a hand-lettered label ("DUB SIREN"); TE EP–1320 builds a whole world
+and shows the product last, small, on an altar; TE's ten years of PO ties B&W footage, cut-out product and doodles
+with one flat palette; Herman Miller × Fukasawa tells material by CMF SAMPLES in macro (fabric layers edge-on, chips
+fanned in a hand); NPD lays the finish trials out in a row as the process made visible.
+
 Principles distilled for a film's OBJECTS (sources below):
 - **Proportion before polish** (Eric Strebel): an object reads as designed when its masses rank — one DOMINANT, one
   SUB-DOMINANT, one SUBORDINATE — never two equal masses fighting; their axes give the eye a path ("gesture"); a cube
@@ -61,6 +67,20 @@ Principles distilled for a film's OBJECTS (sources below):
 - **Fukasawa's "without thought" / Super Normal**: the ordinary object, quietly right; no decoration that the object
   would not have. **Ive**: "the most important thing is that you actually care"; materials are a big part of the
   experience of an object (Core77).
+- **Simplicity is not removing clutter; care reaches the inside** (Ive, Stripe 2024): removing clutter alone gives
+  "an uncluttered but desiccated, soulless product"; people sense care through an object, and he "felt passionately
+  about finishing the inside of products". In a CUTAWAY or EXPLODED film the inside IS the product on screen — an
+  internal part drawn as a placeholder (a flat board, a grey block) is the unfinished inside.
+- **The parting line is designed, not hidden** (Fukasawa on Asari: "two shells … one parting line, that's a strong
+  feature"); **the outline comes from the medium** (Fukasawa, MUJI talk: "the outline of the surrounding medium rather
+  than the outline of the thing" — show an object with what surrounds it and the behaviour around it).
+- **One central idea decides everything, down to the reveal's tempo** (NPD, Zebel: "tech that doesn't feel like
+  tech" chose the finish trials, the display that appears on a tap, and packaging that "comes up very slowly … a
+  calming product"). A film's tempo of reveal belongs to the product's character, not to a house rhythm.
+- **The light moves on a still object** (B&O raking light along the lamellas, Apple's strip reflections sliding down
+  an edge): a travelling highlight is what reads as a hard, finished surface; a still render never shows one.
+  `kit.studio.turn_light` swings the product studio per frame with the camera fixed, so a registered plate stays
+  registered (fridge film, 2026-11-11).
 - **Character and universe** (Sam Does Design): a design is given a character (joyful, rugged, wise) and its parts
   belong to one universe; a film's objects must all come from the same one (the same lamp, the same finishes).
 

@@ -153,6 +153,12 @@ def product_light(objs, cam, strength=1.7, hdri_strength=0.7, key_side=-1, rim_s
         "strip_top": ((0.2, 0.0, 2.0), 2.4, (2.4, 0.14)),
     }
     out = []
+    # every light hangs from one empty at the subject's centre, so turn_light() can swing the whole studio round it
+    pivot = bpy.data.objects.new("pl_rig", None)
+    sc.collection.objects.link(pivot)
+    pivot.location = centre
+    pivot.rotation_mode = "QUATERNION"
+    pivot["up"] = tuple(up)
     for name, ((a, b, c), irr, (w, h)) in rig.items():
         loc = centre + size * (a * f + b * right + c * up)
         data = bpy.data.lights.new("pl_" + name, "AREA")
@@ -162,9 +168,25 @@ def product_light(objs, cam, strength=1.7, hdri_strength=0.7, key_side=-1, rim_s
         data.energy = strength * irr * dist ** 2
         ob = bpy.data.objects.new("pl_" + name, data)
         sc.collection.objects.link(ob)
-        ob.location = loc
         # aim -Z at the centre; keep the strip's long side (local Y) along the frame's up (or right for the top one)
         q = (centre - loc).to_track_quat("-Z", "Y" if name != "strip_top" else "X")
+        ob.parent = pivot
+        ob.location = loc - centre
         ob.rotation_euler = q.to_euler()
         out.append(ob)
     return out
+
+
+def turn_light(lights, degrees):
+    """Swing the whole product studio (product_light's return) round the subject about the frame's up axis, by
+    `degrees` from where product_light put it (absolute, not cumulative: call it per frame from pose()).
+    WHY (craft study 2026-11-11): in the product films the light MOVES on a still product — B&O's raking light
+    travels along the lamellas, Apple's strip reflections slide down a phone's edge — and a highlight that travels
+    is what tells the eye "this is a hard, finished surface". A still render never shows it. The camera does not
+    move, so a registered plate stays registered."""
+    pivots = {o.parent for o in lights}
+    if len(pivots) != 1 or None in pivots or "up" not in next(iter(pivots)):
+        raise ValueError("studio.turn_light: pass the lights product_light returned (one pivot)")
+    pivot = pivots.pop()
+    from mathutils import Quaternion
+    pivot.rotation_quaternion = Quaternion(Vector(tuple(pivot["up"])), math.radians(float(degrees)))

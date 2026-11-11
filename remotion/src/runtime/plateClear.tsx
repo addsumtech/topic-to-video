@@ -52,7 +52,10 @@ export const censusPlateClear = (root: HTMLElement) => {
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
     const t = (n.textContent || '').trim();
     const el = n.parentElement;
-    if (!t || !el || !shown(el)) continue;
+    // an echo's type is never seen: the 9:16 margin echo shows only its ground, coverage's echo of a framed step is
+    // clipped to the caption band. Its plates were skipped above but its TYPE was not, so ANC beat 8's unframed
+    // 'Chip' was judged against the FRAMED plate and 'sat 100% over' a shell it is nowhere near (2026-11-11)
+    if (!t || !el || el.closest('[data-echo]') || !shown(el)) continue;
     const range = root.ownerDocument.createRange();
     range.selectNodeContents(n);
     const r = range.getBoundingClientRect();

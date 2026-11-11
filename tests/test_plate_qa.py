@@ -102,6 +102,20 @@ def test_overlap_caught_then_cleared(tmp_path):
 
 
 @needs_both
+def test_the_echo_layers_hidden_type_is_not_judged(tmp_path):
+    # Under a framed (punched-in) step runtime/coverage.tsx mounts the register a second time, AS COMPOSED, clipped to
+    # the caption band (data-echo): its type is invisible, and sits where the unframed layout put it. The census
+    # skipped the echo's PLATES but not its TYPE, so ANC beat 8's 'Chip' — drawn between two parts on screen — was
+    # judged "100% over shell_back": the echo's unframed label measured against the framed plate (2026-11-11).
+    film = _film_with_label(tmp_path / "echo", [40, 40])
+    b = json.load(open(film + "/storyboard.json"))
+    b["slides"][0]["shot_props"]["echoAt"] = [880, 500]          # the echo's copy of the label over the cube
+    json.dump(b, open(film + "/storyboard.json", "w"), ensure_ascii=False)
+    r = plate_qa.scan_film(film, every=3)
+    assert plate_qa.verdict(r) == ("ok", 0), r
+
+
+@needs_both
 def test_type_of_another_beat_is_not_judged_against_a_plate(tmp_path):
     film = _film_with_label(tmp_path / "seam", [40, 40])
     b = json.load(open(film + "/storyboard.json"))

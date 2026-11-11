@@ -15,7 +15,9 @@ def build(k):
     k.stage.place(k.camera, ball, 0.5, 0.5, 5.0)
     ball.data.materials.append(k.materials.finish(k.params.get("finish", "gloss_plastic"), "#f4f4f2", name="ball"))
     if k.params.get("lit", True):
-        k.studio.product_light([ball], k.camera)
+        lights = k.studio.product_light([ball], k.camera)
+        if "turn" in k.params:
+            k.studio.turn_light(lights, k.params["turn"])
     else:
         w = bpy.data.worlds.new("flat")
         bpy.context.scene.world = w

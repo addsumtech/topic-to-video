@@ -72,23 +72,49 @@ def _grab(mp4, t):
     return np.asarray(Image.open(BytesIO(r.stdout)).convert("RGB"))
 
 
+def _beats(out_dir):
+    """[(first_frame, last_frame, fps, shot)] of a rendered film dir, or [] when it has no render record."""
+    rec, sb = os.path.join(out_dir, ".render_record.json"), os.path.join(out_dir, "storyboard.json")
+    if not (os.path.isfile(rec) and os.path.isfile(sb)):
+        return []
+    segs = json.load(open(rec)).get("segments") or []
+    board = json.load(open(sb, encoding="utf-8"))
+    slides, fps = board.get("slides") or [], float((board.get("meta") or {}).get("fps") or 30)
+    return [(int(a), int(b), fps, (slides[i].get("shot") or slides[i].get("blender", {}).get("id") or "?")
+             if i < len(slides) else "?") for i, (a, b, *_rest) in enumerate(segs)]
+
+
 def measure(path, every=2.0):
     import numpy as np
-    mp4 = path
+    mp4, beats = path, []
     if os.path.isdir(path):
         rec = os.path.join(path, ".render_record.json")
         name = json.load(open(rec)).get("out", "out.mp4") if os.path.isfile(rec) else "out.mp4"
         mp4 = os.path.join(path, name)
+        beats = _beats(path)
     if not os.path.isfile(mp4):
         raise FileNotFoundError("surface_qa: no film at %s" % mp4)
     dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", mp4],
                                capture_output=True, text=True).stdout or 0)
     if dur <= 1.0:
         raise RuntimeError("surface_qa: %s is too short to sample (%.2fs)" % (mp4, dur))
-    rows = [frame_stats(_grab(mp4, t)) for t in np.arange(min(1.0, dur / 4), dur - 0.3, every)]
+    ts = list(np.arange(min(1.0, dur / 4), dur - 0.3, every))
+    # every beat gets at least one sample at its middle, so a short beat is never invisible in the per-beat list
+    for a, b, fps, _shot in beats:
+        if not any(a / fps <= t <= b / fps for t in ts):
+            ts.append((a + b) / 2 / fps)
+    ts.sort()
+    rows = [frame_stats(_grab(mp4, t)) for t in ts]
     m = np.array([r["modelled"] for r in rows])
-    return {"frames": len(rows), "lit_frames": round(float((m >= LIT_REGION).mean()), 2),
-            "modelled_mean": round(float(m.mean()), 3)}
+    out = {"frames": len(rows), "lit_frames": round(float((m >= LIT_REGION).mean()), 2),
+           "modelled_mean": round(float(m.mean()), 3)}
+    if beats:
+        per = []
+        for i, (a, b, fps, shot) in enumerate(beats):
+            mine = [float(v) for t, v in zip(ts, m) if a / fps <= t <= b / fps]
+            per.append({"beat": i + 1, "shot": shot, "lit": round(float(np.mean([v >= LIT_REGION for v in mine])), 2)})
+        out["beats"] = per
+    return out
 
 
 def main(argv):
@@ -105,6 +131,14 @@ def main(argv):
     print("[surface] %d frames sampled; lit frames %.2f (published product films %.2f-%.2f: %s); mean modelled share %.3f"
           % (r["frames"], r["lit_frames"], lo, hi, where, r["modelled_mean"]))
     print("  the band applies to a PHYSICAL subject (a product, a machine, a part); a flat-graphic register is flat by design")
+    flat = [b for b in r.get("beats") or [] if b["lit"] < 0.5]
+    if flat:
+        # the film-wide share mixes object beats with diagram beats: an explainer about a product (the ANC film,
+        # 2026-11-11: every object beat lit, 11 of 24 beats waves and timelines) sits below the band with nothing
+        # to fix. Read the list: an OBJECT drawn flat is the finding, a diagram drawn flat is the register.
+        print("  flat beats (judge each: is its subject a physical object, or a diagram that is flat by design?):")
+        for b in flat:
+            print("    beat %d  %s  (lit %.2f)" % (b["beat"], b["shot"], b["lit"]))
     return 0
 
 

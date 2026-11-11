@@ -104,6 +104,11 @@ object ships, check it has:
   in 2D, one key for the whole film. A physical HERO (the product, the machine the film is about) is a Blender plate
   under `kit.studio.product_light`: measured, 2D finishes on a vector diagram barely change how it reads, a rendered
   object does;
+- **a finished inside** (2026-11-11, Ive: "finishing the inside of products"): in a cutaway or an exploded view
+  every internal part is built to the same standard as the shell — a board with its components and traces, a cell
+  with its can and wrap, a coil with its turns — never a flat placeholder block;
+- **assembly a technician would recognise** (2026-11-11, fridge film): seals, hinges, fasteners, joints, vents —
+  the details the 2D kit already drew must survive into a Blender rebuild (the first one lost the gasket and vents);
 - **a rim against the ground** — `runtime/lighting` rim/key falloff in 2D, `blender/kit/stage.py product_rig` in
   Blender; `subject_craft_qa.py` reports light range, rim separation and highlight on the settled hero frame
   (ANC's Blender earbud measured a highlight of 0.04–0.13: matte, unlit plastic).

@@ -22,6 +22,17 @@ import _tsprobe  # noqa: E402
 FIX = os.path.join(ROOT, "tests", "fixtures", "blender")
 
 
+def _rgba(tmp_path, params, w=240, h=135):
+    out = tmp_path / ("run_" + "_".join("%s%s" % kv for kv in sorted(params.items())))
+    cmd = [BLENDER, "-b", "--factory-startup", "--python-exit-code", "1", "--python", os.path.join(ROOT, "blender", "runner.py"),
+           "--", "--scene", os.path.join(FIX, "studio_scene.py"), "--out", str(out), "--frames", "1", "--fps", "30",
+           "--w", str(w), "--h", str(h), "--engine", "eevee", "--mode", "rgba", "--cues", "{}", "--anchors", "",
+           "--objects", "ball", "--params", json.dumps(params)]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+    assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
+    return np.asarray(Image.open(out / "rgba" / "0001.png").convert("RGBA")).astype(float)
+
+
 def _still(tmp_path, params, w=240, h=135):
     out = tmp_path / ("run_" + "_".join("%s%s" % kv for kv in sorted(params.items())))
     cmd = [BLENDER, "-b", "--factory-startup", "--python-exit-code", "1", "--python", os.path.join(ROOT, "blender", "runner.py"),
@@ -115,3 +126,53 @@ def test_surface_qa_tells_a_lit_surface_from_a_flat_fill():
     assert surface_qa.frame_stats(lines)["modelled"] == 0
     with pytest.raises(ValueError):
         surface_qa.frame_stats(np.zeros((5, 5, 3)))
+
+
+def test_surface_qa_names_each_flat_beat(tmp_path):
+    # the film-wide share mixes object beats with diagram beats (the ANC film, 2026-11-11: every object beat lit,
+    # 11 of 24 beats waves and timelines, film-wide 0.48 with nothing to fix): the per-beat list says which is which
+    import shutil
+    import surface_qa
+    if not shutil.which("ffmpeg"):
+        pytest.skip("no ffmpeg")
+    H, W = 270, 480
+    yy, xx = np.mgrid[0:H, 0:W]
+    flat = np.zeros((H, W, 3), np.uint8) + 236
+    flat[60:200, 140:340] = (60, 90, 160)
+    lit = np.zeros((H, W, 3), np.uint8) + 236
+    shade = np.clip(1.25 - ((xx - 200) ** 2 + (yy - 70) ** 2) ** 0.5 / 130.0, 0.15, 1.0)
+    disc = (xx - 240) ** 2 + (yy - 110) ** 2 < 80 ** 2
+    for c, v in enumerate((60, 90, 160)):
+        lit[..., c][disc] = (v * 0.4 + 150 * shade)[disc].astype(np.uint8)
+    for name, a in (("flat", flat), ("lit", lit)):
+        Image.fromarray(a).save(tmp_path / (name + ".png"))
+    film = tmp_path / "film"
+    film.mkdir()
+    # beat 1 = the flat diagram for 3 s, beat 2 = the lit object for 3 s
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-t", "3", "-i", str(tmp_path / "flat.png"),
+                    "-loop", "1", "-t", "3", "-i", str(tmp_path / "lit.png"), "-filter_complex",
+                    "[0][1]concat=n=2:v=1,format=yuv420p", "-r", "30", str(film / "out.mp4")], check=True)
+    json.dump({"out": "out.mp4", "segments": [[0, 89, "a"], [90, 179, "b"]]}, open(film / ".render_record.json", "w"))
+    json.dump({"meta": {"fps": 30}, "slides": [{"shot": "WaveDiagram"}, {"shot": "PartsLaidOut"}]},
+              open(film / "storyboard.json", "w"))
+    r = surface_qa.measure(str(film), every=1.0)
+    by = {b["shot"]: b["lit"] for b in r["beats"]}
+    assert by["WaveDiagram"] == 0 and by["PartsLaidOut"] == 1, r
+
+
+@needs_blender
+def test_turn_light_moves_the_highlights_and_not_the_object(tmp_path):
+    # the light travels, the object and the camera do not: a registered plate stays registered (the fridge film's
+    # light sweep, 2026-11-11) while its highlights move
+    a = _rgba(tmp_path, {"lit": True, "turn": 0})
+    b = _rgba(tmp_path, {"lit": True, "turn": 30})
+    on_a, on_b = a[..., 3] > 128, b[..., 3] > 128
+    assert (on_a != on_b).sum() <= 0.002 * on_a.size, "the silhouette moved"
+    la = (0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2])[on_a & on_b]
+    lb = (0.299 * b[..., 0] + 0.587 * b[..., 1] + 0.114 * b[..., 2])[on_a & on_b]
+    assert np.mean(np.abs(la - lb)) > 4, np.mean(np.abs(la - lb))
+    # the brightest pixels (the strip lights' reflections) are somewhere else
+    ya, xa = np.nonzero(on_a & ((0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]) >= np.percentile(la, 99)))
+    yb, xb = np.nonzero(on_b & ((0.299 * b[..., 0] + 0.587 * b[..., 1] + 0.114 * b[..., 2]) >= np.percentile(lb, 99)))
+    assert abs(xa.mean() - xb.mean()) + abs(ya.mean() - yb.mean()) > 2
+
