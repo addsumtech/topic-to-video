@@ -14,7 +14,7 @@
 // it just inherits the grammar. Prefer subtle structural consistency over repetitive decoration.
 
 import React from 'react';
-import {useCurrentFrame} from 'remotion';
+import {useCurrentFrame, useVideoConfig} from 'remotion';
 import {ReducedMotionContext} from './motion';
 import {clamp01} from './motion';
 
@@ -405,9 +405,26 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
   align?: 'center' | 'left'; runAt?: number; children?: React.ReactNode}> =
   ({dna, cmd = '', t, framed = false, align = 'center', runAt = 0.2, children}) => {
     const frame = useCurrentFrame();
+    const {width: VW, height: VH} = useVideoConfig();
     const d = dna ?? NEUTRAL_DNA;
     const mono = d.fontMono, acc = d.accent, dim = d.dim, fg = d.fg;
     const on = Math.floor(frame / 16) % 2 === 0;
+    // THE TERMINAL'S STAGE (craft standard, 2026-11-12) — on a themed film only; the un-themed original is untouched.
+    // A few lines of output centred in an empty dark field read as a template; a launch film's terminal has a key light
+    // on the work, a glow floor under it, and the command's own verb set huge behind it, bleeding off the frame.
+    const verb = (cmd.trim().split(/\s+/)[0] ?? '').replace(/^.*\//, ''); // @truncates: the command's own first word, as its ghost — not a claim
+    const ghostPx = Math.round(Math.min(VW, VH) * 0.42);
+    const stage = dna ? (
+      <>
+        <div style={{position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: `radial-gradient(ellipse 62% 58% at 46% 40%, ${acc}2b 0%, ${acc}00 70%)`}} />
+        <div style={{position: 'absolute', left: '-10%', right: '-10%', bottom: '12%', height: '24%', pointerEvents: 'none',
+          background: `radial-gradient(ellipse 50% 50% at 50% 50%, ${acc}24 0%, ${acc}00 70%)`}} />
+        {verb ? <div aria-hidden data-decor="ghost" style={{position: 'absolute', right: -Math.round(VW * 0.03), bottom: Math.round(VH * 0.17),
+          font: `800 ${ghostPx}px/0.8 ${mono}`, color: fg, opacity: 0.05, letterSpacing: '-0.05em', whiteSpace: 'nowrap',
+          pointerEvents: 'none'}}>{verb}</div> : null}
+      </>
+    ) : null;
     // the command TYPES over [0.05, runAt-0.04], then EXECUTES; the result reveals just after.
     const chars = [...cmd];
     const typed = Math.round(chars.length * clamp01((t - 0.05) / Math.max(0.06, runAt - 0.09)));
@@ -430,22 +447,26 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
     // left-aligned (it must be) while the block itself sits centred in the frame.
     if (framed) {
       return (
-        <div style={{width: 'min(80vw, 1180px)', background: d.surface, border: `1px solid ${d.surfaceBorder}`,
-          borderRadius: d.radius, boxShadow: '0 30px 90px #0009', overflow: 'hidden', fontFamily: mono}}>
+        <>{stage}
+        <div style={{position: 'relative', width: 'min(80vw, 1180px)', fontFamily: mono, overflow: 'hidden', borderRadius: d.radius,
+          border: `1px solid ${d.surfaceBorder}`,
+          background: dna ? `linear-gradient(180deg, ${mix(d.surface, '#ffffff', 0.05)} 0%, ${d.surface} 45%)` : d.surface,
+          boxShadow: dna ? `inset 0 1px 0 #ffffff14, 0 0 0 1px ${acc}22, 0 0 90px ${acc}1f, 0 40px 110px #000a` : '0 30px 90px #0009'}}>
           <div style={{display: 'flex', alignItems: 'center', gap: 10, padding: '16px 22px',
             borderBottom: `1px solid ${d.surfaceBorder}`, background: '#0000002e'}}>
             {['#ff5f56', dim, acc].map((c, i) => <div key={i} style={{width: 12, height: 12, borderRadius: '50%', background: c, opacity: 0.8}} />)}
             <div style={{marginLeft: 10, color: dim, font: `600 22px/1 ${mono}`}}><span style={{color: acc}}>$</span> {cmd}</div>
           </div>
           <div style={{padding: '30px 34px 34px'}}>{children}</div>
-        </div>
+        </div></>
       );
     }
     // OPEN — command line on the open canvas, result grows out below. No window box.
     return (
-      <div style={{width: 'fit-content', maxWidth: 'min(84vw, 1320px)', fontFamily: mono, textAlign: align,
+      <>{stage}
+      <div style={{position: 'relative', width: 'fit-content', maxWidth: 'min(84vw, 1320px)', fontFamily: mono, textAlign: align,
         display: 'flex', flexDirection: 'column', alignItems: align === 'left' ? 'flex-start' : 'center'}}>
-        <div style={{color: dim, font: `600 30px/1 ${mono}`, letterSpacing: d.labelSpacing, marginBottom: 40,
+        <div style={{color: dim, font: `600 ${dna ? 40 : 30}px/1 ${mono}`, letterSpacing: d.labelSpacing, marginBottom: 40,
           opacity: clamp01(t / 0.06)}}>
           <span style={{color: acc}}>$</span> {shown}
           <span style={{display: 'inline-block', width: 14, height: 26, marginLeft: 6, verticalAlign: 'text-bottom',
@@ -453,7 +474,7 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
         </div>
         <div style={{opacity: resIn, transform: `translateY(${(1 - resIn) * 26}px)${unlock}`, width: '100%',
           display: 'flex', flexDirection: 'column', alignItems: align === 'left' ? 'flex-start' : 'center'}}>{children}</div>
-      </div>
+      </div></>
     );
   };
 

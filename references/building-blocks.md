@@ -924,6 +924,33 @@ Axes a register draws itself: `STYLE_HOOKS_BY_SHOT` (Film reads it) and `without
 **Reach for it:** a register that exports `STYLE_HOOKS` is listed here, or the engine restyles it anyway.
 **Exports:** `STYLE_HOOKS_BY_SHOT`, `withoutAxes`.
 
+## The craft kit (references/craft-standard.md)
+
+### `craftStage`
+The lit stage and the material helpers: a tinted gradient ground with one key light, a fill of the second accent, an
+optional horizon band and a vignette in the ground's own shade, plus the brand-motif parts.
+**Reach for it:** any built shot's ground (instead of a flat fill), a panel's material, the film's one recurring motif.
+**Smallest real use:** `<LitStage ground={dna.bg} light={dna.accent} keyAt={{x: 0.5, y: 0.3}} />` then the subject on top.
+**Exports:** `LitStage`, `Dust`, `Orbs`, `Sheen`, `Sparkle`, `SPARKLE_PATH`, `glow`, `softShadow`, `surface`, `rgba`, `isDark`.
+
+### `craftType`
+The type ladder at 1080 lines and the word or character reveal with accent words and a ghosted tail.
+**Reach for it:** a type beat, a kicker over a headline, any line that should land on its word.
+**Smallest real use:** `<TextReveal text={line} start={f} accent={['done']} accentColor={dna.accent} />`
+**Exports:** `TYPE_LADDER`, `typePx`, `typeStyle`, `tracking`, `FONT_STACKS`, `TextReveal`, `revealUnits`, `revealEnd`, `Kicker`, `useLadder`.
+
+### `craftMotion`
+Curves named by meaning, staggers along a curve, a hold kept alive by a slow push, and a timing table read by name.
+**Reach for it:** every move in a built shot; the settled part of a beat (`holdPush`).
+**Smallest real use:** `const p = ramp(frame, 0, 18, 'snappy'); const k = holdPush(frame, 60, dur, 0.02);`
+**Exports:** `EASE`, `ramp`, `stagger`, `holdPush`, `follow`, `timeAt`, `fitTable`.
+
+### `craftUi`
+Publication-grade interface parts for product shots: every word and value is a prop, every size the caller's.
+**Reach for it:** a product's window, a cursor doing the action, a plan ticking, files, a done-toast.
+**Smallest real use:** `const t = uiTheme(ground, accent); <StepRow text={s} theme={t} px={24} state="done" />`
+**Exports:** `uiTheme`, `AppWindow`, `Cursor`, `Chip`, `Button`, `Avatar`, `Sparkline`, `FileBadge`, `MetricTile`, `StepRow`, `PromptBox`, `Toast`.
+
 ## Recipes
 
 ### A mechanism in cutaway

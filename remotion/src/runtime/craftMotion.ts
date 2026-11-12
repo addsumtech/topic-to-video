@@ -50,13 +50,13 @@ export const holdPush = (frame: number, from: number, to: number, amount = 0.022
 export const follow = (frame: number, a: number, b: number, lag = 3, ease: EaseName = 'snappy'): number =>
   ramp(frame, a + lag, b + lag, ease);
 
-/** A TIMING TABLE written as data at the top of a shot — {name: [startFrame, endFrame]} — and read through `at`.
+/** A TIMING TABLE written as data at the top of a shot — {name: [startFrame, endFrame]} — and read through `timeAt`.
  *  Writing it first is the brief's rule (prep → main action → follow-through → settled hold); reading every move off it
  *  keeps the shot's rhythm in one place where a reviewer can see it. */
 export type TimeTable = Record<string, readonly [number, number]>;
-export const at = (tt: TimeTable, name: string, frame: number, ease: EaseName | ((t: number) => number) = 'snappy'): number => {
+export const timeAt = (tt: TimeTable, name: string, frame: number, ease: EaseName | ((t: number) => number) = 'snappy'): number => {
   const span = tt[name];
-  if (!span) throw new Error(`craftMotion.at: no "${name}" in the timing table (${Object.keys(tt).join(', ')})`);
+  if (!span) throw new Error(`craftMotion.timeAt: no "${name}" in the timing table (${Object.keys(tt).join(', ')})`);
   return ramp(frame, span[0], span[1], ease);
 };
 

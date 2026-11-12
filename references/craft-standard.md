@@ -35,7 +35,7 @@ a designed poster; play it and the rhythm has weight.
 - `runtime/craftType`: `TYPE_LADDER` (at 1080 lines: mega 260 · display 180 · h1 120 · h2 84 · h3 60 · body 40 ·
   small 32 · label 22), `typeStyle`, `TextReveal` (word or character, accent words, ghosted tail), `Kicker`.
 - `runtime/craftMotion`: `EASE` named by meaning, `ramp`, `stagger` along a curve, `holdPush`, `follow`, and
-  `TimeTable` / `at` / `fitTable`.
+  `TimeTable` / `timeAt` / `fitTable`.
 - `runtime/craftUi`: `AppWindow`, `Cursor` (with an optional name tag), `Chip`, `Button`, `Avatar`, `Sparkline`,
   `FileBadge`, `MetricTile`, `StepRow`, `PromptBox`, `Toast`. Every word and value is a prop; these parts never invent
   a number.

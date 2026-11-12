@@ -6,7 +6,8 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
 import {rows} from '../runtime/rows';
-import {useDNA, TermFrame} from '../runtime/dna';
+import {useDNA, TermFrame, termInnerW} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 import type {SoundDecl} from '../runtime/sound';
 
 export const DURATION = 165;
@@ -30,12 +31,17 @@ export const TermLog: React.FC<{cmd?: string; lines?: Line[]; framed?: boolean}>
   const n = lines.length;
   const cur = Math.min(n - 1, Math.floor(clamp01(seg(t, 0.22, 0.92)) * n));
   const glyph = (k?: string) => k === 'ok' ? {c: acc, s: '✓'} : k === 'info' ? {c: dim, s: '#'} : {c: acc2, s: '→'};
+  // A THEMED FILM'S LOG IS SET TO ITS ROOM (craft standard, 2026-11-12): two short lines at a fixed 40 px were specks in
+  // the frame. Up to 72 px, bounded by the zone's height and the longest line against TermFrame's width.
+  const longest = Math.max(4, ...lines.map((l) => [...String(l.text ?? '')].length + 3));
+  const FS = dna ? Math.max(40, Math.min(72, Math.floor(((contentBottom(W, H) - CONTENT_TOP) * 0.62) / (n * 1.85)),
+    Math.floor((termInnerW(W, framed) * 0.92) / (longest * 0.6)))) : 40;
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(130% 120% at 50% -8%, #0f1723, #06080d 72%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <TermFrame dna={dna} cmd={cmd} t={t} framed={framed} align="left">
-        <div style={{font: `500 40px/1.85 ${mono}`}}>
+        <div style={{font: `500 ${FS}px/1.85 ${mono}`}}>
           {lines.map((ln, i) => {
             const start = 0.24 + i * (0.66 / Math.max(1, n));
             const show = clamp01(seg(t, start, start + 0.06));
@@ -46,7 +52,7 @@ export const TermLog: React.FC<{cmd?: string; lines?: Line[]; framed?: boolean}>
                 transform: `translateX(${(1 - show) * -12}px)`, color: ln.kind === 'info' ? dim : fg}}>
                 <span style={{color: g.c, width: '1.4ch'}}>{g.s}</span>
                 <span>{ln.text}</span>
-                {i === cur ? <span style={{display: 'inline-block', width: 14, height: 30, marginLeft: 4,
+                {i === cur ? <span style={{display: 'inline-block', width: Math.round(FS * 0.35), height: Math.round(FS * 0.75), marginLeft: 4,
                   verticalAlign: 'text-bottom', background: acc, opacity: caretOn ? 0.9 : 0.12}} /> : null}
               </div>
             );

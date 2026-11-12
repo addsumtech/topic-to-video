@@ -72,7 +72,9 @@ export const TermDiff: React.FC<{cmd?: string; leftLabel?: string; rightLabel?: 
     return headH + 2 * f * lead + 22 * k + rows;
   };
   const room = contentBottom(W, H) - CONTENT_TOP;
-  let fs = PX0;
+  // a themed film's diff STARTS LARGER (craft standard: the output is the subject, a few short lines read as specks
+  // in a 1080 frame) and shrinks to fit exactly as before
+  let fs = dna ? Math.round(PX0 * 1.6) : PX0;
   while (fs > PX_MIN && needH(fs) > room) fs -= 1;
   if (needH(fs) > room) {
     throw new Error(

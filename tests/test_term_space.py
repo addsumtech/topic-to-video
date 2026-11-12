@@ -110,8 +110,12 @@ def test_every_screen_is_READABLE_on_the_frame_the_gates_sample(tmp_path):
     r = _still(props, png, 167)                                  # 190 * 0.88
     assert r.returncode == 0, (r.stderr or "")[-600:]
     a = np.asarray(Image.open(png).convert("L"), dtype=np.float32) / 255.0
-    ground = float(np.median(a))
-    ink = np.abs(a - ground) > 0.10
+    # INK AGAINST THE LOCAL GROUND, not the frame's median: the room is LIT (a key light over its middle, craft
+    # standard 2026-11-12), so the ground itself varies by more than 0.10 across the frame and a median threshold read
+    # the light pool as "ink". A heavy blur is the ground; what stands off it is the screens' edges and their words.
+    from PIL import ImageFilter
+    blur = np.asarray(Image.open(png).convert("L").filter(ImageFilter.GaussianBlur(40)), dtype=np.float32) / 255.0
+    ink = np.abs(a - blur) > 0.06
     # three screens, spread across the frame: ink must appear in at least three separate column bands
     cols = ink.sum(axis=0)
     bands = [cols[i:i + a.shape[1] // 6].sum() for i in range(0, a.shape[1], a.shape[1] // 6)]
