@@ -22,6 +22,7 @@ import {useT, seg, clamp01, easeOutCubic, easeOutExpo} from '../runtime/motion';
 import {rows as listOf} from '../runtime/rows';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {useDNA, mix} from '../runtime/dna';
+import {LitStage} from '../runtime/craftStage';
 
 export const DURATION = 155;
 
@@ -75,7 +76,8 @@ export const StrataColumn: React.FC<{
 
   // the column sits right of the depth scale and left of the labels
   const scaleX = W * 0.14;
-  const colX = W * 0.22, colW = W * 0.26;
+  // a themed column is wider (craft standard, 2026-11-12): the strata are the subject
+  const colX = W * 0.22, colW = W * (dna ? 0.30 : 0.26);
   const labX = colX + colW + W * 0.045;
 
   // THE MEASURED COLUMN — the fix for a scale nobody supplied.
@@ -125,8 +127,9 @@ export const StrataColumn: React.FC<{
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: FG}}>
+      {dna ? <LitStage ground={dna.bg} light={ACC} fill={ACC2} keyAt={{x: (colX + colW / 2) / W, y: 0.3}} intensity={0.7} /> : null}
       <div style={{position: 'absolute', left: W * 0.08, top: CONTENT_TOP - H * 0.055, opacity: kick,
-        font: `600 ${Math.round(W * 0.0125)}px/1.2 ${mono}`, color: ACC,
+        font: `600 ${Math.round(W * (dna ? 0.0167 : 0.0125))}px/1.2 ${mono}`, color: ACC,
         letterSpacing: dna?.labelSpacing ?? '0.14em',
         textTransform: (dna?.uppercaseLabels ?? true) ? 'uppercase' : 'none'}}>{kicker}</div>
 
@@ -158,7 +161,9 @@ export const StrataColumn: React.FC<{
             ) : null}
             {/* the layer band, growing downward */}
             <div style={{position: 'absolute', left: colX, top: y, width: colW, height: h * on,
-              background: isFind ? ACC : tone,
+              // a themed stratum is LIT from above (a surface, not a flat band); the find glows in the accent
+              background: dna ? `linear-gradient(180deg, ${mix ? mix(isFind ? ACC : tone, '#ffffff', 0.14) : (isFind ? ACC : tone)} 0%, ${isFind ? ACC : tone} 60%)` : (isFind ? ACC : tone),
+              boxShadow: dna && isFind ? `0 0 60px ${ACC}55` : undefined,
               borderLeft: `${hair}px solid ${LINE}`, borderRight: `${hair}px solid ${LINE}`,
               borderBottom: `${hair}px solid ${LINE}`}} />
             {/* the depth, ruled off at the left with a leader */}
@@ -166,7 +171,7 @@ export const StrataColumn: React.FC<{
               <>
                 <div style={{position: 'absolute', left: scaleX, top: y - Math.round(W * 0.009),
                   width: colX - scaleX - Math.round(W * 0.008), textAlign: 'right', opacity: on,
-                  font: `500 ${Math.round(W * 0.0135)}px/1.2 ${mono}`, textWrap: 'balance', color: DIM}}>{L.depth}</div>
+                  font: `500 ${Math.round(W * (dna ? 0.0167 : 0.0135))}px/1.2 ${mono}`, textWrap: 'balance', color: DIM}}>{L.depth}</div>
                 <div style={{position: 'absolute', left: colX - Math.round(W * 0.008), top: y,
                   width: Math.round(W * 0.008) * on, height: hair, background: LINE}} />
               </>

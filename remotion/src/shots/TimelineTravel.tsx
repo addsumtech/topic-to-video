@@ -18,6 +18,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeInOutCubic, easeOutBack, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {useGlide} from '../runtime/glide';
+import {LitStage, softShadow} from '../runtime/craftStage';
 
 export const DURATION = 165; // 5.5s
 export const MAX_STOPS = 6;
@@ -64,14 +65,29 @@ export const TimelineTravel: React.FC<{nodes?: {time: string; label: string}[]}>
   const camX = lerp(camStart, lastX, easeInOutCubic(seg(t, 0.1, 0.92)));
   const wx = W / 2 - camX;
   const passedX = camX; // nodes to the left of the lens centre are "done"
+  // A THEMED TIMELINE IS A PLACE (craft standard, 2026-11-12): a thin rail across a dark frame read as a template. The
+  // stop the lens is on has its time set huge behind the rail (the time is the film's), each milestone sits on a card
+  // and the current one is lit, the progress line glows. Un-themed: the original light rail, unchanged.
+  const themed = !!dna;
+  const near = NODES.reduce((b, _, i) => (Math.abs(x0 + i * gap - camX) < Math.abs(x0 + b * gap - camX) ? i : b), 0);
+  const ghostPx = Math.round(Math.min(W, H) * 0.34);
   return (
     <AbsoluteFill style={{background: BG}}>
+      {themed ? <LitStage ground={BG} light={ACCENT} fill={dna!.accent2 ?? null} keyAt={{x: 0.5, y: 0.45}} horizon={0.5} intensity={0.75} /> : null}
+      {themed ? NODES.map((n, i) => {
+        const d = Math.abs(x0 + i * gap - camX) / gap;
+        const o = clamp01(1 - d * 1.6) * 0.07;
+        return o > 0.002 ? <div key={'g' + i} aria-hidden data-decor="ghost" style={{position: 'absolute', left: 0, right: 0, top: railY - ghostPx * 0.62,
+          textAlign: 'center', font: `800 ${ghostPx}px/1 var(--f-display, Inter, system-ui, sans-serif)`, color: INK, opacity: o,
+          letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums lining-nums', pointerEvents: 'none'}}>{n.time}</div> : null;
+      }) : null}
       {/* data-bleed: the WORLD travels past the frame — that is the shot. Stops already visited leave to the
           left and stops still ahead wait to the right; both are off-frame on purpose. */}
       <div data-bleed style={{position: 'absolute', left: wx, top: 0, width: worldW, height: H}}>
         {/* the rail: a dim base + a bright progress fill up to the camera */}
         <div style={{position: 'absolute', left: x0, top: railY - 3, width: worldW - x0 * 2, height: 6, background: RAIL, borderRadius: 3}} />
-        <div style={{position: 'absolute', left: x0, top: railY - 3, width: Math.max(0, Math.min(worldW - x0 * 2, passedX - x0)), height: 6, background: ACCENT, borderRadius: 3}} />
+        <div style={{position: 'absolute', left: x0, top: railY - 3, width: Math.max(0, Math.min(worldW - x0 * 2, passedX - x0)), height: 6, background: ACCENT, borderRadius: 3,
+          boxShadow: themed ? `0 0 18px ${ACCENT}aa, 0 0 40px ${ACCENT}55` : undefined}} />
         {NODES.map((n, i) => {
           const nx = x0 + i * gap;
           const done = passedX > nx - 30;
@@ -82,11 +98,17 @@ export const TimelineTravel: React.FC<{nodes?: {time: string; label: string}[]}>
               <div style={{position: 'absolute', left: nx - 16, top: railY - 16, width: 32, height: 32, borderRadius: 16,
                 background: done ? ACCENT : SURF, border: `3px solid ${done ? ACCENT : BORD}`,
                 boxShadow: done ? `0 0 0 8px ${ACCENT}22` : 'none', transform: `scale(${done ? 1.1 : 1})`}} />
-              <div style={{position: 'absolute', left: nx - 190, top: up ? railY - 200 : railY + 70, width: 380,
-                textAlign: 'center', opacity: clamp01(pop),
-                transform: glide(`translateY(${lerp(up ? 20 : -20, 0, clamp01(pop))}px)`, true)}}>
-                <div style={{font: '800 40px/1 var(--f-body, Inter,system-ui,sans-serif)', color: done ? ACCENT : DIM}}>{n.time}</div>
-                <div style={{font: '600 46px/1.15 var(--f-body, Inter,system-ui,sans-serif)', color: INK, marginTop: 12}}>{n.label}</div>
+              <div style={{position: 'absolute', left: nx - (themed ? 230 : 190), top: up ? railY - (themed ? 250 : 200) : railY + (themed ? 64 : 70),
+                width: themed ? 460 : 380, textAlign: 'center', opacity: clamp01(pop),
+                transform: glide(`translateY(${lerp(up ? 20 : -20, 0, clamp01(pop))}px)`, true),
+                ...(themed ? {padding: '24px 20px', borderRadius: 20, boxSizing: 'border-box' as const,
+                  background: i === near ? `linear-gradient(180deg, ${SURF}, ${BG})` : `${SURF}55`,
+                  border: `1px solid ${i === near ? ACCENT + '99' : BORD}`,
+                  boxShadow: i === near ? `0 0 70px ${ACCENT}30, ${softShadow(3, '#000000')}` : 'none'} : {})}}>
+                <div style={{font: `800 ${themed ? 48 : 40}px/1 var(--f-body, Inter,system-ui,sans-serif)`, color: done ? ACCENT : DIM,
+                  fontVariantNumeric: 'tabular-nums lining-nums'}}>{n.time}</div>
+                <div style={{font: `600 ${themed ? 56 : 46}px/1.12 var(--f-body, Inter,system-ui,sans-serif)`, color: INK, marginTop: 12,
+                  letterSpacing: themed ? '-0.02em' : undefined}}>{n.label}</div>
               </div>
             </div>
           );

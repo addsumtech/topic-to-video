@@ -6,6 +6,8 @@ import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
+import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {LitStage} from '../runtime/craftStage';
 
 export const DURATION = 165; // 5.5s
 type Tok = {t: string; c: string};
@@ -82,11 +84,22 @@ export const CodeCompose: React.FC<{doneLabel?: string; filename?: string; lines
   const caretOn = typingDone ? (frame % 30 < 16) : true;
   const outT = clamp01(seg(t, 0.72, 0.9));
 
+  // THE EDITOR IS THE SUBJECT ON A THEMED FILM (craft standard, 2026-11-12): laid out at its fixed 1180 x 620 it filled
+  // a third of the frame. The whole editor layer is drawn at ONE constant scale (never animated, so the code is not
+  // re-rasterised mid-beat) fitted to the content zone and centred in it, on a lit stage. Un-themed: as before.
+  const themed = !!dna;
+  const kz = themed ? Math.max(1, Math.min(1.3, (W * 0.9) / winW, (contentBottom(W, H) - CONTENT_TOP) / (winH + 24))) : 1;
+  const zoneMid = (CONTENT_TOP + contentBottom(W, H)) / 2, winMid = wy + winH / 2;
+  const editorT = themed ? `translateY(${(zoneMid - winMid).toFixed(1)}px) scale(${kz.toFixed(4)})` : undefined;
+  const editorO = `${W / 2}px ${winMid}px`;
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? ('radial-gradient(120% 120% at 50% 20%, #10151d, #080a0e 70%)')}}>
+      {themed ? <LitStage ground={dna!.bg} light={dna!.accent} fill={dna!.accent2 ?? null} keyAt={{x: 0.5, y: zoneMid / H}} intensity={0.8} /> : null}
+      <AbsoluteFill style={{transform: editorT, transformOrigin: editorO}}>
       {/* window — the carry anchor (runtime/carry) */}
       <div data-carry="window" style={{position: 'absolute', left: wx, top: wy, width: winW, height: winH, borderRadius: 18,
-        background: '#0d1117', border: '1px solid #202836', boxShadow: '0 40px 120px #000a', overflow: 'hidden'}}>
+        background: '#0d1117', border: '1px solid #202836', overflow: 'hidden',
+        boxShadow: themed ? `0 0 0 1px ${dna!.accent}33, 0 0 100px ${dna!.accent}22, 0 40px 120px #000a` : '0 40px 120px #000a'}}>
         <div style={{height: 52, background: '#131a24', borderBottom: '1px solid #202836', display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 20}}>
           {['#ff5f57', '#febc2e', '#28c840'].map((c) => <div key={c} style={{width: 14, height: 14, borderRadius: 7, background: c}} />)}
           <div style={{marginLeft: 18, padding: '6px 16px', borderRadius: 8, background: '#0d1117', color: '#8b96a6', font: '600 24px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{filename}</div>
@@ -113,6 +126,7 @@ export const CodeCompose: React.FC<{doneLabel?: string; filename?: string; lines
           {doneLabel}</span>
         <span style={{color: '#5a6577', font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)'}}>{STATUS}</span>
       </div>
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };
