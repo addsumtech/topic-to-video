@@ -306,3 +306,25 @@ def test_a_film_shot_that_draws_webgl_through_its_kit_is_never_covered(tmp_path)
         assert cp._is_plate("Flat", {}) is False
     finally:
         cp._FILM_SHOTS[:] = []
+
+
+def test_a_punch_in_keeps_a_set_whole_or_does_not_frame_it():
+    """WorkBuddy beat 13 (2026-11-12): a punch-in kept six of an 01-08 file grid and dropped 01 and 05 wholly out of
+    frame — no card cut in half, so the card rule passed it, and the renamed sequence read 02, 03, 04, 06, 07, 08."""
+    out = _ts("""
+      const W = 1920, H = 1080, bandTop = 878;
+      const cards: any[] = [];
+      for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) cards.push({x: 120 + c * 430, y: 160 + r * 300, w: 400, h: 260});
+      // a punch aims at the composition's CORE (punchCore), not its whole hull: here the right three columns
+      const core = {x: 550, y: 160, w: 1260, h: 560};
+      const punch = coverFraming({W, H, bandTop, target: core, want: 1.3, content: cards, texts: [], boxes: cards});
+      const inFrame = (f: any) => cards.filter((r) => r.x * f.s + f.tx >= -1 && (r.x + r.w) * f.s + f.tx <= W + 1).length;
+      out.punch = punch ? inFrame(punch) : null;
+      // a close-up on ONE card may still frame it alone
+      const one = coverFraming({W, H, bandTop, target: cards[1], content: cards, texts: [], boxes: cards});
+      out.one = one ? inFrame(one) : null;
+      out.sets = boxSets(cards).map((s: any[]) => s.length);
+    """, extra="boxSets")
+    assert out["sets"] == [8]
+    assert out["punch"] in (None, 8), "a punch-in dropped members of the set: %r" % out["punch"]
+    assert out["one"] is not None and out["one"] < 8

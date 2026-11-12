@@ -274,6 +274,7 @@ DELIVERY_GATES = {
         # passed every gate above (a framing jumping between render tabs, a light switching off, a mid-entrance cut)
         ("motion events off the plan (ADVISORY — look at _motion_events.jpg)", "motion_events_qa.py", (), 300, False, None),
         ("review sheets: every beat at 30/60/90 % + the ends (ADVISORY — LOOK at _review/)", "review_sheet.py", (), 600, False, None),
+        ("one staging as the film's device (ADVISORY — look at _repetition.jpg)", "repetition_qa.py", (), 300, False, None),
         # a film with a drawing style: did the DRAWING change, on every beat, and not only its colours (scripts/style_qa.py)
         ("STYLE drawn, not recoloured (every beat, styled vs unstyled)", "style_qa.py", (), 600, True, _styled),
         ("rhythm", "rhythm_qa.py", (), 240, True, None),

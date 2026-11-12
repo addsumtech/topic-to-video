@@ -100,6 +100,21 @@ const map = (r: Rect, f: Framing): Rect => ({x: r.x * f.s + f.tx, y: r.y * f.s +
  * push a line of type the crop would cut fully out of the frame; of the framings that pass, the one closest to the
  * wanted scale with the target nearest the zone's centre wins.
  */
+/** Groups of 3+ boxes of near-equal size (within SET_TOL of each other in both dimensions): the members of one set. */
+const SET_TOL = 0.15;
+export const boxSets = (boxes: Rect[]): Rect[][] => {
+  const near = (a: Rect, b: Rect) => Math.abs(a.w - b.w) <= SET_TOL * Math.max(a.w, b.w) &&
+    Math.abs(a.h - b.h) <= SET_TOL * Math.max(a.h, b.h);
+  const left = boxes.filter((r) => r.w > 0 && r.h > 0), out: Rect[][] = [];
+  while (left.length) {
+    const seed = left.shift()!;
+    const group = [seed, ...left.filter((r) => near(seed, r))];
+    for (const r of group.slice(1)) left.splice(left.indexOf(r), 1);
+    if (group.length >= 3) out.push(group);
+  }
+  return out;
+};
+
 export const coverFraming = (o: {W: number; H: number; bandTop: number; target: Rect; see?: Rect; want?: number;
   content: Rect[]; texts: Rect[]; boxes?: Rect[]; cap?: number}): Framing | null => {
   const {W, H, bandTop, content, texts} = o;
@@ -122,6 +137,11 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
   }
   const cx = t.x + t.w / 2, cy = t.y + t.h / 2;
   const M = TEXT_SAFE * Math.min(W, H);
+  // A SET (3+ boxes of one size: a grid's cells, a list's rows) is kept whole or not framed. A punch-in that kept some
+  // members and dropped others wholly out of frame read a renamed 01-08 file grid as 02, 03, 04, 06, 07, 08 (WorkBuddy
+  // beat 13, 2026-11-12) — no card cut in half, so the card rule passed it. An item close-up (no `want`) still frames
+  // one member of a set alone: that is what it is for.
+  const sets = o.want ? boxSets(o.boxes ?? []) : [];
   const textOk = (m: Rect) => inside(m, M, M, W - M, bandTop - M) || outside(m, 0, 0, W, bandTop);
   let best: {f: Framing; score: number} | null = null;
   for (const s of scales) {
@@ -155,6 +175,10 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
         if ((o.boxes ?? []).some((r) => { const m = map(r, f);
           return !inside(m, 0, 0, W, bandTop) && !outside(m, 0, 0, W, bandTop); })) {
           continue;                                            // a card would be cut in half
+        }
+        if (sets.some((set) => { const m = set.map((r) => map(r, f));
+          return m.some((r) => inside(r, 0, 0, W, bandTop)) && m.some((r) => outside(r, 0, 0, W, bandTop)); })) {
+          continue;                                            // a set would lose some of its members
         }
         const mt = map(t, f);
         const off = Math.hypot((mt.x + mt.w / 2 - W / 2) / W, (mt.y + mt.h / 2 - bandTop / 2) / bandTop);
