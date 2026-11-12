@@ -21,6 +21,7 @@ import {clamp01, hash01, useT, REDUCED_MOTION_T} from '../runtime/motion';
 import {drawOn, boilPhase} from '../runtime/draw';
 import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
+import {LitStage} from '../runtime/craftStage';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C: cream paper + navy ink + red riso → a chalkboard-style dark sketch on a dark DNA (bg→dna.bg, ink→fg,
@@ -86,7 +87,10 @@ export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'Wordma
   // candidate; the larger drawing wins (see the header).
   const Hs = Math.min(1, (W * 0.92) / (380 + 570 * (n - 1)));
   const horizontal = rowFits || Hs > V;
-  const S = rowFits ? 1 : horizontal ? Hs : V;       // one scale for boxes, gaps, labels and arrows
+  // A ROW THAT FITS GROWS INTO THE FRAME (craft standard, 2026-11-12): capped at its design size the chart was a strip
+  // across the middle of an empty field; it scales up to 92 % of the width (never past 1.3, a sketch, not a poster)
+  const grow = Math.min(1.3, (W * 0.92) / (380 + 570 * (n - 1)), ((zBot - zTop) * 0.8) / 240);
+  const S = rowFits ? Math.max(1, grow) : horizontal ? Hs : V;       // one scale for boxes, gaps, labels and arrows
   const bw = 380 * S, bh = 240 * S;
   const stepX = (380 + 190) * S, stepY = bh + 96 * S;
   const x0h = (W - (bw + stepX * (n - 1))) / 2;
@@ -102,6 +106,7 @@ export const HandDrawn: React.FC<{items?: string[]}> = ({items = ['You', 'Wordma
   const boil = boilPhase(t, durationInFrames, fps);
   return (
     <AbsoluteFill style={{background: BG}}>
+      {dna ? <LitStage ground={BG} light={dna.accent} fill={dna.accent2 ?? null} keyAt={{x: 0.5, y: 0.4}} intensity={0.6} /> : null}
       {/* grain */}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0, opacity: 0.5, mixBlendMode: grainBlend}}>
         <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" /><feColorMatrix type="saturate" values="0" /></filter>

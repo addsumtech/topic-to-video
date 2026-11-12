@@ -2,6 +2,8 @@
 """compare_page — old and new beside each other, beat by beat, for the USER to pick (references/craft-standard.md §loop).
 
     python3 scripts/compare_page.py OUT.html --old=<out_dir> --new=<out_dir> [--new-clip=PATTERN] [--beats=2,5,9]
+    python3 scripts/compare_page.py OUT.html --old=<dir> --new=<dir> --old-clip={n}.mp4 --new-clip={n}.mp4 --names=A,B
+                                    # a library redesign: one clip per REGISTER on each side, picked by name
 
 WHY (2026-11-12). The redesign that lifted video-shotcraft's library was judged shot by shot by its user on a page
 like this — original / first pass / redesign / drop — not by a metric and not by a critic: of 216 shots, 92 took the
@@ -64,7 +66,7 @@ def side(film_dir, beat, clip_pattern=None):
     return v, a, min(b, n - 1), fps
 
 
-def build(out_html, old_dir, new_dir, beats=None, new_clip=None):
+def build(out_html, old_dir, new_dir, beats=None, new_clip=None, old_clip=None):
     img_dir = os.path.splitext(out_html)[0] + "_frames"
     os.makedirs(img_dir, exist_ok=True)
     if beats is None:
@@ -76,12 +78,12 @@ def build(out_html, old_dir, new_dir, beats=None, new_clip=None):
     rows = []
     for n in beats:
         cells = {}
-        for tag, d, clip in (("old", old_dir, None), ("new", new_dir, new_clip)):
+        for tag, d, clip in (("old", old_dir, old_clip), ("new", new_dir, new_clip)):
             s = side(d, n, clip)
-            cells[tag] = _frames(s[0], s[1], s[2], s[3], os.path.join(img_dir, "b%02d_%s" % (n, tag))) if s else []
+            cells[tag] = _frames(s[0], s[1], s[2], s[3], os.path.join(img_dir, "b%s_%s" % (n if not isinstance(n, int) else "%02d" % n, tag))) if s else []
         if not cells["old"] and not cells["new"]:
             continue
-        sl = slides[n - 1] if 0 < n <= len(slides) else {}
+        sl = slides[n - 1] if isinstance(n, int) and 0 < n <= len(slides) else {"shot": "" if isinstance(n, int) else str(n)}
         rows.append({"beat": n, "line": sl.get("narration") or sl.get("caption") or "", "shot": sl.get("shot") or "",
                      "old": [os.path.relpath(p, os.path.dirname(out_html)) for p in cells["old"]],
                      "new": [os.path.relpath(p, os.path.dirname(out_html)) for p in cells["new"]]})
@@ -98,9 +100,12 @@ def _page(rows):
     body = []
     for r in rows:
         n = r["beat"]
-        picks = "".join('<label><input type="radio" name="b%d" value="%s"> %s</label>' % (n, v, v) for v in ("old", "new", "neither"))
-        body.append('<section><h2>Beat %d <span>%s</span></h2><p class="line">%s</p>%s%s<div class="pick">%s</div></section>'
-                    % (n, html.escape(r["shot"]), html.escape(r["line"]), strip(r["old"], "old"), strip(r["new"], "new"), picks))
+        key = html.escape(str(n))
+        picks = "".join('<label><input type="radio" name="b%s" value="%s"> %s</label>' % (key, v, v) for v in ("old", "new", "neither"))
+        head = ("Beat %d" % n) if isinstance(n, int) else key
+        body.append('<section><h2>%s <span>%s</span></h2><p class="line">%s</p>%s%s<div class="pick">%s</div></section>'
+                    % (head, html.escape(r["shot"] if isinstance(n, int) else ""), html.escape(r["line"]), strip(r["old"], "old"),
+                       strip(r["new"], "new"), picks))
     return """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Beat Compare</title><style>
 :root{--bg:#f5f4f0;--ink:#1a1a18;--ink2:#66645e;--line:#dddad2;--acc:#0a8f74}
@@ -128,15 +133,15 @@ def main(argv):
     if not argv:
         print(__doc__.strip().splitlines()[0])
         return 0
-    refuse_unknown(argv, valued=("old", "new", "new-clip", "beats"))
+    refuse_unknown(argv, valued=("old", "new", "new-clip", "old-clip", "beats", "names"))
     out = os.path.abspath(argv[0])
     old, new = argflag(argv, "old", None), argflag(argv, "new", None)
     if not old or not new:
         print("[compare_page] needs --old=<out_dir> and --new=<out_dir>")
         return 2
-    b = argflag(argv, "beats", None)
-    beats = [int(x) for x in b.split(",")] if b else None
-    rows = build(out, os.path.abspath(old), os.path.abspath(new), beats, argflag(argv, "new-clip", None))
+    b, names = argflag(argv, "beats", None), argflag(argv, "names", None)
+    beats = [x for x in names.split(",") if x] if names else ([int(x) for x in b.split(",")] if b else None)
+    rows = build(out, os.path.abspath(old), os.path.abspath(new), beats, argflag(argv, "new-clip", None), argflag(argv, "old-clip", None))
     print("[compare_page] %d beat(s) side by side: %s" % (len(rows), out))
     return 0
 

@@ -29,6 +29,7 @@ import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01, life} from 
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom} from '../runtime/layout';
 import {useGlide} from '../runtime/glide';
+import {LitStage} from '../runtime/craftStage';
 
 export const DURATION = 165; // 5.5s
 const NODE_PALETTE0 = ['#4c8dff', '#22d3c5', '#b06cff', '#ff8fc7', '#ffd23f', '#2fcb6e', '#ff6b6b'];
@@ -94,8 +95,11 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
   // summed from the pieces rather than estimated: the label's 34px offset, its 24px type with 5px padding
   // top and bottom and a 1px border, and the 8px vertical bob. Estimated at 46 it left 'Calendar' 14px
   // inside the band — close enough to look fixed and not be.
-  const NODE_ROOM = 34 + (24 + 5 * 2 + 2) + 8;
+  const NODE_ROOM = 40 + (32 + 7 * 2 + 2) + 8;
   const rScale = Math.min(1, ((zBot - zTop) / 2 - NODE_ROOM) / 430);
+  // THE CONSTELLATION SPANS THE FRAME (craft standard, 2026-11-12): bounded by the zone's height, a circle used a third
+  // of a 16:9 frame. It spreads sideways into an ellipse as far as the frame's width allows (a label's half-width kept in)
+  const spread = Math.max(1, Math.min(1.8, (W * 0.5 - 150) / Math.max(1, 500 * rScale)));
   // A LIVING SYSTEM KEEPS TURNING. At 0.18 rad across the whole clip this was ten degrees in five seconds —
   // a rotation nobody can see, so the register measured 0.0005 frame difference and read as a still diagram.
   // Rotation is not translation, so it stays invisible to scripts/shake_qa.py; and one revolution takes
@@ -110,11 +114,13 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
     // enlarging an amplitude nobody complained about is exactly the unjustified step by which "living"
     // becomes "wobbling". A first pass raised it to 13px for no reason and it was put back.
     const bob = (life(t, durationInFrames, fps, 5 + (i % 4) * 1.3, i * 0.19) - 0.5) * 16;
-    return {x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R + bob};
+    return {x: cx + Math.cos(a) * R * spread, y: cy + Math.sin(a) * R + bob};
   };
 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 120% at 50% 45%, #0e1424 0%, #070a12 66%, #04060b 100%)'}}>
+      {/* a themed film's stage: the key on the hub, the field falling off to the ground's shade */}
+      {dna ? <LitStage ground={dna.bg} light={dna.accent2 ?? dna.accent} fill={dna.accent} keyAt={{x: 0.5, y: cy / H}} intensity={0.75} /> : null}
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>
         <defs>
           <filter id="ng"><feGaussianBlur stdDeviation="6" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
@@ -159,9 +165,9 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
           if (pop <= 0) return null;
           return (
             <g key={i} transform={`translate(${p.x},${p.y}) scale(${pop})`}>
-              <circle r={40} fill="url(#halo)" />
-              <circle r={16} fill={n.c} filter="url(#ng)" />
-              <circle r={16} fill="none" stroke={rim} strokeWidth={2.5} />
+              <circle r={52} fill="url(#halo)" />
+              <circle r={22} fill={n.c} filter="url(#ng)" />
+              <circle r={22} fill="none" stroke={rim} strokeWidth={3} />
             </g>
           );
         })}
@@ -190,14 +196,15 @@ export const KnowledgeGraph: React.FC<{items?: string[]; hub?: string; links?: G
           // turning"), so the label is placed by a TRANSLATE carrying the unlock for the whole beat. Placed by
           // `left`/`top` it was rounded to whole pixels before anything was drawn and stepped whatever unlocked it.
           <div key={i} style={{position: 'absolute', left: 0, top: 0, opacity: show,
-            transform: glide(`translate(${p.x}px, ${p.y + 34}px) translateX(-50%)`, true),
-            padding: '5px 14px', borderRadius: 999, background: '#0c1424cc', border: `1px solid ${n.c}66`,
-            color: '#dbe5f5', font: `600 24px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{n.label}</div>
+            transform: glide(`translate(${p.x}px, ${p.y + 40}px) translateX(-50%)`, true),
+            padding: '7px 18px', borderRadius: 999, background: '#0c1424cc', border: `1px solid ${n.c}88`,
+            boxShadow: `0 8px 24px #00000066`,
+            color: '#dbe5f5', font: `600 32px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{n.label}</div>
         );
       })}
       {/* center label — the one word here with no pill under it, so it reads straight off the ground */}
-      <div style={{position: 'absolute', left: cx, top: cy + 96, transform: 'translateX(-50%)',
-        opacity: clamp01(seg(t, 0.16, 0.3)), color: hubInk, font: `800 34px/1 var(--f-body, Inter, system-ui, sans-serif)`,
+      <div style={{position: 'absolute', left: cx, top: cy + 100, transform: 'translateX(-50%)',
+        opacity: clamp01(seg(t, 0.16, 0.3)), color: hubInk, font: `800 48px/1 var(--f-body, Inter, system-ui, sans-serif)`,
         letterSpacing: '-0.01em', whiteSpace: 'nowrap'}}>{HUB}</div>
     </AbsoluteFill>
   );

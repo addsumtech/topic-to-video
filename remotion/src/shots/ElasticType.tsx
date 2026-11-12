@@ -17,6 +17,7 @@ import {useT, seg, clamp01, easeOutCubic, REDUCED_MOTION_T} from '../runtime/mot
 import {useDNA, dnaPalette} from '../runtime/dna';
 import {fitTextPx} from '../runtime/layout';
 import {useGlide} from '../runtime/glide';
+import {LitStage} from '../runtime/craftStage';
 
 export const DURATION = 145; // ~4.8s
 const BG_D0 = '#141a2e';
@@ -60,6 +61,9 @@ export const ElasticType: React.FC<{word?: string; tagline?: string}> = ({
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg
         ?? `radial-gradient(120% 100% at 50% 40%, #1c2647, ${BG_D0} 74%)`, overflow: 'hidden',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+      {/* A THEMED FILM'S STAGE (craft standard): a key over the word and a floor of light where the letters land, so
+          the bounce has a surface to hit; the un-themed film keeps its original well above */}
+      {dna ? <LitStage ground={dna.bg} light={TONES[0]} fill={TONES[2] ?? null} keyAt={{x: 0.5, y: 0.36}} horizon={0.6} intensity={0.85} /> : null}
       <div style={{display: 'flex', alignItems: 'flex-end'}}>
         {letters.map((ch, i) => {
           if (ch === ' ') return <div key={i} style={{width: 56}} />;

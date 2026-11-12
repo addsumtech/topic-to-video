@@ -25,6 +25,7 @@ import {rows} from '../runtime/rows';
 import {hasCJK} from '../runtime/cjkType';
 import {useKinetic, KineticText, KMotion} from '../runtime/kinetic';
 import {KineticWord} from '../runtime/kineticWord';
+import {LitStage} from '../runtime/craftStage';
 
 export const DURATION = 165; // 5.5s
 // THE PACE IS IN SECONDS (validate.py reads this): every entrance below is a duration in seconds, and the shares of
@@ -157,6 +158,10 @@ export const HeadlineReveal: React.FC<{
   const ruleIn = easeOutCubic(clamp01(seg(t, 0.06, 0.2)));
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? BG}}>
+      {/* A THEMED FILM'S STAGE (craft standard, 2026-11-12): the key light falls on the headline and the edges fall to the
+          ground's own shade, instead of a flat fill; a whisper keeps its quiet sea of ground */}
+      {dna && !whisper ? <LitStage ground={BG} light={ACC} fill={dna.accent2 ?? null}
+        keyAt={{x: (x0 + colW * (align === 'center' ? 0.5 : 0.3)) / W, y: (top + blockH * 0.4) / H}} intensity={0.8} /> : null}
       {kicker ? (
         <>
           {align === 'center' ? null : (

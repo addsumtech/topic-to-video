@@ -16,7 +16,9 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, easeOutCubic, easeOutBack, clamp01, useAnimSpan, ENTRY_T, ReducedMotionContext} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {contentBottom, fitTextPx, wrapLines} from '../runtime/layout';
+import {CONTENT_TOP, contentBottom, fitTextPx, wrapLines} from '../runtime/layout';
+import {LitStage, softShadow, rgba} from '../runtime/craftStage';
+import {typePx, typeStyle, TextReveal} from '../runtime/craftType';
 import {caretOn, framesBetween} from '../runtime/gesture';
 import {useGlide} from '../runtime/glide';
 import type {SoundDecl} from '../runtime/sound';
@@ -39,8 +41,14 @@ export const INTRINSIC_TEXT = [
 const ACCENT0 = '#6E8BFF';
 const DEFAULT_ROWS = ['Plan the deck outline', 'Pull the Q3 numbers', 'Design 24 slides', 'Write the narrative', 'Export to your folder'];
 
-export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
-  command = 'Build the Q3 board deck from ~/finance', items: ROWS = DEFAULT_ROWS} = {}) => {
+export const CommandSummon: React.FC<{command?: string; items?: string[];
+  /** optional: a display line set beside the palette (the UI + headline composition, craft-standard §Film); without it
+   *  the palette is centred alone */
+  title?: string; titleAccent?: string[];
+  /** optional: what the run produced — a file card slides out of the palette once every row has ticked (the payoff:
+   *  the instruction, the steps, then the thing) */
+  result?: {name: string; note?: string}}> = ({
+  command = 'Build the Q3 board deck from ~/finance', items: ROWS = DEFAULT_ROWS, title, titleAccent = [], result} = {}) => {
   const t = useT();
   const glide = useGlide();
   const dna = useDNA(); const ACCENT = dna?.accent ?? ACCENT0;
@@ -54,7 +62,9 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   // width allowed, with no lower bound. Both are copy: they stop at the label floor (30 px at 1080) and WRAP from
   // there — the command line is `pre-wrap` with its height reserved up front (so typing never moves the rows
   // below it), and `PAL_HEAD` below counts the extra lines against the caption band.
-  const PW = Math.min(1180, Math.round(W * 0.92)), PX = Math.round((W - PW) / 2);
+  const paired = !!title && W > H;
+  const PW = paired ? Math.round(W * 0.5) : Math.min(1180, Math.round(W * 0.92));
+  const PX = paired ? Math.round(W * 0.07) : Math.round((W - PW) / 2);
   const CMD_PADX = 40, ROW_PADX = 24, ICON = 34 + 22;
   const FLOOR = Math.round(Math.min(W, H) * 0.0278);
   const cmdPx = Math.max(FLOOR, fitTextPx(command, PW - CMD_PADX * 2 - ICON, 46, {usable: 1}));
@@ -86,15 +96,23 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
   const reduced = React.useContext(ReducedMotionContext);
   const TYPED_BY = 0.44;
   const caretShown = t < 0.46 && caretOn(t < TYPED_BY ? null : framesBetween(TYPED_BY, t, span, ENTRY_T), reduced);
-  const palY = lerp(60, 0, inP) + (fired ? -lerp(0, 40, easeOutCubic(seg(t, 0.46, 0.6))) : 0);
-  const palScale = fired ? lerp(1, 0.94, easeOutCubic(seg(t, 0.46, 0.62))) : 1;
+  // THE PALETTE STANDS IN THE MIDDLE OF THE CONTENT ZONE on its final height (craft standard: the subject uses the
+  // frame — pinned at top 210 it left the lower 40 % of every beat empty). The row-count limit above still reads the
+  // original top, so no film's board stops fitting.
+  const palH = 68 + cmdH + 36 + n * ROW_H;
+  const RES_H = result ? 132 : 0; // the result card lands UNDER the palette; the two are centred as one group
+  const palTop = Math.max(CONTENT_TOP, Math.round(CONTENT_TOP + (contentBottom(W, H) - CONTENT_TOP - palH - RES_H) / 2));
+  const palY = lerp(60, 0, inP);
+  const palScale = 1;
+  const sweep = fired ? clamp01((t - 0.48) / 0.16) : 0;
   const rowPx = ROWS.reduce((px, r) => Math.min(px, fitTextPx(r, PW - 40 - ROW_PADX * 2 - (TICK_BOX + 20) - 130, 38, {usable: 1})), 38);
   const rowFit = Math.max(FLOOR, rowPx);
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? 'radial-gradient(120% 100% at 50% 22%, #141a26, #090c12 60%)'}}>
-      {/* soft accent glow behind the palette */}
-      <div style={{position: 'absolute', left: W / 2 - 420, top: 150, width: 840, height: 520,
-        background: `radial-gradient(closest-side, ${ACCENT}22, transparent)`, filter: 'blur(30px)'}} />
+    <AbsoluteFill style={{background: dna?.bg ?? '#090c12'}}>
+      {/* THE STAGE: the key light falls on the palette (runtime/craftStage); the original radial ground stays the
+          un-themed film's colours: radial-gradient(120% 100% at 50% 22%, #141a26, #090c12 60%) */}
+      <LitStage ground={dna?.bg ?? '#090c12'} light={ACCENT} fill={dna?.accent2 ?? null}
+        keyAt={{x: (PX + PW / 2) / W, y: (palTop + palH * 0.35) / H}} intensity={1.15} />
       {/* THE PALETTE — it travels by its own `top` (sliding in, then the Return bounce) and scales, both of
           which Skia rounds the same way it rounds a translate; the unlock carries every line inside it (the
           command's caret, the row text, the ↵ run badge) for as long as either motion can still be running */}
@@ -104,9 +122,14 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
           filter's content as a layer of its own, which the unlock does not reach: the command trembled 0.41px RMS as
           the palette scaled, 0 without it (a one-beat film of the topic-to-video promo, jitter_qa, 2026-11-04). The
           fill is 92% opaque, so the blur behind it was all but invisible anyway. */}
-      <div style={{position: 'absolute', left: PX, top: 210, width: PW, opacity: clamp01(inP),
-        transform: glide(`translateY(${palY}px) scale(${palScale})`, true), transformOrigin: '50% 0', background: 'rgba(20,25,35,0.92)',
-        border: '1px solid #2a3346', borderRadius: 20, boxShadow: '0 50px 120px rgba(0,0,0,.6)'}}>
+      <div style={{position: 'absolute', left: PX, top: palTop, width: PW, opacity: clamp01(inP), overflow: 'hidden',
+        transform: glide(`translateY(${palY}px) scale(${palScale})`, true), transformOrigin: '50% 0',
+        background: 'linear-gradient(180deg, rgba(30,36,50,0.96), rgba(20,25,35,0.96) 40%)',
+        border: '1px solid #2a3346', borderRadius: 22,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.08), 0 0 0 1px ${rgba(ACCENT, 0.18)}, 0 0 80px ${rgba(ACCENT, 0.16)}, ${softShadow(3, '#000000')}`}}>
+        {/* one pass of light across the palette as the command runs (once, on the hero) */}
+        {sweep > 0 && sweep < 1 ? <div style={{position: 'absolute', inset: 0, pointerEvents: 'none', background:
+          `linear-gradient(115deg, transparent ${-40 + sweep * 180 - 16}%, rgba(255,255,255,0.10) ${-40 + sweep * 180}%, transparent ${-40 + sweep * 180 + 16}%)`}} /> : null}
         {/* input row */}
         <div style={{display: 'flex', alignItems: 'center', gap: 22, padding: `34px ${CMD_PADX}px`, borderBottom: '1px solid #232c3d'}}>
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></svg>
@@ -142,6 +165,34 @@ export const CommandSummon: React.FC<{command?: string; items?: string[]}> = ({
           })}
         </div>
       </div>
+      {result ? (() => {
+        const lastTick = 0.66 + (n - 1) * stepT;
+        const r = easeOutBack(seg(t, lastTick + 0.04, lastTick + 0.16));
+        const RW = Math.round(Math.min(PW * 0.62, W * 0.4)), RX = PX + PW - RW - Math.round(W * 0.02);
+        const ext = (result.name.split('.').pop() ?? '').toUpperCase().slice(0, 4); // @truncates: the file's own extension, read off its name, as its badge — not a claim
+        return (
+          <div style={{position: 'absolute', left: RX, top: palTop + palH + 22, width: RW, opacity: clamp01(r),
+            transform: glide(`translateY(${lerp(30, 0, clamp01(r))}px)`, true), display: 'flex', alignItems: 'center', gap: 22,
+            padding: '22px 26px', borderRadius: 18, background: '#f4f7fb', boxShadow: `${softShadow(3, '#000000')}, 0 0 0 1px ${rgba(ACCENT, 0.4)}`}}>
+            <div style={{flex: 'none', width: 58, height: 70, borderRadius: 10, background: ACCENT, display: 'flex', alignItems: 'flex-end',
+              justifyContent: 'center', paddingBottom: 10, font: '800 17px/1 var(--f-body, Inter)', color: '#ffffff'}}>{ext}</div>
+            <div style={{minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6}}>
+              <div style={{font: `700 ${Math.max(FLOOR, 34)}px/1.1 var(--f-body, Inter, system-ui, sans-serif)`, color: '#0b0f17', whiteSpace: 'nowrap',
+                overflow: 'hidden', textOverflow: 'ellipsis'}}>{result.name}</div>
+              {result.note ? <div style={{font: `600 ${FLOOR}px/1.1 var(--f-body, Inter, system-ui, sans-serif)`, color: '#1f8f57'}}>{result.note}</div> : null}
+            </div>
+          </div>
+        );
+      })() : null}
+      {paired ? (
+        <div style={{position: 'absolute', left: PX + PW + Math.round(W * 0.05), top: palTop, width: W - (PX + PW + Math.round(W * 0.05)) - Math.round(W * 0.06),
+          height: palH, display: 'flex', alignItems: 'center',
+          ...typeStyle(Math.min(typePx('h1', W, H), Math.floor((W - (PX + PW + W * 0.11)) / Math.max(6, Math.max(...(title ?? '').split(/\s+/).map((w) => w.length)) * 0.56))),
+            {weight: 780, color: '#f3f5f9'}),
+          fontFamily: 'var(--f-display, Inter, "Noto Sans SC", system-ui, sans-serif)'}}>
+          <div><TextReveal text={title ?? ''} start={Math.round(span * 0.5)} accent={titleAccent} accentColor={ACCENT} /></div>
+        </div>
+      ) : null}
       {/* Return flash */}
       {flash > 0 && <AbsoluteFill style={{background: '#fff', opacity: 0.14 * flash}} />}
     </AbsoluteFill>

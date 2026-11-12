@@ -69,13 +69,23 @@ export const CinematicTitle: React.FC<{kicker?: string; title?: string; tagline?
         <div data-carry="word" data-carry-glyph="" style={{opacity: titleUp, transform: glide(`translateY(${(1 - titleUp) * 46}px)`, true), maxWidth: W * 0.9,
           color: titleCol, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
           // width-AND-length-aware so a long title / narrow (portrait|square) frame can't clip the wordmark
-          font: `800 ${Math.min(176, W * 0.13, titleFit)}px/${leading(TITLE, 0.98)} ${titleFont}`,
+          // a themed title is set near MEGA (craft standard: the title IS the frame); the un-themed original keeps 176
+          font: `800 ${Math.min(dna ? 240 : 176, W * (dna ? 0.16 : 0.13), titleFit)}px/${leading(TITLE, 0.98)} ${titleFont}`,
           letterSpacing: '-0.01em', textShadow: dna ? 'none' : '0 30px 90px #000, 0 2px 0 #ffffff22'}}>{TITLE}
           {dnaHas(dna, 'cursor') ? <Caret color={dna!.accent} h={72} w={20} style={{marginLeft: 14}} /> : null}</div>
         <div style={{opacity: clamp01(seg(t, 0.55, 0.82)), color: tagCol, font: '500 30px/1 var(--f-mono, "JetBrains Mono", monospace)',
           letterSpacing: '0.36em', textTransform: 'uppercase', paddingLeft: '0.36em', marginTop: 30}}>{TAG}</div>
       </AbsoluteFill>
 
+      {/* THE THEMED FILM'S LIGHT (craft standard): a horizon band of the accent under the title and one slow pass of light
+          across it — the film-flare's job, in the film's own colour, instead of nothing */}
+      {dna ? <>
+        <div style={{position: 'absolute', left: '-10%', right: '-10%', top: H * 0.5, height: H * 0.22, transform: 'translateY(-10%)',
+          background: `radial-gradient(ellipse 50% 50% at 50% 50%, ${mix(dna.accent, dna.bg, 0.55)} 0%, transparent 70%)`,
+          opacity: 0.55 + 0.45 * flareGlow, pointerEvents: 'none'}} />
+        <div style={{position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.6 * flareGlow, background:
+          `linear-gradient(105deg, transparent ${flareX / W * 100 - 12}%, ${mix(dna.fg, dna.accent, 0.3)}33 ${flareX / W * 100}%, transparent ${flareX / W * 100 + 12}%)`}} />
+      </> : null}
       {/* anamorphic lens flare sweep — a FILM cue; suppressed under a terminal DNA */}
       {!dna ? <svg width={W} height={H} style={{position: 'absolute', inset: 0, mixBlendMode: 'screen'}}>
         <defs>

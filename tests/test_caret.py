@@ -35,7 +35,9 @@ def _frames(tmp_path, durF=150):
 def test_the_palette_caret_is_solid_while_typing_and_never_flickers(tmp_path):
     np = pytest.importorskip("numpy")
     fr = _frames(tmp_path)
-    row = fr[:, 110:150, 215:785, :]
+    # the palette stands in the middle of the content zone (craft standard, 2026-11-12), so the input row is FOUND, not
+    # assumed at the old top: the whole content height, right of the search icon (which is accent-blue and always on)
+    row = fr[:, 0:430, 240:785, :]
     on = ((row[..., 2] > 180) & (row[..., 2] - row[..., 0] > 60)).sum(axis=(1, 2)) > 20
     typing = on[20:60]
     assert typing.mean() > 0.9, "the caret is not solid while the command types: %r" % typing.astype(int)

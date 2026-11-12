@@ -21,9 +21,9 @@
 // (the band would draw a number over nothing, which is the filler this register says it does not have).
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
-import {useT, seg, clamp01, easeInOutCubic, easeOutCubic} from '../runtime/motion';
+import {useT, seg, clamp01, lerp, easeInOutCubic, easeOutCubic} from '../runtime/motion';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
-import {useDNA, dnaPalette, separated, surfaceOn, readableOn, dimOn, TONE_MIN_STEP} from '../runtime/dna';
+import {useDNA, dnaPalette, separated, surfaceOn, readableOn, dimOn, mix, TONE_MIN_STEP} from '../runtime/dna';
 import {useGlide} from '../runtime/glide';
 
 export const DURATION = 180; // 6s
@@ -125,8 +125,15 @@ export const InOrder: React.FC<{
         const sz = f * along * enter;
         const cross = portrait ? W : zoneH;
         const room = Math.min(sz, cross);
-        const numPx = Math.max(14, Math.min(Math.round(base * 0.05), Math.round(room * 0.34)));
-        const labelPx = Math.max(13, Math.min(Math.round(base * 0.036), Math.round(sz * 0.16), Math.round(cross * 0.10)));
+        // THE STEP BEING WALKED IS SET AT DISPLAY SIZE (craft standard, 2026-11-12): its band is the frame's largest
+        // shape, and at 54 px / 39 px its number and name sat in a corner of an empty block. The live band's numeral
+        // grows with its band (a design element, as a launch film sets a section number), its name at h3; the others
+        // keep the sizes their narrow bands allow.
+        const liveK = live ? clamp01(1 - Math.abs(i - focus) * 2) : 0;
+        const numPx = Math.max(14, Math.round(lerp(Math.min(Math.round(base * 0.05), Math.round(room * 0.34)),
+          Math.min(Math.round(base * 0.24), Math.round(room * 0.5)), liveK)));
+        const labelPx = Math.max(13, Math.round(lerp(Math.min(Math.round(base * 0.036), Math.round(sz * 0.16), Math.round(cross * 0.10)),
+          Math.min(Math.round(base * 0.058), Math.round(sz * 0.11)), liveK)));
         const tight = sz < base * 0.12;
         const bx = portrait ? 0 : px, by = portrait ? zoneTop + px : zoneTop;
         const bw = portrait ? W : sz, bh = portrait ? sz : zoneH;
@@ -134,7 +141,8 @@ export const InOrder: React.FC<{
         return (
           <React.Fragment key={i}>
           <div style={{position: 'absolute', left: bx, top: by, width: bw, height: bh,
-            background: fill,
+            // the walked band is LIT from above (craft standard: a surface, not a flat fill); the others stay flat
+            background: live && dna ? `linear-gradient(180deg, ${mix(fill, '#ffffff', 0.16)} 0%, ${fill} 55%, ${mix(fill, '#000000', 0.12)} 100%)` : fill,
             // a PENDING step is an outline, not a fill: it has not happened yet, and the frame should say so
             boxShadow: `inset 0 0 0 ${hair}px ${BG}` + (fill === BG ? `, inset 0 0 0 ${hair * 2}px ${DIM}44` : ''),
             boxSizing: 'border-box'}} />
@@ -158,7 +166,7 @@ export const InOrder: React.FC<{
                   marginTop: Math.round(base * 0.006)}}>{s.label}</div>
               ) : null}
               {s.note && live && !tight ? (
-                <div style={{color: sub, font: `400 ${Math.round(labelPx * 0.66)}px/1.35 ${body}`,
+                <div style={{color: sub, font: `400 ${Math.max(Math.round(base * 0.03), Math.round(labelPx * 0.6))}px/1.35 ${body}`,
                   marginTop: Math.round(base * 0.005)}}>{s.note}</div>
               ) : null}
             </div>

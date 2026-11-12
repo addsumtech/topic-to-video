@@ -42,6 +42,7 @@ import {useDNA} from '../runtime/dna';
 import {CONTENT_TOP, contentBottom, fitTextPx, inkBlockH} from '../runtime/layout';
 import {leading} from '../runtime/cjkType';
 import {Stage3D, Surface, OnSurface, projectPose, planeAffine, fitStage, faceShade, PERSP_FRAC, type Pose} from '../runtime/stage3d';
+import {LitStage} from '../runtime/craftStage';
 
 export const DURATION = 190; // ~6.3s
 
@@ -105,7 +106,10 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
     return {x: (p.x ?? 0) * U, y: (p.y ?? 0) * U, z: (p.z ?? 0) * U, rx: p.rx, ry: p.ry};
   });
 
-  const scrW = Math.round(U * 0.40), scrH = Math.round(U * 0.25);
+  // THE CONSOLES ARE THE SUBJECT (craft standard, 2026-11-12): at 0.40 of the short side the pulled-back room read as
+  // small dim windows in a dark field; at 0.50 the close still fits (fitStage below) and the status lines can be set
+  // at reading size instead of 23 px
+  const scrW = Math.round(U * 0.50), scrH = Math.round(U * 0.31);
 
   // THE TOUR. Hold on one screen, swing to the next, hold — then pull back so the room reads as a room.
   // `useT` freezes under reduced motion like every other clock here, so the still lands on a stop.
@@ -157,11 +161,11 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
   const settledOn = (k: number) => (out > 0.25 ? 1 : clamp01(1.25 - Math.abs(leg - k) * 1.6));
 
   const namePx = list.reduce(
-    (px, s) => Math.min(px, fitTextPx(s.name || ' ', scrW * 0.86, Math.round(U * 0.032), {usable: 1})),
-    Math.round(U * 0.032));
+    (px, s) => Math.min(px, fitTextPx(s.name || ' ', scrW * 0.86, Math.round(U * 0.042), {usable: 1})),
+    Math.round(U * 0.042));
   const statusPx = list.reduce(
-    (px, s) => Math.min(px, fitTextPx(s.status || ' ', scrW * 0.90, Math.round(U * 0.021), {usable: 1})),
-    Math.round(U * 0.021));
+    (px, s) => Math.min(px, fitTextPx(s.status || ' ', scrW * 0.90, Math.round(U * 0.031), {usable: 1})),
+    Math.round(U * 0.031));
 
   // THE CARET IS THE WHOLE REASON THIS IS A CONSOLE. The screen being faced types its status out; the ones
   // behind hold theirs, done. A status is only ever REVEALED, never trimmed away — the full string is in the
@@ -185,8 +189,10 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
   };
 
   return (
-    <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg
-      ?? 'radial-gradient(130% 120% at 50% 16%, #0e1622, #05080e 74%)', overflow: 'hidden'}}>
+    <AbsoluteFill style={{background: dna?.bg ?? '#05080e', overflow: 'hidden'}}>
+      {/* THE ROOM IS LIT: a key over the middle of the room in the working colour, the corners falling to the ground's
+          own shade (runtime/craftStage). The un-themed ground stays radial-gradient(130% 120% at 50% 16%, #0e1622, #05080e 74%). */}
+      <LitStage ground={dna?.bg ?? '#05080e'} light={ACC} fill={dna?.accent2 ?? null} keyAt={{x: 0.5, y: 0.32}} intensity={0.9} />
       <Stage3D cam={cam} persp={P}>
         {poses.map((p, k) => {
           const lit = faceShade(p, cam);
@@ -197,12 +203,12 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
           const stateCol = list[k].waiting ? DIM : ACC;
           return (
             <Surface key={k} pose={p} w={scrW} h={scrH}
-              style={{borderRadius: Math.round(U * 0.012), overflow: 'hidden', opacity: sf,
-                background: SURF, border: `1px solid ${focused ? stateCol : LINE}`,
+              style={{borderRadius: Math.round(U * 0.014), overflow: 'hidden', opacity: sf,
+                background: `linear-gradient(180deg, ${SURF}, ${SURF} 60%, #00000033)`, border: `1px solid ${focused ? stateCol : LINE}`,
                 filter: `brightness(${lit.toFixed(3)})`,
                 boxShadow: focused
-                  ? `0 0 ${Math.round(U * 0.05)}px ${stateCol}33, inset 0 0 ${Math.round(U * 0.05)}px #0008`
-                  : `inset 0 0 ${Math.round(U * 0.05)}px #000a`}}>
+                  ? `0 0 ${Math.round(U * 0.09)}px ${stateCol}55, 0 0 0 1px ${stateCol}66, inset 0 1px 0 #ffffff1a, inset 0 0 ${Math.round(U * 0.05)}px #0006`
+                  : `0 ${Math.round(U * 0.03)}px ${Math.round(U * 0.08)}px #00000080, inset 0 1px 0 #ffffff12, inset 0 0 ${Math.round(U * 0.05)}px #0008`}}>
               {/* the title bar — chrome only; every word on this register is drawn flat, above */}
               <div style={{height: Math.round(scrH * 0.17), borderBottom: `1px solid ${LINE}`,
                 display: 'flex', alignItems: 'center', gap: Math.round(U * 0.008),
@@ -300,7 +306,7 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
       {SUMMARY ? (
         <div style={{position: 'absolute', left: 0, right: 0, top: CONTENT_TOP - Math.round(U * 0.055),
           textAlign: 'center', color: DIM, opacity: easeOutCubic(clamp01(seg(t, 0.80, 0.95))),
-          font: `600 ${Math.round(U * 0.025)}px/${leading(SUMMARY, 1.2)} ${MONO}`,
+          font: `600 ${Math.round(U * 0.032)}px/${leading(SUMMARY, 1.2)} ${MONO}`,
           letterSpacing: '0.14em'}}>{SUMMARY}</div>
       ) : null}
     </AbsoluteFill>

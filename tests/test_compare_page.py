@@ -57,3 +57,15 @@ def test_a_new_side_given_as_one_clip_per_beat(tmp_path):
     by = {r["beat"]: r for r in rows}
     assert by[1]["new"] == [] and len(by[1]["old"]) == 3      # no clip for beat 1: said, not faked
     assert len(by[2]["new"]) == 3
+
+
+def test_a_library_redesign_compares_one_clip_per_register_by_name(tmp_path):
+    for side, c in (("old", "red"), ("new", "blue")):
+        d = tmp_path / side
+        d.mkdir()
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=%s:s=320x180:r=30:d=2" % c, "-pix_fmt", "yuv420p",
+                        str(d / "TermSpace.mp4")], check=True)
+    rows = cp.build(str(tmp_path / "c.html"), str(tmp_path / "old"), str(tmp_path / "new"), beats=["TermSpace"],
+                    new_clip="{n}.mp4", old_clip="{n}.mp4")
+    assert len(rows) == 1 and len(rows[0]["old"]) == 3 and len(rows[0]["new"]) == 3
+    assert 'name="bTermSpace"' in open(str(tmp_path / "c.html"), encoding="utf-8").read()
