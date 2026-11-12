@@ -451,3 +451,10 @@ lead-ins; `tests/test_shared_gates_are_on_both_paths.py` holds it).
 >    numbers, to 1e-4 px: the tremble is on the glyph's own pixels. The change was reverted: no verdict moved on
 >    three films, and it doubled the estimator's cost. These lines are real, sub-pixel, and below what the eye
 >    sees. The lever is a VISIBILITY threshold the user's eye calibrates, not a better estimator.
+> 12. **A cache key is as wide as what can actually reach the picture, measured, not as wide as the folder.** The segment
+>    key hashed all of remotion/src, so a one-line edit to a module two registers import re-rendered every beat of
+>    every film. Film reaches 132 of the library's 385 files without going through a register; the other 253
+>    (225 registers, 25 runtime modules, 3 kits) can only change the beats whose registers reach them, because no
+>    register-only module does anything on load (pinned). Proof was a render, not a test: on ANC an edit to
+>    kineticWord re-rendered 3 beats (2:19 vs 6:56) and the joined film matched a cache-less render of the same code
+>    to the run-to-run noise on every beat, while the edited beat moved 4.9, so a stale reuse would have shown.

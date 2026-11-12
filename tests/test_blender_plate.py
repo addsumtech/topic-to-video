@@ -536,3 +536,21 @@ def test_a_plate_built_under_the_folder_wide_key_is_still_fresh(tmp_path, monkey
     assert bp.key_matches(old, **args) and bp.key_matches(new, **args)
     open(film + "/blender/s.py", "a").write("Y = 1\n")           # the scene itself changed: neither key matches
     assert not bp.key_matches(old, **args) and not bp.key_matches(new, **args)
+
+
+def test_a_screen_is_keyed_on_the_library_code_it_draws_not_on_every_register(tmp_path, monkeypatch):
+    """An edit to a register the screen never draws must keep the plate (a plate is a Blender render); an edit to the
+    screen's own register, or to what every picture reaches, must not."""
+    import remotion_segments as rs
+    import blender_plate as bp
+    screen = {"shot": "EdStat", "props": {"v": 1}}
+    k0 = bp.screen_code(str(tmp_path), screen)
+    real = rs.file_sha
+
+    def edited(rel):
+        p0 = os.path.normpath(os.path.join(rs.SRC, rel))
+        monkeypatch.setattr(rs, "file_sha", lambda p: ("x" + real(p)) if os.path.normpath(p) == p0 else real(p))
+        return bp.screen_code(str(tmp_path), screen)
+    assert edited("shots/TermLog.tsx") == k0
+    assert edited("shots/EdStat.tsx") != k0
+    assert edited("Film.tsx") != k0

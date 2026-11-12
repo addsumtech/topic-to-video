@@ -313,7 +313,20 @@ finding it prints that you do not understand.
   edit changes that beat's length and re-renders **every later beat**, because the Atmosphere under the film
   pulses on the absolute frame and nothing guarantees it is covered (open-work D4). The first render is ~25%
   slower than one pass (**7:55 vs 6:20**: each segment pays a browser start-up; the bundle is built once). A
-  render that dies keeps its finished beats — re-running is a resume. **`python3 scripts/remotion_segments.py
+  render that dies keeps its finished beats — re-running is a resume. **THE LIBRARY IS KEYED PER BEAT
+  (2026-11-12).** The film-wide part of the key is only what the entry reaches without going through a register
+  (Film, the seams, the runtime Film imports, the stages, the objects, the fonts, the config: `LibrarySplit.core`);
+  each beat adds the register-only modules ITS registers reach, its workshop code's `@runtime/…` imports included.
+  So an edit to a register, a kit, or one of the ~25 runtime modules only registers import re-renders only the beats
+  that draw it, and a film built in its workshop keeps every beat when a library register changes. Sound because a
+  register-only module does nothing when it loads (`registry.ts` loads all of them; pinned by
+  `test_no_register_only_module_does_anything_when_it_is_loaded`); conservative where it cannot see (a shot it cannot
+  find keys on every register; a stylesheet stays film-wide). A plate's screen keys the same way
+  (`library_code`). Measured on ANC (24 beats): an edit to `runtime/kineticWord.tsx` re-rendered beats 2, 3 and 24 in
+  **2:19** against **6:56** for all 24, and the joined film matched a fresh, cache-less render of the same code on every
+  beat to the run-to-run noise (≤ 0.28 mean grey, no frame > 0.5; the edited beat itself moved 4.9). The two fixed
+  films (job-hunt, WorkBuddy) reach no register-only library file, so a library register edit re-renders none of
+  their beats; an edit to Film or the runtime it imports still re-renders all. **`python3 scripts/remotion_segments.py
   <out_dir>`** lists which beats the next render would redo, read from the board as it is now. `--whole`,
   `meta.segment_cache: false` or `REMOTION_SEGMENTS=0` render in one pass as before; a disagreement between
   the segment model and the film is never shipped — it is reported and the film is rendered whole.

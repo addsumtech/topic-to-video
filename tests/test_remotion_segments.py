@@ -880,3 +880,121 @@ def test_with_the_cut_carry_a_beat_is_keyed_on_the_seam_out_of_it(public):
     off2["scenes"][2]["transitionIn"] = {"type": "fade"}
     assert [i for i, (a, b) in enumerate(zip(_keys(off, public), _keys(off2, public))) if a != b] == [2], \
         "without the carry a seam keys only the beat it leads into"
+
+
+# ── the library, keyed per beat ────────────────────────────────────────────────────────────────────────────────
+def _edited(monkeypatch, *rel):
+    """Make file_sha report the given src-relative files as edited, without touching the library on disk."""
+    real = rs.file_sha
+    hit = {os.path.normpath(os.path.join(rs.SRC, r)) for r in rel}
+    monkeypatch.setattr(rs, "file_sha", lambda p: ("edited" + real(p)) if os.path.normpath(p) in hit else real(p))
+
+
+def _changed(a, b):
+    return [i for i, (x, y) in enumerate(zip(a, b)) if x != y]
+
+
+def test_an_edit_to_one_register_re_renders_only_the_beats_that_draw_it(public, monkeypatch):
+    """Measured 2026-11-12: the film-wide key was the WHOLE of remotion/src, so a one-line change to a register only one
+    beat draws re-rendered every beat of every film. Now a register's code keys the beats that draw it (as the beat or
+    as the one dissolving out of it) and no other; the films whose beats are all workshop-built keep every beat."""
+    p = _props([60, 60, 60, 60, 60])
+    p["scenes"][2]["shot"] = "TermLog"
+    base = _keys(p, public, code=None)
+    _edited(monkeypatch, "shots/TermLog.tsx")
+    assert _changed(base, _keys(p, public, code=None)) == [2, 3]
+
+
+def test_a_module_only_registers_import_keys_exactly_the_beats_whose_registers_reach_it(public, monkeypatch):
+    split = rs.LibrarySplit()
+    mod = next(f for f in sorted(split.exclusive) if os.sep + "runtime" + os.sep in f)
+    users = {os.path.basename(s)[:-4] for s in split.exclusive if s.startswith(rs._SHOTS_DIR)
+             and mod in split.reach([s])}
+    assert users, mod
+    user = sorted(users)[0]
+    other = next(n for n in ("TermTable", "EdStat", "TermLog") if n not in users)
+    p = _props([60, 60, 60, 60])
+    for sc in p["scenes"]:
+        sc["shot"] = other
+    p["scenes"][1]["shot"] = user
+    base = _keys(p, public, code=None)
+    _edited(monkeypatch, os.path.relpath(mod, rs.SRC))
+    assert _changed(base, _keys(p, public, code=None)) == [1, 2], (mod, user)
+
+
+def test_an_edit_to_what_the_film_itself_reaches_still_re_renders_everything(public, monkeypatch):
+    """THE HONEST LIMIT: Film, the seams and the runtime Film imports draw every frame."""
+    p = _props([60, 60, 60])
+    base = _keys(p, public, code=None)
+    for rel in ("Film.tsx", "runtime/motion.ts", "registry.ts", "Root.tsx"):
+        with monkeypatch.context() as m:
+            _edited(m, rel)
+            assert _changed(base, _keys(p, public, code=None)) == [0, 1, 2], rel
+
+
+def test_a_beat_whose_shot_cannot_be_found_is_keyed_on_every_register(public, monkeypatch):
+    p = _props([60, 60, 60])
+    p["scenes"][1]["shot"] = "NoSuchShot"
+    base = _keys(p, public, code=None)
+    _edited(monkeypatch, "shots/EdStat.tsx")
+    assert _changed(base, _keys(p, public, code=None)) == [1, 2]
+
+
+def test_a_workshop_shot_keys_the_library_modules_it_imports_by_alias(public, monkeypatch):
+    """Grok's workshop draws through `@runtime/rows`, which only registers otherwise import: an edit to it must reach
+    the workshop beats, or they ship stale."""
+    split = rs.LibrarySplit()
+    rows = os.path.join(rs.SRC, "runtime", "rows.ts")
+    assert rows in split.exclusive, "pick another register-only module for this test"
+    ws = public / "workshop" / "shots"
+    ws.mkdir(parents=True)
+    (ws / "Built.tsx").write_text("import {rowsOf} from '@runtime/rows';\nexport const Built = () => null;\n",
+                                  encoding="utf-8")
+    p = _props([60, 60, 60, 60])
+    p["scenes"][1]["shot"], p["scenes"][1]["props"] = "Built", {}
+    base = _keys(p, public, code=None)
+    _edited(monkeypatch, "runtime/rows.ts")
+    assert _changed(base, _keys(p, public, code=None)) == [1, 2]
+
+
+_DECL = re.compile(r"^(import|export|const|let|var|function|type|interface|class|declare|enum|async|abstract)\b|^[}\])]|^$")
+_PURE_CALLS = {"Array.from", "Object.keys", "Object.entries", "Object.fromEntries", "Object.freeze",
+               "Map", "Set", "WeakMap"}    # an empty memo, keyed by its input
+_REVIEWED_IIFE = {("shots/GearTrain.tsx", "TOOTH_PATH")}     # builds a path string from constants
+
+
+def test_no_register_only_module_does_anything_when_it_is_loaded():
+    """WHAT MAKES THE PER-BEAT KEY SOUND. registry.ts loads every register into every render, so a register-only module
+    that did something at load time (registered a font, wrote a shared table, injected a stylesheet) would change beats
+    that never draw it, and they would be reused stale. Each such module must be declarations only; a call that runs on
+    load must be a known-pure one, or a reviewed IIFE. A new one fails here: review it, then list it."""
+    split = rs.LibrarySplit()
+    bad = []
+    for p in sorted(split.exclusive):
+        rel = os.path.relpath(p, rs.SRC)
+        assert p.endswith(rs._CODE_EXT + (".json",)), rel
+        if p.endswith(".json"):
+            continue
+        t = open(p, encoding="utf-8").read()
+        t = re.sub(r"/\*.*?\*/", "", t, flags=re.S)
+        t = re.sub(r"(?m)(?<![:'\"`])//.*$", "", t)
+        lines = t.split("\n")
+        for i, line in enumerate(lines):
+            if line[:1] in (" ", "\t"):
+                continue
+            if not _DECL.match(line.rstrip()):
+                bad.append((rel, line[:80]))
+            d = re.match(r"^(?:export )?(?:const|let|var)\s+([\w$]+|[{\[][^=]*?[}\]])", line)
+            if not d:
+                continue
+            eq = re.search(r"(?<![=!<>])=(?![=>])", line[d.end():])
+            if not eq:
+                continue
+            rhs = line[d.end() + eq.end():].strip()
+            name = d.group(1).strip()
+            call = re.match(r"^(?:new\s+)?([A-Za-z_$][\w$.]*)\s*(?:<[^>]*>)?\s*\(", rhs)
+            if call and call.group(1) not in _PURE_CALLS:
+                bad.append((rel, line[:80]))
+            if re.match(r"^\(\s*(?:\(\s*\)\s*=>|function\b)", rhs) and (rel, name) not in _REVIEWED_IIFE:
+                bad.append((rel, line[:80]))                    # an IIFE: it RUNS on load
+    assert not bad, bad

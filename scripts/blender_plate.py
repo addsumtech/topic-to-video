@@ -324,11 +324,13 @@ def kit_files():
 
 
 def screen_code(out_dir, screen):
-    """The code a device's screen picture is drawn by: the library, the workshop files its shot is built from, and the
+    """The code a device's screen picture is drawn by: the library code it reaches (remotion_segments.library_code, so
+    an edit to a register the screen never draws keeps the plate), the workshop files its shot is built from, and the
     files its props name — remotion_segments keys a beat the same way. NOT the whole workshop: the plate build writes
     workshop/assets/plates.ts, and a key over that file staled the screen it had just rendered."""
     import remotion_segments as _rs
-    parts = [_rs.code_hash(None), _rs.beat_code_hash(out_dir, [{"shot": screen["shot"], "props": screen["props"]}]),
+    scene = [{"shot": screen["shot"], "props": screen["props"]}]
+    parts = [_rs.library_code(out_dir, scene), _rs.beat_code_hash(out_dir, scene),
              _rs.referenced_files(screen["props"], out_dir)]
     return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode("utf-8")).hexdigest()
 

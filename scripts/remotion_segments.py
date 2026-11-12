@@ -55,7 +55,7 @@ FPS = 30
 SAMPLE_RATE = 48000        # Remotion's default (renderer/dist/options/sample-rate.js)
 AUDIO_BITRATE = "320k"     # what a full render ships: 317 kb/s AAC-LC measured on a delivered film
 CACHE_DIR = ".remotion_segments"
-CACHE_VERSION = 1          # bump when the MEANING of a key changes, so every old segment is re-rendered
+CACHE_VERSION = 2          # bump when the MEANING of a key changes, so every old segment is re-rendered
 
 
 def _wk(env):
@@ -385,6 +385,115 @@ def beat_code_hash(out_dir, scenes):
     return h.hexdigest()
 
 
+# THE LIBRARY IS KEYED PER BEAT TOO (2026-11-12). The film-wide hash used to be the WHOLE of remotion/src, so a one-line
+# edit to a module only two registers import re-rendered every beat of every film — a 36-beat film is ~40 min for an
+# edit that touched one beat's picture. What a beat's frames can depend on is (a) everything the ENTRY reaches without
+# going through a register — Film, the seams, the runtime Film imports, the stages, the objects, the fonts, the bundler
+# config — and (b) the modules the beat's OWN registers reach. (b) is sound only because a register module has no
+# top-level side effects (registry.ts evaluates every one of them; none mutates a shared table — pinned by a test),
+# so a module reachable ONLY through registers affects only the beats whose registers reach it.
+# CONSERVATIVE WHEREVER IT CANNOT SEE: a file nothing reaches stays film-wide; a beat whose shot it cannot find gets
+# every register-only module; a register that reaches registry.ts reaches every register.
+SRC = os.path.join(REMOTION, "src")
+_REGISTRY = os.path.join(SRC, "registry.ts")
+# the two files that import EVERY register: the registry (Film looks a beat's shot up in it) and Root (each register's
+# standalone Composition). Their edges into shots/ are what the per-beat key cuts; nothing else imports a register.
+_HUBS = (_REGISTRY, os.path.join(SRC, "Root.tsx"))
+_SHOTS_DIR = os.path.join(SRC, "shots")
+_ALIAS_IMPORT = re.compile(r"""(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)['"]@runtime/([^'"]+)['"]""",
+                           re.M)
+_CODE_EXT = (".ts", ".tsx", ".js", ".jsx", ".mjs")
+
+
+def _resolve(base):
+    hit = next((base + e for e in _EXTS if os.path.isfile(base + e)), None)
+    return os.path.normpath(hit) if hit else None
+
+
+def _imports_of(path):
+    """The files one source imports: relative specs, and `@runtime/…` (the alias library and workshop code share)."""
+    if not path.endswith(_CODE_EXT):
+        return []
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        text = fh.read()
+    out = [_resolve(os.path.normpath(os.path.join(os.path.dirname(path), s))) for s in _IMPORT.findall(text)]
+    out += [_resolve(os.path.join(SRC, "runtime", s)) for s in _ALIAS_IMPORT.findall(text)]
+    return [p for p in out if p]
+
+
+class LibrarySplit:
+    """`core`: the library files every beat is keyed on. `exclusive`: the files reached only through registers, keyed
+    per beat by `beat_files`. Read once per plan, from the files as they are now."""
+
+    def __init__(self):
+        self.files = [os.path.normpath(p) for p in code_files()]
+        for need in (os.path.join(SRC, "index.ts"),) + _HUBS:
+            if not os.path.isfile(need):
+                raise ModelMismatch("the per-beat library key reads the entry and the registry, and %s is missing — "
+                                    "key the whole library instead" % need)
+        self._edges = {}
+        core = self.reach([os.path.join(SRC, "index.ts")], cut_registry=True)
+        shots = [os.path.join(_SHOTS_DIR, f) for f in sorted(os.listdir(_SHOTS_DIR)) if f.endswith(".tsx")]
+        # only a MODULE can be per-beat: a stylesheet (or anything else a register might import) applies to the whole
+        # page once loaded, so it stays film-wide
+        self.exclusive = {p for p in self.reach(shots) - core if p.endswith(_CODE_EXT + (".json",))}
+        self.core = [p for p in self.files if p not in self.exclusive]
+
+    def _out(self, path):
+        if path not in self._edges:
+            self._edges[path] = _imports_of(path)
+        return self._edges[path]
+
+    def reach(self, roots, cut_registry=False):
+        seen, todo = set(), [os.path.normpath(r) for r in roots]
+        while todo:
+            p = todo.pop()
+            if p in seen or not os.path.isfile(p):
+                continue
+            seen.add(p)
+            for q in self._out(p):
+                if cut_registry and p in _HUBS and q.startswith(_SHOTS_DIR + os.sep):
+                    continue                                   # the registers, keyed per beat
+                todo.append(q)
+        return seen
+
+    def beat_files(self, public_dir, scenes):
+        """The register-only library files the given scenes' registers (and their workshop code) reach."""
+        roots = []
+        for sc in scenes:
+            if not isinstance(sc, dict):
+                continue
+            shot = sc.get("shot")
+            ws = []
+            if public_dir and os.path.isdir(os.path.join(os.path.abspath(public_dir), "workshop")):
+                import workshop as _ws
+                ws = _ws.beat_files(public_dir, shot, sc.get("props"))
+            lib = [os.path.join(SRC, d, "%s.tsx" % shot) for d in ("shots", "stage")] if isinstance(shot, str) else []
+            lib = [p for p in lib if os.path.isfile(p)]
+            if not lib and not any(os.path.basename(p) == "%s.tsx" % shot for p in ws):
+                return set(self.exclusive)                     # a shot it cannot find: every register-only module
+            roots += lib + ws
+        return self.reach(roots) & self.exclusive
+
+
+def _hash_lib(files):
+    h = hashlib.sha256()
+    for p in sorted(files, key=lambda p: os.path.relpath(p, SKILL)):
+        h.update(os.path.relpath(p, SKILL).encode("utf-8"))
+        h.update(b"\0")
+        h.update(file_sha(p).encode("ascii"))
+        h.update(b"\n")
+    return h.hexdigest()
+
+
+def library_code(public_dir, scenes):
+    """The library code the given scenes draw: what every beat reaches, plus the register-only modules THEIR registers
+    reach (LibrarySplit). A plate's screen keys on this, so an edit to a register it never draws does not re-render it."""
+    refuse_while_runtime_mutated()
+    sp = LibrarySplit()
+    return _sha(_canon({"lib_core": _hash_lib(sp.core), "lib": _hash_lib(sp.beat_files(public_dir, scenes))}))
+
+
 TEASER_SHOTS = {"ColdOpen", "Callback"}     # mirrors runtime/teaser.tsx TEASER_SHOTS
 
 
@@ -411,8 +520,11 @@ def plan(props, public_dir, flags, tr=None, code=None):
     ranges, total = timeline(scenes, tr)
     per_beat = code is None and bool(public_dir) and os.path.isdir(os.path.join(os.path.abspath(public_dir),
                                                                                 "workshop"))
+    split = None
     if code is None:
-        code = code_hash(None)
+        refuse_while_runtime_mutated()
+        split = LibrarySplit()
+        code = _sha(_canon({"lib_core": _hash_lib(split.core)}))
         if per_beat:
             import workshop as _ws
             ws_root = _ws.workshop_dir(public_dir) + os.sep
@@ -464,6 +576,8 @@ def plan(props, public_dir, flags, tr=None, code=None):
             body["next_seam"] = {f: nxt.get(f) for f in ("transitionIn", "ground", "key", "shot", "stage")}
         if per_beat:
             body["ws"] = beat_code_hash(public_dir, around)
+        if split is not None:
+            body["lib"] = _hash_lib(split.beat_files(public_dir, around))
         segs.append({"k": k, "a": a, "b": b, "key": _sha(_canon(body))})
     return segs, total
 

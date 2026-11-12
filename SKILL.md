@@ -136,7 +136,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 - `scripts/render_remotion.py <out_dir>`: renders the bespoke-shot library (`remotion/LIBRARY.md`) one beat at a time and
   keeps unchanged beats in `.remotion_segments/`. `python3 scripts/remotion_segments.py <out_dir>` lists which beats the
   next render would redo. A visual edit re-renders that beat and the next; a narration edit re-renders every later
-  beat. A render that dies resumes; `--whole`, `meta.segment_cache: false` or `REMOTION_SEGMENTS=0` render in one pass.
+  beat; a LIBRARY edit re-renders only the beats whose registers reach the edited file (Film and the runtime it
+  imports still reach every beat). A render that dies resumes; `--whole`, `meta.segment_cache: false` or `REMOTION_SEGMENTS=0` render in one pass.
   `"remotion-legacy"` errors (that tier was removed). Run `cd remotion && npm install` once. Rules on this tier:
   - **The cut has to be authored.** No seam reaches a film unless something writes `transition_in`, so run
     `python3 scripts/seam_plan.py <out_dir>`. From each beat's `relation` it derives ~2-3 MARKED seams (≥5 beats apart,
