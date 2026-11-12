@@ -445,3 +445,9 @@ lead-ins; `tests/test_shared_gates_are_on_both_paths.py` holds it).
 >    It is never a pass over every interface beat, and it is never applied to a film that already has a working
 >    contrast of its own. (WorkBuddy keeps its eight: the user chose that re-light and it is that film's night-desk
 >    world.)
+> 11. **A hypothesis about a gate must be measured before the gate is changed.** The waived jitter lines (the promo's
+>    '>' at 0.18 px, its teaser label at 0.29, the 0.11-0.15 trembles on ANC's labels) were blamed on what moved
+>    BEHIND them. A glyph-only re-read of the shift (everything beyond 6 px of the census box replaced) gave the SAME
+>    numbers, to 1e-4 px: the tremble is on the glyph's own pixels. The change was reverted: no verdict moved on
+>    three films, and it doubled the estimator's cost. These lines are real, sub-pixel, and below what the eye
+>    sees. The lever is a VISIBILITY threshold the user's eye calibrates, not a better estimator.
