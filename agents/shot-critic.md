@@ -35,6 +35,25 @@ cell shows composition, palette, repetition and gross overflow; it cannot show a
 illegible figure, and those are what the full frame is for. Opening all of them is how this review used to
 cost a full render's worth of tokens to re-find things a script had already reported.
 
+**Then the delivered film IN MOTION: `<out_dir>/_review/beats_NN.jpg` and `_review/ends.jpg`** (scripts/review_sheet.py;
+the delivery gates write them). Every beat at 30 / 60 / 90 % of its span, read from out.mp4, and the film's first and
+last second. The contact sheet is one settled frame per beat; the defects below live between settled frames and passed
+every gate on the showcase films (2026-11-12) until someone looked at exactly these sheets. Go through EACH row and
+answer each line, naming the beat:
+  1. **Cut words**: a word sliced by the frame or a window edge in any of the three frames, including during a
+     glide or a pan. A label leaving the picture should fade before the edge reaches it.
+  2. **A cropped set**: a numbered or listed set that shows only some of its members, for example a grid reading
+     02-08 under a punch-in.
+  3. **A blank element**: a card, a bubble or a screen that is empty, black or white where it should carry content
+     (a screen gone black before its cut, a message flying with no words).
+  4. **Type on type, type on an object**: a caption over the picture's own content (a bezel, a dark bar), a moving
+     element crossing a title.
+  5. **Repetition**: the same staging or treatment on many beats in a row. The user: "过于特意和重复" (too deliberate
+     and repetitive).
+  6. **The ends** (`ends.jpg`): the film must open and close on its own ground or black, never through a flash of
+     white.
+Each finding goes into the ledger with its beat and the frame (the sheet's row label names the seconds).
+
 **These dimensions are MACHINE-DECIDED. Read the verdict in the brief; do not spend your pass on them:**
 action-safe overflow · ink in the caption band · colour outside the film's palette · a dead (narrow AND
 off-centre) frame · an empty frame · a register's demo default left in `shot_props` · two beats carrying the

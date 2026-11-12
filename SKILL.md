@@ -1198,7 +1198,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    caption_contrast_qa, rhythm_qa, pedagogy_qa) and records each exit code against the render id, and `critic_ledger.py --final` refuses a render
    whose record is missing a gate or holds a failure, on every path, `none` included; LOOK at `_motion_events.jpg`
    (the advisory `motion_events_qa` in that run: every sharp change off the planned cuts — a still or a contact sheet
-   shows none of them) and at every beat at 30/60/90% of it plus the film's first and last second, by eye — gates are
+   shows none of them) and at `_review/beats_NN.jpg` + `_review/ends.jpg` (scripts/review_sheet.py: every beat at 30/60/90%
+   plus the film's first and last second; the shot-critic's checklist reads them), by eye — gates are
    a floor (W8.7: a caption letter on a bezel, a cropped numbered set, a blank pill over a title, both ends flashing,
    all found that way); a RE-render of a delivered film (a refresh, a re-light) is handed over on the same terms, not
    on a contact sheet (references/engineering-case-law.md W8) — FIRST hand the film over
