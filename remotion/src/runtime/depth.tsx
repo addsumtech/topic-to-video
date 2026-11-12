@@ -20,8 +20,9 @@
 // belongs in neither this file nor the film.
 
 import React from 'react';
-import {continueRender, delayRender, useVideoConfig} from 'remotion';
-import {useT, ReducedMotionContext, clamp01, easeInOutCubic, hash01} from './motion';
+import {continueRender, delayRender, Freeze, useVideoConfig} from 'remotion';
+import {useT, ReducedMotionContext, SceneDurationContext, clamp01, easeInOutCubic, hash01} from './motion';
+import {SETTLED_T} from './teaser';
 import {CONTENT_TOP, contentBottom, maxCameraPush, captionSlackPx} from './layout';
 import {focusAt, type Focus} from './focus';
 import {BASELINE_UNLOCK, BaselineUnlockContext, baselineUnlockOverscan} from './glide';
@@ -564,9 +565,10 @@ export const SceneCamera: React.FC<{
    */
   drive?: {extra: number; moving: boolean};
 }> = ({move = 'hold', amount, pan: panAsked, driftExtra = 0, driftTranslate = 0, bed = false, drive, children}) => {
-  const {width: W, height: H} = useVideoConfig();
+  const {width: W, height: H, durationInFrames} = useVideoConfig();
   const reduced = React.useContext(ReducedMotionContext);
   const unlockAllowed = React.useContext(BaselineUnlockContext);
+  const durF = React.useContext(SceneDurationContext) ?? durationInFrames;
   const t = useT();
   const pan = drive ? undefined : panAsked;
   // the move's cap, its amount and the unlock's overscan: `cameraBudget` (above), which the camera hand-off reads
@@ -609,9 +611,18 @@ export const SceneCamera: React.FC<{
     ].filter(Boolean).join(' ');
   };
   const xf = compose(wantExtra);
-  // THE EDGE BUDGET (see edgeSafeExtra): measured on this frame's own layout, untransformed, and applied
-  // before the frame is painted. Only a camera that is actually moving pays the walk.
+  // THE EDGE BUDGET (see edgeSafeExtra): measured on the beat's SETTLED layout — once per render tab, on a hidden copy
+  // frozen at the frame its teasers are taken from (SETTLED_T) — and applied before the frame is painted. Measured on
+  // each frame's OWN layout it followed whatever was moving: the promo's closing cards flew in from beyond the frame,
+  // and every time one's type came wholly inside near an edge the cap clamped, then relaxed a frame later — the whole
+  // picture scaled 7% in single-frame pops, the same frames on every render (2026-11-12). Type in motion is not what
+  // the budget protects; type at rest is. The pan's offsets (kx, ky) still move with the frame, so the cap stays a
+  // smooth function of time. Only a camera that is actually moving pays the walk.
   const ref = React.useRef<HTMLDivElement>(null);
+  const probe = React.useRef<HTMLDivElement>(null);
+  const settled = React.useRef<EdgeBox[] | null>(null);
+  const settledF = Math.max(0, Math.round(SETTLED_T * (durF - 1)));
+  const needProbe = amp > 0 && !drive && settled.current === null;
   React.useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -620,12 +631,27 @@ export const SceneCamera: React.FC<{
       return;
     }
     const apply = (): boolean => {
+      // ...AND NOT BEFORE THE FONTS: type boxes measured in fallback metrics give a different budget, and a render
+      // tab's first frames did — the topic-to-video promo's closing title popped 7% smaller on six isolated frames
+      // (2026-11-12; a single-scene render, warmed differently, had none). runtime/coverage.tsx waits the same way.
+      const fonts = el.ownerDocument?.fonts;
+      if (fonts && fonts.status !== 'loaded') {
+        el.style.transform = xf || '';
+        return false;
+      }
       el.style.transform = 'none';
       if (!(el.getBoundingClientRect().width > 0)) {
         el.style.transform = xf || '';
         return false;
       }
-      const boxes = cameraTypeBoxes(el, W);
+      if (settled.current === null && probe.current) {
+        if (!(probe.current.getBoundingClientRect().width > 0)) {
+          el.style.transform = xf || '';
+          return false;
+        }
+        settled.current = cameraTypeBoxes(probe.current, W);
+      }
+      const boxes = settled.current ?? cameraTypeBoxes(el, W);
       const kx = panning ? (px[0] * W * trav) / 2 : 0;
       const ky = panning ? (px[1] * H * trav) / 2 : 0;
       el.style.transform = compose(edgeSafeExtra(boxes, W, H, W / 2, originY, wantExtra, unlock, kx, ky)) || '';
@@ -663,6 +689,15 @@ export const SceneCamera: React.FC<{
       }}>
         {children}
       </div>
+      {/* the settled copy the budget is measured on: AFTER the live picture (an SVG id resolves to its first owner),
+          transparent rather than hidden (a hidden subtree's type has no boxes), untransformed, gone once measured */}
+      {needProbe ? (
+        <div aria-hidden data-echo="" data-camera-probe="" style={{position: 'absolute', inset: 0, opacity: 0, pointerEvents: 'none'}}>
+          <div ref={probe} style={{position: 'absolute', inset: 0}}>
+            <Freeze frame={settledF}>{children}</Freeze>
+          </div>
+        </div>
+      ) : null}
     </CameraContext.Provider>
   );
 };

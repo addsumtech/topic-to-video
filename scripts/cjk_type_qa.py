@@ -2413,6 +2413,10 @@ def main(argv):
     no_chinese = []
     if a.out_dir and film_props:
         no_chinese, nofeed = sorted(nofeed), []
+        # ...and a register this film gives no Chinese is not UNFED Chinese: "drew almost nothing" is the fixture failing
+        # to reach a register, which on a film is the film's own copy — the English topic-to-video promo (one Chinese
+        # request on one beat) failed on CommandSummon, LivingMap and WordDust while listing them right here (2026-11-12)
+        unfed = {n: v for n, v in unfed.items() if n not in set(no_chinese)}
     notmeasured = ([(n, "refused to render — %s" % (res[n].get("why") or "(the render gave no message)"))
                     for n in sorted(failed)]
                    + [(n, "no Chinese copy could be shaped for its props, so its frame was measured in its "

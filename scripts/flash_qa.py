@@ -70,6 +70,33 @@ def flashes(path):
     return found
 
 
+EDGE = 24                  # frames at each end the film's intro/outro veil spans (Film.tsx: 16), with room
+WASH = 40.0                # grey levels (mean) a veil may stand ABOVE the picture it fades from or into
+
+
+def edge_washes(path=None, fr=None):
+    """[{edge, frame, t, peak, picture}] — a film that ENTERS or LEAVES through a ground brighter than its picture.
+
+    WorkBuddy, 2026-11-12: a light DNA, a dark first and last beat; the veil was the DNA's near-white, so the film faded
+    in from white and out to white — a flash at both ends, but a 16-frame one, so the rule above (1-2 frames) never saw
+    it. Fading a picture to or from black, or to its own ground, keeps the veil at or below it."""
+    fr = fr if fr is not None else _frames(path)
+    n = len(fr)
+    if n < 3 * EDGE:
+        return []
+    y = [float(f.mean()) for f in fr]
+    out = []
+    pic_in = float(np.median(y[EDGE:EDGE + 6]))
+    k = int(np.argmax(y[:EDGE]))
+    if y[k] - pic_in > WASH:
+        out.append({"edge": "in", "frame": k, "t": round(k / 30.0, 2), "peak": round(y[k], 1), "picture": round(pic_in, 1)})
+    pic_out = float(np.median(y[n - EDGE - 6:n - EDGE]))
+    k = n - EDGE + int(np.argmax(y[n - EDGE:]))
+    if y[k] - pic_out > WASH:
+        out.append({"edge": "out", "frame": k, "t": round(k / 30.0, 2), "peak": round(y[k], 1), "picture": round(pic_out, 1)})
+    return out
+
+
 def _beat_of(out_dir, frame):
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -106,8 +133,15 @@ def main(argv):
         print("flash_qa: no film at %s" % path)
         return 2
     found = flashes(path)
+    washes = edge_washes(path)
     if "--json" in argv:
-        print(json.dumps(found))
+        print(json.dumps(found + washes))
+    for w in washes:
+        print("[flash] ERROR the film %s through a ground brighter than its picture: grey %.0f at %.2fs (frame %d) against "
+              "a picture of %.0f — a flash at its %s; the intro/outro veil should be the edge beat's own ground (or black)"
+              % ("enters" if w["edge"] == "in" else "leaves", w["peak"], w["t"], w["frame"], w["picture"],
+                 "start" if w["edge"] == "in" else "end"))
+    found = found + washes
     for f in found:
         where = _beat_of(out_dir, f["frame"]) if out_dir else None
         print("[flash] ERROR %s%s frame(s) at %.2fs (frame %d) unlike both neighbours (%.1f / %.1f grey levels; the "

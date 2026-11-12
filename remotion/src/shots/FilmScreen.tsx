@@ -11,7 +11,7 @@
 // no film ever sees.
 import React from 'react';
 import {AbsoluteFill, Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
-import {useT, seg, clamp01, easeOutCubic, easeInOutCubic, SceneDurationContext} from '../runtime/motion';
+import {useT, seg, clamp01, easeOutCubic, easeInOutCubic, SceneDurationContext, usePictureEnd} from '../runtime/motion';
 import {CONTENT_TOP, contentBottom, fitTextPx} from '../runtime/layout';
 import {focusAt, checkFocusTrack, type FocusKey} from '../runtime/focusTrack';
 import {useDNA, mix} from '../runtime/dna';
@@ -56,6 +56,7 @@ export const FilmScreen: React.FC<{
   const frame = useCurrentFrame();
   const {width: W, height: H, fps, durationInFrames} = useVideoConfig();
   const dur = React.useContext(SceneDurationContext) ?? durationInFrames;
+  const end = usePictureEnd(dur);                        // the recording plays until the beat leaves, not until `dur`
   const U = Math.min(W, H);
   const portrait = H > W;
   if (video && !(video.w > 0 && video.h > 0 && video.seconds > 0)) {
@@ -175,7 +176,7 @@ export const FilmScreen: React.FC<{
       <div style={{position: 'absolute', left: mx, top: my, width: mw, height: mh, overflow: 'hidden', borderRadius: 10,
         background: '#000', opacity: on, boxShadow: `0 0 0 1px ${LINE}, 0 ${U * 0.02}px ${U * 0.06}px #0009`}}>
         {video ? (
-          <Sequence from={0} durationInFrames={Math.max(1, dur)} layout="none">
+          <Sequence from={0} durationInFrames={Math.max(1, end)} layout="none">
             <OffthreadVideo src={staticFile(video.src)} muted trimBefore={Math.round(from * fps)}
               style={{position: 'absolute', left: -(rgn ? rgn.x : 0) * vw, top: -(rgn ? rgn.y : 0) * vh, width: vw,
                 height: vh, transform: `scale(${lean})`, transformOrigin: `${ox * 100}% ${oy * 100}%`}} />

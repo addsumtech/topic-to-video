@@ -21,8 +21,9 @@ large text) is a place where the letter melts into the picture.
   ERROR  more than 25% of a caption's edge melts on some frame of its window
   WARN   more than 10%
 
-HTML / image tier, overlay captions (render.py burns them). Not read here, and said so: a Remotion film (Film.tsx
-draws its captions), band mode (its own strip), a clip rendered before the manifest existed. A platform-safe film is read like
+HTML / image tier, overlay captions (render.py burns them). A REMOTION film is read differently, from its type census
+(check_remotion: the ground beside the caption block, column by column — see the note above RM_STRIP). Not read: band
+mode (its own strip), a clip rendered before the manifest existed. A platform-safe film is read like
 any other: its records hold frame coordinates.
 Exit 1 on an ERROR, 2 when nothing could be measured.
 """
@@ -74,7 +75,7 @@ def caption_mask(rec, W, H, runs=None):
     return np.asarray(core) > 0, edge
 
 
-# WHY THE REMOTION TIER IS NOT READ (2026-10-31), and what it would take. Film.tsx's CaptionTrack picks its ink from
+# WHY THE REMOTION TIER WAS NOT READ (2026-10-31) — superseded by check_remotion below, which needs no glyph mask. Film.tsx's CaptionTrack picks its ink from
 # the beat's GROUND TOKEN (light.tsx captionInk(dnaGroundY / groundAt)) — a design-time luminance, not the pixels
 # under the caption — and a register reserves the caption band, so that token IS the ground except on the registers
 # remotion/band_debt.json lists (full-bleed photos and fields). The browser cannot read its own composited pixels, so
@@ -88,6 +89,140 @@ def caption_mask(rec, W, H, runs=None):
 REMOTION_WHY = ("a Remotion film: Film.tsx picks its caption ink from the beat's ground token, not from pixels, and "
                 "nothing records where its glyphs sit — this gate does not read it (see REMOTION_WHY in "
                 "scripts/caption_contrast_qa.py for what it would take)")
+
+
+# THE REMOTION TIER, READ AFTER ALL (2026-11-12) — without a glyph mask. WorkBuddy beat 6: the caption's first word sat
+# on a Blender laptop's black bezel, dark ink on a dark bar, "Wo" melted — and no gate looked. The census records each
+# caption line's box (Film.tsx's caption spans, in the caption band); the GROUND is read in thin strips just above the
+# block's first line and below its last, where no glyph is, column by column. A column melts where the ground on BOTH
+# sides is under MIN_CONTRAST against the ink (an object that runs behind the line — a bar, an edge, a dark field — is
+# there on both sides; a glyph's own neighbourhood is not sampled). The ink is whichever of Film's two caption inks
+# (light.tsx CAPTION_INK_DARK / _LIGHT) stands out from the block's ground — the one Film picked. A LETTER is lost when a
+# letter-wide window (the caption's font size) is mostly melted.
+RM_STRIP = (3, 8)          # px (full frame) between the line box and the strip, and the strip's far edge
+RM_EVERY = 5               # judge every 5th frame
+RM_LETTER_ERROR, RM_LETTER_WARN = 0.5, 0.3
+RM_SCALE = 2               # decode at half size: a 3:1 ground read needs no glyph detail
+
+
+def _hex_rgb(h):
+    h = h.lstrip("#")
+    return np.array([int(h[i:i + 2], 16) for i in (0, 2, 4)], np.float64)
+
+
+def _caption_inks():
+    import re as _re
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "remotion", "src", "runtime", "light.tsx"),
+               encoding="utf-8").read()
+    got = [_re.search(r"export const %s = '(#[0-9a-fA-F]{6})'" % n, src) for n in ("CAPTION_INK_DARK", "CAPTION_INK_LIGHT")]
+    if not all(got):
+        raise RuntimeError("CAPTION_INK_DARK / CAPTION_INK_LIGHT not found in runtime/light.tsx")
+    return [_hex_rgb(m.group(1)) for m in got]
+
+
+def caption_blocks(lines, W, H):
+    """The caption's lines on one census frame, as one block: [(x0, x1, top, bottom, px)] per line, top to bottom —
+    the census lines that sit in the caption band (Film's caption spans; a line's lit and unlit spans merged)."""
+    from _caption_band import caption_band_px
+    band_top = H - caption_band_px(W, H)
+    rows = {}
+    for ln in lines:
+        if ln.get("o", 1) < 0.5 or ln["y"] < band_top or not str(ln.get("t", "")).strip():
+            continue
+        k = int(round(ln["y"]))
+        r = rows.setdefault(k, [ln["x"], ln["x"] + ln["w"], ln["y"], ln["y"] + ln["h"], ln.get("px") or ln["h"] * 0.8])
+        r[0], r[1] = min(r[0], ln["x"]), max(r[1], ln["x"] + ln["w"])
+    return [tuple(v) for _k, v in sorted(rows.items())]
+
+
+def judge_caption_block(frame, block, inks, scale=1):
+    """(worst letter-wide melted share, ink rgb, x of that window) of one caption block on one frame, or None."""
+    if not block:
+        return None
+    Hh, Ww = frame.shape[:2]
+    a, b = RM_STRIP
+    top, bot = block[0][2], block[-1][3]
+    x0, x1 = min(r[0] for r in block), max(r[1] for r in block)
+    c0, c1 = max(0, int(x0 / scale)), min(Ww, int(x1 / scale))
+    ya = (max(0, int((top - b) / scale)), max(0, int((top - a) / scale)))
+    yb = (min(Hh, int((bot + a) / scale)), min(Hh, int((bot + b) / scale)))
+    if c1 - c0 < 8 or ya[1] <= ya[0] or yb[1] <= yb[0]:
+        return None
+    above = _lum(frame[ya[0]:ya[1], c0:c1].reshape(-1, 3)).reshape(ya[1] - ya[0], c1 - c0)
+    below = _lum(frame[yb[0]:yb[1], c0:c1].reshape(-1, 3)).reshape(yb[1] - yb[0], c1 - c0)
+    ground = np.median(np.concatenate([above.ravel(), below.ravel()]))
+    ink = max(inks, key=lambda c: _contrast(_lum(c[None, :])[0], np.array([ground]))[0])
+    li = _lum(ink[None, :])[0]
+    melt = (np.median(_contrast(li, above), axis=0) < MIN_CONTRAST) & (np.median(_contrast(li, below), axis=0) < MIN_CONTRAST)
+    win = max(4, int(round(max(r[4] for r in block) / scale)))
+    if len(melt) < win:
+        return None
+    share = np.convolve(melt.astype(np.float64), np.ones(win) / win, mode="valid")
+    k = int(np.argmax(share))
+    return float(share[k]), ink, (c0 + k) * scale
+
+
+def check_remotion(out_dir, video=None):
+    """The Remotion tier: every RM_EVERY-th frame clear of a seam, every caption block, its worst letter-wide window."""
+    import jitter_qa as jq
+    import remotion_segments as _rs
+    video = video or os.path.join(out_dir, "out.mp4")
+    state, _b, why = _rs.render_currency(out_dir, video)
+    if state == "stale":
+        return {"skipped": "out.mp4 is not a render of the board as it is now: %s — re-render, then judge" % why,
+                "rows": [], "unmeasured": True}
+    frames_c, segs = jq.film_census(out_dir)
+    seams = jq.film_seams(out_dir)
+    W, H = _probe_wh(video)
+    inks = _caption_inks()
+    want = [f for f in sorted(frames_c) if f % RM_EVERY == 0 and f not in seams and caption_blocks(
+        frames_c[f].get("lines") or [], W, H)]
+    dec = _decode_scaled(video, want, W // RM_SCALE, H // RM_SCALE)
+    rows = []
+    for f in want:
+        if f not in dec:
+            continue
+        block = caption_blocks(frames_c[f].get("lines") or [], W, H)
+        got = judge_caption_block(dec[f], block, inks, RM_SCALE)
+        if got is None:
+            continue
+        share, ink, x = got
+        beat = next((k + 1 for k, (a, b) in enumerate(segs) if a <= f <= b), None)
+        text = " / ".join(" ".join(str(l.get("t", "")) for l in (frames_c[f].get("lines") or [])
+                                    if abs(l["y"] - r[2]) < 1) for r in block)
+        rows.append({"beat": beat, "text": text, "word": None, "melt": round(share, 3), "frame": f, "x": x,
+                     "ink": [int(v) for v in ink], "level": "error" if share >= RM_LETTER_ERROR else
+                     "warn" if share >= RM_LETTER_WARN else "ok"})
+    keep = {}
+    for r in rows:                                     # one row per beat and caption text: its worst frame
+        k = (r["beat"], r["text"])
+        if k not in keep or r["melt"] > keep[k]["melt"]:
+            keep[k] = r
+    return {"skipped": None, "rows": list(keep.values()), "jobs": len(keep), "unseen": [], "no_record": [],
+            "remotion": True}
+
+
+def _probe_wh(video):
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+                        "-of", "csv=p=0", video], capture_output=True, text=True)
+    w, h = r.stdout.strip().split(",")[:2]
+    return int(w), int(h)
+
+
+def _decode_scaled(video, wanted, W, H):
+    want, out = set(wanted), {}
+    p = subprocess.Popen(["ffmpeg", "-v", "error", "-i", video, "-vf", "scale=%d:%d" % (W, H), "-f", "rawvideo",
+                          "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE)
+    n, last = 0, max(want) if want else -1
+    while n <= last:
+        buf = p.stdout.read(W * H * 3)
+        if len(buf) < W * H * 3:
+            break
+        if n in want:
+            out[n] = np.frombuffer(buf, np.uint8).reshape(H, W, 3)
+        n += 1
+    p.kill()
+    return out
 
 
 PRESENT = 0.6     # share of the glyph cores that must carry one ink for the caption to be "there" on a frame
@@ -129,8 +264,10 @@ def check(out_dir, video=None):
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     meta = dict(board.get("meta") or {}, _out=out_dir)
     slides = board.get("slides") or []
+    if meta.get("captions") is False:
+        return {"skipped": "captions are off", "rows": []}
     if str(meta.get("renderer") or "local").lower().startswith("remotion"):
-        return {"skipped": REMOTION_WHY, "rows": []}
+        return check_remotion(out_dir, video)
     if meta.get("captions") is False:
         return {"skipped": "captions are off", "rows": []}
     if rd._caption_band_px(meta, int(meta.get("width") or 1920), int(meta.get("height") or 1080)):
@@ -221,7 +358,12 @@ def main(argv):
         print("[caption_contrast] NOT MEASURED: %s" % rep["skipped"])
         return 2 if rep.get("unmeasured") else 0
     for r in rep["rows"]:
-        if r["level"] != "ok":
+        if r["level"] != "ok" and rep.get("remotion"):
+            print("[caption_contrast] %s beat %s: a letter-wide stretch of the caption is %.0f%% on ground under %.0f:1 "
+                  "against its ink %s (frame %d, x %d) — something in the picture runs behind the line: keep it out "
+                  "of the caption band — 「%s」" % (r["level"].upper(), r["beat"], r["melt"] * 100, MIN_CONTRAST,
+                                                  "#%02x%02x%02x" % tuple(r["ink"]), r["frame"], r["x"], r["text"][:40]))
+        elif r["level"] != "ok":
             print("[caption_contrast] %s beat %d: %.0f%% of the %s edge is under %.0f:1 against its ink %s "
                   "(frame %d) — 「%s」" % (r["level"].upper(), r["beat"], r["melt"] * 100,
                                           "highlighted word 「%s」's" % r["word"] if r.get("word") else "caption's",

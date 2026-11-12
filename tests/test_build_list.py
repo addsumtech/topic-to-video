@@ -498,3 +498,16 @@ def test_an_object_held_by_several_templates_lists_them_all(tmp_path):
         errs = v.evaluate(_board(tmp_path, held_in_both, entries(bad), shots=("WsShotA", "WsShotB")),
                           str(tmp_path))["errors"]
         assert any("a non-empty list of register names" in e for e in errs), (bad, errs)
+
+
+def test_a_shot_other_cast_shots_draw_is_used_on_their_beats(tmp_path):
+    # WorkBuddy (2026-11-12): its Workspace window is drawn by WorkspaceLit on the lit beats and cast on none itself.
+    # It is a built thing (an entry says what it is for) and it is used — on the beats of the shots that import it.
+    board = _board(tmp_path, [{"shot": "WsShotA", "shot_props": {}}],
+                   [_entry("WsShotA", "shot"), _entry("WsWindow", "shot"), _entry("WsLonely", "shot")],
+                   shots=("WsShotA", "WsWindow", "WsLonely"), objects=())
+    a = tmp_path / "workshop" / "shots" / "WsShotA.tsx"
+    a.write_text("import {WsWindow} from './WsWindow';\n" + a.read_text(encoding="utf-8"), encoding="utf-8")
+    errs = _errs(board, tmp_path)
+    assert not any("`WsWindow` is used by no beat" in e for e in errs), errs
+    assert any("`WsLonely` is used by no beat" in e for e in errs), errs

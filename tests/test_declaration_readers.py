@@ -163,3 +163,19 @@ def test_a_superseded_prop_is_still_demo_copy_when_the_provider_is_absent():
     assert "items" in lib.get("PortRail", {}), (
         "PortRail's `items` stopped being demo copy — the supersedes relation was applied to the LIBRARY "
         "instead of to one beat's props, which turns the check off for every board")
+
+
+def test_a_wrapper_shot_takes_the_props_of_the_shot_it_wraps(tmp_path, monkeypatch):
+    """`React.FC<React.ComponentProps<typeof Workspace>>` (WorkBuddy's lit variant, 2026-11-12): read as unreadable,
+    shot_proof's wrong-prop check skipped five beats. It accepts exactly the wrapped shot's props."""
+    import shot_proof as sp
+    d = tmp_path / "shots"
+    d.mkdir()
+    (d / "Base.tsx").write_text("export const Base: React.FC<{state?: string; files?: string[]}> = () => null;\n")
+    (d / "BaseLit.tsx").write_text("import {Base} from './Base';\n"
+                                   "export const BaseLit: React.FC<React.ComponentProps<typeof Base>> = (p = {}) => null;\n")
+    (d / "Stray.tsx").write_text("import {Base} from '../elsewhere/Base';\n"
+                                 "export const Stray: React.FC<React.ComponentProps<typeof Base>> = () => null;\n")
+    monkeypatch.setattr(sp, "_FILM_SHOTS", [str(d)])
+    assert sp.exported_props("BaseLit") == {"state", "files"}
+    assert sp.exported_props("Stray") is None, "a type from a file this lookup cannot see stays unreadable"

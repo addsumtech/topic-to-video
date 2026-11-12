@@ -633,7 +633,7 @@ def icons_missing(shot, props):
     return out
 
 
-def exported_props(shot):
+def exported_props(shot, _depth=0):
     """The prop names a shot's EXPORTED component actually accepts, or None if it cannot be read.
 
     WHY THIS IS A GATE. A prop the register does not have is silently dropped by React, and the register
@@ -649,6 +649,13 @@ def exported_props(shot):
     except OSError:
         return None
     m = re.search(r"export const %s\s*:\s*React\.FC<\{" % re.escape(shot), src)
+    # A WRAPPER takes exactly what the shot it wraps takes (`React.FC<React.ComponentProps<typeof Workspace>>` — the
+    # WorkBuddy film's lit variant): read the wrapped shot's list, when it is a sibling file this lookup can find.
+    w = None if m else re.search(r"export const %s\s*:\s*React\.FC<\s*React\.ComponentProps<\s*typeof\s+"
+                                  r"([A-Za-z_]\w*)\s*>\s*>" % re.escape(shot), src)
+    if w and w.group(1) != shot and _depth < 4 and re.search(
+            r"import\s*\{[^}]*\b%s\b[^}]*\}\s*from\s*['\"]\./%s['\"]" % (w.group(1), w.group(1)), src):
+        return exported_props(w.group(1), _depth + 1)
     if not m:
         # A NAMED props type is the same declaration written in two places, and `None` here means "cannot be
         # read", which the caller turns into "skip" — silently exempt, the decay this whole file exists to
@@ -763,6 +770,39 @@ def _flat(v, prefix=""):
     return out
 
 
+_DIAGNOSTIC_CALL = re.compile(r"\b(?:new\s+(?:Range|Type)?Error|requireEvidence|console\.\w+|assert\w*)\s*\(")
+
+
+def _strip_diagnostics(src):
+    """The source without the argument lists of error / diagnostic calls (`new Error(…)`, `requireEvidence(…)`,
+    `console.*(…)`): words a developer reads when a film is wrong, never on the frame. PhotoToDiagram's
+    "the real photograph the beat turns into a diagram" was read as the promo's own copy welded in (2026-11-12)."""
+    out, i = [], 0
+    for m in _DIAGNOSTIC_CALL.finditer(src):
+        if m.start() < i:
+            continue
+        out.append(src[i:m.end()])
+        depth, j, q = 1, m.end(), None
+        while j < len(src) and depth:
+            c = src[j]
+            if q:
+                if c == "\\":
+                    j += 1
+                elif c == q:
+                    q = None
+            elif c in "'\"`":
+                q = c
+            elif c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+            j += 1
+        out.append(")")
+        i = j
+    out.append(src[i:])
+    return "".join(out)
+
+
 def static_checks(board, skips=None, exempt=None):
     """(errors, warnings). `skips` collects every beat/register that LEFT the measurement, with a reason.
 
@@ -789,10 +829,19 @@ def static_checks(board, skips=None, exempt=None):
                                                             if k not in staged}
     # by POSITION — boards write `index` 1-based, so `index + 1` names the FOLLOWING beat (see
     # tests/test_beat_numbering.py; the same arithmetic mislabelled the critic's contact sheet).
+    # THE PROPS AS RENDERED: a board's LivingMap beat names `{map, add, focus}`, which render_remotion expands into the
+    # register's real `nodes`/`before`/`after` — read raw, both of the topic-to-video promo's map beats were refused for
+    # props React never sees (2026-11-12), while their frames carried exactly the film's words
+    try:
+        import render_remotion as _rr
+        _expanded = _rr.expand_living_maps(slides, board.get("meta") or {})
+    except Exception:                                   # noqa: BLE001 — an unexpandable map is validate's to refuse
+        _expanded = [None] * len(slides)
     for _pos, s in enumerate(slides, start=1):
         beat = _pos
         shot = s.get("shot")
-        props = s.get("shot_props") or {}
+        props = (_expanded[_pos - 1] if _pos - 1 < len(_expanded) and _expanded[_pos - 1] is not None
+                 else s.get("shot_props")) or {}
         if _pos - 1 in staged:
             continue
         if not shot:
@@ -921,7 +970,7 @@ def static_checks(board, skips=None, exempt=None):
         # the very copy it was about — was read as that copy being welded into the register. A false ERROR
         # blocks delivery on correct code, which is worse than the defect the check exists to catch, and it
         # is the second time this shape has appeared today. One implementation, shared.
-        body = _strip_comments(src)
+        body = _strip_diagnostics(_strip_comments(src))
         lits = " ".join(re.findall(r"'([^'\n]{2,120})'|\"([^\"\n]{2,120})\"", body) and
                         [a or b for a, b in re.findall(r"'([^'\n]{2,120})'|\"([^\"\n]{2,120})\"", body)])
         welded = sorted({t for t in topic if len(t) >= 4 and t in lits})[:3]

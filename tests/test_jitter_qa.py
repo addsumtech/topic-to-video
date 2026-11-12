@@ -80,6 +80,18 @@ def test_a_remotion_films_seams_are_placed_from_its_timeline_and_taken_out():
     assert jq.pairs_from_census(census, 1080, 1920)[0].keys() == set(range(440, 461)), "no seams: every pair"
 
 
+def test_a_carried_cut_owns_the_frames_its_carry_moves():
+    """WorkBuddy beats 13 and 19 (2026-11-12): the carry drifts and blurs the picture from CARRY_F frames before the cut
+    frame (seam start + cutFrame) to CARRY_F after — two frames past the seam each side — and a label's blurred
+    centroid read as a 0.2-0.4 px tremble there. Those frames are the cut's; frames clear of them are still judged."""
+    scenes = [{"durF": 214}, {"durF": 256}]
+    c, cf = jq.carry_reach()
+    assert (c, cf) == (6, 8)
+    plain, carried = jq.seam_frames_of(scenes), jq.seam_frames_of(scenes, carry=True)
+    assert carried == plain | set(range(202 + c - cf, 202 + c + cf)) == set(range(200, 216)), sorted(carried)
+    assert 199 not in carried and 216 not in carried
+
+
 def _glyph_windows(background_jump=0, reraster=False):
     """Two 60x44 windows of a lone digit on a light dot over a dark ground, the dot's surround either jumping by
     `background_jump` px (a lever snapping bank to bank behind a static label) or the digit itself re-rasterised."""

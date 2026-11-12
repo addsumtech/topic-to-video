@@ -2974,6 +2974,54 @@ def _hero_camera(meta, slides, out_dir):
     return errs, warns
 
 
+def sequence_ends_at_duration(src):
+    """The `<Sequence durationInFrames={…}>` expressions in a shot's source that are computed from the beat's duration
+    (`dur`, `durF`, `durationInFrames`, `sceneDur`) without `usePictureEnd` — [(line, expression)]."""
+    out = []
+    for m in re.finditer(r"<Sequence\b", src):
+        k = src.find("durationInFrames={", m.end())
+        close = src.find(">", m.end())
+        while close != -1 and src.count("{", m.end(), close) != src.count("}", m.end(), close):
+            close = src.find(">", close + 1)
+        if k == -1 or (close != -1 and k > close):
+            continue
+        i, depth = k + len("durationInFrames={"), 1
+        j = i
+        while j < len(src) and depth:
+            depth += {"{": 1, "}": -1}.get(src[j], 0)
+            j += 1
+        expr = src[i:j - 1]
+        if re.search(r"\b(dur|durF|durationInFrames|sceneDur|sceneDuration)\b", expr) and "usePictureEnd" not in expr \
+                and not re.search(r"\bend\b|\bpictureEnd\b", expr):
+            out.append((src.count("\n", 0, m.start()) + 1, " ".join(expr.split())))
+    return out
+
+
+def _spans_end_at_duration(out_dir, slides):
+    """A SPAN THAT ENDS AT THE BEAT'S DURATION ENDS BEFORE THE BEAT DOES. Under a carried cut the picture's clock runs
+    `lead` frames ahead (Film.tsx CutCarry), so a Sequence sized from `dur` unmounts while the beat is still on screen:
+    in the topic-to-video promo six screens went black 8-10 frames before their cut (2026-11-12), every gate green.
+    Size it from `usePictureEnd(dur)` (runtime/motion) — the clock frame the beat is really unmounted at."""
+    errs = []
+    if not out_dir:
+        return errs
+    d = os.path.join(out_dir, "workshop", "shots")
+    used = {str(s.get("shot") or "") for s in slides}
+    for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+        if not f.endswith(".tsx"):
+            continue
+        try:
+            src = open(os.path.join(d, f), encoding="utf-8").read()
+        except OSError:
+            continue
+        for line, expr in sequence_ends_at_duration(src):
+            errs.append("workshop/shots/%s:%d: a Sequence ends at the beat's duration (`durationInFrames={%s}`)%s — "
+                        "under a carried cut the picture's clock runs past `dur` before the beat leaves, and what it "
+                        "holds goes blank before the cut; size it from usePictureEnd(dur) (runtime/motion)"
+                        % (f, line, expr[:80], "" if f[:-4] in used else " (drawn by another shot)"))
+    return errs
+
+
 SLIDE_TITLE_SHARE = 0.4      # a header title on this share of the designed beats reads as a deck played back
 
 
@@ -3894,6 +3942,29 @@ def _check_build(meta, slides, errors, warnings, out_dir, skips=None):
                 hosts_by_object.setdefault(ref["id"], set()).add(shot)
 
     used = _ws.uses(slides, out_dir, refs=[r for _s, _src, _sp, r in beat_refs])
+    # A SHOT OTHER SHOTS DRAW: a film-local shot can be the shared drawing several cast shots render (WorkBuddy's
+    # Workspace window, staged lit by WorkspaceLit and shown on the laptop plates). It is cast nowhere itself, and
+    # it is used: on the beats of every cast workshop shot that imports it (transitively).
+    if out_dir and film_shots:
+        import re as _re
+        sdir = os.path.join(_ws.workshop_dir(out_dir), "shots")
+        imports = {}
+        for n in film_shots:
+            try:
+                with open(os.path.join(sdir, n + ".tsx"), encoding="utf-8") as fh:
+                    src_n = fh.read()
+            except OSError:
+                continue
+            imports[n] = {m for m in _re.findall(r"from\s+['\"]\./([A-Za-z0-9_]+)['\"]", src_n) if m in film_shots}
+        changed = True
+        while changed:
+            changed = False
+            for n, deps in imports.items():
+                for dep in deps:
+                    add = set(used.get(n) or []) - set(used.get(dep) or [])
+                    if add:
+                        used[dep] = sorted(set(used.get(dep) or []) | add)
+                        changed = True
     for eid, e in sorted(entries.items()):
         beats = used.get(eid) or []
         if not beats:
@@ -5428,6 +5499,7 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         errors.extend(_hc_e)
         warnings.extend(_hc_w)
         errors.extend(_audio_demo_problems(slides, out_dir))
+        errors.extend(_spans_end_at_duration(out_dir, slides))
         try:
             _kept = design_first_keep(meta, slides, "remotion", out_dir)[0]
         except Exception:                                    # noqa: BLE001 — a bad keep record is _design_first's

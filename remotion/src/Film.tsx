@@ -18,7 +18,7 @@ import {captionBandBare, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
         CONTENT_TOP, contentBottom} from './runtime/layout';
 import {ObjectIdleContext} from './runtime/objectSlot';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES,
-        easeOutCubic, setStyleEase} from './runtime/motion';
+        easeOutCubic, setStyleEase, PictureLeadContext} from './runtime/motion';
 import {NarrationContext} from './runtime/voice';
 import {CueContext, warpFrame} from './runtime/cue';
 import {PlateClock} from './runtime/blenderPlate';
@@ -32,6 +32,7 @@ import {HeroCameraContext, HERO_MOVES, type HeroMove} from './runtime/heroCamera
 import {phraseExtra} from './runtime/phrase';
 import {FocusLayer} from './runtime/focusLead';
 import {Coverage, type CoverStep} from './runtime/coverage';
+import {IdScope} from './runtime/idScope';
 import {withCjkDisplay} from './runtime/cjkVoice';
 import {WorldBackdrop} from './runtime/world';
 import {handoffIn, handoffOut} from './runtime/handoff';
@@ -1371,7 +1372,7 @@ const CutCarry: React.FC<{on: boolean; inCut: boolean; outCut: boolean; durF: nu
   // ...and CARRY_F more, so it is MID-entrance, not starting it: with the hidden frames alone a probe's arriving EdStat
   // showed a near-empty frame for 0.7 s after the cut (its figure lands later in its reveal) — a cut into nothing.
   const lead = inCut ? cutFrame(TR) + CARRY_F : 0;
-  const body = lead ? <Sequence from={-lead} layout="none">{children}</Sequence> : children;
+  const body = lead ? <Sequence from={-lead} layout="none"><PictureLeadContext.Provider value={lead}>{children}</PictureLeadContext.Provider></Sequence> : children;
   return (
     <AbsoluteFill style={{transform: `translateX(${x.toFixed(2)}px) scale(${s.toFixed(5)})${unlock ? ' ' + BASELINE_UNLOCK : ''}`,
       transformOrigin: '50% 50%'}}>{body}</AbsoluteFill>
@@ -1478,8 +1479,21 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
   // The root fill and the intro/outro veil are the FIRST and LAST beat's grounds, not one film-wide colour.
   // A film that opens on paper used to fade in from the film's near-black — a flash of a ground the film
   // never shows, which is the same defect the atmosphere fix below was written for, one layer up.
-  const firstBg = edgeGround(scenes[0], 'in')?.bg;
-  const lastBg = edgeGround(scenes[scenes.length - 1], 'out')?.bg;
+  // ...AND A BEAT THAT DECLARES NO GROUND IS NOT ON THE DNA'S GROUND when it paints its own: WorkBuddy (light DNA) opens
+  // on a dark Blender plate and closes on a dark logo card, and the veil — the DNA's near-white — faded the film IN
+  // from white and OUT through white to the encoder's black (2026-11-12, every gate green, both ends a flash). With no
+  // declared ground the veil takes the beat's own luminance class (dnaGroundLum, the seam guard's reading): the DNA's
+  // ground when they agree, else black for a dark beat and white for a light one.
+  const veilFor = (sc: SceneSpec | undefined, edge: 'in' | 'out'): string | undefined => {
+    const g = edgeGround(sc, edge);
+    if (g || !sc) return g?.bg;
+    const lum = dnaGroundLum(sc.shot, sc.bgLum, activeDna);
+    const y = activeDna?.bg ? lumValue(activeDna.bg) : null;
+    const dnaLum = y !== null ? lumFromY(y) : 'dark';
+    return lum === dnaLum || lum === 'mid' ? undefined : lum === 'dark' ? '#000000' : '#ffffff';
+  };
+  const firstBg = veilFor(scenes[0], 'in');
+  const lastBg = veilFor(scenes[scenes.length - 1], 'out');
   const rootBg = theme?.bg ?? firstBg ?? bg;
   const veilBg = outro > intro ? (theme?.bg ?? lastBg ?? bg) : rootBg;
 
@@ -1505,6 +1519,8 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
     const durF = Math.max(1, Math.round(sc.durF));
     const seq = (
       <TransitionSeries.Sequence key={`s${i}`} durationInFrames={durF}>
+        {/* the beat's SVG ids are its own: two beats are mounted through every seam (runtime/idScope) */}
+        <IdScope scope={`b${i}`}>
         <SceneDurationContext.Provider value={durF}>
           {/* THE BEAT'S OWN VOICE, offered to whatever wants to draw it. `<Audio>` below plays this same
               file; providing the path here is what lets an audio-reactive register analyse exactly what
@@ -1589,6 +1605,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           </BeatGround>
           </NarrationContext.Provider>
         </SceneDurationContext.Provider>
+        </IdScope>
         {sc.mp3 ? <BeatAudio src={sc.mp3} /> : null}
       </TransitionSeries.Sequence>
     );
@@ -1609,6 +1626,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
       props: (x.props ?? {}) as Record<string, unknown>, cues: x.cues, caption: x.caption}));
     return (
       <TransitionSeries.Sequence key={`r${first}`} durationInFrames={runDur}>
+        <IdScope scope={`r${first}`}>
         <SceneDurationContext.Provider value={runDur}>
           <BeatGround dna={activeDna} scene={head} durF={runDur} shot={head.shot}>
             <StageBeatMark first={first} beats={beats}>
@@ -1623,6 +1641,7 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
             </StageBeatMark>
           </BeatGround>
         </SceneDurationContext.Provider>
+        </IdScope>
         {runScenes.map((x, k) => (x.mp3 ? (
           <Sequence key={`a${k}`} from={offs[k]} durationInFrames={durs[k]}><BeatAudio src={x.mp3} /></Sequence>
         ) : null))}

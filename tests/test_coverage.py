@@ -243,3 +243,49 @@ def test_a_kept_line_of_type_clears_the_frame_edge():
             kept = r["x"] >= M and r["y"] >= M and r["x"] + r["w"] <= 1920 - M and r["y"] + r["h"] <= 878 - M
             gone = r["x"] + r["w"] <= 2 or r["x"] >= 1918 or r["y"] + r["h"] <= 2 or r["y"] >= 876
             assert kept or gone, r
+
+
+def test_an_items_close_up_on_its_drawing_alone_keeps_its_label_in_the_picture():
+    # ANC beat 11 (2026-11-11): no framing held 'Inside mic' with its part, so the close-up fell back to the part alone
+    # and pushed the label out; its leader line pointed at nothing while the voice named it. The drawing-alone fallback
+    # stands only while the label stays in the picture.
+    out = _ts("""
+      const W = 1920, H = 1080, bandTop = 878;
+      const region = {x: 0, y: 0, w: 1900, h: 860};        // too big to frame closer: no framing with the label
+      const drawing = {x: 300, y: 300, w: 260, h: 220};
+      const far = {x: 1500, y: 380, w: 220, h: 40}, near = {x: 600, y: 380, w: 160, h: 36};
+      const res: any = {};
+      for (const [k, label] of [['far', far], ['near', near]] as const) {
+        const args = {W, H, bandTop, content: [drawing, label], texts: [label]};
+        res[k] = {alone: coverFraming({...args, target: drawing}), item: itemFraming(args, region, drawing, label),
+                  bare: itemFraming(args, region, null, label)};
+      }
+      out.res = res;
+    """, extra="itemFraming")
+    far, near = out["res"]["far"], out["res"]["near"]
+    assert far["alone"] is not None, "the drawing alone frames — the case the rule is about"
+    assert far["item"] is None, "a close-up that pushes the label out of the picture is no cut"
+    assert near["item"] is not None and near["item"] == near["alone"], "a label beside its part keeps the close-up"
+    assert far["bare"] is None and near["bare"] is None
+
+
+def test_the_caption_band_echo_starts_at_the_band_under_the_framed_layers_fade():
+    # ANC beat 11: the echo (the register unframed) began BAND_FADE above the band, under the framed layer's fade, and
+    # drew its own unframed 'Inside mic' there — a ghost label. The framed layer is opaque to the band and fades below
+    # it; the echo starts at the band.
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "remotion", "src", "runtime", "coverage.tsx"), encoding="utf-8").read()
+    assert "clipPath: `inset(${contentBottom(W, H)}px 0 0 0)`" in src
+    assert "#000 ${bt}px, transparent ${bt + fade}px" in src
+    assert "#000 ${bt - fade}px" not in src
+
+
+def test_a_step_is_measured_only_on_laid_out_probes():
+    # WorkBuddy beat 11 (2026-11-11): its tail under the seam into beat 12 was the FIRST frame of five render tabs, each
+    # measured the punch-in before layout and fonts were in, and five framings alternated frame by frame (ty -178…-249).
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "remotion", "src", "runtime", "coverage.tsx"), encoding="utf-8").read()
+    body = src.split("const CoverageOn")[1]
+    assert "if (need.length && !ready()) return false;" in body
+    assert "doc.fonts.status !== 'loaded'" in body and "p.offsetWidth > 0 && p.offsetHeight > 0" in body
+    assert "delayRender(`coverage: beat" in body and "continueRender(handle)" in body

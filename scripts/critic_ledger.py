@@ -264,9 +264,15 @@ DELIVERY_GATES = {
         # TYPE ON A BLENDER PLATE'S OBJECT — the plate is a video, so its objects are pixels every DOM gate is blind to; a
         # GPS satellite's wing tip sat under its label with all of them green (scripts/plate_qa.py)
         ("TYPE clear of Blender plate objects (every 3rd frame, census)", "plate_qa.py", (), 300, True, _has_blender),
+        # the CAPTION on what the picture puts behind it: plate_qa sees named objects only, and a laptop's bezel ran
+        # behind WorkBuddy beat 6's first word, dark on dark (2026-11-12) — read on the delivered pixels beside the line
+        ("CAPTIONS read on their ground (delivered pixels, census lines)", "caption_contrast_qa.py", (), 600, True, None),
         # the only gates that judge the FILM rather than a frame: does it move, and does it move without vibrating
         ("FILM ENERGY — motion, light, light arc (density measured)", "film_energy_qa.py", (), 300, True, None),
         ("SHAKE — travelling vs vibrating", "shake_qa.py", (), 300, True, None),
+        # a sharp change OFF the planned cuts (seams, coverage steps), as a strip to LOOK at: three defects of one film
+        # passed every gate above (a framing jumping between render tabs, a light switching off, a mid-entrance cut)
+        ("motion events off the plan (ADVISORY — look at _motion_events.jpg)", "motion_events_qa.py", (), 300, False, None),
         # a film with a drawing style: did the DRAWING change, on every beat, and not only its colours (scripts/style_qa.py)
         ("STYLE drawn, not recoloured (every beat, styled vs unstyled)", "style_qa.py", (), 600, True, _styled),
         ("rhythm", "rhythm_qa.py", (), 240, True, None),

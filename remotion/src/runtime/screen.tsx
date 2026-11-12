@@ -3,7 +3,7 @@
 // computed from the image's real height, never from a box that happens to hold it.
 import React from 'react';
 import {Img, OffthreadVideo, Sequence, staticFile, useVideoConfig} from 'remotion';
-import {clamp01, easeOutCubic, easeInOutCubic} from './motion';
+import {clamp01, easeOutCubic, easeInOutCubic, PictureLeadContext} from './motion';
 
 /** The height a screenshot takes at width `w`. A size that is not a positive, finite number is refused: floored
  *  instead, a zero width gave a 2.3-million-pixel scroll range, and NaN a CSS height the browser silently drops. */
@@ -38,12 +38,15 @@ export const ScreenImage: React.FC<{src: string; imageW: number; imageH: number;
  *  bends at a cue is a chain of constant rates. */
 export const ScreenVideo: React.FC<{src: string; spans: VideoSpan[]; w: number; h: number}> = ({src, spans, w, h}) => {
   const {fps} = useVideoConfig();
+  // the LAST span holds until the beat is unmounted, which under a carried cut is `lead` clock frames past its end
+  // (motion.ts usePictureEnd) — at the same rate, so the recording plays on rather than going black before the cut
+  const lead = React.useContext(PictureLeadContext);
   return (
     <div style={{position: 'absolute', left: 0, top: 0, width: w, height: h, overflow: 'hidden', background: '#000000'}}>
       {spans.map((s, i) => {
         const frames = Math.max(1, Math.round(s.f1 - s.f0));
         return (
-          <Sequence key={i} from={Math.round(s.f0)} durationInFrames={frames} layout="none">
+          <Sequence key={i} from={Math.round(s.f0)} durationInFrames={frames + (i === spans.length - 1 ? lead : 0)} layout="none">
             <OffthreadVideo src={staticFile(src)} muted trimBefore={Math.round(s.v0 * fps)}
               playbackRate={Math.max(0.01, ((s.v1 - s.v0) * fps) / frames)}
               style={{position: 'absolute', left: 0, top: 0, width: w, height: h, objectFit: 'cover'}} />

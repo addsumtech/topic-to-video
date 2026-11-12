@@ -340,3 +340,87 @@ lead-ins; `tests/test_shared_gates_are_on_both_paths.py` holds it).
 > **Precedent — `c38f365`:** reporting only the FLAGGED beats made a dimension nobody looked at
 > indistinguishable from one checked and found clean. And the maker holds the intent — the intent is what
 > makes a wrong frame look right — so the delivery pass is a fresh subagent given only the out_dir path.
+
+**W8 · A FILM IS SHOWN ONLY AFTER ITS DELIVERY GATES, AND A PICTURE MUST NOT DEPEND ON WHICH TAB OR BEAT DREW IT**
+(SKILL.md 9d; `critic_brief.py --gates`, `motion_events_qa.py`).
+> **Precedent — WorkBuddy re-light, 2026-11-11/12:** the film was handed over on a contact sheet with the delivery
+> gates skipped, and the user found, by watching, a jitter at the end of beat 11. Four root causes, none of them
+> visible on a still, three of them in the runtime every film shares:
+> 1. **Coverage measured per render tab, before layout.** A framing is cached per tab; a tab whose FIRST frame was
+>    beat 11's tail (under the seam into beat 12) measured the punch-in before its container had a size, and five
+>    tabs cut to five framings, alternating frame by frame. Fix: `runtime/coverage.tsx` measures only laid-out
+>    probes with fonts loaded (delayRender until then). Proof: every (beat, step) now logs ONE framing across all
+>    ten tab×segment measurements.
+> 2. **SVG ids are global.** Beats 9 and 10 both drew `url(#ws-pool)`; through the seam beat 10 resolved to beat 9's
+>    lit gradient, and the light switched off in one frame when beat 9 unmounted. Fix: `runtime/idScope.tsx` scopes
+>    every beat's ids (48 library files use literal ids; film shots will too).
+> 3. **A carried cut runs the picture's clock ahead; voice-timed layers inherited it.** Coverage and the focus lead
+>    stepped `cutFrame(TR) + CARRY_F` frames early — beat 17's close-up landed 0.3 s in, mid-entrance, against a
+>    plan of 0.8 s. Fix: `PictureLeadContext`; both subtract it.
+> 4. **A tilted clip's client rect is its axis-aligned box.** The type census judged lines sliding out under a tilted
+>    window's edge as fully visible, and jitter_qa read their shrinking glyphs as a 4-6 px tremble. Fix: the glide
+>    census measures visibility against the clip's projected quad (corner markers).
+> Rule: run the tier's delivery gates (`critic_brief.py <out_dir> --gates`) and look at `_motion_events.jpg` BEFORE a
+> film or a contact sheet goes to the user; a sheet of settled frames cannot show a single one of the four.
+> 5. **…and so did everything timed to the beat's END.** A Sequence sized from `dur` unmounts `lead` frames before the
+>    beat does: in the published topic-to-video promo six screens (beats 9, 12, 13, 15, 16, 23) went black for 8-10
+>    frames before their cut, found while re-checking a frame the motion scan flagged. Every gate was green, and
+>    the JUMP rule saw only one of the six (the rest switched inside the seam's pad). Fix: `usePictureEnd(dur)`
+>    (runtime/motion) is the clock frame the beat really leaves at; ScreenVideo's last span and FilmScreen use it;
+>    validate refuses a workshop Sequence sized from `dur` without it; motion_events_qa's BLANK lists a region that
+>    switches to flat dark before a seam and holds to the cut (6/6 on the promo, 0 on eight other films).
+> Rule for the next clock change: grep every consumer of the clock it shifts — the voice-timed ones (3) AND the
+>    end-timed ones (5) — before shipping it.
+> 6. **The suite mutated the installed skill while a plate was keyed.** `test_energy_staleness` rewrote
+>    `runtime/dna.tsx` and dropped a `.bak` into `runtime/`, and `test_cjk_type_qa` rendered a broken `textSafe.tsx`,
+>    all in the live tree, while an 83-minute plate took its key. That key matches no tree that ever existed. Fix:
+>    those tests now mutate a copy, and `remotion_segments.code_hash` (every segment, plate and screen key) refuses
+>    while another process holds the mutation sentinel. And a plate's screen code is the whole library, so any
+>    runtime edit staled it: `blender_plate` now re-renders just the screen and re-keys the plate when the pictures
+>    match within the render's measured noise (`SCREEN_NOISE_PX`; the screen render is not bit-deterministic).
+> 7. **A full look at the film found what no gate measured.** A contact sheet (each beat at 30/60/90%) plus
+>    the first and last second, both read by eye, turned up:
+>    - **Both ends flashed.** A light DNA's veil was faded over a dark first and last beat: in from white, out to
+>      white. The cause was Film's edge ground, blind to a register that paints its own ground. Fix: the veil takes
+>      the beat's luminance (`veilFor`), and `flash_qa.edge_washes` measures it. The published ANC film has it too.
+>    - **A caption letter sat on a dark bezel.** The Remotion tier had no caption-contrast gate at all.
+>      `caption_contrast_qa` now reads it from the census lines (`check_remotion`): 6 of 6 films measured, one hit,
+>      the real one.
+>    - **A numbered set was cropped.** A punch-in dropped files 01 and 05 from an 01–08 grid. Answer: `coverage: false`
+>      on the beat, with its reason.
+>    - **A blank pill flew over a title.** The message's words had faded out before it flew, and its arc crossed the list
+>      title. The jitter tracker read the occlusion as a tremble. The defect was the design, not the type.
+>    - **Words sliced by the window edge in a glide.** Sidebar and request bubble. Fix: an element the closing view
+>      crops fades before the edge reaches it.
+>    Also from this round:
+>    - **`jitter_qa`'s seams now own the carry's reach,** two frames past the seam on each side; the trembles there were
+>      motion blur shifting a glyph's centroid.
+>    - **`shot_proof` reads a wrapper shot's props** (`ComponentProps<typeof X>`).
+>    - **`blender_plate --still 0` is refused.** It used to build the whole plate (41 min).
+>    Rule: gates are a floor. Before a film goes out, LOOK at every beat at three points and at both ends.
+> 8. **Gates that judged the board, not the film.** On the promo, four blocking errors were the gates' own:
+>    - `shot_proof` checked a LivingMap beat's raw `{map, add}`. The register only ever sees the expanded
+>      `nodes`/`before`/`after`.
+>    - `shot_proof` read a developer's `requireEvidence(…, 'the real photograph …')` as copy welded into the register.
+>    - `cjk_type` failed an English film's registers as "unfed" Chinese while listing them as setting no Chinese.
+>    - `shot_still_qa` read a spotlit ground as 41.8% "ink" in an empty caption band. The band's ground is now a fitted
+>      smooth surface; across 211 delivered stills one verdict moved, and it was that one.
+>    Each was fixed where it measured. A gate that refuses correct films gets waived, and a waived gate stops
+>    looking.
+>    And a plate's key over-covers too: three ANC plates were staled by MacBook kit code their scenes never import.
+>    `blender_plate --verify` asks the pictures (three stills against the delivered frames, within encode noise)
+>    before an hour of Cycles.
+>    A STALE FACT is a defect like any other: the promo said "224 shot designs" of a library of 225.
+> 9. **A layer that measures the DOM per frame follows whatever is moving.** The promo's closing title popped 7% smaller
+>    on isolated frames under its camera pull. The pops fell on the same frames in every render, so it was not a tab
+>    race. A fonts wait was added first, on the coverage precedent, and the pops did not move: that hypothesis was
+>    wrong (the wait stays, as a separate guard). The cause was SceneCamera's edge budget, re-measured on every
+>    frame's own layout. Callback's cards fly in from beyond the frame, carrying live teasers of earlier beats, and
+>    each time one's type came wholly inside near an edge, the cap clamped, then relaxed a frame later. A single-scene
+>    render has no teasers (plain cards), so no proof sheet could show it. The jitter gate found it only once a cue
+>    made the title visible during those frames. Fix: the budget is measured once, on a transparent copy frozen at
+>    SETTLED_T. Rule: a camera, a framing, or anything else that moves the whole picture must be a smooth function of
+>    time; derive it from the settled layout, never from the frame in flight.
+>    (A "still layer" is not always the cure: carrying Callback's teaser cards as composited bitmaps through their landing
+>    tilt raised their tiny type's tremble from 0.29 px to 0.35-0.71 px — a rotated, scaled bitmap samples worse than
+>    re-set type. Measured and reverted, 2026-11-12.)

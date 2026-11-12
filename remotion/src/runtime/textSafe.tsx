@@ -1729,6 +1729,55 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     memo.set(el, info);
     return info;
   };
+  // A CLIP UNDER A TILT: visibleRect intersects a line with each clipping ancestor's CLIENT RECT — the axis-aligned box
+  // around it. Under a rotation or a 3D tilt that box is larger than the clip, so a line sliding out under a tilted
+  // window's edge stayed 'fully visible' while its glyphs were cut, and the pixel gate judged the shrinking glyphs as a
+  // tremble: WorkBuddy's lit workspace (a window tilted 12/15 deg) failed jitter_qa on exactly the lines leaving its
+  // edges, 4-6 px 'RMS', with the frames sliding cleanly (2026-11-12). The clip's true outline is its corners'
+  // projection: a zero-size marker's client rect IS its projected point, 3D included. Measured once per ancestor.
+  const quadMemo = new Map<Element, Array<[number, number]> | null>();
+  const clipQuad = (node: Element): Array<[number, number]> | null => {
+    if (quadMemo.has(node)) return quadMemo.get(node)!;
+    let quad: Array<[number, number]> | null = null;
+    const he = node as HTMLElement;
+    if (typeof he.offsetWidth === 'number' && win.getComputedStyle(node).position !== 'static') {
+      const w = he.offsetWidth, h = he.offsetHeight;
+      quad = ([[0, 0], [w, 0], [w, h], [0, h]] as Array<[number, number]>).map(([x, y]) => {
+        const m = node.ownerDocument.createElement('div');
+        m.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:0;height:0;margin:0;padding:0;border:0`;
+        node.appendChild(m);
+        const b = m.getBoundingClientRect();
+        node.removeChild(m);
+        return [b.left, b.top] as [number, number];
+      });
+      let a = 0;
+      for (let i = 0; i < 4; i++) a += quad[i][0] * quad[(i + 1) % 4][1] - quad[(i + 1) % 4][0] * quad[i][1];
+      if (a < 0) quad.reverse();                     // clipPoly keeps the side its edges turn toward
+    }
+    quadMemo.set(node, quad);
+    return quad;
+  };
+  const tiltedShare = (el: Element, r: DOMRect): number => {
+    const area = r.width * r.height;
+    if (!(area > 0)) return 1;
+    let poly: Array<[number, number]> = [[r.left, r.top], [r.right, r.top], [r.right, r.bottom], [r.left, r.bottom]];
+    for (let node = el.parentElement; node; node = node.parentElement) {
+      const cs = win.getComputedStyle(node);
+      if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+      const c = chain(node);
+      const tilted = c.M === null || c.d3 || Math.abs(c.M[1]) > 1e-3 || Math.abs(c.M[2]) > 1e-3;
+      if (!tilted) continue;
+      const q = clipQuad(node);
+      if (!q) continue;
+      const cb = node.getBoundingClientRect();
+      const coversFrame = cb.left <= frame.left + TOL && cb.top <= frame.top + TOL &&
+                          cb.right >= frame.right - TOL && cb.bottom >= frame.bottom - TOL;
+      if (coversFrame && polyArea(q) >= (frame.width * frame.height) * 0.98) continue;
+      poly = clipPoly(poly, q);
+      if (!poly.length) return 0;
+    }
+    return Math.max(0, Math.min(1, polyArea(poly) / area));
+  };
   const lines: GlideLine[] = [];
   let u = 0, z = 0;
   // the layout offset in whole px: offsetTop up the offsetParent chain, memoised. SVG has no offsetTop, and its
@@ -1762,9 +1811,12 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
     if (c.M === null || c.will || c.d3) {
       z += 1;
       const r = inkRect(el) ?? el.getBoundingClientRect();
+      const sf = syncFields(c, vr, r, frame);
+      const share = tiltedShare(el, r);
+      const v = Math.min(sf.v ?? 1, share);
       lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, x: Math.round(r.left * 100) / 100,
         w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, o: Math.round(c.op * 100) / 100,
-        t: cutText(text), fl: 'c', ...syncFields(c, vr, r, frame)});
+        t: cutText(text), fl: 'c', ...sf, ...(v < 0.995 ? {v: Math.round(v * 100) / 100} : {})});
       return;
     }
     // SVG type outside any filter: the screen CTM is exact — it carries the viewBox's scale, which no css transform

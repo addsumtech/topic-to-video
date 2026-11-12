@@ -119,9 +119,36 @@ def measure(path):
     if abs(band_ground - ground_all) > _INK_DELTA and edge_step > _BAND_EDGE_STEP and not is_own_ground:
         caption = 1.0
     else:
-        ink = sum(1 for v in vals if abs(v - band_ground) > _INK_DELTA)
-        caption = ink / max(1, len(vals))
+        caption = _band_ink(g, w, h, cap_top)
     return {"w": w, "h": h, "edge": edge, "caption": caption, "band": band}
+
+
+def _band_ink(g, w, h, cap_top):
+    """The share of the caption band that is CONTENT: what departs from the band's GROUND, where the ground is a smooth
+    surface — a robust quadratic across the band plus a linear ramp down it — not one modal grey. A LIT ground (a light
+    pool, a vignette: the lit-surface pass) varies smoothly across the band, and against one modal grey the
+    topic-to-video promo's spotlit KeyframeSheet read 41.8% "ink" over an empty band (2026-11-12). On a flat ground the
+    surface IS the modal grey, so nothing changes there (211 delivered stills: one verdict moved, that one)."""
+    import numpy as np
+    a = np.asarray(g, dtype=np.float64)[cap_top:h:2, 0:w:2]
+    if a.size == 0:
+        return 0.0
+    xs = np.arange(a.shape[1]) / max(1, a.shape[1]) - 0.5
+    ys = np.arange(a.shape[0]) / max(1, a.shape[0]) - 0.5
+    col = np.median(a, axis=0)
+    keep = np.ones_like(col, dtype=bool)
+    c = np.polyfit(xs, col, 2)
+    for _ in range(3):                  # reject the columns content occupies, so a panel never becomes the ground
+        res = np.abs(col - np.polyval(c, xs))
+        nk = res <= max(_INK_DELTA, 2 * float(np.median(res[keep])) + 1)
+        if nk.sum() < 0.5 * len(col) or (nk == keep).all():
+            break
+        keep = nk
+        c = np.polyfit(xs[keep], col[keep], 2)
+    model = np.polyval(c, xs)[None, :]
+    if a.shape[0] >= 2:
+        model = model + np.polyval(np.polyfit(ys, np.median(a - model, axis=1), 1), ys)[:, None]
+    return float((np.abs(a - model) > _INK_DELTA).mean())
 
 
 def main(argv):

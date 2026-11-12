@@ -1193,10 +1193,15 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    **9d · 🔴 THE REVIEW-DEPTH QUESTION — asked after the FIRST clean render, with the film in front of the user**
    (modelled on slide-maker's post-build review question). When every machine gate is green —
    `python3 scripts/critic_brief.py <out_dir> --gates` exits 0: it runs the tier's delivery gates once on this render
-   (remotion: validate, check_av, keyframe_qa_remotion, text_safe incl. `--glide`/`--sync`, jitter_qa, cjk_type_qa on a CJK film,
+   (remotion: validate, check_av, keyframe_qa_remotion, text_safe incl. `--glide`/`--sync`, jitter_qa, caption_contrast_qa, cjk_type_qa on a CJK film,
    film_energy_qa, shake_qa, style_qa on a styled film, rhythm_qa, pedagogy_qa, shot_proof; HTML: keyframe_qa, validate, check_av, jitter_qa,
    caption_contrast_qa, rhythm_qa, pedagogy_qa) and records each exit code against the render id, and `critic_ledger.py --final` refuses a render
-   whose record is missing a gate or holds a failure, on every path, `none` included — FIRST hand the film over
+   whose record is missing a gate or holds a failure, on every path, `none` included; LOOK at `_motion_events.jpg`
+   (the advisory `motion_events_qa` in that run: every sharp change off the planned cuts — a still or a contact sheet
+   shows none of them) and at every beat at 30/60/90% of it plus the film's first and last second, by eye — gates are
+   a floor (W8.7: a caption letter on a bezel, a cropped numbered set, a blank pill over a title, both ends flashing,
+   all found that way); a RE-render of a delivered film (a refresh, a re-light) is handed over on the same terms, not
+   on a contact sheet (references/engineering-case-law.md W8) — FIRST hand the film over
    — and, on a remotion film, BEFORE handing it over run `python3 scripts/object_closeups.py <out_dir>` and LOOK at
    `_object_closeups.png` yourself: every object in the film (each device, each screen, each `data-object`) at its
    largest, cropped at 100%; fix what is not refined and accurate, or name it to the user — then

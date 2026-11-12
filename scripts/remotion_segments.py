@@ -309,6 +309,22 @@ def code_files(out_dir=None):
     return sorted(files)
 
 
+def refuse_while_runtime_mutated():
+    """A test that proves a guard is load-bearing MUTATES runtime/textSafe.tsx on disk for two renders, holding
+    remotion/.textsafe-mutating (its pid). Only cjk_type_qa honoured it: a film render, a segment key or a plate key
+    taken in that window hashed — and could bundle — the broken instrument (WorkBuddy plan-3d, 2026-11-12: a key no
+    tree reproduces). Every code key comes through here, so every keyed render refuses, except the mutator itself."""
+    sentinel = os.path.join(REMOTION, ".textsafe-mutating")
+    try:
+        owner = open(sentinel, encoding="utf-8").read().strip()
+    except OSError:
+        return
+    if owner == str(os.getpid()):
+        return
+    import cjk_type_qa as _cq                                 # recovers an abandoned mutation (owner dead, .orig kept)
+    _cq._refuse_if_instrument_is_mutated()
+
+
 def code_hash(out_dir=None):
     """The code a segment is built from. The library hashes exactly as it always has — the same order,
     the same relative-path spelling — so a film with no workshop keeps a byte-identical key on every OS and
@@ -317,6 +333,7 @@ def code_hash(out_dir=None):
     volume alias is one) can sort on opposite sides of `SKILL`, and a merged, absolute-path sort would then
     hash the library and the workshop in a different relative order for the same film — a spurious full
     re-render, not a stale reuse, but a re-render all the same."""
+    refuse_while_runtime_mutated()
     h = hashlib.sha256()
     for p in code_files():
         h.update(os.path.relpath(p, SKILL).encode("utf-8"))

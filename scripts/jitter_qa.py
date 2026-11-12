@@ -293,7 +293,19 @@ def film_census(out_dir):
     return res["frames"], segs
 
 
-def seam_frames_of(scenes):
+def carry_reach():
+    """(cut offset into the seam, CARRY_F) from runtime/cutCarry.ts — read, not restated, so they cannot drift."""
+    import re as _re
+    import remotion_segments as _rs
+    src = open(os.path.join(_rs.REMOTION, "src", "runtime", "cutCarry.ts"), encoding="utf-8").read()
+    f = _re.search(r"export const CARRY_F\s*=\s*(\d+)", src)
+    c = _re.search(r"export const cutFrame = \(tr: number\): number => Math\.round\(tr \* ([\d.]+)\)", src)
+    if not f or not c:
+        raise _rs.ModelMismatch("CARRY_F / cutFrame not found in runtime/cutCarry.ts — jitter_qa models the carry from them")
+    return int(round(_rs.seam_frames() * float(c.group(1)))), int(f.group(1))
+
+
+def seam_frames_of(scenes, carry=False):
     """{frame} the Film's seams own: the `tr` frames on which two beats are drawn at once (Film.tsx's TransitionSeries,
     modelled exactly by remotion_segments.timeline). A beat that continues a stage run is joined to the one before it
     and has no seam. The HTML tier takes its scene-edge transitions out the same way (jitter_html)."""
@@ -302,10 +314,20 @@ def seam_frames_of(scenes):
     tr = _rs.seam_frames()
     segs, _total = _rs.timeline(scenes, tr)
     joined = _sr.joined_flags(scenes)
+    # ...AND ON A FILM THAT CARRIES ITS CUTS (Film.tsx CutCarry), the frames the carry moves: the leaving picture drifts
+    # and blurs from CARRY_F frames before the cut frame, the arriving one until CARRY_F after it — two frames past the
+    # seam on each side. Type there moves with the whole picture, motion-blurred, into a cut: WorkBuddy beats 13 and 19
+    # were refused for a 0.2-0.4 px "tremble" that was the blur's shift of a glyph centroid (2026-11-12). Film decides
+    # per seam whether it carries (the DNA's seam); this takes every seam's reach, which over-covers a dissolve that
+    # is all motion anyway.
+    c, cf = carry_reach() if carry else (0, 0)
     out = set()
     for k in range(1, len(segs)):
         if not joined[k]:
-            out.update(range(segs[k][0], segs[k][0] + tr))
+            a = segs[k][0]
+            out.update(range(a, a + tr))
+            if carry:
+                out.update(range(max(0, a + c - cf), a + c + cf))
     return out
 
 
@@ -315,7 +337,7 @@ def film_seams(out_dir):
     import render_remotion as rr
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     props, _slides = rr.film_props(out_dir, board)
-    return seam_frames_of(props["scenes"])
+    return seam_frames_of(props["scenes"], carry=bool(props.get("cutCarry")) and not props.get("reducedMotion"))
 
 
 def _box(ln):

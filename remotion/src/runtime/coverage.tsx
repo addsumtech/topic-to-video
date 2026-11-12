@@ -29,10 +29,11 @@
 //   * a raster drawn past its own pixels (an <img>/<canvas>/<video> limits the scale to its natural size);
 //   * a gain under MIN_GAIN (a 1.08x "cut" reads as a jump, not a new framing);
 //   * an item the DOM does not separate (focusLead.findContainers says null).
-import React, {useLayoutEffect, useRef} from 'react';
-import {AbsoluteFill, Freeze, useCurrentFrame, useVideoConfig} from 'remotion';
+import React, {useContext, useLayoutEffect, useRef} from 'react';
+import {AbsoluteFill, continueRender, delayRender, Freeze, useCurrentFrame, useVideoConfig} from 'remotion';
 import {findContainers} from './focusLead';
 import {contentBottom} from './layout';
+import {PictureLeadContext} from './motion';
 
 export type CoverFrame = 'wide' | {key: string} | {punch: number};
 export type CoverStep = {t: number; frame: CoverFrame};
@@ -326,6 +327,17 @@ const measure = (probe: HTMLElement, W: number, H: number): Measured => {
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 /** The framing for one step, measured on its frozen probe; null = wide. */
+// AN ITEM'S CLOSE-UP: the item with its label, if that framing exists; else its drawing alone — but only while its
+// label stays in the picture: a close-up that pushed the label out left its leader line pointing at nothing below the
+// frame while the voice named the part (ANC beat 11, 'Inside mic', 2026-11-11). No cut beats that cut.
+export const itemFraming = (args: Omit<Parameters<typeof coverFraming>[0], 'target'>, region: Rect,
+  drawing: Rect | null | undefined, label: Rect): Framing | null => {
+  const withLabel = coverFraming({...args, target: region});
+  if (withLabel || !drawing) return withLabel;
+  const alone = coverFraming({...args, target: drawing});
+  return alone && inside(map(label, alone), 0, 0, args.W, args.bandTop) ? alone : null;
+};
+
 export const frameStep = (probesIn: HTMLElement[], step: CoverStep, items: Record<string, string> | null,
   W: number, H: number): Framing | null => {
   lastWhy = '';
@@ -398,8 +410,7 @@ export const frameStep = (probesIn: HTMLElement[], step: CoverStep, items: Recor
       if (!still(region, earlierRegions, 'item')) return null;
       const cap0 = m.rasters.reduce((c, x) => (overlaps(x.r, region) ? Math.min(c, x.cap) : c), MAX_SCALE);
       const args = {W, H, bandTop: contentBottom(W, H), content: allContent, texts: allTexts, boxes: allBoxes, cap: cap0};
-      // the item with its label, if that framing exists; else its drawing alone (the voice names it anyway)
-      const f = coverFraming({...args, target: region}) ?? (drawing ? coverFraming({...args, target: drawing}) : null);
+      const f = itemFraming(args, region, drawing, label);
       if (!f) lastWhy = 'no framing passes (type/cards/zone)';
       return f;
     }
@@ -429,22 +440,43 @@ export const Coverage: React.FC<{plan?: CoverStep[] | null; items?: Record<strin
 
 const CoverageOn: React.FC<{plan: CoverStep[]; items: Record<string, string> | null; beat: number; durF: number;
   children: React.ReactNode}> = ({plan, items, beat, durF, children}) => {
-  const frame = useCurrentFrame();
+  // the plan is on the voice's clock; under a carried cut the picture's runs `lead` frames ahead (PictureLeadContext):
+  // a step is in force on the VOICE's frame, and its probes freeze the PICTURE's frame that is on screen then
+  const lead = useContext(PictureLeadContext);
+  const frame = useCurrentFrame() - lead;
   const {fps, width: W, height: H} = useVideoConfig();
   const live = useRef<HTMLDivElement>(null);
   const zone = useRef<HTMLDivElement>(null);
   const probes = useRef<Map<string, HTMLDivElement>>(new Map());
   const at = stepAt(plan, frame / fps);
   const upto = at ? at.i : -1;
-  const keyOf = (j: number) => `${beat}:${j}:${JSON.stringify(plan[j].frame)}:${probeFrame(plan, j, durF, fps)}:${W}x${H}`;
+  const keyOf = (j: number) => `${beat}:${j}:${JSON.stringify(plan[j].frame)}:${probeFrame(plan, j, durF, fps)}:${lead}:${W}x${H}`;
   // every framed step up to this one whose framing is not known yet in this worker: the one in force is cut against
   // the one before it, so each is measured (on its own frozen frame) — never on the live, moving register
   const framedNow = !!at && at.step.frame !== 'wide';
   const need: number[] = [];
   for (let j = 0; j <= upto; j++) if (plan[j].frame !== 'wide' && !cache.has(keyOf(j))) need.push(j);
+  const forced = useRef(false);
+  // every probe a measurement needs is mounted, has the frame's size, and the document's fonts are in
+  const ready = (): boolean => {
+    if (forced.current) return true;
+    const doc = live.current?.ownerDocument;
+    if (doc?.fonts && doc.fonts.status !== 'loaded') return false;
+    return need.every((j) => probeFrames(plan, j, durF, fps).every((pf) => {
+      const p = probes.current.get(`${j}@${pf}`);
+      return !!p && p.offsetWidth > 0 && p.offsetHeight > 0;
+    }));
+  };
   useLayoutEffect(() => {
     const el = live.current;
     if (!el) return;
+    const apply = (): boolean => {
+    // NOT LAID OUT YET: a render tab draws its FIRST frame before the composition's container has a size or its fonts
+    // (runtime/depth.tsx measured the same on the camera). A step measured then is measured on nothing — and a framing
+    // is measured once per tab, so each tab cut to its own: WorkBuddy beat 11's punch-in, measured afresh by five tabs
+    // whose first frames were its tail under the seam into beat 12, came out five ways (ty -178…-249) and the last
+    // six frames of the beat jumped between them (2026-11-11). A step is measured only on laid-out probes.
+    if (need.length && !ready()) return false;
     // THE FRAMING IN FORCE: a step's own framing, unless it was refused or is too alike to the one before it to be a
     // cut — then the picture simply stays as it was (a jump cut reads as the picture slipping)
     let eff: Framing | null = null;
@@ -470,20 +502,53 @@ const CoverageOn: React.FC<{plan: CoverStep[]; items: Record<string, string> | n
     const z = zone.current;
     if (z) {
       const bt = contentBottom(W, H), fade = Math.round(H * BAND_FADE);
-      const m = eff ? `linear-gradient(to bottom, #000 0, #000 ${bt - fade}px, transparent ${bt}px)` : '';
+      // opaque down to the band, then fading over the band's top into the echo beneath (which starts AT the band):
+      // the fade sits where the echo paints only the register's ground, so neither a seam nor the unframed
+      // register's own labels show (both did when the fade ended at the band and the echo began above it)
+      const m = eff ? `linear-gradient(to bottom, #000 0, #000 ${bt}px, transparent ${bt + fade}px)` : '';
       z.style.webkitMaskImage = m;
       z.style.maskImage = m;
     }
     el.setAttribute('data-coverage', why);
+    return true;
+    };
+    if (apply()) return;
+    const handle = delayRender(`coverage: beat ${beat} waits for its probes to be laid out`, {timeoutInMilliseconds: 20000});
+    let done = false, raf = 0, tries = 0;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        continueRender(handle);
+      }
+    };
+    const tick = () => {
+      if (done) return;
+      if (apply()) finish();
+      else if (++tries > 240) {
+        // never laid out: say so and measure what there is, rather than hold the render until it times out
+        // eslint-disable-next-line no-console
+        console.warn(`[coverage] beat ${beat}: probes not laid out after ${tries} frames; measuring anyway`);
+        forced.current = true;
+        apply();
+        finish();
+      } else raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      finish();
+    };
   });
   return (
     <AbsoluteFill>
       {/* under a framed step, the register AS COMPOSED paints the caption band (its own ground there — registers keep
           the band empty), so the band is the beat's own ground whatever the register painted it. A duplicate whose
-          type is measured on the live layer: data-echo + aria-hidden, which every census skips. */}
+          type is measured on the live layer: data-echo + aria-hidden, which every census skips. It starts AT the band,
+          not under the framed layer's fade: from bandTop - fade it drew the UNFRAMED register's own labels through
+          that fade, a ghost 'Inside mic' under the framed one (ANC beat 11, 2026-11-11). */}
       {!framedNow ? null : (
         <AbsoluteFill data-echo="" aria-hidden
-          style={{clipPath: `inset(${contentBottom(W, H) - Math.round(H * BAND_FADE)}px 0 0 0)`, pointerEvents: 'none'}}>
+          style={{clipPath: `inset(${contentBottom(W, H)}px 0 0 0)`, pointerEvents: 'none'}}>
           {children}
         </AbsoluteFill>
       )}
@@ -495,7 +560,7 @@ const CoverageOn: React.FC<{plan: CoverStep[]; items: Record<string, string> | n
         return (
           <AbsoluteFill key={id} ref={(n: HTMLDivElement | null) => { if (n) probes.current.set(id, n); else probes.current.delete(id); }}
             aria-hidden data-echo="" data-coverage-probe="" style={{visibility: 'hidden', opacity: 0, pointerEvents: 'none'}}>
-            <Freeze frame={pf}>{children}</Freeze>
+            <Freeze frame={pf + lead}>{children}</Freeze>
           </AbsoluteFill>
         );
       }))}

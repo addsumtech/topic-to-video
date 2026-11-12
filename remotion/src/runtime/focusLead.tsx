@@ -16,8 +16,9 @@
 // holds another (the DOM does not separate them), or when a container would cover half the frame (that is the ground
 // or the whole figure, not a peer). Opacity only: the style engine writes `filter` on the same elements, and two
 // layers each restoring their own `filter` would read each other's writes as the register's.
-import React, {useLayoutEffect, useRef} from 'react';
+import React, {useContext, useLayoutEffect, useRef} from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
+import {PictureLeadContext} from './motion';
 
 export type FocusStep = {t: number; key: string | null};
 
@@ -112,7 +113,8 @@ export const FocusLayer: React.FC<{plan?: FocusStep[] | null; items?: Record<str
 const FocusLayerOn: React.FC<{plan: FocusStep[]; items: Record<string, string>; children: React.ReactNode}> =
   ({plan, items, children}) => {
   const ref = useRef<HTMLDivElement>(null);
-  const frame = useCurrentFrame();
+  // the plan is on the voice's clock; under a carried cut the picture's runs ahead (runtime/motion PictureLeadContext)
+  const frame = useCurrentFrame() - useContext(PictureLeadContext);
   const {fps, width, height} = useVideoConfig();
   const touched = useRef<HTMLElement[]>([]);
   useLayoutEffect(() => {

@@ -182,3 +182,34 @@ def test_the_gate_judges_the_spoken_word_in_its_own_colour(tmp_path):
     core, edge = cc.caption_mask(rec, W, H, rec["hl_runs"])
     melt, ink = cc.judge_frame(np.asarray(comp), core, edge)
     assert max(abs(int(a) - b) for a, b in zip(ink, rec["hl"])) <= 3 and melt == 0.0, (ink, rec["hl"])
+
+
+# ── the Remotion tier: the ground beside the caption block, from the census lines (2026-11-12) ────────────────────
+def _rm_frame(bar_x=None, bar_w=24, ground=(200, 200, 200)):
+    import numpy as np
+    f = np.zeros((1080, 1920, 3), np.uint8)
+    f[:] = ground
+    if bar_x is not None:
+        f[:, bar_x:bar_x + bar_w] = (30, 30, 30)       # a dark object running down through the caption band
+    return f
+
+
+_RM_LINES = [{"x": 220.0, "y": 983.0, "w": 680.0, "h": 55, "o": 1, "t": "WorkBuddy breaks the task down,", "px": 45}]
+
+
+def test_a_dark_bar_behind_a_dark_caption_letter_is_found():
+    """WorkBuddy beat 6: a laptop bezel behind 'Wo', dark ink on dark — a letter-wide window mostly melted."""
+    inks = cc._caption_inks()
+    block = cc.caption_blocks(_RM_LINES, 1920, 1080)
+    assert len(block) == 1
+    share, ink, x = cc.judge_caption_block(_rm_frame(bar_x=230, bar_w=40), block, inks)
+    assert share >= cc.RM_LETTER_ERROR and ink.sum() < 100 and 200 <= x <= 240
+    clean = cc.judge_caption_block(_rm_frame(), block, inks)
+    assert clean[0] == 0.0
+    thin = cc.judge_caption_block(_rm_frame(bar_x=500, bar_w=4), block, inks)
+    assert thin[0] < cc.RM_LETTER_WARN, "a hairline behind the line is not a lost letter"
+
+
+def test_only_the_caption_bands_lines_are_the_caption():
+    lines = _RM_LINES + [{"x": 100.0, "y": 300.0, "w": 400.0, "h": 40, "o": 1, "t": "a register's own type", "px": 30}]
+    assert [round(b[2]) for b in cc.caption_blocks(lines, 1920, 1080)] == [983]

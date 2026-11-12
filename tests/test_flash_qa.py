@@ -52,3 +52,24 @@ def test_a_clean_film_passes(tmp_path):
     v = tmp_path / "out.mp4"
     _video(v, frames)
     assert flash_qa.flashes(str(v)) == []
+
+
+def _edge_film(start, picture, end, n=120):
+    """Grey frames: a 16-frame veil from `start` into `picture`, the picture, a 16-frame veil out to `end`."""
+    import numpy as np
+    y = [picture] * n
+    for k in range(16):
+        y[k] = start + (picture - start) * k / 16.0
+        y[n - 16 + k] = picture + (end - picture) * (k + 1) / 16.0
+    return [np.full((90, 160), v, np.int16) for v in y]
+
+
+def test_a_dark_film_that_enters_or_leaves_through_white_is_a_flash():
+    """WorkBuddy (2026-11-12): a light DNA's near-white veil on a dark first and last beat — in from white, out to
+    white; 16 frames each, so the 1-2 frame rule never saw them. Fading to/from black or the picture's own ground passes."""
+    import flash_qa as fq
+    got = fq.edge_washes(fr=_edge_film(240, 30, 240))
+    assert [w["edge"] for w in got] == ["in", "out"], got
+    assert fq.edge_washes(fr=_edge_film(0, 30, 0)) == []
+    assert fq.edge_washes(fr=_edge_film(235, 225, 235)) == [], "a light film fading on its own light ground is no flash"
+    assert fq.edge_washes(fr=_edge_film(0, 225, 0)) == [], "a light film fading from and to black is no flash"

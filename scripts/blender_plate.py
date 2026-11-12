@@ -349,11 +349,15 @@ def screen_command(out_dir, spec, frames, dest):
     return cmd, kw, props
 
 
+def _screen_key(spec, frames, code):
+    return hashlib.sha256(json.dumps([spec["screen"], int(frames), code], sort_keys=True,
+                                     ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
 def _screen_ready(out_dir, spec, frames, pd):
     """The plate's screen pictures for these inputs, rendered once: `<plate>/screen/` with the key it was drawn for."""
     dest = os.path.join(pd, "screen")
-    key = hashlib.sha256(json.dumps([spec["screen"], int(frames), screen_code(out_dir, spec["screen"])], sort_keys=True,
-                                    ensure_ascii=False).encode("utf-8")).hexdigest()
+    key = _screen_key(spec, frames, screen_code(out_dir, spec["screen"]))
     rec = os.path.join(pd, "screen.json")
     try:
         same = json.load(open(rec, encoding="utf-8")).get("key") == key and \
@@ -412,8 +416,9 @@ def scene_imports(scene_path, bdir):
     return sorted(seen)
 
 
-def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version, folder_wide=False):
-    """What a plate is a function of: its scene, the kit, its assets, the cue times it uses, its frame and engine."""
+def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version, folder_wide=False, screen_sig=None):
+    """What a plate is a function of: its scene, the kit, its assets, the cue times it uses, its frame and engine.
+    `screen_sig` stands in for the screen's code hash (screen_rekey asks: is the screen code the ONLY thing changed?)."""
     h_ = hashlib.sha256()
     def put(*parts):
         for p in parts:
@@ -421,7 +426,8 @@ def plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version, folder_w
             h_.update(b"\0")
     put("scene", spec["scene"], _code_sha(scene_path(out_dir, spec["scene"])))
     if spec.get("screen"):
-        put("screen", json.dumps(spec["screen"], sort_keys=True, ensure_ascii=False), screen_code(out_dir, spec["screen"]))
+        put("screen", json.dumps(spec["screen"], sort_keys=True, ensure_ascii=False),
+            screen_sig if screen_sig is not None else screen_code(out_dir, spec["screen"]))
     if spec.get("params"):
         put("params", json.dumps(spec["params"], sort_keys=True, ensure_ascii=False))
     # a scene may import helpers beside it (two plates sharing one satellite): the helpers IT imports, transitively —
@@ -453,6 +459,151 @@ def key_matches(stored, spec, out_dir, frames, fps, w, h, cue_t, blender_version
     plate built before 2026-11-05 carries — the same plate, so it is not rebuilt for a change in what keys cover."""
     a = (spec, out_dir, frames, fps, w, h, cue_t, blender_version)
     return stored in (plate_key(*a) + suffix, plate_key(*a, folder_wide=True) + suffix)
+
+
+# THE SCREEN'S RENDER NOISE. The screen render is not bit-deterministic: two renders of the same code differ on ~25 of
+# 227 frames by ~26 anti-aliased edge pixels of a 2560x1664 texture (WorkBuddy plan-3d, measured 2026-11-12, both
+# between two renders of one tree and between the build and today's code). A re-key accepts pictures within this bound
+# of the ones the plate was textured with: the plate draws its screen below the texture's own pixels (SCREEN_MAG), so 64
+# texture pixels cannot become a visible change, while any real change to the interface — a glyph, an icon, a moved
+# row — moves hundreds.
+SCREEN_NOISE_PX = 64
+
+
+def screen_difference(a_dir, b_dir):
+    """(frames that differ, the most pixels any frame differs by) between two folders of screen pictures — None when
+    their frames do not pair up."""
+    import numpy as np
+    from PIL import Image
+    fa = sorted(x for x in os.listdir(a_dir) if x.endswith(".png"))
+    if not fa or fa != sorted(x for x in os.listdir(b_dir) if x.endswith(".png")):
+        return None
+    n = worst = 0
+    for f in fa:
+        if _file_sha(os.path.join(a_dir, f)) == _file_sha(os.path.join(b_dir, f)):
+            continue
+        a = np.asarray(Image.open(os.path.join(a_dir, f)).convert("RGBA"))
+        b = np.asarray(Image.open(os.path.join(b_dir, f)).convert("RGBA"))
+        if a.shape != b.shape:
+            return None
+        px = int((a != b).any(-1).sum())
+        if px:
+            n, worst = n + 1, max(worst, px)
+    return n, worst
+
+
+def only_screen_code_changed(built, spec, out_dir, frames, fps, w, h, cue_t, blender_version):
+    """Is the screen's CODE the only input of this built plate that changed? The screen code is the whole Remotion
+    library (remotion_segments.code_hash), so any runtime edit changes it — and a plate costs an hour of Blender
+    (WorkBuddy plan-3d, 2026-11-12: 83 min, staled by a runtime line that cannot change its screen's pixels)."""
+    sig = (built or {}).get("screen_code")
+    if not spec.get("screen") or not sig or built.get("preview") or built.get("layout"):
+        return False
+    return built.get("key") == plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version, screen_sig=sig) \
+        and sig != screen_code(out_dir, spec["screen"])
+
+
+def screen_rekey(out_dir, spec, frames, fps, w, h, cue_t, blender_version):
+    """When only the screen's code changed: render the screen's pictures under the code as it is now and, if they match
+    the ones the plate was textured with (within SCREEN_NOISE_PX a frame), the plate IS the plate of these inputs —
+    re-key it, no Blender. Otherwise False, and the plate is rebuilt as before. (re-keyed?, note)."""
+    pd = plate_dir(out_dir, spec["id"])
+    pj, have = os.path.join(pd, "plate.json"), os.path.join(pd, "screen")
+    try:
+        built = json.load(open(pj, encoding="utf-8"))
+    except (OSError, ValueError):
+        return False, ""
+    if not os.path.isdir(have) or not only_screen_code_changed(built, spec, out_dir, frames, fps, w, h, cue_t,
+                                                              blender_version):
+        return False, ""
+    check = os.path.join(pd, "screen_check")
+    render_screen(out_dir, spec, frames, check)
+    try:
+        d = screen_difference(have, check)
+    finally:
+        shutil.rmtree(check, ignore_errors=True)
+    if d is None or d[1] > SCREEN_NOISE_PX:
+        return False, ("the screen's pictures changed (%s) — rebuilding" % (
+            "frames do not pair up" if d is None else "%d frame(s), up to %d px" % d))
+    sc = screen_code(out_dir, spec["screen"])
+    with open(os.path.join(pd, "screen.json"), "w", encoding="utf-8") as fh:     # these pictures ARE today's
+        json.dump({"key": _screen_key(spec, frames, sc), "shot": spec["screen"]["shot"], "px": spec["screen"]["px"],
+                   "frames": frames}, fh)
+    built.update(key=plate_key(spec, out_dir, frames, fps, w, h, cue_t, blender_version), screen_code=sc,
+                 rekeyed=built.get("rekeyed", 0) + 1)
+    with open(pj, "w", encoding="utf-8") as fh:
+        json.dump(built, fh, ensure_ascii=False, indent=1)
+    return True, "%d frame(s) differ by up to %d px of render noise (bound %d)" % (d[0], d[1], SCREEN_NOISE_PX)
+
+
+# A STALE KEY IS NOT ALWAYS A CHANGED PICTURE. The key covers the whole kit and the runner, so any kit edit stales every
+# plate in every film — ANC's three earbud plates (scenes that import no kit module) went stale for a MacBook's screen
+# code (2026-11-12). `--verify` asks the pictures instead: three stills under the code as it is now, against the
+# delivered plate's own frames (decoded), within the encoder's noise. Measured on those plates: mean 0.14-0.30 grey
+# levels, p99 2, so a real change — a light, a material, a moved camera — is far outside these bounds.
+VERIFY_MEAN, VERIFY_P99, VERIFY_HOT, VERIFY_HOT_SHARE = 1.0, 8.0, 24.0, 0.0005
+
+
+def _plate_frame(pd, n, dest):
+    """Frame n (1-based) of a built plate, decoded with its alpha, to `dest` (PNG)."""
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-c:v", "libvpx-vp9", "-i", os.path.join(pd, "plate.webm"),
+                        "-vf", "select=eq(n\\,%d)" % (n - 1), "-frames:v", "1", "-pix_fmt", "rgba", dest],
+                       capture_output=True, text=True)
+    return r.returncode == 0 and os.path.exists(dest)
+
+
+def picture_difference(a_png, b_png):
+    """{mean, p99, hot} of the premultiplied difference of two RGBA pictures (grey levels), or None if they differ in size."""
+    import numpy as np
+    from PIL import Image
+    a = np.asarray(Image.open(a_png).convert("RGBA")).astype(np.float64)
+    b = np.asarray(Image.open(b_png).convert("RGBA")).astype(np.float64)
+    if a.shape != b.shape:
+        return None
+    d = np.abs(a[..., :3] * a[..., 3:4] / 255 - b[..., :3] * b[..., 3:4] / 255).max(-1)
+    d = np.maximum(d, np.abs(a[..., 3] - b[..., 3]))
+    return {"mean": round(float(d.mean()), 3), "p99": round(float(np.percentile(d, 99)), 2),
+            "hot": round(float((d > VERIFY_HOT).mean()), 6)}
+
+
+def verify_rekey(out_dir, pid):
+    """(re-keyed?, [per-frame differences], note) for one stale plate: three stills under today's code against its
+    delivered frames. Re-keys only when every still is within the encoder's noise, recording the evidence."""
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    i = next((i for i, _s, spec in _plates_on(board, out_dir) if spec["id"] == pid), None)
+    if i is None:
+        raise PlateError("no plate %r on this board" % pid)
+    st = plate_state(out_dir, board, i)
+    if st == "fresh":
+        return False, [], "fresh — nothing to verify"
+    if st not in ("stale", "screen-stale"):
+        return False, [], "%s — only a built, full plate is verified" % st
+    pd = plate_dir(out_dir, pid)
+    built = json.load(open(os.path.join(pd, "plate.json"), encoding="utf-8"))
+    ka = _key_args(out_dir, board, i)
+    if int(built.get("frames") or 0) != ka["frames"] or built.get("cues", {}) != ka["cue_t"]:
+        return False, [], "its frame count or cue times changed — the motion is different; rebuild it"
+    n = ka["frames"]
+    diffs = []
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        for f in sorted({max(1, n // 4), max(1, n // 2), max(1, (3 * n) // 4)}):
+            rep = build(out_dir, only=pid, still=f)
+            still = rep[0]["path"]
+            ref = os.path.join(tmp, "ref_%04d.png" % f)
+            if not _plate_frame(pd, f, ref):
+                return False, diffs, "could not decode frame %d of the built plate" % f
+            d = picture_difference(still, ref)
+            diffs.append(dict(d or {}, frame=f))
+            if d is None or d["mean"] > VERIFY_MEAN or d["p99"] > VERIFY_P99 or d["hot"] > VERIFY_HOT_SHARE:
+                return False, diffs, "frame %d differs (%s) — the picture changed; rebuild it" % (f, d)
+    built.update(key=plate_key(**ka), verified=diffs, verified_note="re-keyed by --verify: three stills under the "
+                 "current code match the delivered frames within encode noise")
+    if ka["spec"].get("screen"):
+        built["screen_code"] = screen_code(out_dir, ka["spec"]["screen"])
+    with open(os.path.join(pd, "plate.json"), "w", encoding="utf-8") as fh:
+        json.dump(built, fh, ensure_ascii=False, indent=1)
+    return True, diffs, "re-keyed — three stills match the delivered frames within encode noise"
 
 
 def _frame_facts(out_dir, board, i):
@@ -488,7 +639,8 @@ def _key_args(out_dir, board, i):
 
 
 def plate_state(out_dir, board, i):
-    """'missing' | 'stale' | 'fresh' | 'preview' | 'layout': is slide i's built plate the one its board, scene and voice ask for now?"""
+    """'missing' | 'stale' | 'screen-stale' | 'fresh' | 'preview' | 'layout': is slide i's built plate the one its board,
+    scene and voice ask for now? 'screen-stale': only the screen's code changed (build re-keys it if its pictures match)."""
     spec = spec_of(board["slides"][i], out_dir)
     pj = os.path.join(plate_dir(out_dir, spec["id"]), "plate.json")
     try:
@@ -499,7 +651,10 @@ def plate_state(out_dir, board, i):
         return "preview"
     if built.get("layout"):
         return "layout"
-    return "fresh" if key_matches(built.get("key"), **_key_args(out_dir, board, i)) else "stale"
+    ka = _key_args(out_dir, board, i)
+    if key_matches(built.get("key"), **ka):
+        return "fresh"
+    return "screen-stale" if only_screen_code_changed(built, **ka) else "stale"
 
 
 _IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".exr", ".hdr", ".webp")
@@ -564,9 +719,16 @@ def validate_blender(board, out_dir):
         elif st == "layout":
             errors.append("blender (beat %s): plate %r is a LAYOUT pass (the objects' silhouettes, no picture) — build it "
                           "for delivery: scripts/blender_plate.py %s --only %s" % (slide.get("index"), spec["id"], out_dir, spec["id"]))
+        elif st == "screen-stale":
+            errors.append("blender (beat %s): plate %r was built under other screen code (only the Remotion code its "
+                          "screen is drawn by changed) — scripts/blender_plate.py %s --only %s re-renders the screen and "
+                          "re-keys the plate in about a minute if its pictures are unchanged, else rebuilds it"
+                          % (slide.get("index"), spec["id"], out_dir, spec["id"]))
         elif st == "stale":
             errors.append("blender (beat %s): plate %r is stale (its scene, kit, assets, cue times or beat length changed) — "
-                          "rebuild it: scripts/blender_plate.py %s --only %s" % (slide.get("index"), spec["id"], out_dir, spec["id"]))
+                          "rebuild it: scripts/blender_plate.py %s --only %s (when only code its scene does not use "
+                          "changed, add --verify: three stills against its frames, re-keyed if unchanged)"
+                          % (slide.get("index"), spec["id"], out_dir, spec["id"]))
     return errors, warns
 
 
@@ -775,8 +937,15 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
         if fresh and still is None:
             reports.append({"id": spec["id"], "state": "fresh"})
             continue
+        if still is None and not preview and not layout:
+            rk, note = screen_rekey(out_dir, spec, frames, fps, w, h, cue_t, version)
+            if rk:
+                reports.append({"id": spec["id"], "state": "rekeyed", "note": note})
+                continue
+            if note:
+                print("[blender_plate] %s: %s" % (spec["id"], note))
         todo.append((slide, spec, frames, fps, w, h, cue_t, key))
-    est = sum(estimate_seconds(t[1], 1 if still else t[2], preview, layout, measured_sec_per_frame(out_dir, t[1]))
+    est = sum(estimate_seconds(t[1], 1 if still is not None else t[2], preview, layout, measured_sec_per_frame(out_dir, t[1]))
               for t in todo)
     budget = float(meta.get("blender_budget_min", DEFAULT_BUDGET_MIN)) * 60
     if todo and est > budget and not yes:
@@ -788,7 +957,7 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
         _pg.write(out_dir, "layout" if layout else "plates", n_done, len(todo), spec["id"])
         pd = plate_dir(out_dir, spec["id"])
         os.makedirs(pd, exist_ok=True)
-        work = os.path.join(pd, (".still-" if still else ".work-") + key[:12])
+        work = os.path.join(pd, (".still-" if still is not None else ".work-") + key[:12])
         for d in os.listdir(pd):
             if d.startswith(".work-") and os.path.join(pd, d) != work:
                 shutil.rmtree(os.path.join(pd, d), ignore_errors=True)    # a partial of an OLDER key: never mixed in
@@ -798,9 +967,11 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
                "--fps", str(fps), "--w", str(w), "--h", str(h), "--engine", spec["engine"], "--mode", spec["mode"],
                "--cues", json.dumps(cue_t, ensure_ascii=False), "--anchors", ",".join(spec["anchors"]),
                "--objects", ",".join(spec["objects"]), "--samples", str(PREVIEW_SAMPLES if preview else FULL_SAMPLES)] \
-            + (["--still", str(still)] if still else []) + (["--layout"] if layout else []) \
+            + (["--still", str(still)] if still is not None else []) + (["--layout"] if layout else []) \
             + ["--params", json.dumps(spec.get("params") or {}, ensure_ascii=False)]
+        scr_code = None
         if spec.get("screen"):
+            scr_code = screen_code(out_dir, spec["screen"])
             cmd += ["--screen", _screen_ready(out_dir, spec, frames, pd)]
         import time as _time
         t0 = _time.time()
@@ -809,7 +980,7 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
         if rc != 0:
             tail = open(log, encoding="utf-8", errors="replace").read()[-1500:] if os.path.exists(log) else ""
             raise PlateError("Blender failed on plate %r (exit %d); its log %s ends:\n%s" % (spec["id"], rc, log, tail))
-        if still:
+        if still is not None:
             reports.append({"id": spec["id"], "state": "still", "path": os.path.join(work, "still_%04d.png" % still)})
             continue
         run = json.load(open(os.path.join(work, "run.json"), encoding="utf-8"))
@@ -837,12 +1008,13 @@ def build(out_dir, only=None, yes=False, still=None, preview=False, layout=False
             json.dump({"key": key, "frames": frames, "fps": fps, "w": w, "h": h, "mode": spec["mode"],
                        "engine": spec["engine"], "why": spec["why"], "blender": version, "seconds": secs, "ids": run.get("ids") or {},
                        "estimate": round(estimate_seconds(spec, frames, preview, layout), 1), "cues": cue_t, "assets": spec["assets"], "preview": bool(preview),
-                       "layout": bool(layout), "reuse": run.get("reuse"), "reuse_off": run.get("reuse_off")},
+                       "layout": bool(layout), "reuse": run.get("reuse"), "reuse_off": run.get("reuse_off"),
+                       "screen_code": scr_code},
                       fh, ensure_ascii=False, indent=1)
         shutil.rmtree(work, ignore_errors=True)
         reports.append({"id": spec["id"], "state": "built", "seconds": secs, "estimate": round(estimate_seconds(spec, frames, preview, layout), 1),
                         "reuse": run.get("reuse"), "reuse_off": run.get("reuse_off"), "layout": layout})
-    if not still:
+    if still is None:
         write_plates_ts(out_dir)
     return reports
 
@@ -873,7 +1045,8 @@ def layout_gate(out_dir, only=None, yes=False):
     for i, _s, spec in _plates_on(board, out_dir):
         if (only and spec["id"] != only) or not spec["objects"]:
             continue
-        if plate_state(out_dir, board, i) == "fresh" or layout_passed(out_dir, board, i):
+        # the layout (ID pass, anchors) does not see the screen's pictures: a screen-only change needs none
+        if plate_state(out_dir, board, i) in ("fresh", "screen-stale") or layout_passed(out_dir, board, i):
             continue
         need[spec["id"]] = i
     if not need:
@@ -906,9 +1079,28 @@ def main(argv=None):
     ap.add_argument("--skip-layout", action="store_true", help="build pictures without first passing the layout")
     ap.add_argument("--preview", action="store_true", help="half size, %d samples: to look at motion and layout; "
                     "validate refuses it for delivery" % PREVIEW_SAMPLES)
+    ap.add_argument("--verify", action="store_true", help="for a STALE plate (--only): render three stills under the "
+                    "code as it is now and re-key the plate if they match its delivered frames within encode noise")
     a = ap.parse_args(argv)
+    if a.verify:
+        if not a.only:
+            ap.error("--verify needs --only <plate id>")
+        try:
+            ok, diffs, note = verify_rekey(a.out_dir, a.only)
+        except (BlenderMissing, PlateError) as e:
+            print("[blender_plate] NOT VERIFIED — %s" % e)
+            return 1
+        for d in diffs:
+            print("[blender_plate] %s frame %s: mean %.2f, p99 %.1f, hot %.4f%%" % (a.only, d.get("frame"), d.get("mean", -1),
+                                                                                  d.get("p99", -1), 100 * d.get("hot", 0)))
+        print("[blender_plate] %s: %s" % (a.only, note))
+        return 0 if ok else 5
+    # frames count from 1 (blender/runner.py poses frame F at (F - 1) / fps). `--still 0` used to read as "no still" —
+    # every check was `if still` — and built the WHOLE plate: 41 minutes of Cycles for a look at one frame (2026-11-12)
+    if a.still is not None and a.still < 1:
+        ap.error("--still counts frames from 1 (got %d)" % a.still)
     try:
-        if not (a.still or a.preview or a.layout or a.skip_layout):
+        if not (a.still is not None or a.preview or a.layout or a.skip_layout):
             ok, lines = layout_gate(a.out_dir, only=a.only, yes=a.yes)
             for ln in lines:
                 print(ln)
@@ -935,6 +1127,9 @@ def main(argv=None):
                                                  ru.get("patch", 0), "; reuse off: %s" % r["reuse_off"] if r.get("reuse_off") else ""))
         elif r["state"] == "still":
             print("[blender_plate] %s: still -> %s" % (r["id"], r["path"]))
+        elif r["state"] == "rekeyed":
+            print("[blender_plate] %s: re-keyed — only its screen's code changed, and the screen re-rendered under it "
+                  "matches the pictures the plate was built with: %s (no Blender)" % (r["id"], r["note"]))
         else:
             print("[blender_plate] %s: fresh" % r["id"])
     if not reps:

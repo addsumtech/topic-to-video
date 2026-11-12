@@ -66,6 +66,15 @@ Film.tsx applies it (CutCarry) when render_remotion turns it on (`cut_carry_on`:
 **Smallest real use:** `const {x, s} = cutCarryAt(frame, durF, TR, inCut, outCut, W)`
 **Exports:** `cutCarryAt`, `cutFrame`, `CARRY_F`, `CARRY_DRIFT`, `CARRY_LEAN`, `Carry`.
 
+### `idScope`
+SVG ids are global to the document, and a render tab mounts two beats under every seam: a literal `url(#pool)` in the
+arriving beat resolves to the LEAVING beat's gradient until it unmounts (WorkBuddy beat 10's light switched off six
+frames after its cut). Film.tsx wraps every beat (`b<i>`) and every stage run (`r<first>`) in an IdScope, which suffixes
+each `id` beneath it and rewrites the `url(#…)`, `href` and `style` references that point at them, on every commit.
+**Reach for it:** never from a register — Film scopes every beat; read it to know why ids in the DOM carry `__b<i>`.
+**Smallest real use:** `<IdScope scope="b3"><Beat /></IdScope>`
+**Exports:** `IdScope`, `scopeIds`.
+
 ### `timeGrammar`
 A beat's time as grammar, on the register's clock (Film.tsx BeatClock, before the sync warp): `hits` (hit-stop),
 `freeze` (a look), `sakuga` (held drawings into ones). Every pause is repaid at up to 2x so later cues still land.

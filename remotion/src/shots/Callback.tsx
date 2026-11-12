@@ -16,6 +16,7 @@ import {leading} from '../runtime/cjkType';
 import {useGlide} from '../runtime/glide';
 import {useTeaser} from '../runtime/teaser';
 import {morph, type Rect} from '../runtime/layoutMorph';
+import {useCues, REACH_CUBIC} from '../runtime/cue';
 
 export const DURATION = 180; // 6 s
 
@@ -64,8 +65,11 @@ export const Callback: React.FC<{beats?: number[]; title?: string; note?: string
   });
   const fly = seg(t, 0.08, 0.5);
   const rects = morph(start, rest, fly, {stagger: 0.45, arc: 0.12});
-  const titleOn = easeOutCubic(clamp01(seg(t, 0.46, 0.62)));
-  const noteOn = easeOutCubic(clamp01(seg(t, 0.58, 0.72)));
+  // the closing line lands ON ITS WORD when the voice says it first (runtime/cue; uncued, the register's own windows):
+  // the topic-to-video promo spoke its title at 0.06 s and drew it at 2.03 s (2026-11-12)
+  const cue = useCues();
+  const titleOn = easeOutCubic(clamp01(seg(t, ...cue.win('title', 0.46, 0.62, REACH_CUBIC))));
+  const noteOn = easeOutCubic(clamp01(seg(t, ...cue.win('note', 0.58, 0.72, REACH_CUBIC))));
   // the closing line sits in the space the ring leaves: inside the ellipse, clear of every card
   const innerW = zone.w - 2 * cardW * 0.9, innerTop = zone.y + cardH * 0.9, innerH = zone.h - 2 * cardH * 0.9;
   const titlePx = Math.max(Math.round(U * 0.04), fitTextPx(title, Math.max(innerW, W * 0.3), Math.round(U * 0.085), {usable: 0.95}));

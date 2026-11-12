@@ -20,17 +20,19 @@ _SHOTS = os.path.join(_ROOT, "remotion", "src", "shots")
 _RUNTIME = os.path.join(_ROOT, "remotion", "src", "runtime")
 
 
-def test_a_shots_hash_covers_the_runtime_it_draws_with():
-    before = re_.source_hashes()
-    victim = os.path.join(_RUNTIME, "uiSurface.tsx")
-    backup = victim + ".bak"
-    shutil.copy2(victim, backup)
+def test_a_shots_hash_covers_the_runtime_it_draws_with(tmp_path):
+    # in a COPY of remotion/src: never the installed tree a render may be bundling (see _with_dna)
+    live_shots = re_._SHOTS
+    src = tmp_path / "src"
+    shutil.copytree(os.path.dirname(live_shots), src, ignore=shutil.ignore_patterns("node_modules"))
+    re_._SHOTS = str(src / "shots")
     try:
-        with open(victim, "a", encoding="utf-8") as fh:
+        before = re_.source_hashes()
+        with open(src / "runtime" / "uiSurface.tsx", "a", encoding="utf-8") as fh:
             fh.write("\n// touched by a test\n")
         after = re_.source_hashes()
     finally:
-        shutil.move(backup, victim)
+        re_._SHOTS = live_shots
     moved = {n for n in before if before[n] != after.get(n)}
     assert "SurfaceCarousel" in moved and "PointerTour" in moved, (
         "editing a shared primitive must invalidate the rows of every register drawn with it; moved: %s"
@@ -38,7 +40,6 @@ def test_a_shots_hash_covers_the_runtime_it_draws_with():
     assert "CinematicTitle" not in moved, (
         "and only those: invalidating the whole manifest on any runtime edit makes a 157-render re-sweep the "
         "price of touching anything, which is how a check stops being run")
-    assert re_.source_hashes() == before, "the test must leave the manifest's own hashes where it found them"
 
 
 def test_every_register_resolves_the_runtime_it_imports():
@@ -123,17 +124,26 @@ def _hashes():
 
 
 def _with_dna(edit):
-    """Apply `edit(src) -> src` to runtime/dna.tsx, return the set of registers whose hash moved."""
-    import register_energy as reg                                     # noqa: F401
-    p = _dna_path()
-    orig = open(p, encoding="utf-8").read()
-    before = _hashes()
-    try:
-        open(p, "w", encoding="utf-8").write(edit(orig))
-        after = _hashes()
-    finally:
-        open(p, "w", encoding="utf-8").write(orig)
-    assert _hashes() == before, "restoring dna.tsx did not restore the hashes"
+    """Apply `edit(src) -> src` to runtime/dna.tsx IN A COPY of remotion/src, return the set of registers whose hash
+    moved. Never the live tree: this is the installed skill, and a render or a plate keyed while the suite ran hashed
+    (and could bundle) the mutated file — WorkBuddy's plan-3d plate (83 min) carried a key no tree reproduces
+    (2026-11-12)."""
+    import shutil
+    import tempfile
+    import register_energy as reg
+    live_shots = reg._SHOTS
+    with tempfile.TemporaryDirectory() as d:
+        src = os.path.join(d, "src")
+        shutil.copytree(os.path.dirname(live_shots), src, ignore=shutil.ignore_patterns("node_modules"))
+        reg._SHOTS = os.path.join(src, "shots")
+        try:
+            p = _dna_path()
+            orig = open(p, encoding="utf-8").read()
+            before = _hashes()
+            open(p, "w", encoding="utf-8").write(edit(orig))
+            after = _hashes()
+        finally:
+            reg._SHOTS = live_shots
     return {n for n in before if before[n] != after.get(n)}
 
 
@@ -336,3 +346,23 @@ def test_a_symbol_reached_through_another_runtime_module_still_stales_the_regist
 
     assert edited("a + 'p'", "a + 'q'") != h0, "an edit to a symbol a runtime dep imports left the register fresh"
     assert edited("a + 'o'", "a + 'z'") == h0, "an edit to a symbol nothing in the tree imports staled the register"
+
+
+def test_no_key_is_taken_while_another_process_mutates_the_runtime(tmp_path, monkeypatch):
+    """The live tree is the installed skill: while a mutation test holds the sentinel, every code key refuses
+    (remotion_segments.code_hash) — the mutator's own process excepted."""
+    import pytest
+    import remotion_segments as rs
+    import cjk_type_qa as cq
+    rem = tmp_path / "remotion"
+    rem.mkdir()
+    sent = rem / ".textsafe-mutating"
+    monkeypatch.setattr(rs, "REMOTION", str(rem))
+    monkeypatch.setattr(cq, "_MUTATING", str(sent))
+    monkeypatch.setattr(cq, "_MUTATING_ORIG", str(sent) + ".orig")
+    rs.refuse_while_runtime_mutated()                                    # no sentinel: nothing to refuse
+    sent.write_text(str(os.getpid()))
+    rs.refuse_while_runtime_mutated()                                    # the mutator itself goes through
+    sent.write_text(str(os.getppid()))                                   # someone else, alive
+    with pytest.raises(RuntimeError, match="deliberately mutated"):
+        rs.refuse_while_runtime_mutated()

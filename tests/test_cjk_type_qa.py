@@ -1365,3 +1365,11 @@ def test_a_mutation_abandoned_by_a_killed_process_is_recovered(tmp_path, monkeyp
     sent.write_text(str(dead.pid))                                      # dead, but no original kept
     with pytest.raises(RuntimeError):
         c._refuse_if_instrument_is_mutated()
+
+
+def test_a_register_the_film_gives_no_chinese_is_not_failed_as_unfed():
+    """The English topic-to-video promo (one Chinese request on one beat, 2026-11-12) failed on three registers it
+    listed in the same breath as setting no Chinese of their own. On a film, unfed is judged only where Chinese exists."""
+    src = open(c.__file__, encoding="utf-8").read()
+    body = src.split("no_chinese, nofeed = sorted(nofeed), []")[1].split("notmeasured =")[0]
+    assert "unfed = {n: v for n, v in unfed.items() if n not in set(no_chinese)}" in body

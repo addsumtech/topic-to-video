@@ -17,6 +17,20 @@ export const SceneDurationContext = React.createContext<number | null>(null);
 // fully-revealed frame instead of animating — the flagship-tier equivalent of the html/image tier's static
 // variant. 0.86 lands in the "reveal complete, exit not begun" zone for the library's shots (mirrors the contest
 // still frame). Covers the 122 shots driven by useT; the ~10 that read useCurrentFrame directly are unaffected.
+// THE PICTURE'S LEAD over the voice, in frames. A beat that arrives by a carried cut (Film.tsx CutCarry) runs its
+// picture's clock ahead of the beat's own, so on the frame it appears it is mid-entrance. Everything timed to the VOICE
+// inside that clock (coverage's cuts, the focus lead's steps) subtracts it: WorkBuddy beat 17's first close-up was
+// planned for 0.8 s, after the entrance, and cut 0.3 s in — mid-entrance, nine frames after the seam (2026-11-11).
+export const PictureLeadContext = React.createContext<number>(0);
+
+// THE PICTURE'S END on its own clock: the frame (exclusive) this beat is unmounted at — its duration PLUS the lead. A
+// span meant to hold until the cut (a recording, a clip, the last of a run of films) ends HERE, never at the beat's
+// duration: under a carried cut the picture's clock reaches `dur` `lead` frames before the beat leaves, and a Sequence
+// ended there unmounts while the beat is still on screen. The topic-to-video promo (2026-11-12): six screens went black
+// for 8-10 frames before their cut (beats 9, 12, 13, 15, 16, 23) — every gate green, the clip simply over.
+// validate.py refuses a shot Sequence whose length is computed from the beat's duration without this.
+export const usePictureEnd = (dur: number): number => dur + React.useContext(PictureLeadContext);
+
 export const ReducedMotionContext = React.createContext<boolean>(false);
 export const REDUCED_MOTION_T = 0.86;
 

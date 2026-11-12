@@ -147,6 +147,12 @@ camera flies between). Three recipes:
   not follow `slide.ground` refuses one) — so give the lit staging its own film-local shot that declares the night
   ground and renders the window with the staging; and a beat that already frames one component oversized sets
   `"coverage": false`, or the punch-in lands on a close-up.
+  And one the rollout onto the published film taught (2026-11-11): the tilted plane's NEAR edge is the one the
+  perspective enlarges, so a plane sized to bleed off that side carries its rightmost UI out with it — the companion
+  on the input box and the third file tab ('coffee-market-da…') were cut by the frame on beats 5, 9 and 12, with every
+  type gate green (DOM rects are blind to the rotation). Size the plane so its near edge stays in frame (WorkBuddy:
+  84 % of the width from 7 %, was 97 % from 5 %) and only the FAR side may fall off; the oversized component is the
+  recipe that crops, and it crops on purpose.
 
 ## P6 · The product's own signature element does the telling [O]
 Nothing's Glyph Matrix plays spin-the-bottle; Dyson draws the data on its own screen, not as an overlay; HomePod mini
