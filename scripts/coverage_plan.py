@@ -13,9 +13,9 @@ THE RULES.
              MIN_SHOT_S between cuts instead of the lead's 1.2 s). After the last item the beat cuts back to the WHOLE
              for its closing END_WIDE_S — fragments first, the whole last.
   * punch    a beat with no named item and at least PUNCH_MIN_BEAT_S long cuts once, on a clause onset in the middle
-             of the beat, between the composition and a PUNCH crop around its centre. Beats alternate the order
-             (wide→punch, punch→wide) so a film of them is not one more metronome.
-  * never    a stage run (its stage moves its own camera); any authored camera, hero move or a hand-off arriving from
+             of the beat, from the composition IN to a PUNCH crop around its centre, and stays in until the cut (a
+             punch that cut back out to the same frame read as a zoom in and out — 2026-11-12).
+  * never    a stage run (its stage moves its own camera); a shot that declares `CAMERA = 'directed'`; any authored camera, hero move or a hand-off arriving from
              the beat before (two cameras on one frame); a beat shorter than MIN_BEAT_S; the first and the last beat
              (the opening and the end card are composed as they stand); a Blender/3D plate (a raster or a WebGL
              canvas cannot be magnified past its own pixels — the runtime refuses it too, this saves the probe);
@@ -98,6 +98,20 @@ def _is_plate(shot, props):
     return _SOURCE_CACHE[key]
 
 
+_DIRECTED = re.compile(r"^export const CAMERA\s*=\s*['\"]directed['\"]", re.M)
+
+
+def _directs_camera(shot):
+    """A shot that DIRECTS ITS OWN CAMERA (`export const CAMERA = 'directed'`: it frames, pushes and crops on purpose,
+    references/craft-standard.md). Coverage on top of it is a second camera on one frame: WorkBuddy v3's hero window
+    pushed into the part the voice named while coverage punched 1.3x into the same frame and cut back out — the user
+    saw "突然 zoom in，然后又 zoom out" (2026-11-12)."""
+    key = (tuple(_FILM_SHOTS), "directed", shot)
+    if key not in _SOURCE_CACHE:
+        _SOURCE_CACHE[key] = bool(_DIRECTED.search(_shot_source(shot)))
+    return _SOURCE_CACHE[key]
+
+
 def _seam_type(sc):
     return ((sc or {}).get("transitionIn") or {}).get("type")
 
@@ -129,7 +143,7 @@ def coverage_plan(sc, duration, index, n_beats, prev=None, nxt=None, enabled=Tru
         return None
     props, shot = sc.get("props") or {}, sc.get("shot") or ""
     spans, caption = sc.get("capWords") or [], sc.get("caption") or ""
-    if not spans or not caption or _is_plate(shot, props):
+    if not spans or not caption or _is_plate(shot, props) or _directs_camera(shot):
         return None
     wide_in = _seam_type(sc) in ANCHORED
     wide_out = _seam_type(nxt) in ANCHORED
@@ -153,11 +167,10 @@ def coverage_plan(sc, duration, index, n_beats, prev=None, nxt=None, enabled=Tru
         if not onsets:
             return None
         b = round(min(onsets, key=lambda t: abs(t - duration / 2)), 3)
-        punch = {"punch": PUNCH}
-        if index % 2 == 0 or wide_in:
-            steps = [{"t": 0.0, "frame": "wide"}, {"t": b, "frame": punch}]
-        else:
-            steps = [{"t": 0.0, "frame": punch}, {"t": b, "frame": "wide"}]
+        # ONE PUNCH GOES IN AND STAYS IN. It used to alternate (punch→wide on odd beats), but the entrance below must be
+        # wide, which turned every odd beat into wide → punch → wide: a zoom in at 0.8 s and back out to the same frame,
+        # 7 times in WorkBuddy v3 — "突然 zoom in，然后又 zoom out" (2026-11-12). Closer, then the cut, is one move.
+        steps = [{"t": 0.0, "frame": "wide"}, {"t": b, "frame": {"punch": PUNCH}}]
     # THE ENTRANCE STAYS WIDE: a framed step that would start inside it starts when it ends, the beat opening wide
     if steps and steps[0]["frame"] != "wide":
         steps = [{"t": 0.0, "frame": "wide"}] + [dict(x, t=max(x["t"], ENTRY_S)) for x in steps]

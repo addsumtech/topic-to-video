@@ -57,12 +57,28 @@ def test_a_long_beat_with_nothing_named_gets_one_punch_on_a_clause():
     assert lo * 7.0 <= steps[1]["t"] <= hi * 7.0
 
 
-def test_beats_alternate_the_order_of_the_punch():
+def test_a_punch_goes_in_and_stays_in_on_every_beat():
+    """The order used to alternate, and the wide entrance turned every odd beat into wide → punch → wide: a zoom in at
+    0.8 s and back out to the same frame, 7 times in WorkBuddy v3 ("突然 zoom in，然后又 zoom out", 2026-11-12)."""
     cap = "The wave travels through the air, and when it reaches your ear, the drum moves with it every time."
-    a = cp.coverage_plan(_scene(cap, {}, dur_s=7.0), 7.0, 4, 10)["coverage"]
-    b = cp.coverage_plan(_scene(cap, {}, dur_s=7.0), 7.0, 5, 10)["coverage"]
-    assert a[1]["frame"] == {"punch": cp.PUNCH} and b[1]["frame"] == {"punch": cp.PUNCH}
-    assert a[-1]["frame"] == {"punch": cp.PUNCH} and b[-1]["frame"] == "wide"     # punch late / punch early
+    for i in (3, 4, 5, 6):
+        steps = cp.coverage_plan(_scene(cap, {}, dur_s=7.0), 7.0, i, 10)["coverage"]
+        frames = [s["frame"] for s in steps]
+        assert frames == ["wide", {"punch": cp.PUNCH}], (i, steps)
+
+
+def test_a_shot_that_directs_its_own_camera_is_never_covered(tmp_path):
+    shots = tmp_path / "workshop" / "shots"
+    shots.mkdir(parents=True)
+    (shots / "Directed.tsx").write_text("export const CAMERA = 'directed';\nexport const Directed = () => null;\n")
+    (shots / "Plain.tsx").write_text("export const Plain = () => null;\n")
+    cap = "The wave travels through the air, and when it reaches your ear, the drum moves with it every time."
+    cp._FILM_SHOTS[:] = [str(shots)]
+    try:
+        assert cp.coverage_plan(dict(_scene(cap, {}, dur_s=7.0), shot="Directed"), 7.0, 4, 10) is None
+        assert cp.coverage_plan(dict(_scene(cap, {}, dur_s=7.0), shot="Plain"), 7.0, 4, 10) is not None
+    finally:
+        cp._FILM_SHOTS[:] = []
 
 
 def test_the_entrance_is_never_framed():

@@ -69,6 +69,10 @@ a designed poster; play it and the rhythm has weight.
   (`LitStage breathe`). Never a hand-held wobble.
 - Stagger along a curve (dense then sparse, or accelerating), never a constant gap.
 - Speed blur only on fast, large moves (`runtime/motionBlur SpeedBlur`). Nothing else gets blur.
+- **One camera per frame.** A shot that frames, pushes and crops on purpose declares `export const CAMERA = 'directed'`,
+  and the automatic coverage (`scripts/coverage_plan.py`) leaves it alone. Two cameras on one frame read as a zoom in and
+  back out (WorkBuddy v3, 2026-11-12). A hero object shown across consecutive beats CONTINUES its framing; it never
+  re-arrives (zooms out and back in) at every seam.
 - Type stays put: lay a panel out once (`runtime/surfaceView`) and move it with one transform. Settled text carries
   no transform and no filter.
 
