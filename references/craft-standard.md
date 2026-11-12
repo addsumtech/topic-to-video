@@ -8,7 +8,8 @@
 - **20 official launch films** from ClickUp, Perplexity, Slack, Figma, Bear, Pitch, Miro, Superhuman and Loom (plus
   Notion, Framer and Raycast from the 2026-11-10 study).
 
-Measured on the settled frame and the motion of each shot (a `craft_qa.py` gate that prints these per film is PLANNED, not built yet):
+Measured on the settled frame and the motion of each shot (the study's tools; for a film, `scripts/craft_qa.py` already
+reports stills, motion accents and hierarchy by beat against 28 launch films):
 
 | measure | peer before | peer after | our library (213) |
 |---|---|---|---|
@@ -18,6 +19,11 @@ Measured on the settled frame and the motion of each shot (a `craft_qa.py` gate 
 | samples with a still stretch over 1 s | 75 % | **53 %** | 85 % |
 | where a move peaks (0.5 = linear) | 0.43 | **0.35** | 0.41 |
 | blank first frame | 17 % | **3 %** | 11 % |
+
+On whole films, every 2 s (caption band excluded): content share / subject extent — **SaaS launch films 0.415 / 0.84**
+(12 films), Notion · Framer · Raycast · Linear · Arc 0.21 / 0.59, **ours 0.154 / 0.49** (5 films; WorkBuddy v2 0.32 / 0.87
+is the exception). An earlier corpus (skillry previews) put occupancy level with ours; against product launch films it
+is not.
 
 So the bar is not new techniques. It is every shot DESIGNED as a moment of a top launch film. Pause any frame and it is
 a designed poster; play it and the rhythm has weight.
@@ -81,5 +87,5 @@ a designed poster; play it and the rhythm has weight.
 ## The loop (per shot, at least two rounds)
 Render the shot at 30 / 60 / 90 % (`workshop.py still`) and put it beside the previous version. Name the three weakest
 things, fix them, and render again. Stop when the frame would not embarrass a launch film. A redesign is judged
-against the old shot on a compare page where the USER picks per beat (`scripts/compare_page.py`, PLANNED). A metric going up
+against the old shot on a compare page where the USER picks per beat (`scripts/compare_page.py <out.html> --old=<dir> --new=<dir>`). A metric going up
 supports the verdict; it is not the verdict.

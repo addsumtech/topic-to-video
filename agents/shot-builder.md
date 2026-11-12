@@ -58,6 +58,13 @@ report partial frames as findings.
 - **Cross-fades are linear** — every frame steps ≥ 0.06 opacity (jitter_qa's OPACITY_STEP). Eased ends crawl
   under it, and two copies of a line half-visible at once read as a 1–1.5 px false pop.
 
+## The craft standard (references/craft-standard.md — read it before your first shot)
+Build every shot from the craft kit (`runtime/craftStage`, `craftType`, `craftMotion`, `craftUi`), open each file with
+its DESIGN NOTE (look · subject and its size · composition · timing table · curves · content), set type from
+`TYPE_LADDER` (headline ≥ 120 px at 1080, read-it text ≥ 32 px), keep every hold alive (`holdPush`), and run the loop:
+render at 30/60/90 %, name the three weakest things, fix them, at least twice. A shot that is correct but looks like a
+template is not done.
+
 ## How to check your own work (renders are queued, not raced)
 `python3 scripts/workshop.py <out_dir> still <Name> --props <file> --frame N` renders one frame of one shot. Every
 `workshop.py still` render (and every render of the lead's design gates: shot_proof, text_safe_qa, energy_skeleton)

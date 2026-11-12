@@ -824,6 +824,23 @@ nothing; a push into a photograph, a plate, a schematic with detail in it is the
 what the beat's shot actually holds before marking it. `seam_plan.py` fills these on the same rule and skips any
 beat you authored.
 
+## The craft standard — every built shot (references/craft-standard.md; read it once per film)
+The bar is a moment of a top launch film, not a correct diagram: pause any frame and it is a designed poster. Measured
+on a peer library before and after its redesign, our registers sit where theirs did BEFORE (content share 0.078 vs 0.275,
+subject extent 0.30 vs 0.70, lit frames 0 vs 0.25). So:
+- **Build from the kit**, not from raw boxes: `runtime/craftStage` (LitStage, Dust/Orbs, Sheen, softShadow, surface),
+  `runtime/craftType` (TYPE_LADDER, TextReveal with accent words and a ghosted tail), `runtime/craftMotion` (EASE by
+  meaning, curve staggers, holdPush), `runtime/craftUi` (AppWindow, Cursor, Chip, FileBadge, StepRow, PromptBox, Toast).
+- **Every shot opens with its DESIGN NOTE** (look · subject and its size · composition · timing table · curves ·
+  content), in the comment at the top of the file, before the code.
+- **Type sizes from the ladder**: a beat's headline ≥ h1 (120 px at 1080), a type beat's line display/mega, read-it
+  text ≥ 32 px. (The older floors in this file — labels 30, titles 56 — are the error floor, not the target.)
+- **A product film follows the SaaS grammar**: one brand world plus one motif; the product's window as a persistent
+  hero whose beats are its states (establish, then push into the part the voice names); type beats alternating with
+  UI beats; one celebration moment; a closing lockup.
+- **The loop**: each shot at 30/60/90 % beside its previous version, the three weakest things fixed, and at least
+  two rounds. A redesign of a film is judged by the USER on a per-beat compare page.
+
 ## Craft-study decisions — six per film (references/craft-study.md; 28 published films measured against ours)
 
 Read `references/craft-study.md` once per film. What it measured, and what each decision now asks of you:
