@@ -424,3 +424,18 @@ lead-ins; `tests/test_shared_gates_are_on_both_paths.py` holds it).
 >    (A "still layer" is not always the cure: carrying Callback's teaser cards as composited bitmaps through their landing
 >    tilt raised their tiny type's tremble from 0.29 px to 0.35-0.71 px — a rotated, scaled bitmap samples worse than
 >    re-set type. Measured and reverted, 2026-11-12.)
+> 10. **Staging a film's interface as a lit object (Grok, 2026-11-12).**
+>    - **A generic film-level stage was worse.** It tilted the whole frame, ground and all, like a screenshot, and
+>      cut type to ~60%. Reverted.
+>    - **What worked was film-local** (Grok's `kit/LitCanvas`). It shows the shot's CONTENT AREA at 90% as a lit window
+>      standing on the film's own dark plate, with a held tilt, a light pool and a contact shadow. Each wrapped shot
+>      declares `GROUND` = the plate, and its staged beats set `coverage: false`.
+>    Four things the rollout surfaced:
+>    - **Every render branch must be wrapped.** Three shots had an early-return state left on white, under a white
+>      caption.
+>    - **A CSS `filter` on an overflow-visible SVG inside the perspective parent rasterised as a black box** on some
+>      frames (two flashes). The shadow belongs inside the SVG as a bounded SVG filter.
+>    - **An eased tilt re-set all type every frame** (a shimmer). The window stands still.
+>    - **Coverage read only library shots**, so it punched into a film's three.js Bots 1.3-1.7x past their pixels and
+>      its probes ran the tab out of WebGL contexts. `coverage_plan._is_plate` now reads the workshop and follows
+>      relative imports.

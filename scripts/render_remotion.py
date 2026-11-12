@@ -1112,7 +1112,7 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     # COVERAGE (scripts/coverage_plan.py, runtime/coverage.tsx): a beat cut between framings on its voice — after the
     # phrases, because a beat with an authored camera (and so phrase steps) is never also covered
     import coverage_plan as _cov
-    _cov.attach(props, slides, meta, fps, total=len(data.get("slides") or slides))
+    _cov.attach(props, slides, meta, fps, total=len(data.get("slides") or slides), out_dir=out_dir)
     for sc in props["scenes"]:
         sc.pop("captionOnScreen", None)
         if meta.get("caption_on_screen") is not False and caption_on_screen(sc):

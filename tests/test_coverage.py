@@ -289,3 +289,20 @@ def test_a_step_is_measured_only_on_laid_out_probes():
     assert "if (need.length && !ready()) return false;" in body
     assert "doc.fonts.status !== 'loaded'" in body and "p.offsetWidth > 0 && p.offsetHeight > 0" in body
     assert "delayRender(`coverage: beat" in body and "continueRender(handle)" in body
+
+
+def test_a_film_shot_that_draws_webgl_through_its_kit_is_never_covered(tmp_path):
+    """Grok Bot's 3D Bots draw their canvas in kit/Canvas3D (ThreeCanvas); coverage read only the library, so it punched
+    them 1.3-1.7x past their pixels and its probes ran the render tab out of WebGL contexts (2026-11-12)."""
+    import coverage_plan as cp
+    shots = tmp_path / "workshop" / "shots"
+    (shots / "kit").mkdir(parents=True)
+    (shots / "kit" / "Canvas3D.tsx").write_text("import {ThreeCanvas} from '@remotion/three';\nexport const C = () => null;\n")
+    (shots / "Hero3D.tsx").write_text("import {C} from './kit/Canvas3D';\nexport const Hero3D = () => null;\n")
+    (shots / "Flat.tsx").write_text("import React from 'react';\nexport const Flat = () => null;\n")
+    cp._FILM_SHOTS[:] = [str(shots)]
+    try:
+        assert cp._is_plate("Hero3D", {}) is True
+        assert cp._is_plate("Flat", {}) is False
+    finally:
+        cp._FILM_SHOTS[:] = []

@@ -48,22 +48,54 @@ _SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 _SOURCE_CACHE = {}
 
 
+_FILM_SHOTS = []           # the film's own workshop/shots, set by attach(out_dir=...): a film's 3D lives there
+_WEBGL = re.compile(r"@react-three|@remotion/three|ThreeCanvas|from 'three'|<Canvas\b|BlenderPlate|PlateImage")
+
+
+def _shot_source(shot):
+    """The shot's source AND every file it imports relatively (its kit), transitively — the film's workshop first."""
+    start = None
+    for d in _FILM_SHOTS + [None]:
+        if d is None:
+            for root, _d, files in os.walk(_SRC):
+                for f in files:
+                    if f in (shot + ".tsx", shot + ".ts"):
+                        start = os.path.join(root, f)
+                        break
+                if start:
+                    break
+        else:
+            for ext in (".tsx", ".ts"):
+                if os.path.isfile(os.path.join(d, shot + ext)):
+                    start = os.path.join(d, shot + ext)
+                    break
+        if start:
+            break
+    out, seen, todo = [], set(), [start] if start else []
+    while todo:
+        p = todo.pop()
+        if p in seen or not os.path.isfile(p):
+            continue
+        seen.add(p)
+        src = open(p, encoding="utf-8").read()
+        out.append(src)
+        for rel in re.findall(r"from\s+['\"](\.{1,2}/[^'\"]+)['\"]", src):
+            base = os.path.normpath(os.path.join(os.path.dirname(p), rel))
+            todo += [base + e for e in (".tsx", ".ts", "/index.tsx", "/index.ts")]
+    return "\n".join(out)
+
+
 def _is_plate(shot, props):
-    """A register that draws a raster plate or a WebGL scene (nothing to magnify past its pixels)."""
+    """A register that draws a raster plate or a WebGL scene: nothing to magnify past its pixels — and a coverage probe
+    is a second live copy of the beat, so a WebGL beat would open a context per probe. Read through the shot's own
+    imports and the film's workshop: Grok Bot's 3D Bots draw their canvas in kit/Canvas3D (`ThreeCanvas`), and its
+    beats were punched into 1.3-1.7x past their pixels while their probes ran the tab out of WebGL contexts (2026-11-12)."""
     if isinstance(props, dict) and ("plate" in props or "plates" in props):
         return True
-    if shot not in _SOURCE_CACHE:
-        src = ""
-        for root, _d, files in os.walk(_SRC):
-            for f in files:
-                if f in (shot + ".tsx", shot + ".ts"):
-                    with open(os.path.join(root, f), encoding="utf-8") as fh:
-                        src = fh.read()
-                    break
-            if src:
-                break
-        _SOURCE_CACHE[shot] = bool(re.search(r"@react-three|from 'three'|<Canvas\b|BlenderPlate|PlateImage", src))
-    return _SOURCE_CACHE[shot]
+    key = (tuple(_FILM_SHOTS), shot)
+    if key not in _SOURCE_CACHE:
+        _SOURCE_CACHE[key] = bool(_WEBGL.search(_shot_source(shot)))
+    return _SOURCE_CACHE[key]
 
 
 def _seam_type(sc):
@@ -142,9 +174,11 @@ def coverage_plan(sc, duration, index, n_beats, prev=None, nxt=None, enabled=Tru
     return out
 
 
-def attach(props, slides, meta, fps, total=None):
+def attach(props, slides, meta, fps, total=None, out_dir=None):
     """Set `coverage` (+ `coverageItems`) on every scene that gets a plan; clear stale ones. Returns how many.
-    `total` is the FILM's beat count: a one-beat sample is still judged by where its beat sits in the film."""
+    `total` is the FILM's beat count: a one-beat sample is still judged by where its beat sits in the film.
+    `out_dir`: the film, whose workshop shots are read for what they draw (a WebGL beat is never covered)."""
+    _FILM_SHOTS[:] = [os.path.join(out_dir, "workshop", "shots")] if out_dir else []
     on = meta.get("coverage") is not False and not props.get("reducedMotion")
     scenes = props["scenes"]
     total = total or len(scenes)
