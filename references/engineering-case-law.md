@@ -439,3 +439,9 @@ lead-ins; `tests/test_shared_gates_are_on_both_paths.py` holds it).
 >    - **Coverage read only library shots**, so it punched into a film's three.js Bots 1.3-1.7x past their pixels and
 >      its probes ran the tab out of WebGL contexts. `coverage_plan._is_plate` now reads the workshop and follows
 >      relative imports.
+>    **And the user's verdict on it: too deliberate.** "感觉都是黑色背景用一个斜的页面展示内容，是不是有点过于特意和重复，原有的那种也不差". Sixteen beats in one staging read as a device, not a
+>    film. Grok was reverted to its published cut: its light interface beats alternating with dark 3D beats were
+>    already the rhythm. The lit window is an ACCENT, for a few beats where the interface itself is the subject.
+>    It is never a pass over every interface beat, and it is never applied to a film that already has a working
+>    contrast of its own. (WorkBuddy keeps its eight: the user chose that re-light and it is that film's night-desk
+>    world.)
