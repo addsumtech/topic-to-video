@@ -26,3 +26,15 @@ def test_chinese_line_matches_through_punctuation():
 def test_only_a_register_whose_type_can_be_the_line():
     sc = {"shot": "FridgeLoop", "caption": "冷，是热被搬走了。", "props": {"lines": ["冷，是热被搬走了。"]}}
     assert not rr.caption_on_screen(sc)
+
+
+def test_a_film_s_own_type_beat_sets_the_line_when_it_says_so():
+    """A workshop type beat (lines of {text, accent}) that says the narration hides the burned caption, but only when it
+    declares `setsLine` — a shot that merely lists some words is not the line."""
+    lines = [{"text": "A report.", "accent": ["report"]}, {"text": "A spreadsheet."}, {"text": "A dashboard."}]
+    sc = {"shot": "TypeBeat", "caption": "A report. A spreadsheet. A dashboard.", "props": {"lines": lines, "setsLine": True}}
+    assert rr.caption_on_screen(sc)
+    sc["props"]["setsLine"] = False
+    assert not rr.caption_on_screen(sc)
+    sc["props"] = {"lines": [{"text": "A report."}], "setsLine": True}
+    assert not rr.caption_on_screen(sc)

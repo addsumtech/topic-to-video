@@ -1162,11 +1162,15 @@ def caption_on_screen(sc):
     caption would then set the same words twice, one of them designed (TE, Apple and Arc set the line itself and no
     caption at all). out.srt keeps the line either way. A headline that only shares some words is not the line."""
     import difflib
-    key = TYPE_SETS_LINE.get(sc.get("shot") or "")
+    props = sc.get("props") or {}
+    # a film's OWN type beat (a workshop shot) declares it with `setsLine: true` on its props: its `lines` are the line
+    key = TYPE_SETS_LINE.get(sc.get("shot") or "") or ("lines" if props.get("setsLine") is True else None)
     cap = sc.get("caption") or ""
     if not key or not cap:
         return False
-    val = (sc.get("props") or {}).get(key)
+    val = props.get(key)
+    if isinstance(val, list):
+        val = [x.get("text", "") if isinstance(x, dict) else x for x in val]
     text = " ".join(str(x) for x in val) if isinstance(val, list) else str(val or "")
     norm = lambda s: re.sub(r"[\W_]+", "", s.replace("*", "")).lower()
     a, b = norm(text), norm(cap)
