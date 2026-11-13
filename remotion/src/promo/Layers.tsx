@@ -12,7 +12,8 @@
 //   note   a callout without a leader
 import React from 'react';
 import {staticFile, useCurrentFrame} from 'remotion';
-import {span, track, useLook, SANS, MONO, alpha, isDarkHex, type Box, type Key} from './kit';
+import {span, track, useLook, SANS, MONO, alpha, isDarkHex, isCJK, type Box, type Key} from './kit';
+import {PageCamContext} from './PageCam';
 import {RiseLine} from './Cards';
 
 const urlOf = (src: string) => (/^(https?:|data:|\/)/.test(src) ? src : staticFile(src));
@@ -59,12 +60,13 @@ export const Lift: React.FC<LiftSpec & Common> = ({box, at, until, z = 90, scale
   const bob = Math.sin(((frame - at) / 42) * Math.PI * 2) * 3 * lift;
   const sw = span(frame, at + 8, at + 30, 'smooth');           // one sheen across the surface after it rises
   return (
-    <div style={{position: 'absolute', left: box.x, top: box.y, width: box.w, height: box.h, transformStyle: 'preserve-3d'}}>
+    <div style={{position: 'absolute', left: box.x, top: box.y, width: box.w, height: box.h}}>
       <div style={{position: 'absolute', inset: 0, borderRadius: radius, background: slot, opacity: Math.min(1, lift * 3)}} />
       {/* the accent light the element rises out of, blooming on the page under it */}
       <div style={{position: 'absolute', inset: -box.h * 0.4, borderRadius: radius * 4, opacity: lift * 0.9,
         background: `radial-gradient(closest-side, ${alpha(look.accent, 0.45)}, ${alpha(look.accent, 0)})`, filter: 'blur(6px)'}} />
-      <div style={{position: 'absolute', inset: 0, transform: `translateZ(${z * lift + bob}px) scale(${1 + (scale - 1) * lift})`, transformStyle: 'preserve-3d'}}>
+      {/* 2D on purpose: the page is ONE flattened layer (PageCam raster), so height reads as rise + scale + shadow */}
+      <div style={{position: 'absolute', inset: 0, transform: `translateY(${-(z * lift + bob) * 0.12}px) scale(${1 + (scale - 1) * lift})`}}>
         <Crop src={src} pageW={pageW} pageH={pageH} box={box} radius={radius} style={{left: 0, top: 0,
           boxShadow: `0 ${6 + 30 * lift}px ${10 + 70 * lift}px rgba(20,18,14,${0.08 + 0.22 * lift}), 0 0 0 ${1.5 * lift}px ${alpha(look.accent, 0.55 * lift)}`}} />
         {sheen && sw > 0 && sw < 1 ? (
@@ -164,11 +166,41 @@ export const Callout: React.FC<CalloutSpec & {leader?: boolean}> = ({x, y, lx, l
   const out = span(frame, until, until + 10, 'exit');
   if (frame < at - 1 || out >= 1) return null;
   const dark = isDarkHex(look.ground);
-  const right = lx >= x;
+  // KEEP THE LABEL ON THE FRAME. Its side and its clamp are decided ONCE, from where the camera puts it at the frame
+  // the label lands (and where it will be a second later), so a label never jumps sides mid-shot. Width estimated
+  // from its copy (Latin ~0.56 em, CJK 1 em, plus padding); rotation ignored, a margin covers it.
+  const cam = React.useContext(PageCamContext);
+  const em = (t: string) => Array.from(t).reduce((n, ch) => n + (isCJK(ch) ? 1 : 0.56), 0);
+  const labelW = Math.max(em(text.replace(/\*/g, '')) * size, kicker ? em(kicker) * size * 0.42 * 1.25 : 0) + 34;
+  const labelH = size * 1.25 + (kicker ? size * 0.42 + 4 : 0) + 20;
+  let LX = lx, LY = ly, right = lx >= x;
+  if (cam) {
+    const land = at + 16, later = Math.min(until, at + 46);
+    const fits = (lxx: number, side: boolean) => [land, later].every((f) => {
+      const p = cam.toScreen(f, lxx, ly), z0 = cam.poseAt(f).zoom, m = 24;
+      const x0 = side ? p.x : p.x - labelW * z0, x1 = side ? p.x + labelW * z0 : p.x;
+      return x0 >= m && x1 <= cam.W - m;
+    });
+    if (!fits(LX, right)) {
+      const mirror = x - (lx - x);
+      if (fits(mirror, !right)) { LX = mirror; right = !right; }
+      else {
+        // neither side fits whole: slide the label in along its side until it does (or as far as it can)
+        const z0 = cam.poseAt(land).zoom, p = cam.toScreen(land, LX, ly), m = 24;
+        const over = right ? p.x + labelW * z0 - (cam.W - m) : m - (p.x - labelW * z0);
+        if (over > 0) LX += (right ? -1 : 1) * over / z0;
+      }
+    }
+    const z0 = cam.poseAt(land).zoom, p = cam.toScreen(land, LX, LY), m = 24;
+    const top = p.y - (labelH * z0) / 2, bot = p.y + (labelH * z0) / 2;
+    if (top < m) LY += (m - top) / z0;
+    if (bot > cam.H - m) LY -= (bot - (cam.H - m)) / z0;
+  }
   const pulse = 1 + 0.35 * Math.max(0, Math.sin((frame - at) / 6));
-  const ex = x + (lx - x) * line, ey = y + (ly - y) * line;
+  const ex = x + (LX - x) * line, ey = y + (LY - y) * line;
+  void z;
   return (
-    <div style={{position: 'absolute', left: 0, top: 0, transform: `translateZ(${z}px)`, opacity: 1 - out}}>
+    <div style={{position: 'absolute', left: 0, top: 0, opacity: 1 - out}}>
       {leader ? <>
         <svg style={{position: 'absolute', left: 0, top: 0, overflow: 'visible'}} width={1} height={1}>
           <line x1={x} y1={y} x2={ex} y2={ey} stroke={look.accent} strokeWidth={2} strokeLinecap="round" />
@@ -176,7 +208,7 @@ export const Callout: React.FC<CalloutSpec & {leader?: boolean}> = ({x, y, lx, l
         <div style={{position: 'absolute', left: x - 6, top: y - 6, width: 12, height: 12, borderRadius: '50%', background: look.accent,
           transform: `scale(${Math.min(1, line * 3) * pulse})`, boxShadow: `0 0 0 4px ${alpha(look.accent, 0.25)}`}} />
       </> : null}
-      <div style={{position: 'absolute', left: lx, top: ly, transform: `translate(${right ? '0' : '-100%'}, -50%)`, padding: '10px 16px',
+      <div style={{position: 'absolute', left: LX, top: LY, transform: `translate(${right ? '0' : '-100%'}, -50%)`, padding: '10px 16px',
         borderRadius: 12, background: dark ? 'rgba(22,22,24,0.92)' : 'rgba(255,255,255,0.95)', boxShadow: '0 14px 40px rgba(10,10,10,0.20)',
         opacity: span(frame, at + (leader ? 8 : 0), at + (leader ? 16 : 8), 'out'), whiteSpace: 'nowrap'}}>
         {kicker ? <div style={{fontFamily: MONO, fontSize: size * 0.42, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase',

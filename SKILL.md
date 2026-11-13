@@ -140,6 +140,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   low-contrast accent ink); `--stills=` comes before the full render.
 - In a narrated film the same craft is two registers: `ProductPage` (a capture acting, cued to the voice) and
   `ChapterCard` (a chapter's statement, numbered).
+- `scripts/picture_glide_qa.py <dir>` checks whether a picture under a moving camera glides or steps (抖动), read from
+  the pixels. promo_film runs it on every render; run it on a narrated film that has ProductPage beats.
 
 **Render: remotion cinematic tier** (`meta.renderer:"remotion"`)
 - `scripts/tier_advice.py`: decides from purpose + topic whether a film warrants this tier (interview ③). Remotion is for

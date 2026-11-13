@@ -13,6 +13,11 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {span, useLook, parseUnits, typeScale, isDarkHex, alpha, isCJK, SERIF, SANS, MONO} from './kit';
+import {BASELINE_UNLOCK} from '../runtime/glide';
+
+// Every transform that moves or scales TYPE here carries the baseline unlock (runtime/glide.ts): under a pure
+// scale+translate Skia snaps each baseline to a whole pixel and slow motion becomes a staircase.
+const U = BASELINE_UNLOCK;
 
 const urlOf = (src: string) => (/^(https?:|data:|\/)/.test(src) ? src : staticFile(src));
 
@@ -48,7 +53,7 @@ export const RiseLine: React.FC<{text: string; px: number; start?: number; gap?:
   const lastLand = start + (n - 1) * g + 12;
   return (
     <div style={{display: 'flex', flexWrap: nowrap ? 'nowrap' : 'wrap', justifyContent: align === 'center' ? 'center' : 'flex-start', maxWidth,
-      whiteSpace: nowrap ? 'nowrap' : undefined,
+      whiteSpace: nowrap ? 'nowrap' : undefined, transform: U,
       fontFamily: family, fontSize: px, fontWeight: weight, lineHeight, letterSpacing: cjk ? '0.02em' : '-0.025em', color: color ?? look.ink}}>
       {units.map((u, i) => {
         const a = start + i * g;
@@ -59,7 +64,7 @@ export const RiseLine: React.FC<{text: string; px: number; start?: number; gap?:
         return (
           <span key={i} style={{display: 'inline-block', overflow: 'hidden', paddingBottom: '0.1em', marginBottom: '-0.1em',
             marginRight: u.space ? '0.24em' : 0}}>
-            <span style={{display: 'inline-block', transform: `translateY(${y}%)`,
+            <span style={{display: 'inline-block', transform: `translateY(${y}%) ${U}`,
               ...(u.accent ? {backgroundImage: `linear-gradient(90deg, ${look.accentInk} ${fill * 100}%, ${color ?? look.ink} ${fill * 100}%)`,
                 WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
                 fontFamily: !cjk ? SERIF : family, fontStyle: !cjk ? 'italic' : 'normal', fontWeight: !cjk ? 560 : weight} : {})}}>{u.text}</span>
@@ -86,7 +91,7 @@ export const ChapterCard: React.FC<{text: string; dur: number; index?: number; t
   const pad = 72 * s;
   return (
     <CardGround>
-      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', transform: `scale(${push})`, padding: `0 ${pad}px`}}>
+      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', transform: `scale(${push}) ${U}`, padding: `0 ${pad}px`}}>
         <RiseLine text={text} px={(portrait ? size * 0.92 : size) * s} start={3} leaveAt={dur - 9} maxWidth={W - 2 * pad} />
       </AbsoluteFill>
       {index ? (
@@ -119,7 +124,7 @@ export const carryStyle = (frame: number, dur: number, dirIn: number, dirOut: nu
   const i = inn ? 1 - span(frame, 0, k + 2, 'snappy') : 0;
   const dx = (-o * dirOut + i * dirIn) * W * 0.06;
   const blur = (o + i) * 14;
-  return {transform: `translateX(${dx}px) scale(${1 + (o + i) * 0.03})`, filter: blur > 0.3 ? `blur(${blur}px)` : undefined};
+  return {transform: `translateX(${dx}px) scale(${1 + (o + i) * 0.03}) ${U}`, filter: blur > 0.3 ? `blur(${blur}px)` : undefined};
 };
 
 /** A light FLASH, kept as an option for a film whose look wants it (`cut: 'flash'`); not the default. */
@@ -141,7 +146,7 @@ export const CaptionStrip: React.FC<{text: string; dur: number}> = ({text, dur})
   const dark = isDarkHex(look.ground);
   return (
     <div style={{position: 'absolute', left: 64 * s, bottom: (H > W ? 220 : 60) * s, display: 'flex', alignItems: 'center', gap: 14 * s,
-      opacity: 1 - out, transform: `translateX(${(1 - o) * -24 * s}px)`, clipPath: `inset(-20px ${(1 - o) * 100}% -20px -20px)`}}>
+      opacity: 1 - out, transform: `translateX(${(1 - o) * -24 * s}px) ${U}`, clipPath: `inset(-20px ${(1 - o) * 100}% -20px -20px)`}}>
       <div style={{width: 4 * s, height: 34 * s, borderRadius: 2 * s, background: look.accent}} />
       <div style={{fontFamily: SANS, fontSize: 28 * s, fontWeight: 620, letterSpacing: isCJK(text) ? '0.04em' : '-0.005em', color: dark ? '#f4f3ef' : look.ink,
         padding: `${8 * s}px ${16 * s}px`, borderRadius: 10 * s, background: dark ? 'rgba(20,20,22,0.72)' : 'rgba(255,255,255,0.9)',
@@ -191,7 +196,7 @@ export const BrandOpen: React.FC<{mark: string; aspect: number; kicker?: string;
   const mh = Math.min(markH * s, (W * 0.78) / aspect);
   return (
     <CardGround>
-      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', transform: `translateY(${-out * 60 * s}px)`, opacity: 1 - out}}>
+      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', transform: `translateY(${-out * 60 * s}px) ${U}`, opacity: 1 - out}}>
         <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} />
         {kicker ? <div style={{marginTop: 44 * s}}>
           <RiseLine text={kicker} px={26 * s} start={30} gap={1.5} family={MONO} weight={600} color={look.muted} />
@@ -213,7 +218,7 @@ export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspe
   const cols = H > W ? 2 : n <= 4 ? 2 : 3;
   const rows = Math.max(1, Math.ceil(n / cols));
   const gapPx = 26 * s;
-  const tw = (W * 0.86 - gapPx * (cols - 1)) / cols, th = tw * (H / W);
+  const tw = (W * 0.92 - gapPx * (cols - 1)) / cols, th = tw * (H / W);
   const gridW = cols * tw + (cols - 1) * gapPx, gridH = rows * th + (rows - 1) * gapPx;
   const pull = 1.16 - 0.16 * span(frame, 0, stampAt + 10, 'smooth') - 0.04 * span(frame, stampAt + 10, dur, 'linear');
   const back = span(frame, stampAt - 4, stampAt + 12, 'smooth');
@@ -224,7 +229,7 @@ export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspe
   return (
     <CardGround>
       <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
-        <div style={{position: 'relative', width: gridW, height: gridH, transform: `scale(${pull})`, filter: back > 0.01 ? `blur(${back * 3}px)` : undefined}}>
+        <div style={{position: 'relative', width: gridW, height: gridH, transform: `scale(${pull}) ${U}`, filter: back > 0.01 ? `blur(${back * 1.5}px)` : undefined}}>
           {tiles.map((t, i) => {
             const c = i % cols, r = Math.floor(i / cols);
             const at = 1 + i * 2.5;
@@ -239,7 +244,7 @@ export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspe
           })}
         </div>
       </AbsoluteFill>
-      <AbsoluteFill style={{background: alpha(look.paper, 0.8 * back)}} />
+      <AbsoluteFill style={{background: `radial-gradient(42% 38% at 50% 50%, ${alpha(look.paper, 0.92 * back)}, ${alpha(look.paper, 0.78 * back)} 55%, ${alpha(look.paper, 0.32 * back)} 100%)`}} />
       <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
         <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} />
         {tagline ? <div style={{marginTop: 34 * s}}>

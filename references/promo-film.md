@@ -62,6 +62,27 @@ Rules:
 - **Credits.** A capture of someone else's page is shown as itself and credited in the film's sources. A capture
   from docs is for review; public distribution needs the product owner's own captures.
 
+## Stillness: the camera must glide, measured
+
+A page under a moving camera that steps reads as 抖动, the first thing a viewer notices. The camera is built so it
+cannot step, and `scripts/picture_glide_qa.py` measures it on every render. promo_film runs it, and it takes a
+narrated film's out_dir too.
+
+- **The page is laid out once.** It is laid out at the shot's largest zoom, inside one layer. Each frame is one 3D
+  transform at zoom/raster ≤ 1 (runtime/surfaceView raster mode). Setting CSS `zoom` per frame re-laid the page out
+  and rounded it at every zoom.
+- **The raster is pinned with `will-change: transform`.** A render runs in parallel tabs, and without the pin each tab
+  chose its own raster scale, which put a step at every chunk boundary.
+- **Moving type carries the baseline unlock** (runtime/glide): a card's slow push, rising words, a caption sliding in,
+  a carried cut. Under a pure scale+translate, Skia snaps each baseline to a whole pixel.
+- **No corners in the camera's path.**
+  - Containment is a soft clamp.
+  - The timeline stretch in a narrated film is C1-smooth.
+  - The beat's clock is never warped (`export const CLOCK = 'own'`): every warp knot is a corner, and the acts are
+    cued one by one instead.
+- **Measured on a probe push and pan:** 0.366 → 0.022 px. On the zh film's page beats: 0.16/0.29 → 0.04/0.08 px. Its
+  overlay type, measured by jitter_qa: 0.59 px → OK.
+
 ## The table (`promo.json`)
 
 ```json
@@ -91,12 +112,12 @@ Rules:
 | kind | what it does | fields |
 |---|---|---|
 | `pop` | an element lands in its own slot (blank before) | `box, at, fill, from: up/left/scale`; `src, srcBox, srcW, srcH` = the element from ANOTHER capture (a state change) |
-| `lift` | rises out of an accent under-glow, one sheen, settles back | `box, at, until, z, scale, slot` |
+| `lift` | rises out of an accent under-glow (2D: rise + scale + shadow, the page stays one layer), one sheen, settles back | `box, at, until, z, scale, slot` |
 | `focus` | rack focus: the page softens and dims, the element stays sharp | `box, at, until, dim, blur` |
 | `ring` | an accent outline draws round an element | `box, at, until` |
 | `type` | text typed into a field (placeholder covered by the field's fill) | `box, at, text, cpf, size, fill` |
 | `cursor` | a pointer travels and clicks | `path: [{f, x, y, ease}]`, `clicks: [f]` |
-| `callout` | dot on the element, leader line, label | `x, y` (the point), `lx, ly` (the label), `at, until, kicker, text` |
+| `callout` | dot on the element, leader line, label — kept on the frame: its side and clamp are decided once from the camera at the frame it lands | `x, y` (the point), `lx, ly` (the label), `at, until, kicker, text` |
 
 ## In a narrated film
 

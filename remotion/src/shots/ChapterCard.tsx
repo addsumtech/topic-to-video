@@ -13,10 +13,13 @@ import {SceneDurationContext} from '../runtime/motion';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {LookContext, lookFromDna, typeScale, alpha, span, MONO} from '../promo/kit';
 import {CardGround, RiseLine} from '../promo/Cards';
+import {BASELINE_UNLOCK} from '../runtime/glide';
 
 export const DURATION = 90; // 3s
 // the shot frames and moves its own camera: coverage leaves it alone
 export const CAMERA = 'directed';
+// its camera is one continuous path and its items are cued one by one: the beat's clock is never warped (sync_qa)
+export const CLOCK = 'own';
 
 type Props = {text?: string; kicker?: string; index?: number; total?: number; size?: number};
 
@@ -34,7 +37,7 @@ const Card: React.FC<Required<Pick<Props, 'size'>> & Props & {dur: number}> = ({
   return (
     <CardGround>
       <div style={{position: 'absolute', left: pad, right: pad, top: CONTENT_TOP, height: zoneBottom - CONTENT_TOP, display: 'flex',
-        alignItems: 'center', justifyContent: 'center', transform: `scale(${push})`}}>
+        alignItems: 'center', justifyContent: 'center', transform: `scale(${push}) ${BASELINE_UNLOCK}`}}>   {/* a slow push on type: unlocked, or it steps */}
         {text ? <RiseLine text={text} px={(H > W ? size * 0.9 : size) * s} start={3} leaveAt={dur - 9} maxWidth={W - 2 * pad} /> : null}
       </div>
       {index ? (

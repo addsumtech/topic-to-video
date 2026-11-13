@@ -689,6 +689,19 @@ def register_exempt(shot, out_dir=None):
     for mod in _SYNC_EXEMPT_IMPORTS:
         if _reaches(deps, mod):
             return "it draws from %s (already on the voice / a recording)" % mod
+    # ...or DECLARED: `export const CLOCK = 'own'`. A register whose camera is one continuous path and whose items are
+    # cued one by one (runtime/cue) must not have its whole clock bent: the warp is piecewise linear, so every knot is
+    # a corner in the camera — measured on a ProductPage beat, the page's speed dropped from 3.9 to 0.4 px a frame at
+    # a knot, a visible stutter, while its labels were already on their words through their own cues.
+    roots = [os.path.join(_SRC, "shots", shot + ".tsx")]
+    if out_dir:
+        import workshop as _ws
+        roots.insert(0, os.path.join(_ws.workshop_dir(out_dir), "shots", shot + ".tsx"))
+    for f in roots:
+        if os.path.exists(f):
+            if re.search(r"^export const CLOCK\s*=\s*'own'", open(f, encoding="utf-8").read(), re.M):
+                return "it declares CLOCK = 'own' (a continuous camera; its items are cued one by one)"
+            break
     return None
 
 

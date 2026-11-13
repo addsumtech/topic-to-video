@@ -30,14 +30,19 @@ import {Layers, type LayerSpec} from '../promo/Layers';
 export const DURATION = 150; // 5s
 // the shot frames and moves its own camera: coverage leaves it alone
 export const CAMERA = 'directed';
+// its camera is one continuous path and its items are cued one by one: the beat's clock is never warped (sync_qa)
+export const CLOCK = 'own';
 
 type Props = {src?: string; w?: number; h?: number; keys?: CamKey[]; acts?: LayerSpec[]; nominal?: number; maxZoom?: number};
 
-/** Stretch a timeline authored over `nominal` frames to `dur`: the first 45 % (the entrances) keeps its speed. */
+/** Stretch a timeline authored over `nominal` frames to `dur`: the first 45 % (the entrances) keeps its speed, the
+ *  rest takes the extra time — through a SMOOTH map (f + extra * u²), never a corner: a camera move spanning a
+ *  piecewise-linear pivot changes speed in one frame, which reads as a stutter. */
 const stretch = (f: number, nominal: number, dur: number) => {
   if (dur <= nominal) return (f * dur) / nominal;
-  const pivot = nominal * 0.45, k = (dur - pivot) / Math.max(1, nominal - pivot);
-  return f <= pivot ? f : pivot + (f - pivot) * k;
+  const pivot = nominal * 0.45, extra = dur - nominal;
+  const u = Math.min(1, Math.max(0, (f - pivot) / Math.max(1, nominal - pivot)));
+  return f + extra * u * u + (f > nominal ? (f - nominal) * (2 * extra) / Math.max(1, nominal - pivot) : 0);
 };
 
 export const ProductPage: React.FC<Props> = ({src: srcIn, w = 1440, h = 900, keys: keysIn, acts: actsIn, nominal, maxZoom}) => {

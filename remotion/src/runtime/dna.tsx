@@ -412,7 +412,10 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
     // THE TERMINAL'S STAGE (craft standard, 2026-11-12) — on a themed film only; the un-themed original is untouched.
     // A few lines of output centred in an empty dark field read as a template; a launch film's terminal has a key light
     // on the work, a glow floor under it, and the command's own verb set huge behind it, bleeding off the frame.
-    const verb = (cmd.trim().split(/\s+/)[0] ?? '').replace(/^.*\//, ''); // @truncates: the command's own first word, as its ghost — not a claim
+    // A GHOST IS A COMMAND'S VERB (`git`, `npx`, `claude`): short and Latin. A natural-language prompt has no verb to
+    // ghost — its "first word" in Chinese is the whole sentence, which set at 0.42 of the frame is a wall of type.
+    const word0 = (cmd.trim().split(/\s+/)[0] ?? '').replace(/^.*\//, ''); // @truncates: the command's own first word, as its ghost — not a claim
+    const verb = /^[\x21-\x7e]{1,12}$/.test(word0) ? word0 : '';
     const ghostPx = Math.round(Math.min(VW, VH) * 0.42);
     const stage = dna ? (
       <>
@@ -420,7 +423,8 @@ export const TermFrame: React.FC<{dna: DesignDNA | null; cmd?: string; t: number
           background: `radial-gradient(ellipse 62% 58% at 46% 40%, ${acc}2b 0%, ${acc}00 70%)`}} />
         <div style={{position: 'absolute', left: '-10%', right: '-10%', bottom: '12%', height: '24%', pointerEvents: 'none',
           background: `radial-gradient(ellipse 50% 50% at 50% 50%, ${acc}24 0%, ${acc}00 70%)`}} />
-        {verb ? <div aria-hidden data-decor="ghost" style={{position: 'absolute', right: -Math.round(VW * 0.03), bottom: Math.round(VH * 0.17),
+        {/* `data-echo`: the verb is ALREADY on the frame, in the prompt line — the type audits measure it there once */}
+        {verb ? <div aria-hidden data-echo data-decor="ghost" style={{position: 'absolute', right: -Math.round(VW * 0.03), bottom: Math.round(VH * 0.17),
           font: `800 ${ghostPx}px/0.8 ${mono}`, color: fg, opacity: 0.05, letterSpacing: '-0.05em', whiteSpace: 'nowrap',
           pointerEvents: 'none'}}>{verb}</div> : null}
       </>

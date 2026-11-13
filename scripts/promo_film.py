@@ -326,6 +326,12 @@ def main(argv):
         json.dump([{"f": f, "cue": c, "gain": round(g, 3)} for f, c, g in cues], open(os.path.join(film, "promo_sfx.json"), "w"), indent=0)
         mix(film, silent, cues, total, out, argflag(argv, "bgm", None))
     print("[promo_film] wrote " + out)
+    # THE PICTURE GLIDES, MEASURED: a page under a moving camera that steps instead (re-laid out per frame, a raster
+    # re-chosen per render tab, a corner in the camera's path) is what a viewer sees as 抖动 — say so on every render
+    import picture_glide_qa as pg
+    rc = pg.main([film, "--video=" + out, "--spec=" + os.path.relpath(spec_path, film)])
+    if rc == 1:
+        print("[promo_film] the picture STEPS on a page shot (above) — fix it before delivery")
     return 0
 
 

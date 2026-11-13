@@ -307,6 +307,24 @@ finding it prints that you do not understand.
   - **`--mark`** cuts a logo from its own page, keying the flat ground to alpha (un-premultiplied, no halo).
   - Why: the first promo's boxes were measured by hand off grids, and a box one cell off is an element landing beside
     its slot.
+- `scripts/picture_glide_qa.py <out_dir|promo_dir> [--spec=] [--video=]` | `--clip <mp4> [--from --to]` | `--calibrate`:
+  does a PICTURE under a moving camera glide or step? It reads the pixels.
+  - **Method.**
+    - Textured tiles on a grid are phase-correlated per frame pair at sub-pixel precision (upsample 20).
+    - Each tile's shift series is compared with its own smoothed self (Savitzky-Golay, 9 frames).
+    - The error counts only on SLOW stretches: 0.05-6 px a frame, 4+ pairs from a fast move. A staircase shows there,
+      and a fast move's own acceleration is not one.
+    - The verdict is the median tile's RMS. Over 0.12 px, the beat steps.
+    - Calibrated: a glide reads 0.067, a whole-pixel staircase 0.556.
+  - **Why.**
+    - jitter_qa judges TYPE against the DOM and leaves pictures out of scope. shake_qa judges vibration-in-place,
+      which a staircase is not.
+    - A Wikipedia capture under ProductPage's first camera stepped and the viewer saw 文字和图像抖动. The camera set
+      CSS `zoom` per frame, so the page was re-laid out and rounded at each zoom. It read 0.16-0.29 px on the beats
+      and 0.37 on a probe push, while shake_qa said OK.
+    - After the raster camera (laid out once, `will-change` pins the raster across parallel render tabs, soft
+      containment, no clock warp, a smooth timeline stretch) it reads 0.02-0.08.
+  - **Where it runs.** promo_film.py runs it after every render.
 - `scripts/promo_film.py <dir> [--spec=promo.json] [--check] [--stills=f,f] [--no-sound] [--bgm=file|auto] [--out=]`
   renders a launch/promo film with no narration, written as a shot table (composition `PromoFilm`).
   - **Check.** `check()` refuses, by name:
