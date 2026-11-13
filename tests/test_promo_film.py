@@ -82,12 +82,14 @@ def test_sound_is_pinned_to_the_table():
     assert (50, "whoosh") in [(f, c) for f, c, _ in cues] and (50 + 90, "whoosh") in [(f, c) for f, c, _ in cues]
     assert (50 + 20, "whoosh") in [(f, c) for f, c, _ in cues]
     # pops one frame apart are ONE sound; 5 frames apart, two
-    assert names.count("pop") == 2
+    assert names.count("drop") == 2
     assert [f for f, c, _ in cues if c == "key"] == [50 + 20, 50 + 22]
     assert (50 + 62, "click") in [(f, c) for f, c, _ in cues]
-    # the close: light swells under the recalled wall, the bell lands as the lockup forms, a chime as the line sets
+    # the close: light swells under the recalled wall and the impact lands as the lockup forms — no synthesised bell
     o = 50 + 90
-    assert [(f, c) for f, c, _ in cues if c in ("swell", "reveal", "chime")] == [(o + 6, "swell"), (o + 40 + 12, "reveal"), (o + 40 + 30, "chime")]
+    assert [(f, c) for f, c, _ in cues if c in ("swell", "impact")] == [(o + 6, "swell"), (o + 40 + 10, "impact")]
+    assert not {"reveal", "chime", "sparkle", "tick", "pop"} & set(names), "a synthesised tone in the promo's sound"
+    assert all(c in pf.BANK or c in ("whoosh", "swell", "impact") for c in names), names
     # a film cut hard has no air on its cuts
     hard = pf.plan_sfx(dict(spec, cut="hard"))
     assert (50, "whoosh") not in [(f, c) for f, c, _ in hard]
@@ -135,3 +137,29 @@ def test_the_page_camera_keeps_its_stillness_rules():
     assert "const CREEP = 8;" in src and "if (peak < CREEP)" in src
     assert "Math.cos(Math.PI * Math.pow(" in src          # the sine-bump landing
     assert "Math.exp(-(rx * rx + ry * ry + rz * rz) / 18)" in src   # containment smooth in the tilt
+
+
+def test_a_close_up_past_the_density_needs_a_macro_under_it(film):
+    from PIL import Image
+    Image.new("RGB", (400, 160), "white").save(film / "hi.png")          # a 4x capture of a 100x40 element
+    deep = [{"f": 0, "cx": 200, "cy": 150, "zoom": 1.2}, {"f": 40, "cx": 60, "cy": 30, "zoom": 3.6}]
+    errs, _ = pf.check({"shots": [page(keys=deep, layers=[])]}, str(film))
+    assert any("macro" in e for e in errs), errs
+    macro = {"kind": "macro", "box": {"x": 10, "y": 10, "w": 100, "h": 40}, "src": "hi.png", "scale": 4}
+    errs, _ = pf.check({"shots": [page(keys=deep, layers=[macro])]}, str(film))
+    assert errs == [], errs
+    off = [{"f": 0, "cx": 200, "cy": 150, "zoom": 3.6}]                  # pushed past 2x somewhere the macro is NOT
+    assert any("macro" in e for e in pf.check({"shots": [page(keys=off, layers=[macro])]}, str(film))[0])
+    wrong = dict(macro, box={"x": 10, "y": 10, "w": 120, "h": 40})        # a capture that is not its box at 4x
+    assert any("stretched" in e for e in pf.check({"shots": [page(layers=[wrong])]}, str(film))[0])
+
+
+def test_every_recorded_take_exists_and_is_licensed():
+    import wave
+    for name, takes in pf.BANK.items():
+        for t in takes:
+            p = os.path.join(pf._KENNEY, t + ".wav")
+            with wave.open(p, "rb") as w:
+                assert w.getnframes() > 0, p
+    lic = open(os.path.join(pf._KENNEY, "LICENSE.txt"), encoding="utf-8").read()
+    assert "CC0" in lic

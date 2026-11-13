@@ -8,7 +8,7 @@
 import React from 'react';
 import {AbsoluteFill, Freeze, Sequence, useCurrentFrame, useVideoConfig} from 'remotion';
 import {LookContext, DEFAULT_LOOK, type Look} from './kit';
-import {PageCam, Ground, type CamKey} from './PageCam';
+import {PageCam, Ground, type CamKey, type Macro} from './PageCam';
 import {Layers, type LayerSpec} from './Layers';
 import {ChapterCard, FlashCut, CaptionStrip, BrandOpen, RecallOutro, carryStyle} from './Cards';
 
@@ -19,7 +19,7 @@ export type Shot =
   | {kind: 'brand'; dur: number; mark: string; aspect: number; kicker?: string; markH?: number; cut?: Cut}
   | {kind: 'title'; dur: number; text: string; kicker?: string; sub?: string; size?: number; index?: number | false; cut?: Cut}
   | PageShot
-  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut};
+  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string};
 
 export type PromoProps = {look?: Partial<Look>; shots: Shot[]; cut?: Cut};
 
@@ -38,7 +38,8 @@ const capSpan = (s: PageShot) => (s.caption?.dur ?? Math.max(20, Math.round(s.du
 export const PageShotView: React.FC<{s: PageShot}> = ({s}) => (
   <AbsoluteFill>
     <Ground />
-    <PageCam src={s.src} w={s.w} h={s.h} keys={s.keys} radius={s.radius} maxZoom={s.maxZoom} contain={s.contain}>
+    <PageCam src={s.src} w={s.w} h={s.h} keys={s.keys} radius={s.radius} maxZoom={s.maxZoom} contain={s.contain}
+      macros={(s.layers ?? s.acts ?? []).filter((l) => l.kind === 'macro') as Macro[]}>
       <Layers layers={s.layers ?? s.acts ?? []} src={s.src} pageW={s.w} pageH={s.h} />
     </PageCam>
     {s.caption ? (
@@ -92,7 +93,7 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry'}) =>
         const tiles = pick.filter((j) => shots[j]?.kind === 'page').map((j) => (
           <Freeze key={j} frame={Math.round(shots[j].dur * 0.9)}><PageShotView s={{...(shots[j] as PageShot), caption: undefined}} /></Freeze>
         ));
-        return <RecallOutro tiles={tiles} mark={s.mark} aspect={s.aspect} tagline={s.tagline} dur={s.dur} stampAt={s.stampAt} markH={s.markH} />;
+        return <RecallOutro tiles={tiles} mark={s.mark} aspect={s.aspect} tagline={s.tagline} dur={s.dur} stampAt={s.stampAt} markH={s.markH} cta={s.cta} />;
       }
       default: throw new Error(`PromoFilm: unknown shot kind ${(s as {kind: string}).kind}`);
     }

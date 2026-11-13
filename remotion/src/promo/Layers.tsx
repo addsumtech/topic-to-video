@@ -136,18 +136,13 @@ export const TypeIn: React.FC<TypeSpec> = ({box, at, text, fill = '#ffffff', siz
 export type CursorSpec = {kind: 'cursor'; path: (Key & {f: number; x: number; y: number})[]; clicks?: number[]; size?: number};
 export const Cursor: React.FC<CursorSpec> = ({path, clicks = [], size = 22}) => {
   const frame = useCurrentFrame();
-  const look = useLook();
   if (frame < path[0].f - 6) return null;
   const x = track(path, frame, 'x'), y = track(path, frame, 'y');
   const appear = span(frame, path[0].f - 6, path[0].f + 4, 'out');
   const press = clicks.reduce((m, c) => Math.max(m, 1 - Math.abs(frame - c - 2) / 4), 0);
   return (
     <>
-      {clicks.map((c) => {
-        const r = span(frame, c, c + 16, 'out');
-        return frame >= c && r < 1 ? <div key={c} style={{position: 'absolute', left: x - 22 * r - 4, top: y - 22 * r - 4, width: 8 + 44 * r, height: 8 + 44 * r,
-          borderRadius: '50%', border: `2px solid ${look.accent}`, opacity: 1 - r}} /> : null;
-      })}
+      {/* no click ring: a ripple is a demo's tell — the click shows by what it CHANGES on the same frame */}
       <svg width={size} height={size * 1.4} viewBox="0 0 20 28" style={{position: 'absolute', left: x - 2, top: y - 2, opacity: appear,
         transform: `scale(${1 - 0.12 * Math.max(0, press)})`, transformOrigin: '2px 2px', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.35))'}}>
         <path d="M2 2 L2 22 L7.5 17 L11 25.5 L14.5 24 L11 15.8 L18 15.8 Z" fill="#111" stroke="#fff" strokeWidth={1.6} strokeLinejoin="round" />
@@ -220,7 +215,69 @@ export const Callout: React.FC<CalloutSpec & {leader?: boolean}> = ({x, y, lx, l
 };
 export type NoteSpec = {kind: 'note'; x: number; y: number; at: number; until?: number; text: string; size?: number; z?: number; kicker?: string};
 
-export type LayerSpec = PopSpec | LiftSpec | FocusSpec | RingSpec | TypeSpec | CursorSpec | CalloutSpec | NoteSpec;
+export type DealSpec = {kind: 'deal'; boxes: Box[]; at: number; every?: number; dur?: number; from?: {x: number; y: number}; fill?: string; radius?: number};
+/** DEAL: the page's cards start as one tight stack at `from` (default: the middle of their union) and fly out to their
+ *  own slots one by one along a lifted arc, a few degrees of turn settling flat as they land; each slot is blank until
+ *  its card arrives. A grid that ASSEMBLES reads as a set being built, where a wave of pops reads as a page loading. */
+export const Deal: React.FC<DealSpec & Common> = ({boxes, at, every = 3, dur = 18, from, fill = '#ffffff', radius = 12, src, pageW, pageH}) => {
+  const frame = useCurrentFrame();
+  if (!boxes.length) return null;
+  const ux0 = Math.min(...boxes.map((b) => b.x)), uy0 = Math.min(...boxes.map((b) => b.y));
+  const ux1 = Math.max(...boxes.map((b) => b.x + b.w)), uy1 = Math.max(...boxes.map((b) => b.y + b.h));
+  const F = from ?? {x: (ux0 + ux1) / 2, y: (uy0 + uy1) / 2};
+  const stackIn = span(frame, at - 10, at, 'out');
+  return (
+    <>
+      {boxes.map((b, i) => {
+        const t0 = at + i * every;
+        const p = span(frame, t0, t0 + dur, 'snappy');
+        const landed = p >= 1;
+        const sx = F.x - b.w / 2 + (i % 3 - 1) * 2, sy = F.y - b.h / 2 - i * 1.5;
+        const x = sx + (b.x - sx) * p, y = sy + (b.y - sy) * p - Math.sin(Math.PI * p) * 60;
+        const rot = (1 - p) * (((i * 37) % 11) - 5);
+        const sc = 0.92 + 0.08 * p;
+        const air = Math.sin(Math.PI * Math.min(1, p));
+        return (
+          <React.Fragment key={i}>
+            <div style={{position: 'absolute', left: b.x - 2, top: b.y - 2, width: b.w + 4, height: b.h + 4, background: fill, opacity: landed ? 0 : 1}} />
+            <Crop src={src} pageW={pageW} pageH={pageH} box={b} radius={radius} style={{left: x, top: y, opacity: Math.min(1, stackIn * 1.5),
+              transform: `rotate(${rot}deg) scale(${sc})`, zIndex: landed ? 0 : 100 - i,
+              boxShadow: `0 ${4 + 24 * air}px ${8 + 50 * air}px rgba(20,18,14,${0.10 + 0.20 * air}), 0 0 0 1px rgba(20,18,14,0.06)`}} />
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+};
+
+export type WriteSpec = {kind: 'write'; box: Box; at: number; lineH?: number; every?: number; fill?: string};
+/** WRITE: a block of the capture's own text appears line by line, each line uncovered left to right behind an accent
+ *  caret — the document writing itself, in its own words and its own type (nothing is redrawn). */
+export const Write: React.FC<WriteSpec> = ({box, at, lineH = 24, every = 5, fill = '#ffffff'}) => {
+  const frame = useCurrentFrame();
+  const look = useLook();
+  const n = Math.max(1, Math.round(box.h / lineH));
+  const lh = box.h / n;
+  return (
+    <>
+      {Array.from({length: n}, (_, i) => {
+        const a = at + i * every, w = span(frame, a, a + every * 1.6, 'smooth');
+        if (w >= 1) return null;
+        const y = box.y + i * lh;
+        return (
+          <React.Fragment key={i}>
+            <div style={{position: 'absolute', left: box.x + box.w * w, top: y - 1, width: box.w * (1 - w) + 2, height: lh + 2, background: fill}} />
+            {w > 0 ? <div style={{position: 'absolute', left: box.x + box.w * w - 1, top: y + lh * 0.15, width: 2.5, height: lh * 0.7,
+              background: look.accent, borderRadius: 2, boxShadow: `0 0 6px ${look.accent}`}} /> : null}
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+};
+
+export type MacroSpec = {kind: 'macro'; box: Box; src: string; scale?: number; at?: number; radius?: number};
+export type LayerSpec = PopSpec | LiftSpec | FocusSpec | RingSpec | TypeSpec | CursorSpec | CalloutSpec | NoteSpec | MacroSpec | DealSpec | WriteSpec;
 
 /** Layers in the order given (later = on top). Pop/lift need the capture they crop from. */
 export const Layers: React.FC<{layers: LayerSpec[]} & Common> = ({layers, ...c}) => (
@@ -236,6 +293,9 @@ export const Layers: React.FC<{layers: LayerSpec[]} & Common> = ({layers, ...c})
         case 'callout': return <Callout key={i} {...l} />;
         case 'note': return <Callout key={i} kind="callout" x={l.x} y={l.y} lx={l.x} ly={l.y} at={l.at} until={l.until} text={l.text} size={l.size}
           z={l.z} kicker={l.kicker} leader={false} />;
+        case 'deal': return <Deal key={i} {...l} {...c} />;
+        case 'write': return <Write key={i} {...l} />;
+        case 'macro': return null;   // drawn by PageCam on its own layer (a 4x close-up)
         default: throw new Error(`promo layer: unknown kind ${(l as {kind: string}).kind}`);
       }
     })}

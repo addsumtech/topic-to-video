@@ -2,14 +2,15 @@
 """promo_film — a product promo film from a SHOT TABLE over real product captures (references/promo-film.md).
 
     python3 scripts/promo_film.py <film_dir> [--spec=promo.json] [--check] [--stills=120,400] [--no-sound]
-                                  [--bgm=<file>|auto] [--out=out.mp4]
+                                  [--bgm=auto|none|<file>] [--out=out.mp4]
 
 <film_dir> holds the captures and the spec; it is the render's public dir, so every `src` in the spec is a path
 relative to it. Steps: CHECK the table (files, boxes inside their capture, zoom within the capture's density, keys
 in order, shot lengths) — a defect stops here, by name; RENDER the picture (remotion composition `PromoFilm`); PIN
 the sound to the same table (a cue per action: air through each carried cut, whoosh on a camera move, pop on an
 element landing, keys under typing, click on a click, swell → bell as the closing lockup forms) unless the spec lists its own `sfx`
-[{f, cue, gain}]; MIX (SFX only by default, `--bgm` adds a bed under it) → <film_dir>/out.mp4, and the cue list
+[{f, cue, gain}]; MIX (a generated score under the cues by default — a promo is scored; `--bgm=none` for SFX only,
+`--bgm=<file>` for the user's own track) → <film_dir>/out.mp4, and the cue list
 actually used → <film_dir>/promo_sfx.json.
 
 WHY. The study (references/craft-standard.md, promo-film.md): the showcase product films are a different KIND of
@@ -101,17 +102,31 @@ def check(spec, film_dir):
                     errs.append("%s: camera keys out of order at f=%s" % (where, kk.get("f")))
                 last = kk.get("f", last)
                 eff = kk.get("zoom", 1) * frame_w / 1920.0       # zoom is authored at a 1920-wide reference
-                if eff > mz + 1e-6:
+                # past the page's density only onto a MACRO (a 4x capture of the element the close-up looks at)
+                macro_ok = any(m.get("kind") == "macro" and eff <= float(m.get("scale", 4)) + 1e-6
+                               and m["box"]["x"] <= kk.get("cx", -1) <= m["box"]["x"] + m["box"]["w"]
+                               and m["box"]["y"] <= kk.get("cy", -1) <= m["box"]["y"] + m["box"]["h"]
+                               for m in (s.get("layers") or s.get("acts") or []) if isinstance(m.get("box"), dict))
+                if eff > mz + 1e-6 and not macro_ok:
                     errs.append("%s: key f=%s zoom %.2f is %.2f screen px per CSS px on this %dpx-wide frame, past the capture's density %.1f "
-                                "(the texture would be upsampled)" % (where, kk.get("f"), kk["zoom"], eff, frame_w, mz))
+                                "(the texture would be upsampled; a close-up past it needs a `macro` act — a 4x capture of the element at (cx, cy))"
+                                % (where, kk.get("f"), kk["zoom"], eff, frame_w, mz))
                 if w and h and not (0 <= kk.get("cx", 0) <= w and 0 <= kk.get("cy", 0) <= h):
                     errs.append("%s: key f=%s aims off the capture (%s, %s)" % (where, kk.get("f"), kk.get("cx"), kk.get("cy")))
             for j, l in enumerate(s.get("layers") or s.get("acts") or [], 1):
                 lw = "%s layer %d (%s)" % (where, j, l.get("kind"))
-                if l.get("kind") not in ("pop", "lift", "focus", "ring", "type", "cursor", "callout", "note"):
+                if l.get("kind") not in ("pop", "lift", "focus", "ring", "type", "cursor", "callout", "note", "macro", "deal", "write"):
                     errs.append("%s: unknown layer kind" % lw)
-                if l.get("kind") in ("pop", "lift", "focus", "ring", "type"):
+                if l.get("kind") == "macro":
+                    msz = cap(l.get("src", ""), lw)
+                    b, sc = l.get("box") or {}, float(l.get("scale", 4))
+                    if msz and b and (abs(msz[0] - b.get("w", 0) * sc) > 3 or abs(msz[1] - b.get("h", 0) * sc) > 3):
+                        errs.append("%s: %s is %dx%d px, not its box %sx%s at %gx — it would be stretched"
+                                    % (lw, l.get("src"), msz[0], msz[1], b.get("w"), b.get("h"), sc))
+                if l.get("kind") in ("pop", "lift", "focus", "ring", "type", "macro", "write"):
                     inside(l.get("box", {}), w, h, lw)
+                for bj, bb in enumerate(l.get("boxes") or []):
+                    inside(bb, w, h, "%s box %d" % (lw, bj + 1))
                 if l.get("kind") == "pop" and l.get("src") and l.get("src") != s.get("src"):
                     osz = cap(l["src"], lw)
                     if osz:
@@ -208,12 +223,14 @@ def plan_sfx(spec):
         if idx and (s.get("cut") or film_cut) in ("carry", "flash"):
             cues.append((a, "whoosh", 0.34))                       # the cut carries a move: one air sound through it
         if k == "brand":
-            cues += [(a + 14, "reveal", 0.65), (a + 34, "tick", 0.2)]
+            cues += [(a + 14, "drop", 0.5), (a + 22, "whoosh", 0.2)]
         elif k == "title":
-            cues.append((a + 14, "tick", 0.18))                     # the accent fill arrives
+            cues.append((a + 14, "select", 0.22))                   # the accent fill arrives
         elif k == "outro":
             sa = a + int(s.get("stampAt", 46))
-            cues += [(a + 6, "swell", 0.4), (sa + 12, "reveal", 0.85), (sa + 30, "chime", 0.35)]
+            cues += [(a + 6, "swell", 0.4), (sa + 10, "impact", 0.8)]
+            if s.get("cta"):
+                cues.append((sa + 46, "select", 0.3))
         elif k == "page":
             keys = s.get("keys") or []
             for k0, k1 in zip(keys, keys[1:]):
@@ -227,11 +244,22 @@ def plan_sfx(spec):
                 if kind == "pop":
                     f = a + int(l["at"] + l.get("dur", 14) * 0.4)
                     if f - last_pop >= 3:
-                        cues.append((f, "pop", max(0.12, 0.36 * (0.85 ** npop))))
+                        cues.append((f, "drop", max(0.12, 0.36 * (0.85 ** npop))))
                         last_pop, npop = f, npop + 1
+                elif kind == "deal":
+                    for bj in range(len(l.get("boxes") or [])):
+                        f = a + int(l["at"] + bj * l.get("every", 3) + l.get("dur", 18) * 0.8)
+                        if f - last_pop >= 3:
+                            cues.append((f, "deal", max(0.12, 0.3 * (0.88 ** bj))))
+                            last_pop = f
+                    cues.append((a + int(l["at"]) - 4, "whoosh", 0.3))
+                elif kind == "write":
+                    n = max(1, round(l["box"]["h"] / l.get("lineH", 24)))
+                    for li in range(0, n, 2):
+                        cues.append((a + int(l["at"] + li * l.get("every", 5)), "key", 0.18))
                 elif kind == "lift":
-                    cues += [(a + int(l["at"]) + 6, "whoosh", 0.36), (a + int(l["at"]) + 18, "sparkle", 0.26),
-                             (a + int(l["until"]) + 14, "settle", 0.42)]
+                    cues += [(a + int(l["at"]) + 6, "whoosh", 0.36), (a + int(l["at"]) + 18, "glass", 0.22),
+                             (a + int(l["until"]) + 14, "drop", 0.35)]
                 elif kind == "type":
                     cpf = float(l.get("cpf", 0.5))
                     n = len(l.get("text", ""))
@@ -241,11 +269,11 @@ def plan_sfx(spec):
                     for c in l.get("clicks") or []:
                         cues.append((a + int(c) + 2, "click", 0.6))
                 elif kind == "ring":
-                    cues.append((a + int(l["at"]) + 4, "tick", 0.25))
+                    cues.append((a + int(l["at"]) + 4, "select", 0.25))
                 elif kind == "focus":
-                    cues.append((a + int(l["at"]) + 6, "focus", 0.3))
+                    cues.append((a + int(l["at"]) + 6, "select", 0.18))
                 elif kind in ("note", "callout"):
-                    cues.append((a + int(l["at"]) + 4, "tick", 0.24))
+                    cues.append((a + int(l["at"]) + 4, "select", 0.24))
     return sorted(cues)
 
 
@@ -265,24 +293,44 @@ def render_picture(film_dir, spec_path, out, frames=None):
         raise SystemExit("[promo_film] render failed:\n" + (r.stderr or r.stdout)[-3000:])
 
 
-def mix(film_dir, silent, cues, total_frames, out, bgm=None):
+# RECORDED takes for the UI sounds (Kenney "Interface Sounds", CC0 — assets/sfx/kenney/LICENSE.txt); the noise-built
+# cues (whoosh, swell, impact) stay synthesised. A synthesised bell or chime reads as a demo's beeps (HyperFrames'
+# sound reference: "no synthesised tones, chimes, or dings"); a real click, drop or select reads as a product.
+_KENNEY = os.path.join(ROOT, "assets", "sfx", "kenney")
+BANK = {"click": ["click_005"], "key": ["click_002", "click_003"], "drop": ["drop_002", "drop_003"], "deal": ["drop_001"],
+        "select": ["select_001", "select_002"], "glass": ["glass_002"]}
+
+
+# a social film's loudness (-16..-14 LUFS), true peak under -1.5 dBTP: measured, the unnormalised mix sat at -24 LUFS
+LOUD = "loudnorm=I=-15:TP=-1.5:LRA=11,aresample=48000"
+
+
+def mix(film_dir, silent, cues, total_frames, out, bgm="auto", climax_s=None):
     import sfx
     secs = total_frames / FPS
     wav = os.path.join(film_dir, "_promo_sfx.wav")
-    if not sfx.build_sfx_track([(f / FPS, c, g) for f, c, g in cues], secs, wav):
+    bank = sfx.load_bank({k: [os.path.join(_KENNEY, n + ".wav") for n in v] for k, v in BANK.items()})
+    if not sfx.build_sfx_track([(f / FPS, c, g) for f, c, g in cues], secs, wav, bank=bank):
         raise SystemExit("[promo_film] numpy is needed to synthesise the sound")
     inputs = ["-i", silent, "-i", wav]
     if bgm == "auto":
+        # a promo is SCORED (a film over ~15 s that tells something gets a bed): the generated score on a beat grid,
+        # its riser and peak placed on the outro's stamp
+        import beatgrid
+        import score
+        g = beatgrid.BeatGrid(112.5, 0.0)
+        sc = score.render(g, secs + 1.0, climax_s=climax_s, seed=7)
         pad = os.path.join(film_dir, "_promo_bgm.wav")
-        sfx._write_wav(pad, sfx.synth_pad(secs + 1))
+        score.write_wav(pad, sc["bed"] + sc["pulse"])
         inputs += ["-i", pad]
-    elif bgm:
+    elif bgm and bgm != "none":
         inputs += ["-i", bgm]
     if len(inputs) == 6:
-        graph = ("[1:a]highpass=f=120,volume=1.0[s];[2:a]lowpass=f=4000,volume=0.28,afade=t=in:d=1.5,"
-                 "afade=t=out:st=%.2f:d=2[b];[s][b]amix=inputs=2:normalize=0,alimiter=limit=0.89[a]" % max(0, secs - 2))
+        # the hits sit 3-6 dB over the bed; the bed fades in and closes on a 2 s fade under the end card
+        graph = ("[1:a]highpass=f=120,volume=1.0[s];[2:a]volume=0.42,afade=t=in:d=0.4,"
+                 "afade=t=out:st=%.2f:d=2[b];[s][b]amix=inputs=2:normalize=0,%s[a]" % (max(0, secs - 2), LOUD))
     else:
-        graph = "[1:a]highpass=f=120,alimiter=limit=0.89[a]"
+        graph = "[1:a]highpass=f=120,%s[a]" % LOUD
     cmd = ["ffmpeg", "-y", "-loglevel", "error", *inputs, "-filter_complex", graph, "-map", "0:v", "-map", "[a]",
            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-t", "%.3f" % secs, out]
     subprocess.run(cmd, check=True)
@@ -292,7 +340,7 @@ def main(argv):
     if not argv or argv[0].startswith("-"):
         print(__doc__.strip().splitlines()[0])
         return 2
-    refuse_unknown(argv[1:], valued=("spec", "stills", "bgm", "out"), switches=("check", "no-sound"))
+    refuse_unknown(argv[1:], valued=("spec", "stills", "bgm", "out"), switches=("check", "no-sound", "remix"))
     film = os.path.abspath(argv[0])
     spec_path = os.path.join(film, argflag(argv, "spec", "promo.json"))
     spec = json.load(open(spec_path, encoding="utf-8"))
@@ -315,16 +363,24 @@ def main(argv):
             render_picture(film, spec_path, p, frames=f)
             print("  still " + p)
         return 0
-    silent = os.path.join(film, "_promo_silent.mp4")
-    render_picture(film, spec_path, silent)
     out = os.path.join(film, argflag(argv, "out", "out.mp4"))
+    # the picture, kept per output so two films in one folder (a 16:9 and a 9:16) never share it; `--remix` re-mixes the
+    # sound over the picture already rendered
+    silent = os.path.join(film, "_promo_silent_%s" % os.path.basename(out))
+    if "--remix" in argv and os.path.isfile(silent):
+        print("[promo_film] --remix: the picture is the one already rendered (%s)" % os.path.basename(silent))
+    else:
+        render_picture(film, spec_path, silent)
     if "--no-sound" in argv:
         os.replace(silent, out)
     else:
         cues = spec.get("sfx")
         cues = [(int(c["f"]), c["cue"], float(c.get("gain", 0.4))) for c in cues] if cues else plan_sfx(spec)
         json.dump([{"f": f, "cue": c, "gain": round(g, 3)} for f, c, g in cues], open(os.path.join(film, "promo_sfx.json"), "w"), indent=0)
-        mix(film, silent, cues, total, out, argflag(argv, "bgm", None))
+        st, _ = starts(spec)
+        outro = [(a, sh) for a, sh in zip(st, spec["shots"]) if sh.get("kind") == "outro"]
+        climax = (outro[-1][0] + int(outro[-1][1].get("stampAt", 46))) / FPS if outro else None
+        mix(film, silent, cues, total, out, argflag(argv, "bgm", "auto"), climax)
     print("[promo_film] wrote " + out)
     # THE PICTURE GLIDES, MEASURED: a page under a moving camera that steps instead (re-laid out per frame, a raster
     # re-chosen per render tab, a corner in the camera's path) is what a viewer sees as 抖动 — say so on every render

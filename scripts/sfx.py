@@ -454,15 +454,39 @@ def _peak_seconds(c):
     return float(np.argmax(e)) / SR
 
 
-def build_sfx_track(cues, total_seconds, out_wav, peak_cap=None):
+def load_bank(spec):
+    """{cue name: [recorded takes as float32 mono at SR]} from {name: [wav paths]}. A RECORDED take where one exists:
+    synthesised tones (a sine bell, a chime) read as a demo's beeps, a real click or drop as a product (the
+    HyperFrames sound reference says so in as many words; the user's films say it too)."""
+    out = {}
+    for name, paths in (spec or {}).items():
+        takes = []
+        for pth in paths:
+            with wave.open(pth, "rb") as w:
+                sr, ch, sw, n = w.getframerate(), w.getnchannels(), w.getsampwidth(), w.getnframes()
+                raw = w.readframes(n)
+            dt = {1: np.uint8, 2: np.int16, 4: np.int32}[sw]
+            a = np.frombuffer(raw, dtype=dt).astype(np.float32)
+            a = (a - 128.0) / 128.0 if sw == 1 else a / float(2 ** (8 * sw - 1))
+            a = a.reshape(-1, ch).mean(1)
+            if sr != SR:
+                a = np.interp(np.arange(0, len(a), sr / SR), np.arange(len(a)), a).astype(np.float32)
+            takes.append(_norm(a))
+        if takes:
+            out[name] = takes
+    return out
+
+
+def build_sfx_track(cues, total_seconds, out_wav, peak_cap=None, bank=None):
     """Render the planned cues into ONE full-length SFX WAV (each cue placed at its sample offset), so the
-    ffmpeg mix is a clean 2–3 input graph. Deterministic."""
+    ffmpeg mix is a clean 2–3 input graph. Deterministic. `bank` ({name: [takes]}, load_bank) replaces a synthesised
+    cue with a recorded take, rotating through the takes so a repeated sound is not the same sound twice."""
     if np is None:
         return False
     buf = np.zeros(int((total_seconds + 1.0) * SR), dtype=np.float32)
     seen = {}
     for (t, name, g) in cues:
-        c = cue(name)
+        c = bank[name][seen.get(name, 0) % len(bank[name])] if bank and name in bank else cue(name)
         if c is None or not len(c):
             continue
         # A CUE REPEATED IS NOT THE SAME SOUND TWICE: the n-th click of a film is pitched and levelled a hair off the

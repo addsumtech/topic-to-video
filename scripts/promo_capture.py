@@ -3,6 +3,7 @@
 
     python3 scripts/promo_capture.py <film_dir> <url> --name=home [--width=1440] [--height=900] [--full]
                                      [--wait=1.5] [--eval="js; steps split by a line ;;;"] [--select="css,css"] [--max=80]
+                                     [--hires="7;520,300,240,120"]   # 4x close-up captures: element ids or CSS boxes
     python3 scripts/promo_capture.py <film_dir> --boxes=<capture.png>     # a screenshot with no DOM (desktop app)
     python3 scripts/promo_capture.py <film_dir> --mark=<capture.png> --box=x,y,w,h [--name=mark]
                                      # the brand's own logo, cut from its own page: a transparent PNG for any ground
@@ -24,6 +25,7 @@ a product it has never seen.
 """
 import base64
 import json
+import re
 import os
 import sys
 import time
@@ -73,16 +75,36 @@ ELEMENTS_JS = r"""
 """
 
 
-def capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80):
+HIRES = 4
+
+
+def _hires_boxes(spec, els):
+    """`--hires` items: an element id from this capture (`7`) or a CSS box (`x,y,w,h`), `;`-separated."""
+    out = []
+    for item in [x.strip() for x in (spec or "").split(";") if x.strip()]:
+        if re.fullmatch(r"\d+", item):
+            e = next((e for e in els if e["id"] == int(item)), None)
+            if e is None:
+                raise SystemExit("[promo_capture] --hires: no element %s in this capture (see its .boxes.jpg)" % item)
+            out.append({k: e[k] for k in ("x", "y", "w", "h")})
+        else:
+            v = [float(x) for x in item.split(",")]
+            if len(v) != 4 or v[2] <= 0 or v[3] <= 0:
+                raise SystemExit("[promo_capture] --hires: %r is neither an element id nor x,y,w,h" % item)
+            out.append(dict(zip(("x", "y", "w", "h"), v)))
+    return out
+
+
+def capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80, hires_spec=None):
     import socket
     try:
-        return _capture_web(film, url, name, W, H, full, wait, js, select, max_el)
+        return _capture_web(film, url, name, W, H, full, wait, js, select, max_el, hires_spec)
     except (socket.timeout, TimeoutError) as e:
         raise SystemExit("[promo_capture] %s did not answer in time (%s). A slow or very long page: try --wait=4, a "
                          "narrower page, or capture it by hand and use --boxes" % (url, e))
 
 
-def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80):
+def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80, hires_spec=None):
     import _cdp
     chrome = find_chrome()
     if not chrome:
@@ -120,21 +142,41 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
             c._cmd("Emulation.setDeviceMetricsOverride", {"width": W, "height": h, "deviceScaleFactor": 2, "mobile": False}, c.sid)
             time.sleep(0.8)
         shot = c._cmd("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False}, c.sid)["result"]["data"]
-    png = os.path.join(caps, name + ".png")
-    with open(png, "wb") as f:
-        f.write(base64.b64decode(shot))
-    from PIL import Image
-    with Image.open(png) as im:
-        pw, ph = im.size
-    els = [e for e in lay["elements"] if e["y"] + e["h"] <= ph / 2 + 1 and e["x"] + e["w"] <= pw / 2 + 1 and e["x"] >= 0 and e["y"] >= 0]
-    els.sort(key=lambda e: (e["why"] == "semantic" and e["tag"] in ("li", "a"), -(e["w"] * e["h"])))
-    els = els[:max_el]
-    els.sort(key=lambda e: (e["y"], e["x"]))
-    for i, e in enumerate(els):
-        e["id"] = i
+        png = os.path.join(caps, name + ".png")
+        with open(png, "wb") as f:
+            f.write(base64.b64decode(shot))
+        from PIL import Image
+        with Image.open(png) as im:
+            pw, ph = im.size
+        els = [e for e in lay["elements"] if e["y"] + e["h"] <= ph / 2 + 1 and e["x"] + e["w"] <= pw / 2 + 1 and e["x"] >= 0 and e["y"] >= 0]
+        els.sort(key=lambda e: (e["why"] == "semantic" and e["tag"] in ("li", "a"), -(e["w"] * e["h"])))
+        els = els[:max_el]
+        els.sort(key=lambda e: (e["y"], e["x"]))
+        for i, e in enumerate(els):
+            e["id"] = i
+        # HIGH-RES CLOSE-UPS: the elements a film pushes into past the page's own 2x, captured again at 4x (the same
+        # page state, the same load) — the camera's close-up draws them over the page so the subject stays sharp
+        hires = []
+        boxes = _hires_boxes(hires_spec, els)
+        if boxes:
+            # the page REDRAWN at 4x (deviceScaleFactor), not the 2x picture scaled: a canvas app paints its bitmap at the
+            # device ratio, so only a real ratio change gives its close-up real pixels
+            vh = h if full else H
+            c._cmd("Emulation.setDeviceMetricsOverride", {"width": W, "height": vh, "deviceScaleFactor": HIRES, "mobile": False}, c.sid)
+            time.sleep(max(0.8, wait))
+            for k, hb in enumerate(boxes):
+                clip = {"x": hb["x"], "y": hb["y"], "width": hb["w"], "height": hb["h"], "scale": 1}
+                data = c._cmd("Page.captureScreenshot", {"format": "png", "clip": clip, "captureBeyondViewport": False}, c.sid)["result"]["data"]
+                hp = os.path.join(caps, "%s.hi%d.png" % (name, k))
+                with open(hp, "wb") as f:
+                    f.write(base64.b64decode(data))
+                with Image.open(hp) as hi:
+                    if abs(hi.size[0] - hb["w"] * HIRES) > 4:
+                        raise SystemExit("[promo_capture] the %dx close-up of %s came back %dpx wide, not %d" % (HIRES, hb, hi.size[0], hb["w"] * HIRES))
+                hires.append({"box": hb, "src": "caps/%s.hi%d.png" % (name, k), "scale": HIRES})
     # the page's own title and description: the product's words, citable as the film's source
     out = {"src": "caps/%s.png" % name, "w": pw // 2, "h": ph // 2, "url": url, "title": lay.get("title", ""),
-           "description": lay.get("description", ""), "captured": time.strftime("%Y-%m-%d"), "elements": els}
+           "description": lay.get("description", ""), "captured": time.strftime("%Y-%m-%d"), "elements": els, "hires": hires}
     json.dump(out, open(os.path.join(caps, name + ".layout.json"), "w"), indent=1)
     overlay(png, out, os.path.join(caps, name + ".boxes.jpg"))
     return out
@@ -245,7 +287,7 @@ def main(argv):
     if not argv or argv[0].startswith("-"):
         print(__doc__.strip().splitlines()[0])
         return 2
-    refuse_unknown(argv[1:], valued=("name", "width", "height", "wait", "eval", "select", "max", "boxes", "mark", "box"), switches=("full",))
+    refuse_unknown(argv[1:], valued=("name", "width", "height", "wait", "eval", "select", "max", "boxes", "mark", "box", "hires"), switches=("full",))
     film = os.path.abspath(argv[0])
     mk = argflag(argv, "mark", None)
     if mk:
@@ -273,7 +315,8 @@ def main(argv):
         return 2
     sel = [s for s in (argflag(argv, "select", "") or "").split(",") if s.strip()]
     lay = capture_web(film, argv[1], argflag(argv, "name", "page"), int(argflag(argv, "width", 1440)), int(argflag(argv, "height", 900)),
-                      "--full" in argv, float(argflag(argv, "wait", 1.5)), argflag(argv, "eval", None), sel, int(argflag(argv, "max", 80)))
+                      "--full" in argv, float(argflag(argv, "wait", 1.5)), argflag(argv, "eval", None), sel, int(argflag(argv, "max", 80)),
+                      argflag(argv, "hires", None))
     print("[promo_capture] %s: %dx%d CSS, %d elements -> caps/%s.layout.json" % (lay["src"], lay["w"], lay["h"], len(lay["elements"]),
                                                                                argflag(argv, "name", "page")))
     return 0

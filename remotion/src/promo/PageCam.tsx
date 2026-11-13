@@ -12,12 +12,18 @@
 // texture is upsampled and the film shows it; the camera clamps there and says so once.
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
-import {track, useLook, isDarkHex, type Key} from './kit';
+import {track, span, useLook, isDarkHex, type Key, type Box} from './kit';
 import {unlockFor, BaselineUnlockContext} from '../runtime/glide';
 
 export type CamKey = Key & {f: number; cx: number; cy: number; zoom: number; rx?: number; ry?: number; rz?: number; persp?: number};
 
 const warned = new Set<string>();
+
+/** A CLOSE-UP'S OWN PIXELS. The page is a 2x capture, so past an effective zoom of 2 it is upsampled and soft; a
+ *  macro is ONE element captured again at 4x (promo_capture --hires) and drawn over its slot on a layer of its own,
+ *  laid out once at the shot's largest zoom and moved by the same pose — so the camera can push to 4x onto it and the
+ *  subject stays sharp while the page around it softens like a background out of a lens's depth. */
+export type Macro = {kind?: 'macro'; box: Box; src: string; scale?: number; at?: number; radius?: number};
 
 export type Pose = {cx: number; cy: number; zoom: number; rx: number; ry: number; rz: number; persp: number};
 /** The camera, readable by what it films: where a page point lands on the frame at ANY frame of the shot (rotation
@@ -37,14 +43,16 @@ export const PageCam: React.FC<{
   contain?: boolean;         // keep a straight-on view inside the capture (default)
   focusY?: number;           // where (cx, cy) lands, as a share of the frame height: 0.5, or higher up when a caption
                              // band owns the bottom of the frame (a narrated film)
+  macros?: Macro[];          // 4x captures of the elements a close-up pushes into (see Macro)
   children?: React.ReactNode;
-}> = ({src, w, h, keys, radius = 12, maxZoom = 2, frameOverride, blur = 0, contain = true, focusY = 0.5, children}) => {
+}> = ({src, w, h, keys, radius = 12, maxZoom = 2, frameOverride, blur = 0, contain = true, focusY = 0.5, macros = [], children}) => {
   const f0 = useCurrentFrame();
   const frame = frameOverride ?? f0;
   const {width: W, height: H} = useVideoConfig();
   const look = useLook();
   const allowed = React.useContext(BaselineUnlockContext);
-  const cap = maxZoom * 1.0001;
+  // a close-up may pass the page's density only onto a macro: the cap is the sharpest capture the shot carries
+  const cap = Math.max(maxZoom, ...macros.map((m) => m.scale ?? 4)) * 1.0001;
   // NO SUB-PIXEL CREEP ON A PAGE. A segment whose fastest point moves the picture less than CREEP px a frame is
   // collapsed into a HOLD (its end pose becomes its start pose, so the camera stays continuous). Measured: a sharp
   // capture drifting 0.17 px a frame pulsed in sharpness by ~5-10 % every few frames — the compositor's bilinear
@@ -118,6 +126,12 @@ export const PageCam: React.FC<{
     return {cx, cy, zoom, rx, ry, rz, persp: track(camKeys, f, 'persp', 1600)};
   };
   const P = poseAt(frame);
+  // MOTION BLUR ON A FAST MOVE (as a camera's shutter would): the picture's speed at this frame, in screen px a frame —
+  // the pan at this zoom plus a push measured at the frame's edge — over a threshold becomes a blur that rises with it
+  // and is gone by the time the move lands (6-10 px at the peak of a whip; a settle or a hold is never blurred).
+  const P0 = poseAt(frame - 1), P1 = poseAt(frame + 1);
+  const speed = (Math.hypot(P1.cx - P0.cx, P1.cy - P0.cy) * P.zoom + (Math.abs(P1.zoom - P0.zoom) / P.zoom) * Math.hypot(W, H) / 2) / 2;
+  const mblur = Math.min(10, Math.max(0, (speed - 14) * 0.18));
   const maxKey = Math.max(...keys.map((k) => Number(k.zoom ?? 1))) * (W / 1920);
   if (maxKey > cap && !warned.has(src)) {
     warned.add(src);
@@ -129,15 +143,20 @@ export const PageCam: React.FC<{
   // rounded to whole pixels at a new size, and the viewer saw the page and its type tremble during each push
   // (measured on a zh film over a Wikipedia capture: overlay type 0.33-0.59 px RMS with 0.9 px pops; the picture
   // stepped the same way). Laid out once, nothing is rounded per frame.
-  const raster = Math.max(1e-3, Math.min(cap, maxKey)) * 1.1;          // headroom for a lifted element (scale <= 1.1)
+  // the page's raster never exceeds its own density (past it there is nothing to rasterise but upsampled pixels);
+  // a push beyond it magnifies the page (soft, a background) while the macro layer carries the subject
+  const raster = Math.max(1e-3, Math.min(maxZoom, maxKey)) * 1.1;      // headroom for a lifted element (scale <= 1.1)
   const s = P.zoom / raster;
+  const mRaster = Math.max(1e-3, Math.min(cap, maxKey)) * 1.02;
+  const ms = P.zoom / mRaster;
+  const urlOf = (u: string) => (/^(https?:|data:|\/)/.test(u) ? u : staticFile(u));
   const url = /^(https?:|data:|\/)/.test(src) ? src : staticFile(src);
   const info: PageCamInfo = {W, H, focusY, poseAt, toScreen: (f, x, y) => {
     const q = poseAt(f);
     return {x: W / 2 + (x - q.cx) * q.zoom, y: H * focusY + (y - q.cy) * q.zoom};
   }};
   return (
-    <AbsoluteFill style={{overflow: 'hidden', filter: blur > 0 ? `blur(${blur}px)` : undefined}}>
+    <AbsoluteFill style={{overflow: 'hidden', filter: blur + mblur > 0.3 ? `blur(${blur + mblur}px)` : undefined}}>
       <div style={{position: 'absolute', inset: 0, perspective: `${P.persp * P.zoom}px`, perspectiveOrigin: `${W / 2}px ${H * focusY}px`}}>
         <div data-surface-view="raster" style={{
           position: 'absolute', left: 0, top: 0, width: w * raster, height: h * raster,
@@ -162,6 +181,21 @@ export const PageCam: React.FC<{
             <PageCamContext.Provider value={info}>{children}</PageCamContext.Provider>
           </div>
         </div>
+        {macros.length ? (
+          <div data-surface-view="raster" style={{
+            position: 'absolute', left: 0, top: 0, width: w * mRaster, height: h * mRaster, pointerEvents: 'none',
+            transformOrigin: `${P.cx * mRaster}px ${P.cy * mRaster}px`, willChange: 'transform',
+            transform: `translate3d(${W / 2 - P.cx * mRaster}px, ${H * focusY - P.cy * mRaster}px, 0) rotateY(${P.ry}deg) rotateX(${P.rx}deg) ` +
+              `rotateZ(${P.rz}deg) scale3d(${ms}, ${ms}, 1)`,
+          }}>
+            {macros.map((m, i) => (
+              <div key={i} style={{position: 'absolute', left: m.box.x * mRaster, top: m.box.y * mRaster, width: m.box.w * mRaster,
+                height: m.box.h * mRaster, borderRadius: (m.radius ?? 0) * mRaster, overflow: 'hidden',
+                opacity: m.at === undefined ? 1 : span(frame, m.at, m.at + 6, 'smooth'),
+                backgroundImage: `url(${urlOf(m.src)})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat'}} />
+            ))}
+          </div>
+        ) : null}
       </div>
     </AbsoluteFill>
   );

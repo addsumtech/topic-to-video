@@ -210,8 +210,8 @@ export const BrandOpen: React.FC<{mark: string; aspect: number; kicker?: string;
 
 /** RECALL OUTRO: the film's own shots come back as a wall of live frames that pulls back; at `stampAt` the wall
  *  steps behind a scrim and the lockup grows out of its dot, the tagline rising under it; the end holds a second. */
-export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspect: number; tagline?: string; dur: number; stampAt?: number; markH?: number}> = (
-  {tiles, mark, aspect, tagline = '', dur, stampAt = 46, markH = 150}) => {
+export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspect: number; tagline?: string; dur: number; stampAt?: number; markH?: number;
+  cta?: string}> = ({tiles, mark, aspect, tagline = '', dur, stampAt = 46, markH = 150, cta}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const look = useLook();
@@ -252,6 +252,13 @@ export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspe
         {tagline ? <div style={{marginTop: 34 * s}}>
           <RiseLine text={tagline} px={46 * s} start={stampAt + 26} gap={2} weight={560} color={look.ink} />
         </div> : null}
+        {/* the CTA: a real address or command, set as a button and HELD (it is what the viewer acts on) */}
+        {cta ? (() => {
+          const c = span(frame, stampAt + 40, stampAt + 52, 'snappy');
+          return <div style={{marginTop: 36 * s, opacity: c, transform: `translateY(${(1 - c) * 14 * s}px) ${U}`, padding: `${12 * s}px ${28 * s}px`,
+            borderRadius: 999, background: look.accentInk, color: '#ffffff', fontFamily: SANS, fontSize: 28 * s, fontWeight: 650,
+            letterSpacing: '0.01em', boxShadow: `0 ${10 * s}px ${30 * s}px ${alpha(look.accentInk, 0.35)}`}}>{cta}</div>;
+        })() : null}
       </AbsoluteFill>
     </CardGround>
   );
