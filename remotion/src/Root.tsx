@@ -12,6 +12,7 @@ import {StyleLayer} from './runtime/style';
 import {setStyleEase} from './runtime/motion';
 import {ObjectsContext} from './runtime/objectSlot';
 import {OBJECTS, WORKSHOP_SHOTS} from './registry';
+import {PromoFilm, promoDuration} from './promo/PromoFilm';
 import './runtime/fonts';  // side effect: loads the DNA typefaces for Film AND every standalone shot still
 import {FontProbe, DURATION as FPR} from './runtime/__probe_fonts';
 import {StageProbe, DURATION as SPD} from './runtime/__probe_stage3d';
@@ -552,6 +553,10 @@ const FilmWithObjects: React.FC<React.ComponentProps<typeof Film> & {baselineUnl
 
 export const RemotionRoot: React.FC = () => (
   <>
+    {/* the product-promo layer (references/promo-film.md): a shot table over real captures */}
+    <Composition id="PromoFilm" component={PromoFilm as React.FC<any>} fps={30} width={1920} height={1080}
+      defaultProps={{shots: [{kind: 'title', dur: 60, text: 'A promo film is a *shot table.*'}]}}
+      calculateMetadata={({props}) => ({durationInFrames: promoDuration(props as any), ...dims((props as any).aspect)})} />
     <Composition id="Film" component={FilmWithObjects} fps={30} width={1920} height={1080}
       defaultProps={{scenes: WORKBUDDY_SCENES}}
       calculateMetadata={({props}) => ({durationInFrames: filmDuration((props as any).scenes ?? WORKBUDDY_SCENES),

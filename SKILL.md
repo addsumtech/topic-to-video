@@ -130,6 +130,13 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   none. Capture runs over CDP (`scripts/_cdp.py`) and falls back to per-frame screenshots on its own; tune it with
   `meta.capture` (`cdp`|`screenshot`), `meta.chrome_workers`, `meta.jpeg_quality`.
 
+**Render: product promo** (`scripts/promo_film.py <dir>`; references/promo-film.md)
+- A launch/promo film of a product with a UI: the product AS ITSELF (real 2x captures under a 2.5D page camera),
+  serif title cards as breaths, one look, 1.5-6 s shots with an action each (pop, lift, type, click), flash cuts,
+  SFX pinned to the table. Written as a shot table (`promo.json`); `--check` refuses what would render wrong (a zoom
+  past the capture's density, a box off its capture, low-contrast accent ink), `--stills=` before the full render.
+  Not for a narrated explainer — that is the tier below.
+
 **Render: remotion cinematic tier** (`meta.renderer:"remotion"`)
 - `scripts/tier_advice.py`: decides from purpose + topic whether a film warrants this tier (interview ③). Remotion is for
   launch / promo / story films, NOT every video.
