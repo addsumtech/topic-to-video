@@ -118,7 +118,7 @@ def test_the_measured_rows_describe_the_register_not_an_empty_box():
     listed = sorted(data["_fixture"]["registers"])
     # + the four MRI registers that drew an empty plate and ForkingAnswers (an instance fixture), 2026-11-04
     assert listed == ["DiffusionDenoise", "ForkingAnswers", "KSpaceAnatomy", "KSpaceReal", "KSpaceToImage",
-                      "MuseumLabel", "PageWrite", "PhotoPlate", "PhotoToDiagram", "RealVersus", "ScanReconstruct",
+                      "MuseumLabel", "PageWrite", "PhotoPlate", "PhotoToDiagram", "ProductPage", "RealVersus", "ScanReconstruct",
                       "StateSheet"], listed
     # THE QUESTION IS "EMPTY PLATE OR NOT", AND THE FILM'S INK FLOOR WAS ONLY EVER STANDING IN FOR IT. The
     # docstring above records the two populations: a register handed nothing measures 0.0-0.6%; reached with

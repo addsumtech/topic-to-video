@@ -329,6 +329,20 @@
    "why": []
   },
   {
+   "shot": "ChapterCard",
+   "bandY": {
+    "light": 0.8879231810569763,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 0.9898627996444702,
+    "dark": 0.002083846367895603
+   },
+   "moved": 0.9981420842824601,
+   "ok": true,
+   "why": []
+  },
+  {
    "shot": "ChartLive",
    "bandY": {
     "light": 0.8879231810569763,
@@ -2345,6 +2359,22 @@
    "why": []
   },
   {
+   "shot": "ProductPage",
+   "bandY": {
+    "light": 0.7545526027679443,
+    "dark": 0.0
+   },
+   "fieldY": {
+    "light": 0.5002586245536804,
+    "dark": 0.16560684144496918
+   },
+   "moved": 0.3547124145785877,
+   "ok": false,
+   "why": [
+    "only 35% of the frame moved"
+   ]
+  },
+  {
    "shot": "ProfileGrowth",
    "bandY": {
     "light": 0.8879231810569763,
@@ -3515,7 +3545,9 @@
   "Callback": "060b310a5ac653dc",
   "LivingMap": "a2a657e37fba902e",
   "PhotoToDiagram": "5e06b739673b9939",
-  "FilmScreen": "d114c8dc6ffa4239"
+  "FilmScreen": "d114c8dc6ffa4239",
+  "ChapterCard": "a7c080250690cd53",
+  "ProductPage": "fcdf51aacc9757e7"
  },
  "failed": {
   "StatedBy": "ProtocolError: Protocol error (Runtime.callFunctionOn): Target closed. https://www.remotion.dev/docs/target-closed",
