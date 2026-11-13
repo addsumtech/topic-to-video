@@ -64,24 +64,34 @@ Rules:
 
 ## Stillness: the camera must glide, measured
 
-A page under a moving camera that steps reads as 抖动, the first thing a viewer notices. The camera is built so it
-cannot step, and `scripts/picture_glide_qa.py` measures it on every render. promo_film runs it, and it takes a
-narrated film's out_dir too.
+A page under a moving camera that steps or shimmers reads as 抖动, the first thing a viewer notices. The camera is
+built so it cannot do either, and `scripts/picture_glide_qa.py` measures both on every render. promo_film runs it; on
+a narrated film, run it on the out_dir.
 
-- **The page is laid out once.** It is laid out at the shot's largest zoom, inside one layer. Each frame is one 3D
-  transform at zoom/raster ≤ 1 (runtime/surfaceView raster mode). Setting CSS `zoom` per frame re-laid the page out
-  and rounded it at every zoom.
-- **The raster is pinned with `will-change: transform`.** A render runs in parallel tabs, and without the pin each tab
-  chose its own raster scale, which put a step at every chunk boundary.
-- **Moving type carries the baseline unlock** (runtime/glide): a card's slow push, rising words, a caption sliding in,
-  a carried cut. Under a pure scale+translate, Skia snaps each baseline to a whole pixel.
+- **Laid out once, moved by one transform.** The page is laid out at the shot's largest zoom, inside one layer, and
+  each frame is one 3D transform at zoom/raster ≤ 1. Setting CSS `zoom` per frame re-laid the page out and rounded it
+  at every zoom: a staircase.
+- **The raster is pinned** with `will-change: transform`. Without it each parallel render tab chose its own raster
+  scale, which put a step at every chunk boundary.
+- **No sub-pixel creep.** A sharp page creeping under a pixel a frame is crisp on a whole pixel and soft half-way
+  between. Its strokes "breathe" at speed × 30 Hz, and no resampling filter avoids this (bilinear, bicubic and
+  Lanczos all measured the same).
+  - So a page camera either **holds still** or makes a **decisive move**. A key segment that never moves the picture
+    faster than 8 px a frame is collapsed into a hold.
+  - A move **lands with linear deceleration**: the velocity is a sine bump, peaking where the named curve does. The
+    craft curves' long tails spent 10–15 frames creeping as they landed.
+  - **Chapter cards do not push.** A lift does not wobble. A held page's life is its acts.
 - **No corners in the camera's path.**
-  - Containment is a soft clamp.
-  - The timeline stretch in a narrated film is C1-smooth.
-  - The beat's clock is never warped (`export const CLOCK = 'own'`): every warp knot is a corner, and the acts are
-    cued one by one instead.
-- **Measured on a probe push and pan:** 0.366 → 0.022 px. On the zh film's page beats: 0.16/0.29 → 0.04/0.08 px. Its
-  overlay type, measured by jitter_qa: 0.59 px → OK.
+  - Containment is a soft clamp, smooth in the tilt.
+  - The narrated-film timeline stretch is smooth.
+  - The beat's clock is never warped (`CLOCK = 'own'`).
+- **Moving type carries the baseline unlock** (runtime/glide).
+- **Measured.** The zh Wikipedia film went from stepping (0.16–0.29 px) and breathing to 0.035–0.056 px with no creep.
+  Its held stretches are pixel-still: in a slit-scan each stroke is a straight line of constant ink. The overlay type
+  (jitter_qa) went from FAIL to OK.
+- **The gate.** It judges position (stepping) and creep (shimmer sustained over at least 12 frames). A shot that fails
+  is re-judged on a camera-only render: a sparse page whose texture is its popping elements measures the acts, not
+  the camera.
 
 ## The table (`promo.json`)
 
@@ -138,7 +148,8 @@ take their look from the film's design DNA (`lookFromDna`).
 - **Use each signature move once as the hero** (the lift, the tilted arrival, the recall). Shown twice, a move reads
   as a template.
 - **Camera.**
-  - Use one move per intention: re-position `swift`, then drift `smooth`.
+  - Use one decisive move per intention, then HOLD. A slow drift is collapsed into a hold, because a creeping page
+    shimmers.
   - Never go in and back out within one shot.
   - Tilted views are for arrivals; land straight-on before anything is read.
 - **Words.**

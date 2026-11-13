@@ -38,13 +38,28 @@ def render(props, frame=150):
     return png
 
 
-def band_edges(png, y_frac=0.55):
-    """x of every vertical boundary in the partition row — the bands' own geometry, read off the pixels."""
+def band_edges(png, y_frac=None):
+    """x of every vertical boundary of the partition — the bands' own geometry, read off the pixels.
+
+    A band boundary runs the whole height of the zone; a glyph's edge does not. One scan row used to cross the
+    walked step's numeral (set at display size since the craft redesign) and cut its band into a dozen 'bands'. So an
+    edge counts only where it appears on at least 80 % of nine rows across the zone (or on the one row asked for)."""
     im = Image.open(png).convert("L")
     W, H = im.size
-    row = np.asarray(im.crop((0, int(H * y_frac), W, int(H * y_frac) + 2))).astype(np.float32).mean(axis=0)
-    d = np.abs(np.diff(row))
-    return [i for i in np.nonzero(d > 12)[0]]
+    fracs = [y_frac] if y_frac is not None else [0.32 + 0.05 * k for k in range(9)]
+    hits = np.zeros(W - 1, int)
+    for f in fracs:
+        row = np.asarray(im.crop((0, int(H * f), W, int(H * f) + 2))).astype(np.float32).mean(axis=0)
+        d = np.abs(np.diff(row)) > 12
+        d = d | np.roll(d, 1) | np.roll(d, -1)          # a boundary may anti-alias a pixel either side
+        hits += d
+    keep = hits >= max(1, int(np.ceil(len(fracs) * 0.8)))
+    xs = np.nonzero(keep)[0]
+    out = []
+    for x in xs:                                         # one x per run of neighbouring hits
+        if not out or x - out[-1] > 2:
+            out.append(int(x))
+    return out
 
 
 @_NEEDS

@@ -791,7 +791,8 @@ cursor, callout). This is the first choice over a rebuilt mock whenever the thin
 - `shot_props`: `{src, w, h, keys, acts, nominal}`.
   - `keys` are camera poses over `nominal` frames; the beat's length stretches the tail.
   - An act whose `text` the voice speaks lands on the word by itself (sync binds it).
-  - One re-position (`swift`), then a slow drift (`smooth`). A tilted arrival (rx 14–24) is for the first sight only.
+  - One decisive move, then a still hold: a page creeping under a few px a frame shimmers (抖动), and PageCam collapses
+    such a segment into a hold. A tilted arrival (rx 14–24) is for the first sight only.
   - Keep a close-up's zoom ≤ 2 effective (the capture's density). The camera frames the zone above the caption band.
 - `ChapterCard` opens a chapter of the argument: `{text, kicker, index, total}`. The text is ≤ ~8 words / ~16 CJK
   characters, with the accent span in `*…*`. Use it at a `new-topic` seam, never on two adjacent beats; 3–5 per film

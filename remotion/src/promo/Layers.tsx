@@ -57,7 +57,7 @@ export const Lift: React.FC<LiftSpec & Common> = ({box, at, until, z = 90, scale
   const rise = span(frame, at, at + 12, 'overshoot');
   const back = span(frame, until, until + 16, 'swift');
   const lift = Math.max(0, rise * (1 - back));
-  const bob = Math.sin(((frame - at) / 42) * Math.PI * 2) * 3 * lift;
+  const bob = 0;   // no hover wobble: a sub-pixel sine on a sharp crop is a shimmer, not a float (see PageCam CREEP)
   const sw = span(frame, at + 8, at + 30, 'smooth');           // one sheen across the surface after it rises
   return (
     <div style={{position: 'absolute', left: box.x, top: box.y, width: box.w, height: box.h}}>

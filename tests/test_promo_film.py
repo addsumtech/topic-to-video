@@ -122,3 +122,16 @@ def test_zoom_cap_is_on_effective_density(film):
     assert pf.check(tall, str(film))[0] == []
     wide = {"shots": [page(keys=[{"f": 0, "cx": 200, "cy": 150, "zoom": 3.0}])]}
     assert any("density" in e for e in pf.check(wide, str(film))[0])
+
+
+def test_the_page_camera_keeps_its_stillness_rules():
+    """The four things that made a page step or shimmer (picture_glide_qa measures the result; these pin the causes):
+    laid out once and moved by one transform, the raster pinned across render tabs, creeping segments collapsed into
+    holds, landings with linear deceleration."""
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "promo", "PageCam.tsx"),
+               encoding="utf-8").read()
+    assert "willChange: 'transform'" in src
+    assert "zoom: raster" in src and "scale3d(${s}, ${s}, 1)" in src
+    assert "const CREEP = 8;" in src and "if (peak < CREEP)" in src
+    assert "Math.cos(Math.PI * Math.pow(" in src          # the sine-bump landing
+    assert "Math.exp(-(rx * rx + ry * ry + rz * rz) / 18)" in src   # containment smooth in the tilt

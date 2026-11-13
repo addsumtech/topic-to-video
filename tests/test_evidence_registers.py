@@ -66,9 +66,10 @@ def test_the_sweep_derives_its_fixture_list_from_the_call_sites():
     # same derivation from its signature (`lines?: string` beside the guarded src), never by name.
     # ELEVEN: the four MRI registers that drew an empty plate (test_no_register_draws_an_optional_picture_into_an_empty_
     # plate) adopted the guard; KSpaceAnatomy's three panels are each the proof, so each is required and filled.
+    # THIRTEEN: `ProductPage` films a real capture of the product (or page) the beat shows, and refuses to draw without one.
     assert set(ev) == {"PhotoPlate", "RealVersus", "ScanReconstruct", "MuseumLabel", "PageWrite",
                        "StateSheet", "PhotoToDiagram", "KSpaceReal", "KSpaceAnatomy", "KSpaceToImage",
-                       "DiffusionDenoise", "ForkingAnswers"}, ev
+                       "DiffusionDenoise", "ForkingAnswers", "ProductPage"}, ev
     # TWELVE: ForkingAnswers has no demo and refuses an empty call; its instance is a file, never a name here
     assert ev["ForkingAnswers"]["trees"][0]["tree"]["children"], ev["ForkingAnswers"]
     assert set(ev["KSpaceAnatomy"]) == {"srcK", "srcLow", "srcHigh"}, ev["KSpaceAnatomy"]

@@ -84,7 +84,9 @@ export const ChapterCard: React.FC<{text: string; dur: number; index?: number; t
   const look = useLook();
   const s = typeScale(W, H);
   const portrait = H > W;
-  const push = 1 + 0.02 * span(frame, 0, dur, 'linear');
+  // NO CREEP: a 2 % push over a card is ~0.1 px a frame at its type's edges — the speed at which strokes visibly
+  // 'breathe' between pixel rows (PageCam CREEP). The card's life is its words rising and its accent filling.
+  const push = 1;
   const meta = span(frame, 0, 10, 'out') * (1 - span(frame, dur - 8, dur, 'exit'));
   const p0 = index && total ? (index - 1) / total : 0, p1 = index && total ? index / total : 0;
   const bar = span(frame, 4, 22, 'snappy');

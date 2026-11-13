@@ -10,6 +10,9 @@
 |---|---|---|
 | `command` | the instruction typed into the search field | single line (`white-space: pre`), fitted to the palette width up to 46px; a long command types into smaller type |
 | `items` | the rows that spawn and tick | one shared size fitted to the palette, up to 38px. Two or three rows tick slowly and deliberately; the maximum (six on a 1080-tall frame) ticks in quick succession. The first row doubles as the pre-Return match |
+| `title` | an optional statement set beside the palette (landscape only), revealed word by word from mid-beat | pairs the palette with the beat's claim; the palette moves left to make room. Omitted, the palette stays centred alone |
+| `titleAccent` | the words of `title` set in the accent | one or two words; more and nothing is accented |
+| `result` | an optional `{name, note}` card that lands after the last tick — the thing the run produced | the payoff of the beat: a file name and a short green note. Omitted, the beat ends on the ticked checklist |
 
 **Known traps:**
 - Every row ends ticked; that's the register's premise, not per-item data. Don't use it when a step isn't done.

@@ -31,6 +31,10 @@ export const promoDuration = (p: PromoProps) => {
   }, 0);
 };
 
+// THE SHOT TABLE IS THE CLOCK. PromoFilm is its own composition: no Film CutCarry runs a picture lead over it
+// (runtime/motion PictureLeadContext), so a span sized from a shot's length ends exactly when the shot does. The
+// lengths are computed once, by name, below (validate.sequence_ends_at_duration guards the library's beats, not this).
+const capSpan = (s: PageShot) => (s.caption?.dur ?? Math.max(20, Math.round(s.dur) - (s.caption?.at ?? 8) - 6));
 export const PageShotView: React.FC<{s: PageShot}> = ({s}) => (
   <AbsoluteFill>
     <Ground />
@@ -38,8 +42,8 @@ export const PageShotView: React.FC<{s: PageShot}> = ({s}) => (
       <Layers layers={s.layers ?? s.acts ?? []} src={s.src} pageW={s.w} pageH={s.h} />
     </PageCam>
     {s.caption ? (
-      <Sequence from={s.caption.at ?? 8} durationInFrames={s.caption.dur ?? Math.max(20, s.dur - (s.caption.at ?? 8) - 6)}>
-        <CaptionStrip text={s.caption.text} dur={s.caption.dur ?? Math.max(20, s.dur - (s.caption.at ?? 8) - 6)} />
+      <Sequence from={s.caption.at ?? 8} durationInFrames={capSpan(s)}>
+        <CaptionStrip text={s.caption.text} dur={capSpan(s)} />
       </Sequence>
     ) : null}
   </AbsoluteFill>
@@ -67,7 +71,8 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry'}) =>
     if (!/^#[0-9a-fA-F]{6}$/.test(L[k])) throw new Error(`PromoFilm: look.${k} must be #rrggbb (got ${L[k]})`);
   }
   let t = 0;
-  const starts = shots.map((s) => { const a = t; t += Math.round(s.dur); return a; });
+  const lens = shots.map((s) => Math.round(s.dur));
+  const starts = lens.map((n) => { const a = t; t += n; return a; });
   const cards = shots.map((s, i) => (s.kind === 'title' && s.index !== false ? i : -1)).filter((i) => i >= 0);
   const cutInto = (i: number): Cut => (i === 0 ? 'hard' : shots[i].cut ?? cut);
   const pages = shots.map((s, i) => (s.kind === 'page' ? i : -1)).filter((i) => i >= 0);
@@ -97,8 +102,8 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry'}) =>
     <LookContext.Provider value={L}>
       <AbsoluteFill style={{background: L.paper}}>
         {shots.map((s, i) => (
-          <Sequence key={i} from={starts[i]} durationInFrames={Math.round(s.dur)}>
-            <Carried dur={Math.round(s.dur)} dirIn={travel(s, i)} dirOut={travel(shots[Math.min(i + 1, shots.length - 1)], i + 1)}
+          <Sequence key={i} from={starts[i]} durationInFrames={lens[i]}>
+            <Carried dur={lens[i]} dirIn={travel(s, i)} dirOut={travel(shots[Math.min(i + 1, shots.length - 1)], i + 1)}
               inn={cutInto(i) === 'carry'} out={i + 1 < shots.length && cutInto(i + 1) === 'carry'}>
               {view(s, i)}
             </Carried>

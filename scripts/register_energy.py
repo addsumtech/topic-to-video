@@ -241,9 +241,11 @@ def _deps(path, seen=None):
     if path in seen or not os.path.exists(path):
         return seen
     seen.add(path)
+    if not path.endswith((".ts", ".tsx", ".js", ".jsx")):
+        return seen          # an imported ASSET (a font the promo layer loads) is part of the picture — hashed, not parsed
     try:
         src = open(path, encoding="utf-8").read()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return seen
     base = os.path.dirname(path)
     for rel in _IMPORT.findall(src):

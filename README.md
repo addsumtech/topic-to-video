@@ -37,7 +37,7 @@ Every film below began as a single request in a chat. Click one to watch it on *
 ## Why it's different
 
 - 🔎 **Sourced, not invented.** Every date and figure in the narration is pinned to a quote from a page it fetched. If a number can't be sourced, the film says it qualitatively.
-- 🎬 **Designed shot by shot.** It picks from 225 hand-built shot designs (cutaways, compare panels, routes, timelines, phone demos, data stages) and builds what the library lacks. Heavier 3D shots render in Blender.
+- 🎬 **Designed shot by shot.** It picks from 227 hand-built shot designs (cutaways, compare panels, routes, timelines, phone demos, data stages) and builds what the library lacks. Heavier 3D shots render in Blender.
 - 👁️ **The picture says the thing.** Each shot is built for what its line claims. Hide the caption and the picture should still carry the idea.
 - 🗣️ **Any language, free voice.** edge-tts by default, word-synced captions, Chinese included. It can voice an English deck in Chinese, or the reverse.
 - 🧪 **Checked on the rendered frames.** Text out of frame, captions over content, audio sync, text jitter during camera moves, leftover placeholders.
@@ -48,7 +48,7 @@ Every film below began as a single request in a chat. Click one to watch it on *
 
 | | **Cinematic** (Remotion) | **Page** (HTML) |
 | --- | --- | --- |
-| A shot is | An animated shot from 225 designs, plus objects built for the film | A designed page per beat: flows, tables, charts, code, equations |
+| A shot is | An animated shot from 227 designs, plus objects built for the film | A designed page per beat: flows, tables, charts, code, equations |
 | Motion | Camera moves, depth, cuts planned across the film | Each point appears on the word that names it |
 | Best for | Launches, promos, stories, how a mechanism works | Teaching, how-tos, research briefings, narrating a deck |
 | Needs | Node.js | Chrome only |

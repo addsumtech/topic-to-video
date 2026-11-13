@@ -33,7 +33,7 @@ const Card: React.FC<Required<Pick<Props, 'size'>> & Props & {dur: number}> = ({
   const meta = span(frame, 0, 10, 'out') * (1 - span(frame, dur - 8, dur, 'exit'));
   const p0 = index && total ? (index - 1) / total : 0, p1 = index && total ? index / total : 0;
   const bar = span(frame, 4, 22, 'snappy');
-  const push = 1 + 0.02 * span(frame, 0, dur, 'linear');
+  const push = 1;   // no creep on type (promo/PageCam CREEP): the card lives by its words rising and its accent filling
   return (
     <CardGround>
       <div style={{position: 'absolute', left: pad, right: pad, top: CONTENT_TOP, height: zoneBottom - CONTENT_TOP, display: 'flex',

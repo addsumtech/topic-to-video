@@ -45,12 +45,57 @@ export const PageCam: React.FC<{
   const look = useLook();
   const allowed = React.useContext(BaselineUnlockContext);
   const cap = maxZoom * 1.0001;
+  // NO SUB-PIXEL CREEP ON A PAGE. A segment whose fastest point moves the picture less than CREEP px a frame is
+  // collapsed into a HOLD (its end pose becomes its start pose, so the camera stays continuous). Measured: a sharp
+  // capture drifting 0.17 px a frame pulsed in sharpness by ~5-10 % every few frames — the compositor's bilinear
+  // resample is crisp on a whole pixel and soft half-way — a 5-7 Hz shimmer the viewer reads as 抖动; held still it is
+  // 0.0 %, moving ≥ 1 px a frame the phase sweeps too fast to see. Life on a held page comes from its acts.
+  // 8 px a frame at the PEAK: a move's landing passes through the creep band for ~(0.9 / peak) of the segment's time, so
+  // a slower move spends a fifth or more of itself shimmering (measured: segments peaking at 4-5 px a frame shimmered
+  // 6-8 %). A page camera either holds or makes a decisive move.
+  const CREEP = 8;
+  const camKeys = React.useMemo(() => {
+    // A CAMERA LANDS WITH CONSTANT DECELERATION. The craft curves (expo, swift, snappy) end on a long, ever-slower tail:
+    // the last 1 % of a move spread over a third of its time — a creep, and on a sharp page a shimmer as it lands. A
+    // page camera's moves use a two-piece quadratic instead (accelerate to the peak at `p`, decelerate linearly to
+    // rest): velocity is continuous, and the landing spends 1-2 frames under a pixel a frame instead of 10-15. The
+    // named curve keeps its character through `p` (where the move peaks): snappy/expo/out leave fast, smooth is
+    // symmetric, swift leaves briskly. `linear` stays linear.
+    const PEAK: Record<string, number> = {snappy: 0.12, expo: 0.1, out: 0.18, overshoot: 0.15, swift: 0.38, smooth: 0.5, anticip: 0.55, exit: 0.7};
+    // velocity a sine bump over a warped clock: it peaks at `p` (t^q = 1/2) and, like a constant deceleration, falls
+    // LINEARLY to rest — the shortest landing — while staying smooth (a two-piece quadratic had a corner in its
+    // acceleration at the peak, which read as a bump)
+    const land = (p: number) => {
+      const q = Math.log(0.5) / Math.log(Math.min(0.9, Math.max(0.05, p)));
+      return (t: number) => (1 - Math.cos(Math.PI * Math.pow(Math.min(1, Math.max(0, t)), q))) / 2;
+    };
+    const ks = keys.map((k) => {
+      const e = k.ease;
+      if (e === 'linear' || typeof e === 'function') return {...k};
+      return {...k, ease: land(PEAK[String(e ?? 'smooth')] ?? 0.5)};
+    });
+    const scr = (k: CamKey) => ({x: k.cx, y: k.cy, z: Number(k.zoom ?? 1) * (W / 1920)});
+    for (let i = 1; i < ks.length; i++) {
+      const a = scr(ks[i - 1]), b = scr(ks[i]);
+      const n = Math.max(1, ks[i].f - ks[i - 1].f);
+      // the picture's travel on screen: the pan at the larger zoom, plus a push measured at the frame's edge
+      const travel = Math.hypot(b.x - a.x, b.y - a.y) * Math.max(a.z, b.z) + Math.abs(b.z - a.z) / Math.max(a.z, b.z) * Math.hypot(W, H) / 2;
+      // a tilt moves the picture too: a degree swings the frame's edge by ~W/2 x π/180
+      const tilt = (Math.abs(Number(ks[i].rx ?? 0) - Number(ks[i - 1].rx ?? 0)) + Math.abs(Number(ks[i].ry ?? 0) - Number(ks[i - 1].ry ?? 0))
+        + Math.abs(Number(ks[i].rz ?? 0) - Number(ks[i - 1].rz ?? 0))) * (Math.PI / 180) * (W / 2);
+      const peak = ((travel + tilt) / n) * 2;      // an eased segment peaks at ~2x its mean speed
+      if (peak < CREEP) {
+        ks[i] = {...ks[i], cx: ks[i - 1].cx, cy: ks[i - 1].cy, zoom: ks[i - 1].zoom, rx: ks[i - 1].rx, ry: ks[i - 1].ry, rz: ks[i - 1].rz};
+      }
+    }
+    return ks;
+  }, [keys, W, H]);
   // `zoom` is authored at a 1920-wide reference (1 = one CSS px per screen px on a 1920 frame); what the texture must
   // carry is the EFFECTIVE density on this frame — at 9:16 the same key is 0.5625 of it.
   const poseAt = (f: number): Pose => {
-    let cx = track(keys, f, 'cx'), cy = track(keys, f, 'cy');
-    let zoom = Math.min(cap, track(keys, f, 'zoom', 1) * (W / 1920));
-    const rx = track(keys, f, 'rx'), ry = track(keys, f, 'ry'), rz = track(keys, f, 'rz');
+    let cx = track(camKeys, f, 'cx'), cy = track(camKeys, f, 'cy');
+    let zoom = Math.min(cap, track(camKeys, f, 'zoom', 1) * (W / 1920));
+    const rx = track(camKeys, f, 'rx'), ry = track(camKeys, f, 'ry'), rz = track(camKeys, f, 'rz');
     // CONTAIN: a straight-on view stays inside the capture — the edge of a web page and the ground past it are not
     // part of the product. Where the view is wider (taller) than the page it is centred instead. A tilted view is a
     // deliberate object shot (the window on its ground), so containment fades out as the tilt grows (none from 6°).
@@ -70,7 +115,7 @@ export const PageCam: React.FC<{
       cy = cy + (clampTo(cy, vh, h, focusY) - cy) * k;
     }
     zoom = Math.max(1e-3, zoom);
-    return {cx, cy, zoom, rx, ry, rz, persp: track(keys, f, 'persp', 1600)};
+    return {cx, cy, zoom, rx, ry, rz, persp: track(camKeys, f, 'persp', 1600)};
   };
   const P = poseAt(frame);
   const maxKey = Math.max(...keys.map((k) => Number(k.zoom ?? 1))) * (W / 1920);

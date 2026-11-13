@@ -324,7 +324,16 @@ finding it prints that you do not understand.
       and 0.37 on a probe push, while shake_qa said OK.
     - After the raster camera (laid out once, `will-change` pins the raster across parallel render tabs, soft
       containment, no clock warp, a smooth timeline stretch) it reads 0.02-0.08.
-  - **Where it runs.** promo_film.py runs it after every render.
+  - **Shimmer.** On frames where the whole picture CREEPS (median tile > 0.03 px a frame, p75 < 0.9), it also measures
+    the frame-to-frame change of each tile's sharpness (Laplacian variance), sustained over at least 12 frames. Over
+    3 %, the beat shimmers.
+    - A creeping sharp page breathes at speed × 30 Hz whatever the resampling filter. Bilinear, bicubic and Lanczos
+      all measured 6.5–7.3 %, and a still page 0.0 %.
+    - Calibrated: a 0.17 px/frame creep reads 64 %.
+  - **Where it runs.**
+    - promo_film.py runs it after every render.
+    - A failing page shot is re-judged on a camera-only render (its acts removed). A sparse page whose texture is its
+      popping elements measures the acts, not the camera.
 - `scripts/promo_film.py <dir> [--spec=promo.json] [--check] [--stills=f,f] [--no-sound] [--bgm=file|auto] [--out=]`
   renders a launch/promo film with no narration, written as a shot table (composition `PromoFilm`).
   - **Check.** `check()` refuses, by name:

@@ -30,6 +30,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 FAIL_RMS = 0.12      # px; calibrated below: a glide 0.01-0.04, a staircase 0.2+
+FAIL_SHIMMER = 0.03  # sharpness change a frame on creeping pairs; calibrated below: a 0.17 px/frame bilinear creep pulses 5-10 %
 POP = 0.6            # px; a single pair's error this large is a visible jump
 SEAM = 12            # frames at each beat edge left out (the cut / dissolve)
 TILE = 160
@@ -76,10 +77,15 @@ def judge_span(video, a, b, W, H, fps):
     from skimage.registration import phase_cross_correlation
     from scipy.signal import savgol_filter
     tl = tiles_for(W, H)
+    from scipy import ndimage as _ndi
     prev = None
     shifts = {t: [] for t in tl}
+    sharp = {t: [] for t in tl}
     textured = {t: True for t in tl}
     for k, fr in enumerate(frames(video, a, b, W, H, fps)):
+        for t in tl:
+            x, y = t
+            sharp[t].append(float(_ndi.laplace(fr[y:y + TILE, x:x + TILE]).var()))
         if prev is not None:
             for t in tl:
                 x, y = t
@@ -125,7 +131,15 @@ def judge_span(video, a, b, W, H, fps):
         for j, (t, _) in enumerate(pts):
             if res[j] > LOCAL:
                 local[t][i] = True
+    mags = np.array([[np.hypot(*shifts[t][i]) if i < len(shifts[t]) and not np.isnan(shifts[t][i][0]) else np.nan for t in keys]
+                     for i in range(n_pairs)]) if keys and n_pairs else np.zeros((0, 0))
+    # the CAMERA creeps when the typical tile moves (median > 0.03 px) and the fast ones stay under a pixel (p75 < 0.9):
+    # on a held page whose cards pop in one by one, the median is still — that is an act settling, not a creep
+    p75 = np.nanpercentile(mags, 75, axis=1) if mags.size else np.zeros(0)
+    p50 = np.nanpercentile(mags, 50, axis=1) if mags.size else np.zeros(0)
+    frame_creeps = (p50 > 0.03) & (p75 < 0.9) if p75.size else np.zeros(n_pairs, bool)
     per_tile = []
+    shimmer = []
     worst_pop = 0.0
     for t, s in shifts.items():
         arr = np.array(s, float)
@@ -153,11 +167,27 @@ def judge_span(video, a, b, W, H, fps):
             continue
         smooth = np.stack([savgol_filter(arr[:, i], 9, 2) for i in (0, 1)], 1)
         e = np.hypot(*(arr - smooth).T)
+        # SHIMMER: on a picture creeping under a pixel a frame, the resample is crisp on a whole pixel and soft half-way,
+        # so its sharpness pulses at speed x 30 Hz — at 0.17 px a frame a 5 Hz flicker read as 抖动 although the position
+        # glides. Measured as the frame-to-frame change of the tile's sharpness (Laplacian variance) on CREEPING pairs.
+        sv = np.array(sharp[t], float)
+        sv = sv[1:][keep] if len(sv) > len(keep) else sv[:len(keep)][keep]
+        # only where the WHOLE picture creeps (its 75th-percentile tile under 0.9 px a frame): the centre of a real push
+        # is always slow, and a push is a move, not a creep
+        creep = (mag > 0.03) & (mag < 0.9) & frame_creeps[keep] & ~np.convolve(loc.astype(float), np.ones(5), mode="same").astype(bool)
+        # a flicker is seen as one only over a couple of its cycles: at the 3-7 Hz of a creep that is ~12 frames. A
+        # decisive move's landing passes the creep band for a few frames — a settle, not a shimmer — and is not judged.
+        if creep.sum() >= 12 and sv.mean() > 50:
+            rel = sv / sv.mean()
+            d = np.abs(np.diff(rel))[creep[1:]]
+            if len(d) >= 5:
+                shimmer.append(float(np.percentile(d, 90)))
         per_tile.append(float(np.sqrt((e[moving] ** 2).mean())))
         worst_pop = max(worst_pop, float(e[moving].max()))
+    sh = float(np.median(shimmer)) if len(shimmer) >= 3 else None
     if len(per_tile) < 3:
-        return None if not per_tile else {"rms": None, "tiles": len(per_tile), "pop": worst_pop}
-    return {"rms": float(np.median(per_tile)), "tiles": len(per_tile), "pop": worst_pop}
+        return None if not per_tile else {"rms": None, "tiles": len(per_tile), "pop": worst_pop, "shimmer": sh}
+    return {"rms": float(np.median(per_tile)), "tiles": len(per_tile), "pop": worst_pop, "shimmer": sh}
 
 
 def spans_of(out_dir, spec=None):
@@ -197,8 +227,23 @@ def calibrate():
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-framerate", "30", "-i", os.path.join(d, "%03d.png"), "-c:v", "libx264",
                         "-crf", "12", "-pix_fmt", "yuv420p", mp4], check=True)
         out[mode] = judge_span(mp4, 0, 59, 1920, 1080, 30)
-    print("[picture_glide] calibrate: glide %.3f px · stairs %.3f px (fail over %.2f)" % (out["glide"]["rms"], out["stairs"]["rms"], FAIL_RMS))
-    return 0 if out["glide"]["rms"] < FAIL_RMS < out["stairs"]["rms"] else 1  # noqa
+    # the shimmer control: a sharp texture CREEPING 0.17 px a frame, resampled bilinearly (as a compositor does), against
+    # the same texture held still
+    for mode in ("creep", "held"):
+        d = tempfile.mkdtemp()
+        sharp_tex = (rng.random((1300, 2200)) > 0.5).astype(np.float32) * 255
+        for i in range(60):
+            dy = 0.17 * i if mode == "creep" else 0.0
+            fr = ndi.shift(sharp_tex, (dy, 0), order=1)[100:1180, 100:2020]
+            Image.fromarray(np.clip(fr, 0, 255).astype(np.uint8)).save(os.path.join(d, "%03d.png" % i))
+        mp4 = os.path.join(d, "c.mp4")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-framerate", "30", "-i", os.path.join(d, "%03d.png"), "-c:v", "libx264",
+                        "-crf", "12", "-pix_fmt", "yuv420p", mp4], check=True)
+        out[mode] = judge_span(mp4, 0, 59, 1920, 1080, 30)
+    cs = out["creep"]["shimmer"]
+    print("[picture_glide] calibrate: glide %.3f px · stairs %.3f px (fail over %.2f) · creep shimmer %s (fail over %.0f%%)"
+          % (out["glide"]["rms"], out["stairs"]["rms"], FAIL_RMS, "%.1f%%" % (cs * 100) if cs is not None else "n/a", FAIL_SHIMMER * 100))
+    return 0 if (out["glide"]["rms"] < FAIL_RMS < out["stairs"]["rms"] and cs is not None and cs > FAIL_SHIMMER) else 1
 
 
 def main(argv):
@@ -230,9 +275,11 @@ def main(argv):
             print("  beat %2d  frames %d-%d  too little texture to judge (%d tile(s); a verdict needs 3)" % (beat, a, b, r["tiles"]))
             continue
         judged += 1
-        flag = r["rms"] > FAIL_RMS
-        print("  beat %2d  frames %d-%d  %.3f px RMS (median of %d tiles) · worst pair %.2f px%s"
-              % (beat, a, b, r["rms"], r["tiles"], r["pop"], "   <- STEPS" if flag else ""))
+        shim = r.get("shimmer")
+        flag = r["rms"] > FAIL_RMS or (shim is not None and shim > FAIL_SHIMMER)
+        print("  beat %2d  frames %d-%d  %.3f px RMS (median of %d tiles) · worst pair %.2f px · shimmer %s%s"
+              % (beat, a, b, r["rms"], r["tiles"], r["pop"], "%.1f%%" % (shim * 100) if shim is not None else "n/a (no creep)",
+                 "   <- STEPS" if r["rms"] > FAIL_RMS else ("   <- SHIMMERS" if flag else "")))
         if flag:
             bad.append(beat)
     if not judged:

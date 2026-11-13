@@ -328,11 +328,60 @@ def main(argv):
     print("[promo_film] wrote " + out)
     # THE PICTURE GLIDES, MEASURED: a page under a moving camera that steps instead (re-laid out per frame, a raster
     # re-chosen per render tab, a corner in the camera's path) is what a viewer sees as 抖动 — say so on every render
-    import picture_glide_qa as pg
-    rc = pg.main([film, "--video=" + out, "--spec=" + os.path.relpath(spec_path, film)])
+    rc = glide_check(film, spec_path, out)
     if rc == 1:
-        print("[promo_film] the picture STEPS on a page shot (above) — fix it before delivery")
+        print("[promo_film] the CAMERA steps or shimmers on a page shot (above) — fix it before delivery")
     return 0
+
+
+def glide_check(film, spec_path, video):
+    """picture_glide_qa on every page shot; a shot that fails is re-judged on a CAMERA-ONLY proxy (its acts removed).
+    A sparse page whose only texture is the elements popping in measures the acts' own motion — a pop's overshoot, a
+    lift — not the camera (an Excalidraw sketch: 0.34 px with its acts, 0.10 camera-only; its slit-scan smooth). So the
+    verdict is the camera's; the acts are named as what moved."""
+    import tempfile
+    import picture_glide_qa as pg
+    spec = json.load(open(spec_path, encoding="utf-8"))
+    W, H, _n, fps = pg._probe(video)
+    bad = []
+    for beat, a, b in pg.spans_of(film, spec_path):
+        if b - a < 14:
+            continue
+        r = pg.judge_span(video, a, b, W, H, fps)
+        if r is None or r.get("rms") is None:
+            print("  shot %2d  not judged (%s)" % (beat, "nothing moving" if r is None else "too little texture"))
+            continue
+        fails = r["rms"] > pg.FAIL_RMS or (r.get("shimmer") or 0) > pg.FAIL_SHIMMER
+        line = "  shot %2d  %.3f px RMS · shimmer %s" % (beat, r["rms"], "%.1f%%" % (r["shimmer"] * 100) if r.get("shimmer") is not None else "n/a")
+        if not fails:
+            print(line + "  ok")
+            continue
+        shot = dict(spec["shots"][beat - 1])
+        if not (shot.get("layers") or shot.get("acts")):
+            print(line + "   <- the CAMERA steps or shimmers")
+            bad.append(beat)
+            continue
+        shot.pop("layers", None), shot.pop("acts", None), shot.pop("caption", None)
+        proxy = dict(spec, shots=[shot])
+        tmp = tempfile.mkdtemp(prefix="promo_cam_")
+        pj = os.path.join(film, "_promo_cam_%d.json" % beat)
+        json.dump(proxy, open(pj, "w"))
+        mp4 = os.path.join(tmp, "cam.mp4")
+        try:
+            render_picture(film, pj, mp4)
+            rc_ = pg.judge_span(mp4, 8, int(round(shot["dur"])) - 8, W, H, fps)
+        finally:
+            os.remove(pj)
+        cam_bad = rc_ is not None and rc_.get("rms") is not None and (rc_["rms"] > pg.FAIL_RMS or (rc_.get("shimmer") or 0) > pg.FAIL_SHIMMER)
+        if cam_bad:
+            print(line + "   <- the CAMERA steps or shimmers (camera-only: %.3f px, shimmer %s)"
+                  % (rc_["rms"], "%.1f%%" % (rc_["shimmer"] * 100) if rc_.get("shimmer") is not None else "n/a"))
+            bad.append(beat)
+        else:
+            print(line + "   camera-only %s — the camera glides; what moved is the shot's acts"
+                  % ("%.3f px" % rc_["rms"] if rc_ and rc_.get("rms") is not None else "still"))
+    print("[promo_film] glide: %s" % ("FAIL on shot(s) %s" % bad if bad else "OK — every page shot's camera glides"))
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":
