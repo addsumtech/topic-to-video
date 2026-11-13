@@ -126,12 +126,21 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
                      ".map(i=>i.decode().catch(()=>1))).then(()=>1), new Promise(r=>setTimeout(()=>r(0), 8000))])"):
             c._cmd("Runtime.evaluate", {"expression": expr, "awaitPromise": True, "returnByValue": True}, c.sid)
         time.sleep(wait)
+        eval_results = []
         for step in [x for x in (js or "").split("\n;;;\n") if x.strip()]:
-            # one state change per step (load a scene and reload; then open a dialog), each settled before the next
+            # one state change per step (load a scene and reload; then open a dialog), each settled before the next.
+            # What a step RETURNS is printed and kept in the layout (`eval`): a step may ask the page a question
             try:
-                c._cmd("Runtime.evaluate", {"expression": step, "awaitPromise": True, "returnByValue": True}, c.sid)
+                rr = c._cmd("Runtime.evaluate", {"expression": step, "awaitPromise": True, "returnByValue": True}, c.sid)
             except _cdp.CDPUnavailable as e:
                 raise SystemExit("[promo_capture] --eval step failed: %s" % e)
+            val = (rr.get("result", {}).get("result") or {}).get("value")
+            exc = rr.get("result", {}).get("exceptionDetails")
+            if exc:
+                raise SystemExit("[promo_capture] --eval step threw: %s" % (exc.get("exception", {}).get("description") or exc.get("text")))
+            eval_results.append(val)
+            if val is not None:
+                print("[promo_capture] eval -> %s" % json.dumps(val, ensure_ascii=False)[:2000])
             time.sleep(max(0.6, wait))
             for expr in ("document.fonts ? document.fonts.ready.then(()=>1) : 1",):
                 c._cmd("Runtime.evaluate", {"expression": expr, "awaitPromise": True, "returnByValue": True}, c.sid)
@@ -173,10 +182,22 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
                 with Image.open(hp) as hi:
                     if abs(hi.size[0] - hb["w"] * HIRES) > 4:
                         raise SystemExit("[promo_capture] the %dx close-up of %s came back %dpx wide, not %d" % (HIRES, hb, hi.size[0], hb["w"] * HIRES))
+                    # THE SAME PICTURE? A page redrawn at 4x may lay out differently (a canvas app re-renders, a responsive
+                    # page reflows): the close-up is compared with its box in the 2x capture and refused when it is not it
+                    import numpy as np
+                    with Image.open(png) as base:
+                        ref = np.asarray(base.convert("L").crop((int(hb["x"] * 2), int(hb["y"] * 2), int((hb["x"] + hb["w"]) * 2),
+                                                                  int((hb["y"] + hb["h"]) * 2))), float)
+                    mine = np.asarray(hi.convert("L").resize((ref.shape[1], ref.shape[0]), Image.LANCZOS), float)
+                    diff = float(np.abs(mine - ref).mean())
+                    if diff > 12:
+                        raise SystemExit("[promo_capture] the %dx close-up of %s is not the same picture as the page (mean "
+                                         "difference %.1f/255): the page changed when redrawn at %dx" % (HIRES, hb, diff, HIRES))
                 hires.append({"box": hb, "src": "caps/%s.hi%d.png" % (name, k), "scale": HIRES})
     # the page's own title and description: the product's words, citable as the film's source
     out = {"src": "caps/%s.png" % name, "w": pw // 2, "h": ph // 2, "url": url, "title": lay.get("title", ""),
-           "description": lay.get("description", ""), "captured": time.strftime("%Y-%m-%d"), "elements": els, "hires": hires}
+           "description": lay.get("description", ""), "captured": time.strftime("%Y-%m-%d"), "elements": els, "hires": hires,
+           "eval": eval_results}
     json.dump(out, open(os.path.join(caps, name + ".layout.json"), "w"), indent=1)
     overlay(png, out, os.path.join(caps, name + ".boxes.jpg"))
     return out

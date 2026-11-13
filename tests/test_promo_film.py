@@ -4,6 +4,7 @@ import sys
 
 import pytest
 
+os.environ["TOPIC_TO_VIDEO_PROMO_LEDGER"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_promo_ledger_test.json")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 import promo_film as pf  # noqa: E402
 
@@ -163,3 +164,42 @@ def test_every_recorded_take_exists_and_is_licensed():
                 assert w.getnframes() > 0, p
     lic = open(os.path.join(pf._KENNEY, "LICENSE.txt"), encoding="utf-8").read()
     assert "CC0" in lic
+
+
+def test_structure_is_a_word_and_a_repeat_is_named(tmp_path, monkeypatch):
+    led = tmp_path / "ledger.json"
+    monkeypatch.setattr(pf, "LEDGER", str(led))
+    tour = {"shots": [{"kind": k} for k in ("brand", "title", "page", "page", "title", "page", "outro")]}
+    other = {"shots": [{"kind": k} for k in ("page", "statement", "compare", "montage", "statement", "outro")]}
+    assert pf.skeleton(tour) == "BCPPCPO" and pf.skeleton(other) == "PSVMSO"
+    pf.record_skeleton(tour, str(tmp_path / "filmA"))
+    assert any("repeats" in a for a in pf.skeleton_advice(tour, str(tmp_path / "filmB")))
+    assert not pf.skeleton_advice(other, str(tmp_path / "filmC"))
+    assert not pf.skeleton_advice(tour, str(tmp_path / "filmA"))          # a film never repeats itself
+
+
+def test_narration_is_the_films_own_choice():
+    assert not pf.narrated({"shots": [{"kind": "page"}]})
+    assert pf.narrated({"shots": [{"kind": "page", "say": "It compresses images."}]})
+    assert not pf.narrated({"narrate": False, "shots": [{"kind": "page", "say": "x"}]})
+    assert pf.skeleton({"shots": [{"kind": "page", "say": "x"}]}).endswith("+vo")
+
+
+def test_subtitles_follow_the_voice(tmp_path):
+    words = tmp_path / "w.words.json"
+    words.write_text('[{"w":"Open","t":0.0},{"w":"your","t":0.2},{"w":"image.","t":0.4},{"w":"Compare","t":1.1},{"w":"it.","t":1.5}]')
+    subs = pf._subtitle_chunks("Open your image. Compare it.", str(words), 2.0, 2.0)
+    assert [x[2] for x in subs] == ["Open your image.", "Compare it."]
+    assert subs[0][0] == pytest.approx(2.0) and subs[1][0] == pytest.approx(3.1) and subs[1][1] > subs[1][0]
+
+
+def test_new_kinds_and_the_through_cut_are_checked(film):
+    reg = {"src": "page.png", "w": 400, "h": 300, "box": {"x": 0, "y": 0, "w": 200, "h": 100}}
+    ok = {"shots": [{"kind": "statement", "dur": 50, "text": "One *line.*", "ground": "accent"},
+                    {"kind": "compare", "dur": 60, "a": reg, "b": reg, "cut": "through"},
+                    {"kind": "montage", "dur": 40, "items": [reg, reg]}]}
+    assert pf.check(ok, str(film))[0] == []
+    bad = {"shots": [{"kind": "compare", "dur": 60, "a": reg, "b": dict(reg, box={"x": 300, "y": 0, "w": 200, "h": 100})},
+                     {"kind": "statement", "dur": 50, "text": "x", "ground": "neon"}]}
+    errs = pf.check(bad, str(film))[0]
+    assert any("outside" in e for e in errs) and any("ground" in e for e in errs)

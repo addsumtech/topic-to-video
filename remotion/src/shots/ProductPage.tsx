@@ -25,7 +25,7 @@ import {SceneDurationContext, SEAM_FRAMES, ENTRY_T} from '../runtime/motion';
 import {captionBand, CONTENT_TOP} from '../runtime/layout';
 import {LookContext, lookFromDna, alpha} from '../promo/kit';
 import {PageCam, Ground, type CamKey, type Macro} from '../promo/PageCam';
-import {Layers, type LayerSpec} from '../promo/Layers';
+import {Layers, OVERLAY_KINDS, type LayerSpec} from '../promo/Layers';
 
 export const DURATION = 150; // 5s
 // the shot frames and moves its own camera: coverage leaves it alone
@@ -93,8 +93,9 @@ export const ProductPage: React.FC<Props> = ({src: srcIn, w = 1440, h = 900, key
         <Ground light={{x: 0.5, y: 0.25}} />
         {(
           <PageCam src={src} w={w} h={h} keys={timedKeys} maxZoom={maxZoom} focusY={focusY}
-            macros={timedLayers.filter((l) => l.kind === 'macro') as Macro[]}>
-            <Layers layers={timedLayers} src={src} pageW={w} pageH={h} />
+            macros={timedLayers.filter((l) => l.kind === 'macro') as Macro[]}
+            overlay={<Layers layers={timedLayers.filter((l) => OVERLAY_KINDS.includes(l.kind))} src={src} pageW={w} pageH={h} />}>
+            <Layers layers={timedLayers.filter((l) => !OVERLAY_KINDS.includes(l.kind))} src={src} pageW={w} pageH={h} />
           </PageCam>
         )}
         {/* the caption's ground: the page fades into the film's own ground under the burned caption */}

@@ -8,7 +8,7 @@
 relative to it. Steps: CHECK the table (files, boxes inside their capture, zoom within the capture's density, keys
 in order, shot lengths) — a defect stops here, by name; RENDER the picture (remotion composition `PromoFilm`); PIN
 the sound to the same table (a cue per action: air through each carried cut, whoosh on a camera move, pop on an
-element landing, keys under typing, click on a click, swell → bell as the closing lockup forms) unless the spec lists its own `sfx`
+element landing, keys under typing, click on a click, swell → impact as the closing lockup forms) unless the spec lists its own `sfx`
 [{f, cue, gain}]; MIX (a generated score under the cues by default — a promo is scored; `--bgm=none` for SFX only,
 `--bgm=<file>` for the user's own track) → <film_dir>/out.mp4, and the cue list
 actually used → <film_dir>/promo_sfx.json.
@@ -20,6 +20,7 @@ table and the layer does the craft the same way every time.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -111,6 +112,14 @@ def check(spec, film_dir):
                     errs.append("%s: key f=%s zoom %.2f is %.2f screen px per CSS px on this %dpx-wide frame, past the capture's density %.1f "
                                 "(the texture would be upsampled; a close-up past it needs a `macro` act — a 4x capture of the element at (cx, cy))"
                                 % (where, kk.get("f"), kk["zoom"], eff, frame_w, mz))
+                frame_h = ASPECTS.get(spec.get("aspect", "16:9"), ASPECTS["16:9"])[1]
+                tilt = abs(kk.get("rx", 0)) + abs(kk.get("ry", 0)) + abs(kk.get("rz", 0))
+                if w and h and eff > 0 and tilt < 2 and s.get("contain", True) is not False:
+                    vw, vh = frame_w / eff, frame_h / eff
+                    if (vw < w and (kk.get("cx", 0) - vw / 2 < -1 or kk.get("cx", 0) + vw / 2 > w + 1)) or \
+                       (vh < h and (kk.get("cy", 0) - vh / 2 < -1 or kk.get("cy", 0) + vh / 2 > h + 1)):
+                        adv.append("%s: key f=%s frames past the page's edge — containment will pull the view in (aim the "
+                                   "key inside, or set contain: false for a deliberate edge)" % (where, kk.get("f")))
                 if w and h and not (0 <= kk.get("cx", 0) <= w and 0 <= kk.get("cy", 0) <= h):
                     errs.append("%s: key f=%s aims off the capture (%s, %s)" % (where, kk.get("f"), kk.get("cx"), kk.get("cy")))
             for j, l in enumerate(s.get("layers") or s.get("acts") or [], 1):
@@ -143,12 +152,28 @@ def check(spec, film_dir):
                     errs.append("%s: recall %r is not the index of a page shot (0-based)" % (where, j))
             if k == "outro" and not any(x.get("kind") == "page" for x in shots):
                 errs.append("%s: the outro recalls the film's page shots and there are none" % where)
+        elif k == "statement":
+            if not str(s.get("text", "")).strip():
+                errs.append("%s: no text" % where)
+            if s.get("ground") not in (None, "paper", "accent", "ink"):
+                errs.append("%s: ground must be paper, accent or ink" % where)
+        elif k in ("compare", "montage"):
+            regions = [s.get("a"), s.get("b")] if k == "compare" else list(s.get("items") or [])
+            if not regions or any(not isinstance(r, dict) for r in regions):
+                errs.append("%s: needs %s" % (where, "a and b regions" if k == "compare" else "items (regions)"))
+            for j, r in enumerate(r for r in regions if isinstance(r, dict)):
+                rsz = cap(r.get("src", ""), "%s region %d" % (where, j))
+                if rsz:
+                    inside(r.get("box", {}), rsz[0] / 2, rsz[1] / 2, "%s region %d" % (where, j))
         else:
             errs.append("%s: unknown kind" % where)
-        if s.get("cut") not in (None, "carry", "flash", "hard"):
-            errs.append("%s: cut must be carry, flash or hard" % where)
-    if spec.get("cut") not in (None, "carry", "flash", "hard"):
-        errs.append("cut must be carry, flash or hard")
+        if s.get("cut") not in (None, "carry", "flash", "hard", "through"):
+            errs.append("%s: cut must be carry, flash, hard or through" % where)
+        if s.get("say") is not None and not str(s.get("say")).strip():
+            errs.append("%s: an empty `say`" % where)
+    if spec.get("cut") not in (None, "carry", "flash", "hard", "through"):
+        errs.append("cut must be carry, flash, hard or through")
+    adv += skeleton_advice(spec, film_dir)
     look = derive_look(spec.get("look"))
     for key in ("accent", "accentInk"):
         v = look.get(key)
@@ -202,6 +227,116 @@ def derive_look(look):
         look["accentInk"] = ink
     look.pop("mode", None)
     return look
+
+
+LEDGER = os.environ.get("TOPIC_TO_VIDEO_PROMO_LEDGER") or os.path.expanduser("~/.topic-to-video/promo_skeletons.json")
+
+
+def skeleton(spec):
+    """The film's STRUCTURE as a word: one letter per shot kind (+ narrated or not), cuts ignored. Two films with the
+    same skeleton are the same film with different pictures — the template feel the user named on Squoosh vs WorkBuddy."""
+    letter = {"brand": "B", "title": "C", "page": "P", "outro": "O", "statement": "S", "compare": "V", "montage": "M"}
+    return "".join(letter.get(sh.get("kind"), "?") for sh in spec.get("shots") or []) + ("+vo" if narrated(spec) else "")
+
+
+def skeleton_advice(spec, film_dir):
+    """Advise when this film's structure repeats another film's (ledger outside the repo, one row per film folder)."""
+    import difflib
+    me = skeleton(spec)
+    try:
+        led = json.load(open(LEDGER, encoding="utf-8"))
+    except (OSError, ValueError):
+        led = {}
+    out = []
+    for other, sk in led.items():
+        if os.path.abspath(other) == os.path.abspath(film_dir):
+            continue
+        r = difflib.SequenceMatcher(None, me, sk).ratio()
+        if r >= 0.8:
+            out.append("structure %s repeats %s (%s, %.0f %% alike) — design this film's own arc (references/promo-film.md "
+                       "§design): its hook, its proof, its payoff come from THIS product" % (me, os.path.basename(other.rstrip("/")), sk, r * 100))
+    return out
+
+
+def record_skeleton(spec, film_dir):
+    try:
+        led = json.load(open(LEDGER, encoding="utf-8"))
+    except (OSError, ValueError):
+        led = {}
+    led[os.path.abspath(film_dir)] = skeleton(spec)
+    os.makedirs(os.path.dirname(LEDGER), exist_ok=True)
+    json.dump(led, open(LEDGER, "w", encoding="utf-8"), indent=1)
+
+
+def narrated(spec):
+    """A film is narrated when it says so, or (no `narrate`) when any shot carries a line to `say`. Whether a film
+    SHOULD speak is the director's call per film: a how-it-works story speaks, a mood or brand piece does not."""
+    n = spec.get("narrate")
+    return bool(n) if n is not None else any(str(sh.get("say") or "").strip() for sh in spec.get("shots") or [])
+
+
+VO_LEAD, VO_TAIL = 0.3, 0.45      # s: a line starts a breath into its shot and ends a breath before the cut
+
+
+def voice_pass(film_dir, spec):
+    """Voice every `say` (edge-tts), lengthen each shot to hold its line, and time the subtitles from the voice's own
+    word boundaries. Returns (resolved spec, [(start_s, mp3)]). Cached by text + voice."""
+    import hashlib
+    import math
+    if not narrated(spec):
+        return spec, []
+    import tts
+    voice = spec.get("voice") or "en-US-AndrewNeural"
+    voice = voice.split(":", 1)[1] if voice.startswith("edge:") else voice
+    rate = spec.get("voice_rate", "+0%")
+    adir = os.path.join(film_dir, "audio")
+    os.makedirs(adir, exist_ok=True)
+    out = json.loads(json.dumps(spec))
+    clips, subs, t = [], [], 0
+    for i, sh in enumerate(out["shots"]):
+        line = str(sh.get("say") or "").strip()
+        d = int(round(sh["dur"]))
+        if line:
+            h = hashlib.sha1(("%s|%s|%s" % (voice, rate, line)).encode("utf-8")).hexdigest()[:12]
+            mp3 = os.path.join(adir, "say_%02d_%s.mp3" % (i, h))
+            if not os.path.isfile(mp3):
+                tts._edge(line, mp3, voice, rate)
+            secs = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", mp3],
+                                        capture_output=True, text=True).stdout.strip() or 0)
+            need = int(math.ceil((VO_LEAD + secs + VO_TAIL) * FPS))
+            if need > d:
+                sh["dur"] = d = need
+            st = t / FPS + VO_LEAD
+            clips.append((st, mp3))
+            # the frame already SAYS it (a statement or a card whose type is the line): the subtitle yields
+            norm = lambda x: re.sub(r"[^\w]+", " ", str(x).replace("*", "")).strip().lower()
+            if not (sh.get("kind") in ("statement", "title") and norm(sh.get("text", "")) == norm(line)):
+                subs += _subtitle_chunks(line, os.path.splitext(mp3)[0] + ".words.json", st, secs)
+        t += d
+    out["subtitles"] = [{"from": int(round(a * FPS)), "to": int(round(b * FPS)), "text": x} for a, b, x in subs]
+    return out, clips
+
+
+def _subtitle_chunks(line, words_json, start_s, secs, max_chars=64):
+    """The line in readable pieces (a sentence, or a clause when long), each shown from its first word to the next."""
+    import re as _re
+    parts = [p.strip() for p in _re.split(r"(?<=[.!?。！？])\s+|(?<=[,;，；])\s+(?=\S{12,})", line) if p.strip()]
+    if not parts:
+        return []
+    try:
+        words = json.load(open(words_json, encoding="utf-8"))
+    except (OSError, ValueError):
+        words = []
+    out, wi = [], 0
+    starts_ = []
+    for p in parts:
+        starts_.append(words[wi]["t"] if wi < len(words) else (len(starts_) / len(parts)) * secs)
+        wi += len(p.split()) if words else 0
+    for k, p in enumerate(parts):
+        a = start_s + starts_[k]
+        b = start_s + (starts_[k + 1] if k + 1 < len(parts) else secs) + (0.25 if k + 1 == len(parts) else 0)
+        out.append((a, b, p))
+    return out
 
 
 def starts(spec):
@@ -278,6 +413,8 @@ def plan_sfx(spec):
 
 
 def render_picture(film_dir, spec_path, out, frames=None):
+    # absolute paths: remotion runs from its own folder, so a relative film dir pointed it at nothing
+    film_dir, spec_path, out = os.path.abspath(film_dir), os.path.abspath(spec_path), os.path.abspath(out)
     spec = json.load(open(spec_path, encoding="utf-8"))
     spec["look"] = derive_look(spec.get("look"))
     props = os.path.join(film_dir, "_promo_props.json")          # the table as rendered: the derived look filled in
@@ -302,10 +439,26 @@ BANK = {"click": ["click_005"], "key": ["click_002", "click_003"], "drop": ["dro
 
 
 # a social film's loudness (-16..-14 LUFS), true peak under -1.5 dBTP: measured, the unnormalised mix sat at -24 LUFS
-LOUD = "loudnorm=I=-15:TP=-1.5:LRA=11,aresample=48000"
+LOUD = "loudnorm=I=-15:TP=-1.5:LRA=11,aresample=48000,alimiter=limit=0.7:level=false"   # single-pass loudnorm and the AAC encode overshoot (-0.5/-0.6 dBTP measured); the limiter holds -3 dBFS
 
 
-def mix(film_dir, silent, cues, total_frames, out, bgm="auto", climax_s=None):
+def _voice_track(clips, secs, out_wav):
+    """Every line placed at its second on one mono 48 kHz track."""
+    import numpy as np
+    import wave
+    sr = 48000
+    buf = np.zeros(int((secs + 1) * sr), np.float32)
+    for st, mp3 in clips:
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", mp3, "-ac", "1", "-ar", str(sr), "-f", "s16le", "-"], capture_output=True).stdout
+        a = np.frombuffer(raw, np.int16).astype(np.float32) / 32768.0
+        i = int(st * sr)
+        buf[i:i + len(a)] += a[: max(0, len(buf) - i)]
+    with wave.open(out_wav, "wb") as w:
+        w.setnchannels(1), w.setsampwidth(2), w.setframerate(sr)
+        w.writeframes((np.clip(buf, -1, 1) * 32767).astype("<i2").tobytes())
+
+
+def mix(film_dir, silent, cues, total_frames, out, bgm="auto", climax_s=None, vo_clips=()):
     import sfx
     secs = total_frames / FPS
     wav = os.path.join(film_dir, "_promo_sfx.wav")
@@ -325,7 +478,20 @@ def mix(film_dir, silent, cues, total_frames, out, bgm="auto", climax_s=None):
         inputs += ["-i", pad]
     elif bgm and bgm != "none":
         inputs += ["-i", bgm]
-    if len(inputs) == 6:
+    has_bed = len(inputs) == 6
+    if vo_clips:
+        # THE VOICE LEADS: the bed ducks under it (sidechain), the cues sit lower than in a music-only film
+        vo = os.path.join(film_dir, "_promo_vo.wav")
+        _voice_track(vo_clips, secs, vo)
+        inputs += ["-i", vo]
+        vi = 3 if has_bed else 2
+        if has_bed:
+            graph = ("[%d:a]asplit=2[v][vk];[1:a]highpass=f=120,volume=0.6[s];[2:a]volume=0.42,afade=t=in:d=0.4,afade=t=out:st=%.2f:d=2[b0];"
+                     "[b0][vk]sidechaincompress=threshold=0.03:ratio=6:attack=15:release=400[b];"
+                     "[v][s][b]amix=inputs=3:normalize=0,%s[a]" % (vi, max(0, secs - 2), LOUD))
+        else:
+            graph = "[%d:a]anull[v];[1:a]highpass=f=120,volume=0.6[s];[v][s]amix=inputs=2:normalize=0,%s[a]" % (vi, LOUD)
+    elif has_bed:
         # the hits sit 3-6 dB over the bed; the bed fades in and closes on a 2 s fade under the end card
         graph = ("[1:a]highpass=f=120,volume=1.0[s];[2:a]volume=0.42,afade=t=in:d=0.4,"
                  "afade=t=out:st=%.2f:d=2[b];[s][b]amix=inputs=2:normalize=0,%s[a]" % (max(0, secs - 2), LOUD))
@@ -340,7 +506,7 @@ def main(argv):
     if not argv or argv[0].startswith("-"):
         print(__doc__.strip().splitlines()[0])
         return 2
-    refuse_unknown(argv[1:], valued=("spec", "stills", "bgm", "out"), switches=("check", "no-sound", "remix"))
+    refuse_unknown(argv[1:], valued=("spec", "stills", "bgm", "out"), switches=("check", "no-sound", "remix", "sheet"))
     film = os.path.abspath(argv[0])
     spec_path = os.path.join(film, argflag(argv, "spec", "promo.json"))
     spec = json.load(open(spec_path, encoding="utf-8"))
@@ -364,6 +530,14 @@ def main(argv):
             print("  still " + p)
         return 0
     out = os.path.join(film, argflag(argv, "out", "out.mp4"))
+    # NARRATION FIRST: the voice decides how long a speaking shot lasts, so the table is resolved before the picture
+    spec, vo_clips = voice_pass(film, spec)
+    if vo_clips:
+        spec_path = os.path.join(film, "_promo_resolved_%s.json" % os.path.splitext(os.path.basename(out))[0])
+        json.dump(spec, open(spec_path, "w"), indent=0)
+        _, total = starts(spec)
+        print("[promo_film] narrated: %d line(s), the film now %d frames (%.1f s)" % (len(vo_clips), total, total / FPS))
+    record_skeleton(spec, film)
     # the picture, kept per output so two films in one folder (a 16:9 and a 9:16) never share it; `--remix` re-mixes the
     # sound over the picture already rendered
     silent = os.path.join(film, "_promo_silent_%s" % os.path.basename(out))
@@ -380,14 +554,44 @@ def main(argv):
         st, _ = starts(spec)
         outro = [(a, sh) for a, sh in zip(st, spec["shots"]) if sh.get("kind") == "outro"]
         climax = (outro[-1][0] + int(outro[-1][1].get("stampAt", 46))) / FPS if outro else None
-        mix(film, silent, cues, total, out, argflag(argv, "bgm", "auto"), climax)
+        mix(film, silent, cues, total, out, argflag(argv, "bgm", "auto"), climax, vo_clips)
     print("[promo_film] wrote " + out)
     # THE PICTURE GLIDES, MEASURED: a page under a moving camera that steps instead (re-laid out per frame, a raster
     # re-chosen per render tab, a corner in the camera's path) is what a viewer sees as 抖动 — say so on every render
+    if "--sheet" in argv:
+        sheet(film, spec_path, out)
     rc = glide_check(film, spec_path, out)
     if rc == 1:
         print("[promo_film] the CAMERA steps or shimmers on a page shot (above) — fix it before delivery")
-    return 0
+    return rc                                   # a film whose camera fails is written, and the run still says so
+
+
+def sheet(film, spec_path, video, out_name="_sheet.jpg"):
+    """One frame per shot at 90 % of it (the settled frame), labelled with its table index and kind — the contact
+    sheet a review starts from."""
+    from PIL import Image, ImageDraw
+    spec = json.load(open(spec_path, encoding="utf-8"))
+    st, _ = starts(spec)
+    tiles = []
+    for i, (a, sh) in enumerate(zip(st, spec["shots"])):
+        f = a + int(round(sh["dur"] * 0.9))
+        r = subprocess.run(["ffmpeg", "-v", "error", "-i", video, "-vf", "select=eq(n\\,%d),scale=480:-2" % f, "-vsync", "0",
+                            "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True)
+        import io
+        im = Image.open(io.BytesIO(r.stdout)).convert("RGB") if r.stdout else Image.new("RGB", (480, 270), "black")
+        tiles.append((i, sh.get("kind"), f, im))
+    cols = 4
+    tw, th = tiles[0][3].size
+    out = Image.new("RGB", (cols * (tw + 8), ((len(tiles) + cols - 1) // cols) * (th + 22)), (16, 16, 16))
+    d = ImageDraw.Draw(out)
+    for k, (i, kind, f, im) in enumerate(tiles):
+        x, y = (k % cols) * (tw + 8), (k // cols) * (th + 22)
+        out.paste(im, (x, y))
+        d.text((x + 4, y + th + 4), "%02d %s f%d" % (i, kind, f), fill=(220, 220, 220))
+    p = os.path.join(film, out_name)
+    out.save(p, quality=85)
+    print("[promo_film] contact sheet " + p)
+    return p
 
 
 def glide_check(film, spec_path, video):
@@ -405,19 +609,23 @@ def glide_check(film, spec_path, video):
             continue
         r = pg.judge_span(video, a, b, W, H, fps)
         if r is None or r.get("rms") is None:
-            print("  shot %2d  not judged (%s)" % (beat, "nothing moving" if r is None else "too little texture"))
+            print("  shot %2d  not judged (%s)" % (beat - 1, "nothing moving" if r is None else "too little texture"))
             continue
         fails = r["rms"] > pg.FAIL_RMS or (r.get("shimmer") or 0) > pg.FAIL_SHIMMER
-        line = "  shot %2d  %.3f px RMS · shimmer %s" % (beat, r["rms"], "%.1f%%" % (r["shimmer"] * 100) if r.get("shimmer") is not None else "n/a")
+        line = "  shot %2d  %.3f px RMS · shimmer %s" % (beat - 1, r["rms"], "%.1f%%" % (r["shimmer"] * 100) if r.get("shimmer") is not None else "n/a")
         if not fails:
             print(line + "  ok")
             continue
         shot = dict(spec["shots"][beat - 1])
         if not (shot.get("layers") or shot.get("acts")):
             print(line + "   <- the CAMERA steps or shimmers")
-            bad.append(beat)
+            bad.append(beat - 1)
             continue
+        # the camera-only proxy keeps the shot's MACROS: they are part of what the camera films (a push past the page's
+        # 2x is onto them), and without them a macro close-up was re-judged as a push into a soft page
+        keep = [l for l in (shot.get("layers") or shot.get("acts") or []) if l.get("kind") == "macro"]
         shot.pop("layers", None), shot.pop("acts", None), shot.pop("caption", None)
+        shot["layers"] = keep
         proxy = dict(spec, shots=[shot])
         tmp = tempfile.mkdtemp(prefix="promo_cam_")
         pj = os.path.join(film, "_promo_cam_%d.json" % beat)
@@ -432,11 +640,11 @@ def glide_check(film, spec_path, video):
         if cam_bad:
             print(line + "   <- the CAMERA steps or shimmers (camera-only: %.3f px, shimmer %s)"
                   % (rc_["rms"], "%.1f%%" % (rc_["shimmer"] * 100) if rc_.get("shimmer") is not None else "n/a"))
-            bad.append(beat)
+            bad.append(beat - 1)
         else:
             print(line + "   camera-only %s — the camera glides; what moved is the shot's acts"
                   % ("%.3f px" % rc_["rms"] if rc_ and rc_.get("rms") is not None else "still"))
-    print("[promo_film] glide: %s" % ("FAIL on shot(s) %s" % bad if bad else "OK — every page shot's camera glides"))
+    print("[promo_film] glide (shots numbered as in the table, from 0): %s" % ("FAIL on shot(s) %s" % bad if bad else "OK — every page shot's camera glides"))
     return 1 if bad else 0
 
 

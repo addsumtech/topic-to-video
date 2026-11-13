@@ -277,6 +277,8 @@ export const Write: React.FC<WriteSpec> = ({box, at, lineH = 24, every = 5, fill
 };
 
 export type MacroSpec = {kind: 'macro'; box: Box; src: string; scale?: number; at?: number; radius?: number};
+/** Acts drawn OVER the page and its macros (annotation, not page content). */
+export const OVERLAY_KINDS = ['callout', 'note', 'ring', 'cursor'];
 export type LayerSpec = PopSpec | LiftSpec | FocusSpec | RingSpec | TypeSpec | CursorSpec | CalloutSpec | NoteSpec | MacroSpec | DealSpec | WriteSpec;
 
 /** Layers in the order given (later = on top). Pop/lift need the capture they crop from. */

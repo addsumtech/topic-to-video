@@ -44,8 +44,10 @@ export const PageCam: React.FC<{
   focusY?: number;           // where (cx, cy) lands, as a share of the frame height: 0.5, or higher up when a caption
                              // band owns the bottom of the frame (a narrated film)
   macros?: Macro[];          // 4x captures of the elements a close-up pushes into (see Macro)
+  overlay?: React.ReactNode; // acts that sit ON TOP of everything, macros included (callouts, rings, the cursor), in
+                             // page CSS px — drawn on a layer of their own at the close-up's raster, so they stay sharp
   children?: React.ReactNode;
-}> = ({src, w, h, keys, radius = 12, maxZoom = 2, frameOverride, blur = 0, contain = true, focusY = 0.5, macros = [], children}) => {
+}> = ({src, w, h, keys, radius = 12, maxZoom = 2, frameOverride, blur = 0, contain = true, focusY = 0.5, macros = [], overlay, children}) => {
   const f0 = useCurrentFrame();
   const frame = frameOverride ?? f0;
   const {width: W, height: H} = useVideoConfig();
@@ -100,30 +102,26 @@ export const PageCam: React.FC<{
   }, [keys, W, H]);
   // `zoom` is authored at a 1920-wide reference (1 = one CSS px per screen px on a 1920 frame); what the texture must
   // carry is the EFFECTIVE density on this frame — at 9:16 the same key is 0.5625 of it.
+  // CONTAINMENT IS APPLIED TO THE KEYS, NOT TO THE FRAMES. A straight-on view stays inside the capture — the edge of a
+  // web page and the ground past it are not the product; where the view is wider (taller) than the page it is centred.
+  // A tilted key is an object shot (the window on its ground), so its containment fades with the tilt (Gaussian, smooth
+  // in the angle). Clamping every FRAME put a corner in the camera's path wherever a move crossed the bound or its tilt
+  // changed the clamp's weight (measured: 0.13-0.20 px glide failures), and a soft clamp pulled a key near the edge
+  // inward; clamped once per key, the camera interpolates between contained poses and has no corner to turn.
+  const containedKeys = React.useMemo(() => camKeys.map((k) => {
+    if (!contain) return k;
+    const z = Math.min(cap, Number(k.zoom ?? 1) * (W / 1920));
+    const rx = Number(k.rx ?? 0), ry = Number(k.ry ?? 0), rz = Number(k.rz ?? 0);
+    const wgt = Math.exp(-(rx * rx + ry * ry + rz * rz) / 18);
+    const vw = W / z, vh = H / z;
+    const clampTo = (c: number, v: number, size: number, fr = 0.5) => (v >= size ? size / 2 : Math.min(size - v * (1 - fr), Math.max(v * fr, c)));
+    return {...k, cx: k.cx + (clampTo(k.cx, vw, w) - k.cx) * wgt, cy: k.cy + (clampTo(k.cy, vh, h, focusY) - k.cy) * wgt};
+  }), [camKeys, contain, cap, W, H, w, h, focusY]);
   const poseAt = (f: number): Pose => {
-    let cx = track(camKeys, f, 'cx'), cy = track(camKeys, f, 'cy');
-    let zoom = Math.min(cap, track(camKeys, f, 'zoom', 1) * (W / 1920));
-    const rx = track(camKeys, f, 'rx'), ry = track(camKeys, f, 'ry'), rz = track(camKeys, f, 'rz');
-    // CONTAIN: a straight-on view stays inside the capture — the edge of a web page and the ground past it are not
-    // part of the product. Where the view is wider (taller) than the page it is centred instead. A tilted view is a
-    // deliberate object shot (the window on its ground), so containment fades out as the tilt grows (none from 6°).
-    if (contain) {
-      // how much containment applies, SMOOTH in the tilt: `1 - |tilt|/6` clamped at 0 had a corner where a tilt crossed
-      // zero (|x|) and another at 6° (the clamp) — each a corner in the camera's path, measured as a stepping shot
-      const k = Math.exp(-(rx * rx + ry * ry + rz * rz) / 18);
-      const vw = W / zoom, vh = H / zoom;
-      // a SOFT clamp: a hard min/max puts a corner in the camera's path the frame the view meets the page edge (the
-      // pan speed jumps — measured as a 1.25 px step across every tile of a probe push); smoothed over ~40 px of page,
-      // the view eases onto the edge instead
-      const sMax = (a: number, b: number, kk = 40) => (a + b + Math.sqrt((a - b) * (a - b) + kk * kk)) / 2;
-      const sMin = (a: number, b: number, kk = 40) => (a + b - Math.sqrt((a - b) * (a - b) + kk * kk)) / 2;
-      const clampTo = (c: number, v: number, size: number, fr = 0.5) => (v >= size ? size / 2
-        : sMin(size - v * (1 - fr), sMax(v * fr, c)));
-      cx = cx + (clampTo(cx, vw, w) - cx) * k;
-      cy = cy + (clampTo(cy, vh, h, focusY) - cy) * k;
-    }
-    zoom = Math.max(1e-3, zoom);
-    return {cx, cy, zoom, rx, ry, rz, persp: track(camKeys, f, 'persp', 1600)};
+    const cx = track(containedKeys, f, 'cx'), cy = track(containedKeys, f, 'cy');
+    const zoom = Math.max(1e-3, Math.min(cap, track(containedKeys, f, 'zoom', 1) * (W / 1920)));
+    const rx = track(containedKeys, f, 'rx'), ry = track(containedKeys, f, 'ry'), rz = track(containedKeys, f, 'rz');
+    return {cx, cy, zoom, rx, ry, rz, persp: track(containedKeys, f, 'persp', 1600)};
   };
   const P = poseAt(frame);
   // MOTION BLUR ON A FAST MOVE (as a camera's shutter would): the picture's speed at this frame, in screen px a frame —
@@ -194,6 +192,19 @@ export const PageCam: React.FC<{
                 opacity: m.at === undefined ? 1 : span(frame, m.at, m.at + 6, 'smooth'),
                 backgroundImage: `url(${urlOf(m.src)})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat'}} />
             ))}
+          </div>
+        ) : null}
+        {overlay ? (
+          <div style={{
+            position: 'absolute', left: 0, top: 0, width: w * mRaster, height: h * mRaster, pointerEvents: 'none',
+            transformOrigin: `${P.cx * mRaster}px ${P.cy * mRaster}px`, willChange: 'transform',
+            transform: `translate3d(${W / 2 - P.cx * mRaster}px, ${H * focusY - P.cy * mRaster}px, 0) rotateY(${P.ry}deg) rotateX(${P.rx}deg) ` +
+              `rotateZ(${P.rz}deg) scale3d(${ms}, ${ms}, 1)`,
+          }}>
+            <div style={{position: 'absolute', left: 0, top: 0, width: w, height: h, zoom: mRaster, transformOrigin: '0 0',
+              transform: allowed ? unlockFor(1) : undefined}}>
+              <PageCamContext.Provider value={info}>{overlay}</PageCamContext.Provider>
+            </div>
           </div>
         ) : null}
       </div>

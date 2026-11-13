@@ -19,3 +19,4 @@ remotion/.probe.png*
 remotion/.render.lock
 # tests/_tsprobe.py's scratch TypeScript (removed after each probe; left behind only by a killed run)
 remotion/tsprobe_*
+tests/_promo_ledger_test.json

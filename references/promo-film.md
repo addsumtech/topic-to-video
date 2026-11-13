@@ -132,6 +132,52 @@ a narrated film, run it on the out_dir.
 | `deal` | the page's own cards start as one stack and fly out to their slots one by one along a lifted arc, settling flat | `boxes` (from the layout / `--boxes`), `at, every, dur, from, fill` |
 | `write` | a block of the capture's own text appears line by line behind an accent caret (the document writing itself, in its own words) | `box, at, lineH, every, fill` |
 
+### Every field (what the table accepts)
+
+| where | field | meaning |
+|---|---|---|
+| film | `aspect`, `cut` (carry/flash/hard/through), `look` ({accent, mode} or the full set), `sfx` (a list replacing the plan) | |
+| every shot | `kind`, `dur` (frames), `cut` (into this shot) | |
+| brand | `mark`, `aspect` (the mark's w/h, printed by `--mark`), `kicker`, `markH` | |
+| title | `text` (`*accent*`), `kicker`, `index` (false = unnumbered), `size` | |
+| page | `src`, `w`, `h`, `keys`, `layers` (or `acts`), `caption` {text, at, dur}, `contain` (default true), `maxZoom` (2), `radius` | |
+| outro | `mark`, `aspect`, `tagline`, `cta`, `stampAt` (default 46), `markH`, `recall` (page-shot indices, from 0) | |
+| statement | `text` (`*accent*`), `ground` (paper/accent/ink), `size`, `sub` | one line of type, word by word out of a blur, then still |
+| compare | `a`, `b` (regions: {src, w, h, box}), `labelA`, `labelB`, `at`, `sweep` | the same region of two captures, a divider sweeping across |
+| montage | `items` (regions), `every` (frames each, 8-18), `full` | the product's own crops in quick succession, each landing and holding |
+| any shot | `say` (the voice's line), `throughAt` ({x, y} in frame shares, for a `through` cut) | |
+| film (voice) | `narrate`, `voice` (edge voice id), `voice_rate` | |
+| key | `f`, `cx`, `cy`, `zoom` (at a 1920-wide reference), `rx`, `ry`, `rz`, `persp`, `ease` | |
+| pop | `box, at, fill, radius, dur, from` (up/left/scale), `src, srcBox, srcW, srcH` (from another capture), `cover` | |
+| lift | `box, at, until, z, scale, radius, slot, sheen` | |
+| focus | `box, at, until, dim, blur, radius` | |
+| ring | `box, at, until, radius, pad` | |
+| type | `box, at, text, cpf, size, fill, color, weight` | |
+| cursor | `path [{f, x, y, ease}]`, `clicks [f]`, `size` | |
+| callout / note | `x, y, lx, ly` (note: `x, y` only), `at, until, kicker, text, size` | |
+| macro | `box, src, scale` (4), `at`, `radius` | |
+| deal | `boxes, at, every, dur, from {x, y}, fill, radius` | |
+| write | `box, at, lineH, every, fill` | |
+
+- **Layering.** Page content (pop, lift, focus, type, deal, write) is drawn IN the page. Annotation (callout, note,
+  ring, cursor) is drawn on a layer of its own ABOVE the page and its macros, at the close-up's raster, so a callout
+  on a 4x close-up is sharp and visible.
+- **Report numbering.** The glide report numbers shots as the table does, from 0. `promo_film.py` exits 1 when a
+  camera fails (the film is still written).
+- **`--sheet`** writes `_sheet.jpg`: one frame per shot at 90 %, labelled with its index.
+
+### Known limits of the capture
+
+- **`--full` captures the DOCUMENT's scroll height.** An app that scrolls an inner container captures only the
+  viewport. Scroll that container with an `--eval` step and capture each state.
+- **`--mark` keys ONE flat ground colour.** A logo over a pattern or animation keeps it. Isolate the logo first with
+  an `--eval` step (lift it onto a plain overlay), then cut.
+- **The layout lists every visible box, including ones an overlay hides.** Look at `.boxes.jpg` before using a box.
+- **An `--eval` step's return value** is printed and kept in the layout (`eval`). Ask the page a question
+  (`JSON.stringify([...document.querySelectorAll('button')].map(b => b.innerText))`) instead of guessing selectors.
+- **A `--hires` close-up** is compared with its box in the 2x capture and refused if the page redrew differently at
+  4x.
+
 ## In a narrated film
 
 `ProductPage` takes `{src, w, h, keys, acts, nominal}`, and `ChapterCard` takes `{text, kicker, index, total}`. They
@@ -141,12 +187,50 @@ take their look from the film's design DNA (`lookFromDna`).
 - **Captions.** The camera frames the zone above the caption band, and the page fades into the ground under it, so
   the caption sits on the frame's own ground.
 
+## Design the film's own arc (no fixed structure)
+
+There is NO default sequence. "Brand open → chapter card → product shots → chapter card → recall outro" is ONE possible
+arc and the one most likely to read as a template: two films built on it are the same film with different pictures.
+The check prints a film's structure as a word (`BCPPCPO`, `PSVMSO+vo`) and advises when it repeats a film you made
+before.
+
+1. **Find this product's story before choosing a block.** Write down, from the captures and the product's own words:
+   - its ONE surprising truth: what someone would repeat;
+   - its PROOF: the moment on screen that shows that truth (a number dropping, a document writing itself, a thing done
+     in one click);
+   - its WHY-NOW tension: what the viewer struggles with without it;
+   - its PAYOFF: the frame you would end on.
+2. **Shape the arc from those four, not from the block list.**
+   - **The hook is the first 2 s.** It can be the proof itself (open on the result, then show how), a tension line, a
+     detail macro, or the brand. Whatever it is, it is chosen for this product.
+   - **Each block earns its place.**
+     - A chapter card belongs only where the argument has chapters.
+     - A statement is a beat of type when a line must land alone.
+     - A compare is used when the story is before/after.
+     - A montage shows breadth (many connectors, many templates) where one shot shows depth.
+     - The outro may recall the film, land on a statement, or end on the product itself with the CTA.
+   - **Vary the rhythm.** Montage cuts run 0.3–0.8 s. A demo holds 4–8 s while the UI acts. A beat of stillness comes
+     before the payoff.
+   - **Choose cuts by cause.** Use `through` when one thing opens into the next, `carry` when travelling on,
+     `hard` when the beat changes, `flash` rarely.
+3. **Voice is a per-film choice.**
+   - A film that explains how something works usually speaks: `say` on the shots, and the voice sets their length,
+     the subtitles and the ducked bed. One line per shot, ≤ ~19 words (~9 s), the product's own claims only.
+   - A mood, brand or one-gesture piece usually does not.
+   - `narrate` states it outright.
+4. **Examples of arcs. These are not templates; they are here to show the range.**
+   - **Proof first.** A macro of the result, a statement of the claim, then the two shots that produce it, then the CTA.
+   - **Tension → product.** Two statements of the problem in the user's words, the product arriving with a through-cut,
+     its three moves, then a payoff statement.
+   - **Before | after.** A compare carries the film, framed by the UI that makes the change.
+   - **One continuous take.** No cards at all: the camera travels the product, and through-cuts join its screens.
+   - **Type-led.** Statements set the beat and the product appears in short montage bursts between them.
+   - Mix them, or find the one this product suggests.
+
 ## Craft rules
 
-- **Structure.**
-  - The timeline runs brand open, then per feature a chapter card and 1–3 product shots, then the recall outro.
-  - Both lockups rest at least 30 frames.
-  - A burst of motion ends with at least 15 still frames.
+- **Rests.** Both lockups (if the film has them) rest at least 30 frames. A burst of motion ends with at least 15
+  still frames.
 - **Every product shot does something**, through its acts. A camera drift alone is a slideshow.
 - **Use each signature move once as the hero** (the lift, the tilted arrival, the recall). Shown twice, a move reads
   as a template.

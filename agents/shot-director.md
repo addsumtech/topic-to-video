@@ -797,9 +797,14 @@ cursor, callout). This is the first choice over a rebuilt mock whenever the thin
 - `ChapterCard` opens a chapter of the argument: `{text, kicker, index, total}`. The text is ≤ ~8 words / ~16 CJK
   characters, with the accent span in `*…*`. Use it at a `new-topic` seam, never on two adjacent beats; 3–5 per film
   is the rhythm of the reference films.
-- **A product promo with no narration** is its own path: `scripts/promo_film.py` (a shot table, SFX pinned to its
-  actions). Offer it when the user wants a launch/promo film of a product with a UI. It uses the same camera, acts and
-  cards.
+- **A product promo** is its own path: `scripts/promo_film.py`, a shot table with the same camera, acts and cards
+  plus statement / compare / montage shots and `through` cuts, voiced or not.
+  - Offer it when the user wants a launch or promo film of a product with a UI.
+  - Its STRUCTURE is designed per film from the product's own story (its surprising truth, its proof on screen, its
+    tension, its payoff; references/promo-film.md §design), never a default sequence.
+  - The check names a structure that repeats an earlier film's.
+  - Voice is per film: a how-it-works story speaks (`say` per shot, and the voice sets the lengths); a mood or brand
+    piece is scored only.
 
 ## Camera SPACE — when the subject is a place, one world the camera travels through
 

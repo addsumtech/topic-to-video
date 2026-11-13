@@ -9,19 +9,23 @@ import React from 'react';
 import {AbsoluteFill, Freeze, Sequence, useCurrentFrame, useVideoConfig} from 'remotion';
 import {LookContext, DEFAULT_LOOK, type Look} from './kit';
 import {PageCam, Ground, type CamKey, type Macro} from './PageCam';
-import {Layers, type LayerSpec} from './Layers';
+import {Layers, OVERLAY_KINDS, type LayerSpec} from './Layers';
 import {ChapterCard, FlashCut, CaptionStrip, BrandOpen, RecallOutro, carryStyle} from './Cards';
+import {Statement, Compare, Montage, Subtitles, throughStyle, type Region, type Sub} from './Shots';
 
-type Cut = 'carry' | 'flash' | 'hard';
+type Cut = 'carry' | 'flash' | 'hard' | 'through';
 export type PageShot = {kind: 'page'; dur: number; src: string; w: number; h: number; keys: CamKey[]; layers?: LayerSpec[]; acts?: LayerSpec[];
   caption?: {text: string; at?: number; dur?: number}; cut?: Cut; radius?: number; maxZoom?: number; contain?: boolean};
 export type Shot =
   | {kind: 'brand'; dur: number; mark: string; aspect: number; kicker?: string; markH?: number; cut?: Cut}
   | {kind: 'title'; dur: number; text: string; kicker?: string; sub?: string; size?: number; index?: number | false; cut?: Cut}
   | PageShot
-  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string};
+  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string}
+  | {kind: 'statement'; dur: number; text: string; ground?: 'paper' | 'accent' | 'ink'; size?: number; sub?: string; cut?: Cut}
+  | {kind: 'compare'; dur: number; a: Region; b: Region; labelA?: string; labelB?: string; at?: number; sweep?: number; cut?: Cut}
+  | {kind: 'montage'; dur: number; items: Region[]; every?: number; full?: boolean; cut?: Cut};
 
-export type PromoProps = {look?: Partial<Look>; shots: Shot[]; cut?: Cut};
+export type PromoProps = {look?: Partial<Look>; shots: Shot[]; cut?: Cut; subtitles?: Sub[]};
 
 export const promoDuration = (p: PromoProps) => {
   if (!p?.shots?.length) throw new Error('PromoFilm: no shots');
@@ -39,8 +43,9 @@ export const PageShotView: React.FC<{s: PageShot}> = ({s}) => (
   <AbsoluteFill>
     <Ground />
     <PageCam src={s.src} w={s.w} h={s.h} keys={s.keys} radius={s.radius} maxZoom={s.maxZoom} contain={s.contain}
-      macros={(s.layers ?? s.acts ?? []).filter((l) => l.kind === 'macro') as Macro[]}>
-      <Layers layers={s.layers ?? s.acts ?? []} src={s.src} pageW={s.w} pageH={s.h} />
+      macros={(s.layers ?? s.acts ?? []).filter((l) => l.kind === 'macro') as Macro[]}
+      overlay={<Layers layers={(s.layers ?? s.acts ?? []).filter((l) => OVERLAY_KINDS.includes(l.kind))} src={s.src} pageW={s.w} pageH={s.h} />}>
+      <Layers layers={(s.layers ?? s.acts ?? []).filter((l) => !OVERLAY_KINDS.includes(l.kind))} src={s.src} pageW={s.w} pageH={s.h} />
     </PageCam>
     {s.caption ? (
       <Sequence from={s.caption.at ?? 8} durationInFrames={capSpan(s)}>
@@ -59,14 +64,18 @@ const travel = (s: Shot, i: number): number => {
   return i % 2 ? 1 : -1;
 };
 
-const Carried: React.FC<{dur: number; dirIn: number; dirOut: number; inn: boolean; out: boolean; children: React.ReactNode}> = (
-  {dur, dirIn, dirOut, inn, out, children}) => {
+const Carried: React.FC<{dur: number; dirIn: number; dirOut: number; inn: boolean; out: boolean; thrIn?: boolean; thrOut?: boolean;
+  thrAt?: {x: number; y: number}; children: React.ReactNode}> = ({dur, dirIn, dirOut, inn, out, thrIn = false, thrOut = false, thrAt, children}) => {
   const frame = useCurrentFrame();
   const {width: W} = useVideoConfig();
+  if (thrIn || thrOut) {
+    const c = carryStyle(frame, dur, dirIn, dirOut, W, inn && !thrIn, out && !thrOut);
+    return <AbsoluteFill style={c}><AbsoluteFill style={throughStyle(frame, dur, thrIn, thrOut, thrAt)}>{children}</AbsoluteFill></AbsoluteFill>;
+  }
   return <AbsoluteFill style={carryStyle(frame, dur, dirIn, dirOut, W, inn, out)}>{children}</AbsoluteFill>;
 };
 
-export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry'}) => {
+export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', subtitles = []}) => {
   const L: Look = {...DEFAULT_LOOK, ...(look ?? {})};
   for (const k of ['accent', 'accentInk', 'paper', 'ground'] as const) {
     if (!/^#[0-9a-fA-F]{6}$/.test(L[k])) throw new Error(`PromoFilm: look.${k} must be #rrggbb (got ${L[k]})`);
@@ -95,6 +104,9 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry'}) =>
         ));
         return <RecallOutro tiles={tiles} mark={s.mark} aspect={s.aspect} tagline={s.tagline} dur={s.dur} stampAt={s.stampAt} markH={s.markH} cta={s.cta} />;
       }
+      case 'statement': return <Statement text={s.text} dur={s.dur} ground={s.ground} size={s.size} sub={s.sub} />;
+      case 'compare': return <Compare a={s.a} b={s.b} labelA={s.labelA} labelB={s.labelB} at={s.at} sweep={s.sweep} dur={s.dur} />;
+      case 'montage': return <Montage items={s.items} every={s.every} full={s.full} dur={s.dur} />;
       default: throw new Error(`PromoFilm: unknown shot kind ${(s as {kind: string}).kind}`);
     }
   };
@@ -105,11 +117,14 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry'}) =>
         {shots.map((s, i) => (
           <Sequence key={i} from={starts[i]} durationInFrames={lens[i]}>
             <Carried dur={lens[i]} dirIn={travel(s, i)} dirOut={travel(shots[Math.min(i + 1, shots.length - 1)], i + 1)}
-              inn={cutInto(i) === 'carry'} out={i + 1 < shots.length && cutInto(i + 1) === 'carry'}>
+              inn={cutInto(i) === 'carry'} out={i + 1 < shots.length && cutInto(i + 1) === 'carry'}
+              thrIn={cutInto(i) === 'through'} thrOut={i + 1 < shots.length && cutInto(i + 1) === 'through'}
+              thrAt={(shots[i + 1] as {throughAt?: {x: number; y: number}} | undefined)?.throughAt ?? (s as {throughAt?: {x: number; y: number}}).throughAt}>
               {view(s, i)}
             </Carried>
           </Sequence>
         ))}
+        {subtitles.length ? <Subtitles subs={subtitles} /> : null}
         {shots.map((_, i) => (cutInto(i) === 'flash' ? (
           <Sequence key={`fl${i}`} from={starts[i] - 5} durationInFrames={10}><FlashCut /></Sequence>
         ) : null))}
