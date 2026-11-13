@@ -3546,8 +3546,8 @@
   "LivingMap": "a2a657e37fba902e",
   "PhotoToDiagram": "5e06b739673b9939",
   "FilmScreen": "d114c8dc6ffa4239",
-  "ChapterCard": "a7c080250690cd53",
-  "ProductPage": "fcdf51aacc9757e7"
+  "ChapterCard": "c766497e8fc44f7f",
+  "ProductPage": "f464861d25f1fed0"
  },
  "failed": {
   "StatedBy": "ProtocolError: Protocol error (Runtime.callFunctionOn): Target closed. https://www.remotion.dev/docs/target-closed",
