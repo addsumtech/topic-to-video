@@ -294,6 +294,35 @@ finding it prints that you do not understand.
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
   authoring-time opt-in variant (a baked mp4 can't read the viewer's OS setting), and it busts the
   clip cache.
+- `scripts/promo_capture.py <dir> <url> --name=n [--width --height --full --wait --eval --select --max]` | `--boxes=<png>` | `--mark=<png> --box=x,y,w,h`
+  is the raw material of a product beat (references/promo-film.md).
+  - **Web.** One headless Chrome at deviceScaleFactor 2 opens the page and waits, bounded, for load, fonts and the
+    decode of on-screen images. A slow page fails with its name and a hint, never a hang. `--eval` steps (split by a
+    `;;;` line) run next, each settled. The capture writes `caps/n.png` and `caps/n.layout.json`:
+    - every acting element's box in CSS px (controls, fields, cards, media, headings), de-duplicated;
+    - the page's own title and description;
+    - plus `n.boxes.jpg` to pick from.
+  - **`--boxes`** finds the card-like rectangles (one fill and a visible edge) in a screenshot with no DOM. On
+    WorkBuddy's screenshots it matched the hand-measured boxes within 1–2 px.
+  - **`--mark`** cuts a logo from its own page, keying the flat ground to alpha (un-premultiplied, no halo).
+  - Why: the first promo's boxes were measured by hand off grids, and a box one cell off is an element landing beside
+    its slot.
+- `scripts/promo_film.py <dir> [--spec=promo.json] [--check] [--stills=f,f] [--no-sound] [--bgm=file|auto] [--out=]`
+  renders a launch/promo film with no narration, written as a shot table (composition `PromoFilm`).
+  - **Check.** `check()` refuses, by name:
+    - a missing capture, or a `w`/`h` that is not the capture's CSS size;
+    - an effective zoom past the capture's density (zoom is authored at a 1920-wide reference, so the cap holds at
+      every aspect);
+    - keys out of order or aimed off the capture, a box off its capture (or off the OTHER capture a `pop` takes its
+      element from), an unknown act;
+    - a cut that is not carry/flash/hard, an outro recalling a non-page shot;
+    - accent ink under 4.5:1 on the paper.
+    - Shot lengths outside the band are advised, not refused.
+  - **`derive_look`** fills a look from `{accent, mode}`.
+  - **`plan_sfx`** pins the synthesized cues to the table's actions (sfx.cue, mixed SFX-only or over `--bgm`). The
+    cues used are written to `promo_sfx.json`; a spec `sfx` list replaces the plan.
+  - Why: the reference product films are a different kind of film from a narrated explainer, and this makes that
+    kind of film data (references/promo-film.md).
 - `scripts/render_remotion.py <out_dir>` with **`meta.renderer:"remotion"`** — the **cinematic tier**
   (recommended for launch / promo / story — NOT for every video; `scripts/tier_advice.py` decides from the
   purpose and topic, see interview ③): a **bespoke-shot LIBRARY** where every beat is a hand-written, topic-driven design language (the

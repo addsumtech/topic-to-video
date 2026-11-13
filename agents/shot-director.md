@@ -779,6 +779,27 @@ After `tts.py`, `python3 scripts/validate.py <out_dir>` checks every device beat
 it — the script's shape, its screenshots, every text target, the time each step needs — and names every
 problem before a render.
 
+## Real product, real pages — `ProductPage` and `ChapterCard` (references/promo-film.md)
+When a beat SHOWS a product, a web page, a paper or a document, show it AS ITSELF: capture it and cast
+`ProductPage` — a 2x capture under a 2.5D page camera with its elements acting (`acts`: pop, lift, focus, ring, type,
+cursor, callout). This is the first choice over a rebuilt mock whenever the thing exists and can be captured.
+- Capture with `python3 scripts/promo_capture.py <out_dir> <url> --name=<n>`. You get `caps/<n>.png` (2x) and
+  `caps/<n>.layout.json`: every element's box in CSS px, the page's own title and description. `--eval` takes the
+  page to a state first (a scene loaded, a dialog open; steps split by a `;;;` line). For a desktop app's screenshot,
+  use `--boxes=<png>`; it finds the card-like rectangles and writes the same layout plus a numbered overlay to pick
+  from. Read the overlay and take boxes from the layout; never guess a coordinate.
+- `shot_props`: `{src, w, h, keys, acts, nominal}`.
+  - `keys` are camera poses over `nominal` frames; the beat's length stretches the tail.
+  - An act whose `text` the voice speaks lands on the word by itself (sync binds it).
+  - One re-position (`swift`), then a slow drift (`smooth`). A tilted arrival (rx 14–24) is for the first sight only.
+  - Keep a close-up's zoom ≤ 2 effective (the capture's density). The camera frames the zone above the caption band.
+- `ChapterCard` opens a chapter of the argument: `{text, kicker, index, total}`. The text is ≤ ~8 words / ~16 CJK
+  characters, with the accent span in `*…*`. Use it at a `new-topic` seam, never on two adjacent beats; 3–5 per film
+  is the rhythm of the reference films.
+- **A product promo with no narration** is its own path: `scripts/promo_film.py` (a shot table, SFX pinned to its
+  actions). Offer it when the user wants a launch/promo film of a product with a UI. It uses the same camera, acts and
+  cards.
+
 ## Camera SPACE — when the subject is a place, one world the camera travels through
 
 A per-beat push cannot cross a cut, and a row of flat beats cannot show a journey. When the subject HAS a geography —
@@ -835,9 +856,9 @@ subject extent 0.30 vs 0.70, lit frames 0 vs 0.25). So:
   content), in the comment at the top of the file, before the code.
 - **Type sizes from the ladder**: a beat's headline ≥ h1 (120 px at 1080), a type beat's line display/mega, read-it
   text ≥ 32 px. (The older floors in this file — labels 30, titles 56 — are the error floor, not the target.)
-- **A product film follows the SaaS grammar**: one brand world plus one motif; the product's window as a persistent
-  hero whose beats are its states (establish, then push into the part the voice names); type beats alternating with
-  UI beats; one celebration moment; a closing lockup.
+- **A product film follows the SaaS grammar**: one brand world plus one motif; the product AS ITSELF (`ProductPage`
+  over its real captures) as a persistent hero whose beats are its states (establish, then push into the part the
+  voice names); `ChapterCard` breaths alternating with product beats; one celebration moment; a closing lockup.
 - **The loop**: each shot at 30/60/90 % beside its previous version, the three weakest things fixed, and at least
   two rounds. A redesign of a film is judged by the USER on a per-beat compare page.
 

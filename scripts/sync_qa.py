@@ -639,10 +639,12 @@ def _walk_deps(path, seen):
     if path in seen or not os.path.isfile(path):
         return
     seen.add(path)
+    if not path.endswith((".ts", ".tsx", ".js", ".jsx")):
+        return                                           # an asset a module imports (a font, an image) has no imports
     try:
         with open(path, encoding="utf-8") as fh:
             src = fh.read()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return
     for spec in _ANY_IMPORT.findall(src):
         if spec.startswith("."):

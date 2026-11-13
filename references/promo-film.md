@@ -1,108 +1,142 @@
-# Promo film — a product film as a shot table over real captures
+# Promo film and real-product beats — the product as itself, in our own language
 
-`scripts/promo_film.py <film_dir>` renders the composition `PromoFilm` (`remotion/src/promo/`) from
-`<film_dir>/promo.json`. Use it when the film is a **product promo or launch** and the product has a UI you can
-capture. Do not use it for a narrated explainer: that is the beat pipeline.
+Two ways in, one craft:
+- **A product promo with no narration** is a shot table `promo.json`, rendered by `scripts/promo_film.py <dir>`
+  (composition `PromoFilm`, `remotion/src/promo/`). It is SFX-led, or music-led with `--bgm`.
+- **Any narrated film** uses the same camera and verbs as library registers:
+  - `ProductPage` shows a real capture acting.
+  - `ChapterCard` opens a chapter.
+  - The beat pipeline gives them voice, cues, captions and the film's DNA.
 
-## Why this is a separate kind of film
+## What we took from the reference films, and what is ours
 
-The bar is video-shotcraft's showcase films and the brand films they learned from (ClickUp, Notion, Raycast, Linear-style
-launches). Measured against them, our narrated films missed on six counts:
+The bar is video-shotcraft's showcase films and the brand films they studied (ClickUp, Notion, Raycast and others). We
+distilled their **principles**, not their look:
+- The product is shown as itself, sharp at every zoom.
+- A card is a breath between product shots: one statement.
+- There is one restrained look.
+- Shots are short (1.5–6 s), and each one does something.
+- Brand moments rest a full second.
+- Sound is pinned to actions.
 
-1. **The product is shown as itself.** Real 2x captures sit under a 2.5D camera; nothing is redrawn as a mock.
-2. **Serif title cards are the breaths.** Each is one statement of 1.6–2.2 s, with its accent word in italic.
-3. **One restrained look.** One ground, one paper, ink, and one accent: the product's own colour.
-4. **Short shots.** Product shots run 1.5–6 s and every one has an action: arrive, lift, type, click, land.
-5. **Flash cuts sit on the hard cuts.** They are never decoration.
-6. **Sound is pinned to each action**, and the outro closes on riser → impact → sparkle.
+**The look is ours:**
 
-A promo film is music- or SFX-led and may have no narration. Its words are the title cards, the short mono caption
-strips and the brand's own lines.
+| | the references | ours |
+|---|---|---|
+| title card | serif letterpress, amber italic word, underline | **chapter card**: `01 / 04` + the chapter's name, a progress hairline (the argument made visible), words rise through a mask (CJK by character), the accent span inked in the accent after it lands, words rise out at the end |
+| cut | warm flash on hard cuts | **carry**: the leaving shot keeps travelling and smears, the arriving one comes out of the same smear (`cut: 'flash'` / `'hard'` remain) |
+| emphasis | warm spotlight pool + dim | **rack focus**: the page goes out of focus and dims, the element stays sharp |
+| annotation | floating serif note with marker | **callout**: an accent dot on the element, a leader line, a label (mono kicker + one line rising) |
+| lift | perimeter beam laps | the element rises out of an **accent under-glow**, one sheen crosses it |
+| outro | page pieces assemble, wordmark stamps | **recall**: the film's own shots return as a live wall that pulls back; the lockup **grows out of an accent dot** |
+| brand open | letterpressed wordmark | the accent dot grows into the icon, the wordmark draws out of it |
+| words | music-led, captions in mono strips | voice-led films supported: acts land **on the spoken word** (sync), captions on the frame's own ground |
 
-## Captures
+## Captures — the raw material
 
-- Use **2x screenshots** of the real product, PNG.
-  - Web product: a 2x full-page capture of each page (`deviceScaleFactor: 2`). Element boxes come from the DOM, in
-    CSS px.
-  - Desktop app: 2x window captures (Retina screenshots are already 2x). Measure the boxes on a CSS-px grid.
-    `w`/`h` in the table are **pixels / 2**.
-- Docs screenshots often carry annotation boxes. Clean them before use (WorkBuddy: red boxes and labels).
-  - Interpolate each masked pixel across its shorter span and keep the darker side when both spans agree, so a
-    gridline survives.
-  - Protect filled disks such as the macOS traffic lights.
-  - Look at the result. An annotation that sat across text has lost that text, so keep the camera off it.
-- Never zoom past the capture's density. At zoom 2 on a 2x capture, one screen pixel is one texture pixel. Beyond
-  that the text goes soft: `check` refuses it and PageCam clamps it.
-  - A window narrower than 1920/2 CSS px can't fill the frame at zoom 2. Let its edge show on the ground, or frame
-    two panes together.
-  - Don't aim the camera past the window's edge for a single pane.
+`python3 scripts/promo_capture.py <dir> <url> --name=<n> [--wait=s] [--eval="js ;;; js"] [--full] [--select=css]`
+- Opens the page at deviceScaleFactor 2, waits (bounded) for load, fonts and images, then runs the `--eval` steps
+  to reach a state (load a scene, open a dialog).
+- Writes `caps/<n>.png` (2x) and `caps/<n>.layout.json`:
+  - every element's box in CSS px: controls, fields, cards, media, headings;
+  - the page's own `title` and `description` (the product's words, citable).
+- Also writes `<n>.boxes.jpg`: the boxes, numbered on a 50 px grid.
+
+`--boxes=<png>` handles a screenshot with no DOM (a desktop app). It finds card-like rectangles (one fill, a visible
+edge) and writes the same layout. On WorkBuddy it matched hand-measured boxes within 1–2 px.
+
+`--mark=<png> --box=x,y,w,h` cuts the brand's logo from its own page with the ground keyed to alpha. On a dark film
+the lockup sets it on a light plate.
+
+Rules:
+- **Captures:**
+  - Never zoom past the capture's density: effective zoom ≤ 2 for a 2x capture. `check` refuses it and PageCam
+    clamps it.
+  - Zoom is authored at a 1920-wide reference, so the cap holds at every aspect.
+  - A straight-on view stays inside the page (`contain`, on by default); a tilted view is an object shot and may show
+    the ground.
+  - For 9:16, prefer a portrait viewport capture (`--width=430 --height=932`). A landscape page in a tall frame
+    leaves ground above and below.
+- **Docs screenshots** often carry annotation boxes. Clean them, keeping gridlines and traffic lights, and look at the
+  result.
+- **Credits.** A capture of someone else's page is shown as itself and credited in the film's sources. A capture
+  from docs is for review; public distribution needs the product owner's own captures.
 
 ## The table (`promo.json`)
 
 ```json
-{"look": {"ground", "groundEdge", "paper", "ink", "muted", "accent", "accentInk"},
+{"aspect": "16:9", "cut": "carry",
+ "look": {"accent": "#6965db", "mode": "light"},
  "shots": [
-  {"kind": "brand", "dur": 84, "mark": "brand/x.svg", "aspect": 2.9, "kicker": "what it is"},
-  {"kind": "title", "dur": 56, "text": "Describe it in *one* sentence.", "sub": "optional mono line"},
-  {"kind": "page",  "dur": 128, "src": "caps/x.png", "w": 1446, "h": 800,
-   "keys": [{"f": 0, "cx": 760, "cy": 330, "zoom": 1.05, "rx": 16, "ry": 12},
-            {"f": 36, "cx": 800, "cy": 398, "zoom": 1.62, "ease": "swift"}],
-   "layers": [...], "caption": {"text": "...", "at": 10, "dur": 70}, "flash": true},
-  {"kind": "outro", "dur": 150, "mark": "...", "aspect": 2.9, "tagline": "...", "stampAt": 48,
-   "pieces": [{"src", "pageW", "pageH", "box", "x": 0.2, "y": 0.25, "rot": -4, "scale": 1.6}]}],
- "sfx": [{"f": 120, "cue": "whoosh", "gain": 0.4}]}
+  {"kind": "brand", "dur": 80, "mark": "brand/x.png", "aspect": 5.6, "kicker": "what it is", "markH": 110},
+  {"kind": "title", "dur": 56, "kicker": "Sketch", "text": "Diagrams with a *hand-drawn* feel."},
+  {"kind": "page", "dur": 132, "src": "caps/scene.png", "w": 1440, "h": 900,
+   "keys": [{"f": 0, "cx": 560, "cy": 380, "zoom": 1.5, "ry": -8}, {"f": 90, "cx": 770, "cy": 372, "zoom": 1.85, "ease": "swift"}],
+   "layers": [...], "caption": {"text": "...", "at": 8}, "cut": "hard"},
+  {"kind": "outro", "dur": 140, "mark": "...", "aspect": 5.6, "tagline": "Sketch it. *Share* it.", "recall": [1, 3]}]}
 ```
 
+- **`look`.** It can be just `{accent, mode}`. Ground, paper, ink, muted and `accentInk` are derived, with
+  `accentInk` walked toward the ink until it reads at 4.5:1 on the paper. Given fields win.
+- **Chapter cards** are numbered in order; set `index: false` to leave one unnumbered.
+- **`recall`** names the page shots (0-based) the outro wall shows. By default it spreads up to 6 across the film.
 - **Timing.** Every frame number counts from the start of its own shot.
-- **Camera keys.** A key puts page point (cx, cy) at the frame centre at `zoom`, tilted by `rx` (top leans away),
-  `ry` (right edge recedes) and `rz` (roll).
-  - A key's `ease` is the curve of the move that arrives at it. The names come from `runtime/craftMotion` EASE:
-    `swift` for a re-position, `smooth` for a slow drift, `snappy` for an arrival.
-- **Cuts.** Shots butt-cut. A flash straddles every cut into a `page` or `outro` shot; set `"flash": false` on a
-  shot to drop it.
-- **`sfx`.** Omit it and the sound is planned from the table's actions. List it and your list replaces that plan.
-  Either way, the cues actually used are written to `promo_sfx.json`.
+- **Keys.**
+  - A key puts page point (cx, cy) at the frame centre (`focusY` in a narrated film).
+  - `rx` makes the top lean away, `ry` makes the right edge recede, `rz` rolls.
+  - A key's `ease` is the curve of the move that arrives at it.
 
-### Layers (page CSS px, frames from the shot's start)
+### Acts / layers (page CSS px; frames from the shot's start)
 
 | kind | what it does | fields |
 |---|---|---|
-| `pop` | an element lands in its own slot (the slot is blank before it) | `box, at, fill` (the slot's ground), `from: up/left/scale`; `src, srcBox, srcW, srcH` take the element from ANOTHER capture (a state change: a button lit once text is in) |
-| `lift` | an element rises toward the camera, a beam laps its edge twice, it settles back | `box, at, until, z, scale, slot` |
-| `focus` | everything but one element dims | `box, at, until, dim` |
+| `pop` | an element lands in its own slot (blank before) | `box, at, fill, from: up/left/scale`; `src, srcBox, srcW, srcH` = the element from ANOTHER capture (a state change) |
+| `lift` | rises out of an accent under-glow, one sheen, settles back | `box, at, until, z, scale, slot` |
+| `focus` | rack focus: the page softens and dims, the element stays sharp | `box, at, until, dim, blur` |
 | `ring` | an accent outline draws round an element | `box, at, until` |
-| `type` | text is typed into a field (the placeholder covered by the field's fill) | `box, at, text, cpf` (chars per frame), `size`, `fill` |
+| `type` | text typed into a field (placeholder covered by the field's fill) | `box, at, text, cpf, size, fill` |
 | `cursor` | a pointer travels and clicks | `path: [{f, x, y, ease}]`, `clicks: [f]` |
-| `note` | a short serif annotation floats beside an element; a marker sweeps under its `*accent*` | `x, y, at, until, text, align` |
+| `callout` | dot on the element, leader line, label | `x, y` (the point), `lx, ly` (the label), `at, until, kicker, text` |
+
+## In a narrated film
+
+`ProductPage` takes `{src, w, h, keys, acts, nominal}`, and `ChapterCard` takes `{text, kicker, index, total}`. They
+take their look from the film's design DNA (`lookFromDna`).
+- **Timing.** The beat's length stretches the authored timeline, keeping the entrances at their speed. An act whose
+  `text` the narration speaks is cued to the word (`acts.<i>`).
+- **Captions.** The camera frames the zone above the caption band, and the page fades into the ground under it, so
+  the caption sits on the frame's own ground.
 
 ## Craft rules
 
-- **Build the timeline in this order.** Brand open, then for each feature a title card followed by 1–3 product shots,
-  then the outro.
-  - Both wordmark moments (the brand open and the outro stamp) rest fully on for **at least 30 frames**.
+- **Structure.**
+  - The timeline runs brand open, then per feature a chapter card and 1–3 product shots, then the recall outro.
+  - Both lockups rest at least 30 frames.
   - A burst of motion ends with at least 15 still frames.
-- **Use each signature move once as the hero.** That covers the lift-and-beam, the outro stamp and the crane from a
-  tilted table view. Shown twice, a move reads as a template.
-- **Every product shot does something.** A camera drift alone is a slideshow. Give the shot a landing, a lift, typing
-  or a click, as its `layers`.
-- **Camera discipline.** Use one move per intention (re-position `swift`, then a slow `smooth` drift), and don't go in
-  and back out within one shot.
-  - The tilted "table" view (rx 14–24, ry ±8–16) is for arrivals.
-  - Re-positions land straight-on, or nearly so, before anything is read.
+- **Every product shot does something**, through its acts. A camera drift alone is a slideshow.
+- **Use each signature move once as the hero** (the lift, the tilted arrival, the recall). Shown twice, a move reads
+  as a template.
+- **Camera.**
+  - Use one move per intention: re-position `swift`, then drift `smooth`.
+  - Never go in and back out within one shot.
+  - Tilted views are for arrivals; land straight-on before anything is read.
 - **Words.**
-  - Every line is sourced from the product's docs or UI, or is the film's own statement. No invented numbers.
-  - Numbers the product's own demo shows in its capture are the product as itself, not claims.
-  - Caption strips are capitals, short and present-tense.
-  - Keep the accent ink at ≥4.5:1 on the paper (`check` enforces it).
-- **Sound.**
-  - The film is SFX-only unless `--bgm` is given.
-  - Whooshes come only on real camera travel, and a burst of pops is one sound per 3 frames, fading.
-  - Keys sound under typing, a click on a click, and the outro closes on riser → impact → sparkle.
+  - Use the product's own words (its layout `title`/`description`, its UI) or the film's own statement.
+  - No invented numbers. The product's own demo data in its capture is the product as itself.
+- **Sound (SFX-only unless `--bgm`).**
+  - Air through each carried cut, and a whoosh only on real camera travel.
+  - A burst of pops is one sound per 3 frames, fading.
+  - Keys under typing, a click on a click, a tick when an accent fill or callout lands.
+  - The close is swell → bell → chime.
 
 ## The loop
 
 1. Run `promo_film.py <dir> --check`. Errors stop it, by name; advisories don't.
-2. Run `--stills=f1,f2,...` at the settled point (~90 %) of each shot. Look at them full-size for sharpness and
-   framing.
+2. Run `--stills=` at the settled point (~90 %) of each shot and look at them full-size.
 3. Do a full render.
-4. Put it beside the reference films on one page (frames at matched points). The user judges; a metric doesn't.
+4. Put it beside the reference films on one page (`compare.html`) for the user. The user's eye is the judge.
+
+Tested on:
+- WorkBuddy: desktop docs screenshots, cleaned and box-found; 16:9 light.
+- Excalidraw: a web app captured live in three states; 16:9 light and 9:16 dark.
+- A zh 科普 beat pair over a Wikipedia capture inside the narrated pipeline (TTS, cues, karaoke captions).

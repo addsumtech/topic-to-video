@@ -7,8 +7,8 @@
 <film_dir> holds the captures and the spec; it is the render's public dir, so every `src` in the spec is a path
 relative to it. Steps: CHECK the table (files, boxes inside their capture, zoom within the capture's density, keys
 in order, shot lengths) — a defect stops here, by name; RENDER the picture (remotion composition `PromoFilm`); PIN
-the sound to the same table (a cue per action: whoosh on a camera move, pop on an element landing, keys under
-typing, click on a click, riser → impact → sparkle on the outro's stamp) unless the spec lists its own `sfx`
+the sound to the same table (a cue per action: air through each carried cut, whoosh on a camera move, pop on an
+element landing, keys under typing, click on a click, swell → bell as the closing lockup forms) unless the spec lists its own `sfx`
 [{f, cue, gain}]; MIX (SFX only by default, `--bgm` adds a bed under it) → <film_dir>/out.mp4, and the cue list
 actually used → <film_dir>/promo_sfx.json.
 
@@ -30,7 +30,9 @@ REMOTION = os.path.join(ROOT, "remotion")
 FPS = 30
 MAX_ZOOM = 2.0            # a 2x capture: past this the texture is upsampled (PageCam clamps and warns)
 TITLE_BAND = (40, 80)     # a title card is a breath: long enough to read, short enough to stay one
-SHOT_BAND = (36, 240)     # 1.2-8 s; the reference films' product shots run 1.5-6 s
+SHOT_BAND = (36, 240)
+SHOT_BAND_NOTE = "1.2-8 s; the reference films' product shots run 1.5-6 s"
+ASPECTS = {"16:9": (1920, 1080), "9:16": (1080, 1920), "1:1": (1080, 1080), "4:5": (1080, 1350), "4:3": (1440, 1080)}  # = remotion/src/Root.tsx ASPECTS
 
 
 class SpecError(ValueError):
@@ -46,6 +48,9 @@ def _png_size(path):
 def check(spec, film_dir):
     """Errors (list) and advisories (list) for a promo table. Errors stop the render."""
     errs, adv = [], []
+    if spec.get("aspect", "16:9") not in ASPECTS:
+        errs.append("aspect %r is not one of %s" % (spec.get("aspect"), ", ".join(ASPECTS)))
+    frame_w = ASPECTS.get(spec.get("aspect", "16:9"), ASPECTS["16:9"])[0]
     shots = spec.get("shots")
     if not isinstance(shots, list) or not shots:
         return ["spec has no shots"], adv
@@ -95,12 +100,16 @@ def check(spec, film_dir):
                 if kk.get("f", -1) < last:
                     errs.append("%s: camera keys out of order at f=%s" % (where, kk.get("f")))
                 last = kk.get("f", last)
-                if kk.get("zoom", 1) > mz + 1e-6:
-                    errs.append("%s: key f=%s zoom %.2f is past the capture's density %.1f (the texture would be upsampled)" % (where, kk.get("f"), kk["zoom"], mz))
+                eff = kk.get("zoom", 1) * frame_w / 1920.0       # zoom is authored at a 1920-wide reference
+                if eff > mz + 1e-6:
+                    errs.append("%s: key f=%s zoom %.2f is %.2f screen px per CSS px on this %dpx-wide frame, past the capture's density %.1f "
+                                "(the texture would be upsampled)" % (where, kk.get("f"), kk["zoom"], eff, frame_w, mz))
                 if w and h and not (0 <= kk.get("cx", 0) <= w and 0 <= kk.get("cy", 0) <= h):
                     errs.append("%s: key f=%s aims off the capture (%s, %s)" % (where, kk.get("f"), kk.get("cx"), kk.get("cy")))
-            for j, l in enumerate(s.get("layers") or [], 1):
+            for j, l in enumerate(s.get("layers") or s.get("acts") or [], 1):
                 lw = "%s layer %d (%s)" % (where, j, l.get("kind"))
+                if l.get("kind") not in ("pop", "lift", "focus", "ring", "type", "cursor", "callout", "note"):
+                    errs.append("%s: unknown layer kind" % lw)
                 if l.get("kind") in ("pop", "lift", "focus", "ring", "type"):
                     inside(l.get("box", {}), w, h, lw)
                 if l.get("kind") == "pop" and l.get("src") and l.get("src") != s.get("src"):
@@ -114,13 +123,18 @@ def check(spec, film_dir):
                     adv.append("%s: starts at %s, after the shot ends (%d)" % (lw, at, d))
         elif k in ("brand", "outro"):
             cap(s.get("mark", ""), where)
-            for j, p in enumerate(s.get("pieces") or [], 1):
-                psz = cap(p.get("src", ""), "%s piece %d" % (where, j))
-                if psz:
-                    inside(p.get("box", {}), psz[0] / 2, psz[1] / 2, "%s piece %d" % (where, j))
+            for j in s.get("recall") or []:
+                if not (isinstance(j, int) and 0 <= j < len(shots) and shots[j].get("kind") == "page"):
+                    errs.append("%s: recall %r is not the index of a page shot (0-based)" % (where, j))
+            if k == "outro" and not any(x.get("kind") == "page" for x in shots):
+                errs.append("%s: the outro recalls the film's page shots and there are none" % where)
         else:
             errs.append("%s: unknown kind" % where)
-    look = spec.get("look") or {}
+        if s.get("cut") not in (None, "carry", "flash", "hard"):
+            errs.append("%s: cut must be carry, flash or hard" % where)
+    if spec.get("cut") not in (None, "carry", "flash", "hard"):
+        errs.append("cut must be carry, flash or hard")
+    look = derive_look(spec.get("look"))
     for key in ("accent", "accentInk"):
         v = look.get(key)
         if v is not None and not (isinstance(v, str) and len(v) == 7 and v.startswith("#")):
@@ -141,6 +155,40 @@ def _contrast(a, b):
     return (la + 0.05) / (lb + 0.05)
 
 
+def _mix(a, b, t):
+    pa = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
+    pb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#%02x%02x%02x" % tuple(round(x + (y - x) * t) for x, y in zip(pa, pb))
+
+
+def derive_look(look):
+    """The film's ONE look from as little as its accent: `{accent, mode: light|dark}`. Fields given are kept; the
+    rest are derived — a near-neutral ground and paper tinted 3-5 % toward the accent, ink and muted ink, and
+    `accentInk`, the accent walked toward the ink until it reads at 4.5:1 on the paper (type in the accent stays
+    legible on any brand colour)."""
+    look = dict(look or {})
+    acc = look.get("accent", "#3a7bd5")
+    dark = look.get("mode") == "dark" or (look.get("paper") and _contrast(look["paper"], "#000000") < 7)
+    if dark:
+        base = {"ground": _mix("#121215", acc, 0.06), "groundEdge": _mix("#2a2a30", acc, 0.1), "paper": _mix("#0d0d10", acc, 0.05),
+                "ink": "#f3f2ee", "muted": "#9c9a94"}
+    else:
+        base = {"ground": _mix("#ecebe7", acc, 0.04), "groundEdge": _mix("#d8d6cf", acc, 0.06), "paper": _mix("#f6f5f2", acc, 0.03),
+                "ink": "#151513", "muted": "#67655f"}
+    for k, v in base.items():
+        look.setdefault(k, v)
+    look.setdefault("accent", acc)
+    if "accentInk" not in look:
+        ink = acc
+        for i in range(41):
+            ink = _mix(acc, look["ink"], i / 40)
+            if _contrast(ink, look["paper"]) >= 4.6:
+                break
+        look["accentInk"] = ink
+    look.pop("mode", None)
+    return look
+
+
 def starts(spec):
     t, out = 0, []
     for s in spec["shots"]:
@@ -154,19 +202,18 @@ def plan_sfx(spec):
     fading; a camera key only sounds when the camera really travels."""
     cues = []
     st, _ = starts(spec)
-    for s, a in zip(spec["shots"], st):
+    film_cut = spec.get("cut", "carry")
+    for idx, (s, a) in enumerate(zip(spec["shots"], st)):
         k = s["kind"]
+        if idx and (s.get("cut") or film_cut) in ("carry", "flash"):
+            cues.append((a, "whoosh", 0.34))                       # the cut carries a move: one air sound through it
         if k == "brand":
-            cues += [(a + 12, "reveal", 0.7), (a + 22, "whoosh", 0.25)]
+            cues += [(a + 14, "reveal", 0.65), (a + 34, "tick", 0.2)]
         elif k == "title":
-            cues.append((a + 6, "whoosh", 0.32))
+            cues.append((a + 14, "tick", 0.18))                     # the accent fill arrives
         elif k == "outro":
             sa = a + int(s.get("stampAt", 46))
-            n = len(s.get("pieces") or [])
-            for i in range(n):
-                at = a + 2 + i * (28 / max(1, n - 1))
-                cues.append((int(at + 10), "whoosh", 0.22))
-            cues += [(sa - 2, "riser", 0.55), (sa + 3, "impact", 0.9), (sa + 18, "sparkle", 0.4)]
+            cues += [(a + 6, "swell", 0.4), (sa + 12, "reveal", 0.85), (sa + 30, "chime", 0.35)]
         elif k == "page":
             keys = s.get("keys") or []
             for k0, k1 in zip(keys, keys[1:]):
@@ -175,7 +222,7 @@ def plan_sfx(spec):
                 if travel > 120 and k1["f"] - k0["f"] <= 60:
                     cues.append((a + int((k0["f"] + k1["f"]) / 2), "whoosh", min(0.5, 0.22 + travel / 2000)))
             last_pop, npop = -99, 0
-            for l in s.get("layers") or []:
+            for l in s.get("layers") or s.get("acts") or []:
                 kind = l.get("kind")
                 if kind == "pop":
                     f = a + int(l["at"] + l.get("dur", 14) * 0.4)
@@ -183,8 +230,8 @@ def plan_sfx(spec):
                         cues.append((f, "pop", max(0.12, 0.36 * (0.85 ** npop))))
                         last_pop, npop = f, npop + 1
                 elif kind == "lift":
-                    cues += [(a + int(l["at"]) + 6, "whoosh", 0.4), (a + int(l["at"]) + 16, "sparkle", 0.3),
-                             (a + int(l["until"]) + 14, "settle", 0.45)]
+                    cues += [(a + int(l["at"]) + 6, "whoosh", 0.36), (a + int(l["at"]) + 18, "sparkle", 0.26),
+                             (a + int(l["until"]) + 14, "settle", 0.42)]
                 elif kind == "type":
                     cpf = float(l.get("cpf", 0.5))
                     n = len(l.get("text", ""))
@@ -197,14 +244,18 @@ def plan_sfx(spec):
                     cues.append((a + int(l["at"]) + 4, "tick", 0.25))
                 elif kind == "focus":
                     cues.append((a + int(l["at"]) + 6, "focus", 0.3))
-                elif kind == "note":
-                    cues.append((a + int(l["at"]) + 4, "chime", 0.25))
+                elif kind in ("note", "callout"):
+                    cues.append((a + int(l["at"]) + 4, "tick", 0.24))
     return sorted(cues)
 
 
 def render_picture(film_dir, spec_path, out, frames=None):
+    spec = json.load(open(spec_path, encoding="utf-8"))
+    spec["look"] = derive_look(spec.get("look"))
+    props = os.path.join(film_dir, "_promo_props.json")          # the table as rendered: the derived look filled in
+    json.dump(spec, open(props, "w"), indent=0)
     cmd = ["npx", "remotion", "render" if frames is None else "still", "src/index.ts", "PromoFilm", out,
-           "--props=" + spec_path, "--public-dir=" + film_dir]
+           "--props=" + props, "--public-dir=" + film_dir]
     if frames is not None:
         cmd.append("--frame=%d" % frames)
     else:

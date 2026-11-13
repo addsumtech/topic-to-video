@@ -130,12 +130,16 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   none. Capture runs over CDP (`scripts/_cdp.py`) and falls back to per-frame screenshots on its own; tune it with
   `meta.capture` (`cdp`|`screenshot`), `meta.chrome_workers`, `meta.jpeg_quality`.
 
-**Render: product promo** (`scripts/promo_film.py <dir>`; references/promo-film.md)
-- A launch/promo film of a product with a UI: the product AS ITSELF (real 2x captures under a 2.5D page camera),
-  serif title cards as breaths, one look, 1.5-6 s shots with an action each (pop, lift, type, click), flash cuts,
-  SFX pinned to the table. Written as a shot table (`promo.json`); `--check` refuses what would render wrong (a zoom
-  past the capture's density, a box off its capture, low-contrast accent ink), `--stills=` before the full render.
-  Not for a narrated explainer — that is the tier below.
+**Render: product promo / real-product beats** (`references/promo-film.md`)
+- `scripts/promo_capture.py <dir> <url> --name=n` captures a product or page at 2x with every element's box and its own
+  title and description; `--eval` reaches a state first. `--boxes=<png>` finds the boxes in a screenshot with no DOM,
+  and `--mark=` cuts the logo.
+- `scripts/promo_film.py <dir>` renders a launch/promo film with no narration, written as a shot table (`promo.json`):
+  the product AS ITSELF under a 2.5D page camera, chapter cards, carried cuts, a recall outro, and SFX pinned to the
+  table. `--check` refuses what would render wrong (zoom past the capture's density, a box off its capture,
+  low-contrast accent ink); `--stills=` comes before the full render.
+- In a narrated film the same craft is two registers: `ProductPage` (a capture acting, cued to the voice) and
+  `ChapterCard` (a chapter's statement, numbered).
 
 **Render: remotion cinematic tier** (`meta.renderer:"remotion"`)
 - `scripts/tier_advice.py`: decides from purpose + topic whether a film warrants this tier (interview ③). Remotion is for

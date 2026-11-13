@@ -26,7 +26,8 @@ def page(**kw):
 
 
 def test_a_clean_table_passes(film):
-    spec = {"shots": [{"kind": "brand", "dur": 80, "mark": "mark.svg", "aspect": 1}, {"kind": "title", "dur": 56, "text": "One *idea.*"}, page()]}
+    spec = {"shots": [{"kind": "brand", "dur": 80, "mark": "mark.svg", "aspect": 1}, {"kind": "title", "dur": 56, "text": "One *idea.*"}, page(),
+                      {"kind": "outro", "dur": 120, "mark": "mark.svg", "aspect": 1, "recall": [2]}]}
     errs, adv = pf.check(spec, str(film))
     assert errs == [] and adv == []
 
@@ -40,10 +41,19 @@ def test_a_clean_table_passes(film):
     (page(layers=[{"kind": "lift", "box": {"x": 350, "y": 10, "w": 100, "h": 40}, "at": 5, "until": 30}]), "outside"),
     (page(layers=[{"kind": "pop", "box": {"x": 10, "y": 10, "w": 20, "h": 20}, "at": 4, "src": "other.png",
                    "srcBox": {"x": 25, "y": 25, "w": 20, "h": 20}}]), "srcBox"),      # crop past the OTHER capture's edge
+    (page(layers=[{"kind": "sparkles", "at": 3}]), "unknown layer"),
+    (page(cut="wipe"), "cut must be"),
 ])
+
 def test_defects_stop_the_render_by_name(film, bad, words):
     errs, _ = pf.check({"shots": [bad]}, str(film))
     assert any(words in e for e in errs), errs
+
+
+def test_outro_recalls_page_shots_only(film):
+    errs, _ = pf.check({"shots": [{"kind": "title", "dur": 56, "text": "x"},
+                                  {"kind": "outro", "dur": 120, "mark": "mark.svg", "aspect": 1, "recall": [0]}]}, str(film))
+    assert any("recall" in e for e in errs) and any("there are none" in e for e in errs)
 
 
 def test_low_contrast_accent_ink_is_refused(film):
@@ -64,16 +74,51 @@ def test_sound_is_pinned_to_the_table():
         page(layers=[{"kind": "pop", "box": {}, "at": 10}, {"kind": "pop", "box": {}, "at": 11}, {"kind": "pop", "box": {}, "at": 16},
                      {"kind": "type", "box": {}, "at": 20, "text": "abcd", "cpf": 1},
                      {"kind": "cursor", "path": [{"f": 50, "x": 0, "y": 0}], "clicks": [60]}]),
-        {"kind": "outro", "dur": 120, "pieces": [], "mark": "m.svg", "aspect": 1, "stampAt": 40}]}
+        {"kind": "outro", "dur": 120, "mark": "m.svg", "aspect": 1, "stampAt": 40}]}
     cues = pf.plan_sfx(spec)
     names = [c for _, c, _ in cues]
-    # the camera travels 60 px and 0.6 zoom in 40 frames: one whoosh, at the move's middle
+    # every carried cut is one air sound ON the cut; the camera travels 60 px and 0.6 zoom in 40 frames: one whoosh
+    # at the move's middle
+    assert (50, "whoosh") in [(f, c) for f, c, _ in cues] and (50 + 90, "whoosh") in [(f, c) for f, c, _ in cues]
     assert (50 + 20, "whoosh") in [(f, c) for f, c, _ in cues]
     # pops one frame apart are ONE sound; 5 frames apart, two
     assert names.count("pop") == 2
     assert [f for f, c, _ in cues if c == "key"] == [50 + 20, 50 + 22]
     assert (50 + 62, "click") in [(f, c) for f, c, _ in cues]
-    # the outro's sentence: riser into the stamp, impact on it, sparkle after
-    o = 50 + 90 + 40
-    assert [(f, c) for f, c, _ in cues if c in ("riser", "impact", "sparkle")] == [(o - 2, "riser"), (o + 3, "impact"), (o + 18, "sparkle")]
+    # the close: light swells under the recalled wall, the bell lands as the lockup forms, a chime as the line sets
+    o = 50 + 90
+    assert [(f, c) for f, c, _ in cues if c in ("swell", "reveal", "chime")] == [(o + 6, "swell"), (o + 40 + 12, "reveal"), (o + 40 + 30, "chime")]
+    # a film cut hard has no air on its cuts
+    hard = pf.plan_sfx(dict(spec, cut="hard"))
+    assert (50, "whoosh") not in [(f, c) for f, c, _ in hard]
     assert cues == sorted(cues)
+
+
+@pytest.mark.parametrize("accent", ["#ffd400", "#57bf9c", "#6965db", "#e8452c", "#111111", "#ffffff"])
+@pytest.mark.parametrize("mode", ["light", "dark"])
+def test_a_look_derived_from_any_accent_keeps_its_type_legible(accent, mode):
+    look = pf.derive_look({"accent": accent, "mode": mode})
+    assert pf._contrast(look["accentInk"], look["paper"]) >= 4.5
+    assert pf._contrast(look["ink"], look["paper"]) >= 7
+    assert look["accent"] == accent and "mode" not in look
+    assert (pf._contrast(look["paper"], "#000000") < 7) == (mode == "dark")
+
+
+def test_given_look_fields_win(film):
+    look = pf.derive_look({"accent": "#57bf9c", "paper": "#f6f5f1", "accentInk": "#137a5a"})
+    assert look["paper"] == "#f6f5f1" and look["accentInk"] == "#137a5a"
+
+
+def test_aspect_table_matches_the_compositions():
+    import re
+    root = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion", "src", "Root.tsx"), encoding="utf-8").read()
+    ts = dict((k, (int(a), int(b))) for k, a, b in re.findall(r"'(\d+:\d+)': \[(\d+), (\d+)\]", root.split("const ASPECTS")[1].split("};")[0]))
+    assert ts == pf.ASPECTS
+
+
+def test_zoom_cap_is_on_effective_density(film):
+    # zoom 3 on a 1920 reference is 1.69 px/CSS px on a 1080-wide 9:16 frame: inside a 2x capture's density
+    tall = {"aspect": "9:16", "shots": [page(keys=[{"f": 0, "cx": 200, "cy": 150, "zoom": 3.0}])]}
+    assert pf.check(tall, str(film))[0] == []
+    wide = {"shots": [page(keys=[{"f": 0, "cx": 200, "cy": 150, "zoom": 3.0}])]}
+    assert any("density" in e for e in pf.check(wide, str(film))[0])

@@ -24,6 +24,8 @@ import {KineticProbe, DURATION as KPD} from './runtime/__probe_kinetic';
 import {MathProbe, DURATION as MPD} from './runtime/__probe_math';
 import {KineticHoldAudit, KineticHoldContext, HoldReport} from './runtime/kinetic';
 import {CollaborativeCursors, DURATION as CC} from './shots/CollaborativeCursors';
+import {ChapterCard, DURATION as D_CHAPTERCARD} from './shots/ChapterCard';
+import {ProductPage, DURATION as D_PRODUCTPAGE} from './shots/ProductPage';
 import {FilmScreen, DURATION as D_FILMSCREEN} from './shots/FilmScreen';
 import {PhotoToDiagram, DURATION as D_PHOTOTODIAGRAM} from './shots/PhotoToDiagram';
 import {LivingMap, DURATION as D_LIVINGMAP} from './shots/LivingMap';
@@ -819,6 +821,8 @@ export const RemotionRoot: React.FC = () => (
     {F('LivingMap', LivingMap, D_LIVINGMAP)}
     {F('PhotoToDiagram', PhotoToDiagram, D_PHOTOTODIAGRAM)}
     {F('FilmScreen', FilmScreen, D_FILMSCREEN)}
+    {F('ProductPage', ProductPage, D_PRODUCTPAGE)}
+    {F('ChapterCard', ChapterCard, D_CHAPTERCARD)}
     {/* THE FILM'S OWN SHOTS (its workshop): one composition each, so every film-mode gate renders a beat by its
         id exactly as it renders a library register's. Nothing here without a film in scope. */}
     {Object.entries(WORKSHOP_SHOTS).map(([id, s]) => <React.Fragment key={id}>{F(id, s.C, s.d)}</React.Fragment>)}

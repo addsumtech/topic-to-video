@@ -1,188 +1,251 @@
-// PROMO · Cards — the screen-level shots of a product film: the brand open, the serif title card (the film's breath
-// between product shots), the flash cut, the caption strip and the outro assembly (references/promo-film.md §cards).
+// PROMO · Cards — the screen-level shots: brand open, chapter card, caption, cut carry, recall outro
+// (references/promo-film.md §cards).
+//
+// OUR OWN LANGUAGE, distilled rather than copied. What the reference films taught is a set of PRINCIPLES — a card is a
+// breath between product shots, it lands one statement, the brand moments rest a full second, a cut carries energy
+// instead of dissolving it. The look that carries those principles here is ours:
+//   · the CHAPTER card: the film's argument is numbered (01 / 04) and a hairline shows how far through it we are —
+//     a narrated film's structure made visible; words RISE through a mask line (CJK by character); the accent span
+//     fills with the accent colour like ink drawn across it, so the accent works in any script (no italic needed);
+//     the card leaves by its words rising out, not by fading.
+//   · the BRAND lockup grows out of a single accent dot.
+//   · the OUTRO recalls the film: its own shots, live, as a wall that pulls back while the lockup forms over it.
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
-import {span, useLook, parseWords, hash01, SERIF, MONO, type Box} from './kit';
-import {Crop} from './Layers';
+import {span, useLook, parseUnits, typeScale, isDarkHex, alpha, isCJK, SERIF, SANS, MONO} from './kit';
 
 const urlOf = (src: string) => (/^(https?:|data:|\/)/.test(src) ? src : staticFile(src));
 
-/** The paper the cards are printed on: the look's paper, a warm top light, a faint vignette. */
-const Paper: React.FC<{children?: React.ReactNode; style?: React.CSSProperties}> = ({children, style}) => {
+/** The card ground: the look's paper, a key light in the accent's hue from the top, a vignette. Light or dark. */
+export const CardGround: React.FC<{children?: React.ReactNode; style?: React.CSSProperties; key2?: {x: number; y: number}}> = (
+  {children, style, key2 = {x: 0.5, y: 0.0}}) => {
   const look = useLook();
+  const frame = useCurrentFrame();
+  const dark = isDarkHex(look.paper);
+  const drift = Math.sin(frame / 90) * 3;
   return (
     <AbsoluteFill style={{background: look.paper, ...style}}>
-      <AbsoluteFill style={{background: 'radial-gradient(60% 55% at 50% 40%, rgba(255,255,255,0.85), rgba(255,255,255,0) 70%)'}} />
-      <AbsoluteFill style={{background: 'radial-gradient(130% 100% at 50% 45%, rgba(0,0,0,0) 62%, rgba(40,32,20,0.08) 100%)'}} />
+      <AbsoluteFill style={{background: `radial-gradient(75% 65% at ${key2.x * 100 + drift}% ${key2.y * 100}%, ${alpha(look.accent, dark ? 0.22 : 0.10)}, rgba(0,0,0,0) 70%)`}} />
+      <AbsoluteFill style={{background: `radial-gradient(60% 50% at 50% 45%, ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)'}, rgba(255,255,255,0) 70%)`}} />
+      <AbsoluteFill style={{background: `radial-gradient(130% 100% at 50% 45%, rgba(0,0,0,0) 60%, ${dark ? 'rgba(0,0,0,0.45)' : 'rgba(30,26,20,0.08)'} 100%)`}} />
       {children}
     </AbsoluteFill>
   );
 };
 
-/** TITLE CARD: one serif statement, letterpressed word by word (each word lands from 1.28x and a blur), the accent
- *  word(s) in the true italic and the accent ink, an accent rule drawing under it; the card breathes in (a slow 2.5 %
- *  push) and leaves on a short fade. 1.6-2.2 s is the band: long enough to read, short enough to stay a breath. */
-export const TitleCard: React.FC<{text: string; dur: number; sub?: string; size?: number}> = ({text, dur, sub, size = 112}) => {
+/** A line set unit by unit, each rising through its own mask; the accent span filled with the accent colour once it
+ *  has landed. `start`/`gap` in frames; `leaveAt` (a frame) sends the units up and out. */
+export const RiseLine: React.FC<{text: string; px: number; start?: number; gap?: number; leaveAt?: number; weight?: number;
+  family?: string; color?: string; align?: 'center' | 'left'; maxWidth?: number; lineHeight?: number; nowrap?: boolean}> = (
+  {text, px, start = 2, gap = 3, leaveAt, weight = 680, family: familyIn, color, align = 'center', maxWidth, lineHeight = 1.1, nowrap = false}) => {
   const frame = useCurrentFrame();
-  const {width: W} = useVideoConfig();
   const look = useLook();
-  const s = W / 1920;
-  const words = parseWords(text);
-  const out = span(frame, dur - 8, dur, 'exit');
-  const push = 1 + 0.025 * span(frame, 0, dur, 'linear');
-  const rule = span(frame, 6 + words.length * 3, 22 + words.length * 3, 'snappy');
+  const family = familyIn ?? look.display ?? SANS;
+  const units = parseUnits(text);
+  const n = units.length;
+  const cjk = isCJK(text);
+  const g = cjk ? Math.min(gap, 22 / Math.max(1, n)) * 1.4 : gap;  // a long Chinese line still lands within ~0.9 s
+  const lastLand = start + (n - 1) * g + 12;
   return (
-    <Paper style={{opacity: 1 - out}}>
-      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', transform: `scale(${push})`}}>
-        <div style={{maxWidth: 1560 * s, textAlign: 'center'}}>
-          <div style={{fontFamily: SERIF, fontSize: size * s, fontWeight: 600, lineHeight: 1.12, letterSpacing: '-0.015em', color: look.ink,
-            display: 'flex', flexWrap: 'wrap', justifyContent: 'center', columnGap: '0.26em'}}>
-            {words.map((w, i) => {
-              const t = span(frame, 3 + i * 3.5, 12 + i * 3.5, (x) => 1 - Math.pow(1 - x, 3));
-              return (
-                <span key={i} style={{display: 'inline-block', opacity: t, transform: `scale(${1.28 - 0.28 * t})`, filter: `blur(${(1 - t) * 7}px)`,
-                  fontStyle: w.accent ? 'italic' : 'normal', fontWeight: w.accent ? 560 : 600, color: w.accent ? look.accentInk : undefined}}>{w.text}</span>
-              );
-            })}
-          </div>
-          <div style={{height: 6 * s, width: 200 * s, margin: `${36 * s}px auto 0`, borderRadius: 3 * s, background: look.accent,
-            transform: `scaleX(${rule})`}} />
-          {sub ? <div style={{marginTop: 30 * s, fontFamily: MONO, fontSize: 24 * s, letterSpacing: '0.16em', textTransform: 'uppercase',
-            color: look.muted, opacity: span(frame, 12, 24, 'out')}}>{sub}</div> : null}
-        </div>
-      </AbsoluteFill>
-    </Paper>
+    <div style={{display: 'flex', flexWrap: nowrap ? 'nowrap' : 'wrap', justifyContent: align === 'center' ? 'center' : 'flex-start', maxWidth,
+      whiteSpace: nowrap ? 'nowrap' : undefined,
+      fontFamily: family, fontSize: px, fontWeight: weight, lineHeight, letterSpacing: cjk ? '0.02em' : '-0.025em', color: color ?? look.ink}}>
+      {units.map((u, i) => {
+        const a = start + i * g;
+        const t = span(frame, a, a + 12, 'snappy');
+        const out = leaveAt !== undefined ? span(frame, leaveAt + i * 0.8, leaveAt + i * 0.8 + 8, 'exit') : 0;
+        const y = (1 - t) * 105 - out * 105;
+        const fill = u.accent ? span(frame, lastLand - 2 + i * 0.6, lastLand + 10 + i * 0.6, 'smooth') : 0;
+        return (
+          <span key={i} style={{display: 'inline-block', overflow: 'hidden', paddingBottom: '0.1em', marginBottom: '-0.1em',
+            marginRight: u.space ? '0.24em' : 0}}>
+            <span style={{display: 'inline-block', transform: `translateY(${y}%)`,
+              ...(u.accent ? {backgroundImage: `linear-gradient(90deg, ${look.accentInk} ${fill * 100}%, ${color ?? look.ink} ${fill * 100}%)`,
+                WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
+                fontFamily: !cjk ? SERIF : family, fontStyle: !cjk ? 'italic' : 'normal', fontWeight: !cjk ? 560 : weight} : {})}}>{u.text}</span>
+          </span>
+        );
+      })}
+    </div>
   );
 };
 
-/** FLASH CUT: a soft bright bloom straddling a hard cut (5 frames each side). Only on cuts, never as decoration. */
-export const FlashCut: React.FC<{dur?: number; strength?: number}> = ({dur = 10, strength = 0.75}) => {
+/** CHAPTER CARD: `01 / 04` and the chapter's kicker at the top left, one statement in the middle rising through its
+ *  mask, a hairline across the foot showing the film's progress (this chapter's share drawn in the accent). */
+export const ChapterCard: React.FC<{text: string; dur: number; index?: number; total?: number; kicker?: string; size?: number}> = (
+  {text, dur, index, total, kicker, size = 104}) => {
+  const frame = useCurrentFrame();
+  const {width: W, height: H} = useVideoConfig();
+  const look = useLook();
+  const s = typeScale(W, H);
+  const portrait = H > W;
+  const push = 1 + 0.02 * span(frame, 0, dur, 'linear');
+  const meta = span(frame, 0, 10, 'out') * (1 - span(frame, dur - 8, dur, 'exit'));
+  const p0 = index && total ? (index - 1) / total : 0, p1 = index && total ? index / total : 0;
+  const bar = span(frame, 4, 22, 'snappy');
+  const pad = 72 * s;
+  return (
+    <CardGround>
+      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', transform: `scale(${push})`, padding: `0 ${pad}px`}}>
+        <RiseLine text={text} px={(portrait ? size * 0.92 : size) * s} start={3} leaveAt={dur - 9} maxWidth={W - 2 * pad} />
+      </AbsoluteFill>
+      {index ? (
+        <div style={{position: 'absolute', left: pad, top: pad * 0.9, opacity: meta, display: 'flex', alignItems: 'baseline', gap: 18 * s,
+          fontFamily: MONO, fontSize: 22 * s, letterSpacing: '0.16em', textTransform: 'uppercase', color: look.muted}}>
+          <span style={{color: look.accentInk, fontWeight: 700, fontSize: 30 * s, letterSpacing: '0.04em'}}>{String(index).padStart(2, '0')}</span>
+          {total ? <span>/ {String(total).padStart(2, '0')}</span> : null}
+          {kicker ? <span style={{marginLeft: 10 * s, color: look.ink}}>{kicker}</span> : null}
+        </div>
+      ) : null}
+      {index && total ? (
+        <div style={{position: 'absolute', left: pad, right: pad, bottom: pad * 0.9, height: 2 * s, background: alpha(look.ink, 0.12), opacity: meta}}>
+          <div style={{position: 'absolute', left: 0, top: 0, bottom: 0, width: `${p0 * 100}%`, background: alpha(look.ink, 0.35)}} />
+          <div style={{position: 'absolute', left: `${p0 * 100}%`, top: -1 * s, height: 4 * s, width: `${(p1 - p0) * 100 * bar}%`, background: look.accent,
+            boxShadow: `0 0 ${10 * s}px ${alpha(look.accent, 0.6)}`}} />
+        </div>
+      ) : null}
+    </CardGround>
+  );
+};
+/** Back-compat name. */
+export const TitleCard: React.FC<{text: string; dur: number; sub?: string; size?: number; index?: number; total?: number}> = (p) =>
+  <ChapterCard text={p.text} dur={p.dur} size={p.size} index={p.index} total={p.total} kicker={p.sub} />;
+
+/** CUT CARRY: a hard cut that carries one move through it. The leaving shot keeps travelling and smears; the arriving
+ *  shot comes out of the same smear already moving. `dir` +1 = content travels left. Applied by PromoFilm round cuts. */
+export const carryStyle = (frame: number, dur: number, dirIn: number, dirOut: number, W: number, inn = true, out = true): React.CSSProperties => {
+  const k = 5;
+  const o = out ? span(frame, dur - k, dur, 'exit') : 0;
+  const i = inn ? 1 - span(frame, 0, k + 2, 'snappy') : 0;
+  const dx = (-o * dirOut + i * dirIn) * W * 0.06;
+  const blur = (o + i) * 14;
+  return {transform: `translateX(${dx}px) scale(${1 + (o + i) * 0.03})`, filter: blur > 0.3 ? `blur(${blur}px)` : undefined};
+};
+
+/** A light FLASH, kept as an option for a film whose look wants it (`cut: 'flash'`); not the default. */
+export const FlashCut: React.FC<{dur?: number; strength?: number}> = ({dur = 10, strength = 0.6}) => {
   const frame = useCurrentFrame();
   const o = frame < dur * 0.45 ? span(frame, 0, dur * 0.45, 'out') : 1 - span(frame, dur * 0.45, dur, 'smooth');
   return <AbsoluteFill style={{pointerEvents: 'none', opacity: o * strength,
-    background: 'radial-gradient(ellipse at 50% 45%, rgba(255,253,248,1), rgba(255,250,240,0.6) 55%, rgba(255,250,240,0) 82%)'}} />;
+    background: 'radial-gradient(ellipse at 50% 45%, rgba(255,255,255,1), rgba(255,255,255,0.5) 55%, rgba(255,255,255,0) 82%)'}} />;
 };
 
-/** CAPTION STRIP: a short mono line under a product shot (what is happening, in capitals), never over a card. */
+/** CAPTION: what is happening, in a lower-left tag (an accent bar and the line); never over a card. */
 export const CaptionStrip: React.FC<{text: string; dur: number}> = ({text, dur}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const look = useLook();
-  const s = W / 1920;
-  const o = span(frame, 0, 10, 'out') * (1 - span(frame, dur - 8, dur, 'exit'));
+  const s = typeScale(W, H);
+  const o = span(frame, 0, 10, 'snappy');
+  const out = span(frame, dur - 8, dur, 'exit');
+  const dark = isDarkHex(look.ground);
   return (
-    <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', paddingBottom: H * 0.07, pointerEvents: 'none'}}>
-      <div style={{opacity: o, transform: `translateY(${(1 - o) * 10 * s}px)`, fontFamily: MONO, fontSize: 22 * s, fontWeight: 600,
-        letterSpacing: '0.18em', textTransform: 'uppercase', color: look.ink, padding: `${10 * s}px ${20 * s}px`, borderRadius: 999,
-        background: 'rgba(255,255,255,0.86)', boxShadow: '0 6px 24px rgba(20,18,14,0.14)', backdropFilter: 'blur(6px)'}}>
-        <span style={{color: look.accentInk, marginRight: '0.7em'}}>●</span>{text}
-      </div>
-    </AbsoluteFill>
+    <div style={{position: 'absolute', left: 64 * s, bottom: (H > W ? 220 : 60) * s, display: 'flex', alignItems: 'center', gap: 14 * s,
+      opacity: 1 - out, transform: `translateX(${(1 - o) * -24 * s}px)`, clipPath: `inset(-20px ${(1 - o) * 100}% -20px -20px)`}}>
+      <div style={{width: 4 * s, height: 34 * s, borderRadius: 2 * s, background: look.accent}} />
+      <div style={{fontFamily: SANS, fontSize: 28 * s, fontWeight: 620, letterSpacing: isCJK(text) ? '0.04em' : '-0.005em', color: dark ? '#f4f3ef' : look.ink,
+        padding: `${8 * s}px ${16 * s}px`, borderRadius: 10 * s, background: dark ? 'rgba(20,20,22,0.72)' : 'rgba(255,255,255,0.9)',
+        boxShadow: '0 10px 30px rgba(10,10,10,0.16)'}}>{text}</div>
+    </div>
   );
 };
 
-/** The brand lockup from one SVG: an icon square at the left (its width = the SVG's height, `iconRatio` of the
- *  height) and the wordmark after it. Drawn as two clipped copies of the same file, so each part can move alone. */
-const Lockup: React.FC<{mark: string; aspect: number; h: number; icon: number; word: number; iconScale?: number}> = (
-  {mark, aspect, h, icon, word, iconScale = 1}) => {
-  const w = h * aspect;
-  const iconW = h * 1.08;
+/** The brand lockup from one SVG: the icon square at its left (width ≈ the SVG's height) and the wordmark after it,
+ *  drawn as two clipped copies of the file so each part moves alone. `grow` 0→1 grows the icon out of an accent dot. */
+export const Lockup: React.FC<{mark: string; aspect: number; h: number; grow: number; word: number}> = ({mark, aspect, h, grow, word}) => {
+  const look = useLook();
+  const w = h * aspect, iconW = h * 1.08;
+  const dot = 1 - span(grow, 0.35, 0.75, 'linear');
+  // a brand mark is drawn for a light page; on a dark paper it sits on a light plate rather than vanishing into it
+  const plate = isDarkHex(look.paper);
   return (
-    <div style={{position: 'relative', width: w, height: h}}>
-      <div style={{position: 'absolute', left: 0, top: 0, width: iconW, height: h, overflow: 'hidden', opacity: Math.min(1, icon * 1.5),
-        transform: `scale(${iconScale * (0.6 + 0.4 * icon)})`, transformOrigin: `${h / 2}px ${h / 2}px`}}>
+    <div style={{position: 'relative', width: w, height: h, ...(plate ? {padding: `${h * 0.28}px ${h * 0.4}px`, margin: `${-h * 0.28}px ${-h * 0.4}px`,
+      boxSizing: 'content-box', borderRadius: h * 0.3, background: `rgba(250,250,248,${Math.min(1, word * 1.2 + grow * 0.3)})`,
+      boxShadow: `0 ${h * 0.2}px ${h * 0.8}px rgba(0,0,0,0.45)`} : {})}}>
+      <div style={{position: 'absolute', left: plate ? h * 0.4 : 0, top: plate ? h * 0.28 : 0, width: w, height: h}}>
+      <div style={{position: 'absolute', left: h / 2 - h * 0.09, top: h / 2 - h * 0.09, width: h * 0.18, height: h * 0.18, borderRadius: '50%',
+        background: look.accent, transform: `scale(${Math.min(1, grow * 4) * (1 + 2.4 * span(grow, 0.25, 0.6, 'linear'))})`, opacity: dot,
+        boxShadow: `0 0 ${h * 0.3}px ${alpha(look.accent, 0.7)}`}} />
+      <div style={{position: 'absolute', left: 0, top: 0, width: iconW, height: h, overflow: 'hidden',
+        clipPath: `circle(${span(grow, 0.3, 0.85, 'snappy') * 75}% at ${h / 2}px ${h / 2}px)`}}>
         <Img src={urlOf(mark)} style={{position: 'absolute', left: 0, top: 0, width: w, height: h}} />
       </div>
-      <div style={{position: 'absolute', left: iconW, top: 0, width: w - iconW, height: h, overflow: 'hidden',
-        clipPath: `inset(0 ${(1 - word) * 100}% 0 0)`}}>
-        <Img src={urlOf(mark)} style={{position: 'absolute', left: -iconW, top: 0, width: w, height: h,
-          transform: `translateX(${(1 - word) * -24}px)`}} />
+      <div style={{position: 'absolute', left: iconW, top: 0, width: w - iconW, height: h, overflow: 'hidden', clipPath: `inset(0 ${(1 - word) * 100}% 0 0)`}}>
+        <Img src={urlOf(mark)} style={{position: 'absolute', left: -iconW, top: 0, width: w, height: h, transform: `translateX(${(1 - word) * -h * 0.3}px)`}} />
+      </div>
       </div>
     </div>
   );
 };
 
-/** BRAND OPEN: the icon lands (one overshoot), the wordmark wipes on beside it, a kicker types under it; the lockup
- *  RESTS fully on for a second, then lifts and dissolves into the first product shot. */
+/** BRAND OPEN: an accent dot lands, grows into the icon, the wordmark draws out of it, the kicker rises under it;
+ *  the lockup RESTS a full second, then the card rises out as the first shot carries in. */
 export const BrandOpen: React.FC<{mark: string; aspect: number; kicker?: string; dur: number; markH?: number}> = ({mark, aspect, kicker = '', dur, markH = 170}) => {
-  const frame = useCurrentFrame();
-  const {width: W} = useVideoConfig();
-  const look = useLook();
-  const s = W / 1920;
-  const icon = span(frame, 2, 18, 'overshoot');
-  const word = span(frame, 12, 30, 'snappy');
-  const kStart = 26, n = Math.max(0, Math.min(kicker.length, Math.floor((frame - kStart) / 0.8)));
-  const out = span(frame, dur - 12, dur, 'exit');
-  const sheen = span(frame, 20, 44, 'smooth');
-  return (
-    <Paper style={{opacity: 1 - out}}>
-      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', transform: `translateY(${-out * 40 * s}px) scale(${1 - out * 0.1})`}}>
-        <div style={{position: 'relative'}}>
-          <Lockup mark={mark} aspect={aspect} h={markH * s} icon={icon} word={word} />
-          <div style={{position: 'absolute', inset: 0, pointerEvents: 'none', mixBlendMode: 'soft-light',
-            background: `linear-gradient(100deg, transparent ${sheen * 120 - 30}%, rgba(255,255,255,0.9) ${sheen * 120 - 15}%, transparent ${sheen * 120}%)`}} />
-        </div>
-        {kicker ? <div style={{marginTop: 40 * s, height: 30 * s, fontFamily: MONO, fontSize: 24 * s, letterSpacing: '0.2em', textTransform: 'uppercase',
-          color: look.muted}}>{kicker.slice(0, n)}<span style={{opacity: n < kicker.length || Math.floor(frame / 12) % 2 ? 1 : 0, color: look.accentInk}}>▍</span></div> : null}
-      </AbsoluteFill>
-    </Paper>
-  );
-};
-
-export type Piece = {src: string; pageW: number; pageH: number; box: Box; x: number; y: number; rot?: number; scale?: number};
-
-/** OUTRO ASSEMBLY: pieces of the product (crops of its own pages) fly in from off-frame one after another and settle
- *  round the centre like a group photo; then they step back (smaller, softer) as the lockup STAMPS in the middle
- *  (from 1.35x and a blur, one overshoot), rules shoot out either side, the tagline sets in the serif italic, and
- *  the whole frame holds a full second. */
-export const OutroAssembly: React.FC<{pieces: Piece[]; mark: string; aspect: number; tagline?: string; dur: number; stampAt?: number; markH?: number}> = (
-  {pieces, mark, aspect, tagline = '', dur, stampAt = 46, markH = 150}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const look = useLook();
-  const s = W / 1920;
-  const back = span(frame, stampAt - 6, stampAt + 8, 'smooth');
-  const crane = 1.08 - 0.08 * span(frame, 0, stampAt, 'smooth') + 0.02 * span(frame, stampAt, dur, 'linear');
-  const stamp = span(frame, stampAt, stampAt + 12, 'overshoot');
-  const stampO = span(frame, stampAt, stampAt + 6, 'out');
-  const rules = span(frame, stampAt + 12, stampAt + 22, 'snappy');
-  const tag = span(frame, stampAt + 14, stampAt + 28, 'snappy');
+  const s = typeScale(W, H);
+  const grow = span(frame, 2, 26, 'linear');
+  const word = span(frame, 18, 36, 'snappy');
+  const out = span(frame, dur - 10, dur, 'exit');
+  const mh = Math.min(markH * s, (W * 0.78) / aspect);
   return (
-    <Paper>
-      <AbsoluteFill style={{transform: `scale(${crane})`}}>
-        {pieces.map((p, i) => {
-          const at = 2 + i * (28 / Math.max(1, pieces.length - 1 || 1));
-          const t = span(frame, at, at + 16, 'snappy');
-          const tx = p.x * W, ty = p.y * H;
-          const dx = tx - W / 2, dy = ty - H / 2, len = Math.hypot(dx, dy) || 1;
-          const fromX = tx + (dx / len) * W * 0.7, fromY = ty + (dy / len) * H * 0.7 + 60 * s;
-          const sc = (p.scale ?? 1) * s * (1 - 0.1 * back);
-          const x = fromX + (tx - fromX) * t, y = fromY + (ty - fromY) * t;
-          const rot = (p.rot ?? 0) * t + (1 - t) * (hash01(i) - 0.5) * 24;
-          const land = span(frame, at + 12, at + 22, 'out') * (1 - span(frame, at + 22, at + 34, 'smooth'));
-          return (
-            <div key={i} style={{position: 'absolute', left: x, top: y, width: p.box.w, height: p.box.h, opacity: Math.min(1, t * 2) * (1 - 0.3 * back),
-              transform: `translate(-50%, -50%) rotate(${rot}deg) scale(${sc})`, filter: `blur(${1.4 * back}px)`}}>
-              <div style={{position: 'absolute', inset: -30, borderRadius: 30, background: `radial-gradient(closest-side, ${look.accent}66, transparent)`, opacity: land}} />
-              <Crop src={p.src} pageW={p.pageW} pageH={p.pageH} box={p.box} radius={12}
-                style={{left: 0, top: 0, boxShadow: `0 ${8 + 20 * (1 - t)}px ${24 + 40 * (1 - t)}px rgba(20,18,14,0.20), 0 0 0 1px rgba(20,18,14,0.06)`}} />
-            </div>
-          );
-        })}
+    <CardGround>
+      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', transform: `translateY(${-out * 60 * s}px)`, opacity: 1 - out}}>
+        <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} />
+        {kicker ? <div style={{marginTop: 44 * s}}>
+          <RiseLine text={kicker} px={26 * s} start={30} gap={1.5} family={MONO} weight={600} color={look.muted} />
+        </div> : null}
       </AbsoluteFill>
-      {/* a stage light behind the lockup as it lands */}
-      <AbsoluteFill style={{background: `radial-gradient(34% 30% at 50% 48%, rgba(255,255,255,${0.95 * back}), rgba(255,255,255,0) 100%)`}} />
+    </CardGround>
+  );
+};
+
+/** RECALL OUTRO: the film's own shots come back as a wall of live frames that pulls back; at `stampAt` the wall
+ *  steps behind a scrim and the lockup grows out of its dot, the tagline rising under it; the end holds a second. */
+export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspect: number; tagline?: string; dur: number; stampAt?: number; markH?: number}> = (
+  {tiles, mark, aspect, tagline = '', dur, stampAt = 46, markH = 150}) => {
+  const frame = useCurrentFrame();
+  const {width: W, height: H} = useVideoConfig();
+  const look = useLook();
+  const s = typeScale(W, H);
+  const n = tiles.length;
+  const cols = H > W ? 2 : n <= 4 ? 2 : 3;
+  const rows = Math.max(1, Math.ceil(n / cols));
+  const gapPx = 26 * s;
+  const tw = (W * 0.86 - gapPx * (cols - 1)) / cols, th = tw * (H / W);
+  const gridW = cols * tw + (cols - 1) * gapPx, gridH = rows * th + (rows - 1) * gapPx;
+  const pull = 1.16 - 0.16 * span(frame, 0, stampAt + 10, 'smooth') - 0.04 * span(frame, stampAt + 10, dur, 'linear');
+  const back = span(frame, stampAt - 4, stampAt + 12, 'smooth');
+  const grow = span(frame, stampAt, stampAt + 22, 'linear');
+  const word = span(frame, stampAt + 14, stampAt + 30, 'snappy');
+  const dark = isDarkHex(look.paper);
+  const mh = Math.min(markH * s, (W * 0.7) / aspect);
+  return (
+    <CardGround>
       <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
-        <div style={{opacity: stampO, transform: `scale(${1.35 - 0.35 * stamp})`, filter: `blur(${(1 - stampO) * 10}px)`}}>
-          <Lockup mark={mark} aspect={aspect} h={markH * s} icon={1} word={1} />
-        </div>
-        <div style={{display: 'flex', alignItems: 'center', gap: 22 * s, marginTop: 34 * s}}>
-          <div style={{height: 2, width: 160 * s * rules, background: look.accent, opacity: 0.8}} />
-          <div style={{fontFamily: SERIF, fontStyle: 'italic', fontSize: 46 * s, fontWeight: 500, color: look.ink, opacity: tag,
-            transform: `translateY(${(1 - tag) * 12 * s}px)`, letterSpacing: '-0.005em'}}>{tagline}</div>
-          <div style={{height: 2, width: 160 * s * rules, background: look.accent, opacity: 0.8}} />
+        <div style={{position: 'relative', width: gridW, height: gridH, transform: `scale(${pull})`, filter: back > 0.01 ? `blur(${back * 3}px)` : undefined}}>
+          {tiles.map((t, i) => {
+            const c = i % cols, r = Math.floor(i / cols);
+            const at = 1 + i * 2.5;
+            const k = span(frame, at, at + 14, 'snappy');
+            return (
+              <div key={i} style={{position: 'absolute', left: c * (tw + gapPx), top: r * (th + gapPx), width: tw, height: th, borderRadius: 14 * s,
+                overflow: 'hidden', opacity: k, transform: `translateY(${(1 - k) * 40 * s}px) scale(${0.94 + 0.06 * k})`,
+                boxShadow: `0 ${18 * s}px ${50 * s}px rgba(10,10,10,${dark ? 0.5 : 0.18})`}}>
+                <div style={{width: W, height: H, transform: `scale(${tw / W})`, transformOrigin: '0 0', position: 'relative'}}>{t}</div>
+              </div>
+            );
+          })}
         </div>
       </AbsoluteFill>
-    </Paper>
+      <AbsoluteFill style={{background: alpha(look.paper, 0.8 * back)}} />
+      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
+        <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} />
+        {tagline ? <div style={{marginTop: 34 * s}}>
+          <RiseLine text={tagline} px={46 * s} start={stampAt + 26} gap={2} weight={560} color={look.ink} />
+        </div> : null}
+      </AbsoluteFill>
+    </CardGround>
   );
 };

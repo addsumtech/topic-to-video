@@ -3,15 +3,17 @@
 // Every layer is positioned in the capture's CSS px (the PageCam's children), timed in frames from the shot's start,
 // and is a pure function of the frame. They are the verbs of a product film:
 //   pop    an element of the page arrives in its own slot (row-embed: the slot is blank until it lands)
-//   lift   an element rises off the page toward the camera, a beam laps its edge, and it settles back
-//   focus  everything but one element dims (the light locks on it)
+//   lift   an element rises off the page toward the camera, a sheen crosses it and its accent under-glow blooms, it settles back
+//   focus  a RACK FOCUS: the page falls out of focus and dims, the one element stays sharp (a lens, not a stencil)
 //   ring   an accent outline draws itself round an element
 //   type   text is typed into a field (the field's placeholder is covered by the field's own fill)
 //   cursor a pointer travels and clicks
-//   note   a short serif annotation floats beside an element, a marker sweeping under its accent word
+//   callout a leader line draws from a point on an element to a label (kicker + line), the label rising into place
+//   note   a callout without a leader
 import React from 'react';
 import {staticFile, useCurrentFrame} from 'remotion';
-import {span, track, useLook, SERIF, SANS, parseWords, type Box, type Key} from './kit';
+import {span, track, useLook, SANS, MONO, alpha, isDarkHex, type Box, type Key} from './kit';
+import {RiseLine} from './Cards';
 
 const urlOf = (src: string) => (/^(https?:|data:|\/)/.test(src) ? src : staticFile(src));
 
@@ -47,47 +49,54 @@ export const Pop: React.FC<PopSpec & {pageSrc: string; pageW: number; pageH: num
   );
 };
 
-export type LiftSpec = {kind: 'lift'; box: Box; at: number; until: number; z?: number; scale?: number; radius?: number; beam?: boolean; slot?: string};
-export const Lift: React.FC<LiftSpec & Common> = ({box, at, until, z = 90, scale = 1.06, radius = 12, beam = true, slot = '#f4f4f2', src, pageW, pageH}) => {
+export type LiftSpec = {kind: 'lift'; box: Box; at: number; until: number; z?: number; scale?: number; radius?: number; sheen?: boolean; slot?: string};
+export const Lift: React.FC<LiftSpec & Common> = ({box, at, until, z = 90, scale = 1.06, radius = 12, sheen = true, slot = '#f4f4f2', src, pageW, pageH}) => {
   const frame = useCurrentFrame();
   const look = useLook();
   const rise = span(frame, at, at + 12, 'overshoot');
   const back = span(frame, until, until + 16, 'swift');
   const lift = Math.max(0, rise * (1 - back));
   const bob = Math.sin(((frame - at) / 42) * Math.PI * 2) * 3 * lift;
-  // two laps of a short bright arc round the edge while it hovers
-  const lap = span(frame, at + 10, until - 6, 'smooth') * 2;
-  const beamOn = beam ? Math.min(1, lift * 1.5) * (lap > 0 && lap < 2 ? 1 : 0) : 0;
+  const sw = span(frame, at + 8, at + 30, 'smooth');           // one sheen across the surface after it rises
   return (
     <div style={{position: 'absolute', left: box.x, top: box.y, width: box.w, height: box.h, transformStyle: 'preserve-3d'}}>
-      <div style={{position: 'absolute', inset: 0, borderRadius: radius, background: slot, opacity: Math.min(1, lift * 3),
-        boxShadow: `inset 0 0 0 ${1.5}px ${look.accent}${Math.round(0x66 * lift).toString(16).padStart(2, '0')}`}} />
-      <div style={{position: 'absolute', inset: 0, transform: `translateZ(${z * lift + bob}px) scale(${1 + (scale - 1) * lift})`,
-        transformStyle: 'preserve-3d'}}>
+      <div style={{position: 'absolute', inset: 0, borderRadius: radius, background: slot, opacity: Math.min(1, lift * 3)}} />
+      {/* the accent light the element rises out of, blooming on the page under it */}
+      <div style={{position: 'absolute', inset: -box.h * 0.4, borderRadius: radius * 4, opacity: lift * 0.9,
+        background: `radial-gradient(closest-side, ${alpha(look.accent, 0.45)}, ${alpha(look.accent, 0)})`, filter: 'blur(6px)'}} />
+      <div style={{position: 'absolute', inset: 0, transform: `translateZ(${z * lift + bob}px) scale(${1 + (scale - 1) * lift})`, transformStyle: 'preserve-3d'}}>
         <Crop src={src} pageW={pageW} pageH={pageH} box={box} radius={radius} style={{left: 0, top: 0,
-          boxShadow: `0 ${6 + 30 * lift}px ${10 + 70 * lift}px rgba(20,18,14,${0.08 + 0.22 * lift}), 0 0 0 1px rgba(255,255,255,${0.8 * lift})`}} />
-        {beamOn > 0 ? (
-          <svg width={box.w + 8} height={box.h + 8} style={{position: 'absolute', left: -4, top: -4, overflow: 'visible', opacity: beamOn}}>
-            <rect x={2} y={2} width={box.w + 4} height={box.h + 4} rx={radius + 2} fill="none" pathLength={1} stroke={look.accent}
-              strokeWidth={4} strokeLinecap="round" strokeDasharray="0.16 0.84" strokeDashoffset={-lap}
-              style={{filter: `drop-shadow(0 0 6px ${look.accent})`}} />
-            <rect x={2} y={2} width={box.w + 4} height={box.h + 4} rx={radius + 2} fill="none" pathLength={1} stroke="#ffffff"
-              strokeWidth={1.6} strokeLinecap="round" strokeDasharray="0.10 0.90" strokeDashoffset={-lap - 0.03} />
-          </svg>
+          boxShadow: `0 ${6 + 30 * lift}px ${10 + 70 * lift}px rgba(20,18,14,${0.08 + 0.22 * lift}), 0 0 0 ${1.5 * lift}px ${alpha(look.accent, 0.55 * lift)}`}} />
+        {sheen && sw > 0 && sw < 1 ? (
+          <div style={{position: 'absolute', inset: 0, borderRadius: radius, overflow: 'hidden', pointerEvents: 'none'}}>
+            <div style={{position: 'absolute', top: '-50%', bottom: '-50%', width: '35%', left: `${-40 + sw * 140}%`, transform: 'rotate(18deg)',
+              background: 'linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.65), rgba(255,255,255,0))'}} />
+          </div>
         ) : null}
       </div>
     </div>
   );
 };
 
-export type FocusSpec = {kind: 'focus'; box: Box; at: number; until?: number; dim?: number; radius?: number};
-export const Focus: React.FC<FocusSpec> = ({box, at, until = 1e9, dim = 0.42, radius = 14}) => {
+export type FocusSpec = {kind: 'focus'; box: Box; at: number; until?: number; dim?: number; radius?: number; blur?: number};
+/** A rack focus drawn in page space: a softened copy of the whole capture over it (the page goes out of focus), the
+ *  element re-drawn sharp from the same texture on top, a soft light falling off round it. */
+export const Focus: React.FC<FocusSpec & Common> = ({box, at, until = 1e9, dim = 0.28, radius = 14, blur = 5, src, pageW, pageH}) => {
   const frame = useCurrentFrame();
-  const on = span(frame, at, at + 14, 'smooth') * (1 - span(frame, until, until + 12, 'smooth'));
-  const pad = 10 + 30 * (1 - on);
+  const look = useLook();
+  const on = span(frame, at, at + 16, 'smooth') * (1 - span(frame, until, until + 12, 'smooth'));
+  if (on <= 0.001) return null;
+  const dark = isDarkHex(look.ground);
+  const cx = box.x + box.w / 2, cy = box.y + box.h / 2, r = Math.max(box.w, box.h) * 0.9;
   return (
-    <div style={{position: 'absolute', left: box.x - pad, top: box.y - pad, width: box.w + 2 * pad, height: box.h + 2 * pad,
-      borderRadius: radius + pad * 0.6, boxShadow: `0 0 0 4000px rgba(24,22,18,${dim * on})`, pointerEvents: 'none'}} />
+    <>
+      <Crop src={src} pageW={pageW} pageH={pageH} box={{x: 0, y: 0, w: pageW, h: pageH}} radius={0}
+        style={{left: 0, top: 0, opacity: on, filter: `blur(${blur * on}px) saturate(${1 - 0.25 * on})`}} />
+      <div style={{position: 'absolute', left: 0, top: 0, width: pageW, height: pageH, opacity: on, pointerEvents: 'none',
+        background: `radial-gradient(${r}px ${r * 0.8}px at ${cx}px ${cy}px, rgba(0,0,0,0) 35%, ${dark ? `rgba(0,0,0,${dim + 0.2})` : `rgba(28,24,18,${dim})`} 100%)`}} />
+      <Crop src={src} pageW={pageW} pageH={pageH} box={box} radius={radius} style={{left: box.x, top: box.y, opacity: on,
+        boxShadow: `0 ${12 * on}px ${36 * on}px rgba(10,10,10,${0.18 * on})`}} />
+    </>
   );
 };
 
@@ -145,31 +154,41 @@ export const Cursor: React.FC<CursorSpec> = ({path, clicks = [], size = 22}) => 
   );
 };
 
-export type NoteSpec = {kind: 'note'; x: number; y: number; at: number; until?: number; text: string; size?: number; z?: number; align?: 'left' | 'right'};
-export const Note: React.FC<NoteSpec> = ({x, y, at, until = 1e9, text, size = 34, z = 70, align = 'left'}) => {
+export type CalloutSpec = {kind: 'callout'; x: number; y: number; lx: number; ly: number; at: number; until?: number; text: string; kicker?: string; size?: number; z?: number};
+/** A leader line drawn from the point (x, y) on an element to a label at (lx, ly): a pulsing accent dot, the line,
+ *  then the label — an optional mono kicker and one line rising through its mask (accent span filled). */
+export const Callout: React.FC<CalloutSpec & {leader?: boolean}> = ({x, y, lx, ly, at, until = 1e9, text, kicker, size = 30, z = 40, leader = true}) => {
   const frame = useCurrentFrame();
   const look = useLook();
-  const inn = span(frame, at, at + 14, 'snappy');
+  const line = span(frame, at, at + 12, 'snappy');
   const out = span(frame, until, until + 10, 'exit');
-  if (inn <= 0 || out >= 1) return null;
-  const words = parseWords(text);
-  const hl = span(frame, at + 10, at + 26, 'snappy');
+  if (frame < at - 1 || out >= 1) return null;
+  const dark = isDarkHex(look.ground);
+  const right = lx >= x;
+  const pulse = 1 + 0.35 * Math.max(0, Math.sin((frame - at) / 6));
+  const ex = x + (lx - x) * line, ey = y + (ly - y) * line;
   return (
-    <div style={{position: 'absolute', left: x, top: y, transform: `translateZ(${z + Math.sin((frame - at) / 7) * 2}px) translate(${align === 'right' ? '-100%' : '0'}, ${(1 - inn) * 18}px)`,
-      opacity: inn * (1 - out), filter: `blur(${(1 - inn) * 4}px)`, fontFamily: SERIF, fontSize: size, fontWeight: 560, lineHeight: 1.15,
-      color: look.ink, whiteSpace: 'nowrap', padding: '10px 18px', borderRadius: 12, background: 'rgba(255,255,255,0.94)',
-      boxShadow: '0 14px 40px rgba(20,18,14,0.18)'}}>
-      {words.map((w, i) => (
-        <span key={i} style={{position: 'relative', marginRight: '0.26em', fontStyle: w.accent ? 'italic' : 'normal', color: w.accent ? look.accentInk : undefined}}>
-          {w.accent ? <span style={{position: 'absolute', left: -3, bottom: 2, height: '0.42em', width: `calc(${hl} * (100% + 6px))`, background: `${look.accent}55`, borderRadius: 3, zIndex: -1}} /> : null}
-          {w.text}
-        </span>
-      ))}
+    <div style={{position: 'absolute', left: 0, top: 0, transform: `translateZ(${z}px)`, opacity: 1 - out}}>
+      {leader ? <>
+        <svg style={{position: 'absolute', left: 0, top: 0, overflow: 'visible'}} width={1} height={1}>
+          <line x1={x} y1={y} x2={ex} y2={ey} stroke={look.accent} strokeWidth={2} strokeLinecap="round" />
+        </svg>
+        <div style={{position: 'absolute', left: x - 6, top: y - 6, width: 12, height: 12, borderRadius: '50%', background: look.accent,
+          transform: `scale(${Math.min(1, line * 3) * pulse})`, boxShadow: `0 0 0 4px ${alpha(look.accent, 0.25)}`}} />
+      </> : null}
+      <div style={{position: 'absolute', left: lx, top: ly, transform: `translate(${right ? '0' : '-100%'}, -50%)`, padding: '10px 16px',
+        borderRadius: 12, background: dark ? 'rgba(22,22,24,0.92)' : 'rgba(255,255,255,0.95)', boxShadow: '0 14px 40px rgba(10,10,10,0.20)',
+        opacity: span(frame, at + (leader ? 8 : 0), at + (leader ? 16 : 8), 'out'), whiteSpace: 'nowrap'}}>
+        {kicker ? <div style={{fontFamily: MONO, fontSize: size * 0.42, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase',
+          color: look.accentInk, marginBottom: 4}}>{kicker}</div> : null}
+        <RiseLine text={text} px={size} start={at + (leader ? 9 : 2)} gap={2} weight={640} align="left" nowrap color={dark ? '#f4f3ef' : look.ink} />
+      </div>
     </div>
   );
 };
+export type NoteSpec = {kind: 'note'; x: number; y: number; at: number; until?: number; text: string; size?: number; z?: number; kicker?: string};
 
-export type LayerSpec = PopSpec | LiftSpec | FocusSpec | RingSpec | TypeSpec | CursorSpec | NoteSpec;
+export type LayerSpec = PopSpec | LiftSpec | FocusSpec | RingSpec | TypeSpec | CursorSpec | CalloutSpec | NoteSpec;
 
 /** Layers in the order given (later = on top). Pop/lift need the capture they crop from. */
 export const Layers: React.FC<{layers: LayerSpec[]} & Common> = ({layers, ...c}) => (
@@ -178,11 +197,13 @@ export const Layers: React.FC<{layers: LayerSpec[]} & Common> = ({layers, ...c})
       switch (l.kind) {
         case 'pop': return <Pop key={i} {...l} pageSrc={c.src} pageW={c.pageW} pageH={c.pageH} />;
         case 'lift': return <Lift key={i} {...l} {...c} />;
-        case 'focus': return <Focus key={i} {...l} />;
+        case 'focus': return <Focus key={i} {...l} {...c} />;
         case 'ring': return <Ring key={i} {...l} />;
         case 'type': return <TypeIn key={i} {...l} />;
         case 'cursor': return <Cursor key={i} {...l} />;
-        case 'note': return <Note key={i} {...l} />;
+        case 'callout': return <Callout key={i} {...l} />;
+        case 'note': return <Callout key={i} kind="callout" x={l.x} y={l.y} lx={l.x} ly={l.y} at={l.at} until={l.until} text={l.text} size={l.size}
+          z={l.z} kicker={l.kicker} leader={false} />;
         default: throw new Error(`promo layer: unknown kind ${(l as {kind: string}).kind}`);
       }
     })}

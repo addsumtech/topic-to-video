@@ -711,8 +711,9 @@ def cjk_props(name, offset=0):
         # sentence, the device layer refuses it by name and prop_reach read DeviceDemo / DeviceHero as NOT MEASURED.
         # `focusTrack` is FilmScreen's close-up path [{t, x, y}] (runtime/focusTrack): geometry over time, never copy;
         # unset, the close-up holds its region, which is what a library sweep measures.
+        # `keys` is ProductPage's camera ({f, cx, cy, zoom, ...}): geometry over time, never copy.
         if prop in ("accent", "accent2", "imageAspect", "aspect", "dna", "page",
-                    "face", "d", "tex", "mediumColor", "material", "model", "focusTrack") or re.match(r"^src[A-Z]?", prop):
+                    "face", "d", "tex", "mediumColor", "material", "model", "focusTrack", "keys") or re.match(r"^src[A-Z]?", prop):
             # colours / images / plumbing, not copy. The `src` test is a PREFIX: KSpaceAnatomy declares
             # srcK / srcLow / srcHigh, an exact-match skip fed all three a Chinese sentence as a URL, and
             # the register reported as a RENDER FAILURE for it. evidence_props() fills them properly.
@@ -975,6 +976,10 @@ _ARRAY_SHAPES = {
     "rows": [["自动拆解任务", "规划执行步骤"], ["调用工具执行", "交付可验收成果"]],
     "headers": ["它做什么", "产出是什么"],
     "marks": [],
+    # ProductPage's `acts`: what happens on the captured page. The words are a callout's and a typed field's —
+    # placed on the 1440x900 page the evidence fixture stands in for, timed inside the sweep's 150 frames.
+    "acts": [{"kind": "callout", "x": 520, "y": 300, "lx": 600, "ly": 380, "at": 4, "kicker": "交付", "text": "可验收的成果"},
+             {"kind": "type", "box": {"x": 300, "y": 520, "w": 640, "h": 30}, "at": 2, "text": "帮我把这周的工作写成一份周报", "cpf": 2}],
     # ── the object shapes the first sweep could not feed. 14 registers reported UNTESTED, which the gate's
     # own doctrine calls the place this defect hides — a register nobody can feed is never checked. Each
     # shape is written from the register's own type declaration, because a WRONG shape renders nothing and
