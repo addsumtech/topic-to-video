@@ -128,6 +128,9 @@ a narrated film, run it on the out_dir.
 | `type` | text typed into a field (placeholder covered by the field's fill) | `box, at, text, cpf, size, fill` |
 | `cursor` | a pointer travels and clicks | `path: [{f, x, y, ease}]`, `clicks: [f]` |
 | `callout` | dot on the element, leader line, label — kept on the frame: its side and clamp are decided once from the camera at the frame it lands | `x, y` (the point), `lx, ly` (the label), `at, until, kicker, text` |
+| `macro` | a 4x capture of ONE element (promo_capture `--hires`) drawn on its own layer, so the camera may push past the page's 2x onto it — the subject sharp, the page around it softening like a background out of the lens's depth | `box, src, scale` (4), `at` |
+| `deal` | the page's own cards start as one stack and fly out to their slots one by one along a lifted arc, settling flat | `boxes` (from the layout / `--boxes`), `at, every, dur, from, fill` |
+| `write` | a block of the capture's own text appears line by line behind an accent caret (the document writing itself, in its own words) | `box, at, lineH, every, fill` |
 
 ## In a narrated film
 
@@ -155,11 +158,20 @@ take their look from the film's design DNA (`lookFromDna`).
 - **Words.**
   - Use the product's own words (its layout `title`/`description`, its UI) or the film's own statement.
   - No invented numbers. The product's own demo data in its capture is the product as itself.
-- **Sound (SFX-only unless `--bgm`).**
+- **Close-ups.** A hero moment pushes to 3-4x onto a `macro` (capture it with `--hires=<element id or box>`). The
+  check refuses a zoom past 2x anywhere a macro does not cover the camera's centre.
+- **Moves.** Fast moves carry motion blur by themselves (PageCam, up to 10 px at the peak). There is no click ring: a
+  click shows by what it changes, on the same frame.
+- **End card.** The lockup lands in the last 5-10 %. `cta` sets the product's real address or command as a button,
+  held to the end. Use only an address the captures or docs show.
+- **Sound (a generated score under the cues by default; `--bgm=none` for SFX only).**
   - Air through each carried cut, and a whoosh only on real camera travel.
   - A burst of pops is one sound per 3 frames, fading.
   - Keys under typing, a click on a click, a tick when an accent fill or callout lands.
-  - The close is swell → bell → chime.
+  - UI sounds are RECORDED takes (Kenney Interface Sounds, CC0: click, key, drop, deal, select, glass). The
+    noise-built cues (whoosh, swell, impact) are synthesised, and no synthesised tone, bell or chime is used.
+  - The close is swell → impact as the lockup lands.
+  - The mix is normalised to -15 LUFS and -1.5 dBTP. `--remix` re-mixes over the picture already rendered.
 
 ## The loop
 
