@@ -470,6 +470,11 @@ def screenshot_parts(png, lay, spec, name, film, density=2):
         q = [tuple(c) for c in (ring // 4 * 4)]
         fill = np.array(max(set(q), key=q.count)) + 2
         radius = _corner_radius(a, fill, cap=min(h, w) // 3) / density
+        # a box cut out of a flat panel has no corner: the diagonal walks on into the panel's own content and its
+        # first edge is text, not a curve (measured: a sidebar list read radius 116, a document 90). No real corner
+        # is that big against its card.
+        if radius > min(0.25 * min(box["w"], box["h"]), 40):
+            radius = 0.0
         pp = os.path.join(film, "caps", "%s.part.%s.png" % (name, pn))
         crop.save(pp)
         out[pn] = {"box": box, "radius": round(radius, 1), "bg": "rgb(%d, %d, %d)" % tuple(int(c) for c in fill),

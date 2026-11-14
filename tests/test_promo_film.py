@@ -29,6 +29,7 @@ def page(**kw):
 def test_a_clean_table_passes(film):
     spec = {"shots": [{"kind": "brand", "dur": 80, "mark": "mark.svg", "aspect": 1}, {"kind": "title", "dur": 56, "text": "One *idea.*"}, page(),
                       {"kind": "outro", "dur": 120, "mark": "mark.svg", "aspect": 1, "recall": [2]}]}
+    spec["length"] = sum(s["dur"] for s in spec["shots"]) / 30.0      # a fixture: its length is the one asked for
     errs, adv = pf.check(spec, str(film))
     assert errs == [] and adv == []
 
@@ -65,7 +66,7 @@ def test_low_contrast_accent_ink_is_refused(film):
 
 
 def test_shot_lengths_outside_the_band_are_advised_not_refused(film):
-    errs, adv = pf.check({"shots": [{"kind": "title", "dur": 150, "text": "x"}, page(dur=20)]}, str(film))
+    errs, adv = pf.check({"shots": [{"kind": "title", "dur": 150, "text": "x"}, page(dur=20)], "length": 170 / 30.0}, str(film))
     assert errs == [] and len(adv) == 2
 
 
@@ -609,3 +610,14 @@ def test_a_wall_label_can_lie_on_the_plane_and_nothing_else_can(parts):
     for lab, words in [(dict(wall["label"], on="ceiling"), "label.on"), (dict(wall["label"], size=900), "label.size")]:
         assert any(words in e for e in pf.check({"shots": [dict(wall, label=lab)]}, str(parts))[0])
     assert any("label.on" in e for e in pf.check({"shots": [obj(label=dict(obj()["label"], on="plane"))]}, str(parts))[0])
+
+
+def test_a_product_film_under_a_minute_is_advised_unless_the_user_named_its_length():
+    """The user, 2026-11-14, of a 23.7 s WorkBuddy cut: "我觉得目前太短了，至少一分钟，多展示你的设计能力和产品细节功能"."""
+    short = {"shots": [{"kind": "statement", "dur": 700, "text": "x"}]}
+    long_ = {"shots": [{"kind": "statement", "dur": 1900, "text": "x"}]}
+    assert any("at least 60 s" in a for a in pf.length_advice(short))
+    assert pf.length_advice(long_) == []
+    assert pf.length_advice(dict(short, length=24)) == []                    # the user asked for ~24 s
+    assert any("length asked for" in a for a in pf.length_advice(dict(long_, length=30)))
+    assert pf.length_advice(dict(short, narrate=True)) == []                # a voiced film's length is its voice's

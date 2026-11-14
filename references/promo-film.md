@@ -239,7 +239,7 @@ Every `box` is a dict `{"x": .., "y": .., "w": .., "h": ..}` in the capture's CS
 
 | where | field | meaning |
 |---|---|---|
-| film | `aspect`, `cut` (carry/flash/hard/through/morph), `look` ({accent, mode} or the full set), `sfx` (a list replacing the plan) | |
+| film | `aspect`, `cut` (carry/flash/hard/through/morph), `look` ({accent, mode} or the full set), `sfx` (a list replacing the plan), `length` (the seconds the user asked for; without it ≥ 60 s) | |
 | every shot | `kind`, `dur` (frames), `cut` (into this shot) | |
 | brand | `mark`, `aspect` (the mark's w/h, printed by `--mark`), `kicker`, `markH` | |
 | title | `text` (`*accent*`), `kicker`, `index` (false = unnumbered), `size` | |
@@ -426,8 +426,10 @@ paywall.
    no box is measured off a picture. It writes `promo.json`. A box guessed off a grid is an element landing beside
    its slot. Make camera keys with `promo_film.key(f, cx, cy, zoom, L["w"], L["h"], aspect)` (`sys.path.insert` the
    skill's `scripts/`): it aims at the element and keeps the view on the page. **Length and aspect** come from the
-   interview's ④ (`aspect` in the table; the shots' `dur` add up to the length). Without one, a launch runs 25-40 s
-   at 16:9, and a 9:16 film uses portrait captures (`--width=430 --height=932`).
+   interview's ④ (`aspect` in the table; the shots' `dur` add up to the length; `length` records the seconds asked for).
+   Without one, a product film runs **at least 60 s** (the user, 2026-11-14, of a 23.7 s cut: "太短了，至少一分钟，多展示设计
+   能力和产品细节功能"): its features shown in detail, not a teaser; `--check` advises under 60 s. It runs
+   at 16:9 unless asked otherwise, and a 9:16 film uses portrait captures (`--width=430 --height=932`).
 6. **Check.** `promo_film.py <dir> --check`: fix every ERROR. Read every ADVISORY; a repeat-skeleton advisory means
    the arc is a template, so redesign it.
 7. **Stills.** `--check` already advises when a caption or the voice's subtitle lands on the page's OWN text at

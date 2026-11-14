@@ -389,6 +389,33 @@ def place_subtitles(film_dir, spec):
     return out
 
 
+MIN_PROMO_S = 60.0
+
+
+def length_advice(spec):
+    """The film's length against the one the user asked for (`length`, seconds), else against MIN_PROMO_S. WHY
+    (2026-11-14, the user, of a 23.7 s WorkBuddy film): "我觉得目前太短了，至少一分钟，多展示你的设计能力和产品细节功能".
+    The 25-40 s default came from launch teasers; a product film here shows its features in detail."""
+    shots = [s for s in spec.get("shots") or [] if isinstance(s, dict)]
+    if spec.get("narrate") or any(s.get("say") for s in shots):
+        return []                                    # a voiced film's length is its voice's, set at render
+    secs = sum(float(s.get("dur") or 0) for s in shots) / FPS
+    want = spec.get("length")
+    if want is not None:
+        try:
+            want = float(want)
+        except (TypeError, ValueError):
+            return ["`length` %r is not a number of seconds" % (want,)]
+        if abs(secs - want) > 0.1 * want:
+            return ["the shots add up to %.1f s; the length asked for is %g s (shots' `dur` add up to the length)" % (secs, want)]
+        return []
+    if secs < MIN_PROMO_S - 0.5:
+        return ["the film runs %.1f s: a product film runs at least %d s unless the user names a length (set `length`) "
+                "— show its features in detail, each a staged shot that does its claim (references/promo-film.md "
+                "§loop step 5)" % (secs, MIN_PROMO_S)]
+    return []
+
+
 def check(spec, film_dir):
     """Errors (list) and advisories (list) for a promo table. Errors stop the render."""
     errs, adv = [], []
@@ -641,6 +668,7 @@ def check(spec, film_dir):
     if spec.get("cut") not in (None, "carry", "flash", "hard", "through", "morph"):
         errs.append("cut must be carry, flash, hard, through or morph")
     adv += skeleton_advice(spec, film_dir)
+    adv += length_advice(spec)
     try:
         adv += caption_overlaps(resolve_recordings(film_dir, spec) if errs == [] else spec, film_dir)
     except Exception as e:  # noqa: BLE001 — an advisory pass never breaks the check; said, not swallowed

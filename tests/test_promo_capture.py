@@ -80,6 +80,16 @@ def test_a_desktop_screenshot_gives_parts_at_its_own_pixels_with_measured_corner
     assert 4 <= c["radius"] <= 11, c                     # drawn with an 8 CSS px corner (its 1 px edge inside it)
     assert c["bg"] == "rgb(255, 255, 255)" or c["bg"].startswith("rgb(25")
     assert q["radius"] == 0 and q["bg"].startswith("rgb(23")   # a square card has no corner; its own blue-grey fill
+    # a box cut out of a FLAT PANEL (a sidebar, a document) whose rows of text run near all four of its corners: the
+    # diagonal walks on into the text and read it as a corner (measured: a sidebar list 116 px, a document 90 px)
+    q = str(tmp_path / "caps" / "panel.png")
+    pim = Image.new("RGB", (1200, 800), (242, 242, 242))
+    pd = ImageDraw.Draw(pim)
+    for yy in (40, 70, 330, 360):
+        pd.rectangle([20, yy, 580, yy + 14], fill=(60, 60, 60))
+    pim.save(q)
+    flat = pc.screenshot_parts(q, pc.find_boxes(q), "fl=0,0,300,200", "panel", str(tmp_path))["fl"]
+    assert flat["radius"] == 0, flat                    # no corner there: its first edge inward is the panel's text
     for bad in ("x=9999", "x=1100,700,300,200", "x=text:Hello"):
         with pytest.raises(SystemExit):
             pc.screenshot_parts(p, lay, bad, "app", str(tmp_path))
