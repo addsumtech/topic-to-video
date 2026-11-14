@@ -162,7 +162,11 @@ export const StageObject: React.FC<{it: StageItem; world: World; perspective: nu
   );
 };
 
-export type FeatureLabel = {index?: string; kicker?: string; text: string; sub?: string; side?: 'left' | 'right'; at?: number};
+/** Where the label sits: `left` / `right` (a column beside the hero), `top` (centred above a hero below), `bottom` (along
+ *  the foot, the hero above it), `corner` (small, top-left: the hero owns the frame). A film VARIES these: the same
+ *  side for every feature read as a template (the user, of the WorkBuddy film, 2026-11-14). */
+export type LabelPlace = 'left' | 'right' | 'top' | 'bottom' | 'corner';
+export type FeatureLabel = {index?: string; kicker?: string; text: string; sub?: string; side?: LabelPlace; at?: number};
 
 /** THE FEATURE LABEL (the showcase films' chapter device): `02 / CRT SHADER` in small mono, then a claim of one or
  *  two lines in display type at showcase size (~6 % of the frame height), its accent span inked; a muted sub line. */
@@ -175,23 +179,29 @@ export const Label: React.FC<{l: FeatureLabel}> = ({l}) => {
   const at = l.at ?? 4;
   const lines = l.text.split('\n');
   const cjk = isCJK(l.text);
-  const px = (portrait ? 64 : cjk ? 62 : 66) * s;
   const side = l.side ?? 'left';
+  const px = (portrait ? 64 : side === 'corner' ? 46 : side === 'top' || side === 'bottom' ? 72 : cjk ? 62 : 66) * s;
   const kick = [l.index, l.kicker].filter(Boolean).join('  /  ');
+  const centred = !portrait && side === 'top';
   const box: React.CSSProperties = portrait
     ? {left: 0.08 * W, right: 0.08 * W, top: 0.1 * H}
+    : side === 'top' ? {left: 0.08 * W, right: 0.08 * W, top: 0.075 * H, display: 'flex', flexDirection: 'column', alignItems: 'center'}
+    : side === 'bottom' ? {left: 0.07 * W, right: 0.07 * W, bottom: 0.08 * H}
+    : side === 'corner' ? {left: 0.055 * W, top: 0.07 * H, width: 0.42 * W}
     : {[side]: 0.07 * W, top: 0, bottom: 0, width: 0.38 * W, display: 'flex', flexDirection: 'column', justifyContent: 'center'};
+  // a one-line claim on the foot reads as a caption under the picture: its lines run on one row there
+  const rows = side === 'bottom' && !portrait ? [lines.join(' ')] : lines;
   return (
     <div style={{position: 'absolute', ...box}}>
       {kick ? <div style={{fontFamily: MONO, fontSize: 21 * s, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: look.accentInk,
         marginBottom: 18 * s, opacity: span(frame, at, at + 8, 'out'), transform: U}}>{kick}</div> : null}
-      {lines.map((ln, i) => (
+      {rows.map((ln, i) => (
         <div key={i} style={{marginBottom: 4 * s}}>
-          <RiseLine text={ln} px={px} start={at + 3 + i * 6} gap={2} weight={720} align="left" nowrap lineHeight={1.08} />
+          <RiseLine text={ln} px={px} start={at + 3 + i * 6} gap={2} weight={720} align={centred ? 'center' : 'left'} nowrap lineHeight={1.08} />
         </div>
       ))}
-      {l.sub ? <div style={{marginTop: 20 * s, fontFamily: SANS, fontSize: 26 * s, lineHeight: 1.4, color: look.muted, opacity: span(frame, at + 14, at + 24, 'out'), transform: U,
-        maxWidth: 0.36 * W}}>{l.sub}</div> : null}
+      {l.sub && side !== 'corner' ? <div style={{marginTop: 20 * s, fontFamily: SANS, fontSize: 26 * s, lineHeight: 1.4, color: look.muted, opacity: span(frame, at + 14, at + 24, 'out'), transform: U,
+        maxWidth: centred ? 0.6 * W : side === 'bottom' ? 0.7 * W : 0.36 * W, textAlign: centred ? 'center' : 'left'}}>{l.sub}</div> : null}
     </div>
   );
 };
@@ -264,9 +274,13 @@ export const ObjectShot: React.FC<{dur: number; world?: World; items: StageItem[
   const portrait = H > W;
   const placed = items.map((it, i) => {
     if (i > 0 || !label) return it;
-    const right = (label.side ?? 'left') === 'left';
-    return portrait ? {x: 0.5, y: 0.62, width: 0.84, rx: 6, ...it}
-      : {x: right ? 0.68 : 0.32, y: 0.52, width: 0.5, ry: right ? -9 : 9, rx: 5, ...it};
+    const side = label.side ?? 'left';
+    if (portrait) return {x: 0.5, y: 0.62, width: 0.84, rx: 6, ...it};
+    if (side === 'top') return {x: 0.5, y: 0.6, width: 0.6, rx: 8, ...it};
+    if (side === 'bottom') return {x: 0.5, y: 0.42, width: 0.62, rx: 6, ...it};
+    if (side === 'corner') return {x: 0.56, y: 0.54, width: 0.66, rx: 6, ry: -6, ...it};
+    const right = side === 'left';
+    return {x: right ? 0.68 : 0.32, y: 0.52, width: 0.5, ry: right ? -9 : 9, rx: 5, ...it};
   });
   const hero: Partial<StageItem> = placed[0] ?? {};
   return (

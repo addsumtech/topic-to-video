@@ -110,8 +110,13 @@ So a product film is made mostly of **objects**:
   receding), `paper` (the film's paper and a spotlight) or `pastel` (soft ground, three blooms of the accent's
   neighbours). A `label` beside it is the feature-section device: `{index: "02", kicker: "CRT shader", text:
   "Scanlines, glow,\n*and that curve.*", sub}` — small mono `02 / CRT SHADER`, a claim of one or two lines at
-  showcase size (~6 % of the frame height), its accent span inked. Use the same label layout for every feature of
-  the film: it is the film's system.
+  showcase size (~6 % of the frame height), its accent span inked. The label's TYPE is the film's system (the same
+  kicker, claim and accent every time); its PLACE is not. `side` is `left`, `right`, `top` (centred above a hero
+  below), `bottom` (one line along the foot, the hero above it) or `corner` (small, top-left: the hero owns the
+  frame). Compose each feature as a different picture: alternate the places, change the hero's arrangement (one
+  large, a row, a grid, a stack in depth), and let one feature run with no label at all. Nine features all "label
+  left, product right" read as a template (the user, 2026-11-14: "结构是不是有点单一 ... 会不会设计"); `check` advises
+  on three in a row with one place, or one place for more than half the features.
 - **Live objects.** An item can be a RECORDING cropped to the component: `{video, vw, vh, crop: {x, y, w, h},
   videoStart, vscale}`. Record it with `promo_record.py --scale=3` when it will be staged large. Acts (count, ring,
   type, pop, callout) sit on an item in its own CSS px, so a figure counts up and a field types, on the object.

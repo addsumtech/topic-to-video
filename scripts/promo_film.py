@@ -389,6 +389,37 @@ def place_subtitles(film_dir, spec):
     return out
 
 
+LABEL_PLACES = ("left", "right", "top", "bottom", "corner")
+
+
+def composition_advice(spec):
+    """(errors, advisories) on how the feature shots are COMPOSED, in order. WHY (the user, 2026-11-14, of a WorkBuddy
+    film whose nine features were all "label left, product right"): "结构是不是有点单一，基本都是左边文字，右边演示下 ...
+    你到底有没有审美，会不会设计". One label layout repeated is a template; the film's system is a SET of compositions."""
+    errs, adv = [], []
+    seq = []
+    for i, s in enumerate(spec.get("shots") or []):
+        if not isinstance(s, dict) or s.get("kind") != "object" or not isinstance(s.get("label"), dict):
+            continue
+        side = s["label"].get("side", "left")
+        if side not in LABEL_PLACES:
+            errs.append("shot %d (object): label side %r is not one of %s" % (i, side, ", ".join(LABEL_PLACES)))
+            continue
+        seq.append((i, side))
+    for k in range(len(seq) - 2):
+        if seq[k][1] == seq[k + 1][1] == seq[k + 2][1]:
+            adv.append("shots %d, %d, %d: three feature shots in a row with the label %s — vary the composition (label "
+                       "top / bottom / corner / the other side, or a feature with no label at all)" % (seq[k][0], seq[k + 1][0], seq[k + 2][0], seq[k][1]))
+            break
+    if len(seq) >= 4:
+        from collections import Counter
+        side, n = Counter(x[1] for x in seq).most_common(1)[0]
+        if n > len(seq) / 2:
+            adv.append("%d of %d feature shots put the label %s: one layout for every feature reads as a template "
+                       "(references/promo-film.md §Staging, compositions)" % (n, len(seq), side))
+    return errs, adv
+
+
 MIN_PROMO_S = 60.0
 
 
@@ -669,6 +700,11 @@ def check(spec, film_dir):
         errs.append("cut must be carry, flash, hard, through or morph")
     adv += skeleton_advice(spec, film_dir)
     adv += length_advice(spec)
+    e2, a2 = composition_advice(spec)
+    import capability_reach as _cr
+    a2 = a2 + _cr.unused_lines(*_cr.promo(spec))
+    errs += e2
+    adv += a2
     try:
         adv += caption_overlaps(resolve_recordings(film_dir, spec) if errs == [] else spec, film_dir)
     except Exception as e:  # noqa: BLE001 — an advisory pass never breaks the check; said, not swallowed

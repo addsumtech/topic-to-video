@@ -30,6 +30,7 @@ def test_a_clean_table_passes(film):
     spec = {"shots": [{"kind": "brand", "dur": 80, "mark": "mark.svg", "aspect": 1}, {"kind": "title", "dur": 56, "text": "One *idea.*"}, page(),
                       {"kind": "outro", "dur": 120, "mark": "mark.svg", "aspect": 1, "recall": [2]}]}
     spec["length"] = sum(s["dur"] for s in spec["shots"]) / 30.0      # a fixture: its length is the one asked for
+    spec["waivers"] = {k: "a structure fixture" for k in ("staging", "breadth", "links", "acts", "composition", "outro")}
     errs, adv = pf.check(spec, str(film))
     assert errs == [] and adv == []
 
@@ -66,7 +67,8 @@ def test_low_contrast_accent_ink_is_refused(film):
 
 
 def test_shot_lengths_outside_the_band_are_advised_not_refused(film):
-    errs, adv = pf.check({"shots": [{"kind": "title", "dur": 150, "text": "x"}, page(dur=20)], "length": 170 / 30.0}, str(film))
+    errs, adv = pf.check({"shots": [{"kind": "title", "dur": 150, "text": "x"}, page(dur=20)], "length": 170 / 30.0,
+                          "waivers": {k: "a fixture" for k in ("staging", "breadth", "links", "acts", "composition", "outro")}}, str(film))
     assert errs == [] and len(adv) == 2
 
 
@@ -621,3 +623,14 @@ def test_a_product_film_under_a_minute_is_advised_unless_the_user_named_its_leng
     assert pf.length_advice(dict(short, length=24)) == []                    # the user asked for ~24 s
     assert any("length asked for" in a for a in pf.length_advice(dict(long_, length=30)))
     assert pf.length_advice(dict(short, narrate=True)) == []                # a voiced film's length is its voice's
+
+
+def test_one_label_layout_for_every_feature_is_advised():
+    """The user, 2026-11-14: nine WorkBuddy features all "label left, product right" — 结构单一."""
+    lab = lambda side: {"kind": "object", "dur": 120, "items": [], "label": {"text": "x", "side": side}}
+    errs, adv = pf.composition_advice({"shots": [lab("left")] * 4})
+    assert errs == [] and any("in a row" in a for a in adv) and any("4 of 4" in a for a in adv)
+    errs, adv = pf.composition_advice({"shots": [lab("left"), lab("top"), lab("right"), lab("corner"), lab("bottom")]})
+    assert errs == [] and adv == []
+    errs, _ = pf.composition_advice({"shots": [lab("middle")]})
+    assert errs and "not one of" in errs[0]
