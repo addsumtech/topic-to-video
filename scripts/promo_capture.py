@@ -80,6 +80,18 @@ HIRES = 4
 
 
 
+def _refuse_blank(path, what):
+    """A captured component that is ONE flat colour was not drawn when it was taken (off-screen, not laid out, still
+    loading): refused by name rather than staged as an empty card."""
+    import numpy as np
+    from PIL import Image
+    with Image.open(path) as im:
+        a = np.asarray(im.convert("L").resize((max(1, im.width // 8), max(1, im.height // 8))), float)
+    if a.size and float(a.std()) < 1.0:
+        raise SystemExit("[promo_capture] %s came back blank (one flat colour, %s): it was not drawn when it was taken — "
+                         "is it on the page, laid out and loaded?" % (what, path))
+
+
 def split_steps(js):
     """`--eval` / `--setup` steps, split on `;;;` with or without whitespace or newlines round it. Measured: the docs
     wrote `"js ;;; js"` on one line while the split wanted `\n;;;\n`, and `;;;` is VALID JavaScript (three empty
@@ -286,10 +298,13 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
             for pn, pv in parts.items():
                 pb = pv["box"]
                 clip = {"x": pb["x"], "y": pb["y"], "width": pb["w"], "height": pb["h"], "scale": 1}
-                data = c._cmd("Page.captureScreenshot", {"format": "png", "clip": clip, "captureBeyondViewport": False}, c.sid)["result"]["data"]
+                # BEYOND THE VIEWPORT: a part below the fold (a long page's lower section) came back an empty image with
+                # the viewport-only clip — silently (the compare page's beat 16, 2026-11-14)
+                data = c._cmd("Page.captureScreenshot", {"format": "png", "clip": clip, "captureBeyondViewport": True}, c.sid)["result"]["data"]
                 pp = os.path.join(caps, "%s.part.%s.png" % (name, pn))
                 with open(pp, "wb") as f:
                     f.write(base64.b64decode(data))
+                _refuse_blank(pp, "part %s" % pn)
                 with Image.open(pp) as im_:
                     pv.update(src="caps/%s.part.%s.png" % (name, pn), w=round(pb["w"], 2), h=round(pb["h"], 2), scale=parts_scale,
                               px=list(im_.size))
@@ -299,7 +314,7 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
                 time.sleep(max(0.8, wait))
             for k, hb in enumerate(boxes):
                 clip = {"x": hb["x"], "y": hb["y"], "width": hb["w"], "height": hb["h"], "scale": 1}
-                data = c._cmd("Page.captureScreenshot", {"format": "png", "clip": clip, "captureBeyondViewport": False}, c.sid)["result"]["data"]
+                data = c._cmd("Page.captureScreenshot", {"format": "png", "clip": clip, "captureBeyondViewport": True}, c.sid)["result"]["data"]
                 hp = os.path.join(caps, "%s.hi%d.png" % (name, k))
                 with open(hp, "wb") as f:
                     f.write(base64.b64decode(data))

@@ -163,3 +163,19 @@ def test_parts_are_captured_on_their_own_with_the_films_demo_text(tmp_path):
     with Image.open(tmp_path / card["src"]) as im:
         assert im.size == (1200, 560)                                     # 4x: staged large, still sharp
     assert res["h"] < 40 and (tmp_path / res["src"]).is_file()        # the result LINE, not the card holding it
+
+
+def test_a_blank_part_is_refused_by_name(tmp_path):
+    """A part below the fold came back as one flat colour (the viewport-only clip, 2026-11-14) and would have been
+    staged as an empty card. A flat capture is refused; a drawn one passes."""
+    from PIL import Image, ImageDraw
+    flat = tmp_path / "flat.png"
+    Image.new("RGB", (400, 200), (244, 243, 239)).save(flat)
+    with pytest.raises(SystemExit) as e:
+        pc._refuse_blank(str(flat), "part b16")
+    assert "blank" in str(e.value) and "b16" in str(e.value)
+    drawn = tmp_path / "drawn.png"
+    im = Image.new("RGB", (400, 200), (244, 243, 239))
+    ImageDraw.Draw(im).rectangle([40, 40, 200, 90], fill=(30, 30, 30))
+    im.save(drawn)
+    pc._refuse_blank(str(drawn), "part ok")
