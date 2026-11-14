@@ -327,19 +327,23 @@ export const StageOutro: React.FC<{dur: number; world?: World; objects: OutroObj
     [0.33, 0.1, -460, 10, 12], [0.67, 0.91, -420, -10, -10]];
   const back = span(frame, stampAt - 6, stampAt + 12, 'smooth');
   const band = span(frame, stampAt - 2, stampAt + 20, 'out');
+  // On a dark ground the gathered parts step back by dimming into it. On a light one dimming = fading to WHITE (the
+  // regex101 run: pale ghosts round a thin mark), so there they keep their ink, recede by depth only, carry a contact
+  // shadow plus a hairline edge to sit ON the paper, and take no blur (no CSS blur on a moving plane: it shimmers).
   return (
     <WorldGround world={world} focus={{x: 0.5, y: 0.5}}>
-      <AbsoluteFill style={{perspective: 1900 * s, perspectiveOrigin: '50% 50%', opacity: 1 - 0.45 * back}}>
+      <AbsoluteFill style={{perspective: 1900 * s, perspectiveOrigin: '50% 50%', opacity: 1 - (glow ? 0.45 : 0.12) * back}}>
         {objects.slice(0, slots.length).map((o, i) => {
           const [x, y, z, ry, rx] = slots[i];
           const a = span(frame, i * 3, i * 3 + 26, 'out');
-          const width = 0.21 * W, h = width * (o.h / o.w);
+          const width = (glow ? 0.21 : 0.23) * W, h = width * (o.h / o.w);
           return (
             <div key={i} style={{position: 'absolute', left: x * W - width / 2, top: y * H - h / 2, width, height: h, borderRadius: (o.radius ?? 10) * (width / o.w),
               overflow: 'hidden', opacity: a, willChange: 'transform',
               transform: `translate3d(0, 0, ${(z - (1 - a) * 500 - back * 160) * s}px) rotateY(${ry}deg) rotateX(${rx}deg) ${U}`,
-              filter: `blur(${(Math.abs(z) / 220 + back * 2.5) * s}px)`,
-              boxShadow: glow ? `0 0 0 ${1 * s}px ${alpha(look.accent, 0.35)}, 0 ${24 * s}px ${60 * s}px rgba(0,0,0,0.6)` : `0 ${24 * s}px ${60 * s}px rgba(30,24,14,0.25)`}}>
+              filter: glow ? `blur(${(Math.abs(z) / 220 + back * 2.5) * s}px)` : undefined,
+              boxShadow: glow ? `0 0 0 ${1 * s}px ${alpha(look.accent, 0.35)}, 0 ${24 * s}px ${60 * s}px rgba(0,0,0,0.6)`
+                : `0 0 0 ${1 * s}px rgba(30,24,14,0.10), 0 ${3 * s}px ${8 * s}px rgba(30,24,14,0.12), 0 ${30 * s}px ${70 * s}px rgba(30,24,14,0.24)`}}>
               <Img src={urlOf(o.src)} style={{width, height: h}} />
             </div>
           );

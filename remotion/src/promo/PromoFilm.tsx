@@ -23,7 +23,7 @@ export type Shot =
   | {kind: 'brand'; dur: number; mark: string; aspect: number; kicker?: string; markH?: number; plate?: boolean; cut?: Cut}
   | {kind: 'title'; dur: number; text: string; kicker?: string; sub?: string; size?: number; index?: number | false; cut?: Cut}
   | PageShot
-  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string; plate?: boolean; world?: World}
+  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string; plate?: boolean; world?: World; objects?: OutroObject[]}
   | {kind: 'statement'; dur: number; text: string; ground?: 'paper' | 'accent' | 'ink'; size?: number; sub?: string; cut?: Cut}
   | {kind: 'compare'; dur: number; a: Region; b: Region; labelA?: string; labelB?: string; at?: number; sweep?: number; cut?: Cut}
   | {kind: 'montage'; dur: number; items: Region[]; every?: number; full?: boolean; cut?: Cut}
@@ -128,8 +128,9 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', sub
       case 'outro': {
         if (s.world) {
           // STAGED: the film's own components (its object and wall shots' still parts) gather round the mark
-          const objs: OutroObject[] = [];
-          for (const x of shots) {
+          // promo_film.resolve_outro_objects chose them (near-blank parts left out); the blind pick below is the fallback
+          const objs: OutroObject[] = s.objects ? [...s.objects] : [];
+          if (!s.objects) for (const x of shots) {
             if (x.kind === 'object') objs.push(...x.items.filter((it) => it.src && !it.video).map((it) => ({src: it.src as string, w: it.w, h: it.h, radius: it.radius})));
             if (x.kind === 'wall') objs.push(...x.tiles.filter((t) => t.src && !t.video).map((t) => ({src: t.src as string, w: t.w, h: t.h, radius: t.radius})));
           }

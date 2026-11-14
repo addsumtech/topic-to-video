@@ -535,6 +535,16 @@ def check(spec, film_dir):
             lab = s.get("label")
             if lab is not None and not (isinstance(lab, dict) and str(lab.get("text") or "").strip()):
                 errs.append("%s: a label needs its text (the claim; `\\n` between its two lines)" % where)
+            items = [t for t in things if isinstance(t, dict)]
+            # any item may carry the demonstration (Squoosh: the count runs on the bubble in front of the settings card)
+            if k == "object" and lab is not None and items and not any(t.get("acts") or t.get("video") for t in items):
+                adv.append("%s: the label claims a feature and its cards only sit there (no acts, no recording): the "
+                           "claim is told, not shown. Act it out on the card — `focus` the part the claim names, `ring`/`lift` "
+                           "its rows one by one, `count` its figure — or crop a recording of it (references/promo-film.md "
+                           "§ Staging, 'Show the claim')" % where)
+            if any(a.get("kind") == "lift" for t in items for a in (t.get("acts") or []) if isinstance(a, dict)):
+                adv.append("%s: a `lift` on a staged card: its settle creeps under a pixel a frame on the tilted plane "
+                           "(regex101, z 30: 11 %% shimmer, glide gate FAIL) — step a `ring` (or `focus`) instead" % where)
             for j, it in enumerate(t for t in things if isinstance(t, dict)):
                 iw = "%s %s %d" % (where, "item" if k == "object" else "tile", j)
                 if not (isinstance(it.get("w"), (int, float)) and isinstance(it.get("h"), (int, float)) and it["w"] > 0 and it["h"] > 0):
@@ -560,6 +570,11 @@ def check(spec, film_dir):
                     if psz and shown > psz[0] + 1:
                         errs.append("%s: %s is %d px wide and would be shown %d px wide (upsampled, soft): capture it with "
                                     "--parts (4x), or show it smaller" % (iw, it.get("src"), psz[0], shown))
+                    ink = ink_density(os.path.join(film_dir, it.get("src", ""))) if psz else None
+                    if ink is not None and ink < INK_MIN:
+                        adv.append("%s: %s is nearly blank (%.1f%% of it differs from its own ground; a component reads from "
+                                   "%.0f%%): it shows as an empty card, so crop the part of the page where the content is"
+                                   % (iw, it.get("src"), ink * 100, INK_MIN * 100))
         elif k in ("compare", "montage"):
             regions = [s.get("a"), s.get("b")] if k == "compare" else list(s.get("items") or [])
             if not regions or any(not isinstance(r, dict) for r in regions):
@@ -1045,6 +1060,59 @@ def mark_luminance(path):
     return float(y[m].mean())
 
 
+INK_MIN = 0.04   # measured: real UI components 0.075 (a text table) .. 0.6; a mostly-blank card 0.016
+
+
+def ink_density(path):
+    """The share (0..1) of a component's pixels that differ from its own ground (its most common colour), or None
+    when it cannot be read. A crop of the wrong part of a page — the empty bottom of an input — is near 0: on a wall or
+    in the outro it reads as a blank card (the regex101 run's `tool_subst`, 1.6%)."""
+    try:
+        from PIL import Image
+        import numpy as np
+        with Image.open(path) as im:
+            im = im.convert("RGBA")
+            im.thumbnail((400, 400))
+            bg = Image.new("RGBA", im.size, (255, 255, 255, 255))
+            a = np.asarray(Image.alpha_composite(bg, im).convert("RGB"), dtype=np.int32)
+    except Exception:  # noqa: BLE001 — unreadable: the size check names it
+        return None
+    if a.size == 0:
+        return None
+    q = (a // 16).reshape(-1, 3)
+    mode = int(np.bincount(q[:, 0] * 256 + q[:, 1] * 16 + q[:, 2]).argmax())
+    ground = np.array([mode // 256, (mode // 16) % 16, mode % 16]) * 16 + 8
+    return float((np.abs(a - ground).max(-1) > 28).mean())
+
+
+OUTRO_OBJECTS = 6
+
+
+def resolve_outro_objects(film_dir, spec):
+    """A staged outro's components, chosen once here (the composition used to pick them blind): the still parts of the
+    film's object and wall shots, in film order, each once, leaving out a near-blank one (ink_density < INK_MIN), then
+    up to six spread across the film. An authored `objects` list wins."""
+    out = json.loads(json.dumps(spec))
+    shots = out.get("shots") or []
+    for sh in shots:
+        if sh.get("kind") != "outro" or not sh.get("world") or "objects" in sh:
+            continue
+        seen, objs = set(), []
+        for x in shots:
+            for it in (x.get("items") if x.get("kind") == "object" else x.get("tiles") if x.get("kind") == "wall" else None) or []:
+                src = it.get("src") if isinstance(it, dict) and not it.get("video") else None
+                if not src or src in seen:
+                    continue
+                seen.add(src)
+                ink = ink_density(os.path.join(film_dir, src))
+                if ink is not None and ink < INK_MIN:
+                    continue
+                objs.append({"src": src, "w": it.get("w"), "h": it.get("h"), "radius": it.get("radius")})
+        n = len(objs)
+        sh["objects"] = objs if n <= OUTRO_OBJECTS else [objs[round(k * (n - 1) / (OUTRO_OBJECTS - 1))] for k in range(OUTRO_OBJECTS)]
+    return out
+
+
 def resolve_marks(film_dir, spec, look):
     """A brand/outro lockup sits on a light plate on a dark film, because a mark is usually drawn for light pages. A
     mark that is itself LIGHT (made for dark grounds) gets `plate: false` instead: on the plate it read weakly (the
@@ -1071,6 +1139,7 @@ def render_stills(film_dir, spec_path, frames, out_dir):
     spec = json.load(open(spec_path, encoding="utf-8"))
     spec["look"] = derive_look(spec.get("look"))
     spec = resolve_marks(film_dir, spec, spec["look"])
+    spec = resolve_outro_objects(film_dir, spec)
     spec = place_captions(film_dir, spec)
     pub = os.path.join(film_dir, "_promo_public")
     shutil.rmtree(pub, ignore_errors=True)
@@ -1102,6 +1171,7 @@ def render_picture(film_dir, spec_path, out, frames=None):
     spec = json.load(open(spec_path, encoding="utf-8"))
     spec["look"] = derive_look(spec.get("look"))
     spec = resolve_marks(film_dir, spec, spec["look"])
+    spec = resolve_outro_objects(film_dir, spec)
     spec = place_captions(film_dir, spec)
     props = os.path.join(film_dir, "_promo_props.json")          # the table as rendered: the derived look filled in
     json.dump(spec, open(props, "w"), indent=0)

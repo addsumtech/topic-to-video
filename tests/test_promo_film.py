@@ -513,3 +513,73 @@ def test_a_staged_outro_needs_no_page_shots_and_names_its_world(parts):
     assert any("world must be" in e for e in errs)
     errs = pf.check({"shots": [obj(), dict(o, world=None)]}, str(parts))[0]     # an unstaged outro still needs pages
     assert any("no page" in e or "there are none" in e for e in errs)
+
+
+def _inked(path, rows=12, size=(800, 400)):
+    """A component-like part: a light card with `rows` lines of dark 'text'."""
+    from PIL import Image, ImageDraw
+    im = Image.new("RGB", size, "#fbfbfa")
+    d = ImageDraw.Draw(im)
+    for r in range(rows):
+        y = 20 + r * (size[1] - 40) // max(rows, 1)
+        d.rectangle([24, y, size[0] * 0.7, y + 12], fill="#222222")
+    im.save(path)
+
+
+def test_ink_density_tells_a_blank_crop_from_a_component(tmp_path):
+    from PIL import Image
+    _inked(tmp_path / "card.png")
+    Image.new("RGB", (800, 400), "#ffffff").save(tmp_path / "blank.png")
+    Image.new("RGBA", (300, 200), (0, 0, 0, 0)).save(tmp_path / "clear.png")      # transparent: no content either
+    (tmp_path / "broken.png").write_bytes(b"not a png")
+    assert pf.ink_density(str(tmp_path / "card.png")) > pf.INK_MIN
+    assert pf.ink_density(str(tmp_path / "blank.png")) < pf.INK_MIN
+    assert pf.ink_density(str(tmp_path / "clear.png")) < pf.INK_MIN
+    assert pf.ink_density(str(tmp_path / "broken.png")) is None
+    assert pf.ink_density(str(tmp_path / "missing.png")) is None
+    # a dark card with light text is a component too (the ground is its own most common colour, not white)
+    from PIL import ImageOps
+    ImageOps.invert(Image.open(tmp_path / "card.png").convert("RGB")).save(tmp_path / "dark.png")
+    assert pf.ink_density(str(tmp_path / "dark.png")) > pf.INK_MIN
+
+
+def test_the_staged_outro_gathers_inked_parts_once_spread_over_the_film(tmp_path):
+    from PIL import Image
+    for n in range(9):
+        _inked(tmp_path / ("p%d.png" % n), rows=6 + n)
+    Image.new("RGB", (800, 400), "#ffffff").save(tmp_path / "blank.png")
+    it = lambda n: {"src": "p%d.png" % n, "w": 200, "h": 100, "radius": 8}      # noqa: E731
+    shots = [{"kind": "object", "dur": 90, "items": [it(0), it(1), {"video": "v.mp4", "w": 1, "h": 1}]},
+             {"kind": "object", "dur": 90, "items": [it(1), it(2)]},
+             {"kind": "wall", "dur": 90, "tiles": [{"src": "blank.png", "w": 200, "h": 100}] + [it(n) for n in range(3, 9)]},
+             {"kind": "outro", "dur": 120, "mark": "m.png", "aspect": 1, "world": "paper"}]
+    out = pf.resolve_outro_objects(str(tmp_path), {"shots": shots})
+    srcs = [o["src"] for o in out["shots"][3]["objects"]]
+    assert len(srcs) == 6 and len(set(srcs)) == 6                       # six, each once
+    assert "blank.png" not in srcs and srcs[0] == "p0.png" and srcs[-1] == "p8.png"   # blank left out; spread end to end
+    assert "objects" not in shots[3]                                    # the table given is not changed
+    few = pf.resolve_outro_objects(str(tmp_path), {"shots": [shots[0], shots[3]]})
+    assert [o["src"] for o in few["shots"][1]["objects"]] == ["p0.png", "p1.png"]      # fewer than six: all, no video
+    authored = dict(shots[3], objects=[it(5)])
+    assert pf.resolve_outro_objects(str(tmp_path), {"shots": [shots[0], authored]})["shots"][1]["objects"] == [it(5)]
+    unstaged = dict(shots[3], world=None)
+    assert "objects" not in pf.resolve_outro_objects(str(tmp_path), {"shots": [shots[0], unstaged]})["shots"][1]
+
+
+def test_a_feature_told_not_shown_and_a_blank_part_are_advised(parts):
+    _inked(parts / "card.png", size=(1200, 1404))
+    shown = obj(items=[dict(obj()["items"][0], src="card.png")])
+    errs, adv = pf.check({"shots": [shown]}, str(parts))
+    assert errs == [] and not any("told, not shown" in a or "nearly blank" in a for a in adv), adv
+    told = obj(items=[{"src": "card.png", "w": 300, "h": 351, "width": 0.3, "at": 0}])
+    assert any("told, not shown" in a for a in pf.check({"shots": [told]}, str(parts))[1])
+    unlabelled = dict(told)
+    unlabelled.pop("label")
+    assert not any("told, not shown" in a for a in pf.check({"shots": [unlabelled]}, str(parts))[1])   # a hook needs no demo
+    front = obj(items=told["items"] + [dict(obj()["items"][0], src="card.png", z=120)])    # the act on the card in front
+    assert not any("told, not shown" in a for a in pf.check({"shots": [front]}, str(parts))[1])
+    lifted = obj(items=[dict(obj()["items"][0], src="card.png", acts=[{"kind": "lift", "box": {"x": 0, "y": 0, "w": 50, "h": 20},
+                                                                         "at": 10, "until": 40}])])
+    assert any("`lift` on a staged card" in a for a in pf.check({"shots": [lifted]}, str(parts))[1])
+    blank = obj()                                                          # panel.png: a white 4x part
+    assert any("nearly blank" in a for a in pf.check({"shots": [blank]}, str(parts))[1])

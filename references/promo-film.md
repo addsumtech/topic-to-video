@@ -110,6 +110,16 @@ So a product film is made mostly of **objects**:
 - **Live objects.** An item can be a RECORDING cropped to the component: `{video, vw, vh, crop: {x, y, w, h},
   videoStart, vscale}`. Record it with `promo_record.py --scale=3` when it will be staged large. Acts (count, ring,
   type, pop, callout) sit on an item in its own CSS px, so a figure counts up and a field types, on the object.
+- **Show the claim.** A label states a feature; the hero card must then DO it, or the shot is a caption on a
+  screenshot. Act the claim out on the card in its own CSS px, timed after the arrival: `focus` the part the claim
+  names and rack it along (an explanation read group by group), `ring` stepping row by row (every match, every
+  group; no `lift` on a staged card: at 1.06 it covered its neighbours, and even at `z` 30 its settle crept under a
+  pixel a frame, which the glide gate failed at 11 % shimmer), `count` the
+  figure, `type` the input — or crop a recording of it working. Measure the row bands off the part's own pixels.
+  `check` advises on a labelled object shot whose hero has no acts and no recording.
+- **Crop what the feature is.** A tile or item that is mostly its own ground reads as an empty card (the regex101
+  run's substitution tile was the empty bottom of the test-string input: 1.6 % ink). `check` advises on a part
+  under 4 % ink (`ink_density`); real components measured 7.5–60 %.
 - **`wall` shot.** Many components on a plane in perspective (`plane`: floor or wall), appearing in a quick cascade,
   with the camera gliding across in one move (`from` → `to`, plane px); the far edge falls into the world; a large
   `label` sits in a corner on a scrim. Use it for breadth (every codec, every template), with components or crops
@@ -118,7 +128,10 @@ So a product film is made mostly of **objects**:
   and wall shots, up to 6) in depth round the mark: each arrives from further away to its place in a loose ring,
   softer the deeper it sits, then steps back and dims as the mark lands in a band of light (glow) or a spotlight
   (paper), with the tagline and CTA under it. Give it a `stampAt` of ~30 so the gathering is seen before the mark.
-  The round-4 outro was a small mark on an empty ground.
+  The round-4 outro was a small mark on an empty ground. The parts are chosen at render (`resolve_outro_objects`:
+  film order, each once, near-blank parts left out; an authored `objects` list wins). On a light world they keep
+  their ink and step back by depth only, with a contact shadow and a hairline edge: dimming on white faded them to
+  ghosts. Size the mark (`markH`) so it outranks the tagline.
 - **Layers.** A frame with one object on a void reads empty. Put one or two of the film's other components behind
   the hero (`z` -300..-450, `blur` 3-4, `from: fade`) — depth, and the product's world around its subject.
 - **A full-page shot is the exception**: at most one, to establish where we are. Everything else is a component.
