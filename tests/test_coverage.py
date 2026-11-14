@@ -243,7 +243,8 @@ def test_a_kept_line_of_type_clears_the_frame_edge():
     out = _ts("""
       const W = 1920, H = 1080, bandTop = 878;
       const target = {x: 900, y: 250, w: 500, h: 400};
-      const texts = [{x: 1560, y: 300, w: 300, h: 40}, {x: 1560, y: 345, w: 330, h: 30}, {x: 60, y: 120, w: 240, h: 40}];
+      // labels within a punch's reach: since 2026-11-14 a punch keeps EVERY line in, so one at each far edge forbids it
+      const texts = [{x: 1420, y: 300, w: 300, h: 40}, {x: 1420, y: 345, w: 330, h: 30}, {x: 500, y: 160, w: 240, h: 40}];
       const res: any[] = [];
       for (const want of [1.2, 1.3, 1.5, 1.8]) {
         const f = coverFraming({W, H, bandTop, target, want, content: [target, ...texts], texts});
@@ -391,8 +392,8 @@ def test_a_punch_keeps_in_the_picture_the_type_written_during_it():
       out.heldLate = held ? m(late, held) : null;
     """, extra="arrivedTexts, unionRect")
     assert out["arrived"] == [{"x": 1560, "y": 330, "w": 300, "h": 40}]
-    b = out["bareLate"]
-    assert b is not None and (b["x"] + b["w"] > 1922 or b["y"] + b["h"] > 880), "the unprotected punch crops it"
+    b = out["bareLate"]                       # since a punch keeps every line in, the bare punch keeps it too
+    assert b is None or (b["x"] >= -2 and b["x"] + b["w"] <= 1922 and b["y"] + b["h"] <= 880), b
     if out["held"] is not None:
         r = out["heldLate"]
         assert r["x"] >= -2 and r["x"] + r["w"] <= 1922 and r["y"] + r["h"] <= 880
@@ -414,3 +415,19 @@ def test_a_line_pushed_out_through_the_bottom_clears_the_band_fade():
         inside = r["y"] + r["h"] <= 878
         gone = r["y"] >= 878 + out["fade"] - 1
         assert inside or gone, (r, out["fade"])
+
+
+def test_a_punch_never_pushes_a_label_out_of_the_picture():
+    # ANC beats 10, 22, 14 (2026-11-14): a 1.3 punch on a labelled diagram pushed its labels wholly out of frame
+    # ('One ear / Another ear', 'Tight fit / Loose fit') while the voice spoke of them. A punch keeps every line in.
+    out = _ts("""
+      const W = 1920, H = 1080, bandTop = 878;
+      const core = {x: 200, y: 150, w: 1300, h: 600};
+      const labels = [{x: 1560, y: 300, w: 200, h: 40}, {x: 1560, y: 600, w: 240, h: 40}];
+      const f = coverFraming({W, H, bandTop, target: core, want: 1.3, content: [core, ...labels], texts: labels});
+      out.f = f;
+      out.labels = f ? labels.map((r) => ({x: r.x * f.s + f.tx, w: r.w * f.s, y: r.y * f.s + f.ty, h: r.h * f.s})) : null;
+    """)
+    if out["f"] is not None:
+        for r in out["labels"]:
+            assert r["x"] >= 0 and r["x"] + r["w"] <= 1920 and r["y"] >= 0 and r["y"] + r["h"] <= 878, r

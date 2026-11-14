@@ -148,7 +148,11 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
   // BAND_FADE below it, and a line pushed to bandTop + 1 showed its letters' tops above the caption (ANC beat 4,
   // 2026-11-14)
   const outBottom = bandTop + Math.round(H * BAND_FADE);
-  const textOk = (m: Rect) => inside(m, M, M, W - M, bandTop - M) || outside(m, 0, 0, W, outBottom);
+  // A PUNCH keeps EVERY line of type in the picture: it is a change of framing, not a close-up on one thing, and on a
+  // labelled diagram the labels are the content — a punch pushed 'One ear / Another ear', 'Tight fit / Loose fit'
+  // and 'Its opposite' out while the voice spoke of them (ANC beats 10, 22, 14, 2026-11-14). An item close-up may
+  // still leave the other items' words out: that is what it is for.
+  const textOk = (m: Rect) => inside(m, M, M, W - M, bandTop - M) || (!o.want && outside(m, 0, 0, W, outBottom));
   let best: {f: Framing; score: number} | null = null;
   for (const s of scales) {
     const clampX = (x: number) => Math.min(0, Math.max(W - s * W, x));
