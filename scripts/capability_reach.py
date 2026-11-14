@@ -31,6 +31,15 @@ NARRATED = {
     "seams": "a marked seam where beats relate (transition_in other than a cut or a fade)",
     "time": "time grammar on an impact or a climax (slide.time: hits / freeze / sakuga)",
 }
+# a page film (the HTML tier): its own vocabulary — reading it with the Remotion families scored a finished, cue-timed,
+# transition-marked film 0 of 6 (the QR film, 2026-11-14)
+PAGES = {
+    "seams": "marked seams where beats relate (slide.transition in / out / dip, a chosen transition_style)",
+    "cues": "reveals timed to the spoken word (data-cue in the pages)",
+    "light": "a lit or textured ground (a style with grain, a lit page ground, documentary or atmosphere imagery)",
+    "motion": "motion that serves the line (slide.motion / intensity, an animated page)",
+    "emphasis": "the point the voice names, emphasised on the page (callouts, data-cue targets, highlights)",
+}
 PROMO = {
     "staging": "the product as objects in a world (`object` shots)",
     "breadth": "a `wall` of components",
@@ -91,6 +100,30 @@ def narrated(film_dir, board):
     return NARRATED, used, meta.get("capability_waivers") or {}
 
 
+def pages(film_dir, board):
+    import glob
+    slides = [s for s in board.get("slides") or [] if isinstance(s, dict)]
+    meta = board.get("meta") or {}
+    html = ""
+    for p in sorted(glob.glob(os.path.join(film_dir, "pages", "*.html"))):
+        try:
+            html += open(p, encoding="utf-8").read()
+        except OSError:
+            pass
+    theme = os.path.join(film_dir, "theme.css")
+    theme_src = open(theme, encoding="utf-8").read() if os.path.isfile(theme) else ""
+    used = {
+        "seams": any(s.get("transition") in ("in", "out", "dip") for s in slides) or bool(meta.get("transition_style")),
+        "cues": "data-cue" in html,
+        "light": bool(re.search(r"grain|radial-gradient|LitGround|feSpecularLighting", html + theme_src))
+                 or any((s.get("media") or {}).get("treatment") in ("documentary", "atmosphere") for s in slides),
+        "motion": any(s.get("motion") or s.get("intensity") for s in slides) or bool(meta.get("intensity"))
+                  or bool(re.search(r"@keyframes|animation|transition:", html)),
+        "emphasis": any(s.get("callouts") for s in slides) or "data-cue-index" in html or bool(re.search(r"highlight|mark>", html)),
+    }
+    return PAGES, used, meta.get("capability_waivers") or {}
+
+
 def promo(spec):
     shots = [s for s in spec.get("shots") or [] if isinstance(s, dict)]
     acts = {a.get("kind") for s in shots for it in s.get("items") or [] for a in (it.get("acts") or []) if isinstance(a, dict)}
@@ -113,7 +146,10 @@ def reach(film_dir):
     if os.path.isfile(pp):
         return promo(json.load(open(pp, encoding="utf-8")))
     if os.path.isfile(bp):
-        return narrated(film_dir, json.load(open(bp, encoding="utf-8")))
+        board = json.load(open(bp, encoding="utf-8"))
+        if (board.get("meta") or {}).get("renderer") not in ("remotion",):
+            return pages(film_dir, board)
+        return narrated(film_dir, board)
     return None
 
 

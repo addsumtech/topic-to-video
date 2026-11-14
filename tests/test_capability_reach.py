@@ -14,7 +14,7 @@ def _film(tmp_path, shot_src, slides, meta=None):
     d = tmp_path / "workshop" / "shots"
     d.mkdir(parents=True)
     (d / "MyShot.tsx").write_text(shot_src)
-    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": meta or {}, "slides": slides}))
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": dict({"renderer": "remotion"}, **(meta or {})), "slides": slides}))
     return str(tmp_path)
 
 
@@ -42,3 +42,15 @@ def test_a_promo_with_one_layout_and_no_world_is_told(tmp_path):
     fams, used, waivers = cr.promo(spec)
     names = {m.split()[0] for m in cr.unused_lines(fams, used, waivers)}
     assert {"composition", "outro", "breadth", "links"} <= names and "staging" not in names and "acts" not in names
+
+
+def test_a_page_film_is_read_in_its_own_vocabulary(tmp_path):
+    """The QR film (HTML tier: cue-timed pages, marked seams) read 0 of 6 against the Remotion families. A page film is
+    read for seams, cues, light, motion and emphasis."""
+    (tmp_path / "pages").mkdir()
+    (tmp_path / "pages" / "scene_01.html").write_text('<div data-cue-index="1" data-cue="corner" style="animation: rise 1s">x</div>')
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {"renderer": "local", "transition_style": "fadethrough"},
+                                                         "slides": [{"type": "html", "transition": "in"}]}))
+    fams, used, _ = cr.reach(str(tmp_path))
+    assert fams is cr.PAGES
+    assert used["seams"] and used["cues"] and used["motion"] and used["emphasis"] and not used["light"]
