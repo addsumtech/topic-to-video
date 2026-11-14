@@ -61,6 +61,30 @@ def test_a_mark_is_cut_to_alpha_without_a_halo(tmp_path):
         pc.cut_mark(p, (150, 5, 40, 20), str(tmp_path / "none.png"))   # an empty box names itself
 
 
+def test_a_desktop_screenshot_gives_parts_at_its_own_pixels_with_measured_corners(tmp_path):
+    """--boxes --parts: a component of a screenshot with no DOM is cut at the capture's density, by found-box id or CSS
+    box, with its corner radius and fill measured off its pixels (a rounded card and a square one)."""
+    from PIL import Image, ImageDraw
+    os.makedirs(tmp_path / "caps")
+    p = str(tmp_path / "caps" / "app.png")
+    _ui(p, [(40, 60, 300, 120, (255, 255, 255))])
+    im = Image.open(p)
+    ImageDraw.Draw(im).rectangle([800, 500, 1400, 800], fill=(236, 244, 255), outline=(200, 200, 200), width=2)  # square
+    im.save(p)
+    lay = pc.find_boxes(p)
+    card = next(e for e in lay["elements"] if abs(e["x"] - 40) <= 3 and abs(e["y"] - 60) <= 3)
+    parts = pc.screenshot_parts(p, lay, "card=%d;sq=401,251,298,148" % card["id"], "app", str(tmp_path))
+    c, q = parts["card"], parts["sq"]
+    assert c["src"] == "caps/app.part.card.png" and c["scale"] == 2
+    assert Image.open(tmp_path / c["src"]).size == (c["px"][0], c["px"][1]) == (round(c["w"] * 2), round(c["h"] * 2))
+    assert 4 <= c["radius"] <= 11, c                     # drawn with an 8 CSS px corner (its 1 px edge inside it)
+    assert c["bg"] == "rgb(255, 255, 255)" or c["bg"].startswith("rgb(25")
+    assert q["radius"] == 0 and q["bg"].startswith("rgb(23")   # a square card has no corner; its own blue-grey fill
+    for bad in ("x=9999", "x=1100,700,300,200", "x=text:Hello"):
+        with pytest.raises(SystemExit):
+            pc.screenshot_parts(p, lay, bad, "app", str(tmp_path))
+
+
 @pytest.mark.skipif(not pc.find_chrome(), reason="no Chrome")
 def test_a_local_page_is_captured_with_its_boxes_and_own_words(tmp_path):
     html = tmp_path / "p.html"

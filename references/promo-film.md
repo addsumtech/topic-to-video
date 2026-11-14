@@ -43,7 +43,12 @@ distilled their **principles**, not their look:
 - Also writes `<n>.boxes.jpg`: the boxes, numbered on a 50 px grid.
 
 `--boxes=<png>` handles a screenshot with no DOM (a desktop app). It finds card-like rectangles (one fill, a visible
-edge) and writes the same layout. On WorkBuddy it matched hand-measured boxes within 1–2 px.
+edge) and writes the same layout. On WorkBuddy it matched hand-measured boxes within 1–2 px. Add
+`--parts="card=7;panel=120,80,400,260"` (a found box's id, or a CSS box) to cut COMPONENTS from it for a staged film:
+each is cut at the screenshot's own pixels (a docs screenshot cannot be redrawn at 4x, so stage it no larger than
+that), a found box is grown out through its flat fill and outline to the card's true edge, and its corner radius and
+fill are measured off its pixels, into the same `parts` schema as a web capture. The staged WorkBuddy film (2026-11-14)
+was built this way from its docs screenshots.
 
 `--mark=<png> --box=x,y,w,h` cuts the brand's logo from its own page with the ground keyed to alpha. On a dark film
 the lockup sets it on a light plate.

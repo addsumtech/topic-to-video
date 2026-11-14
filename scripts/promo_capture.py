@@ -4,7 +4,8 @@
     python3 scripts/promo_capture.py <film_dir> <url> --name=home [--width=1440] [--height=900] [--full]
                                      [--wait=1.5] [--eval="js ;;; js" (steps split by ;;;)] [--select="css,css"] [--max=80]
                                      [--hires="text:862 kB;css:#export;520,300,240,120"]   # 4x close-ups
-    python3 scripts/promo_capture.py <film_dir> --boxes=<capture.png>     # a screenshot with no DOM (desktop app)
+    python3 scripts/promo_capture.py <film_dir> --boxes=<capture.png> [--parts="card=7;panel=120,80,400,260"]
+                                     # a screenshot with no DOM (desktop app); parts by found-box id or CSS box
     python3 scripts/promo_capture.py <film_dir> --mark=<capture.png> --box=x,y,w,h [--name=mark]
                                      # the brand's own logo, cut from its own page: a transparent PNG for any ground
 
@@ -380,6 +381,105 @@ def find_boxes(png, min_area=1800, max_frac=0.6):
     return {"src": png, "w": W, "h": H, "elements": kept}
 
 
+def _corner_radius(a, fill, cap):
+    """A rounded card's corner radius off its own pixels (device px): along the diagonal from each corner of the
+    crop, the card's edge (the first pixel unlike the corner pixel, which is the ground outside the curve) sits
+    r(1 - 1/sqrt 2) in from both sides. Measured against the CORNER, not the fill: a white card on a 250-grey ground
+    differs from it by 15/765 and read as square. The median of the four corners, so one corner under a badge or a
+    shadow does not decide it. 0 for a square card: its corner pixel is the edge (the next one is the fill), or no edge
+    is met at all."""
+    import numpy as np
+    H, W, _ = a.shape
+    ks = []
+    for cy, cx, sy, sx in ((0, 0, 1, 1), (0, W - 1, 1, -1), (H - 1, 0, -1, 1), (H - 1, W - 1, -1, -1)):
+        c0, k = a[cy, cx], 1
+        while k < cap and np.abs(a[cy + sy * k, cx + sx * k] - c0).sum() <= 18:
+            k += 1
+        ks.append(k if k < cap else 0)
+    k = float(np.median(ks))
+    return 0.0 if k <= 1 else k / (1 - 2 ** -0.5)
+
+
+def _grow_to_edge(a, box, density):
+    """A found box is the card's FLAT fill, which stops short of its rounded corners and anti-aliased edge (measured: 3
+    CSS px in on each side). A part is the whole card: each side moves out through the fill and then through its
+    outline, to the first pixel that is the ground beyond it (the colour 3 CSS px further out)."""
+    import numpy as np
+    H, W, _ = a.shape
+    x0, y0 = int(round(box["x"] * density)), int(round(box["y"] * density))
+    x1, y1 = int(round((box["x"] + box["w"]) * density)) - 1, int(round((box["y"] + box["h"]) * density)) - 1
+    my, mx = (y0 + y1) // 2, (x0 + x1) // 2
+    fill = a[my, x0 + 1]
+    cap, far = 6 * density, 3 * density
+
+    def walk(get, start, step, lim):
+        p = start
+        while 0 <= p + step < lim and abs(p + step - start) <= cap and np.abs(get(p + step) - fill).sum() <= 18:
+            p += step
+        q = p + far * step
+        if not 0 <= q < lim:
+            return p
+        g = get(q)
+        while 0 <= p + step < lim and abs(p + step - start) <= cap and np.abs(get(p + step) - g).sum() > 18:
+            p += step
+        return p
+    nx0 = walk(lambda x: a[my, x], x0, -1, W)
+    nx1 = walk(lambda x: a[my, x], x1, 1, W)
+    ny0 = walk(lambda y: a[y, mx], y0, -1, H)
+    ny1 = walk(lambda y: a[y, mx], y1, 1, H)
+    return {"x": nx0 / density, "y": ny0 / density, "w": (nx1 - nx0 + 1) / density, "h": (ny1 - ny0 + 1) / density}
+
+
+def screenshot_parts(png, lay, spec, name, film, density=2):
+    """`--parts` on a SCREENSHOT (no DOM: a desktop app). Items are `name=<element id of the found boxes>` or
+    `name=x,y,w,h` (CSS px, as in the layout). Each part is cut at the screenshot's OWN pixels (its `scale` is the
+    capture's density: a docs screenshot cannot be redrawn at 4x), with the corner radius and fill measured off those
+    pixels, and written as `caps/<name>.part.<part>.png` with the same `parts` schema as a web capture.
+
+    WHY. The staged film (§ Staging) is made of components; without this a desktop product could only be filmed as
+    whole pages, or with parts cropped by hand and their radius guessed (the WorkBuddy films)."""
+    import numpy as np
+    from PIL import Image
+    im = Image.open(png).convert("RGB")
+    out = {}
+    for pn, v in _parts(spec):
+        if re.fullmatch(r"\d+", v):
+            e = next((e for e in lay["elements"] if e["id"] == int(v)), None)
+            if e is None:
+                raise SystemExit("[promo_capture] --parts %s: no box %s in this screenshot (see its .boxes.jpg)" % (pn, v))
+            box, why = _grow_to_edge(np.asarray(im).astype(int), {k: e[k] for k in ("x", "y", "w", "h")}, density), "box %s" % v
+        else:
+            try:
+                vals = [float(x) for x in v.split(",")]
+            except ValueError:
+                vals = []
+            if len(vals) != 4 or vals[2] <= 0 or vals[3] <= 0:
+                raise SystemExit("[promo_capture] --parts %s: %r is not a box id or x,y,w,h (a screenshot has no text: or css:)" % (pn, v))
+            box, why = dict(zip(("x", "y", "w", "h"), vals)), "box"
+        x0, y0 = int(round(box["x"] * density)), int(round(box["y"] * density))
+        x1, y1 = int(round((box["x"] + box["w"]) * density)), int(round((box["y"] + box["h"]) * density))
+        if x0 < 0 or y0 < 0 or x1 > im.width or y1 > im.height:
+            raise SystemExit("[promo_capture] --parts %s: %s runs off the %dx%d screenshot (CSS %dx%d at %sx)" % (
+                pn, box, im.width, im.height, im.width // density, im.height // density, density))
+        crop = im.crop((x0, y0, x1, y1))
+        a = np.asarray(crop).astype(int)
+        h, w, _ = a.shape
+        inset = max(2, min(h, w) // 8)
+        # the card's fill: the commonest colour of a ring just inside its edge (its text sits further in)
+        ring = np.concatenate([a[inset, inset:w - inset], a[h - 1 - inset, inset:w - inset], a[inset:h - inset, inset], a[inset:h - inset, w - 1 - inset]])
+        q = [tuple(c) for c in (ring // 4 * 4)]
+        fill = np.array(max(set(q), key=q.count)) + 2
+        radius = _corner_radius(a, fill, cap=min(h, w) // 3) / density
+        pp = os.path.join(film, "caps", "%s.part.%s.png" % (name, pn))
+        crop.save(pp)
+        out[pn] = {"box": box, "radius": round(radius, 1), "bg": "rgb(%d, %d, %d)" % tuple(int(c) for c in fill),
+                   "src": "caps/%s.part.%s.png" % (name, pn), "w": round(box["w"], 2), "h": round(box["h"], 2),
+                   "scale": density, "px": [w, h]}
+        print("[promo_capture] part %s (%s): %dx%d CSS px at %sx, radius %.1f, fill %s -> %s" % (
+            pn, why, box["w"], box["h"], density, radius, out[pn]["bg"], out[pn]["src"]))
+    return out
+
+
 def cut_mark(png, box, out_png):
     """The logo as the page draws it, cut out (CSS box on a 2x capture) with its flat ground keyed to alpha, so the
     same mark sits on a light or a dark ground. The ground is the box's border colour. Ink INTERIORS stay opaque at
@@ -450,6 +550,9 @@ def main(argv):
         lay = find_boxes(png)
         lay["src"] = os.path.relpath(png, film)
         base = os.path.splitext(png)[0]
+        if argflag(argv, "parts", None):
+            os.makedirs(os.path.join(film, "caps"), exist_ok=True)
+            lay["parts"] = screenshot_parts(png, lay, argflag(argv, "parts", None), os.path.basename(base), film)
         json.dump(lay, open(base + ".layout.json", "w"), indent=1)
         overlay(png, lay, base + ".boxes.jpg")
         print("[promo_capture] %d boxes -> %s.layout.json (look at %s.boxes.jpg)" % (len(lay["elements"]), base, base))
