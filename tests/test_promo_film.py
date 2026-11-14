@@ -586,6 +586,10 @@ def test_a_feature_told_not_shown_and_a_blank_part_are_advised(parts):
     assert any("`lift` on a staged card" in a for a in pf.check({"shots": [lifted]}, str(parts))[1])
     blank = obj()                                                          # panel.png: a white 4x part
     assert any("nearly blank" in a for a in pf.check({"shots": [blank]}, str(parts))[1])
+    # ...but an empty field a `type` act fills is blank on purpose (slide-maker's prompt, 2026-11-14)
+    typed = obj(items=[dict(obj()["items"][0], acts=[{"kind": "type", "box": {"x": 10, "y": 10, "w": 200, "h": 30}, "at": 10,
+                                                      "text": "a request"}])])
+    assert not any("nearly blank" in a for a in pf.check({"shots": [typed]}, str(parts))[1])
 
 
 def test_a_link_joins_two_landed_cards_or_is_refused_by_name(parts):

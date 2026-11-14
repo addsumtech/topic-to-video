@@ -654,7 +654,9 @@ def check(spec, film_dir):
                     if psz and shown > psz[0] + 1:
                         errs.append("%s: %s is %d px wide and would be shown %d px wide (upsampled, soft): capture it with "
                                     "--parts (4x), or show it smaller" % (iw, it.get("src"), psz[0], shown))
-                    ink = ink_density(os.path.join(film_dir, it.get("src", ""))) if psz else None
+                    # an item a `type` / `write` act fills is blank on purpose before it (an empty prompt being typed)
+                    fills = any(isinstance(a, dict) and a.get("kind") in ("type", "write") for a in it.get("acts") or [])
+                    ink = ink_density(os.path.join(film_dir, it.get("src", ""))) if psz and not fills else None
                     if ink is not None and ink < INK_MIN:
                         adv.append("%s: %s is nearly blank (%.1f%% of it differs from its own ground; a component reads from "
                                    "%.0f%%): it shows as an empty card, so crop the part of the page where the content is"
