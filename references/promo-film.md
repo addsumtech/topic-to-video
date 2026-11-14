@@ -117,6 +117,13 @@ So a product film is made mostly of **objects**:
   pixel a frame, which the glide gate failed at 11 % shimmer), `count` the
   figure, `type` the input — or crop a recording of it working. Measure the row bands off the part's own pixels.
   `check` advises on a labelled object shot whose hero has no acts and no recording.
+- **Links: where it is → what the product says about it.** An object shot's `links: [{from: {item, x, y}, to:
+  {item, x, y}, at, until, bow}]` joins a point on one card to a point on another (each in that item's own CSS px,
+  measured off the part's pixels) with a line that draws itself, a dot where it starts and a ring where it lands — a
+  match in the test string to its row in the results. The ends are projected through the cards' resting 3D pose, so
+  a link starts only once both cards have landed (`check` refuses it earlier, and refuses a missing item or an end
+  outside its card). It never moves, it only draws. Time it with the act it explains (a `ring` on the same row) and
+  raise `bow` (default 0.18 of its length) to arc it round a card's edge instead of across its type.
 - **Crop what the feature is.** A tile or item that is mostly its own ground reads as an empty card (the regex101
   run's substitution tile was the empty bottom of the test-string input: 1.6 % ink). `check` advises on a part
   under 4 % ink (`ink_density`); real components measured 7.5–60 %.

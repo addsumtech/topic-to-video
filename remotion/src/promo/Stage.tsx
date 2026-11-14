@@ -198,7 +198,65 @@ export const Label: React.FC<{l: FeatureLabel}> = ({l}) => {
 
 /** OBJECT: the product's component(s) as objects in the film's world, with a feature label beside them. With a label
  *  and one item, the item sits on the other side, turned a few degrees toward the label. */
-export const ObjectShot: React.FC<{dur: number; world?: World; items: StageItem[]; label?: FeatureLabel}> = ({world: w0, items, label}) => {
+export type LinkEnd = {item: number; x: number; y: number};      // a point on an item, in that item's CSS px
+export type StageLink = {from: LinkEnd; to: LinkEnd; at: number; until?: number; bow?: number};
+
+/** Where a point of an item (its own CSS px) lands on the frame once the item is AT REST — StageObject's transform
+ *  (`translate3d(0, 0, z) rotateX rotateY rotateZ` about its centre) and ObjectShot's perspective, applied by hand. */
+export const projectOnItem = (it: StageItem, px: number, py: number, W: number, H: number, s: number,
+  persp: number, ox: number, oy: number): [number, number] => {
+  const width = (it.width ?? 0.6) * W;
+  const S = width / it.w;
+  const rad = Math.PI / 180;
+  let x = px * S - width / 2, y = py * S - (it.h * S) / 2, z = 0;
+  const az = (it.rz ?? 0) * rad, ay = (it.ry ?? 0) * rad, ax = (it.rx ?? 0) * rad;
+  [x, y] = [x * Math.cos(az) - y * Math.sin(az), x * Math.sin(az) + y * Math.cos(az)];            // rotateZ
+  [x, z] = [x * Math.cos(ay) + z * Math.sin(ay), -x * Math.sin(ay) + z * Math.cos(ay)];           // rotateY
+  [y, z] = [y * Math.cos(ax) - z * Math.sin(ax), y * Math.sin(ax) + z * Math.cos(ax)];            // rotateX
+  z += (it.z ?? 0) * s;
+  const X = (it.x ?? 0.5) * W + x, Y = (it.y ?? 0.52) * H + y;
+  const k = persp / (persp - z);
+  return [ox + (X - ox) * k, oy + (Y - oy) * k];
+};
+
+/** A LINK: the thing on one card and where it shows up on another, joined by a line that draws itself (a match in
+ *  the text → its row in the results). Drawn flat over the scene from the projected ends, so the cards must have
+ *  landed (`at` after their arrival): it never moves, it only draws, then fades at `until`. */
+const Links: React.FC<{links: StageLink[]; placed: StageItem[]; world: World; persp: number}> = ({links, placed, world, persp}) => {
+  const frame = useCurrentFrame();
+  const look = useLook();
+  const {width: W, height: H} = useVideoConfig();
+  const s = typeScale(W, H);
+  const ink = world === 'glow' ? look.accent : look.accentInk;
+  return (
+    <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0, overflow: 'visible'}}>
+      {links.map((l, i) => {
+        const fa = placed[l.from.item], fb = placed[l.to.item];
+        if (!fa || !fb) throw new Error(`promo link ${i}: no item ${!fa ? l.from.item : l.to.item}`);
+        const [ax, ay] = projectOnItem(fa, l.from.x, l.from.y, W, H, s, persp, 0.5 * W, 0.45 * H);
+        const [bx, by] = projectOnItem(fb, l.to.x, l.to.y, W, H, s, persp, 0.5 * W, 0.45 * H);
+        const draw = span(frame, l.at, l.at + 16, 'snappy');
+        const out = l.until !== undefined ? 1 - span(frame, l.until, l.until + 8, 'out') : 1;
+        if (draw <= 0 || out <= 0) return null;
+        const len = Math.hypot(bx - ax, by - ay), bow = (l.bow ?? 0.18) * len;
+        const cx = (ax + bx) / 2 + (-(by - ay) / (len || 1)) * bow, cy = (ay + by) / 2 + ((bx - ax) / (len || 1)) * bow;
+        const head = span(frame, l.at + 12, l.at + 20, 'out');
+        return (
+          <g key={i} opacity={out}>
+            <path d={`M ${ax} ${ay} Q ${cx} ${cy} ${bx} ${by}`} fill="none" stroke={ink} strokeWidth={3.2 * s} strokeLinecap="round"
+              pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - draw} />
+            <circle cx={ax} cy={ay} r={6.5 * s * span(frame, l.at - 4, l.at + 4, 'out')} fill={ink} />
+            <circle cx={bx} cy={by} r={9 * s * head} fill="none" stroke={ink} strokeWidth={2.4 * s} />
+            <circle cx={bx} cy={by} r={4 * s * head} fill={ink} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+};
+
+export const ObjectShot: React.FC<{dur: number; world?: World; items: StageItem[]; label?: FeatureLabel; links?: StageLink[]}> = (
+  {world: w0, items, label, links}) => {
   const look = useLook();
   const {width: W, height: H} = useVideoConfig();
   const s = typeScale(W, H);
@@ -218,6 +276,7 @@ export const ObjectShot: React.FC<{dur: number; world?: World; items: StageItem[
           <StageObject key={i} it={it} world={world} perspective={2200 * s} />
         ))}
       </AbsoluteFill>
+      {links?.length ? <Links links={links} placed={placed} world={world} persp={2200 * s} /> : null}
       {label ? <Label l={label} /> : null}
     </WorldGround>
   );

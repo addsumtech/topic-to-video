@@ -13,7 +13,7 @@ import {PageCam, Ground, type CamKey, type Macro} from './PageCam';
 import {Layers, OVERLAY_KINDS, type LayerSpec} from './Layers';
 import {ChapterCard, FlashCut, CaptionStrip, BrandOpen, RecallOutro, OutroLockup, carryStyle} from './Cards';
 import {Statement, Compare, Montage, Subtitles, throughStyle, type Region, type Sub} from './Shots';
-import {ObjectShot, WallShot, StageOutro, type StageItem, type WallTile, type FeatureLabel, type World, type OutroObject} from './Stage';
+import {ObjectShot, WallShot, StageOutro, type StageItem, type WallTile, type FeatureLabel, type World, type OutroObject, type StageLink} from './Stage';
 
 type Cut = 'carry' | 'flash' | 'hard' | 'through' | 'morph';
 export type PageShot = {kind: 'page'; dur: number; src: string; w: number; h: number; keys: CamKey[]; layers?: LayerSpec[]; acts?: LayerSpec[];
@@ -27,7 +27,7 @@ export type Shot =
   | {kind: 'statement'; dur: number; text: string; ground?: 'paper' | 'accent' | 'ink'; size?: number; sub?: string; cut?: Cut}
   | {kind: 'compare'; dur: number; a: Region; b: Region; labelA?: string; labelB?: string; at?: number; sweep?: number; cut?: Cut}
   | {kind: 'montage'; dur: number; items: Region[]; every?: number; full?: boolean; cut?: Cut}
-  | {kind: 'object'; dur: number; world?: World; items: StageItem[]; label?: FeatureLabel; cut?: Cut}
+  | {kind: 'object'; dur: number; world?: World; items: StageItem[]; label?: FeatureLabel; links?: StageLink[]; cut?: Cut}
   | {kind: 'wall'; dur: number; world?: World; tiles: WallTile[]; cols?: number; tile?: number; gap?: number; plane?: 'floor' | 'wall';
      from?: {x: number; y: number}; to?: {x: number; y: number}; label?: {text: string; sub?: string; at?: number}; cut?: Cut};
 
@@ -150,7 +150,7 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', sub
       case 'statement': return <Statement text={s.text} dur={s.dur} ground={s.ground} size={s.size} sub={s.sub} />;
       case 'compare': return <Compare a={s.a} b={s.b} labelA={s.labelA} labelB={s.labelB} at={s.at} sweep={s.sweep} dur={s.dur} />;
       case 'montage': return <Montage items={s.items} every={s.every} full={s.full} dur={s.dur} />;
-      case 'object': return <ObjectShot dur={s.dur} world={s.world} items={s.items} label={s.label} />;
+      case 'object': return <ObjectShot dur={s.dur} world={s.world} items={s.items} label={s.label} links={s.links} />;
       case 'wall': return <WallShot dur={s.dur} world={s.world} tiles={s.tiles} cols={s.cols} tile={s.tile} gap={s.gap} plane={s.plane}
         from={s.from} to={s.to} label={s.label} />;
       default: throw new Error(`PromoFilm: unknown shot kind ${(s as {kind: string}).kind}`);

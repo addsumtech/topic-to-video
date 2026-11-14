@@ -583,3 +583,20 @@ def test_a_feature_told_not_shown_and_a_blank_part_are_advised(parts):
     assert any("`lift` on a staged card" in a for a in pf.check({"shots": [lifted]}, str(parts))[1])
     blank = obj()                                                          # panel.png: a white 4x part
     assert any("nearly blank" in a for a in pf.check({"shots": [blank]}, str(parts))[1])
+
+
+def test_a_link_joins_two_landed_cards_or_is_refused_by_name(parts):
+    two = obj(items=obj()["items"] + [{"src": "panel.png", "w": 300, "h": 351, "width": 0.3, "x": 0.3, "y": 0.2, "at": 4, "from": "fade"}])
+    ok = dict(two, links=[{"from": {"item": 1, "x": 40, "y": 30}, "to": {"item": 0, "x": 8, "y": 60}, "at": 30, "until": 50}])
+    assert pf.check({"shots": [ok]}, str(parts))[0] == []
+    cues = [(f, c) for f, c, g, h in pf.plan_sfx({"shots": [ok]}, placed=True)]
+    assert (32, "whoosh") in cues and (44, "select") in cues                  # it travels, then lands: heard
+    for bad, words in [
+        ([{"from": {"item": 3, "x": 1, "y": 1}, "to": {"item": 0, "x": 1, "y": 1}, "at": 30}], "item 3 does not exist"),
+        ([{"from": {"item": 1, "x": 900, "y": 1}, "to": {"item": 0, "x": 1, "y": 1}, "at": 30}], "outside item 1"),
+        ([{"from": {"item": 1, "x": 1, "y": 1}, "to": {"item": 0, "x": 1, "y": 1}, "at": 10}], "before item 0 has landed"),
+        ([{"from": {"item": 1, "x": 1, "y": 1}, "to": {"item": 0, "x": 1, "y": 1}}], "`at`"),
+        ([{"from": [1, 2], "to": {"item": 0, "x": 1, "y": 1}, "at": 30}], "a link is {from"),
+    ]:
+        errs = pf.check({"shots": [dict(two, links=bad)]}, str(parts))[0]
+        assert any(words in e for e in errs), (words, errs)

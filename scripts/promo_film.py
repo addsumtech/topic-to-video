@@ -542,6 +542,27 @@ def check(spec, film_dir):
                            "claim is told, not shown. Act it out on the card — `focus` the part the claim names, `ring`/`lift` "
                            "its rows one by one, `count` its figure — or crop a recording of it (references/promo-film.md "
                            "§ Staging, 'Show the claim')" % where)
+            for j, ln in enumerate(s.get("links") or [] if k == "object" else []):
+                lw = "%s link %d" % (where, j)
+                ends = [ln.get("from"), ln.get("to")] if isinstance(ln, dict) else []
+                if len(ends) != 2 or not all(isinstance(e, dict) and isinstance(e.get("item"), int)
+                                             and all(isinstance(e.get(q), (int, float)) for q in "xy") for e in ends):
+                    errs.append("%s: a link is {from: {item, x, y}, to: {item, x, y}, at} (x, y in that item's CSS px)" % lw)
+                    continue
+                if not isinstance(ln.get("at"), (int, float)):
+                    errs.append("%s: `at` (the frame the line starts drawing) is needed" % lw)
+                    continue
+                for e in ends:
+                    t = items[e["item"]] if 0 <= e["item"] < len(items) else None
+                    if t is None:
+                        errs.append("%s: item %d does not exist (the shot has %d)" % (lw, e["item"], len(items)))
+                        continue
+                    if not (0 <= e["x"] <= t.get("w", 0) and 0 <= e["y"] <= t.get("h", 0)):
+                        errs.append("%s: (%g, %g) is outside item %d (%sx%s CSS px)" % (lw, e["x"], e["y"], e["item"], t.get("w"), t.get("h")))
+                    landed = float(t.get("at", 0)) + {"tilt": 26, "rise": 20, "fade": 12, "none": 0}.get(t.get("from", "tilt"), 26)
+                    if ln["at"] < landed:
+                        errs.append("%s: starts at frame %g, before item %d has landed (frame %g): a link is drawn from the "
+                                    "cards at rest, so on a moving card it would come loose" % (lw, ln["at"], e["item"], landed))
             if any(a.get("kind") == "lift" for t in items for a in (t.get("acts") or []) if isinstance(a, dict)):
                 adv.append("%s: a `lift` on a staged card: its settle creeps under a pixel a frame on the tilted plane "
                            "(regex101, z 30: 11 %% shimmer, glide gate FAIL) — step a `ring` (or `focus`) instead" % where)
@@ -949,6 +970,16 @@ def plan_sfx(spec, placed=False):
                         cues.append((a + la + 4, "select", 0.22, p_))
                     elif kind == "pop":
                         cues.append((a + la + 6, "drop", 0.26, p_))
+            its = s.get("items") or []
+
+            def _ipan(n):
+                it = its[n] if isinstance(n, int) and 0 <= n < len(its) else {}
+                x = float(it.get("x", (0.68 if (lab or {}).get("side", "left") == "left" else 0.32) if (lab and n == 0) else 0.5))
+                return max(-PAN_SPAN, min(PAN_SPAN, (x - 0.5) * 2 * PAN_SPAN))
+            for ln in s.get("links") or []:
+                la = int(ln.get("at", 0))                     # the line travels from one card to the other, then lands
+                pa, pb = _ipan((ln.get("from") or {}).get("item")), _ipan((ln.get("to") or {}).get("item"))
+                cues += [(a + la + 2, "whoosh", 0.12, (pa, pb)), (a + la + 14, "select", 0.16, pb)]
             if lab:
                 cues.append((a + int(lab.get("at", 4)) + 4, "select", 0.14, -PAN_SPAN * 0.6 if lab.get("side", "left") == "left" else PAN_SPAN * 0.6))
         elif k == "wall":
