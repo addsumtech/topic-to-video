@@ -14,7 +14,11 @@ Remotion films. Three axes separated them; one did not:
     hierarchy: largest element / layout           0.63             0.48
     hierarchy: main elements per frame            2                3
     hierarchy: seconds one element leads          47%              38%
-    content occupancy (bbox / frame)              0.32           similar   NOT a gap — not measured here
+    content occupancy (bbox / frame)              0.32           similar   (this corpus; see below)
+
+On 2026-11-12 the occupancy axis WAS a gap against product launch films (references/craft-standard.md): content share /
+subject extent, SaaS launch films 0.415 / 0.84, the quiet brands 0.21 / 0.59, ours 0.154 / 0.49. It is measured here
+since 2026-11-14 (`occupancy`), with the ground modelled as a smooth surface so a lit stage's light is not content.
 
 So the films hold a frame too long, move with no accent, and give no single element the frame. Every one of those
 is felt, none was measured, and every gate here was green on all 22 films.
@@ -49,7 +53,8 @@ STILL_DELTA = 0.3          # grey levels; under this a 1/12 s step changed nothi
 HIER_SHORT_SIDE = 240      # the hierarchy decode fixes the SHORT side: fixed on the long side, a 9:16 frame was
                            # 136 px wide and a scattered motif speck crossed MIN_BLOB as an "element"
 CAPTION_CROP = 0.20        # bottom share of the frame left out of the hierarchy read
-INK_DELTA = 24             # per-channel distance from the border colour that counts as drawn
+INK_DELTA = 24             # per-channel distance from the (modelled) ground that counts as drawn
+SOFT_EDGE = 2.0            # grey levels per pixel (short side 240, 0.7 px blur): a region's boundary softer than this is light
 DILATE_SHARE = 0.022       # of the short side: the gap that still joins one word's letters and one block's lines.
                            # A fixed pixel radius made the measure depend on decode size (0.72 -> 0.49 on the same films)
 MIN_BLOB = 0.002           # an element's box must be at least this share of the frame
@@ -61,6 +66,10 @@ TYPE_SETTLE = 0.4           # read a beat's type from this share of it on: its e
 STILL_LINE = 3.0           # 16 of 28 reference films never hold longer; their median is 2.5 s
 DOM_LINE = 0.5             # under this with MANY_BLOBS elements, nothing leads the frame
 MANY_BLOBS = 4
+# CONTENT OCCUPANCY (references/craft-standard.md): on whole films, sampled through, caption band excluded —
+# content share / subject extent. SaaS launch films (12) and the quiet brands (Notion, Framer, Raycast, Linear, Arc).
+OCC_REF = {"saas": (0.415, 0.84), "quiet": (0.21, 0.59)}
+EXTENT_LINE = 0.4          # a subject spanning less than this is small even beside the quiet brands' 0.59
 
 
 class Unmeasurable(Exception):
@@ -104,14 +113,82 @@ def _longest_run(mask):
     return best
 
 
+def _ground_ink(f):
+    """What is DRAWN on a frame (bool mask): pixels more than INK_DELTA from the border colour (the rule this always
+    used), less the parts of it that are LIGHT. A lit stage (runtime/craftStage LitStage: a vertical gradient, a key
+    pool, a vignette) moves its ground ~30 levels from the border colour, so the light itself read as content and a lit
+    beat looked crowded (2026-11-14). Light has no edge: each drawn region whose OWN boundary is soft (median gradient
+    under SOFT_EDGE grey levels a pixel) is light, and inside it only what stands off a smooth ground fitted to the
+    frame (a quadratic per channel) is kept. A white card in a light pool keeps its edge and stays; on a flat ground
+    nothing is soft and the result is the border rule exactly."""
+    import numpy as np
+    from scipy import ndimage
+    h, w, _ = f.shape
+    border = np.concatenate([f[:3].reshape(-1, 3), f[:, :3].reshape(-1, 3), f[:, -3:].reshape(-1, 3)])
+    m = np.abs(f - np.median(border, axis=0)).max(axis=2) > INK_DELTA
+    if m.sum() < 30:
+        return m
+    g = ndimage.gaussian_filter(f.astype(np.float32).mean(axis=2), 0.7)
+    gy, gx = np.gradient(g)
+    grad = np.hypot(gx, gy)
+    lab, n = ndimage.label(m)
+    soft = np.zeros(n + 1, bool)
+    for k, sl in enumerate(ndimage.find_objects(lab), 1):
+        comp = lab[sl] == k
+        if comp.sum() < MIN_BLOB * h * w:
+            continue
+        rim = comp & ~ndimage.binary_erosion(comp)
+        soft[k] = float(np.median(grad[sl][rim])) < SOFT_EDGE
+    if not soft.any():
+        return m
+    light = soft[lab]
+    # the smooth ground: fitted on everything that is not a hard-edged drawn region
+    yy, xx = np.mgrid[0:h, 0:w]
+    u, v = xx.ravel() / max(1, w - 1) - 0.5, yy.ravel() / max(1, h - 1) - 0.5
+    A = np.stack([np.ones_like(u), u, v, u * u, v * v, u * v], 1)
+    F = f.reshape(-1, 3).astype(np.float64)
+    ground = ~(m & ~light)
+    sub = np.nonzero(ground.ravel())[0]
+    if len(sub) < A.shape[1] * 20:
+        return m & ~light
+    sub = sub[:: max(1, len(sub) // 20000)]
+    coef, *_ = np.linalg.lstsq(A[sub], F[sub], rcond=None)
+    fit = (A @ coef).reshape(h, w, 3)
+    # what stands in the light comes back by its edge (its fill is near the lit ground): filled, it is a thing again —
+    # Grok's bots on a lit floor read as rings before this
+    found = light & (np.abs(f - fit).max(axis=2) > INK_DELTA) & (grad >= SOFT_EDGE)
+    return (m & ~light) | (ndimage.binary_fill_holes(ndimage.binary_closing(found, iterations=1)) & light)
+
+
+def _occupancy_one(frame):
+    """(cover, extent) above the caption band: the share of the frame that is drawn, and the share inside the box
+    holding the central 96 % of what is drawn (a stray mark at an edge does not stretch it). None when nothing is."""
+    import numpy as np
+    f = frame[: int(frame.shape[0] * (1 - CAPTION_CROP))].astype(np.int16)
+    m = _ground_ink(f)
+    if m.sum() < 30:
+        return None
+    ys, xs = np.nonzero(m)
+    x0, x1 = np.percentile(xs, [2, 98]); y0, y1 = np.percentile(ys, [2, 98])
+    return float(m.mean()), float((x1 - x0) * (y1 - y0) / m.size)
+
+
+def _occ_summary(rows):
+    import numpy as np
+    got = [r for r in rows if r is not None]
+    if not got:
+        return {"cover_med": None, "extent_med": None}
+    return {"cover_med": round(float(np.median([r[0] for r in got])), 3),
+            "extent_med": round(float(np.median([r[1] for r in got])), 3)}
+
+
 def _hierarchy_one(frame):
     """(dom, nblob) for one RGB frame, or None when nothing is drawn above the caption band."""
     import numpy as np
     from scipy import ndimage
     f = frame[: int(frame.shape[0] * (1 - CAPTION_CROP))].astype(np.int16)
     h, w, _ = f.shape
-    border = np.concatenate([f[:3].reshape(-1, 3), f[:, :3].reshape(-1, 3), f[:, -3:].reshape(-1, 3)])
-    m = np.abs(f - np.median(border, axis=0)).max(axis=2) > INK_DELTA
+    m = _ground_ink(f)
     if m.sum() < 30:
         return None
     r = max(1, int(round(DILATE_SHARE * min(frame.shape[0], frame.shape[1]))))
@@ -145,11 +222,12 @@ def measure(path, board=None):
     still = d < STILL_DELTA
     rgb = _decode(path, 1, None, gray=False, short_side=HIER_SHORT_SIDE)
     hier = [_hierarchy_one(f) for f in rgb]
+    occ = [_occupancy_one(f) for f in rgb]
     out = {"seconds": round(len(g) / float(FPS), 2),
            "longest_still_s": round(_longest_run(still) / float(FPS), 2),
            "still_share": round(float(still.mean()), 3),
            "motion_p90": round(float(np.percentile(d, 90)), 2),
-           "hierarchy": _hier_summary(hier), "beats": [],
+           "hierarchy": _hier_summary(hier), "occupancy": _occ_summary(occ), "beats": [],
            # the per-frame change itself, for checks that ask WHEN something moved (rhythm_qa's hits on a still frame)
            "motion": [round(float(x), 3) for x in d]}
     if board:
@@ -162,7 +240,7 @@ def measure(path, board=None):
             out["beats"].append({"index": idx, "shot": shot, "seconds": round(len(seg) / float(FPS), 2),
                                  "longest_still_s": round(_longest_run(seg < STILL_DELTA) / float(FPS), 2),
                                  "motion_p90": round(float(np.percentile(seg, 90)), 2),
-                                 "hierarchy": _hier_summary(hier[s0:s1])})
+                                 "hierarchy": _hier_summary(hier[s0:s1]), "occupancy": _occ_summary(occ[s0:s1])})
     return out
 
 
@@ -227,6 +305,11 @@ def findings(m):
             lines.append("%s: small crowded type — the largest line is %.1f%% of the short side among %g lines and "
                          "nothing else leads (reference films: ~7%% lead type, ~3 lines) — let one line lead: larger, "
                          "fewer words; a beat led by its drawing keeps small labels" % (tag, 100 * ty["lead"], ty["lines"]))
+        o = r.get("occupancy") or {}
+        if o.get("extent_med") is not None and o["extent_med"] < EXTENT_LINE:
+            lines.append("%s: the subject spans %.0f%% of the frame above the captions (launch films: %.0f%%; Notion, "
+                         "Framer, Raycast: %.0f%%) — draw it larger, or crop it oversized (craft-standard.md)"
+                         % (tag, 100 * o["extent_med"], 100 * OCC_REF["saas"][1], 100 * OCC_REF["quiet"][1]))
         if h["dom_med"] is not None and h["dom_med"] < DOM_LINE and h["nblob_med"] >= MANY_BLOBS:
             lines.append("%s: no element leads the frame — the largest is %.0f%% of the layout among %d elements "
                          "(reference: %.0f%% among 2)" % (tag, 100 * h["dom_med"], h["nblob_med"], 63))
@@ -245,6 +328,10 @@ def _report(m, ref):
                                     med["motion_p90"], "-" if h["dom_med"] is None else "%.2f" % h["dom_med"],
                                     med["dom_med"], "-" if h["nblob_med"] is None else "%g" % h["nblob_med"],
                                     med["nblob_med"]))
+    o = m.get("occupancy") or {}
+    if o.get("cover_med") is not None:
+        print("[craft] content %.2f of the frame, subject %.2f (launch films %.2f / %.2f; quiet brands %.2f / %.2f)"
+              % (o["cover_med"], o["extent_med"], OCC_REF["saas"][0], OCC_REF["saas"][1], OCC_REF["quiet"][0], OCC_REF["quiet"][1]))
     for ln in findings(m):
         print("  ADVISORY  " + ln)
 

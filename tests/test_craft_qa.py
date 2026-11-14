@@ -3,7 +3,9 @@
 Measured 2026-10-31 on 28 skillry.dev launch-film previews and 22 of our own Remotion films, one instrument for both:
 our films hold a frame still for longer (median longest still 5.0 s against 2.5 s), move with smaller peaks (motion
 p90 2.1 against 4.3) and give no single element the frame (largest element's share of the layout 0.48 against 0.63;
-3 main elements against 2). Content occupancy did NOT separate the two and is not measured. These tests pin the instrument on synthetic films whose answer is known by construction.
+3 main elements against 2). Content occupancy did not separate those two corpora, but against product launch films it
+did (craft-standard.md), so it is measured too. These tests pin the instrument on synthetic films whose answer is known
+by construction.
 """
 import json
 import os
@@ -172,3 +174,50 @@ def test_small_crowded_type_with_nothing_leading_is_named_and_a_drawing_lead_is_
     assert any("Crowded" in ln and "type" in ln for ln in lines), lines
     assert not any("Diagram" in ln and "type" in ln for ln in lines), lines
     assert not any("Headline" in ln and "type" in ln for ln in lines), lines
+
+
+def _lit(w=320, h=180):
+    """A lit stage as runtime/craftStage paints it: a vertical gradient, a bright key pool, corners vignetted ~35
+    levels darker than the centre — no edge anywhere."""
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    base = 236 - 14 * (yy / h)
+    pool = 18 * np.exp(-(((xx - w * 0.62) / (w * 0.22)) ** 2 + ((yy - h * 0.35) / (h * 0.3)) ** 2))
+    vig = 36 * np.clip(np.hypot((xx - w / 2) / (w / 2), (yy - h / 2) / (h / 2)) - 0.55, 0, None) / 0.85
+    g = np.clip(base + pool - vig, 0, 255)
+    return np.repeat(g[..., None], 3, 2).astype(np.uint8)
+
+
+def test_a_lit_stage_is_ground_and_a_white_card_in_its_light_is_drawn(tmp_path):
+    """Against the border colour, a lit stage's vignette and key pool read as content (2026-11-14). Light has no edge:
+    it is ground; a WHITE card sitting in the pool keeps its edge and is drawn; on a flat ground the rule is unchanged."""
+    from scipy import ndimage
+    lit = _lit()
+    lit_only = cq._ground_ink(lit[:144].astype(np.int16))
+    assert lit_only.mean() < 0.01, lit_only.mean()                     # the light itself is not content
+    card = lit.copy()
+    card[30:100, 160:280] = 252                                        # a white card in the pool...
+    card[100:103, 162:282] = 200                                       # ...its soft shadow line
+    card[29, 160:280] = card[30:100, 159] = card[30:100, 280] = 214    # ...and its hairline edge
+    card = _box(card, 30, 50, 60, 30)                                  # and a dark block elsewhere
+    m = cq._ground_ink(card[:144].astype(np.int16))
+    assert m[40:90, 170:270].mean() > 0.9, m[40:90, 170:270].mean()    # the card is drawn
+    assert m[50:80, 30:90].mean() > 0.95                               # so is the block
+    assert m[110:140, 0:20].mean() < 0.05                              # the vignetted corner is not
+    lab, n = ndimage.label(ndimage.binary_dilation(m, iterations=3))
+    assert n == 2, n
+    flat = _box(_box(_ground(), 60, 30, 200, 100, c=(250, 250, 250)), 20, 140, 24, 6)
+    f = flat[:144].astype(np.int16)
+    border = np.concatenate([f[:3].reshape(-1, 3), f[:, :3].reshape(-1, 3), f[:, -3:].reshape(-1, 3)])
+    assert (cq._ground_ink(f) == (np.abs(f - np.median(border, 0)).max(2) > cq.INK_DELTA)).all()
+
+
+def test_occupancy_reads_how_much_of_the_frame_the_subject_spans(tmp_path):
+    big = _box(_ground(), 20, 10, 280, 120)
+    small = _box(_ground(), 140, 50, 40, 30)
+    a = cq.measure(_film(tmp_path / "big.mp4", [big] * 36))["occupancy"]
+    b = cq.measure(_film(tmp_path / "small.mp4", [small] * 36))["occupancy"]
+    assert a["extent_med"] > 0.6 and b["extent_med"] < 0.1, (a, b)      # 0.73 drawn, trimmed to its central 96 %
+    m = {"beats": [], "longest_still_s": 0, "hierarchy": {"dom_med": None, "nblob_med": None}, "occupancy": b}
+    assert any("subject spans" in ln for ln in cq.findings(m))
+    m["occupancy"] = a
+    assert not any("subject spans" in ln for ln in cq.findings(m))
