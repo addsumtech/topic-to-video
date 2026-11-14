@@ -90,6 +90,12 @@ def test_a_desktop_screenshot_gives_parts_at_its_own_pixels_with_measured_corner
     pim.save(q)
     flat = pc.screenshot_parts(q, pc.find_boxes(q), "fl=0,0,300,200", "panel", str(tmp_path))["fl"]
     assert flat["radius"] == 0, flat                    # no corner there: its first edge inward is the panel's text
+    pill = Image.new("RGB", (400, 200), (255, 255, 255))           # a pill: white on white, a grey outline
+    ImageDraw.Draw(pill).rounded_rectangle([20, 40, 380, 110], radius=35, fill=(254, 254, 254), outline=(205, 205, 205), width=2)
+    pq = str(tmp_path / "caps" / "pill.png")
+    pill.save(pq)
+    pp = pc.screenshot_parts(pq, pc.find_boxes(pq), "pl=10,20,180,35", "pill", str(tmp_path))["pl"]
+    assert 12 <= pp["radius"] <= 17.5, pp               # half its height at most, and not taken for a flat cut
     for bad in ("x=9999", "x=1100,700,300,200", "x=text:Hello"):
         with pytest.raises(SystemExit):
             pc.screenshot_parts(p, lay, bad, "app", str(tmp_path))
