@@ -433,7 +433,9 @@ paywall.
    skill's `scripts/`): it aims at the element and keeps the view on the page. **Length and aspect** come from the
    interview's ④ (`aspect` in the table; the shots' `dur` add up to the length; `length` records the seconds asked for).
    Without one, a product film runs **at least 60 s** (the user, 2026-11-14, of a 23.7 s cut: "太短了，至少一分钟，多展示设计
-   能力和产品细节功能"): its features shown in detail, not a teaser; `--check` advises under 60 s. It runs
+   能力和产品细节功能"): its features shown in detail, not a teaser; `--check` advises under 60 s. 60 s is a FLOOR, never a cap or a
+   target (the user, same day: "我不对时间设限制，重点是着重设计和内容，展示产品"): the film runs as long as its design
+   and content need. It runs
    at 16:9 unless asked otherwise, and a 9:16 film uses portrait captures (`--width=430 --height=932`).
 6. **Check.** `promo_film.py <dir> --check`: fix every ERROR. Read every ADVISORY; a repeat-skeleton advisory means
    the arc is a template, so redesign it.

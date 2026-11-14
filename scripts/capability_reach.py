@@ -123,6 +123,9 @@ def unused_lines(fams, used, waivers):
 
 
 def main(argv):
+    sys.path.insert(0, _HERE)
+    from _common import refuse_unknown
+    refuse_unknown(argv, switches=("strict",), usage="usage: capability_reach.py <film_dir> [--strict]")
     args = [a for a in argv if not a.startswith("--")]
     if not args:
         print(__doc__.strip())
