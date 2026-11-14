@@ -1033,6 +1033,14 @@ def film_props(out_dir, data, sample=None, reduced_motion=False, vertical=False)
     import device_script as _dsl
     scenes = build_scenes(slides, out_dir, valid, fps, frame=_frame, lang=_dsl.film_language(data.get("meta"), slides),
                           meta=data.get("meta"))
+    if sample is not None:
+        # A ONE-BEAT SAMPLE HAS NO NEXT BEAT: a camera handed off to it has nowhere to go, and the Film refused the
+        # whole sample ("hands its camera off, but it is the last beat" — ANC beat 1, 2026-11-14). The sample shows
+        # the beat's own move; the hand-off is the seam's, judged in the full render.
+        for sc in scenes:
+            cam = sc.get("camera")
+            if isinstance(cam, dict) and cam.get("handoff"):
+                sc["camera"] = {k: v for k, v in cam.items() if k != "handoff"}
     meta = data.get("meta") or {}
     reduced = bool(reduced_motion or meta.get("reduced_motion"))
     # ASPECT: --vertical or meta.aspect:"9:16" renders the Film Composition at 1080x1920 (Root.tsx calculateMetadata
@@ -1463,6 +1471,14 @@ def _not_delivered(out_dir):
     except OSError:
         pass
     print("[render_remotion] RENDERED, not DELIVERED — wrote %s with the remaining steps." % _NOT_DELIVERED)
+    # the skill's built capabilities this film leaves unused without a reason (SKILL.md "Full effort, every time")
+    try:
+        import capability_reach as _cr
+        r = _cr.reach(out_dir)
+        for ln in (_cr.unused_lines(*r) if r else []):
+            print("[render_remotion] capability %s" % ln)
+    except Exception as e:  # noqa: BLE001 — an advisory pass never breaks the render; said, not swallowed
+        print("[render_remotion] capability_reach could not run: %s" % e)
     print("[render_remotion] next: python3 scripts/critic_brief.py %s" % out_dir)
     print("[render_remotion]  then: dispatch agents/shot-critic.md (input = the out_dir path, nothing else)")
     print("[render_remotion]  then: python3 scripts/critic_ledger.py %s --final" % out_dir)

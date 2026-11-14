@@ -23,6 +23,22 @@ description: >-
 You turn a topic — or a slide deck — into a narrated short video. Source of truth is `storyboard.json` — you edit
 text/timing; the scripts render the media.
 
+## Full effort, every time (binding)
+
+The user, 2026-11-14: "我要你在skill中确定任何时候你都不要嫌麻烦，发挥你的最大潜力和创意，做了这么多优化，都展示出来呀".
+- **Never trade quality for less work.** No shortcut because a step is long: re-cut a part, rebuild a shot, re-render.
+- **Use what the skill has built.** Before building, list the capabilities this film can use and put each to work
+  where the content admits it:
+  - staging and composition variety;
+  - material and light (`LitStage`, the craft kit's `surface`, `runtime/material`, `slide.optic`);
+  - time grammar, camera, marked seams and the reach tools.
+  An improvement nobody uses is not an improvement.
+- **Judge the film as a sequence.** Tile every beat's settled frame on one sheet before handing it over. One layout
+  repeated, one ground everywhere, a flat fill where a material belongs: any of these is a redesign, not a delivery.
+- **Skip a capability only for a stated reason.** `python3 scripts/capability_reach.py <dir>` lists what the film
+  uses and names each unused family that has no reason. Record a reason in `meta.capability_waivers`
+  (`{family: why}`; `waivers` in a promo table). promo_film's check and the remotion tier's delivery steps run it.
+
 ## Tools (all free; verify with `scripts/_common.have_tool`)
 `soffice` (pptx→pdf), PyMuPDF `fitz`, `python-pptx`, **edge-tts** (preferred neural voice, free, cross-platform — needs network), macOS `say` (offline fallback), `ffmpeg`, PIL.
 Captions burn via PIL + a bundled font (no libass needed). Optional: OpenAI/ElevenLabs

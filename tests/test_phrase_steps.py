@@ -213,3 +213,14 @@ def test_a_short_authored_move_is_left_as_its_creep(tmp_path):
     props, _ = rr.film_props(str(tmp_path), board)
     assert "phrase" not in props["scenes"][0]
     assert props["scenes"][1].get("phrase")
+
+
+def test_a_one_beat_sample_drops_a_camera_handoff_it_has_no_beat_to_hand_to(tmp_path):
+    """ANC beat 1 (2026-11-14): `--sample 1` of a beat whose push hands off to the next beat failed the whole render —
+    "hands its camera off, but it is the last beat". The sample shows the beat's own move; the full film keeps it."""
+    import render_remotion as rr
+    board = _board_dir(tmp_path, slides_extra={1: {"camera": {"move": "push", "handoff": True}}})
+    full, _ = rr.film_props(str(tmp_path), board)
+    one, _ = rr.film_props(str(tmp_path), board, sample=1)
+    assert full["scenes"][0]["camera"].get("handoff") is True
+    assert one["scenes"][0]["camera"].get("move") == "push" and "handoff" not in one["scenes"][0]["camera"]
