@@ -344,3 +344,55 @@ def test_a_punch_in_keeps_a_set_whole_or_does_not_frame_it():
     assert out["sets"] == [8]
     assert out["punch"] in (None, 8), "a punch-in dropped members of the set: %r" % out["punch"]
     assert out["one"] is not None and out["one"] < 8
+
+
+def test_an_items_close_up_never_slices_another_item_the_voice_lists():
+    # ANC beat 12 (2026-11-14): a close-up on "Howl" sliced the speaker, drawn at the frame's left edge, in half and
+    # pushed its label (set to its LEFT) out while the voice said "its own speaker". The other listed items are kept
+    # whole or left out. The scene is one where the unprotected framing does slice it (asserted), so the test can fail.
+    out = _ts("""
+      const W = 1920, H = 1080, bandTop = 878;
+      const labels: any = {howl: {x: 820, y: 420, w: 160, h: 44}, speaker: {x: 80, y: 490, w: 150, h: 40},
+                           mic: {x: 1560, y: 120, w: 180, h: 40}};
+      const spk = {x: 250, y: 470, w: 90, h: 80}, mic = {x: 1600, y: 170, w: 90, h: 70};
+      const rings = {x: 700, y: 330, w: 400, h: 230};
+      const content = [labels.howl, labels.speaker, labels.mic, spk, mic, rings];
+      const isText = (k: string) => content.map((_: any, j: number) => j < 3 && Object.keys(labels)[j] !== k);
+      const others = otherItemDrawings('howl', labels, content, isText, W, H);
+      const region = itemRegion(labels.howl, [labels.speaker, labels.mic], content, isText('howl'), W, H).region;
+      const args = {W, H, bandTop, content, texts: [labels.speaker, labels.mic, labels.howl]};
+      const sliced = (q: any) => { if (!q) return false; const x = spk.x * q.s + q.tx, w = spk.w * q.s;
+        return (x < 0 && x + w > 0) || (x < W && x + w > W); };
+      out.others = others.length;
+      out.bare = sliced(coverFraming({...args, target: region}));
+      const f = coverFraming({...args, target: region, boxes: others});
+      out.framed = !!f; out.kept = sliced(f);
+    """, extra="otherItemDrawings")
+    assert out["others"] == 2
+    assert out["bare"] is True, "the scene must be one the card/type rules alone get wrong"
+    assert out["kept"] is False, "the speaker is whole or gone, never cut by the frame's edge"
+
+
+def test_a_punch_keeps_in_the_picture_the_type_written_during_it():
+    # ANC beat 12 (2026-11-14): the punch framed the loop's core while "around 1 kHz" was written at the lower right
+    # on "about one kilohertz" — cropped away. Type that arrives inside the punch step must be inside its framing; when
+    # none holds it with the core, the step stays wide.
+    out = _ts("""
+      const W = 1920, H = 1080, bandTop = 878;
+      const core = {x: 640, y: 120, w: 640, h: 520};
+      const old = [{x: 860, y: 70, w: 200, h: 44}], late = {x: 1500, y: 700, w: 260, h: 40};
+      const arrived = arrivedTexts(old, [...old, late]);
+      const content = [core, ...old, late];
+      const args = {W, H, bandTop, content, texts: [...old, late], want: 1.3};
+      const bare = coverFraming({...args, target: core});
+      const held = coverFraming({...args, target: core, see: unionRect([core, ...arrived])});
+      const m = (r: any, f: any) => ({x: r.x * f.s + f.tx, y: r.y * f.s + f.ty, w: r.w * f.s, h: r.h * f.s});
+      out.arrived = arrived; out.bareLate = bare ? m(late, bare) : null; out.held = held;
+      out.heldLate = held ? m(late, held) : null;
+    """, extra="arrivedTexts, unionRect")
+    assert out["arrived"] == [{"x": 1500, "y": 700, "w": 260, "h": 40}]
+    b = out["bareLate"]
+    assert b is not None and (b["x"] + b["w"] > 1922 or b["y"] + b["h"] > 880), "the unprotected punch crops it"
+    if out["held"] is not None:
+        r = out["heldLate"]
+        assert r["x"] >= -2 and r["x"] + r["w"] <= 1922 and r["y"] + r["h"] <= 880

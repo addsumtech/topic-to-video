@@ -226,6 +226,29 @@ export const itemRegion = (label: Rect, others: Rect[], content: Rect[], isText:
     drawing};
 };
 
+/** The drawings of the OTHER items a list names (each found as itemRegion finds the target's), for a close-up on
+ *  `key` to keep whole or leave out — never slice. One that overlaps the target's own label is shared, not another
+ *  item's, and is left to the target. `isTextFor(k)` marks the content boxes that are text outside item k. Pure. */
+export const otherItemDrawings = (key: string, labels: Record<string, Rect>, content: Rect[],
+  isTextFor: (k: string) => boolean[], W: number, H: number): Rect[] => {
+  const me = labels[key];
+  return Object.entries(labels).filter(([k]) => k !== key).map(([k, lab]) => {
+    const rest = Object.entries(labels).filter(([k2]) => k2 !== k).map(([, r]) => r);
+    return itemRegion(lab, rest, content, isTextFor(k), W, H).drawing;
+  }).filter((r): r is Rect => !!r && !(me && overlaps(r, me)));
+};
+
+/** The lines of type on `last` that were not on `first` (no box of `first` overlapping it by IoU > 0.5): what a
+ *  step's register WROTE during the step. Pure. */
+export const arrivedTexts = (first: Rect[], last: Rect[]): Rect[] =>
+  last.filter((r) => !first.some((q) => iou(q, r) > 0.5));
+
+/** The box holding all of `rs`. Pure. */
+export const unionRect = (rs: Rect[]): Rect => {
+  const x0 = Math.min(...rs.map((r) => r.x)), y0 = Math.min(...rs.map((r) => r.y));
+  return {x: x0, y: y0, w: Math.max(...rs.map((r) => r.x + r.w)) - x0, h: Math.max(...rs.map((r) => r.y + r.h)) - y0};
+};
+
 /** Intersection over union of two boxes. Pure. */
 export const iou = (a: Rect, b: Rect): number => {
   const ix = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
@@ -432,8 +455,15 @@ export const frameStep = (probesIn: HTMLElement[], step: CoverStep, items: Recor
         return itemRegion(lab, oth, e.content, txt, W, H).region;
       }).filter((r): r is Rect => r !== undefined);
       if (!still(region, earlierRegions, 'item')) return null;
+      // THE OTHER ITEMS the voice lists are kept whole or left out, as a card is: a close-up on "howl" sliced the
+      // speaker drawn at the frame's edge in half and pushed its label out while the voice said "its own speaker"
+      // (ANC beat 12, 2026-11-14) — the speaker is an SVG drawing, not a card, so the card rule never saw it
+      const labels: Record<string, Rect> = {};
+      for (const [k, el] of Object.entries(found)) { const b = box([el]); if (b) labels[k] = b; }
+      const otherDrawings = otherItemDrawings(key, labels, m.content,
+        (k) => m.els.map((e, j) => m.texts.includes(m.content[j]) && !found[k].contains(e)), W, H);
       const cap0 = m.rasters.reduce((c, x) => (overlaps(x.r, region) ? Math.min(c, x.cap) : c), MAX_SCALE);
-      const args = {W, H, bandTop: contentBottom(W, H), content: allContent, texts: allTexts, boxes: allBoxes, cap: cap0};
+      const args = {W, H, bandTop: contentBottom(W, H), content: allContent, texts: allTexts, boxes: allBoxes.concat(otherDrawings), cap: cap0};
       const f = itemFraming(args, region, drawing, label);
       if (!f) lastWhy = 'no framing passes (type/cards/zone)';
       return f;
@@ -441,6 +471,11 @@ export const frameStep = (probesIn: HTMLElement[], step: CoverStep, items: Recor
   } else {
     target = punchCore(m.content);
     want = step.frame.punch;
+    // TYPE THAT ARRIVES during the punch is what the voice is naming then: it must be in the picture, not cropped
+    // away. ANC beat 12 (2026-11-14): the punch held the loop while "around 1 kHz" was written at the frame's lower
+    // right on "about one kilohertz" — cropped off, with the speaker sliced at the left edge
+    const arrived = earlier.length ? arrivedTexts(earlier[0].texts, m.texts) : [];
+    if (arrived.length) see = unionRect([target, ...arrived]);
   }
   if (!target) return null;
   const cap = m.rasters.reduce((c, x) => (overlaps(x.r, target as Rect) ? Math.min(c, x.cap) : c), MAX_SCALE);
