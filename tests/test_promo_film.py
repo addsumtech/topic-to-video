@@ -638,3 +638,20 @@ def test_one_label_layout_for_every_feature_is_advised():
     assert errs == [] and adv == []
     errs, _ = pf.composition_advice({"shots": [lab("middle")]})
     assert errs and "not one of" in errs[0]
+
+
+def test_a_film_whose_look_repeats_another_is_told(tmp_path, monkeypatch):
+    """The four showcase promos (2026-11-14) were one template — paper world, cards, a numbered label, rings, a wall —
+    with different block orders, so the structure letters did not see it; the user did ("都类似一个模版")."""
+    monkeypatch.setattr(pf, "LEDGER", str(tmp_path / "ledger.json"))
+    staged = lambda: {"shots": [
+        {"kind": "object", "world": "paper", "label": {"text": "x"}, "items": [{"acts": [{"kind": "ring"}, {"kind": "type"}]}]},
+        {"kind": "wall", "world": "paper", "tiles": [{}]},
+        {"kind": "statement", "text": "x"}, {"kind": "outro", "world": "paper"}]}
+    pf.record_skeleton(staged(), str(tmp_path / "film_a"))
+    again = staged()
+    again["shots"] = [again["shots"][2], again["shots"][0], again["shots"][3], again["shots"][1]]   # another order
+    assert any("the LOOK repeats film_a" in a for a in pf.skeleton_advice(again, str(tmp_path / "film_b")))
+    footage = {"shots": [{"kind": "page", "recording": "caps/fan.layout.json"}, {"kind": "statement", "text": "x"},
+                         {"kind": "page", "recording": "caps/macro.layout.json", "layers": [{"kind": "count"}]}, {"kind": "outro"}]}
+    assert not any("LOOK" in a for a in pf.skeleton_advice(footage, str(tmp_path / "film_c")))

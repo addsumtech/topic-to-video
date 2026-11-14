@@ -777,31 +777,86 @@ def skeleton(spec):
     return "".join(letter.get(sh.get("kind"), "?") for sh in spec.get("shots") or []) + ("+vo" if narrated(spec) else "")
 
 
-def skeleton_advice(spec, film_dir):
-    """Advise when this film's structure repeats another film's (ledger outside the repo, one row per film folder)."""
-    import difflib
-    me = skeleton(spec)
+def look_signature(spec):
+    """The film's DESIGN as a set of tokens: the worlds it stages in, its staging devices (object, wall, page, footage,
+    statement), the acts it shows the product with, labels, links, a staged outro. Two films with nearly the same set
+    are one template with different pictures, whatever their order of blocks — the four showcase promos of 2026-11-14
+    all read "paper world, cards, numbered label, rings, wall" and the structure letters did not see it."""
+    toks, acts = set(), {}
+    for sh in spec.get("shots") or []:
+        if not isinstance(sh, dict):
+            continue
+        k = sh.get("kind")
+        toks.add("kind:%s" % k)
+        if sh.get("world"):
+            toks.add("world:%s" % sh["world"])
+        if isinstance(sh.get("label"), dict):
+            toks.add("label")
+        if sh.get("links"):
+            toks.add("links")
+        if k == "page" and sh.get("recording"):
+            toks.add("recording")
+        for it in (sh.get("items") or []) + (sh.get("tiles") or []):
+            for a in it.get("acts") or []:
+                if isinstance(a, dict):
+                    toks.add("act:%s" % a.get("kind"))
+                    acts[a.get("kind")] = acts.get(a.get("kind"), 0) + 1
+            if it.get("video"):
+                toks.add("live-video")
+        for a in (sh.get("layers") or sh.get("acts") or []):
+            if isinstance(a, dict):
+                toks.add("act:%s" % a.get("kind"))
+                acts[a.get("kind")] = acts.get(a.get("kind"), 0) + 1
+    if acts:
+        toks.add("dominant-act:%s" % max(sorted(acts), key=lambda k: acts[k]))
+    return toks
+
+
+def look_core(toks):
+    """What a viewer sees as the design: the worlds, the staging devices, labels, links, footage and the act the film
+    leans on — not every act it uses once (those diluted the four promos' overlap to 0.58-0.83 while the eye saw one
+    template)."""
+    return {t for t in toks if not t.startswith("act:")}
+
+
+def _ledger():
     try:
         led = json.load(open(LEDGER, encoding="utf-8"))
     except (OSError, ValueError):
         led = {}
+    # rows were the structure string alone before the look was recorded
+    return {k: (v if isinstance(v, dict) else {"skeleton": v}) for k, v in led.items()}
+
+
+def skeleton_advice(spec, film_dir):
+    """Advise when this film's structure, or its LOOK, repeats another film's (ledger outside the repo, one row per
+    film folder)."""
+    import difflib
+    me, look = skeleton(spec), look_signature(spec)
     out = []
-    for other, sk in led.items():
+    for other, row in _ledger().items():
         if os.path.abspath(other) == os.path.abspath(film_dir):
             continue
+        name = os.path.basename(other.rstrip("/"))
+        sk = row.get("skeleton") or ""
         r = difflib.SequenceMatcher(None, me, sk).ratio()
         if r >= 0.8:
             out.append("structure %s repeats %s (%s, %.0f %% alike) — design this film's own arc (references/promo-film.md "
-                       "§design): its hook, its proof, its payoff come from THIS product" % (me, os.path.basename(other.rstrip("/")), sk, r * 100))
+                       "§design): its hook, its proof, its payoff come from THIS product" % (me, name, sk, r * 100))
+        theirs = look_core(set(row.get("look") or []))
+        mine = look_core(look)
+        if len(mine) >= 5 and len(theirs) >= 5:
+            j = len(mine & theirs) / float(len(mine | theirs))
+            if j >= 0.75:
+                out.append("the LOOK repeats %s (%.0f %% of the same worlds, staging and acts: %s) — the same template with "
+                           "other pictures. Design this product's film from its own medium (references/promo-film.md "
+                           "§design: the product's medium)" % (name, j * 100, ", ".join(sorted(mine & theirs))))
     return out
 
 
 def record_skeleton(spec, film_dir):
-    try:
-        led = json.load(open(LEDGER, encoding="utf-8"))
-    except (OSError, ValueError):
-        led = {}
-    led[os.path.abspath(film_dir)] = skeleton(spec)
+    led = _ledger()
+    led[os.path.abspath(film_dir)] = {"skeleton": skeleton(spec), "look": sorted(look_signature(spec))}
     os.makedirs(os.path.dirname(LEDGER), exist_ok=True)
     json.dump(led, open(LEDGER, "w", encoding="utf-8"), indent=1)
 
@@ -1521,15 +1576,44 @@ def glide_check(film, spec_path, video):
             print(line + "  ok")
             continue
         shot = dict(spec["shots"][beat - 1])
-        if not (shot.get("layers") or shot.get("acts")):
+        posters = []
+        if shot.get("kind") in ("object", "wall"):
+            # A STAGED SHOT's own motion is its items' acts and its live videos — content, not the camera: four delivered
+            # films playing as objects read 22.7 % "shimmer" from the films' own slow moves (topic-to-video, 2026-11-14).
+            # The proxy holds every item still: acts and links removed, a video replaced by its first frame.
+            key = "items" if shot.get("kind") == "object" else "tiles"
+            moving = any(it.get("acts") or it.get("video") for it in shot.get(key) or []) or shot.get("links")
+            if not moving:
+                print(line + "   <- the CAMERA steps or shimmers")
+                bad.append(beat - 1)
+                continue
+            still_items = []
+            for j, it in enumerate(shot.get(key) or []):
+                it = {k: v for k, v in it.items() if k != "acts"}
+                if it.get("video"):
+                    pp = os.path.join(film, "_promo_cam_poster_%d_%d.png" % (beat, j))
+                    t0 = float(it.get("videoStart") or 0) / FPS
+                    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "%.3f" % t0, "-i", os.path.join(film, it["video"]),
+                                    "-frames:v", "1", pp], check=True)
+                    posters.append(pp)
+                    for k in ("video", "vw", "vh", "crop", "videoStart", "vscale"):
+                        it.pop(k, None)
+                    it["src"] = os.path.basename(pp)
+                still_items.append(it)
+            shot[key] = still_items
+            shot.pop("links", None)
+            keep = None
+        elif not (shot.get("layers") or shot.get("acts")):
             print(line + "   <- the CAMERA steps or shimmers")
             bad.append(beat - 1)
             continue
-        # the camera-only proxy keeps the shot's MACROS: they are part of what the camera films (a push past the page's
-        # 2x is onto them), and without them a macro close-up was re-judged as a push into a soft page
-        keep = [l for l in (shot.get("layers") or shot.get("acts") or []) if l.get("kind") == "macro"]
-        shot.pop("layers", None), shot.pop("acts", None), shot.pop("caption", None)
-        shot["layers"] = keep
+        else:
+            # the camera-only proxy keeps the shot's MACROS: they are part of what the camera films (a push past the
+            # page's 2x is onto them), and without them a macro close-up was re-judged as a push into a soft page
+            keep = [l for l in (shot.get("layers") or shot.get("acts") or []) if l.get("kind") == "macro"]
+        if keep is not None:
+            shot.pop("layers", None), shot.pop("acts", None), shot.pop("caption", None)
+            shot["layers"] = keep
         proxy = dict(spec, shots=[shot])
         tmp = tempfile.mkdtemp(prefix="promo_cam_")
         pj = os.path.join(film, "_promo_cam_%d.json" % beat)
@@ -1540,6 +1624,9 @@ def glide_check(film, spec_path, video):
             rc_ = pg.judge_span(mp4, 8, int(round(shot["dur"])) - 8, W, H, fps)
         finally:
             os.remove(pj)
+            for pp in posters:
+                if os.path.exists(pp):
+                    os.remove(pp)
         cam_bad = rc_ is not None and rc_.get("rms") is not None and (rc_["rms"] > pg.FAIL_RMS or (rc_.get("shimmer") or 0) > pg.FAIL_SHIMMER)
         if cam_bad:
             print(line + "   <- the CAMERA steps or shimmers (camera-only: %.3f px, shimmer %s)"

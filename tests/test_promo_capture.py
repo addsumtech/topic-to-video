@@ -179,3 +179,23 @@ def test_a_blank_part_is_refused_by_name(tmp_path):
     ImageDraw.Draw(im).rectangle([40, 40, 200, 90], fill=(30, 30, 30))
     im.save(drawn)
     pc._refuse_blank(str(drawn), "part ok")
+
+
+def test_footage_becomes_a_recording_a_page_shot_plays(tmp_path):
+    """A Blender plate or a delivered film, as a recording (slide-maker's printed deck, 2026-11-14): video, poster,
+    2x size, no events; a clip too small to fill the frame is refused."""
+    import shutil
+    import subprocess
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg needed")
+    clip = tmp_path / "plate.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=1920x1080:rate=30:duration=1",
+                    "-pix_fmt", "yuv420p", str(clip)], check=True)
+    lay = pc.footage(str(tmp_path), str(clip), "fan")
+    assert lay["video"] == "caps/fan.mp4" and lay["src"] == "caps/fan.png" and (lay["w"], lay["h"]) == (960, 540)
+    assert lay["events"] == [] and os.path.isfile(tmp_path / "caps" / "fan.png")
+    small = tmp_path / "small.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=640x360:rate=30:duration=1",
+                    "-pix_fmt", "yuv420p", str(small)], check=True)
+    with pytest.raises(SystemExit):
+        pc.footage(str(tmp_path), str(small), "tiny")

@@ -6,6 +6,8 @@
                                      [--hires="text:862 kB;css:#export;520,300,240,120"]   # 4x close-ups
     python3 scripts/promo_capture.py <film_dir> --boxes=<capture.png> [--parts="card=7;panel=120,80,400,260"]
                                      # a screenshot with no DOM (desktop app); parts by found-box id or CSS box
+    python3 scripts/promo_capture.py <film_dir> --footage=<clip.mp4> --name=<n>
+                                     # rendered FOOTAGE (a Blender plate, a film) as a recording a page shot plays
     python3 scripts/promo_capture.py <film_dir> --mark=<capture.png> --box=x,y,w,h [--name=mark]
                                      # the brand's own logo, cut from its own page: a transparent PNG for any ground
 
@@ -503,6 +505,30 @@ def screenshot_parts(png, lay, spec, name, film, density=2):
     return out
 
 
+def footage(film, clip, name):
+    """Rendered footage as a RECORDING (the layout promo_record writes): caps/<name>.mp4 (H.264, the film's 30 fps),
+    its first frame as the poster, its size as a 2x capture, no events. A page shot naming `recording` then plays it
+    full frame under the table's camera, cuts and sound — a product film can be made of physical shots (Blender plates
+    under the product studio: slide-maker's printed deck, 2026-11-14), not only of captured pages."""
+    import subprocess
+    caps = os.path.join(film, "caps")
+    os.makedirs(caps, exist_ok=True)
+    mp4 = os.path.join(caps, name + ".mp4")
+    png = os.path.join(caps, name + ".png")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", clip, "-r", "30", "-c:v", "libx264", "-preset", "slow", "-crf", "14",
+                    "-pix_fmt", "yuv420p", "-an", mp4], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mp4, "-frames:v", "1", png], check=True)
+    out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,nb_frames",
+                          "-of", "csv=p=0", mp4], capture_output=True, text=True, check=True).stdout.strip().split(",")
+    w, h, n = int(out[0]), int(out[1]), int(out[2]) if len(out) > 2 and out[2].isdigit() else 0
+    if w < 1280:
+        raise SystemExit("[promo_capture] footage %s is %d px wide: a full-frame shot needs >= 1280 (it would be upscaled)" % (clip, w))
+    lay = {"src": "caps/%s.png" % name, "video": "caps/%s.mp4" % name, "w": w // 2, "h": h // 2, "fps": 30, "frames": n,
+           "events": [], "elements": [], "footage": os.path.basename(clip)}
+    json.dump(lay, open(os.path.join(caps, name + ".layout.json"), "w"), indent=1)
+    return lay
+
+
 def cut_mark(png, box, out_png):
     """The logo as the page draws it, cut out (CSS box on a 2x capture) with its flat ground keyed to alpha, so the
     same mark sits on a light or a dark ground. The ground is the box's border colour. Ink INTERIORS stay opaque at
@@ -554,8 +580,14 @@ def main(argv):
     if not argv or argv[0].startswith("-"):
         print(__doc__.strip())
         return 0 if argv[:1] in (["--help"], ["-h"]) else 2
-    refuse_unknown(argv[1:], valued=("name", "width", "height", "wait", "eval", "select", "max", "boxes", "mark", "box", "hires", "parts", "parts-scale"), switches=("full",))
+    refuse_unknown(argv[1:], valued=("name", "width", "height", "wait", "eval", "select", "max", "boxes", "mark", "box", "hires", "parts", "parts-scale", "footage"), switches=("full",))
     film = os.path.abspath(argv[0])
+    fo = argflag(argv, "footage", None)
+    if fo:
+        lay = footage(film, fo if os.path.isabs(fo) else os.path.join(film, fo), argflag(argv, "name", "footage"))
+        print("[promo_capture] footage -> %s (%dx%d CSS, %d frames): name it as a page shot's `recording`"
+              % (lay["video"], lay["w"], lay["h"], lay["frames"]))
+        return 0
     mk = argflag(argv, "mark", None)
     if mk:
         box = [float(v) for v in (argflag(argv, "box", "") or "").split(",") if v.strip()]

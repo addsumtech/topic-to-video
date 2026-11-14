@@ -314,6 +314,24 @@ take their look from the film's design DNA (`lookFromDna`).
 - **Captions.** The camera frames the zone above the caption band, and the page fades into the ground under it, so
   the caption sits on the frame's own ground.
 
+## The product's medium — the film's look comes from what the product MAKES (before any block)
+
+The four showcase promos of 2026-11-14 were one template — a pale paper world, cards, a numbered label, a ring
+stepping each row, a wall, statements — with different pictures; the user: "都类似一个模版 ... 不要一个模版一直用 ...
+每一个都给我一个完全不一样的设计". The staging below (§ Staging) is ONE language, not the default for every product.
+
+1. **Name what the product makes, and film THAT as a physical or living thing.** A deck tool makes pages: print them
+   and film them on a desk under the product studio (slide-maker: real pages on photo paper, Blender plates, the
+   pages fanning, one lifting to the lens and becoming the live slide). A film-maker makes films: the film is made of
+   its films. A document tool makes documents; a dashboard tool makes numbers that move.
+2. **Show 2-3 genuinely different directions as BUILT hero frames** (rendered, not described), each a different
+   medium or world, and let the user pick before building the film.
+3. **Mix the tools by what each does best.** Physical shots are Blender plates under `kit.studio.product_light`
+   (`promo_capture.py --footage=<mp4>` turns a render into a recording a page shot plays full frame); type, live
+   pages and transitions are the promo layer's.
+4. **`check` compares every film's LOOK** (its worlds, staging devices, labels, links, footage and dominant act) with
+   the films made before it and advises at 75 % alike: a repeat is a template, whatever the order of its blocks.
+
 ## Design the film's own arc (no fixed structure)
 
 There is NO default sequence. "Brand open → chapter card → product shots → chapter card → recall outro" is ONE possible
