@@ -230,3 +230,13 @@ def test_validate_surfaces_the_music_note():
                          "narration": "一句话。", "duration": 4.0}]}
     r = v.evaluate(board, _HERE)
     assert [w for w in r["warnings"] if w.startswith("music:")], r["warnings"][:6]
+
+
+def test_a_real_product_film_is_the_product_film_and_only_for_product_purposes():
+    import tier_advice as ta
+    for p in ("launch", "promo", "pitch", "overview"):
+        assert ta.recommend(p, product=True)["tier"] == "promo"
+    assert ta.recommend("teach", product=True)["tier"] == "html"       # an explainer of a product still binds to the voice
+    assert ta.recommend("launch", product=True, remotion_ok=False)["tier"] != "promo"   # promo_film renders with remotion
+    assert ta.recommend("launch", product=True, chrome_ok=False)["tier"] != "promo"     # and captures with Chrome
+    assert ta.recommend("launch")["tier"] == "remotion"                # no product: unchanged

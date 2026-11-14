@@ -203,3 +203,123 @@ def test_new_kinds_and_the_through_cut_are_checked(film):
                      {"kind": "statement", "dur": 50, "text": "x", "ground": "neon"}]}
     errs = pf.check(bad, str(film))[0]
     assert any("outside" in e for e in errs) and any("ground" in e for e in errs)
+
+
+# ---- recordings, the count act, the morph cut ----------------------------------------------------------------------
+
+@pytest.fixture
+def recording(film):
+    import json
+    from PIL import Image
+    caps = film / "caps"
+    caps.mkdir()
+    Image.new("RGB", (800, 600), "white").save(caps / "rec.png")
+    (caps / "rec.mp4").write_bytes(b"\0")
+    lay = {"src": "caps/rec.png", "video": "caps/rec.mp4", "w": 400, "h": 300, "fps": 30, "frames": 90, "elements": [],
+           "events": [{"frame": 20, "kind": "click", "x": 100, "y": 80},
+                      {"frame": 50, "kind": "drag", "from": [100, 80], "to": [300, 80], "until": 70},
+                      {"frame": 200, "kind": "click", "x": 5, "y": 5}]}
+    (caps / "rec.layout.json").write_text(json.dumps(lay))
+    return film
+
+
+def rec_shot(**kw):
+    s = {"kind": "page", "dur": 60, "recording": "caps/rec.layout.json", "keys": [{"f": 0, "cx": 200, "cy": 150, "zoom": 1.2}]}
+    s.update(kw)
+    return s
+
+
+def test_a_recording_shot_takes_its_poster_and_size_from_the_recording(recording):
+    errs, _ = pf.check({"shots": [{"kind": "title", "dur": 56, "text": "One *idea.*"}, rec_shot()]}, str(recording))
+    assert errs == []
+    out = pf.resolve_recordings(str(recording), {"shots": [rec_shot()]})["shots"][0]
+    assert (out["src"], out["video"], out["w"], out["h"]) == ("caps/rec.png", "caps/rec.mp4", 400, 300)
+
+
+def test_a_recording_gets_a_cursor_on_the_recorded_frames_shifted_by_videoStart(recording):
+    out = pf.resolve_recordings(str(recording), {"shots": [rec_shot(videoStart=10)]})["shots"][0]
+    cur = [a for a in out["layers"] if a["kind"] == "cursor"]
+    assert len(cur) == 1
+    assert cur[0]["clicks"] == [10]                         # frame 20 of the recording is frame 10 of the shot
+    fs = [p["f"] for p in cur[0]["path"]]
+    assert fs == sorted(fs) and len(set(fs)) == len(fs)     # a path that only moves forward in time
+    assert cur[0]["path"][-1]["x"] == 300 and cur[0]["path"][-1]["f"] == 60   # the drag ends where it was released
+    # an event past the shot's end is not drawn; a shot with its own cursor or cursor:false gets none
+    assert all(p["f"] <= 60 for p in cur[0]["path"])
+    mine = {"kind": "cursor", "path": [{"f": 0, "x": 1, "y": 1}]}
+    assert pf.resolve_recordings(str(recording), {"shots": [rec_shot(layers=[mine])]})["shots"][0]["layers"] == [mine]
+    assert pf.resolve_recordings(str(recording), {"shots": [rec_shot(cursor=False)]})["shots"][0]["layers"] == []
+
+
+def test_a_recording_that_is_missing_or_too_short_is_named(recording):
+    errs, _ = pf.check({"shots": [rec_shot(recording="caps/nope.json")]}, str(recording))
+    assert any("does not exist" in e for e in errs)
+    _, adv = pf.check({"shots": [rec_shot(dur=80, videoStart=30)]}, str(recording))
+    assert any("run past it" in a for a in adv)
+
+
+@pytest.mark.parametrize("shots, words", [
+    ([page(cut="morph")], "first shot"),
+    ([{"kind": "title", "dur": 56, "text": "One *idea.*"}, page(cut="morph", morphFrom={"x": 0.8, "y": 0.1, "w": 0.4, "h": 0.1})], "FRACTIONS"),
+    ([page(layers=[{"kind": "count", "box": {"x": 10, "y": 10, "w": 40, "h": 20}, "to": "69"}])], "`to` must be"),
+])
+def test_morph_and_count_are_refused_when_they_cannot_render(film, shots, words):
+    errs, _ = pf.check({"shots": shots}, str(film))
+    assert any(words in e for e in errs), errs
+
+
+def test_a_good_morph_and_count_pass(film):
+    shots = [{"kind": "title", "dur": 56, "text": "One *idea.*"},
+             page(cut="morph", morphFrom={"x": 0.2, "y": 0.6, "w": 0.1, "h": 0.12},
+                  layers=[{"kind": "count", "box": {"x": 10, "y": 10, "w": 40, "h": 20}, "to": 69, "at": 8}])]
+    errs, _ = pf.check({"shots": shots}, str(film))
+    assert errs == []
+
+
+def test_a_recording_at_another_rate_is_timed_in_film_frames(recording):
+    import json
+    lay = json.loads((recording / "caps" / "rec.layout.json").read_text())
+    lay.update(fps=10, frames=30)                                # 3 s at 10 fps = 90 film frames
+    (recording / "caps" / "rec.layout.json").write_text(json.dumps(lay))
+    cur = [a for a in pf.resolve_recordings(str(recording), {"shots": [rec_shot(dur=90)]})["shots"][0]["layers"] if a["kind"] == "cursor"][0]
+    assert cur["clicks"] == [60]                                 # recording frame 20 at 10 fps is film frame 60
+    _, adv = pf.check({"shots": [rec_shot(dur=90)]}, str(recording))
+    assert not any("run past" in a for a in adv), adv            # 90 film frames: it does not run past
+    _, adv = pf.check({"shots": [rec_shot(dur=100)]}, str(recording))
+    assert any("run past" in a for a in adv)
+
+
+def test_a_light_mark_on_a_dark_film_gets_no_plate_and_a_dark_one_does(film):
+    from PIL import Image
+    Image.new("RGBA", (40, 20), (248, 232, 28, 255)).save(film / "light.png")     # a yellow wordmark
+    Image.new("RGBA", (40, 20), (20, 20, 24, 255)).save(film / "darkm.png")
+    dark = pf.derive_look({"accent": "#f8e81c", "mode": "dark"})
+    light = pf.derive_look({"accent": "#f8e81c", "mode": "light"})
+    shots = lambda m, **kw: {"shots": [dict({"kind": "outro", "dur": 100, "mark": m, "aspect": 2}, **kw)]}  # noqa: E731
+    assert pf.resolve_marks(str(film), shots("light.png"), dark)["shots"][0]["plate"] is False
+    assert "plate" not in pf.resolve_marks(str(film), shots("darkm.png"), dark)["shots"][0]       # default: the plate
+    assert "plate" not in pf.resolve_marks(str(film), shots("light.png"), light)["shots"][0]      # no plate on light
+    assert pf.resolve_marks(str(film), shots("light.png", plate=True), dark)["shots"][0]["plate"] is True   # authored wins
+    assert "plate" not in pf.resolve_marks(str(film), shots("mark.svg"), dark)["shots"][0]       # unreadable: default
+
+
+def test_a_box_written_as_a_list_is_named_not_a_traceback(film):
+    shots = [page(layers=[{"kind": "pop", "box": [10, 10, 100, 40], "at": 10, "src": "other.png"},
+                          {"kind": "macro", "box": [10, 10, 20, 20], "src": "other.png"}])]
+    errs, _ = pf.check({"shots": shots}, str(film))
+    assert sum("a box is {" in e for e in errs) == 2, errs
+    assert all(e.startswith("shot 0 ") for e in errs if "a box is" in e)       # numbered from 0, as everywhere
+
+
+@pytest.mark.parametrize("aspect", ["16:9", "9:16", "1:1"])
+def test_a_key_made_by_the_helper_never_frames_past_the_page(film, aspect):
+    import random
+    rnd = random.Random(3)
+    for _ in range(40):
+        z = rnd.uniform(1.0, 2.0)
+        k = pf.key(0, rnd.uniform(-300, 1100), rnd.uniform(-300, 900), z, 400, 300, aspect=aspect)
+        shot = page(keys=[k], layers=[])
+        _, adv = pf.check({"aspect": aspect, "shots": [shot]}, str(film))
+        assert not any("past the page's edge" in a for a in adv), (k, adv)
+    tilted = pf.key(0, -500, 150, 1.2, 400, 300, ry=12)
+    assert tilted["cx"] == -500                                   # a tilted object shot is not clamped

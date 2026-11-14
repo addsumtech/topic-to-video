@@ -2,7 +2,7 @@
 """promo_capture — the promo film's raw material: a 2x capture of a page AND the boxes of its elements.
 
     python3 scripts/promo_capture.py <film_dir> <url> --name=home [--width=1440] [--height=900] [--full]
-                                     [--wait=1.5] [--eval="js; steps split by a line ;;;"] [--select="css,css"] [--max=80]
+                                     [--wait=1.5] [--eval="js ;;; js" (steps split by ;;;)] [--select="css,css"] [--max=80]
                                      [--hires="7;520,300,240,120"]   # 4x close-up captures: element ids or CSS boxes
     python3 scripts/promo_capture.py <film_dir> --boxes=<capture.png>     # a screenshot with no DOM (desktop app)
     python3 scripts/promo_capture.py <film_dir> --mark=<capture.png> --box=x,y,w,h [--name=mark]
@@ -78,6 +78,14 @@ ELEMENTS_JS = r"""
 HIRES = 4
 
 
+
+def split_steps(js):
+    """`--eval` / `--setup` steps, split on `;;;` with or without whitespace or newlines round it. Measured: the docs
+    wrote `"js ;;; js"` on one line while the split wanted `\n;;;\n`, and `;;;` is VALID JavaScript (three empty
+    statements) — so the steps silently ran as one, unsettled, and only the last one's value came back."""
+    import re
+    return [x.strip() for x in re.split(r"\s*;;;\s*", js or "") if x.strip()]
+
 def _hires_boxes(spec, els):
     """`--hires` items: an element id from this capture (`7`) or a CSS box (`x,y,w,h`), `;`-separated."""
     out = []
@@ -127,7 +135,7 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
             c._cmd("Runtime.evaluate", {"expression": expr, "awaitPromise": True, "returnByValue": True}, c.sid)
         time.sleep(wait)
         eval_results = []
-        for step in [x for x in (js or "").split("\n;;;\n") if x.strip()]:
+        for step in split_steps(js):
             # one state change per step (load a scene and reload; then open a dialog), each settled before the next.
             # What a step RETURNS is printed and kept in the layout (`eval`): a step may ask the page a question
             try:
@@ -306,8 +314,8 @@ def overlay(png, lay, out_jpg):
 
 def main(argv):
     if not argv or argv[0].startswith("-"):
-        print(__doc__.strip().splitlines()[0])
-        return 2
+        print(__doc__.strip())
+        return 0 if argv[:1] in (["--help"], ["-h"]) else 2
     refuse_unknown(argv[1:], valued=("name", "width", "height", "wait", "eval", "select", "max", "boxes", "mark", "box", "hires"), switches=("full",))
     film = os.path.abspath(argv[0])
     mk = argflag(argv, "mark", None)

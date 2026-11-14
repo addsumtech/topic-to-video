@@ -307,6 +307,28 @@ finding it prints that you do not understand.
   - **`--mark`** cuts a logo from its own page, keying the flat ground to alpha (un-premultiplied, no halo).
   - Why: the first promo's boxes were measured by hand off grids, and a box one cell off is an element landing beside
     its slot.
+- `scripts/promo_record.py <dir> <url> --name=n [--seconds=6] [--script=steps.json] [--setup="js ;;; js"] [--width --height --fps --wait]`
+  records a page acting out a script (references/promo-film.md "Recordings").
+  - **Clock.** After load and `--setup` (real time, awaited: put async work here), the time the page can see is
+    replaced (`CLOCK_JS`): performance.now, Date, setTimeout/setInterval and requestAnimationFrame run on a clock the
+    recorder advances exactly 1000/fps ms per frame (due timers in order, then one rAF round). The page itself renders
+    in real time, so every screenshot has a frame. One 2x JPEG (q95) per frame, encoded crf 14.
+    - Why not Chrome's virtual time (the first design): under budgets under ~100 ms a still page produced NO new
+      frame and captureScreenshot waited forever. 30 fps never recorded on a still page; it passed only on pages that
+      never stop animating, and at 10 fps (the Carbon end-to-end run hit it at 30/25/20/15 fps).
+  - **Animations pinned by hand.** Each frame, every `document.getAnimations()` entry is paused and set to
+    (frame time − first seen). Why: transform/opacity animations run on the compositor, on its own clock. Under
+    virtual time a 0.5 s transform transition read 2/3 pace, then snapped to its end, its first frame varying run to
+    run. Pinned, the tests read exactly 0, 20, 40 … 300 px at 30 fps (and 60 px steps at 10 fps) for a CSS
+    transition, a rAF loop and a setTimeout-delayed start alike.
+  - **Scroll is driven by us** (eased instant `scrollTo` per frame): a smooth `scrollBy` runs on the compositor, off
+    the frame clock. A `scrollTo` promise is not awaited, and neither is a script `eval` step.
+  - Writes `caps/n.mp4`, `caps/n.png` (poster), `caps/n.layout.json` (elements + `events` with frames).
+- `scripts/stereo.py` (library): `pan`, `sweep` (follows the sound's cumulative energy, so a late-swelling whoosh
+  crosses the field while loud), `widen` (dry centre + two decorrelated rooms: a delayed copy would comb in mono),
+  `place(x, how)`, `measure(lr)` (corr, mono fold-down loss, balance). Used by promo_film's mix with
+  `sfx.build_sfx_stereo` (same takes, repeats and peak alignment as `build_sfx_track`, whose mono output is
+  byte-identical after the shared refactor).
 - `scripts/picture_glide_qa.py <out_dir|promo_dir> [--spec=] [--video=]` | `--clip <mp4> [--from --to]` | `--calibrate`:
   does a PICTURE under a moving camera glide or step? It reads the pixels.
   - **Method.**
@@ -342,7 +364,8 @@ finding it prints that you do not understand.
       every aspect);
     - keys out of order or aimed off the capture, a box off its capture (or off the OTHER capture a `pop` takes its
       element from), an unknown act;
-    - a cut that is not carry/flash/hard, an outro recalling a non-page shot;
+    - a cut that is not carry/flash/hard/through/morph, a `morph` into the first shot or a `morphFrom` outside the
+      frame, a `count` whose `to` is not a number, a missing recording or its video, an outro recalling a non-page shot;
     - accent ink under 4.5:1 on the paper.
     - Shot lengths outside the band are advised, not refused.
   - **`derive_look`** fills a look from `{accent, mode}`.

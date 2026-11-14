@@ -8,7 +8,7 @@
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {span, useLook, parseUnits, typeScale, isDarkHex, isCJK, alpha, SERIF, SANS, MONO, type Box} from './kit';
-import {CardGround} from './Cards';
+import {CardGround, inkOn} from './Cards';
 import {BASELINE_UNLOCK} from '../runtime/glide';
 
 const U = BASELINE_UNLOCK;
@@ -39,7 +39,9 @@ export const Statement: React.FC<{text: string; dur: number; ground?: 'paper' | 
   const chars = units.reduce((n, u) => n + (cjk ? 1 : u.text.length + 1), 0);
   const px = size ? size * s : Math.min(170 * s, (W * 0.84) / Math.max(4, chars * (cjk ? 1.0 : 0.52)) * (chars > 26 ? 1.7 : 1));
   const bg = ground === 'accent' ? look.accent : ground === 'ink' ? look.ink : look.paper;
-  const fg = ground === 'paper' ? look.ink : isDarkHex(bg) ? '#ffffff' : look.ink;
+  // on any ground but the paper, the ink that reads best on it from the film's own (on a dark look `ink` IS the light
+  // colour: the old rule drew cream type on the cream `ink` ground, an empty frame)
+  const fg = ground === 'paper' ? look.ink : inkOn(bg, [look.paper, look.ink, '#ffffff', '#141413']);
   const acc = ground === 'paper' ? look.accentInk : fg;
   const out = span(frame, dur - 6, dur, 'exit');
   const body = (

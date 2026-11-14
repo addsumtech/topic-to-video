@@ -7,20 +7,22 @@
 // shot's own start. Sound is not drawn here: scripts/promo_film.py pins the cues to the same table.
 import React from 'react';
 import {AbsoluteFill, Freeze, Sequence, useCurrentFrame, useVideoConfig} from 'remotion';
+import {span} from './kit';
 import {LookContext, DEFAULT_LOOK, type Look} from './kit';
 import {PageCam, Ground, type CamKey, type Macro} from './PageCam';
 import {Layers, OVERLAY_KINDS, type LayerSpec} from './Layers';
 import {ChapterCard, FlashCut, CaptionStrip, BrandOpen, RecallOutro, carryStyle} from './Cards';
 import {Statement, Compare, Montage, Subtitles, throughStyle, type Region, type Sub} from './Shots';
 
-type Cut = 'carry' | 'flash' | 'hard' | 'through';
+type Cut = 'carry' | 'flash' | 'hard' | 'through' | 'morph';
 export type PageShot = {kind: 'page'; dur: number; src: string; w: number; h: number; keys: CamKey[]; layers?: LayerSpec[]; acts?: LayerSpec[];
-  caption?: {text: string; at?: number; dur?: number}; cut?: Cut; radius?: number; maxZoom?: number; contain?: boolean};
+  caption?: {text: string; at?: number; dur?: number}; cut?: Cut; radius?: number; maxZoom?: number; contain?: boolean;
+  video?: string; videoStart?: number};
 export type Shot =
-  | {kind: 'brand'; dur: number; mark: string; aspect: number; kicker?: string; markH?: number; cut?: Cut}
+  | {kind: 'brand'; dur: number; mark: string; aspect: number; kicker?: string; markH?: number; plate?: boolean; cut?: Cut}
   | {kind: 'title'; dur: number; text: string; kicker?: string; sub?: string; size?: number; index?: number | false; cut?: Cut}
   | PageShot
-  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string}
+  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string; plate?: boolean}
   | {kind: 'statement'; dur: number; text: string; ground?: 'paper' | 'accent' | 'ink'; size?: number; sub?: string; cut?: Cut}
   | {kind: 'compare'; dur: number; a: Region; b: Region; labelA?: string; labelB?: string; at?: number; sweep?: number; cut?: Cut}
   | {kind: 'montage'; dur: number; items: Region[]; every?: number; full?: boolean; cut?: Cut};
@@ -42,7 +44,7 @@ const capSpan = (s: PageShot) => (s.caption?.dur ?? Math.max(20, Math.round(s.du
 export const PageShotView: React.FC<{s: PageShot}> = ({s}) => (
   <AbsoluteFill>
     <Ground />
-    <PageCam src={s.src} w={s.w} h={s.h} keys={s.keys} radius={s.radius} maxZoom={s.maxZoom} contain={s.contain}
+    <PageCam src={s.src} w={s.w} h={s.h} keys={s.keys} radius={s.radius} maxZoom={s.maxZoom} contain={s.contain} video={s.video} videoStart={s.videoStart}
       macros={(s.layers ?? s.acts ?? []).filter((l) => l.kind === 'macro') as Macro[]}
       overlay={<Layers layers={(s.layers ?? s.acts ?? []).filter((l) => OVERLAY_KINDS.includes(l.kind))} src={s.src} pageW={s.w} pageH={s.h} />}>
       <Layers layers={(s.layers ?? s.acts ?? []).filter((l) => !OVERLAY_KINDS.includes(l.kind))} src={s.src} pageW={s.w} pageH={s.h} />
@@ -75,6 +77,29 @@ const Carried: React.FC<{dur: number; dirIn: number; dirOut: number; inn: boolea
   return <AbsoluteFill style={carryStyle(frame, dur, dirIn, dirOut, W, inn, out)}>{children}</AbsoluteFill>;
 };
 
+const MORPH = 16;
+/** A container transform: the next shot starts as the box (the thumbnail, the button), its picture SCALED into it (cover)
+ *  and clipped to it, and the box and the picture grow together to the whole frame on an in-out curve — so the first
+ *  frames read as "that thing lifting off the page", not as a hole opening. It fades up over 3 frames so the swap from
+ *  the box's own pixels to the shot's is not a pop. */
+const MorphIn: React.FC<{from?: {x: number; y: number; w: number; h: number}; children: React.ReactNode}> = ({from = {x: 0.42, y: 0.42, w: 0.16, h: 0.16}, children}) => {
+  const frame = useCurrentFrame();
+  const {width: W, height: H} = useVideoConfig();
+  const p = span(frame, 0, MORPH, 'smooth');
+  const bx = from.x * (1 - p), by = from.y * (1 - p);
+  const bw = from.w + (1 - from.w) * p, bh = from.h + (1 - from.h) * p;
+  const k0 = Math.max(from.w, from.h);                        // the picture covers the box at the start
+  const k = k0 + (1 - k0) * p;
+  const cx = (bx + bw / 2) * W, cy = (by + bh / 2) * H;       // the picture stays centred on the box
+  const tx = cx - (k * W) / 2, ty = cy - (k * H) / 2;
+  const fade = span(frame, 0, 3, 'out');
+  return (
+    <AbsoluteFill style={{clipPath: `inset(${by * H}px ${(1 - bx - bw) * W}px ${(1 - by - bh) * H}px ${bx * W}px round ${(1 - p) * 22}px)`, opacity: fade}}>
+      <AbsoluteFill style={{transform: `translate(${tx}px, ${ty}px) scale(${k})`, transformOrigin: '0 0'}}>{children}</AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
 export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', subtitles = []}) => {
   const L: Look = {...DEFAULT_LOOK, ...(look ?? {})};
   for (const k of ['accent', 'accentInk', 'paper', 'ground'] as const) {
@@ -89,7 +114,7 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', sub
 
   const view = (s: Shot, i: number): React.ReactNode => {
     switch (s.kind) {
-      case 'brand': return <BrandOpen mark={s.mark} aspect={s.aspect} kicker={s.kicker} dur={s.dur} markH={s.markH} />;
+      case 'brand': return <BrandOpen mark={s.mark} aspect={s.aspect} kicker={s.kicker} dur={s.dur} markH={s.markH} plate={s.plate} />;
       case 'title': {
         const k = cards.indexOf(i);
         return <ChapterCard text={s.text} dur={s.dur} size={s.size} kicker={s.kicker ?? s.sub}
@@ -102,7 +127,7 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', sub
         const tiles = pick.filter((j) => shots[j]?.kind === 'page').map((j) => (
           <Freeze key={j} frame={Math.round(shots[j].dur * 0.9)}><PageShotView s={{...(shots[j] as PageShot), caption: undefined}} /></Freeze>
         ));
-        return <RecallOutro tiles={tiles} mark={s.mark} aspect={s.aspect} tagline={s.tagline} dur={s.dur} stampAt={s.stampAt} markH={s.markH} cta={s.cta} />;
+        return <RecallOutro tiles={tiles} mark={s.mark} aspect={s.aspect} tagline={s.tagline} dur={s.dur} stampAt={s.stampAt} markH={s.markH} cta={s.cta} plate={s.plate} />;
       }
       case 'statement': return <Statement text={s.text} dur={s.dur} ground={s.ground} size={s.size} sub={s.sub} />;
       case 'compare': return <Compare a={s.a} b={s.b} labelA={s.labelA} labelB={s.labelB} at={s.at} sweep={s.sweep} dur={s.dur} />;
@@ -124,6 +149,15 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', sub
             </Carried>
           </Sequence>
         ))}
+        {/* MORPH: the next shot grows out of a box of this one (a button opening into its panel) over the cut's last
+            frames — its first frame, held, clipped to the box and opening to the whole frame */}
+        {shots.map((s, i) => (cutInto(i) === 'morph' ? (
+          <Sequence key={`mo${i}`} from={starts[i] - MORPH} durationInFrames={MORPH}>
+            <MorphIn from={(s as {morphFrom?: {x: number; y: number; w: number; h: number}}).morphFrom}>
+              <Freeze frame={0}>{view(s, i)}</Freeze>
+            </MorphIn>
+          </Sequence>
+        ) : null))}
         {subtitles.length ? <Subtitles subs={subtitles} /> : null}
         {shots.map((_, i) => (cutInto(i) === 'flash' ? (
           <Sequence key={`fl${i}`} from={starts[i] - 5} durationInFrames={10}><FlashCut /></Sequence>

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """WHICH TIER, FOR WHAT — recommend a renderer from what the video is FOR and what it is ABOUT.
 
-    python3 scripts/tier_advice.py --purpose teach [--deck] [--keep-deck] [--data-dense yes|no]
+    python3 scripts/tier_advice.py --purpose teach [--deck] [--keep-deck] [--data-dense yes|no] [--product]
     python3 scripts/tier_advice.py --check <out_dir>        # does the chosen tier (or the music) fight the purpose?
 
 WHY THIS EXISTS. The tier question used to be asked as a choice between three LOOKS, and the purpose question
@@ -168,9 +168,14 @@ def data_density(texts):
     return (figure / float(len(units)) >= 0.5) or structure >= 2
 
 
+PRODUCT_PURPOSES = ("launch", "promo", "pitch", "overview")
+
+
 def recommend(purpose, has_deck=False, keep_deck=False, data_dense=None, remotion_ok=True, chrome_ok=True,
-              lang="zh"):
-    """{tier, why, trade, runner_up, basis} — the recommended tier and the honest reason for it."""
+              lang="zh", product=False):
+    """{tier, why, trade, runner_up, basis} — the recommended tier and the honest reason for it. `product`: the film
+    is about a REAL product the user can point at (a URL, an app's screenshots) — a launch/promo/pitch/overview of it
+    is then the product film (tier "promo": references/promo-film.md), the product shown as itself."""
     p = canonical_purpose(purpose)
     zh = str(lang or "").lower().startswith("zh")
 
@@ -197,6 +202,20 @@ def recommend(purpose, has_deck=False, keep_deck=False, data_dense=None, remotio
         return out("html", "这台机器没有 Chrome：会自动退到简单的程序化画面（安全网，不是推荐的外观）。",
                    "No Chrome: rendering falls back to plain programmatic scenes (a safety net, not a look).",
                    "装上 Chrome 才有设计过的页面。", "Install Chrome for designed pages.", None, "no-chrome")
+
+    # 3. A real product to show: its own pages, captured and recorded, under the page camera (promo_film). Needs the
+    #    remotion tier (it renders the film) and Chrome (it captures the product).
+    if product and p in PRODUCT_PURPOSES and remotion_ok:
+        return out("promo",
+                   "这是一个真实产品的%s片：用产品自己的页面（截图+录屏）在镜头下演示，配统一的品牌字卡和声音设计，"
+                   "片型（是否口播、结构）按产品自己的故事来定。" % {"launch": "发布", "promo": "宣传", "pitch": "推介",
+                                                                 "overview": "介绍"}[p],
+                   "A film about a real product: the product's own pages, captured and recorded, acting under the "
+                   "camera, with brand type and sound design; the structure and whether it speaks follow the "
+                   "product's own story.",
+                   "需要能打开产品（网址或截图）；没有的内容不能编造，只能展示产品自己有的。",
+                   "It needs the product itself (a URL or screenshots); nothing it does not show can be shown.",
+                   "remotion", "purpose:%s+product" % p)
 
     tier = PURPOSE_TIER.get(p) if p else None
     basis = "purpose:%s" % p if p else "purpose:unknown"
@@ -281,6 +300,7 @@ def main(argv):
     ap.add_argument("--data-dense", choices=("yes", "no"))
     ap.add_argument("--no-remotion", action="store_true")
     ap.add_argument("--no-chrome", action="store_true")
+    ap.add_argument("--product", action="store_true", help="the film is about a real product the user can point at (URL / screenshots)")
     ap.add_argument("--lang", default="zh")
     ap.add_argument("--check", metavar="OUT_DIR")
     a = ap.parse_args(argv)
@@ -296,7 +316,7 @@ def main(argv):
         ap.error("--purpose is required (or --deck --keep-deck)")
     dd = None if a.data_dense is None else a.data_dense == "yes"
     r = recommend(a.purpose, has_deck=a.deck, keep_deck=a.keep_deck, data_dense=dd,
-                  remotion_ok=not a.no_remotion, chrome_ok=not a.no_chrome, lang=a.lang)
+                  remotion_ok=not a.no_remotion, chrome_ok=not a.no_chrome, lang=a.lang, product=a.product)
     print(json.dumps(r, ensure_ascii=False, indent=1))
     return 0
 

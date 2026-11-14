@@ -37,6 +37,23 @@ SHOT_BAND_NOTE = "1.2-8 s; the reference films' product shots run 1.5-6 s"
 ASPECTS = {"16:9": (1920, 1080), "9:16": (1080, 1920), "1:1": (1080, 1080), "4:5": (1080, 1350), "4:3": (1440, 1080)}  # = remotion/src/Root.tsx ASPECTS
 
 
+def key(f, cx, cy, zoom, page_w, page_h, aspect="16:9", **extra):
+    """A straight-on camera key aimed at (cx, cy) whose view STAYS ON THE PAGE: the centre is moved in just enough that
+    the frame does not show past the page's edge at this zoom (the rule `check` advises on). For `compose.py`:
+    `pf.key(40, box_cx, box_cy, 1.6, L["w"], L["h"])`. A page smaller than the view at this zoom is centred on that
+    axis. Extra fields (ease, rx, ...) pass through; a tilted key is an object shot and is not clamped."""
+    fw, fh = ASPECTS.get(aspect, ASPECTS["16:9"])
+    eff = zoom * fw / 1920.0
+    vw, vh = fw / eff, fh / eff
+    k = dict(f=int(f), cx=float(cx), cy=float(cy), zoom=float(zoom), **extra)
+    if abs(extra.get("rx", 0)) + abs(extra.get("ry", 0)) + abs(extra.get("rz", 0)) >= 2:
+        return k
+    k["cx"] = page_w / 2.0 if vw >= page_w else min(max(cx, vw / 2.0), page_w - vw / 2.0)
+    k["cy"] = page_h / 2.0 if vh >= page_h else min(max(cy, vh / 2.0), page_h - vh / 2.0)
+    k["cx"], k["cy"] = round(k["cx"], 1), round(k["cy"], 1)
+    return k
+
+
 class SpecError(ValueError):
     pass
 
@@ -68,19 +85,37 @@ def check(spec, film_dir):
         return sizes.get(src)
 
     def inside(box, w, h, where):
+        if not isinstance(box, dict):
+            errs.append("%s: a box is {\"x\": .., \"y\": .., \"w\": .., \"h\": ..} in the capture's CSS px, not %r" % (where, box))
+            return
         if not all(k in box for k in ("x", "y", "w", "h")):
             errs.append("%s: box needs x, y, w, h" % where)
             return
         if box["w"] <= 0 or box["h"] <= 0 or box["x"] < 0 or box["y"] < 0 or box["x"] + box["w"] > w + 1 or box["y"] + box["h"] > h + 1:
             errs.append("%s: box %s is outside its %dx%d capture" % (where, box, w, h))
 
-    for i, s in enumerate(shots, 1):
-        where = "shot %d (%s)" % (i, s.get("kind"))
+    for i, s in enumerate(shots):
+        where = "shot %d (%s)" % (i, s.get("kind"))         # numbered from 0, as the table, the glide report and the sheet
         d = s.get("dur")
         if not isinstance(d, (int, float)) or d <= 0:
             errs.append("%s: dur must be a positive number of frames" % where)
             continue
         k = s.get("kind")
+        if k == "page" and s.get("recording"):
+            rp = os.path.join(film_dir, s["recording"])
+            if not os.path.isfile(rp):
+                errs.append("%s: recording %s does not exist" % (where, s["recording"]))
+            else:
+                L = json.load(open(rp, encoding="utf-8"))
+                if not os.path.isfile(os.path.join(film_dir, L.get("video", ""))):
+                    errs.append("%s: the recording's video %s is missing" % (where, L.get("video")))
+                # the recording plays at its own rate: its length in FILM frames is its frames x FPS / its fps
+                rec_len = int(L.get("frames", 0) * FPS / float(L.get("fps", FPS) or FPS))
+                if int(s.get("videoStart", 0)) + d > rec_len:
+                    adv.append("%s: the recording lasts %d film frames (%d at %s fps); from videoStart %d the shot's %d frames "
+                               "run past it (its last frame holds after)" % (where, rec_len, L.get("frames", 0), L.get("fps", FPS),
+                                                                          int(s.get("videoStart", 0)), d))
+                s = dict(s, src=L["src"], w=L["w"], h=L["h"])
         if k == "title":
             if not (TITLE_BAND[0] <= d <= TITLE_BAND[1]):
                 adv.append("%s: a title card of %d frames (band %d-%d)" % (where, d, *TITLE_BAND))
@@ -124,19 +159,20 @@ def check(spec, film_dir):
                     errs.append("%s: key f=%s aims off the capture (%s, %s)" % (where, kk.get("f"), kk.get("cx"), kk.get("cy")))
             for j, l in enumerate(s.get("layers") or s.get("acts") or [], 1):
                 lw = "%s layer %d (%s)" % (where, j, l.get("kind"))
-                if l.get("kind") not in ("pop", "lift", "focus", "ring", "type", "cursor", "callout", "note", "macro", "deal", "write"):
+                if l.get("kind") not in ("pop", "lift", "focus", "ring", "type", "cursor", "callout", "note", "macro", "deal", "write", "count"):
                     errs.append("%s: unknown layer kind" % lw)
                 if l.get("kind") == "macro":
                     msz = cap(l.get("src", ""), lw)
                     b, sc = l.get("box") or {}, float(l.get("scale", 4))
-                    if msz and b and (abs(msz[0] - b.get("w", 0) * sc) > 3 or abs(msz[1] - b.get("h", 0) * sc) > 3):
+                    if msz and isinstance(b, dict) and b and (abs(msz[0] - b.get("w", 0) * sc) > 3 or abs(msz[1] - b.get("h", 0) * sc) > 3):
                         errs.append("%s: %s is %dx%d px, not its box %sx%s at %gx — it would be stretched"
                                     % (lw, l.get("src"), msz[0], msz[1], b.get("w"), b.get("h"), sc))
-                if l.get("kind") in ("pop", "lift", "focus", "ring", "type", "macro", "write"):
+                if l.get("kind") in ("pop", "lift", "focus", "ring", "type", "macro", "write", "count"):
                     inside(l.get("box", {}), w, h, lw)
                 for bj, bb in enumerate(l.get("boxes") or []):
                     inside(bb, w, h, "%s box %d" % (lw, bj + 1))
-                if l.get("kind") == "pop" and l.get("src") and l.get("src") != s.get("src"):
+                if l.get("kind") == "pop" and l.get("src") and l.get("src") != s.get("src") and isinstance(l.get("box"), dict) \
+                        and isinstance(l.get("srcBox") or {}, dict):
                     osz = cap(l["src"], lw)
                     if osz:
                         sb = dict(l.get("srcBox") or l["box"])
@@ -167,12 +203,23 @@ def check(spec, film_dir):
                     inside(r.get("box", {}), rsz[0] / 2, rsz[1] / 2, "%s region %d" % (where, j))
         else:
             errs.append("%s: unknown kind" % where)
-        if s.get("cut") not in (None, "carry", "flash", "hard", "through"):
-            errs.append("%s: cut must be carry, flash, hard or through" % where)
+        if s.get("cut") not in (None, "carry", "flash", "hard", "through", "morph"):
+            errs.append("%s: cut must be carry, flash, hard, through or morph" % where)
+        if s.get("cut") == "morph" or (s.get("cut") is None and spec.get("cut") == "morph"):
+            if i == 0 and s.get("cut") == "morph":
+                errs.append("%s: a morph grows out of the shot before it, and the first shot has none" % where)
+            mf = s.get("morphFrom")
+            if mf is not None and not (isinstance(mf, dict) and all(isinstance(mf.get(q), (int, float)) for q in "xywh")
+                                       and mf["x"] >= 0 and mf["y"] >= 0 and mf["w"] > 0 and mf["h"] > 0
+                                       and mf["x"] + mf["w"] <= 1.001 and mf["y"] + mf["h"] <= 1.001):
+                errs.append("%s: morphFrom is a box in FRACTIONS of the frame {x, y, w, h}, inside 0..1" % where)
+        for j, l in enumerate(s.get("layers") or s.get("acts") or [], 1):
+            if l.get("kind") == "count" and not isinstance(l.get("to"), (int, float)):
+                errs.append("%s layer %d (count): `to` must be the number the figure lands on (the page's own)" % (where, j))
         if s.get("say") is not None and not str(s.get("say")).strip():
             errs.append("%s: an empty `say`" % where)
-    if spec.get("cut") not in (None, "carry", "flash", "hard", "through"):
-        errs.append("cut must be carry, flash, hard or through")
+    if spec.get("cut") not in (None, "carry", "flash", "hard", "through", "morph"):
+        errs.append("cut must be carry, flash, hard, through or morph")
     adv += skeleton_advice(spec, film_dir)
     look = derive_look(spec.get("look"))
     for key in ("accent", "accentInk"):
@@ -339,6 +386,44 @@ def _subtitle_chunks(line, words_json, start_s, secs, max_chars=64):
     return out
 
 
+def resolve_recordings(film_dir, spec):
+    """A page shot naming `recording` (a promo_record layout) gets its poster, video and size from it, and — unless it
+    draws its own cursor or says `cursor: false` — a cursor that does what the recording's hand did, on the same
+    frames (headless Chrome records no pointer). `videoStart` picks where in the recording the shot begins."""
+    out = json.loads(json.dumps(spec))
+    for sh in out.get("shots") or []:
+        rp = sh.get("recording")
+        if sh.get("kind") != "page" or not rp:
+            continue
+        L = json.load(open(os.path.join(film_dir, rp), encoding="utf-8"))
+        sh.setdefault("src", L["src"])
+        sh["video"], sh["w"], sh["h"] = L["video"], L["w"], L["h"]
+        v0 = int(sh.get("videoStart", 0))                  # in FILM frames, like everything in the table
+        kf = FPS / float(L.get("fps", FPS) or FPS)         # a recording's event frames are at ITS rate
+        acts = sh.setdefault("layers", sh.pop("acts", []) if "acts" in sh else [])
+        if sh.get("cursor", True) is not False and not any(a.get("kind") == "cursor" for a in acts):
+            path, clicks = [], []
+            for e in L.get("events") or []:
+                f = int(round(e["frame"] * kf)) - v0
+                if not (0 <= f <= sh["dur"]):
+                    continue
+                if e["kind"] in ("click", "hover"):
+                    path.append({"f": max(0, f - 12), "x": e["x"] + 60, "y": e["y"] + 50, "ease": "swift"} if not path else
+                                {"f": max(path[-1]["f"] + 1, f - 12), "x": e["x"], "y": e["y"], "ease": "swift"})
+                    path.append({"f": max(path[-1]["f"] + 1, f), "x": e["x"], "y": e["y"], "ease": "swift"})
+                    if e["kind"] == "click":
+                        clicks.append(f)
+                elif e["kind"] == "drag":
+                    (x0, y0), (x1, y1) = e["from"], e["to"]
+                    if not path:
+                        path.append({"f": max(0, f - 12), "x": x0 + 60, "y": y0 + 50})
+                    path.append({"f": max(path[-1]["f"] + 1, f), "x": x0, "y": y0, "ease": "swift"})
+                    path.append({"f": max(path[-1]["f"] + 1, int(round(e["until"] * kf)) - v0), "x": x1, "y": y1, "ease": "smooth"})
+            if path:
+                acts.append({"kind": "cursor", "path": path, "clicks": clicks})
+    return out
+
+
 def starts(spec):
     t, out = 0, []
     for s in spec["shots"]:
@@ -347,69 +432,187 @@ def starts(spec):
     return out, t
 
 
-def plan_sfx(spec):
+def _cam_at(keys, f):
+    """The camera's (cx, zoom) at frame f of a page shot: the keys interpolated (the ease is the picture's business;
+    for WHERE a sound sits the straight line between keys is within a few % of the frame)."""
+    if not keys:
+        return None
+    ks = sorted(keys, key=lambda k: k["f"])
+    if f <= ks[0]["f"]:
+        return ks[0]["cx"], ks[0].get("zoom", 1.0)
+    for k0, k1 in zip(ks, ks[1:]):
+        if f <= k1["f"]:
+            u = (f - k0["f"]) / max(1e-9, k1["f"] - k0["f"])
+            return k0["cx"] + (k1["cx"] - k0["cx"]) * u, k0.get("zoom", 1.0) + (k1.get("zoom", 1.0) - k0.get("zoom", 1.0)) * u
+    return ks[-1]["cx"], ks[-1].get("zoom", 1.0)
+
+
+PAN_SPAN = 0.7          # the frame's edge is heard at 70 % toward that side: placed, never hard in one ear
+
+
+def _pan_at(shot, f, x):
+    """Where page x (CSS px) is on the frame at shot frame f, as a pan in [-PAN_SPAN, PAN_SPAN]. Zoom is authored at a
+    1920-wide reference, so the frame share is the same at every aspect."""
+    cam = _cam_at(shot.get("keys") or [], f)
+    if cam is None or x is None:
+        return 0.0
+    cx, z = cam
+    return max(-PAN_SPAN, min(PAN_SPAN, 2 * ((x - cx) * z / 1920.0) * PAN_SPAN))
+
+
+def _box_x(l):
+    b = l.get("box") or {}
+    return b["x"] + b.get("w", 0) / 2 if "x" in b else None
+
+
+def plan_sfx(spec, placed=False):
     """[(frame, cue, gain)] pinned to the table's actions. Restraint: a burst of pops is one sound per 3 frames,
-    fading; a camera key only sounds when the camera really travels."""
+    fading; a camera key only sounds when the camera really travels. `placed=True` adds each cue's place in the
+    stereo field (stereo.place): a sound sits where its cause is on the frame, air travels the way the picture moves,
+    the landing and the swell are wide."""
     cues = []
     st, _ = starts(spec)
     film_cut = spec.get("cut", "carry")
     for idx, (s, a) in enumerate(zip(spec["shots"], st)):
         k = s["kind"]
         if idx and (s.get("cut") or film_cut) in ("carry", "flash"):
-            cues.append((a, "whoosh", 0.34))                       # the cut carries a move: one air sound through it
+            cues.append((a, "whoosh", 0.34, (-0.35, 0.35)))        # the cut carries a move: one air sound through it
         if k == "brand":
-            cues += [(a + 14, "drop", 0.5), (a + 22, "whoosh", 0.2)]
+            cues += [(a + 14, "drop", 0.5, "wide"), (a + 22, "whoosh", 0.2, (0.3, -0.3))]
         elif k == "title":
-            cues.append((a + 14, "select", 0.22))                   # the accent fill arrives
+            cues.append((a + 14, "select", 0.22, 0.0))              # the accent fill arrives
         elif k == "outro":
             sa = a + int(s.get("stampAt", 46))
-            cues += [(a + 6, "swell", 0.4), (sa + 10, "impact", 0.8)]
+            cues += [(a + 6, "swell", 0.4, "wide"), (sa + 10, "impact", 0.8, "wide")]
             if s.get("cta"):
-                cues.append((sa + 46, "select", 0.3))
+                cues.append((sa + 46, "select", 0.3, 0.0))
         elif k == "page":
             keys = s.get("keys") or []
             for k0, k1 in zip(keys, keys[1:]):
                 travel = abs(k1["cx"] - k0["cx"]) + abs(k1["cy"] - k0["cy"]) + 400 * abs(k1.get("zoom", 1) - k0.get("zoom", 1)) \
                     + 6 * (abs(k1.get("rx", 0) - k0.get("rx", 0)) + abs(k1.get("ry", 0) - k0.get("ry", 0)))
                 if travel > 120 and k1["f"] - k0["f"] <= 60:
-                    cues.append((a + int((k0["f"] + k1["f"]) / 2), "whoosh", min(0.5, 0.22 + travel / 2000)))
+                    # the page moves OPPOSITE to the camera: the air goes the way the picture goes, as far across as
+                    # the move is sideways (a push in is heard in the middle, wide)
+                    dx = (k1["cx"] - k0["cx"]) * k0.get("zoom", 1.0) / 1920.0
+                    side = max(-1.0, min(1.0, -dx * 3)) * 0.5
+                    how = (-side, side) if abs(side) > 0.08 else "wide"
+                    cues.append((a + int((k0["f"] + k1["f"]) / 2), "whoosh", min(0.5, 0.22 + travel / 2000), how))
             last_pop, npop = -99, 0
             for l in s.get("layers") or s.get("acts") or []:
                 kind = l.get("kind")
                 if kind == "pop":
                     f = a + int(l["at"] + l.get("dur", 14) * 0.4)
                     if f - last_pop >= 3:
-                        cues.append((f, "drop", max(0.12, 0.36 * (0.85 ** npop))))
+                        cues.append((f, "drop", max(0.12, 0.36 * (0.85 ** npop)), _pan_at(s, f - a, _box_x(l))))
                         last_pop, npop = f, npop + 1
                 elif kind == "deal":
-                    for bj in range(len(l.get("boxes") or [])):
+                    for bj, bb in enumerate(l.get("boxes") or []):
                         f = a + int(l["at"] + bj * l.get("every", 3) + l.get("dur", 18) * 0.8)
                         if f - last_pop >= 3:
-                            cues.append((f, "deal", max(0.12, 0.3 * (0.88 ** bj))))
+                            cues.append((f, "deal", max(0.12, 0.3 * (0.88 ** bj)), _pan_at(s, f - a, bb.get("x", 0) + bb.get("w", 0) / 2)))
                             last_pop = f
-                    cues.append((a + int(l["at"]) - 4, "whoosh", 0.3))
+                    cues.append((a + int(l["at"]) - 4, "whoosh", 0.3, "wide"))
                 elif kind == "write":
                     n = max(1, round(l["box"]["h"] / l.get("lineH", 24)))
                     for li in range(0, n, 2):
-                        cues.append((a + int(l["at"] + li * l.get("every", 5)), "key", 0.18))
+                        f = a + int(l["at"] + li * l.get("every", 5))
+                        cues.append((f, "key", 0.18, _pan_at(s, f - a, _box_x(l))))
+                elif kind == "count":
+                    for j in range(0, int(l.get("dur", 42)), 6):
+                        cues.append((a + int(l["at"]) + j, "key", 0.12, _pan_at(s, int(l["at"]) + j, _box_x(l))))
                 elif kind == "lift":
-                    cues += [(a + int(l["at"]) + 6, "whoosh", 0.36), (a + int(l["at"]) + 18, "glass", 0.22),
-                             (a + int(l["until"]) + 14, "drop", 0.35)]
+                    p_ = _pan_at(s, int(l["at"]) + 18, _box_x(l))
+                    cues += [(a + int(l["at"]) + 6, "whoosh", 0.36, ("wide", p_)), (a + int(l["at"]) + 18, "glass", 0.22, p_),
+                             (a + int(l["until"]) + 14, "drop", 0.35, _pan_at(s, int(l["until"]) + 14, _box_x(l)))]
                 elif kind == "type":
                     cpf = float(l.get("cpf", 0.5))
                     n = len(l.get("text", ""))
                     for c in range(0, n, 2):
-                        cues.append((a + int(l["at"] + c / cpf), "key", 0.22))
+                        f = a + int(l["at"] + c / cpf)
+                        cues.append((f, "key", 0.22, _pan_at(s, f - a, _box_x(l))))
                 elif kind == "cursor":
+                    path = sorted(l.get("path") or [], key=lambda q: q.get("f", 0))
                     for c in l.get("clicks") or []:
-                        cues.append((a + int(c) + 2, "click", 0.6))
+                        at_ = [q for q in path if q.get("f", 0) <= c]
+                        cues.append((a + int(c) + 2, "click", 0.6, _pan_at(s, c, (at_[-1] if at_ else (path or [{}])[0]).get("x"))))
                 elif kind == "ring":
-                    cues.append((a + int(l["at"]) + 4, "select", 0.25))
+                    cues.append((a + int(l["at"]) + 4, "select", 0.25, _pan_at(s, int(l["at"]) + 4, _box_x(l))))
                 elif kind == "focus":
-                    cues.append((a + int(l["at"]) + 6, "select", 0.18))
+                    cues.append((a + int(l["at"]) + 6, "select", 0.18, _pan_at(s, int(l["at"]) + 6, _box_x(l))))
                 elif kind in ("note", "callout"):
-                    cues.append((a + int(l["at"]) + 4, "select", 0.24))
-    return sorted(cues)
+                    cues.append((a + int(l["at"]) + 4, "select", 0.24, _pan_at(s, int(l["at"]) + 4, l.get("x"))))
+    cues.sort(key=lambda c: (c[0], c[1], c[2]))
+    return cues if placed else [c[:3] for c in cues]
+
+
+def mark_luminance(path):
+    """The mean relative luminance (0..1) of a raster mark's OPAQUE pixels, or None (an SVG, no alpha, unreadable)."""
+    try:
+        from PIL import Image
+        import numpy as np
+        with Image.open(path) as im:
+            if "A" not in im.getbands():
+                return None
+            a = np.asarray(im.convert("RGBA"), dtype=np.float64) / 255.0
+    except Exception:  # noqa: BLE001 — an SVG or anything PIL cannot read keeps the default
+        return None
+    m = a[..., 3] > 0.5
+    if m.sum() < 16:
+        return None
+    lin = np.where(a[..., :3] <= 0.04045, a[..., :3] / 12.92, ((a[..., :3] + 0.055) / 1.055) ** 2.4)
+    y = 0.2126 * lin[..., 0] + 0.7152 * lin[..., 1] + 0.0722 * lin[..., 2]
+    return float(y[m].mean())
+
+
+def resolve_marks(film_dir, spec, look):
+    """A brand/outro lockup sits on a light plate on a dark film, because a mark is usually drawn for light pages. A
+    mark that is itself LIGHT (made for dark grounds) gets `plate: false` instead: on the plate it read weakly (the
+    Carbon run: a yellow outline wordmark on near-white). An authored `plate` wins."""
+    out = json.loads(json.dumps(spec))
+    dark = _contrast(look["paper"], "#000000") < 7          # the paper is dark (the derive_look convention)
+    for sh in out.get("shots") or []:
+        if sh.get("kind") in ("brand", "outro") and "plate" not in sh and sh.get("mark") and dark:
+            y = mark_luminance(os.path.join(film_dir, sh["mark"]))
+            if y is not None and y > 0.35:
+                sh["plate"] = False
+    return out
+
+
+def render_stills(film_dir, spec_path, frames, out_dir):
+    """Every still of a `--stills` run from ONE bundle in ONE browser. Measured on the Carbon run: one `remotion still`
+    per frame re-bundled the project each time, and 19 stills took ~5 min against ~2 min for the whole film's picture.
+    The bundle is keyed on the film state (bundle_cache), so a stills run after a table edit reuses it too."""
+    import shutil
+    import tempfile
+    import bundle_cache
+    import remotion_segments as rs
+    film_dir, spec_path = os.path.abspath(film_dir), os.path.abspath(spec_path)
+    spec = json.load(open(spec_path, encoding="utf-8"))
+    spec["look"] = derive_look(spec.get("look"))
+    spec = resolve_marks(film_dir, spec, spec["look"])
+    pub = os.path.join(film_dir, "_promo_public")
+    shutil.rmtree(pub, ignore_errors=True)
+    rs.minimal_public(spec, film_dir, pub)           # the files the table names, linked: not old renders and stills
+    serve = bundle_cache.bundle(pub)
+    os.makedirs(out_dir, exist_ok=True)
+    jobs = [{"tag": int(f), "id": "PromoFilm", "props": spec, "frame": int(f), "png": os.path.join(out_dir, "f%04d.png" % int(f))}
+            for f in frames]
+    tmp = tempfile.mkdtemp(prefix="promo_stills_")
+    jp, op = os.path.join(tmp, "jobs.json"), os.path.join(tmp, "out.jsonl")
+    json.dump(jobs, open(jp, "w"))
+    r = subprocess.run(["node", os.path.join(ROOT, "scripts", "fidelity_stills.cjs"), REMOTION, serve, jp, op, "--gl=angle"],
+                       capture_output=True, text=True)
+    errs = []
+    if os.path.isfile(op):
+        for line in open(op, encoding="utf-8"):
+            row = json.loads(line)
+            if row.get("error"):
+                errs.append("frame %s: %s" % (row["tag"], row["error"]))
+    shutil.rmtree(tmp, ignore_errors=True)
+    if r.returncode != 0 or errs:
+        raise SystemExit("[promo_film] stills failed:\n  " + "\n  ".join(errs or [(r.stderr or r.stdout)[-2000:]]))
+    return [j["png"] for j in jobs]
 
 
 def render_picture(film_dir, spec_path, out, frames=None):
@@ -417,10 +620,16 @@ def render_picture(film_dir, spec_path, out, frames=None):
     film_dir, spec_path, out = os.path.abspath(film_dir), os.path.abspath(spec_path), os.path.abspath(out)
     spec = json.load(open(spec_path, encoding="utf-8"))
     spec["look"] = derive_look(spec.get("look"))
+    spec = resolve_marks(film_dir, spec, spec["look"])
     props = os.path.join(film_dir, "_promo_props.json")          # the table as rendered: the derived look filled in
     json.dump(spec, open(props, "w"), indent=0)
+    import shutil
+    import remotion_segments as rs
+    pub = os.path.join(film_dir, "_promo_public")
+    shutil.rmtree(pub, ignore_errors=True)
+    rs.minimal_public(spec, film_dir, pub)           # a bundle COPIES its public dir: not the film folder's old renders
     cmd = ["npx", "remotion", "render" if frames is None else "still", "src/index.ts", "PromoFilm", out,
-           "--props=" + props, "--public-dir=" + film_dir]
+           "--props=" + props, "--public-dir=" + pub]
     if frames is not None:
         cmd.append("--frame=%d" % frames)
     else:
@@ -463,7 +672,8 @@ def mix(film_dir, silent, cues, total_frames, out, bgm="auto", climax_s=None, vo
     secs = total_frames / FPS
     wav = os.path.join(film_dir, "_promo_sfx.wav")
     bank = sfx.load_bank({k: [os.path.join(_KENNEY, n + ".wav") for n in v] for k, v in BANK.items()})
-    if not sfx.build_sfx_track([(f / FPS, c, g) for f, c, g in cues], secs, wav, bank=bank):
+    # STEREO: a cue sits where its cause is on the frame (plan_sfx(placed=True)); a cue with no place is centred
+    if sfx.build_sfx_stereo([(c[0] / FPS,) + tuple(c[1:]) for c in cues], secs, wav, bank=bank) is False:
         raise SystemExit("[promo_film] numpy is needed to synthesise the sound")
     inputs = ["-i", silent, "-i", wav]
     if bgm == "auto":
@@ -474,7 +684,16 @@ def mix(film_dir, silent, cues, total_frames, out, bgm="auto", climax_s=None, vo
         g = beatgrid.BeatGrid(112.5, 0.0)
         sc = score.render(g, secs + 1.0, climax_s=climax_s, seed=7)
         pad = os.path.join(film_dir, "_promo_bgm.wav")
-        score.write_wav(pad, sc["bed"] + sc["pulse"])
+        # the music is WIDE (the bed — pad, pluck, bass — in its own decorrelated room), the pulse in the middle
+        import stereo
+        import numpy as _np
+        import wave as _wave
+        bed = stereo.widen(sc["bed"], 0.5, score.SR, seconds=0.9)[: len(sc["bed"])]
+        lr = bed + stereo.pan(sc["pulse"], 0.0)
+        lr *= min(1.0, 0.98 / max(1e-9, float(_np.max(_np.abs(lr)))))
+        with _wave.open(pad, "wb") as w:
+            w.setnchannels(2), w.setsampwidth(2), w.setframerate(score.SR)
+            w.writeframes((_np.clip(lr, -1, 1) * 32767).astype("<i2").tobytes())
         inputs += ["-i", pad]
     elif bgm and bgm != "none":
         inputs += ["-i", bgm]
@@ -486,20 +705,39 @@ def mix(film_dir, silent, cues, total_frames, out, bgm="auto", climax_s=None, vo
         inputs += ["-i", vo]
         vi = 3 if has_bed else 2
         if has_bed:
-            graph = ("[%d:a]asplit=2[v][vk];[1:a]highpass=f=120,volume=0.6[s];[2:a]volume=0.42,afade=t=in:d=0.4,afade=t=out:st=%.2f:d=2[b0];"
+            graph = ("[%d:a]aformat=channel_layouts=stereo,asplit=2[v][vk];[1:a]aformat=channel_layouts=stereo,highpass=f=120,volume=0.6[s];"
+                     "[2:a]aformat=channel_layouts=stereo,volume=0.42,afade=t=in:d=0.4,afade=t=out:st=%.2f:d=2[b0];"
                      "[b0][vk]sidechaincompress=threshold=0.03:ratio=6:attack=15:release=400[b];"
                      "[v][s][b]amix=inputs=3:normalize=0,%s[a]" % (vi, max(0, secs - 2), LOUD))
         else:
-            graph = "[%d:a]anull[v];[1:a]highpass=f=120,volume=0.6[s];[v][s]amix=inputs=2:normalize=0,%s[a]" % (vi, LOUD)
+            graph = ("[%d:a]aformat=channel_layouts=stereo[v];[1:a]aformat=channel_layouts=stereo,highpass=f=120,volume=0.6[s];"
+                     "[v][s]amix=inputs=2:normalize=0,%s[a]" % (vi, LOUD))
     elif has_bed:
         # the hits sit 3-6 dB over the bed; the bed fades in and closes on a 2 s fade under the end card
-        graph = ("[1:a]highpass=f=120,volume=1.0[s];[2:a]volume=0.42,afade=t=in:d=0.4,"
+        graph = ("[1:a]aformat=channel_layouts=stereo,highpass=f=120,volume=1.0[s];[2:a]aformat=channel_layouts=stereo,volume=0.42,afade=t=in:d=0.4,"
                  "afade=t=out:st=%.2f:d=2[b];[s][b]amix=inputs=2:normalize=0,%s[a]" % (max(0, secs - 2), LOUD))
     else:
-        graph = "[1:a]highpass=f=120,%s[a]" % LOUD
+        graph = "[1:a]aformat=channel_layouts=stereo,highpass=f=120,%s[a]" % LOUD
     cmd = ["ffmpeg", "-y", "-loglevel", "error", *inputs, "-filter_complex", graph, "-map", "0:v", "-map", "[a]",
-           "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-t", "%.3f" % secs, out]
+           "-c:v", "copy", "-c:a", "aac", "-b:a", "256k", "-ar", "48000", "-ac", "2", "-t", "%.3f" % secs, out]
     subprocess.run(cmd, check=True)
+    print("[promo_film] stereo: %s" % stereo_report(out))
+
+
+def stereo_report(mp4):
+    """The delivered mix's field, read back from the file: L/R correlation (1 = mono, < 0.2 = falls apart in mono,
+    < 0 = out of phase), the loss folded to mono (a phone speaker), the balance. Said, and refused when broken."""
+    import numpy as np
+    import stereo
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", mp4, "-map", "0:a:0", "-ac", "2", "-ar", "24000", "-f", "s16le", "-"],
+                         capture_output=True).stdout
+    lr = np.frombuffer(raw, np.int16).reshape(-1, 2).astype(np.float32) / 32768.0
+    m = stereo.measure(lr)
+    bad = m["corr"] < 0.2 or m["mono_loss_db"] > 3.0 or abs(m["balance_db"]) > 2.0
+    txt = "corr %.2f, mono fold-down %.1f dB, balance %+.1f dB" % (m["corr"], m["mono_loss_db"], m["balance_db"])
+    if bad:
+        raise SystemExit("[promo_film] the stereo mix is broken (%s): out of phase, lopsided or lost in mono" % txt)
+    return txt
 
 
 def main(argv):
@@ -518,21 +756,27 @@ def main(argv):
             print("  ERROR     " + e)
         return 1
     _, total = starts(spec)
-    print("[promo_film] %d shots, %d frames (%.1f s)" % (len(spec["shots"]), total, total / FPS))
+    print("[promo_film] %d shots, %d frames (%.1f s) · structure %s (other films' structures: %s)"
+          % (len(spec["shots"]), total, total / FPS, skeleton(spec), LEDGER))
     if "--check" in argv:
         return 0
     stills = argflag(argv, "stills", None)
     if stills:
-        os.makedirs(os.path.join(film, "_stills"), exist_ok=True)
-        for f in [int(x) for x in stills.split(",") if x]:
-            p = os.path.join(film, "_stills", "f%04d.png" % f)
-            render_picture(film, spec_path, p, frames=f)
+        # the stills see the film as it will render: recordings resolved (and the voice's lengths, if it speaks)
+        spec_s = resolve_recordings(film, spec)
+        spec_s, _vo = voice_pass(film, spec_s)
+        sp = os.path.join(film, "_promo_resolved_stills.json")
+        json.dump(spec_s, open(sp, "w"), indent=0)
+        for p in render_stills(film, sp, [int(x) for x in stills.split(",") if x.strip()], os.path.join(film, "_stills")):
             print("  still " + p)
         return 0
     out = os.path.join(film, argflag(argv, "out", "out.mp4"))
     # NARRATION FIRST: the voice decides how long a speaking shot lasts, so the table is resolved before the picture
+    spec = resolve_recordings(film, spec)
     spec, vo_clips = voice_pass(film, spec)
     if vo_clips:
+        pass
+    if vo_clips or any(sh.get("recording") for sh in spec.get("shots") or []):
         spec_path = os.path.join(film, "_promo_resolved_%s.json" % os.path.splitext(os.path.basename(out))[0])
         json.dump(spec, open(spec_path, "w"), indent=0)
         _, total = starts(spec)
@@ -549,8 +793,11 @@ def main(argv):
         os.replace(silent, out)
     else:
         cues = spec.get("sfx")
-        cues = [(int(c["f"]), c["cue"], float(c.get("gain", 0.4))) for c in cues] if cues else plan_sfx(spec)
-        json.dump([{"f": f, "cue": c, "gain": round(g, 3)} for f, c, g in cues], open(os.path.join(film, "promo_sfx.json"), "w"), indent=0)
+        cues = ([(int(c["f"]), c["cue"], float(c.get("gain", 0.4)), c.get("pan")) for c in cues] if cues
+                else plan_sfx(spec, placed=True))
+        rnd = lambda h: round(h, 3) if isinstance(h, float) else [rnd(q) for q in h] if isinstance(h, (list, tuple)) else h  # noqa: E731
+        json.dump([{"f": c[0], "cue": c[1], "gain": round(c[2], 3), "pan": rnd(c[3])} for c in cues],
+                  open(os.path.join(film, "promo_sfx.json"), "w"), indent=0)
         st, _ = starts(spec)
         outro = [(a, sh) for a, sh in zip(st, spec["shots"]) if sh.get("kind") == "outro"]
         climax = (outro[-1][0] + int(outro[-1][1].get("stampAt", 46))) / FPS if outro else None

@@ -276,10 +276,30 @@ export const Write: React.FC<WriteSpec> = ({box, at, lineH = 24, every = 5, fill
   );
 };
 
+export type CountSpec = {kind: 'count'; box: Box; to: number; from?: number; decimals?: number; prefix?: string; suffix?: string; at: number;
+  dur?: number; fill?: string; size?: number; color?: string; weight?: number; align?: 'left' | 'center' | 'right'; font?: string};
+/** COUNT: a number the product SHOWS, rolling from `from` to its real value (`to`, as the capture reads it) over ~1.4 s,
+ *  decelerating onto it; the capture's own figure is covered by the field's fill while it rolls, and the rolled
+ *  figure stays (set it in the product's face where you know it). Never a number the product does not show. */
+export const Count: React.FC<CountSpec> = ({box, to, from = 0, decimals, prefix = '', suffix = '', at, dur = 42, fill = '#ffffff', size, color = '#1b1b1b',
+  weight = 700, align = 'left', font}) => {
+  const frame = useCurrentFrame();
+  const p = span(frame, at, at + dur, 'expo');
+  const dp = decimals ?? (String(to).split('.')[1]?.length ?? 0);
+  const v = from + (to - from) * p;
+  const txt = prefix + v.toLocaleString('en-US', {minimumFractionDigits: dp, maximumFractionDigits: dp}) + suffix;
+  if (frame < at - 2) return null;
+  return (
+    <div style={{position: 'absolute', left: box.x, top: box.y, width: box.w, height: box.h, background: fill, display: 'flex', alignItems: 'center',
+      justifyContent: align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center', fontFamily: font ?? SANS, fontSize: size ?? box.h * 0.78,
+      fontWeight: weight, color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden'}}>{txt}</div>
+  );
+};
+
 export type MacroSpec = {kind: 'macro'; box: Box; src: string; scale?: number; at?: number; radius?: number};
 /** Acts drawn OVER the page and its macros (annotation, not page content). */
-export const OVERLAY_KINDS = ['callout', 'note', 'ring', 'cursor'];
-export type LayerSpec = PopSpec | LiftSpec | FocusSpec | RingSpec | TypeSpec | CursorSpec | CalloutSpec | NoteSpec | MacroSpec | DealSpec | WriteSpec;
+export const OVERLAY_KINDS = ['callout', 'note', 'ring', 'cursor', 'count'];   // count rolls OVER a macro's figure
+export type LayerSpec = PopSpec | LiftSpec | FocusSpec | RingSpec | TypeSpec | CursorSpec | CalloutSpec | NoteSpec | MacroSpec | DealSpec | WriteSpec | CountSpec;
 
 /** Layers in the order given (later = on top). Pop/lift need the capture they crop from. */
 export const Layers: React.FC<{layers: LayerSpec[]} & Common> = ({layers, ...c}) => (
@@ -297,6 +317,7 @@ export const Layers: React.FC<{layers: LayerSpec[]} & Common> = ({layers, ...c})
           z={l.z} kicker={l.kicker} leader={false} />;
         case 'deal': return <Deal key={i} {...l} {...c} />;
         case 'write': return <Write key={i} {...l} />;
+        case 'count': return <Count key={i} {...l} />;
         case 'macro': return null;   // drawn by PageCam on its own layer (a 4x close-up)
         default: throw new Error(`promo layer: unknown kind ${(l as {kind: string}).kind}`);
       }

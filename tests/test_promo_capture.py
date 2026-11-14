@@ -81,3 +81,10 @@ def test_a_local_page_is_captured_with_its_boxes_and_own_words(tmp_path):
     assert near((40, 120, 300, 160)) and near((380, 120, 300, 160))     # border-box: a 1 px border is part of the card
     saved = json.load(open(tmp_path / "caps" / "p.layout.json"))
     assert saved["src"] == "caps/p.png" and saved["elements"] == lay["elements"]
+
+
+@pytest.mark.parametrize("js", ["a=1 ;;; b=2", "a=1;;;b=2", "a=1\n;;;\nb=2", "a=1\n  ;;;  \nb=2\n;;;\n"])
+def test_eval_steps_split_however_the_separator_is_written(js):
+    # the docs wrote "js ;;; js" on one line and the split wanted "\n;;;\n": `;;;` is valid JS, so the steps ran
+    # silently as ONE (no settle between them, only the last value returned)
+    assert pc.split_steps(js) == ["a=1", "b=2"]

@@ -48,6 +48,28 @@ edge) and writes the same layout. On WorkBuddy it matched hand-measured boxes wi
 `--mark=<png> --box=x,y,w,h` cuts the brand's logo from its own page with the ground keyed to alpha. On a dark film
 the lockup sets it on a light plate.
 
+### Recordings — the product in motion
+
+`python3 scripts/promo_record.py <dir> <url> --name=<n> --seconds=6 [--script=steps.json] [--setup="js ;;; js"]`
+records the page DOING something, with its own animation: a panel opening, a slider dragged, a result arriving.
+- After load and `--setup`, the time the page can see (performance.now, Date, timers, requestAnimationFrame) runs
+  on a clock the recorder advances exactly one frame per frame, and every CSS transition / animation and
+  `element.animate()` is pinned to it. Transform/opacity animations otherwise run on the compositor, on their own
+  clock. The page renders in real time, so the same run gives the same frames at any `--fps`.
+- The script: `click`, `hover`, `type` (+`into`, `cps`), `scroll` (eased over `dur`, driven frame by frame), `drag`
+  (eased over `dur`), `eval`. Each fires at its `t` in seconds.
+- **Async work goes in `--setup`, not the script.** `--setup` runs and is awaited before recording (load an image,
+  wait for a worker, open the editor). Network or worker work started by a click during the recording finishes in real
+  time, so it lands on whatever frame comes next: not frame-exact. A script `eval` is not awaited.
+- Writes `caps/<n>.mp4`, `caps/<n>.png` (the poster: first frame) and `caps/<n>.layout.json` (the first frame's
+  elements + `events`: each click / drag / scroll / keystroke run with its frame and place).
+
+A page shot names it with `recording: "caps/<n>.layout.json"`. promo_film takes its poster, video and size from it and
+lays a cursor over it that does what the recorded hand did, on the same frames. Headless Chrome draws no pointer.
+`videoStart` picks the frame of the recording the shot begins on; `cursor: false` turns the cursor off; a shot with
+its own `cursor` act keeps it. The camera, acts and overlays work over a recording as over a capture, and the glide
+gate judges it the same way.
+
 Rules:
 - **Captures:**
   - Never zoom past the capture's density: effective zoom ≤ 2 for a 2x capture. `check` refuses it and PageCam
@@ -119,6 +141,9 @@ a narrated film, run it on the out_dir.
 
 ### Acts / layers (page CSS px; frames from the shot's start)
 
+Every `box` is a dict `{"x": .., "y": .., "w": .., "h": ..}` in the capture's CSS px (as in `layout.json`), never a list;
+`check` names a list. Shots are numbered from 0 everywhere (check, glide report, sheet).
+
 | kind | what it does | fields |
 |---|---|---|
 | `pop` | an element lands in its own slot (blank before) | `box, at, fill, from: up/left/scale`; `src, srcBox, srcW, srcH` = the element from ANOTHER capture (a state change) |
@@ -131,21 +156,23 @@ a narrated film, run it on the out_dir.
 | `macro` | a 4x capture of ONE element (promo_capture `--hires`) drawn on its own layer, so the camera may push past the page's 2x onto it — the subject sharp, the page around it softening like a background out of the lens's depth | `box, src, scale` (4), `at` |
 | `deal` | the page's own cards start as one stack and fly out to their slots one by one along a lifted arc, settling flat | `boxes` (from the layout / `--boxes`), `at, every, dur, from, fill` |
 | `write` | a block of the capture's own text appears line by line behind an accent caret (the document writing itself, in its own words) | `box, at, lineH, every, fill` |
+| `count` | the page's own figure counts up to its value in place (over its own digits, on its field's fill) — a number arriving, not a number shown | `box, to, from, decimals, prefix, suffix, at, dur` (42), `fill, color, size, weight, align, font` |
 
 ### Every field (what the table accepts)
 
 | where | field | meaning |
 |---|---|---|
-| film | `aspect`, `cut` (carry/flash/hard/through), `look` ({accent, mode} or the full set), `sfx` (a list replacing the plan) | |
+| film | `aspect`, `cut` (carry/flash/hard/through/morph), `look` ({accent, mode} or the full set), `sfx` (a list replacing the plan) | |
 | every shot | `kind`, `dur` (frames), `cut` (into this shot) | |
 | brand | `mark`, `aspect` (the mark's w/h, printed by `--mark`), `kicker`, `markH` | |
 | title | `text` (`*accent*`), `kicker`, `index` (false = unnumbered), `size` | |
 | page | `src`, `w`, `h`, `keys`, `layers` (or `acts`), `caption` {text, at, dur}, `contain` (default true), `maxZoom` (2), `radius` | |
+| page (recording) | `recording` (a promo_record layout; sets src/video/w/h), `videoStart` (frame), `cursor` (false = none) | the recording plays under the camera |
 | outro | `mark`, `aspect`, `tagline`, `cta`, `stampAt` (default 46), `markH`, `recall` (page-shot indices, from 0) | |
 | statement | `text` (`*accent*`), `ground` (paper/accent/ink), `size`, `sub` | one line of type, word by word out of a blur, then still |
 | compare | `a`, `b` (regions: {src, w, h, box}), `labelA`, `labelB`, `at`, `sweep` | the same region of two captures, a divider sweeping across |
 | montage | `items` (regions), `every` (frames each, 8-18), `full` | the product's own crops in quick succession, each landing and holding |
-| any shot | `say` (the voice's line), `throughAt` ({x, y} in frame shares, for a `through` cut) | |
+| any shot | `say` (the voice's line), `throughAt` ({x, y} in frame shares, for a `through` cut), `morphFrom` ({x, y, w, h} in frame shares, for a `morph` cut) | |
 | film (voice) | `narrate`, `voice` (edge voice id), `voice_rate` | |
 | key | `f`, `cx`, `cy`, `zoom` (at a 1920-wide reference), `rx`, `ry`, `rz`, `persp`, `ease` | |
 | pop | `box, at, fill, radius, dur, from` (up/left/scale), `src, srcBox, srcW, srcH` (from another capture), `cover` | |
@@ -158,15 +185,23 @@ a narrated film, run it on the out_dir.
 | macro | `box, src, scale` (4), `at`, `radius` | |
 | deal | `boxes, at, every, dur, from {x, y}, fill, radius` | |
 | write | `box, at, lineH, every, fill` | |
+| count | `box, to` (a number: the page's own), `from` (0), `decimals, prefix, suffix, at, dur, fill, color, size, weight, align, font` | |
 
 - **Layering.** Page content (pop, lift, focus, type, deal, write) is drawn IN the page. Annotation (callout, note,
-  ring, cursor) is drawn on a layer of its own ABOVE the page and its macros, at the close-up's raster, so a callout
+  ring, cursor, count) is drawn on a layer of its own ABOVE the page and its macros, at the close-up's raster, so a callout
   on a 4x close-up is sharp and visible.
 - **Report numbering.** The glide report numbers shots as the table does, from 0. `promo_film.py` exits 1 when a
   camera fails (the film is still written).
 - **`--sheet`** writes `_sheet.jpg`: one frame per shot at 90 %, labelled with its index.
 
 ### Known limits of the capture
+
+- **Third-party content is not the product.** Ads, cookie banners, chat widgets and geo-targeted promos are removed
+  with an `--eval` step before the capture (`document.querySelector('#carbonads')?.remove()`), by an id or a narrow
+  selector: a broad one (`[class*=ad]`) also matches `header`. Check the capture after.
+- **The layout lists the acting elements** (controls, fields, cards, media, headings). A container the story needs
+  that is not one (a code editor's lines, an export frame) is added with `--select="#export-container,.CodeMirror-code"`.
+- **`.boxes.jpg` draws over the page.** Read text (a field's value) off the PNG, not the overlay.
 
 - **`--full` captures the DOCUMENT's scroll height.** An app that scrolls an inner container captures only the
   viewport. Scroll that container with an `--eval` step and capture each state.
@@ -191,7 +226,8 @@ take their look from the film's design DNA (`lookFromDna`).
 
 There is NO default sequence. "Brand open → chapter card → product shots → chapter card → recall outro" is ONE possible
 arc and the one most likely to read as a template: two films built on it are the same film with different pictures.
-The check prints a film's structure as a word (`BCPPCPO`, `PSVMSO+vo`) and advises when it repeats a film you made
+The check prints a film's structure as a word (`BCPPCPO`, `PSVMSO+vo`; every render records it in
+`~/.topic-to-video/promo_skeletons.json`, outside the film folder) and advises when it repeats a film you made
 before.
 
 1. **Find this product's story before choosing a block.** Write down, from the captures and the product's own words:
@@ -211,7 +247,9 @@ before.
      - The outro may recall the film, land on a statement, or end on the product itself with the CTA.
    - **Vary the rhythm.** Montage cuts run 0.3–0.8 s. A demo holds 4–8 s while the UI acts. A beat of stillness comes
      before the payoff.
-   - **Choose cuts by cause.** Use `through` when one thing opens into the next, `carry` when travelling on,
+   - **Choose cuts by cause.** Use `morph` when a thing on screen BECOMES the next shot (a thumbnail opening into
+     its editor: `morphFrom` is that thing's box on the frame; the next shot starts scaled into it and grows to the
+     frame on an in-out curve, over the last 16 frames). Use `through` when one thing opens into the next, `carry` when travelling on,
      `hard` when the beat changes, `flash` rarely.
 3. **Voice is a per-film choice.**
    - A film that explains how something works usually speaks: `say` on the shots, and the voice sets their length,
@@ -255,14 +293,55 @@ before.
   - UI sounds are RECORDED takes (Kenney Interface Sounds, CC0: click, key, drop, deal, select, glass). The
     noise-built cues (whoosh, swell, impact) are synthesised, and no synthesised tone, bell or chime is used.
   - The close is swell → impact as the lockup lands.
+  - **Stereo, placed by the picture** (scripts/stereo.py). A cue is heard where its cause is on the frame: the
+    camera's position at that frame turns the act's page x into a pan, at most 70 % to a side. A click on the left
+    is heard left, and dealt cards land left to right in sound too. A whoosh on camera travel sweeps the way the PAGE
+    moves (opposite to the camera). A push, the outro's swell and impact, and the brand's landing are wide (two
+    decorrelated short rooms, no Haas delay, so mono stays intact). The score's bed is wide and its pulse and the
+    voice are centred. `sfx` entries take an optional `pan` (a number, `[p0, p1]`, `"wide"`). The plan with its
+    places is written to `promo_sfx.json`.
+  - Every mix prints its field read back from the file: L/R correlation, mono fold-down loss and balance. It refuses
+    a mix that is out of phase (corr < 0.2), lopsided (> 2 dB) or loses > 3 dB in mono. Measured: a music-led film
+    read corr 0.89 with a 0.2 dB fold-down loss, a voice-led one 0.98 with 0.1 dB.
   - The mix is normalised to -15 LUFS and -1.5 dBTP. `--remix` re-mixes over the picture already rendered.
 
-## The loop
+## The loop — from a product to a delivered film, with no hand-holding
 
-1. Run `promo_film.py <dir> --check`. Errors stop it, by name; advisories don't.
-2. Run `--stills=` at the settled point (~90 %) of each shot and look at them full-size.
-3. Do a full render.
-4. Put it beside the reference films on one page (`compare.html`) for the user. The user's eye is the judge.
+Run it start to finish. Stop only for a decision that is the user's (which product state to show when the product
+needs a login; a paid asset), never to ask "shall I continue".
+
+1. **Folder.** `mkdir -p <film_dir>/caps`. Everything below writes into it.
+2. **Explore before capturing.** Capture the landing state (`promo_capture.py <dir> <url> --name=home`), then open
+   `caps/home.boxes.jpg` and `caps/home.layout.json` and read what the product IS from its own title, description
+   and UI. Ask the page with `--eval` (`JSON.stringify([...document.querySelectorAll('button,a')].map(e =>
+   e.innerText).filter(Boolean))`) rather than guessing selectors. Capture each STATE the story needs (an opened
+   editor, a result, a settings panel) as its own capture, reaching it with `--eval` steps. Take a `--hires=` close-up of
+   the one detail the hero moment pushes onto, and a `--mark` cut of the logo from the product's own page.
+3. **Record the proof, if it moves.** (any `--fps`; the recording keeps its rate and the film times it in film
+   frames) When the product's proof is something HAPPENING (a slider dragged, a result
+   arriving, a panel opening), record it: `promo_record.py <dir> <url> --name=proof --seconds=4-6 --setup="<reach
+   the state, async OK>" --script=steps.json` with click / drag / type / scroll steps at their seconds. Look at a
+   frame grid of the mp4 before using it. If a click starts network or worker work, put it in `--setup`.
+4. **Write the four** (§ Design the film's own arc): the surprising truth, its proof, the why-now tension and the
+   payoff, each in the product's own words with the capture it comes from. Then choose the arc and voice from them,
+   and write the structure down as a word before building (`PSVSPPPMSO`).
+5. **Write the table with a script, not by hand.** Write `compose.py` in the film folder. It reads each
+   `*.layout.json` and picks boxes BY TEXT or role (`next(e for e in L['elements'] if 'Compress' in e['text'])`), so
+   no box is measured off a picture. It writes `promo.json`. A box guessed off a grid is an element landing beside
+   its slot. Make camera keys with `promo_film.key(f, cx, cy, zoom, L["w"], L["h"], aspect)` (`sys.path.insert` the
+   skill's `scripts/`): it aims at the element and keeps the view on the page. **Length and aspect** come from the
+   interview's ④ (`aspect` in the table; the shots' `dur` add up to the length). Without one, a launch runs 25-40 s
+   at 16:9, and a 9:16 film uses portrait captures (`--width=430 --height=932`).
+6. **Check.** `promo_film.py <dir> --check`: fix every ERROR. Read every ADVISORY; a repeat-skeleton advisory means
+   the arc is a template, so redesign it.
+7. **Stills.** `--stills=` at ~90 % of each shot, plus the frames where acts land and cuts happen. Look at them
+   full-size: every word legible, nothing landing beside its slot, no empty frame, the hook readable in its first
+   2 s. Fix and repeat. This is the cheap loop; the full render is not.
+8. **Render.** `promo_film.py <dir> --sheet` (tracked in the background). It must end with the glide gate OK and the
+   stereo line printed. Then measure loudness: `ffmpeg -i out.mp4 -af ebur128=peak=true -f null -` (I ≈ -15 LUFS).
+9. **Deliver.** Copy the film and `_sheet.jpg` to `~/Desktop/<product>_promo/`, with a one-page `index.html` that
+   plays it and names what to look at. When there is a previous version, put it beside the new one, with a side-by-side
+   still sheet. The user's eye is the judge; do not run critic loops in its place.
 
 Tested on:
 - WorkBuddy: desktop docs screenshots, cleaned and box-found; 16:9 light.

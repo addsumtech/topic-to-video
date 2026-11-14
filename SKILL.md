@@ -134,6 +134,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 - `scripts/promo_capture.py <dir> <url> --name=n` captures a product or page at 2x with every element's box and its own
   title and description; `--eval` reaches a state first. `--boxes=<png>` finds the boxes in a screenshot with no DOM,
   and `--mark=` cuts the logo.
+- `scripts/promo_record.py <dir> <url> --name=n --seconds=6 --script=steps.json` records the product IN MOTION
+  (clicks, drags, scrolls, typing, its own animations) frame-exact on its own frame clock; a page shot plays it with
+  `recording:`. Async work (loading, workers) goes in `--setup`, which runs and is awaited first.
 - `scripts/promo_film.py <dir>` renders a launch/promo film with no narration, written as a shot table (`promo.json`):
   the product AS ITSELF under a 2.5D page camera, chapter cards, carried cuts, a recall outro, and SFX pinned to the
   table. `--check` refuses what would render wrong (zoom past the capture's density, a box off its capture,
@@ -526,7 +529,7 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 
      **How to recommend (do this before showing the menu):** ① is on the same screen, so infer the likely
      purpose from the user's request and material, then ask the rule rather than restating it:
-     `python3 scripts/tier_advice.py --purpose <p> [--deck] [--data-dense yes|no] [--no-remotion]`.
+     `python3 scripts/tier_advice.py --purpose <p> --lang <②> [--deck] [--data-dense yes|no] [--no-remotion] [--product]`.
      Put **"(Recommended)"** on the tier it returns, and its `why` in that option's description. When the
      user's ① answer is a different purpose, re-run with it; if the tier they picked then fights the
      purpose, say the `trade` ONCE, in their words, and let them keep it — this is advice, never an
@@ -540,6 +543,13 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
      **show it ONLY when `doctor.py` reports the remotion tier installed**). Make FREE-vs-PAID visible in
      every label and never enable the generator without the user picking the AI tier here. (Other → a
      brand/theme/CSS to match.)
+     **A REAL PRODUCT → the product film.** When the video is a launch / promo / pitch / overview OF a product the
+     user can point at (a URL, an app, its screenshots), run `tier_advice.py --purpose <p> --product --lang <②>`. It returns
+     `promo`; offer **Product film (Recommended)** first in place of the AI-backdrop option. Picked, the storyboard
+     workflow below does NOT run: follow `references/promo-film.md` **"The loop"** end to end (explore and capture
+     → record the proof → the four → the arc → `compose.py` → `promo.json` → check → stills → render → deliver).
+     Narration is decided per film there (`say` / `narrate`), so do not ask the voice question; ② Language still sets
+     the voice's language when the film speaks, and ④ Length sets the table's `aspect` and total length.
      **These ride ALONGSIDE the tier — NOT menu items (don't cram them into the option prompt):**
      • **Image doctrine (paid tier):** the generator only ever makes **backgrounds/atmosphere behind
        HTML pages** — never a bare slideshow of generated stills; DATA always stays in real HTML/charts

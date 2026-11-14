@@ -477,6 +477,34 @@ def load_bank(spec):
     return out
 
 
+def _take(name, seen, g, bank):
+    """One cue's samples and gain, as the n-th of its name: a recorded take from `bank` (rotating) or the synthesised
+    cue, the repeats pitched and levelled a hair off the first. None for an empty cue."""
+    c = bank[name][seen.get(name, 0) % len(bank[name])] if bank and name in bank else cue(name)
+    if c is None or not len(c):
+        return None, g
+    # A CUE REPEATED IS NOT THE SAME SOUND TWICE: the n-th click of a film is pitched and levelled a hair off the
+    # first (deterministically), so a run of them does not machine-gun. The first of each is untouched.
+    k = seen.get(name, 0)
+    seen[name] = k + 1
+    if k:
+        r = 1.0 + 0.03 * np.sin(k * 2.3)
+        c = np.interp(np.arange(0, len(c) - 1, r), np.arange(len(c)), c).astype(np.float32)
+        g = float(g) * 10 ** (np.cos(k * 1.7) / 20.0)
+    return c, g
+
+
+def _add_at(buf, t, c, peak_of, g):
+    # `t` is where the cue's PEAK lands (its envelope's maximum), not where it starts: a whoosh swells for
+    # 0.3 s, a riser climbs for 1.2 s — aligned by their starts, each one peaked after the moment it marks
+    i = int(round((t - _peak_seconds(peak_of)) * SR))
+    a0 = max(0, -i)
+    i = max(0, i)
+    j = min(len(buf), i + len(c) - a0)
+    if j > i:
+        buf[i:j] += c[a0: a0 + (j - i)] * float(g)
+
+
 def build_sfx_track(cues, total_seconds, out_wav, peak_cap=None, bank=None):
     """Render the planned cues into ONE full-length SFX WAV (each cue placed at its sample offset), so the
     ffmpeg mix is a clean 2–3 input graph. Deterministic. `bank` ({name: [takes]}, load_bank) replaces a synthesised
@@ -486,29 +514,39 @@ def build_sfx_track(cues, total_seconds, out_wav, peak_cap=None, bank=None):
     buf = np.zeros(int((total_seconds + 1.0) * SR), dtype=np.float32)
     seen = {}
     for (t, name, g) in cues:
-        c = bank[name][seen.get(name, 0) % len(bank[name])] if bank and name in bank else cue(name)
-        if c is None or not len(c):
+        c, g = _take(name, seen, g, bank)
+        if c is None:
             continue
-        # A CUE REPEATED IS NOT THE SAME SOUND TWICE: the n-th click of a film is pitched and levelled a hair off the
-        # first (deterministically), so a run of them does not machine-gun. The first of each is untouched.
-        k = seen.get(name, 0)
-        seen[name] = k + 1
-        if k:
-            r = 1.0 + 0.03 * np.sin(k * 2.3)
-            c = np.interp(np.arange(0, len(c) - 1, r), np.arange(len(c)), c).astype(np.float32)
-            g = float(g) * 10 ** (np.cos(k * 1.7) / 20.0)
-        # `t` is where the cue's PEAK lands (its envelope's maximum), not where it starts: a whoosh swells for
-        # 0.3 s, a riser climbs for 1.2 s — aligned by their starts, each one peaked after the moment it marks
-        i = int(round((t - _peak_seconds(c)) * SR))
-        a0 = max(0, -i)
-        i = max(0, i)
-        j = min(len(buf), i + len(c) - a0)
-        buf[i:j] += c[a0: a0 + (j - i)] * float(g)
+        _add_at(buf, t, c, c, g)
     if peak_cap is not None and float(np.max(np.abs(buf))) > peak_cap > 0:
         buf *= peak_cap / float(np.max(np.abs(buf)))   # gain-staged under the voice (see mix)
     buf = np.tanh(buf * 0.9)                         # soft-clip guard (never hard-clip the sum)
     _write_wav(out_wav, buf)
     return True
+
+
+def build_sfx_stereo(cues, total_seconds, out_wav, bank=None):
+    """The same track in STEREO: cues are (t, name, gain[, place]) and each is put where `place` says
+    (stereo.place: a pan, a sweep (p0, p1), "wide"). A cue's peak still lands on `t` — its dry peak, so a room's tail
+    rings after it. Returns stereo.measure of the result, or False without numpy."""
+    if np is None:
+        return False
+    import stereo
+    buf = np.zeros((int((total_seconds + 1.0) * SR), 2), dtype=np.float32)
+    seen = {}
+    for cu in cues:
+        t, name, g = cu[0], cu[1], cu[2]
+        how = cu[3] if len(cu) > 3 else None
+        c, g = _take(name, seen, g, bank)
+        if c is None:
+            continue
+        _add_at(buf, t, stereo.place(c, how, SR), c, g)
+    buf = np.tanh(buf * 0.9)
+    a = (np.clip(buf, -1.0, 1.0) * 32767.0).astype("<i2")
+    with wave.open(out_wav, "wb") as w:
+        w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
+        w.writeframes(a.tobytes())
+    return stereo.measure(buf)
 
 
 # ── the audio chain, and how far it actually MOVES a sound ────────────────────────────────────────────

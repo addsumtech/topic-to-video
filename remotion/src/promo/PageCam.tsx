@@ -11,7 +11,7 @@
 // push glides. A key's zoom may not exceed the capture's density (`maxZoom`, 2 for a 2x capture) — past it the
 // texture is upsampled and the film shows it; the camera clamps there and says so once.
 import React from 'react';
-import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill, Img, OffthreadVideo, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {track, span, useLook, isDarkHex, type Key, type Box} from './kit';
 import {unlockFor, BaselineUnlockContext} from '../runtime/glide';
 
@@ -44,10 +44,13 @@ export const PageCam: React.FC<{
   focusY?: number;           // where (cx, cy) lands, as a share of the frame height: 0.5, or higher up when a caption
                              // band owns the bottom of the frame (a narrated film)
   macros?: Macro[];          // 4x captures of the elements a close-up pushes into (see Macro)
+  video?: string;            // a RECORDING of the page (promo_record) played in the capture's place, from `videoStart`
+  videoStart?: number;
   overlay?: React.ReactNode; // acts that sit ON TOP of everything, macros included (callouts, rings, the cursor), in
                              // page CSS px — drawn on a layer of their own at the close-up's raster, so they stay sharp
   children?: React.ReactNode;
-}> = ({src, w, h, keys, radius = 12, maxZoom = 2, frameOverride, blur = 0, contain = true, focusY = 0.5, macros = [], overlay, children}) => {
+}> = ({src, w, h, keys, radius = 12, maxZoom = 2, frameOverride, blur = 0, contain = true, focusY = 0.5, macros = [], overlay, video,
+  videoStart = 0, children}) => {
   const f0 = useCurrentFrame();
   const frame = frameOverride ?? f0;
   const {width: W, height: H} = useVideoConfig();
@@ -174,7 +177,18 @@ export const PageCam: React.FC<{
             transform: allowed ? unlockFor(1) : undefined}}>
             <div style={{position: 'absolute', inset: 0, borderRadius: radius, overflow: 'hidden',
               boxShadow: `0 2px 6px rgba(0,0,0,0.10), 0 30px 80px rgba(0,0,0,${isDarkHex(look.ground) ? 0.5 : 0.16}), 0 0 0 1px ${look.groundEdge}`}}>
-              <Img src={url} style={{position: 'absolute', left: 0, top: 0, width: w, height: h}} />
+              {video ? (
+                // the product IN MOTION: its recording, frame-exact, in the capture's place (the poster under it)
+                <>
+                  <Img src={url} style={{position: 'absolute', left: 0, top: 0, width: w, height: h}} />
+                  <Sequence from={-videoStart} layout="none">
+                    <OffthreadVideo src={/^(https?:|data:|\/)/.test(video) ? video : staticFile(video)} muted
+                      style={{position: 'absolute', left: 0, top: 0, width: w, height: h}} />
+                  </Sequence>
+                </>
+              ) : (
+                <Img src={url} style={{position: 'absolute', left: 0, top: 0, width: w, height: h}} />
+              )}
             </div>
             <PageCamContext.Provider value={info}>{children}</PageCamContext.Provider>
           </div>

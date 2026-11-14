@@ -12,7 +12,7 @@
 //   · the OUTRO recalls the film: its own shots, live, as a wall that pulls back while the lockup forms over it.
 import React from 'react';
 import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
-import {span, useLook, parseUnits, typeScale, isDarkHex, alpha, isCJK, SERIF, SANS, MONO} from './kit';
+import {span, useLook, parseUnits, typeScale, isDarkHex, alpha, isCJK, contrast, SERIF, SANS, MONO} from './kit';
 import {BASELINE_UNLOCK} from '../runtime/glide';
 
 // Every transform that moves or scales TYPE here carries the baseline unlock (runtime/glide.ts): under a pure
@@ -157,14 +157,18 @@ export const CaptionStrip: React.FC<{text: string; dur: number}> = ({text, dur})
   );
 };
 
+/** The ink that reads best on `bg`, from the film's own candidates (white on a yellow pill was 1.3:1). */
+export const inkOn = (bg: string, inks: string[]) => inks.reduce((best, c) => (contrast(c, bg) > contrast(best, bg) ? c : best), inks[0]);
+
 /** The brand lockup from one SVG: the icon square at its left (width ≈ the SVG's height) and the wordmark after it,
  *  drawn as two clipped copies of the file so each part moves alone. `grow` 0→1 grows the icon out of an accent dot. */
-export const Lockup: React.FC<{mark: string; aspect: number; h: number; grow: number; word: number}> = ({mark, aspect, h, grow, word}) => {
+export const Lockup: React.FC<{mark: string; aspect: number; h: number; grow: number; word: number; plate?: boolean}> = ({mark, aspect, h, grow, word, plate: plateProp}) => {
   const look = useLook();
   const w = h * aspect, iconW = h * 1.08;
   const dot = 1 - span(grow, 0.35, 0.75, 'linear');
-  // a brand mark is drawn for a light page; on a dark paper it sits on a light plate rather than vanishing into it
-  const plate = isDarkHex(look.paper);
+  // a brand mark is drawn for a light page; on a dark paper it sits on a light plate rather than vanishing into it —
+  // unless the mark is itself light (made for dark grounds: promo_film reads its pixels and says `plate: false`)
+  const plate = plateProp ?? isDarkHex(look.paper);
   return (
     <div style={{position: 'relative', width: w, height: h, ...(plate ? {padding: `${h * 0.28}px ${h * 0.4}px`, margin: `${-h * 0.28}px ${-h * 0.4}px`,
       boxSizing: 'content-box', borderRadius: h * 0.3, background: `rgba(250,250,248,${Math.min(1, word * 1.2 + grow * 0.3)})`,
@@ -187,7 +191,7 @@ export const Lockup: React.FC<{mark: string; aspect: number; h: number; grow: nu
 
 /** BRAND OPEN: an accent dot lands, grows into the icon, the wordmark draws out of it, the kicker rises under it;
  *  the lockup RESTS a full second, then the card rises out as the first shot carries in. */
-export const BrandOpen: React.FC<{mark: string; aspect: number; kicker?: string; dur: number; markH?: number}> = ({mark, aspect, kicker = '', dur, markH = 170}) => {
+export const BrandOpen: React.FC<{mark: string; aspect: number; kicker?: string; dur: number; markH?: number; plate?: boolean}> = ({mark, aspect, kicker = '', dur, markH = 170, plate}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const look = useLook();
@@ -199,7 +203,7 @@ export const BrandOpen: React.FC<{mark: string; aspect: number; kicker?: string;
   return (
     <CardGround>
       <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', transform: `translateY(${-out * 60 * s}px) ${U}`, opacity: 1 - out}}>
-        <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} />
+        <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} plate={plate} />
         {kicker ? <div style={{marginTop: 44 * s}}>
           <RiseLine text={kicker} px={26 * s} start={30} gap={1.5} family={MONO} weight={600} color={look.muted} />
         </div> : null}
@@ -211,7 +215,7 @@ export const BrandOpen: React.FC<{mark: string; aspect: number; kicker?: string;
 /** RECALL OUTRO: the film's own shots come back as a wall of live frames that pulls back; at `stampAt` the wall
  *  steps behind a scrim and the lockup grows out of its dot, the tagline rising under it; the end holds a second. */
 export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspect: number; tagline?: string; dur: number; stampAt?: number; markH?: number;
-  cta?: string}> = ({tiles, mark, aspect, tagline = '', dur, stampAt = 46, markH = 150, cta}) => {
+  cta?: string; plate?: boolean}> = ({tiles, mark, aspect, tagline = '', dur, stampAt = 46, markH = 150, cta, plate}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const look = useLook();
@@ -248,7 +252,7 @@ export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspe
       </AbsoluteFill>
       <AbsoluteFill style={{background: `radial-gradient(42% 38% at 50% 50%, ${alpha(look.paper, 0.92 * back)}, ${alpha(look.paper, 0.78 * back)} 55%, ${alpha(look.paper, 0.32 * back)} 100%)`}} />
       <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
-        <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} />
+        <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} plate={plate} />
         {tagline ? <div style={{marginTop: 34 * s}}>
           <RiseLine text={tagline} px={46 * s} start={stampAt + 26} gap={2} weight={560} color={look.ink} />
         </div> : null}
@@ -256,7 +260,7 @@ export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspe
         {cta ? (() => {
           const c = span(frame, stampAt + 40, stampAt + 52, 'snappy');
           return <div style={{marginTop: 36 * s, opacity: c, transform: `translateY(${(1 - c) * 14 * s}px) ${U}`, padding: `${12 * s}px ${28 * s}px`,
-            borderRadius: 999, background: look.accentInk, color: '#ffffff', fontFamily: SANS, fontSize: 28 * s, fontWeight: 650,
+            borderRadius: 999, background: look.accentInk, color: inkOn(look.accentInk, [look.paper, look.ink, '#ffffff', '#141413']), fontFamily: SANS, fontSize: 28 * s, fontWeight: 650,
             letterSpacing: '0.01em', boxShadow: `0 ${10 * s}px ${30 * s}px ${alpha(look.accentInk, 0.35)}`}}>{cta}</div>;
         })() : null}
       </AbsoluteFill>
