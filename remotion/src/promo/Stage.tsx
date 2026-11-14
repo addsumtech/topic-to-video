@@ -289,7 +289,7 @@ export type WallTile = {src?: string; w: number; h: number; radius?: number; bg?
  *  the right) — appearing in a quick cascade, the camera crossing the plane in one decisive move (~1.2-2 s) and holding. Far tiles fall
  *  into the world's dark (depth). A label sits over it, large, in a corner. */
 export const WallShot: React.FC<{dur: number; world?: World; tiles: WallTile[]; cols?: number; tile?: number; gap?: number; plane?: 'floor' | 'wall';
-  from?: {x: number; y: number}; to?: {x: number; y: number}; label?: {text: string; sub?: string; at?: number}}> = (
+  from?: {x: number; y: number}; to?: {x: number; y: number}; label?: {text: string; sub?: string; at?: number; on?: 'corner' | 'plane'; size?: number}}> = (
   {dur, world: w0, tiles, cols = 4, tile = 560, gap = 36, plane = 'floor', from = {x: 0, y: 0}, to = {x: 0, y: -260}, label}) => {
   const frame = useCurrentFrame();
   const look = useLook();
@@ -318,11 +318,23 @@ export const WallShot: React.FC<{dur: number; world?: World; tiles: WallTile[]; 
   const p = (1 - Math.cos(Math.PI * Math.pow(lin, q))) / 2;
   const cx = from.x + (to.x - from.x) * p, cy = from.y + (to.y - from.y) * p;
   const tilt = plane === 'floor' ? 'rotateX(48deg) rotateZ(-8deg)' : 'rotateY(-30deg) rotateX(4deg)';
+  const onPlane = label?.on === 'plane';
   return (
     <WorldGround world={world} focus={{x: 0.5, y: 0.45}}>
       <AbsoluteFill style={{perspective: 1700 * s, perspectiveOrigin: '50% 30%'}}>
         <div style={{position: 'absolute', left: W / 2 - (pw * s) / 2, top: H / 2 - (ph * s) / 2, width: pw * s, height: ph * s, transformStyle: 'preserve-3d',
           transform: `${tilt} translate3d(${-cx * s}px, ${-cy * s}px, 0)`, willChange: 'transform'}}>
+          {onPlane && label ? (
+            // THE CLAIM ON THE PLANE (gallery-intro's move): laid in the plane's own space after the last row, so the one
+            // camera move crosses words and components together and the type recedes with them. It rises before the move
+            // starts (all its words have landed by t0) and then is part of the plane: it never moves on its own.
+            <div style={{position: 'absolute', left: 0, top: (ph + gap * 1.6) * s, width: pw * s}}>
+              <RiseLine text={label.text} px={(label.size ?? 132) * s} start={label.at ?? 2} gap={2} weight={760} align="left" lineHeight={1.02}
+                maxWidth={pw * s} color={worldLook(look, world).ink} />
+              {label.sub ? <div style={{marginTop: 22 * s, fontFamily: SANS, fontSize: (label.size ?? 132) * 0.3 * s, color: worldLook(look, world).muted,
+                opacity: span(frame, (label.at ?? 2) + 8, (label.at ?? 2) + 16, 'out')}}>{label.sub}</div> : null}
+            </div>
+          ) : null}
           {tiles.map((t, i) => {
             const c = i % cols, r = Math.floor(i / cols);
             const a = span(frame, i * 1.4, 12 + i * 1.4, 'snappy');       // the first tile is in by frame 6: no empty cut-in
@@ -356,7 +368,7 @@ export const WallShot: React.FC<{dur: number; world?: World; tiles: WallTile[]; 
       {/* depth: the far edge falls into the world */}
       {/* the label sits in the fog the far edge falls into — over the near tiles it fought them (white on white) */}
       <AbsoluteFill style={{background: `linear-gradient(180deg, ${worldLook(look, world).paper} 0%, ${alpha(worldLook(look, world).paper, 0.85)} 22%, ${alpha(worldLook(look, world).paper, 0)} 42%)`}} />
-      {label ? (
+      {label && !onPlane ? (
         <div style={{position: 'absolute', left: 0.06 * W, top: 0.08 * H}}>
           <RiseLine text={label.text} px={58 * s} start={label.at ?? 18} gap={2} weight={720} align="left" nowrap />
           {label.sub ? <div style={{marginTop: 10 * s, fontFamily: SANS, fontSize: 26 * s, color: worldLook(look, world).muted,

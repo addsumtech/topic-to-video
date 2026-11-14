@@ -29,7 +29,7 @@ export type Shot =
   | {kind: 'montage'; dur: number; items: Region[]; every?: number; full?: boolean; cut?: Cut}
   | {kind: 'object'; dur: number; world?: World; items: StageItem[]; label?: FeatureLabel; links?: StageLink[]; cut?: Cut}
   | {kind: 'wall'; dur: number; world?: World; tiles: WallTile[]; cols?: number; tile?: number; gap?: number; plane?: 'floor' | 'wall';
-     from?: {x: number; y: number}; to?: {x: number; y: number}; label?: {text: string; sub?: string; at?: number}; cut?: Cut};
+     from?: {x: number; y: number}; to?: {x: number; y: number}; label?: {text: string; sub?: string; at?: number; on?: 'corner' | 'plane'; size?: number}; cut?: Cut};
 
 export type PromoProps = {look?: Partial<Look>; shots: Shot[]; cut?: Cut; subtitles?: Sub[]};
 

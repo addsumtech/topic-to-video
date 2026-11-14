@@ -131,6 +131,11 @@ So a product film is made mostly of **objects**:
   with the camera gliding across in one move (`from` → `to`, plane px); the far edge falls into the world; a large
   `label` sits in a corner on a scrim. Use it for breadth (every codec, every template), with components or crops
   as tiles, never shrunken full pages.
+  - **The claim on the plane** (`label.on: "plane"`, `size` in plane px, default 132): the claim is laid in the
+    plane's own space after the last row, large, and recedes with the tiles; it rises before the move and then is
+    part of the plane. Aim the move from the tiles (`from`, toward the far rows) to the words (`to`: toward the near
+    side, `y` past the last row; `x` left of centre so the line's start is in frame — the type starts at the plane's
+    left edge). One wall per film this way is the accent; the corner label stays the default.
 - **The staged outro.** An `outro` with a `world` gathers the film's own components (the still parts of its object
   and wall shots, up to 6) in depth round the mark: each arrives from further away to its place in a loose ring,
   softer the deeper it sits, then steps back and dims as the mark lands in a band of light (glow) or a spotlight
@@ -139,6 +144,10 @@ So a product film is made mostly of **objects**:
   film order, each once, near-blank parts left out; an authored `objects` list wins). On a light world they keep
   their ink and step back by depth only, with a contact shadow and a hairline edge: dimming on white faded them to
   ghosts. Size the mark (`markH`) so it outranks the tagline.
+- **The mark ignites.** Every outro lockup (staged or not) lands with two moves of light: on a dark ground a
+  horizontal streak of the accent bursts from the icon's centre as the dot becomes the icon; once the mark is whole a
+  band of the accent's light crosses it, masked to the mark's own pixels. Always the accent: a white band over dark
+  letters read as the letters fading.
 - **Layers.** A frame with one object on a void reads empty. Put one or two of the film's other components behind
   the hero (`z` -300..-450, `blur` 3-4, `from: fade`) — depth, and the product's world around its subject.
 - **A full-page shot is the exception**: at most one, to establish where we are. Everything else is a component.

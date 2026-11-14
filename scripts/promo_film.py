@@ -535,6 +535,11 @@ def check(spec, film_dir):
             lab = s.get("label")
             if lab is not None and not (isinstance(lab, dict) and str(lab.get("text") or "").strip()):
                 errs.append("%s: a label needs its text (the claim; `\\n` between its two lines)" % where)
+            if isinstance(lab, dict) and lab.get("on") is not None:
+                if k != "wall" or lab["on"] not in ("corner", "plane"):
+                    errs.append("%s: label.on is a wall's: corner (on the fog, the default) or plane (laid on the plane)" % where)
+                if lab.get("size") is not None and not (isinstance(lab["size"], (int, float)) and 40 <= lab["size"] <= 400):
+                    errs.append("%s: label.size is the type's size in plane px (40..400; default 132)" % where)
             items = [t for t in things if isinstance(t, dict)]
             # any item may carry the demonstration (Squoosh: the count runs on the bubble in front of the settings card)
             if k == "object" and lab is not None and items and not any(t.get("acts") or t.get("video") for t in items):

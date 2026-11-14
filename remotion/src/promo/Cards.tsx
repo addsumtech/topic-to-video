@@ -164,7 +164,8 @@ export const inkOn = (bg: string, inks: string[]) => inks.reduce((best, c) => (c
 
 /** The brand lockup from one SVG: the icon square at its left (width ≈ the SVG's height) and the wordmark after it,
  *  drawn as two clipped copies of the file so each part moves alone. `grow` 0→1 grows the icon out of an accent dot. */
-export const Lockup: React.FC<{mark: string; aspect: number; h: number; grow: number; word: number; plate?: boolean}> = ({mark, aspect, h, grow, word, plate: plateProp}) => {
+export const Lockup: React.FC<{mark: string; aspect: number; h: number; grow: number; word: number; plate?: boolean; glint?: number; flare?: number}> = (
+  {mark, aspect, h, grow, word, plate: plateProp, glint = 0, flare = 0}) => {
   const look = useLook();
   const w = h * aspect, iconW = h * 1.08;
   const dot = 1 - span(grow, 0.35, 0.75, 'linear');
@@ -186,6 +187,24 @@ export const Lockup: React.FC<{mark: string; aspect: number; h: number; grow: nu
       <div style={{position: 'absolute', left: iconW, top: 0, width: w - iconW, height: h, overflow: 'hidden', clipPath: `inset(0 ${(1 - word) * 100}% 0 0)`}}>
         <Img src={urlOf(mark)} style={{position: 'absolute', left: -iconW, top: 0, width: w, height: h, transform: `translateX(${(1 - word) * -h * 0.3}px)`}} />
       </div>
+      {/* THE GLINT: once the mark is whole, one band of the accent's light crosses it, masked to the mark's own pixels
+          (it lights the letters, not the ground). Always the accent: a WHITE band over dark letters read as the letters
+          fading (regex101's wordmark on paper went grey mid-word), and white over a light mark is nothing. */}
+      {glint > 0 && glint < 1 ? (() => {
+        const tint = alpha(look.accent, 0.92);
+        const at = -45 + glint * 190;
+        const m = `url("${urlOf(mark)}")`;
+        return <div style={{position: 'absolute', left: 0, top: 0, width: w, height: h, WebkitMaskImage: m, maskImage: m,
+          WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+          background: `linear-gradient(105deg, rgba(255,255,255,0) ${at - 14}%, ${tint} ${at}%, rgba(255,255,255,0) ${at + 14}%)`}} />;
+      })() : null}
+      {/* THE FLARE (dark grounds): as the dot becomes the icon, a horizontal streak of the accent's light bursts from its
+          centre and fades — the moment the brand ignites. Light grounds keep their spotlight; a streak there reads as dirt. */}
+      {flare > 0 ? (
+        <div style={{position: 'absolute', left: h / 2 - w * 1.1 * flare, top: h / 2 - h * 0.05, width: w * 2.2 * flare, height: h * 0.1,
+          borderRadius: '50%', opacity: Math.min(1, (1 - flare) * 2.2), mixBlendMode: 'screen', pointerEvents: 'none',
+          background: `radial-gradient(50% 50% at 50% 50%, rgba(255,255,255,0.95), ${alpha(look.accent, 0.7)} 30%, rgba(0,0,0,0) 100%)`}} />
+      ) : null}
       </div>
     </div>
   );
@@ -271,7 +290,9 @@ export const OutroLockup: React.FC<{mark: string; aspect: number; tagline?: stri
   const mh = Math.min(markH * s, (W * 0.7) / aspect);
   return (
     <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-      <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} plate={plate} />
+      <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} plate={plate}
+        glint={span(frame, stampAt + 34, stampAt + 58, 'smooth')}
+        flare={isDarkHex(look.paper) ? span(frame, stampAt + 8, stampAt + 34, 'out') : 0} />
       {tagline ? <div style={{marginTop: 34 * s}}>
         <RiseLine text={tagline} px={46 * s} start={stampAt + 26} gap={2} weight={560} color={look.ink} />
       </div> : null}

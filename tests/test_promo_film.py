@@ -600,3 +600,12 @@ def test_a_link_joins_two_landed_cards_or_is_refused_by_name(parts):
     ]:
         errs = pf.check({"shots": [dict(two, links=bad)]}, str(parts))[0]
         assert any(words in e for e in errs), (words, errs)
+
+
+def test_a_wall_label_can_lie_on_the_plane_and_nothing_else_can(parts):
+    tiles = [{"src": "panel.png", "w": 300, "h": 351}] * 4
+    wall = {"kind": "wall", "dur": 90, "tiles": tiles, "cols": 2, "label": {"text": "Every codec.", "on": "plane", "size": 150}}
+    assert pf.check({"shots": [wall]}, str(parts))[0] == []
+    for lab, words in [(dict(wall["label"], on="ceiling"), "label.on"), (dict(wall["label"], size=900), "label.size")]:
+        assert any(words in e for e in pf.check({"shots": [dict(wall, label=lab)]}, str(parts))[0])
+    assert any("label.on" in e for e in pf.check({"shots": [obj(label=dict(obj()["label"], on="plane"))]}, str(parts))[0])
