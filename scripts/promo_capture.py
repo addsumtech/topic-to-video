@@ -3,7 +3,7 @@
 
     python3 scripts/promo_capture.py <film_dir> <url> --name=home [--width=1440] [--height=900] [--full]
                                      [--wait=1.5] [--eval="js ;;; js" (steps split by ;;;)] [--select="css,css"] [--max=80]
-                                     [--hires="7;520,300,240,120"]   # 4x close-up captures: element ids or CSS boxes
+                                     [--hires="text:862 kB;css:#export;520,300,240,120"]   # 4x close-ups
     python3 scripts/promo_capture.py <film_dir> --boxes=<capture.png>     # a screenshot with no DOM (desktop app)
     python3 scripts/promo_capture.py <film_dir> --mark=<capture.png> --box=x,y,w,h [--name=mark]
                                      # the brand's own logo, cut from its own page: a transparent PNG for any ground
@@ -86,20 +86,38 @@ def split_steps(js):
     import re
     return [x.strip() for x in re.split(r"\s*;;;\s*", js or "") if x.strip()]
 
-def _hires_boxes(spec, els):
-    """`--hires` items: an element id from this capture (`7`) or a CSS box (`x,y,w,h`), `;`-separated."""
+def _hires_boxes(spec, els, css=None):
+    """`--hires` items, `;`-separated: `text:<words>` (the SMALLEST element whose text holds them, case-insensitive),
+    `css:<selector>` (its box on the page), a CSS box `x,y,w,h`, or an element id from THIS capture (`7`). Ids are
+    numbered as the capture is taken and shift from one page state to the next (the regex101 run: id 17 was the
+    pattern field in one state and the explanation tree in the next, silently) — so every item says what it resolved to."""
     out = []
     for item in [x.strip() for x in (spec or "").split(";") if x.strip()]:
-        if re.fullmatch(r"\d+", item):
+        if item.startswith("text:"):
+            want = item[5:].strip().lower()
+            hits = [e for e in els if want and want in str(e.get("text") or "").lower()]
+            if not hits:
+                raise SystemExit("[promo_capture] --hires: no element's text holds %r in this capture (see .layout.json)" % want)
+            e = min(hits, key=lambda e: e["w"] * e["h"])
+            box, why = {k: e[k] for k in ("x", "y", "w", "h")}, "element %s %r" % (e["id"], str(e.get("text"))[:40])
+        elif item.startswith("css:"):
+            b = css(item[4:].strip()) if css else None
+            if not b:
+                raise SystemExit("[promo_capture] --hires: nothing on the page matches %r" % item[4:].strip())
+            box, why = b, "selector %r" % item[4:].strip()
+        elif re.fullmatch(r"\d+", item):
             e = next((e for e in els if e["id"] == int(item)), None)
             if e is None:
                 raise SystemExit("[promo_capture] --hires: no element %s in this capture (see its .boxes.jpg)" % item)
-            out.append({k: e[k] for k in ("x", "y", "w", "h")})
+            box, why = {k: e[k] for k in ("x", "y", "w", "h")}, "element %s %r (ids shift between captures: prefer text:)" % (
+                item, str(e.get("text") or e.get("tag"))[:40])
         else:
             v = [float(x) for x in item.split(",")]
             if len(v) != 4 or v[2] <= 0 or v[3] <= 0:
-                raise SystemExit("[promo_capture] --hires: %r is neither an element id nor x,y,w,h" % item)
-            out.append(dict(zip(("x", "y", "w", "h"), v)))
+                raise SystemExit("[promo_capture] --hires: %r is not text:, css:, an element id or x,y,w,h" % item)
+            box, why = dict(zip(("x", "y", "w", "h"), v)), "box"
+        print("[promo_capture] --hires %s -> %s at %s" % (item, why, {k: round(box[k], 1) for k in box}))
+        out.append(box)
     return out
 
 
@@ -152,6 +170,13 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
             time.sleep(max(0.6, wait))
             for expr in ("document.fonts ? document.fonts.ready.then(()=>1) : 1",):
                 c._cmd("Runtime.evaluate", {"expression": expr, "awaitPromise": True, "returnByValue": True}, c.sid)
+        if js:
+            # a scripted click leaves the page HOVERED and FOCUSED: tooltips ("Help", "Upgrade to Pro") and focus rings
+            # stayed in the regex101 captures. The pointer leaves the page and focus is dropped before the picture.
+            c._cmd("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": -40, "y": -40}, c.sid)
+            c._cmd("Runtime.evaluate", {"expression": "document.activeElement && document.activeElement.blur && "
+                                        "document.activeElement.blur(); 1", "returnByValue": True}, c.sid)
+            time.sleep(0.4)
         lay = c._cmd("Runtime.evaluate", {"expression": ELEMENTS_JS % json.dumps(list(select)), "returnByValue": True},
                      c.sid)["result"]["result"]["value"]
         h = min(lay["h"], H * 4) if full else H
@@ -174,7 +199,12 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
         # HIGH-RES CLOSE-UPS: the elements a film pushes into past the page's own 2x, captured again at 4x (the same
         # page state, the same load) — the camera's close-up draws them over the page so the subject stays sharp
         hires = []
-        boxes = _hires_boxes(hires_spec, els)
+        def css_box(sel):
+            r = c._cmd("Runtime.evaluate", {"expression": "(()=>{const e=document.querySelector(%s); if(!e) return null; const b="
+                                            "e.getBoundingClientRect(); return {x:b.left+scrollX, y:b.top+scrollY, w:b.width, h:b.height};})()"
+                                            % json.dumps(sel), "returnByValue": True}, c.sid)["result"]["result"].get("value")
+            return r if r and r["w"] > 0 and r["h"] > 0 else None
+        boxes = _hires_boxes(hires_spec, els, css_box)
         if boxes:
             # the page REDRAWN at 4x (deviceScaleFactor), not the 2x picture scaled: a canvas app paints its bitmap at the
             # device ratio, so only a real ratio change gives its close-up real pixels

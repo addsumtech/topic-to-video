@@ -194,12 +194,14 @@ def test_subtitles_follow_the_voice(tmp_path):
 
 
 def test_new_kinds_and_the_through_cut_are_checked(film):
-    reg = {"src": "page.png", "w": 400, "h": 300, "box": {"x": 0, "y": 0, "w": 200, "h": 100}}
+    from PIL import Image
+    Image.new("RGB", (3840, 2160), "white").save(film / "big.png")       # a 2x capture big enough to fill the frame
+    reg = {"src": "big.png", "w": 1920, "h": 1080, "box": {"x": 0, "y": 0, "w": 1600, "h": 900}}
     ok = {"shots": [{"kind": "statement", "dur": 50, "text": "One *line.*", "ground": "accent"},
                     {"kind": "compare", "dur": 60, "a": reg, "b": reg, "cut": "through"},
                     {"kind": "montage", "dur": 40, "items": [reg, reg]}]}
     assert pf.check(ok, str(film))[0] == []
-    bad = {"shots": [{"kind": "compare", "dur": 60, "a": reg, "b": dict(reg, box={"x": 300, "y": 0, "w": 200, "h": 100})},
+    bad = {"shots": [{"kind": "compare", "dur": 60, "a": reg, "b": dict(reg, box={"x": 1000, "y": 0, "w": 1600, "h": 900})},
                      {"kind": "statement", "dur": 50, "text": "x", "ground": "neon"}]}
     errs = pf.check(bad, str(film))[0]
     assert any("outside" in e for e in errs) and any("ground" in e for e in errs)
@@ -323,3 +325,122 @@ def test_a_key_made_by_the_helper_never_frames_past_the_page(film, aspect):
         assert not any("past the page's edge" in a for a in adv), (k, adv)
     tilted = pf.key(0, -500, 150, 1.2, 400, 300, ry=12)
     assert tilted["cx"] == -500                                   # a tilted object shot is not clamped
+
+
+def test_a_recordings_typing_and_drag_are_heard_on_their_frames(recording):
+    import json
+    lay = json.loads((recording / "caps" / "rec.layout.json").read_text())
+    lay["events"] = [{"frame": 5, "kind": "click", "x": 50, "y": 50},
+                     {"frame": 5, "kind": "type", "text": "hello", "until": 15},
+                     {"frame": 30, "kind": "drag", "from": [100, 80], "to": [300, 80], "until": 50}]
+    (recording / "caps" / "rec.layout.json").write_text(json.dumps(lay))
+    spec = pf.resolve_recordings(str(recording), {"shots": [rec_shot(dur=60)]})
+    cues = pf.plan_sfx(spec, placed=True)
+    keys = [f for f, c, g, h in cues if c == "key"]
+    assert keys[:3] == [5, 9, 13] and 50 in keys                 # 'hello' typed 5-15: a key per 2 chars; the release
+    assert (30, "click") in [(f, c) for f, c, g, h in cues]       # the drag's press
+    clicks = [f for f, c, g, h in cues if c == "click"]
+    assert clicks.count(7) == 1                                   # the click sounds ONCE (the cursor act's), not twice
+    nocur = pf.plan_sfx(pf.resolve_recordings(str(recording), {"shots": [rec_shot(dur=60, cursor=False)]}), placed=True)
+    assert [f for f, c, g, h in nocur if c == "click"].count(7) == 1   # cursor off: still heard, from the recording
+
+
+def test_a_caption_on_the_pages_own_text_is_advised(tmp_path):
+    import json
+    from PIL import Image
+    Image.new("RGB", (3840, 3200), "white").save(tmp_path / "p.png")       # a page taller than the frame
+    (tmp_path / "p.layout.json").write_text(json.dumps({"elements": [
+        {"x": 70, "y": 975, "w": 260, "h": 30, "text": "About  Source  Twitter"},
+        {"x": 900, "y": 100, "w": 300, "h": 40, "text": "Heading"}]}))
+    still = [{"f": 0, "cx": 960, "cy": 540, "zoom": 1.0}]
+    shot = {"kind": "page", "dur": 90, "src": "p.png", "w": 1920, "h": 1600, "keys": still, "caption": {"text": "Every theme", "at": 8},
+            "layers": [{"kind": "ring", "box": {"x": 900, "y": 100, "w": 300, "h": 40}, "at": 10}]}
+    # no corner given: it moves off the footer by itself, and nothing is left to advise
+    _, adv = pf.check({"shots": [shot]}, str(tmp_path))
+    assert not any("caption" in a and " covers " in a for a in adv), adv
+    moved = pf.place_captions(str(tmp_path), {"shots": [shot]})["shots"][0]["caption"]
+    assert moved.get("pos") in ("br", "tl", "tr")
+    # a corner the author PINNED is judged where it was put
+    pinned = dict(shot, caption={"text": "Every theme", "at": 8, "pos": "bl"})
+    _, adv = pf.check({"shots": [pinned]}, str(tmp_path))
+    assert any("caption" in a and "About  Source" in a for a in adv), adv
+    # the camera lifts the footer out of the band (a legal move: the page runs on below): no advisory
+    up = dict(pinned, keys=[{"f": 0, "cx": 960, "cy": 760, "zoom": 1.0}])
+    _, adv = pf.check({"shots": [up]}, str(tmp_path))
+    assert not any(" covers " in a for a in adv), adv
+    # a narrated shot's subtitle, centred, over a centred line of the page's text
+    (tmp_path / "p.layout.json").write_text(json.dumps({"elements": [{"x": 700, "y": 960, "w": 520, "h": 40, "text": "Centre text"}]}))
+    said = dict(shot, caption=None, say="Turn code into images.", layers=[])
+    _, adv = pf.check({"shots": [said]}, str(tmp_path))
+    assert not any("subtitle" in a for a in adv), adv             # the top is clear: the subtitle goes up, no advisory
+    placed = pf.place_subtitles(str(tmp_path), {"shots": [said], "subtitles": [{"from": 10, "to": 60, "text": "Turn code into images."}]})
+    assert placed["subtitles"][0]["pos"] == "top"
+    # text at the top AND the bottom: nowhere to go — advised
+    (tmp_path / "p.layout.json").write_text(json.dumps({"elements": [{"x": 700, "y": 960, "w": 520, "h": 40, "text": "Centre text"},
+                                                                     {"x": 700, "y": 80, "w": 520, "h": 40, "text": "Top text"}]}))
+    _, adv = pf.check({"shots": [said]}, str(tmp_path))
+    assert any("subtitle" in a and "Centre text" in a for a in adv), adv
+    kept = pf.place_subtitles(str(tmp_path), {"shots": [said], "subtitles": [{"from": 10, "to": 60, "text": "Turn code into images."}]})
+    assert "pos" not in kept["subtitles"][0]
+
+
+def test_a_subtitle_never_moves_onto_the_shots_subject(tmp_path):
+    import json
+    from PIL import Image
+    Image.new("RGB", (3840, 2160), "white").save(tmp_path / "p.png")
+    (tmp_path / "p.layout.json").write_text(json.dumps({"elements": [{"x": 700, "y": 960, "w": 520, "h": 40, "text": "Footer"}]}))
+    still = [{"f": 0, "cx": 960, "cy": 540, "zoom": 1.0}]
+    callout = {"kind": "callout", "x": 900, "y": 300, "lx": 760, "ly": 90, "at": 0, "text": "Side by side", "kicker": "ORIGINAL"}
+    shot = {"kind": "page", "dur": 90, "src": "p.png", "w": 1920, "h": 1080, "keys": still, "say": "Open an image and compare.",
+            "layers": [callout]}
+    placed = pf.place_subtitles(str(tmp_path), {"shots": [shot], "subtitles": [{"from": 10, "to": 60, "text": "Open an image and compare."}]})
+    assert "pos" not in placed["subtitles"][0]             # the top holds the callout's label: it stays low, on the footer
+    _, adv = pf.check({"shots": [shot]}, str(tmp_path))
+    assert any("subtitle covers" in a and "'Footer'" in a and "bottom band" in a for a in adv), adv
+    # the hero under the low band, plain page text at the top: up it goes (the subject costs more)
+    hero = dict(shot, layers=[{"kind": "ring", "box": {"x": 760, "y": 955, "w": 400, "h": 50}, "at": 0}])
+    (tmp_path / "p.layout.json").write_text(json.dumps({"elements": [{"x": 700, "y": 960, "w": 520, "h": 40, "text": "862 kB"},
+                                                                     {"x": 800, "y": 80, "w": 200, "h": 30, "text": "Reduce palette"}]}))
+    placed = pf.place_subtitles(str(tmp_path), {"shots": [hero], "subtitles": [{"from": 10, "to": 60, "text": "Open an image and compare."}]})
+    assert placed["subtitles"][0]["pos"] == "top"
+
+
+def test_narration_falls_back_to_the_offline_voice_and_cuts_cjk_lines(tmp_path, monkeypatch):
+    import re
+    import shutil
+    import tts
+    assert [p for p in re.split(pf.SPLIT_RE, "磁共振成像用磁场成像。它不使用电离辐射。") if p.strip()] == ["磁共振成像用磁场成像。", "它不使用电离辐射。"]
+    assert [p for p in re.split(pf.SPLIT_RE, "第一步，把图片拖进来，然后选择你想要的压缩格式和质量参数。") if p.strip()] == \
+        ["第一步，把图片拖进来，", "然后选择你想要的压缩格式和质量参数。"]
+    if not shutil.which("say"):
+        pytest.skip("no macOS say")
+
+    def offline(*a, **k):
+        raise RuntimeError("offline")
+    monkeypatch.setattr(tts, "_edge", offline)
+    spec = {"narrate": True, "language": "en", "shots": [{"kind": "statement", "dur": 30, "text": "x",
+                                                          "say": "Squoosh makes images small. It runs in your browser."}]}
+    out, clips = pf.voice_pass(str(tmp_path), spec)
+    assert clips and clips[0][1].endswith(".say.wav") and os.path.getsize(clips[0][1]) > 1000
+    assert out["shots"][0]["dur"] > 30                                   # the voice still sets the shot's length
+    subs = out["subtitles"]
+    assert [x["text"] for x in subs] == ["Squoosh makes images small.", "It runs in your browser."]
+    assert subs[0]["to"] == subs[1]["from"] and subs[1]["to"] <= out["shots"][0]["dur"]
+
+
+def test_a_montage_or_compare_region_is_held_to_the_captures_density(film):
+    small = {"src": "page.png", "w": 400, "h": 300, "box": {"x": 0, "y": 0, "w": 200, "h": 150}}   # 2x capture, 200 px wide
+    errs, _ = pf.check({"shots": [{"kind": "montage", "dur": 48, "items": [small]}]}, str(film))
+    assert any("past the capture's 2x" in e for e in errs), errs
+    errs, _ = pf.check({"shots": [{"kind": "compare", "dur": 60, "a": small, "b": small}]}, str(film))
+    assert any("past the capture's 2x" in e for e in errs), errs
+
+
+def test_a_white_mark_on_a_light_film_is_advised(film):
+    from PIL import Image
+    Image.new("RGBA", (40, 20), (255, 255, 255, 255)).save(film / "white.png")
+    o = {"kind": "outro", "dur": 120, "mark": "white.png", "aspect": 2, "recall": [0]}
+    _, adv = pf.check({"look": {"accent": "#2b6cb0", "mode": "light"}, "shots": [page(), o]}, str(film))
+    assert any("mark is light" in a for a in adv), adv
+    _, adv = pf.check({"look": {"accent": "#2b6cb0", "mode": "dark"}, "shots": [page(), o]}, str(film))
+    assert not any("mark is light" in a for a in adv), adv

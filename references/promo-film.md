@@ -166,7 +166,7 @@ Every `box` is a dict `{"x": .., "y": .., "w": .., "h": ..}` in the capture's CS
 | every shot | `kind`, `dur` (frames), `cut` (into this shot) | |
 | brand | `mark`, `aspect` (the mark's w/h, printed by `--mark`), `kicker`, `markH` | |
 | title | `text` (`*accent*`), `kicker`, `index` (false = unnumbered), `size` | |
-| page | `src`, `w`, `h`, `keys`, `layers` (or `acts`), `caption` {text, at, dur}, `contain` (default true), `maxZoom` (2), `radius` | |
+| page | `src`, `w`, `h`, `keys`, `layers` (or `acts`), `caption` {text, at, dur, pos}, `contain` (default true), `maxZoom` (2), `radius` | the caption strip sits in a corner: `pos` bl (default), br, tl, tr; left out, it moves off type by itself |
 | page (recording) | `recording` (a promo_record layout; sets src/video/w/h), `videoStart` (frame), `cursor` (false = none) | the recording plays under the camera |
 | outro | `mark`, `aspect`, `tagline`, `cta`, `stampAt` (default 46), `markH`, `recall` (page-shot indices, from 0) | |
 | statement | `text` (`*accent*`), `ground` (paper/accent/ink), `size`, `sub` | one line of type, word by word out of a blur, then still |
@@ -196,9 +196,17 @@ Every `box` is a dict `{"x": .., "y": .., "w": .., "h": ..}` in the capture's CS
 
 ### Known limits of the capture
 
-- **Third-party content is not the product.** Ads, cookie banners, chat widgets and geo-targeted promos are removed
-  with an `--eval` step before the capture (`document.querySelector('#carbonads')?.remove()`), by an id or a narrow
-  selector: a broad one (`[class*=ad]`) also matches `header`. Check the capture after.
+- **Third-party content is not the product.** Ads, cookie banners, chat widgets, release toasts and geo-targeted
+  promos are removed with an `--eval` step before the capture. Anchor on their TEXT when ids and classes are hashed:
+  `[...document.querySelectorAll('a,span')].filter(e => /ads via|sponsored/i.test(e.innerText)).forEach(e =>
+  e.closest('section,aside,div[class]')?.remove())`. Dismiss toasts with their own button
+  (`document.querySelector('button[aria-label=Dismiss]')?.click()`). A broad selector (`[class*=ad]`) also matches
+  `header`. An ad network rotates between loads, so check every capture, not only the first.
+- **Hover and focus are cleared** after the `--eval` steps (the pointer leaves the page, focus is dropped), so a
+  scripted click leaves no tooltip or focus ring in the picture.
+- **`--hires` items** are `text:<words>` (the smallest element holding them), `css:<selector>`, a box `x,y,w,h`, or an
+  element id. Ids are numbered per capture and SHIFT between states, so prefer `text:`. Each item prints what it
+  resolved to.
 - **The layout lists the acting elements** (controls, fields, cards, media, headings). A container the story needs
   that is not one (a code editor's lines, an export frame) is added with `--select="#export-container,.CodeMirror-code"`.
 - **`.boxes.jpg` draws over the page.** Read text (a field's value) off the PNG, not the overlay.
@@ -251,7 +259,8 @@ before.
      its editor: `morphFrom` is that thing's box on the frame; the next shot starts scaled into it and grows to the
      frame on an in-out curve, over the last 16 frames). Use `through` when one thing opens into the next, `carry` when travelling on,
      `hard` when the beat changes, `flash` rarely.
-3. **Voice is a per-film choice.**
+3. **Voice is a per-film choice.** (edge-tts needs network. Offline, each line is voiced by macOS `say` in the
+   film's `language`, and the run says so: no word timings, so subtitles are timed by length.)
    - A film that explains how something works usually speaks: `say` on the shots, and the voice sets their length,
      the subtitles and the ducked bed. One line per shot, ≤ ~19 words (~9 s), the product's own claims only.
    - A mood, brand or one-gesture piece usually does not.
@@ -289,7 +298,9 @@ before.
 - **Sound (a generated score under the cues by default; `--bgm=none` for SFX only).**
   - Air through each carried cut, and a whoosh only on real camera travel.
   - A burst of pops is one sound per 3 frames, fading.
-  - Keys under typing, a click on a click, a tick when an accent fill or callout lands.
+  - Keys under typing, a click on a click, a tick when an accent fill or callout lands. A RECORDING is heard the
+    same way, from its own events: keys under its typing, a press and a soft release on a drag, and air on a long
+    scroll. Its clicks sound once, whether or not a cursor is drawn.
   - UI sounds are RECORDED takes (Kenney Interface Sounds, CC0: click, key, drop, deal, select, glass). The
     noise-built cues (whoosh, swell, impact) are synthesised, and no synthesised tone, bell or chime is used.
   - The close is swell → impact as the lockup lands.
@@ -303,12 +314,15 @@ before.
   - Every mix prints its field read back from the file: L/R correlation, mono fold-down loss and balance. It refuses
     a mix that is out of phase (corr < 0.2), lopsided (> 2 dB) or loses > 3 dB in mono. Measured: a music-led film
     read corr 0.89 with a 0.2 dB fold-down loss, a voice-led one 0.98 with 0.1 dB.
-  - The mix is normalised to -15 LUFS and -1.5 dBTP. `--remix` re-mixes over the picture already rendered.
+  - The mix is normalised toward -15 LUFS (single-pass: measured -14.4 to -15.7 on delivered films) under a -1.5 dBTP
+    ceiling. `--remix` re-mixes over the picture already rendered.
 
 ## The loop — from a product to a delivered film, with no hand-holding
 
 Run it start to finish. Stop only for a decision that is the user's (which product state to show when the product
-needs a login; a paid asset), never to ask "shall I continue".
+needs a login; a paid asset), never to ask "shall I continue". **On a run with no one to ask**, show only what anyone
+can open for free, and name in the delivery note any headline feature left out because it is behind a login or a
+paywall.
 
 1. **Folder.** `mkdir -p <film_dir>/caps`. Everything below writes into it.
 2. **Explore before capturing.** Capture the landing state (`promo_capture.py <dir> <url> --name=home`), then open
@@ -334,7 +348,10 @@ needs a login; a paid asset), never to ask "shall I continue".
    at 16:9, and a 9:16 film uses portrait captures (`--width=430 --height=932`).
 6. **Check.** `promo_film.py <dir> --check`: fix every ERROR. Read every ADVISORY; a repeat-skeleton advisory means
    the arc is a template, so redesign it.
-7. **Stills.** `--stills=` at ~90 % of each shot, plus the frames where acts land and cuts happen. Look at them
+7. **Stills.** `--check` already advises when a caption or the voice's subtitle lands on the page's OWN text at
+   that frame (read from the capture's layout, placed by the camera). Lift the text out of the bottom band with the
+   key's `cy`, or move the caption. Measured: it named all four such frames on the narrated Squoosh film, the hero
+   "↓69%" under a subtitle among them, and none on a film without them. `--stills=` at ~90 % of each shot, plus the frames where acts land and cuts happen. Look at them
    full-size: every word legible, nothing landing beside its slot, no empty frame, the hook readable in its first
    2 s. Fix and repeat. This is the cheap loop; the full render is not.
 8. **Render.** `promo_film.py <dir> --sheet` (tracked in the background). It must end with the glide gate OK and the

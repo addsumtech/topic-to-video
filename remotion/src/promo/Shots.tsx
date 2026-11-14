@@ -126,9 +126,10 @@ export const Montage: React.FC<{items: Region[]; every?: number; dur: number; fu
   );
 };
 
-export type Sub = {from: number; to: number; text: string};
+export type Sub = {from: number; to: number; text: string; pos?: 'top' | 'bottom'};
 /** SUBTITLES: the voice's line on screen while it is spoken, low and centred on a soft plate (the frame's own ground
- *  shows through it). Timed by promo_film from the voice's word boundaries. */
+ *  shows through it) — or at the top, `pos: 'top'`, where the page's own text fills the bottom (promo_film decides).
+ *  Timed by promo_film from the voice's word boundaries. */
 export const Subtitles: React.FC<{subs: Sub[]}> = ({subs}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
@@ -139,7 +140,8 @@ export const Subtitles: React.FC<{subs: Sub[]}> = ({subs}) => {
   const o = span(frame, cur.from, cur.from + 5, 'out') * (1 - span(frame, cur.to - 5, cur.to, 'exit'));
   const dark = isDarkHex(look.paper);
   return (
-    <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', paddingBottom: H * (H > W ? 0.16 : 0.07), pointerEvents: 'none'}}>
+    <AbsoluteFill style={{justifyContent: cur.pos === 'top' ? 'flex-start' : 'flex-end', alignItems: 'center', pointerEvents: 'none',
+      ...(cur.pos === 'top' ? {paddingTop: H * (H > W ? 0.12 : 0.07)} : {paddingBottom: H * (H > W ? 0.16 : 0.07)})}}>
       <div style={{maxWidth: W * 0.72, textAlign: 'center', fontFamily: SANS, fontSize: 34 * s, fontWeight: 600, lineHeight: 1.3, color: dark ? '#f4f3ef' : '#141413',
         padding: `${10 * s}px ${22 * s}px`, borderRadius: 14 * s, background: dark ? 'rgba(14,14,16,0.62)' : 'rgba(255,255,255,0.80)',
         backdropFilter: 'blur(10px)', opacity: o, transform: U}}>{cur.text}</div>

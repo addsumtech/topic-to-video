@@ -237,12 +237,15 @@ export const Deal: React.FC<DealSpec & Common> = ({boxes, at, every = 3, dur = 1
         const rot = (1 - p) * (((i * 37) % 11) - 5);
         const sc = 0.92 + 0.08 * p;
         const air = Math.sin(Math.PI * Math.min(1, p));
+        // once landed, the card IS the page again: its shadow and hairline fade out (they drew boxes round flat rows
+        // that have no edge of their own — the regex101 run)
+        const settle = 1 - span(frame, t0 + dur, t0 + dur + 8, 'out');
         return (
           <React.Fragment key={i}>
             <div style={{position: 'absolute', left: b.x - 2, top: b.y - 2, width: b.w + 4, height: b.h + 4, background: fill, opacity: landed ? 0 : 1}} />
             <Crop src={src} pageW={pageW} pageH={pageH} box={b} radius={radius} style={{left: x, top: y, opacity: Math.min(1, stackIn * 1.5),
               transform: `rotate(${rot}deg) scale(${sc})`, zIndex: landed ? 0 : 100 - i,
-              boxShadow: `0 ${4 + 24 * air}px ${8 + 50 * air}px rgba(20,18,14,${0.10 + 0.20 * air}), 0 0 0 1px rgba(20,18,14,0.06)`}} />
+              boxShadow: settle > 0.001 ? `0 ${4 + 24 * air}px ${8 + 50 * air}px rgba(20,18,14,${(0.10 + 0.20 * air) * settle}), 0 0 0 1px rgba(20,18,14,${0.06 * settle})` : 'none'}} />
           </React.Fragment>
         );
       })}

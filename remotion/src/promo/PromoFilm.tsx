@@ -16,7 +16,7 @@ import {Statement, Compare, Montage, Subtitles, throughStyle, type Region, type 
 
 type Cut = 'carry' | 'flash' | 'hard' | 'through' | 'morph';
 export type PageShot = {kind: 'page'; dur: number; src: string; w: number; h: number; keys: CamKey[]; layers?: LayerSpec[]; acts?: LayerSpec[];
-  caption?: {text: string; at?: number; dur?: number}; cut?: Cut; radius?: number; maxZoom?: number; contain?: boolean;
+  caption?: {text: string; at?: number; dur?: number; pos?: 'bl' | 'br' | 'tl' | 'tr'}; cut?: Cut; radius?: number; maxZoom?: number; contain?: boolean;
   video?: string; videoStart?: number};
 export type Shot =
   | {kind: 'brand'; dur: number; mark: string; aspect: number; kicker?: string; markH?: number; plate?: boolean; cut?: Cut}
@@ -51,7 +51,7 @@ export const PageShotView: React.FC<{s: PageShot}> = ({s}) => (
     </PageCam>
     {s.caption ? (
       <Sequence from={s.caption.at ?? 8} durationInFrames={capSpan(s)}>
-        <CaptionStrip text={s.caption.text} dur={capSpan(s)} />
+        <CaptionStrip text={s.caption.text} dur={capSpan(s)} pos={s.caption.pos} />
       </Sequence>
     ) : null}
   </AbsoluteFill>

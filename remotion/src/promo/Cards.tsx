@@ -138,7 +138,7 @@ export const FlashCut: React.FC<{dur?: number; strength?: number}> = ({dur = 10,
 };
 
 /** CAPTION: what is happening, in a lower-left tag (an accent bar and the line); never over a card. */
-export const CaptionStrip: React.FC<{text: string; dur: number}> = ({text, dur}) => {
+export const CaptionStrip: React.FC<{text: string; dur: number; pos?: 'bl' | 'br' | 'tl' | 'tr'}> = ({text, dur, pos = 'bl'}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();
   const look = useLook();
@@ -147,8 +147,10 @@ export const CaptionStrip: React.FC<{text: string; dur: number}> = ({text, dur})
   const out = span(frame, dur - 8, dur, 'exit');
   const dark = isDarkHex(look.ground);
   return (
-    <div style={{position: 'absolute', left: 64 * s, bottom: (H > W ? 220 : 60) * s, display: 'flex', alignItems: 'center', gap: 14 * s,
-      opacity: 1 - out, transform: `translateX(${(1 - o) * -24 * s}px) ${U}`, clipPath: `inset(-20px ${(1 - o) * 100}% -20px -20px)`}}>
+    <div style={{position: 'absolute', [pos[1] === 'r' ? 'right' : 'left']: 64 * s, [pos[0] === 't' ? 'top' : 'bottom']: (pos[0] === 't' ? (H > W ? 200 : 60) : (H > W ? 220 : 60)) * s,
+      flexDirection: pos[1] === 'r' ? 'row-reverse' : 'row', display: 'flex', alignItems: 'center', gap: 14 * s,
+      opacity: 1 - out, transform: `translateX(${(1 - o) * (pos[1] === 'r' ? 24 : -24) * s}px) ${U}`,
+      clipPath: pos[1] === 'r' ? `inset(-20px -20px -20px ${(1 - o) * 100}%)` : `inset(-20px ${(1 - o) * 100}% -20px -20px)`}}>
       <div style={{width: 4 * s, height: 34 * s, borderRadius: 2 * s, background: look.accent}} />
       <div style={{fontFamily: SANS, fontSize: 28 * s, fontWeight: 620, letterSpacing: isCJK(text) ? '0.04em' : '-0.005em', color: dark ? '#f4f3ef' : look.ink,
         padding: `${8 * s}px ${16 * s}px`, borderRadius: 10 * s, background: dark ? 'rgba(20,20,22,0.72)' : 'rgba(255,255,255,0.9)',

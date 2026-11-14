@@ -88,3 +88,20 @@ def test_eval_steps_split_however_the_separator_is_written(js):
     # the docs wrote "js ;;; js" on one line and the split wanted "\n;;;\n": `;;;` is valid JS, so the steps ran
     # silently as ONE (no settle between them, only the last value returned)
     assert pc.split_steps(js) == ["a=1", "b=2"]
+
+
+def test_hires_items_resolve_by_text_selector_box_or_id(capsys):
+    els = [{"id": 0, "x": 0, "y": 0, "w": 800, "h": 400, "text": "Compress MozJPEG 862 kB", "tag": "div"},
+           {"id": 1, "x": 600, "y": 300, "w": 120, "h": 30, "text": "862 kB", "tag": "span"}]
+    css = lambda sel: {"x": 5, "y": 6, "w": 7, "h": 8} if sel == "#export" else None  # noqa: E731
+    out = pc._hires_boxes("text:862 KB;css:#export;10,20,30,40;0", els, css)
+    assert out[0] == {"x": 600, "y": 300, "w": 120, "h": 30}          # the SMALLEST element holding the text
+    assert out[1] == {"x": 5, "y": 6, "w": 7, "h": 8}
+    assert out[2] == {"x": 10.0, "y": 20.0, "w": 30.0, "h": 40.0}
+    assert out[3]["w"] == 800
+    said = capsys.readouterr().out
+    assert said.count("--hires") == 4 and "ids shift between captures" in said
+    with pytest.raises(SystemExit):
+        pc._hires_boxes("text:nowhere", els, css)
+    with pytest.raises(SystemExit):
+        pc._hires_boxes("css:#nope", els, css)

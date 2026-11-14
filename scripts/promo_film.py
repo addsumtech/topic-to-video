@@ -2,7 +2,12 @@
 """promo_film — a product promo film from a SHOT TABLE over real product captures (references/promo-film.md).
 
     python3 scripts/promo_film.py <film_dir> [--spec=promo.json] [--check] [--stills=120,400] [--no-sound]
-                                  [--bgm=auto|none|<file>] [--out=out.mp4]
+                                  [--bgm=auto|none|<file>] [--out=out.mp4] [--sheet] [--remix]
+
+  --check    the table only: errors stop it by name, advisories (caption on type, repeat structure, ...) are said
+  --stills   frames rendered from one bundle into _stills/ (look at them full-size before a full render)
+  --sheet    after the render: _sheet.jpg, one frame per shot at 90 %
+  --remix    re-mix the sound over the picture already rendered (no picture render)
 
 <film_dir> holds the captures and the spec; it is the render's public dir, so every `src` in the spec is a path
 relative to it. Steps: CHECK the table (files, boxes inside their capture, zoom within the capture's density, keys
@@ -21,6 +26,7 @@ table and the layer does the craft the same way every time.
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -62,6 +68,325 @@ def _png_size(path):
     from PIL import Image
     with Image.open(path) as im:
         return im.size
+
+
+def _pose_at(keys, f):
+    """(cx, cy, zoom, tilted) of a page shot's camera at frame f, keys interpolated straight (for WHERE things sit on
+    the frame, within a few % of the eased path)."""
+    ks = sorted(keys or [], key=lambda k: k["f"])
+    if not ks:
+        return None
+    def at(k):
+        return k["cx"], k["cy"], k.get("zoom", 1.0), abs(k.get("rx", 0)) + abs(k.get("ry", 0)) + abs(k.get("rz", 0)) >= 2
+    if f <= ks[0]["f"]:
+        return at(ks[0])
+    for k0, k1 in zip(ks, ks[1:]):
+        if f <= k1["f"]:
+            u = (f - k0["f"]) / max(1e-9, k1["f"] - k0["f"])
+            a, b = at(k0), at(k1)
+            return tuple(a[i] + (b[i] - a[i]) * u for i in range(3)) + (a[3] or b[3],)
+    return at(ks[-1])
+
+
+def _text_w(text, px):
+    return sum(px * (1.0 if ord(ch) > 0x2E7F else 0.52) for ch in text)
+
+
+def _sub_box(text, W, H, top=False):
+    """The voice's subtitle box on the frame (Shots.tsx Subtitles), from its CSS: centred, low (or high, `top`)."""
+    s_ = min(W, H) / 1080.0
+    tw, maxw = _text_w(text[:64], 34 * s_), 0.72 * W
+    lines = max(1, int(-(-tw // maxw)))
+    bw, bh = min(maxw, tw) + 44 * s_, lines * 34 * s_ * 1.3 + 20 * s_
+    if top:
+        y0 = H * (0.12 if H > W else 0.07)
+        return (W / 2 - bw / 2, y0, W / 2 + bw / 2, y0 + bh)
+    y1 = H - H * (0.16 if H > W else 0.07)
+    return (W / 2 - bw / 2, y1 - bh, W / 2 + bw / 2, y1)
+
+
+CAPTION_CORNERS = ("bl", "br", "tl", "tr")
+
+
+def _cap_box(text, pos, W, H):
+    """The caption strip's box on the frame (Cards.tsx CaptionStrip) in its corner: bl (default), br, tl, tr."""
+    s_ = min(W, H) / 1080.0
+    w = 18 * s_ + _text_w(text, 28 * s_) + 32 * s_
+    h = max(34 * s_, 28 * s_ * 1.3 + 16 * s_)
+    x0 = 64 * s_ if pos[1] == "l" else W - 64 * s_ - w
+    if pos[0] == "b":
+        y1 = H - (220 if H > W else 60) * s_
+        return (x0, y1 - h, x0 + w, y1)
+    y0 = (200 if H > W else 60) * s_
+    return (x0, y0, x0 + w, y0 + h)
+
+
+def _say_parts(say):
+    import re as _re
+    return [q.strip() for q in _re.split(SPLIT_RE, say) if q.strip()] or [say]
+
+
+def _caption_boxes(sh, W, H):
+    """[(frames to sample, (x0, y0, x1, y1), what, alt box or None)] — the caption strip and the voice's subtitle as the
+    promo draws them (Cards.tsx CaptionStrip, Shots.tsx Subtitles), estimated from their CSS. A subtitle has an
+    alternative: the top of the frame (place_subtitles moves it there when the bottom is the page's text)."""
+    s_ = min(W, H) / 1080.0
+    out = []
+    d = int(sh.get("dur", 0))
+    cap = sh.get("caption") or {}
+    if cap.get("text"):
+        at = int(cap.get("at", 8))
+        span_ = int(cap.get("dur", max(20, d - at - 6)))
+        out.append(((at + 10, at + span_ - 8), _cap_box(cap["text"], cap.get("pos", "bl"), W, H),
+                    "the caption \"%s\"" % cap["text"][:40], None if cap.get("pos") else "caption"))
+    say = str(sh.get("say") or "").strip()
+    if say:
+        longest = max(_say_parts(say), key=len)
+        out.append(((15, max(15, d - 10)), _sub_box(longest, W, H), "the subtitle", _sub_box(longest, W, H, top=True)))
+    return out
+
+
+SUBJECT_WEIGHT = 8      # covering what the shot is ABOUT (its macro, ring, count, callout label) costs this much more than
+                        # covering any other line of the page's text
+
+
+def _callout_on_frame(sh, x, lx, ly, w, h, at, until, aspect):
+    """Where Layers.tsx Callout really puts its label (page px): on the side it fits on the frame at the frames it
+    lands (mirrored round its point if not), slid in if neither fits, then clamped top and bottom — the same rules,
+    from the camera's keys. Returns (lx, ly, label to the right of lx)."""
+    W, H = ASPECTS.get(aspect, ASPECTS["16:9"])
+    keys = [_contained(sh, k, aspect) for k in sh.get("keys") or []]
+    land, later = at + 16, min(until, at + 46)
+
+    def scr(f, px, py):
+        pose = _pose_at(keys, f)
+        if not pose:
+            return None
+        cx, cy, z, _ = pose
+        eff = z * W / 1920.0
+        return W / 2 + (px - cx) * eff, H / 2 + (py - cy) * eff, eff
+
+    def fits(lxx, side):
+        for f in (land, later):
+            p = scr(f, lxx, ly)
+            if p is None:
+                return True
+            x0 = p[0] if side else p[0] - w * p[2]
+            x1 = p[0] + w * p[2] if side else p[0]
+            if not (x0 >= 24 and x1 <= W - 24):
+                return False
+        return True
+    right = lx >= x
+    if not fits(lx, right):
+        mirror = x - (lx - x)
+        if fits(mirror, not right):
+            lx, right = mirror, not right
+        else:
+            p = scr(land, lx, ly)
+            if p:
+                over = (p[0] + w * p[2] - (W - 24)) if right else (24 - (p[0] - w * p[2]))
+                if over > 0:
+                    lx += (-1 if right else 1) * over / p[2]
+    p = scr(land, lx, ly)
+    if p:
+        top, bot = p[1] - h * p[2] / 2, p[1] + h * p[2] / 2
+        if top < 24:
+            ly += (24 - top) / p[2]
+        if bot > H - 24:
+            ly -= (bot - (H - 24)) / p[2]
+    return lx, ly, right
+
+
+def _obstacles(film_dir, sh, aspect="16:9"):
+    """[(box {x,y,w,h} in page px, weight, label, from frame, until frame)]: the page's own text (from the capture's
+    layout) and the shot's SUBJECT — the boxes its acts are about and the labels its callouts and notes draw (sized
+    as Layers.tsx sizes them, in page px: they scale with the camera)."""
+    out = []
+    if sh.get("kind") != "page" or not sh.get("src"):
+        return out
+    lp = os.path.join(film_dir, os.path.splitext(sh["src"])[0] + ".layout.json")
+    try:
+        for e in json.load(open(lp, encoding="utf-8")).get("elements") or []:
+            # a LINE of text, not a container whose text is all its children's (a whole settings panel): which of its
+            # lines sits under the band is unknown, and its area outweighed the hero number on the Squoosh film
+            if str(e.get("text") or "").strip() and e.get("h", 0) <= 64:
+                out.append((e, 1.0, e["text"][:30].replace("\n", " "), 0, 1e9))
+    except (OSError, ValueError):
+        pass
+    em = lambda t: sum(1.0 if ord(ch) > 0x2E7F else 0.56 for ch in t)  # noqa: E731
+    for l in sh.get("layers") or sh.get("acts") or []:
+        k = l.get("kind")
+        at, until = float(l.get("at", 0)), float(l.get("until", 1e9))
+        # the acts that put TYPE or a mark on the page (a macro, a focus, a lift are areas — the close-up's whole
+        # region — and covering part of an area is not covering a line of type)
+        if k in ("ring", "count", "pop", "type", "write") and isinstance(l.get("box"), dict):
+            out.append((l["box"], SUBJECT_WEIGHT, "its %s" % k, at, until))
+        elif k in ("callout", "note") and l.get("text"):
+            size = float(l.get("size", 30))
+            txt, kick = str(l["text"]).replace("*", ""), str(l.get("kicker") or "")
+            w = max(em(txt) * size, em(kick) * size * 0.42 * 1.25 if kick else 0) + 34
+            h = size * 1.25 + (size * 0.42 + 4 if kick else 0) + 20
+            lx, ly = float(l.get("lx", l.get("x", 0))), float(l.get("ly", l.get("y", 0)))
+            lx, ly, right = _callout_on_frame(sh, float(l.get("x", lx)), lx, ly, w, h, at, until, aspect)
+            x0 = lx if right else lx - w
+            out.append(({"x": x0, "y": ly - h / 2, "w": w, "h": h}, SUBJECT_WEIGHT, "its %s %r" % (k, txt[:24]), at, until))
+    return out
+
+
+def _exact_frames(sh, f0, f1, aspect="16:9"):
+    """The frames of [f0, f1] where the camera's pose is KNOWN exactly: its keys (the eased path passes through them)
+    and the holds before the first and after the last. Between keys the path eases (landing curves), so a straight
+    interpolation put the page where it never is — measured, it flagged a caption on a 9:16 film whose subject was
+    half a frame away. A span that lies wholly inside a move is not judged."""
+    ks = sorted(sh.get("keys") or [], key=lambda k: k["f"])
+    if not ks:
+        return []
+    out = {k["f"] for k in ks if f0 <= k["f"] <= f1}
+    def hold(a, b):                                       # every frame of a hold is exact: sampled every 8, so an
+        a, b = max(f0, a), min(f1, b)                     # act that shows for a second inside it is seen
+        return set(range(int(a), int(b) + 1, 8)) | {int(b)} if a <= b else set()
+    if f1 >= ks[-1]["f"]:
+        out |= hold(ks[-1]["f"], f1)
+    if f0 <= ks[0]["f"]:
+        out |= hold(f0, ks[0]["f"])
+    for k0, k1 in zip(ks, ks[1:]):                       # a hold between two equal keys
+        if all(abs(k0.get(q, 0) - k1.get(q, 0)) < 1e-6 for q in ("cx", "cy", "zoom", "rx", "ry", "rz")):
+            out |= hold(k0["f"], k1["f"])
+    return sorted(f for f in out if f0 <= f <= f1)
+
+
+def _contained(sh, k, aspect):
+    """A straight key as PageCam frames it: pulled in so the view stays on the page (containment, on by default)."""
+    if sh.get("contain", True) is False or abs(k.get("rx", 0)) + abs(k.get("ry", 0)) + abs(k.get("rz", 0)) >= 2:
+        return k
+    w, h = sh.get("w"), sh.get("h")
+    if not (w and h):
+        return k
+    return key(k["f"], k["cx"], k["cy"], k.get("zoom", 1.0), w, h, aspect)
+
+
+def _band_score(sh, obs, box, frames, W, H):
+    """(cost, [labels met on 2+ of the frames]) of type in `box` over the shot's frames: the overlapped area of each
+    obstacle, in frame px, times its weight, averaged over the frames."""
+    bx0, by0, bx1, by1 = box
+    total, seen = 0.0, {}
+    n = 0
+    aspect = next((a for a, wh in ASPECTS.items() if wh == (W, H)), "16:9")
+    keys = [_contained(sh, k, aspect) for k in sh.get("keys") or []]
+    for f in frames:
+        pose = _pose_at(keys, f)
+        if not pose or pose[3]:
+            continue
+        n += 1
+        cx, cy, z, _ = pose
+        eff = z * W / 1920.0
+        for (e, wt, lab, t0, t1) in obs:
+            if not (t0 <= f <= t1):
+                continue
+            x0, y0 = W / 2 + (e["x"] - cx) * eff, H / 2 + (e["y"] - cy) * eff
+            x1, y1 = x0 + e["w"] * eff, y0 + e["h"] * eff
+            ix = min(x1, bx1 + 6) - max(x0, bx0 - 6)
+            iy = min(y1, by1 + 6) - max(y0, by0 - 6)
+            if ix > 0 and iy > 0 and x1 > 0 and x0 < W and y1 > 0 and y0 < H:
+                total += ix * iy * wt
+                seen[lab] = seen.get(lab, 0) + 1
+    need = 2 if n >= 2 else 1
+    return (total / max(1, n), [lab for lab, c in seen.items() if c >= need])
+
+
+def _sub_choice(sh, obs, text, frames, W, H):
+    """Where the voice's subtitle goes on this shot: low unless the low band covers type and the top covers clearly
+    less (half the cost or under). Returns (pos, labels it still covers there)."""
+    lo = _band_score(sh, obs, _sub_box(text, W, H), frames, W, H)
+    if lo[0] <= 0 or not lo[1]:
+        return "bottom", lo[1]
+    hi = _band_score(sh, obs, _sub_box(text, W, H, top=True), frames, W, H)
+    return ("top", hi[1]) if hi[0] <= lo[0] * 0.5 else ("bottom", lo[1])
+
+
+def caption_overlaps(spec, film_dir):
+    """Advise when a caption or the voice's subtitle lands on type: the page's OWN text (read from the capture's
+    layout, placed by the camera at that frame) or the shot's subject and its callout labels. Two lines of type on
+    each other read as neither (the Carbon run's caption sat in the page's footer links; the narrated Squoosh film's
+    subtitle covered its hero "↓69 %"). A subtitle is judged where place_subtitles will put it. Straight-on keys only."""
+    adv = []
+    W, H = ASPECTS.get(spec.get("aspect", "16:9"), ASPECTS["16:9"])
+    for i, sh in enumerate(spec.get("shots") or []):
+        aspect = spec.get("aspect", "16:9")
+        obs = _obstacles(film_dir, sh, aspect)
+        if not obs:
+            continue
+        for (f0, f1), box, what, alt in _caption_boxes(sh, W, H):
+            frames = _exact_frames(sh, f0, f1, aspect)
+            if not frames:
+                continue
+            if alt is None:                                   # an authored corner: judged where it was put
+                near = _band_score(sh, obs, box, frames, W, H)[1]
+                where = "its corner (%s)" % (sh.get("caption") or {}).get("pos", "bl")
+            elif alt == "caption":                            # no corner given: judged where place_captions puts it
+                pos = _cap_choice(sh, obs, frames, W, H)
+                near = _band_score(sh, obs, _cap_box(sh["caption"]["text"], pos, W, H), frames, W, H)[1]
+                where = "the %s corner, where it goes (set caption.pos: bl, br, tl or tr)" % pos
+            else:
+                longest = max(_say_parts(str(sh.get("say"))), key=len)
+                pos, near = _sub_choice(sh, obs, longest, frames, W, H)
+                where = "the %s band, where it goes" % pos
+            if near:
+                adv.append("shot %d (page): %s covers %s in %s — aim the camera (the key's cy) so it sits clear, or move "
+                           "the caption" % (i, what, ", ".join(repr(t) if not t.startswith("its ") else t for t in near[:3]), where))
+    return adv
+
+
+def _cap_choice(sh, obs, frames, W, H):
+    """The caption's corner: bottom-left, unless it covers type there and another corner covers clearly less."""
+    text = sh["caption"]["text"]
+    base = _band_score(sh, obs, _cap_box(text, "bl", W, H), frames, W, H)
+    if base[0] <= 0 or not base[1]:
+        return "bl"
+    best = min(CAPTION_CORNERS[1:], key=lambda c: _band_score(sh, obs, _cap_box(text, c, W, H), frames, W, H)[0])
+    return best if _band_score(sh, obs, _cap_box(text, best, W, H), frames, W, H)[0] <= base[0] * 0.5 else "bl"
+
+
+def place_captions(film_dir, spec):
+    """A page shot's caption with no `pos` goes in the corner that does not cover type (bottom-left first): the
+    Carbon run's caption sat in the page's footer links, and the advisory's "move the caption" had no field to do it."""
+    out = json.loads(json.dumps(spec))
+    W, H = ASPECTS.get(out.get("aspect", "16:9"), ASPECTS["16:9"])
+    for sh in out.get("shots") or []:
+        cap = sh.get("caption") or {}
+        if sh.get("kind") != "page" or not cap.get("text") or cap.get("pos"):
+            continue
+        obs = _obstacles(film_dir, sh, out.get("aspect", "16:9"))
+        at = int(cap.get("at", 8))
+        span_ = int(cap.get("dur", max(20, int(sh["dur"]) - at - 6)))
+        frames = _exact_frames(sh, at + 10, at + span_ - 8, out.get("aspect", "16:9"))
+        if obs and frames:
+            pos = _cap_choice(sh, obs, frames, W, H)
+            if pos != "bl":
+                cap["pos"] = pos
+    return out
+
+
+def place_subtitles(film_dir, spec):
+    """Each subtitle sits LOW, unless on its shot the low band covers type — the page's own, or the shot's subject —
+    and the top covers clearly less: then it is drawn at the top (`pos: "top"`). Measured on the narrated Squoosh
+    film: the low subtitle covered the hero "↓69 %" and the photo sizes under the thumbnails."""
+    out = json.loads(json.dumps(spec))
+    W, H = ASPECTS.get(out.get("aspect", "16:9"), ASPECTS["16:9"])
+    st, _ = starts(out)
+    for sub in out.get("subtitles") or []:
+        i = max([k for k, a in enumerate(st) if a <= sub["from"]] or [0])
+        sh = out["shots"][i]
+        obs = _obstacles(film_dir, sh, out.get("aspect", "16:9"))
+        if not obs:
+            continue
+        f0, f1 = sub["from"] - st[i], min(int(sh["dur"]), sub["to"] - st[i])
+        frames = _exact_frames(sh, max(0, f0 + 2), max(0, f1 - 2), out.get("aspect", "16:9"))
+        if not frames:
+            continue
+        if _sub_choice(sh, obs, sub["text"], frames, W, H)[0] == "top":
+            sub["pos"] = "top"
+    return out
 
 
 def check(spec, film_dir):
@@ -183,6 +508,10 @@ def check(spec, film_dir):
                     adv.append("%s: starts at %s, after the shot ends (%d)" % (lw, at, d))
         elif k in ("brand", "outro"):
             cap(s.get("mark", ""), where)
+            y = mark_luminance(os.path.join(film_dir, s.get("mark", ""))) if s.get("mark") else None
+            if y is not None and y > 0.75 and _contrast(derive_look(spec.get("look"))["paper"], "#000000") >= 7:
+                adv.append("%s: the mark is light (a white cut from a coloured header?) on this LIGHT film: it will "
+                           "barely show — use `look.mode: dark`, or cut a dark version of the mark" % where)
             for j in s.get("recall") or []:
                 if not (isinstance(j, int) and 0 <= j < len(shots) and shots[j].get("kind") == "page"):
                     errs.append("%s: recall %r is not the index of a page shot (0-based)" % (where, j))
@@ -197,10 +526,22 @@ def check(spec, film_dir):
             regions = [s.get("a"), s.get("b")] if k == "compare" else list(s.get("items") or [])
             if not regions or any(not isinstance(r, dict) for r in regions):
                 errs.append("%s: needs %s" % (where, "a and b regions" if k == "compare" else "items (regions)"))
+            fwh = ASPECTS.get(spec.get("aspect", "16:9"), ASPECTS["16:9"])
+            fw, fh = (fwh[0] * 0.84, fwh[1] * 0.74) if k == "compare" else \
+                ((fwh[0], fwh[1]) if s.get("full") else (fwh[0] * 0.8, fwh[1] * 0.74))   # = Shots.tsx Compare / Montage
             for j, r in enumerate(r for r in regions if isinstance(r, dict)):
                 rsz = cap(r.get("src", ""), "%s region %d" % (where, j))
                 if rsz:
                     inside(r.get("box", {}), rsz[0] / 2, rsz[1] / 2, "%s region %d" % (where, j))
+                    b = r.get("box") if isinstance(r.get("box"), dict) else {}
+                    if b.get("w", 0) > 0 and b.get("h", 0) > 0:
+                        # a region is drawn to fit its frame box: past the capture's density it is upsampled (soft)
+                        dens = rsz[0] / float(r.get("w") or rsz[0] / 2)        # the capture's px per CSS px (2, or 4)
+                        kk = min(fw / b["w"], fh / b["h"])
+                        if kk > dens + 1e-6:
+                            errs.append("%s region %d: a %dx%d CSS px region is drawn at %.2f screen px per CSS px, past the "
+                                        "capture's %gx (it would be upsampled): take a region at least %d px wide or %d tall"
+                                        % (where, j, b["w"], b["h"], kk, dens, int(fw / dens) + 1, int(fh / dens) + 1))
         else:
             errs.append("%s: unknown kind" % where)
         if s.get("cut") not in (None, "carry", "flash", "hard", "through", "morph"):
@@ -221,6 +562,10 @@ def check(spec, film_dir):
     if spec.get("cut") not in (None, "carry", "flash", "hard", "through", "morph"):
         errs.append("cut must be carry, flash, hard, through or morph")
     adv += skeleton_advice(spec, film_dir)
+    try:
+        adv += caption_overlaps(resolve_recordings(film_dir, spec) if errs == [] else spec, film_dir)
+    except Exception as e:  # noqa: BLE001 — an advisory pass never breaks the check; said, not swallowed
+        adv.append("the caption-overlap pass could not run: %s" % e)
     look = derive_look(spec.get("look"))
     for key in ("accent", "accentInk"):
         v = look.get(key)
@@ -322,6 +667,9 @@ def narrated(spec):
     return bool(n) if n is not None else any(str(sh.get("say") or "").strip() for sh in spec.get("shots") or [])
 
 
+# where a voice line is cut into subtitle pieces: after a sentence end (a CJK one needs no space after it), or after a
+# comma when a long clause follows
+SPLIT_RE = r"(?<=[.!?])\s+|(?<=[。！？])\s*|(?<=[,;])\s+(?=\S{12,})|(?<=[，；])\s*(?=[^，；。！？]{12,})"
 VO_LEAD, VO_TAIL = 0.3, 0.45      # s: a line starts a breath into its shot and ends a breath before the cut
 
 
@@ -346,8 +694,26 @@ def voice_pass(film_dir, spec):
         if line:
             h = hashlib.sha1(("%s|%s|%s" % (voice, rate, line)).encode("utf-8")).hexdigest()[:12]
             mp3 = os.path.join(adir, "say_%02d_%s.mp3" % (i, h))
-            if not os.path.isfile(mp3):
-                tts._edge(line, mp3, voice, rate)
+            off = os.path.join(adir, "say_%02d_%s.say.wav" % (i, h))
+            if not os.path.isfile(mp3) and os.path.isfile(off):
+                mp3 = off
+            elif not os.path.isfile(mp3):
+                try:
+                    tts._edge(line, mp3, voice, rate)
+                    if not (os.path.isfile(mp3) and os.path.getsize(mp3) > 0):
+                        raise RuntimeError("edge-tts wrote nothing")
+                except (Exception, SystemExit) as e:  # noqa: BLE001 — offline / blocked: the OFFLINE voice, said aloud
+                    if os.path.isfile(mp3):
+                        os.remove(mp3)
+                    lang = (spec.get("language") or voice.split("-")[0] or "en").split("-")[0].lower()
+                    sv = tts._resolve_say_voice("Samantha", lang)[0]          # (voice, note)
+                    if not shutil.which("say"):
+                        raise SystemExit("[promo_film] edge-tts failed (%s) and there is no offline `say` voice on this "
+                                         "machine: the film cannot speak — set narrate: false, or run with network" % e)
+                    print("[promo_film] edge-tts failed (%s): line %d voiced OFFLINE with macOS say (%s) — no word "
+                          "timings, subtitles timed by length" % (str(e).splitlines()[0][:120] if str(e) else type(e).__name__, i, sv))
+                    tts._say(line, off, sv)
+                    mp3 = off
             secs = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", mp3],
                                         capture_output=True, text=True).stdout.strip() or 0)
             need = int(math.ceil((VO_LEAD + secs + VO_TAIL) * FPS))
@@ -367,7 +733,7 @@ def voice_pass(film_dir, spec):
 def _subtitle_chunks(line, words_json, start_s, secs, max_chars=64):
     """The line in readable pieces (a sentence, or a clause when long), each shown from its first word to the next."""
     import re as _re
-    parts = [p.strip() for p in _re.split(r"(?<=[.!?。！？])\s+|(?<=[,;，；])\s+(?=\S{12,})", line) if p.strip()]
+    parts = [p.strip() for p in _re.split(SPLIT_RE, line) if p.strip()]
     if not parts:
         return []
     try:
@@ -376,8 +742,10 @@ def _subtitle_chunks(line, words_json, start_s, secs, max_chars=64):
         words = []
     out, wi = [], 0
     starts_ = []
-    for p in parts:
-        starts_.append(words[wi]["t"] if wi < len(words) else (len(starts_) / len(parts)) * secs)
+    total = float(sum(len(p) for p in parts)) or 1.0
+    for k, p in enumerate(parts):
+        # no word times (a `say` voice): each piece starts at its share of the characters spoken before it
+        starts_.append(words[wi]["t"] if wi < len(words) else sum(len(q) for q in parts[:k]) / total * secs)
         wi += len(p.split()) if words else 0
     for k, p in enumerate(parts):
         a = start_s + starts_[k]
@@ -401,6 +769,26 @@ def resolve_recordings(film_dir, spec):
         v0 = int(sh.get("videoStart", 0))                  # in FILM frames, like everything in the table
         kf = FPS / float(L.get("fps", FPS) or FPS)         # a recording's event frames are at ITS rate
         acts = sh.setdefault("layers", sh.pop("acts", []) if "acts" in sh else [])
+        # the recorded hand's events in FILM frames of this shot — the sound plan reads them (keys under typing, a
+        # press and a release on a drag, air on a long scroll), whether or not a cursor is drawn
+        evs, last_xy = [], (None, None)
+        for e in L.get("events") or []:
+            f = int(round(e["frame"] * kf)) - v0
+            u = int(round(e.get("until", e["frame"]) * kf)) - v0
+            if u < 0 or f > sh["dur"]:
+                continue
+            row = {"kind": e["kind"], "f": max(0, f), "until": min(int(sh["dur"]), max(f, u))}
+            if "x" in e:
+                last_xy = (e["x"], e["y"])
+                row.update(x=e["x"], y=e["y"])
+            if e["kind"] == "drag":
+                row.update(x=e["from"][0], y=e["from"][1], x1=e["to"][0], y1=e["to"][1])
+            if e["kind"] == "type":
+                row.update(text=e.get("text", ""), x=last_xy[0], y=last_xy[1])
+            if e["kind"] == "scroll":
+                row.update(by=e.get("by", [0, 0]))
+            evs.append(row)
+        sh["recEvents"] = evs
         if sh.get("cursor", True) is not False and not any(a.get("kind") == "cursor" for a in acts):
             path, clicks = [], []
             for e in L.get("events") or []:
@@ -498,6 +886,7 @@ def plan_sfx(spec, placed=False):
                     side = max(-1.0, min(1.0, -dx * 3)) * 0.5
                     how = (-side, side) if abs(side) > 0.08 else "wide"
                     cues.append((a + int((k0["f"] + k1["f"]) / 2), "whoosh", min(0.5, 0.22 + travel / 2000), how))
+            cues += _recording_cues(s, a)
             last_pop, npop = -99, 0
             for l in s.get("layers") or s.get("acts") or []:
                 kind = l.get("kind")
@@ -546,6 +935,28 @@ def plan_sfx(spec, placed=False):
     return cues if placed else [c[:3] for c in cues]
 
 
+def _recording_cues(s, a):
+    """The recorded hand, heard: keys under typing (one every 2 characters, as the `type` act), a press and a soft
+    release on a drag, air on a long scroll, and a click on a click when no cursor act sounds it already."""
+    out = []
+    has_cursor = any(l.get("kind") == "cursor" for l in s.get("layers") or s.get("acts") or [])
+    for e in s.get("recEvents") or []:
+        f, u, k = int(e["f"]), int(e.get("until", e["f"])), e["kind"]
+        if k == "type":
+            n = len(e.get("text") or "")
+            for c in range(0, n, 2):
+                fc = f + int(round(c * (u - f) / max(1, n)))
+                out.append((a + fc, "key", 0.2, _pan_at(s, fc, e.get("x"))))
+        elif k == "drag":
+            out.append((a + f, "click", 0.36, _pan_at(s, f, e.get("x"))))
+            out.append((a + u, "key", 0.18, _pan_at(s, u, e.get("x1"))))
+        elif k == "scroll" and abs((e.get("by") or [0, 0])[1]) + abs((e.get("by") or [0, 0])[0]) > 250:
+            out.append((a + (f + u) // 2, "whoosh", 0.2, "wide"))
+        elif k == "click" and not has_cursor:
+            out.append((a + f + 2, "click", 0.6, _pan_at(s, f, e.get("x"))))
+    return out
+
+
 def mark_luminance(path):
     """The mean relative luminance (0..1) of a raster mark's OPAQUE pixels, or None (an SVG, no alpha, unreadable)."""
     try:
@@ -591,6 +1002,7 @@ def render_stills(film_dir, spec_path, frames, out_dir):
     spec = json.load(open(spec_path, encoding="utf-8"))
     spec["look"] = derive_look(spec.get("look"))
     spec = resolve_marks(film_dir, spec, spec["look"])
+    spec = place_captions(film_dir, spec)
     pub = os.path.join(film_dir, "_promo_public")
     shutil.rmtree(pub, ignore_errors=True)
     rs.minimal_public(spec, film_dir, pub)           # the files the table names, linked: not old renders and stills
@@ -621,6 +1033,7 @@ def render_picture(film_dir, spec_path, out, frames=None):
     spec = json.load(open(spec_path, encoding="utf-8"))
     spec["look"] = derive_look(spec.get("look"))
     spec = resolve_marks(film_dir, spec, spec["look"])
+    spec = place_captions(film_dir, spec)
     props = os.path.join(film_dir, "_promo_props.json")          # the table as rendered: the derived look filled in
     json.dump(spec, open(props, "w"), indent=0)
     import shutil
@@ -742,8 +1155,8 @@ def stereo_report(mp4):
 
 def main(argv):
     if not argv or argv[0].startswith("-"):
-        print(__doc__.strip().splitlines()[0])
-        return 2
+        print(__doc__.strip())
+        return 0 if argv[:1] in (["--help"], ["-h"]) else 2
     refuse_unknown(argv[1:], valued=("spec", "stills", "bgm", "out"), switches=("check", "no-sound", "remix", "sheet"))
     film = os.path.abspath(argv[0])
     spec_path = os.path.join(film, argflag(argv, "spec", "promo.json"))
@@ -765,6 +1178,7 @@ def main(argv):
         # the stills see the film as it will render: recordings resolved (and the voice's lengths, if it speaks)
         spec_s = resolve_recordings(film, spec)
         spec_s, _vo = voice_pass(film, spec_s)
+        spec_s = place_subtitles(film, spec_s)
         sp = os.path.join(film, "_promo_resolved_stills.json")
         json.dump(spec_s, open(sp, "w"), indent=0)
         for p in render_stills(film, sp, [int(x) for x in stills.split(",") if x.strip()], os.path.join(film, "_stills")):
@@ -774,6 +1188,7 @@ def main(argv):
     # NARRATION FIRST: the voice decides how long a speaking shot lasts, so the table is resolved before the picture
     spec = resolve_recordings(film, spec)
     spec, vo_clips = voice_pass(film, spec)
+    spec = place_subtitles(film, spec)
     if vo_clips:
         pass
     if vo_clips or any(sh.get("recording") for sh in spec.get("shots") or []):
@@ -859,7 +1274,8 @@ def glide_check(film, spec_path, video):
             print("  shot %2d  not judged (%s)" % (beat - 1, "nothing moving" if r is None else "too little texture"))
             continue
         fails = r["rms"] > pg.FAIL_RMS or (r.get("shimmer") or 0) > pg.FAIL_SHIMMER
-        line = "  shot %2d  %.3f px RMS · shimmer %s" % (beat - 1, r["rms"], "%.1f%%" % (r["shimmer"] * 100) if r.get("shimmer") is not None else "n/a")
+        line = "  shot %2d  %.3f px RMS · shimmer %s" % (beat - 1, r["rms"], "%.1f%%" % (r["shimmer"] * 100) if r.get("shimmer") is not None
+                                                          else "n/a (no creep: the camera holds or moves fast, never crawls)")
         if not fails:
             print(line + "  ok")
             continue
