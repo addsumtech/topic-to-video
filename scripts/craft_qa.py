@@ -70,6 +70,7 @@ MANY_BLOBS = 4
 # content share / subject extent. SaaS launch films (12) and the quiet brands (Notion, Framer, Raycast, Linear, Arc).
 OCC_REF = {"saas": (0.415, 0.84), "quiet": (0.21, 0.59)}
 EXTENT_LINE = 0.4          # a subject spanning less than this is small even beside the quiet brands' 0.59
+WIDTH_LINE = 0.5           # ...and narrower than this share of the frame (a wide line of type is not small)
 
 
 class Unmeasurable(Exception):
@@ -161,8 +162,9 @@ def _ground_ink(f):
 
 
 def _occupancy_one(frame):
-    """(cover, extent) above the caption band: the share of the frame that is drawn, and the share inside the box
-    holding the central 96 % of what is drawn (a stray mark at an edge does not stretch it). None when nothing is."""
+    """(cover, extent, width) above the caption band: the share of the frame that is drawn, the share inside the box
+    holding the central 96 % of what is drawn (a stray mark at an edge does not stretch it), and that box's share of
+    the frame's width. None when nothing is."""
     import numpy as np
     f = frame[: int(frame.shape[0] * (1 - CAPTION_CROP))].astype(np.int16)
     m = _ground_ink(f)
@@ -170,16 +172,17 @@ def _occupancy_one(frame):
         return None
     ys, xs = np.nonzero(m)
     x0, x1 = np.percentile(xs, [2, 98]); y0, y1 = np.percentile(ys, [2, 98])
-    return float(m.mean()), float((x1 - x0) * (y1 - y0) / m.size)
+    return float(m.mean()), float((x1 - x0) * (y1 - y0) / m.size), float((x1 - x0) / m.shape[1])
 
 
 def _occ_summary(rows):
     import numpy as np
     got = [r for r in rows if r is not None]
     if not got:
-        return {"cover_med": None, "extent_med": None}
+        return {"cover_med": None, "extent_med": None, "width_med": None}
     return {"cover_med": round(float(np.median([r[0] for r in got])), 3),
-            "extent_med": round(float(np.median([r[1] for r in got])), 3)}
+            "extent_med": round(float(np.median([r[1] for r in got])), 3),
+            "width_med": round(float(np.median([r[2] for r in got])), 3)}
 
 
 def _hierarchy_one(frame):
@@ -306,7 +309,9 @@ def findings(m):
                          "nothing else leads (reference films: ~7%% lead type, ~3 lines) — let one line lead: larger, "
                          "fewer words; a beat led by its drawing keeps small labels" % (tag, 100 * ty["lead"], ty["lines"]))
         o = r.get("occupancy") or {}
-        if o.get("extent_med") is not None and o["extent_med"] < EXTENT_LINE:
+        # a line of display type spans the frame's WIDTH and little of its area: small is small in width too (a
+        # type beat at 162 px read "16 %" — ANC beat 2, 2026-11-14)
+        if o.get("extent_med") is not None and o["extent_med"] < EXTENT_LINE and (o.get("width_med") or 0) < WIDTH_LINE:
             lines.append("%s: the subject spans %.0f%% of the frame above the captions (launch films: %.0f%%; Notion, "
                          "Framer, Raycast: %.0f%%) — draw it larger, or crop it oversized (craft-standard.md)"
                          % (tag, 100 * o["extent_med"], 100 * OCC_REF["saas"][1], 100 * OCC_REF["quiet"][1]))

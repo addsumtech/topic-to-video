@@ -135,6 +135,8 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
     if (up <= cap && !o.want) scales.push(up);
     else if (up <= cap && o.want && up <= o.want * 1.25) scales.push(up);
   }
+  // the cap itself is a candidate: its 5 % steps can jump past the one scale that pushes a neighbour clear
+  if (!o.want && cap > s0 && !scales.includes(cap)) scales.push(cap);
   const cx = t.x + t.w / 2, cy = t.y + t.h / 2;
   const M = TEXT_SAFE * Math.min(W, H);
   // A SET (3+ boxes of one size: a grid's cells, a list's rows) is kept whole or not framed. A punch-in that kept some
@@ -142,7 +144,11 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
   // beat 13, 2026-11-12) — no card cut in half, so the card rule passed it. An item close-up (no `want`) still frames
   // one member of a set alone: that is what it is for.
   const sets = o.want ? boxSets(o.boxes ?? []) : [];
-  const textOk = (m: Rect) => inside(m, M, M, W - M, bandTop - M) || outside(m, 0, 0, W, bandTop);
+  // OUT through the bottom means past the framed layer's fade, not just past the band's top: the mask fades over
+  // BAND_FADE below it, and a line pushed to bandTop + 1 showed its letters' tops above the caption (ANC beat 4,
+  // 2026-11-14)
+  const outBottom = bandTop + Math.round(H * BAND_FADE);
+  const textOk = (m: Rect) => inside(m, M, M, W - M, bandTop - M) || outside(m, 0, 0, W, outBottom);
   let best: {f: Framing; score: number} | null = null;
   for (const s of scales) {
     const clampX = (x: number) => Math.min(0, Math.max(W - s * W, x));
@@ -163,7 +169,7 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
       for (const r of texts.concat(o.boxes ?? [])) {
         // or move a line the zone's top or bottom edge would cut fully out of the zone (above the frame, or into the
         // caption band, which the framed layer does not draw into — Coverage masks it to the zone)
-        for (const v of [-s * (r.y + r.h) - 1, bandTop - s * r.y + 1]) if (v <= 0 && v >= bandTop - s * H) tys.add(Math.round(v));
+        for (const v of [-s * (r.y + r.h) - 1, outBottom - s * r.y + 1]) if (v <= 0 && v >= bandTop - s * H) tys.add(Math.round(v));
       }
       for (const ty1 of tys) {
         const f = {s, tx: tx0, ty: ty1};
@@ -173,11 +179,11 @@ export const coverFraming = (o: {W: number; H: number; bandTop: number; target: 
         }
         // (a card is judged by its own size as composed: one that a close-up enlarges is still one object)
         if ((o.boxes ?? []).some((r) => { const m = map(r, f);
-          return !inside(m, 0, 0, W, bandTop) && !outside(m, 0, 0, W, bandTop); })) {
+          return !inside(m, 0, 0, W, bandTop) && !outside(m, 0, 0, W, outBottom); })) {
           continue;                                            // a card would be cut in half
         }
         if (sets.some((set) => { const m = set.map((r) => map(r, f));
-          return m.some((r) => inside(r, 0, 0, W, bandTop)) && m.some((r) => outside(r, 0, 0, W, bandTop)); })) {
+          return m.some((r) => inside(r, 0, 0, W, bandTop)) && m.some((r) => outside(r, 0, 0, W, outBottom)); })) {
           continue;                                            // a set would lose some of its members
         }
         const mt = map(t, f);

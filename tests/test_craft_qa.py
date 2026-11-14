@@ -221,3 +221,12 @@ def test_occupancy_reads_how_much_of_the_frame_the_subject_spans(tmp_path):
     assert any("subject spans" in ln for ln in cq.findings(m))
     m["occupancy"] = a
     assert not any("subject spans" in ln for ln in cq.findings(m))
+
+
+def test_a_wide_line_of_type_is_not_a_small_subject(tmp_path):
+    """A display line spans the width and little of the area (ANC's 'Adding sound' read 16 %): not small."""
+    line = _box(_ground(), 30, 60, 260, 26)
+    o = cq.measure(_film(tmp_path / "line.mp4", [line] * 36))["occupancy"]
+    assert o["extent_med"] < 0.4 and o["width_med"] > 0.7, o
+    m = {"beats": [], "longest_still_s": 0, "hierarchy": {"dom_med": None, "nblob_med": None}, "occupancy": o}
+    assert not any("subject spans" in ln for ln in cq.findings(m))

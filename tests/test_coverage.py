@@ -380,7 +380,7 @@ def test_a_punch_keeps_in_the_picture_the_type_written_during_it():
     out = _ts("""
       const W = 1920, H = 1080, bandTop = 878;
       const core = {x: 640, y: 120, w: 640, h: 520};
-      const old = [{x: 860, y: 70, w: 200, h: 44}], late = {x: 1500, y: 700, w: 260, h: 40};
+      const old = [{x: 860, y: 70, w: 200, h: 44}], late = {x: 1560, y: 330, w: 300, h: 40};
       const arrived = arrivedTexts(old, [...old, late]);
       const content = [core, ...old, late];
       const args = {W, H, bandTop, content, texts: [...old, late], want: 1.3};
@@ -390,9 +390,27 @@ def test_a_punch_keeps_in_the_picture_the_type_written_during_it():
       out.arrived = arrived; out.bareLate = bare ? m(late, bare) : null; out.held = held;
       out.heldLate = held ? m(late, held) : null;
     """, extra="arrivedTexts, unionRect")
-    assert out["arrived"] == [{"x": 1500, "y": 700, "w": 260, "h": 40}]
+    assert out["arrived"] == [{"x": 1560, "y": 330, "w": 300, "h": 40}]
     b = out["bareLate"]
     assert b is not None and (b["x"] + b["w"] > 1922 or b["y"] + b["h"] > 880), "the unprotected punch crops it"
     if out["held"] is not None:
         r = out["heldLate"]
         assert r["x"] >= -2 and r["x"] + r["w"] <= 1922 and r["y"] + r["h"] <= 880
+
+
+def test_a_line_pushed_out_through_the_bottom_clears_the_band_fade():
+    # ANC beat 4 (2026-11-14): a punch pushed "Stretched where it was squeezed" to just past the band's top, inside the
+    # framed layer's fade (BAND_FADE below it): its letters' tops showed above the caption. Out means past the fade.
+    out = _ts("""
+      const W = 1920, H = 1080, bandTop = 878, fade = Math.round(H * BAND_FADE);
+      const core = {x: 400, y: 120, w: 1100, h: 560};
+      const low = {x: 300, y: 760, w: 600, h: 40};
+      const f = coverFraming({W, H, bandTop, target: core, want: 1.3, content: [core, low], texts: [low]});
+      out.f = f; out.fade = fade;
+      out.low = f ? {y: low.y * f.s + f.ty, h: low.h * f.s} : null;
+    """, extra="BAND_FADE")
+    r = out["low"]
+    if r is not None:
+        inside = r["y"] + r["h"] <= 878
+        gone = r["y"] >= 878 + out["fade"] - 1
+        assert inside or gone, (r, out["fade"])
