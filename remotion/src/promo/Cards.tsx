@@ -230,10 +230,7 @@ export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspe
   const gridW = cols * tw + (cols - 1) * gapPx, gridH = rows * th + (rows - 1) * gapPx;
   const pull = 1.16 - 0.16 * span(frame, 0, stampAt + 10, 'smooth') - 0.04 * span(frame, stampAt + 10, dur, 'linear');
   const back = span(frame, stampAt - 4, stampAt + 12, 'smooth');
-  const grow = span(frame, stampAt, stampAt + 22, 'linear');
-  const word = span(frame, stampAt + 14, stampAt + 30, 'snappy');
   const dark = isDarkHex(look.paper);
-  const mh = Math.min(markH * s, (W * 0.7) / aspect);
   return (
     <CardGround>
       <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
@@ -254,18 +251,37 @@ export const RecallOutro: React.FC<{tiles: React.ReactNode[]; mark: string; aspe
       </AbsoluteFill>
       <AbsoluteFill style={{background: `radial-gradient(42% 38% at 50% 50%, ${alpha(look.paper, 0.92 * back)}, ${alpha(look.paper, 0.78 * back)} 55%, ${alpha(look.paper, 0.32 * back)} 100%)`}} />
       <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
-        <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} plate={plate} />
-        {tagline ? <div style={{marginTop: 34 * s}}>
-          <RiseLine text={tagline} px={46 * s} start={stampAt + 26} gap={2} weight={560} color={look.ink} />
-        </div> : null}
-        {/* the CTA: a real address or command, set as a button and HELD (it is what the viewer acts on) */}
-        {cta ? (() => {
-          const c = span(frame, stampAt + 40, stampAt + 52, 'snappy');
-          return <div style={{marginTop: 36 * s, opacity: c, transform: `translateY(${(1 - c) * 14 * s}px) ${U}`, padding: `${12 * s}px ${28 * s}px`,
-            borderRadius: 999, background: look.accentInk, color: inkOn(look.accentInk, [look.paper, look.ink, '#ffffff', '#141413']), fontFamily: SANS, fontSize: 28 * s, fontWeight: 650,
-            letterSpacing: '0.01em', boxShadow: `0 ${10 * s}px ${30 * s}px ${alpha(look.accentInk, 0.35)}`}}>{cta}</div>;
-        })() : null}
+        <OutroLockup mark={mark} aspect={aspect} tagline={tagline} stampAt={stampAt} markH={markH} cta={cta} plate={plate} />
       </AbsoluteFill>
     </CardGround>
+  );
+};
+
+
+/** The outro's lockup — the mark growing out of an accent dot, the wordmark wiping in, the tagline rising, the CTA held
+ *  as a button — in the look of wherever it is drawn (a card ground, or a staged world). */
+export const OutroLockup: React.FC<{mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; cta?: string; plate?: boolean}> = (
+  {mark, aspect, tagline = '', stampAt = 46, markH = 150, cta, plate}) => {
+  const frame = useCurrentFrame();
+  const {width: W, height: H} = useVideoConfig();
+  const look = useLook();
+  const s = typeScale(W, H);
+  const grow = span(frame, stampAt, stampAt + 22, 'linear');
+  const word = span(frame, stampAt + 14, stampAt + 30, 'snappy');
+  const mh = Math.min(markH * s, (W * 0.7) / aspect);
+  return (
+    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+      <Lockup mark={mark} aspect={aspect} h={mh} grow={grow} word={word} plate={plate} />
+      {tagline ? <div style={{marginTop: 34 * s}}>
+        <RiseLine text={tagline} px={46 * s} start={stampAt + 26} gap={2} weight={560} color={look.ink} />
+      </div> : null}
+      {/* the CTA: a real address or command, set as a button and HELD (it is what the viewer acts on) */}
+      {cta ? (() => {
+        const c = span(frame, stampAt + 40, stampAt + 52, 'snappy');
+        return <div style={{marginTop: 36 * s, opacity: c, transform: `translateY(${(1 - c) * 14 * s}px) ${U}`, padding: `${12 * s}px ${28 * s}px`,
+          borderRadius: 999, background: look.accentInk, color: inkOn(look.accentInk, [look.paper, look.ink, '#ffffff', '#141413']), fontFamily: SANS, fontSize: 28 * s, fontWeight: 650,
+          letterSpacing: '0.01em', boxShadow: `0 ${10 * s}px ${30 * s}px ${alpha(look.accentInk, 0.35)}`}}>{cta}</div>;
+      })() : null}
+    </div>
   );
 };

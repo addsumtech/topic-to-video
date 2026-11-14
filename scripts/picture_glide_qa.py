@@ -200,7 +200,8 @@ def spans_of(out_dir, spec=None):
     out, t = [], 0
     for k, sh in enumerate(tbl["shots"]):
         d = int(round(sh["dur"]))
-        if sh.get("kind") == "page":                    # only a page shot moves a picture under a camera
+        # the shots that move a PICTURE: a page under its camera, a staged object arriving, a wall the camera glides over
+        if sh.get("kind") in ("page", "object", "wall"):
             out.append((k + 1, t + 8, t + d - 8))
         t += d
     return out

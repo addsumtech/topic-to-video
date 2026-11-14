@@ -132,7 +132,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 
 **Render: product promo / real-product beats** (`references/promo-film.md`)
 - `scripts/promo_capture.py <dir> <url> --name=n` captures a product or page at 2x with every element's box and its own
-  title and description; `--eval` reaches a state first. `--boxes=<png>` finds the boxes in a screenshot with no DOM,
+  title and description; `--eval` reaches a state first (and `__ttv.fill` writes the film's demo content into it);
+  `--parts="name=css:..|text:.."` captures single COMPONENTS at 4x, which `object` / `wall` shots stage as objects in
+  the film's own world (references/promo-film.md § Staging — the default way to film a product). `--boxes=<png>` finds the boxes in a screenshot with no DOM,
   and `--mark=` cuts the logo.
 - `scripts/promo_record.py <dir> <url> --name=n --seconds=6 --script=steps.json` records the product IN MOTION
   (clicks, drags, scrolls, typing, its own animations) frame-exact on its own frame clock; a page shot plays it with

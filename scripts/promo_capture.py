@@ -86,6 +86,48 @@ def split_steps(js):
     import re
     return [x.strip() for x in re.split(r"\s*;;;\s*", js or "") if x.strip()]
 
+def _parts(spec):
+    """`--parts` items `name=<hires item>` (text:, css:, x,y,w,h or an id), `;`-separated -> [(name, item)]."""
+    out = []
+    for item in [x.strip() for x in (spec or "").split(";") if x.strip()]:
+        if "=" not in item:
+            raise SystemExit("[promo_capture] --parts: %r is not name=<text:..|css:..|x,y,w,h>" % item)
+        n, v = item.split("=", 1)
+        n = re.sub(r"[^\w-]", "_", n.strip())
+        if not n or n in [a for a, _ in out]:
+            raise SystemExit("[promo_capture] --parts: a part needs a unique name (%r)" % item)
+        out.append((n, v.strip()))
+    return out
+
+
+# the element whose box this is (walking up from the point at its centre), and its own corner radius and fill — a
+# part is staged with the corners and ground it has on the page
+# DEMO STATE, WRITTEN BY THE FILM: `__ttv.fill(selector, text)` puts the film's own demo text into a field, a textarea
+# or an editor (contenteditable, CodeMirror) the way a user's typing would (React sees an input event), and
+# `__ttv.text(selector, text)` replaces an element's visible text. Available to every --eval step.
+FILL_JS = """window.__ttv = window.__ttv || {
+  fill(sel, text) { const e = typeof sel === 'string' ? document.querySelector(sel) : sel; if (!e) throw new Error('no element ' + sel);
+    e.focus();
+    if (e instanceof HTMLInputElement || e instanceof HTMLTextAreaElement) {
+      const proto = e instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, 'value').set.call(e, text);
+      e.dispatchEvent(new Event('input', {bubbles: true})); e.dispatchEvent(new Event('change', {bubbles: true}));
+    } else { document.getSelection().selectAllChildren(e); document.execCommand('insertText', false, text); }
+    return text; },
+  text(sel, text) { const e = document.querySelector(sel); if (!e) throw new Error('no element ' + sel); e.textContent = text; return text; },
+}; 1"""
+
+
+STYLE_AT_JS = """(b => { let e = document.elementFromPoint(b.x - scrollX + b.w / 2, b.y - scrollY + b.h / 2), best = null;
+  while (e && e !== document.documentElement) { const r = e.getBoundingClientRect();
+    if (Math.abs(r.width - b.w) < 4 && Math.abs(r.height - b.h) < 4) { best = e; break; } e = e.parentElement; }
+  if (!best) return {radius: 0, bg: null};
+  const cs = getComputedStyle(best); let bg = cs.backgroundColor, p = best;
+  while ((bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') && p.parentElement) { p = p.parentElement; bg = getComputedStyle(p).backgroundColor; }
+  return {radius: parseFloat(cs.borderTopLeftRadius) || 0, bg};
+})(%s)"""
+
+
 def _hires_boxes(spec, els, css=None):
     """`--hires` items, `;`-separated: `text:<words>` (the SMALLEST element whose text holds them, case-insensitive),
     `css:<selector>` (its box on the page), a CSS box `x,y,w,h`, or an element id from THIS capture (`7`). Ids are
@@ -95,11 +137,16 @@ def _hires_boxes(spec, els, css=None):
     for item in [x.strip() for x in (spec or "").split(";") if x.strip()]:
         if item.startswith("text:"):
             want = item[5:].strip().lower()
-            hits = [e for e in els if want and want in str(e.get("text") or "").lower()]
-            if not hits:
-                raise SystemExit("[promo_capture] --hires: no element's text holds %r in this capture (see .layout.json)" % want)
-            e = min(hits, key=lambda e: e["w"] * e["h"])
-            box, why = {k: e[k] for k in ("x", "y", "w", "h")}, "element %s %r" % (e["id"], str(e.get("text"))[:40])
+            # the PAGE is asked first (any element, not only the listed ones: a result line is rarely an "acting" one)
+            b = css("text:" + item[5:].strip()) if css else None
+            if b:
+                box, why = b, "the smallest element on the page holding %r" % want
+            else:
+                hits = [e for e in els if want and want in str(e.get("text") or "").lower()]
+                if not hits:
+                    raise SystemExit("[promo_capture] --hires: no element's text holds %r in this capture (see .layout.json)" % want)
+                e = min(hits, key=lambda e: e["w"] * e["h"])
+                box, why = {k: e[k] for k in ("x", "y", "w", "h")}, "element %s %r" % (e["id"], str(e.get("text"))[:40])
         elif item.startswith("css:"):
             b = css(item[4:].strip()) if css else None
             if not b:
@@ -121,16 +168,18 @@ def _hires_boxes(spec, els, css=None):
     return out
 
 
-def capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80, hires_spec=None):
+def capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80, hires_spec=None, parts_spec=None,
+                parts_scale=4):
     import socket
     try:
-        return _capture_web(film, url, name, W, H, full, wait, js, select, max_el, hires_spec)
+        return _capture_web(film, url, name, W, H, full, wait, js, select, max_el, hires_spec, parts_spec, parts_scale)
     except (socket.timeout, TimeoutError) as e:
         raise SystemExit("[promo_capture] %s did not answer in time (%s). A slow or very long page: try --wait=4, a "
                          "narrower page, or capture it by hand and use --boxes" % (url, e))
 
 
-def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80, hires_spec=None):
+def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80, hires_spec=None,
+                 parts_spec=None, parts_scale=4):
     import _cdp
     chrome = find_chrome()
     if not chrome:
@@ -153,6 +202,8 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
             c._cmd("Runtime.evaluate", {"expression": expr, "awaitPromise": True, "returnByValue": True}, c.sid)
         time.sleep(wait)
         eval_results = []
+        if js:
+            c._cmd("Runtime.evaluate", {"expression": FILL_JS, "returnByValue": True}, c.sid)
         for step in split_steps(js):
             # one state change per step (load a scene and reload; then open a dialog), each settled before the next.
             # What a step RETURNS is printed and kept in the layout (`eval`): a step may ask the page a question
@@ -200,17 +251,51 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
         # page state, the same load) — the camera's close-up draws them over the page so the subject stays sharp
         hires = []
         def css_box(sel):
-            r = c._cmd("Runtime.evaluate", {"expression": "(()=>{const e=document.querySelector(%s); if(!e) return null; const b="
-                                            "e.getBoundingClientRect(); return {x:b.left+scrollX, y:b.top+scrollY, w:b.width, h:b.height};})()"
-                                            % json.dumps(sel), "returnByValue": True}, c.sid)["result"]["result"].get("value")
+            if sel.startswith("text:"):                     # the smallest visible element whose text holds the words
+                expr = ("(t=>{t=t.toLowerCase(); let best=null, area=1e18; for (const e of document.querySelectorAll('body *')) {"
+                        " const r=e.getBoundingClientRect(); if (r.width<2||r.height<2) continue; const s=getComputedStyle(e);"
+                        " if (s.visibility==='hidden'||s.display==='none') continue;"
+                        " if ((e.innerText||'').toLowerCase().includes(t) && r.width*r.height<area) {best=r; area=r.width*r.height;} }"
+                        " return best && {x:best.left+scrollX, y:best.top+scrollY, w:best.width, h:best.height};})(%s)" % json.dumps(sel[5:]))
+            else:
+                expr = ("(()=>{const e=document.querySelector(%s); if(!e) return null; const b="
+                        "e.getBoundingClientRect(); return {x:b.left+scrollX, y:b.top+scrollY, w:b.width, h:b.height};})()" % json.dumps(sel))
+            r = c._cmd("Runtime.evaluate", {"expression": expr, "returnByValue": True}, c.sid)["result"]["result"].get("value")
             return r if r and r["w"] > 0 and r["h"] > 0 else None
         boxes = _hires_boxes(hires_spec, els, css_box)
-        if boxes:
+        # PARTS: single components captured on their own at 4x — the film stages them as OBJECTS (a card, a field, a
+        # result) in a world of its own, instead of filming the whole page (references/promo-film.md §staging)
+        part_items = _parts(parts_spec)
+        part_boxes = _hires_boxes(";".join(v for _, v in part_items), els, css_box) if part_items else []
+        parts = {}
+        if part_boxes:
+            for (pn, _), pb in zip(part_items, part_boxes):
+                meta = c._cmd("Runtime.evaluate", {"expression": STYLE_AT_JS % json.dumps(pb), "returnByValue": True},
+                              c.sid)["result"]["result"].get("value") or {}
+                parts[pn] = {"box": pb, "radius": meta.get("radius", 0), "bg": meta.get("bg")}
+        if boxes or part_boxes:
             # the page REDRAWN at 4x (deviceScaleFactor), not the 2x picture scaled: a canvas app paints its bitmap at the
             # device ratio, so only a real ratio change gives its close-up real pixels
             vh = h if full else H
-            c._cmd("Emulation.setDeviceMetricsOverride", {"width": W, "height": vh, "deviceScaleFactor": HIRES, "mobile": False}, c.sid)
-            time.sleep(max(0.8, wait))
+            # parts first, at THEIR scale (a small component staged large needs more than 4x: a 184 px result bubble at
+            # 4x could fill only 38 % of a 1080p frame before it softened), then the close-ups at 4x
+            if parts:
+                c._cmd("Emulation.setDeviceMetricsOverride", {"width": W, "height": vh, "deviceScaleFactor": parts_scale, "mobile": False}, c.sid)
+                time.sleep(max(0.8, wait))
+            for pn, pv in parts.items():
+                pb = pv["box"]
+                clip = {"x": pb["x"], "y": pb["y"], "width": pb["w"], "height": pb["h"], "scale": 1}
+                data = c._cmd("Page.captureScreenshot", {"format": "png", "clip": clip, "captureBeyondViewport": False}, c.sid)["result"]["data"]
+                pp = os.path.join(caps, "%s.part.%s.png" % (name, pn))
+                with open(pp, "wb") as f:
+                    f.write(base64.b64decode(data))
+                with Image.open(pp) as im_:
+                    pv.update(src="caps/%s.part.%s.png" % (name, pn), w=round(pb["w"], 2), h=round(pb["h"], 2), scale=parts_scale,
+                              px=list(im_.size))
+                print("[promo_capture] part %s: %dx%d CSS px at %dx, radius %s -> %s" % (pn, pb["w"], pb["h"], parts_scale, pv["radius"], pv["src"]))
+            if boxes:
+                c._cmd("Emulation.setDeviceMetricsOverride", {"width": W, "height": vh, "deviceScaleFactor": HIRES, "mobile": False}, c.sid)
+                time.sleep(max(0.8, wait))
             for k, hb in enumerate(boxes):
                 clip = {"x": hb["x"], "y": hb["y"], "width": hb["w"], "height": hb["h"], "scale": 1}
                 data = c._cmd("Page.captureScreenshot", {"format": "png", "clip": clip, "captureBeyondViewport": False}, c.sid)["result"]["data"]
@@ -235,7 +320,7 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
     # the page's own title and description: the product's words, citable as the film's source
     out = {"src": "caps/%s.png" % name, "w": pw // 2, "h": ph // 2, "url": url, "title": lay.get("title", ""),
            "description": lay.get("description", ""), "captured": time.strftime("%Y-%m-%d"), "elements": els, "hires": hires,
-           "eval": eval_results}
+           "parts": parts if part_boxes else {}, "eval": eval_results}
     json.dump(out, open(os.path.join(caps, name + ".layout.json"), "w"), indent=1)
     overlay(png, out, os.path.join(caps, name + ".boxes.jpg"))
     return out
@@ -346,7 +431,7 @@ def main(argv):
     if not argv or argv[0].startswith("-"):
         print(__doc__.strip())
         return 0 if argv[:1] in (["--help"], ["-h"]) else 2
-    refuse_unknown(argv[1:], valued=("name", "width", "height", "wait", "eval", "select", "max", "boxes", "mark", "box", "hires"), switches=("full",))
+    refuse_unknown(argv[1:], valued=("name", "width", "height", "wait", "eval", "select", "max", "boxes", "mark", "box", "hires", "parts", "parts-scale"), switches=("full",))
     film = os.path.abspath(argv[0])
     mk = argflag(argv, "mark", None)
     if mk:
@@ -375,7 +460,7 @@ def main(argv):
     sel = [s for s in (argflag(argv, "select", "") or "").split(",") if s.strip()]
     lay = capture_web(film, argv[1], argflag(argv, "name", "page"), int(argflag(argv, "width", 1440)), int(argflag(argv, "height", 900)),
                       "--full" in argv, float(argflag(argv, "wait", 1.5)), argflag(argv, "eval", None), sel, int(argflag(argv, "max", 80)),
-                      argflag(argv, "hires", None))
+                      argflag(argv, "hires", None), argflag(argv, "parts", None), int(argflag(argv, "parts-scale", 4)))
     print("[promo_capture] %s: %dx%d CSS, %d elements -> caps/%s.layout.json" % (lay["src"], lay["w"], lay["h"], len(lay["elements"]),
                                                                                argflag(argv, "name", "page")))
     return 0

@@ -444,3 +444,72 @@ def test_a_white_mark_on_a_light_film_is_advised(film):
     assert any("mark is light" in a for a in adv), adv
     _, adv = pf.check({"look": {"accent": "#2b6cb0", "mode": "dark"}, "shots": [page(), o]}, str(film))
     assert not any("mark is light" in a for a in adv), adv
+
+
+# ---- staging: the product as objects (object / wall shots) ---------------------------------------------------------
+
+@pytest.fixture
+def parts(film):
+    from PIL import Image
+    Image.new("RGB", (1200, 1404), "white").save(film / "panel.png")      # a 4x part of a 300x351 CSS px panel
+    Image.new("RGB", (300, 100), "white").save(film / "tiny.png")         # a 1x grab of the same panel's corner
+    return film
+
+
+def obj(**kw):
+    s = {"kind": "object", "dur": 90, "world": "glow",
+         "items": [{"src": "panel.png", "w": 300, "h": 351, "width": 0.3, "at": 0,
+                    "acts": [{"kind": "count", "box": {"x": 10, "y": 10, "w": 40, "h": 20}, "to": 69, "at": 20}]}],
+         "label": {"index": "01", "kicker": "Compress", "text": "2.79 MB in.\n*862 kB out.*"}}
+    s.update(kw)
+    return s
+
+
+def test_an_object_shot_passes_and_is_heard_where_it_lands(parts):
+    errs, _ = pf.check({"shots": [obj()]}, str(parts))
+    assert errs == [], errs
+    cues = pf.plan_sfx({"shots": [obj()]}, placed=True)
+    by = [(f, c) for f, c, g, h in cues]
+    assert (6, "whoosh") in by and (22, "drop") in by                     # it comes in, and lands
+    land = [h for f, c, g, h in cues if c == "drop"][0]
+    assert land > 0.2                                                     # a label on the left: the object lands right
+    assert [f for f, c in by if c == "key"][:2] == [20, 26]               # its count, heard
+    assert pf.skeleton({"shots": [obj(), {"kind": "wall", "dur": 90, "tiles": []}]}) == "XW"
+
+
+@pytest.mark.parametrize("bad, words", [
+    (obj(items=[]), "needs items"),
+    (obj(world="neon"), "world must be"),
+    (obj(label={"text": " "}), "label needs"),
+    (obj(items=[{"src": "tiny.png", "w": 300, "h": 351, "width": 0.4}]), "upsampled"),          # 300 px shown 768 px wide
+    (obj(items=[{"video": "nope.mp4", "w": 300, "h": 200, "width": 0.3}]), "needs `crop`"),
+    (obj(items=[{"src": "panel.png", "h": 351}]), "w and h"),
+])
+def test_an_object_shot_that_would_render_wrong_is_refused(parts, bad, words):
+    errs, _ = pf.check({"shots": [bad]}, str(parts))
+    assert any(words in e for e in errs), errs
+
+
+def test_a_wall_is_checked_heard_and_judged_by_the_glide_gate(parts, tmp_path):
+    import json
+    import picture_glide_qa as pg
+    tiles = [{"src": "panel.png", "w": 300, "h": 351}] * 6
+    wall = {"kind": "wall", "dur": 90, "tiles": tiles, "cols": 3, "tile": 560}
+    assert pf.check({"shots": [wall]}, str(parts))[0] == []
+    cues = pf.plan_sfx({"shots": [wall]}, placed=True)
+    deals = [h for f, c, g, h in cues if c == "deal"]
+    assert len(deals) == 6 and deals[0] < 0 < deals[2]                    # dealt across its columns, left to right
+    small = dict(wall, tiles=[{"src": "tiny.png", "w": 300, "h": 351}])
+    assert any("upsampled" in e for e in pf.check({"shots": [small]}, str(parts))[0])
+    sp = tmp_path / "s.json"
+    sp.write_text(json.dumps({"shots": [obj(), wall, {"kind": "statement", "dur": 40, "text": "x"}]}))
+    assert [k for k, a, b in pg.spans_of(str(tmp_path), str(sp))] == [1, 2]   # the object and the wall, not the card
+
+
+def test_a_staged_outro_needs_no_page_shots_and_names_its_world(parts):
+    o = {"kind": "outro", "dur": 120, "mark": "panel.png", "aspect": 1, "world": "glow", "stampAt": 34}
+    assert pf.check({"shots": [obj(), o]}, str(parts))[0] == []                  # objects only: the staged outro is fine
+    errs = pf.check({"shots": [obj(), dict(o, world="neon")]}, str(parts))[0]
+    assert any("world must be" in e for e in errs)
+    errs = pf.check({"shots": [obj(), dict(o, world=None)]}, str(parts))[0]     # an unstaged outro still needs pages
+    assert any("no page" in e or "there are none" in e for e in errs)

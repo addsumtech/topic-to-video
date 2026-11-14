@@ -515,13 +515,51 @@ def check(spec, film_dir):
             for j in s.get("recall") or []:
                 if not (isinstance(j, int) and 0 <= j < len(shots) and shots[j].get("kind") == "page"):
                     errs.append("%s: recall %r is not the index of a page shot (0-based)" % (where, j))
-            if k == "outro" and not any(x.get("kind") == "page" for x in shots):
-                errs.append("%s: the outro recalls the film's page shots and there are none" % where)
+            if k == "outro" and s.get("world") not in (None, "glow", "paper", "pastel"):
+                errs.append("%s: world must be glow, paper or pastel (a staged outro: the film's objects gather round the mark)" % where)
+            if k == "outro" and not s.get("world") and s.get("recall") != [] and not any(x.get("kind") == "page" for x in shots):
+                errs.append("%s: the outro recalls the film's page shots and there are none (a staged film: `recall: []`)" % where)
         elif k == "statement":
             if not str(s.get("text", "")).strip():
                 errs.append("%s: no text" % where)
             if s.get("ground") not in (None, "paper", "accent", "ink"):
                 errs.append("%s: ground must be paper, accent or ink" % where)
+        elif k in ("object", "wall"):
+            fwh = ASPECTS.get(spec.get("aspect", "16:9"), ASPECTS["16:9"])
+            things = s.get("items") if k == "object" else s.get("tiles")
+            if not isinstance(things, list) or not things:
+                errs.append("%s: needs %s (components: promo_capture --parts, or a recording cropped to one)" % (where, "items" if k == "object" else "tiles"))
+                things = []
+            if s.get("world") not in (None, "glow", "paper", "pastel"):
+                errs.append("%s: world must be glow, paper or pastel" % where)
+            lab = s.get("label")
+            if lab is not None and not (isinstance(lab, dict) and str(lab.get("text") or "").strip()):
+                errs.append("%s: a label needs its text (the claim; `\\n` between its two lines)" % where)
+            for j, it in enumerate(t for t in things if isinstance(t, dict)):
+                iw = "%s %s %d" % (where, "item" if k == "object" else "tile", j)
+                if not (isinstance(it.get("w"), (int, float)) and isinstance(it.get("h"), (int, float)) and it["w"] > 0 and it["h"] > 0):
+                    errs.append("%s: w and h (the component's CSS size, from its part) are needed" % iw)
+                    continue
+                # on screen: an object's width share of the frame; a tile's plane size (near tiles magnified ~1.3x)
+                if k == "object":
+                    shown = float(it.get("width", 0.5 if (lab and j == 0) else 0.6)) * fwh[0]
+                else:
+                    shown = float(s.get("tile", 560)) * (min(fwh) / 1080.0) * 1.3
+                if it.get("video"):
+                    if not os.path.isfile(os.path.join(film_dir, it["video"])):
+                        errs.append("%s: video %s does not exist" % (iw, it["video"]))
+                    cb = it.get("crop")
+                    if not (isinstance(cb, dict) and all(q in cb for q in "xywh")):
+                        errs.append("%s: a video item needs `crop` {x, y, w, h}: the component's box in the recording" % iw)
+                    elif shown > cb["w"] * float(it.get("vscale", 2)) + 1:
+                        vs = float(it.get("vscale", 2))
+                        errs.append("%s: the recording is %gx: a %d px crop shown %d px wide is upsampled (crop at least %d px, "
+                                    "record it with --scale=3 and set vscale, or show it smaller)" % (iw, vs, cb["w"], shown, int(shown / vs) + 1))
+                else:
+                    psz = cap(it.get("src", ""), iw)
+                    if psz and shown > psz[0] + 1:
+                        errs.append("%s: %s is %d px wide and would be shown %d px wide (upsampled, soft): capture it with "
+                                    "--parts (4x), or show it smaller" % (iw, it.get("src"), psz[0], shown))
         elif k in ("compare", "montage"):
             regions = [s.get("a"), s.get("b")] if k == "compare" else list(s.get("items") or [])
             if not regions or any(not isinstance(r, dict) for r in regions):
@@ -627,7 +665,8 @@ LEDGER = os.environ.get("TOPIC_TO_VIDEO_PROMO_LEDGER") or os.path.expanduser("~/
 def skeleton(spec):
     """The film's STRUCTURE as a word: one letter per shot kind (+ narrated or not), cuts ignored. Two films with the
     same skeleton are the same film with different pictures — the template feel the user named on Squoosh vs WorkBuddy."""
-    letter = {"brand": "B", "title": "C", "page": "P", "outro": "O", "statement": "S", "compare": "V", "montage": "M"}
+    letter = {"brand": "B", "title": "C", "page": "P", "outro": "O", "statement": "S", "compare": "V", "montage": "M", "object": "X",
+              "wall": "W"}
     return "".join(letter.get(sh.get("kind"), "?") for sh in spec.get("shots") or []) + ("+vo" if narrated(spec) else "")
 
 
@@ -874,6 +913,36 @@ def plan_sfx(spec, placed=False):
             cues += [(a + 6, "swell", 0.4, "wide"), (sa + 10, "impact", 0.8, "wide")]
             if s.get("cta"):
                 cues.append((sa + 46, "select", 0.3, 0.0))
+        elif k == "object":
+            lab = s.get("label")
+            for j, it in enumerate(s.get("items") or []):
+                at_ = int(it.get("at", 0))
+                x = float(it.get("x", (0.68 if (lab or {}).get("side", "left") == "left" else 0.32) if (lab and j == 0) else 0.5))
+                p_ = max(-PAN_SPAN, min(PAN_SPAN, (x - 0.5) * 2 * PAN_SPAN))
+                if it.get("from", "tilt") in ("tilt", "rise"):
+                    g = 1.0 if j == 0 else 0.5
+                    cues.append((a + at_ + 6, "whoosh", 0.3 * g, (p_ * 0.4, p_)))         # it comes in toward its place
+                    cues.append((a + at_ + 22, "drop", 0.34 * g, p_))                      # and lands there
+                for l in it.get("acts") or []:
+                    kind, la = l.get("kind"), int(l.get("at", 0))
+                    if kind == "count":
+                        cues += [(a + la + jj, "key", 0.12, p_) for jj in range(0, int(l.get("dur", 42)), 6)]
+                    elif kind == "type":
+                        n = len(l.get("text", ""))
+                        cues += [(a + la + int(c / float(l.get("cpf", 0.5))), "key", 0.2, p_) for c in range(0, n, 2)]
+                    elif kind in ("ring", "callout", "note"):
+                        cues.append((a + la + 4, "select", 0.22, p_))
+                    elif kind == "pop":
+                        cues.append((a + la + 6, "drop", 0.26, p_))
+            if lab:
+                cues.append((a + int(lab.get("at", 4)) + 4, "select", 0.14, -PAN_SPAN * 0.6 if lab.get("side", "left") == "left" else PAN_SPAN * 0.6))
+        elif k == "wall":
+            cols = max(1, int(s.get("cols", 4)))
+            cues.append((a + 10, "whoosh", 0.3, "wide"))
+            for j in range(min(10, len(s.get("tiles") or []))):
+                c = j % cols
+                cues.append((a + int(16 + j * 1.6), "deal", max(0.1, 0.26 * (0.88 ** j)),
+                             (c / max(1, cols - 1) - 0.5) * 1.2 * PAN_SPAN))
         elif k == "page":
             keys = s.get("keys") or []
             for k0, k1 in zip(keys, keys[1:]):

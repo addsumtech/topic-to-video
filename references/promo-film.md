@@ -84,6 +84,49 @@ Rules:
 - **Credits.** A capture of someone else's page is shown as itself and credited in the film's sources. A capture
   from docs is for review; public distribution needs the product owner's own captures.
 
+## Staging — the product as objects (the default)
+
+**Why.** Side by side with the showcase films (2026-11-14, `craft_study/showcase_study`), ours lost on the material,
+not the polish. They film ONE component at a time — a card, a field, a result — large (60–80 % of the frame), lit,
+in a space with depth, and everything in it keeps moving. We filmed the whole web page edge to edge: its type 1–2 %
+of the frame, sidebars and ads included, no world of the film's own, a still screenshot between acts. The camera
+glided and the sound was placed, and it still read as a screen recording.
+
+So a product film is made mostly of **objects**:
+- **Capture components, not pages.** `promo_capture.py ... --parts="panel=css:.settings;result=text:862 kB"` saves
+  each part on its own at 4x (`caps/<name>.part.<part>.png`), with its CSS size, corner radius and fill
+  (`layout.json` → `parts`). Mark an element during `--eval` (`e.dataset.ttv='panel'`) and name it
+  `css:[data-ttv=panel]` when its classes are hashed or its size changes between states.
+- **Write the demo state.** `--eval` steps can use `__ttv.fill(selector, text)` (an input, a textarea, an editor:
+  typed the way a user's typing is, React sees it) and `__ttv.text(selector, text)`. The film writes its own demo
+  content — a short, legible example that tells the story — instead of filming whatever the page shows.
+- **`object` shot.** One hero component (and optional ones behind or in front: `z`, `blur` for depth) arriving in 3D
+  (`from`: tilt, rise, fade) and then HOLDING, in a `world`: `glow` (near-black, the accent as light, faint outlines
+  receding), `paper` (the film's paper and a spotlight) or `pastel` (soft ground, three blooms of the accent's
+  neighbours). A `label` beside it is the feature-section device: `{index: "02", kicker: "CRT shader", text:
+  "Scanlines, glow,\n*and that curve.*", sub}` — small mono `02 / CRT SHADER`, a claim of one or two lines at
+  showcase size (~6 % of the frame height), its accent span inked. Use the same label layout for every feature of
+  the film: it is the film's system.
+- **Live objects.** An item can be a RECORDING cropped to the component: `{video, vw, vh, crop: {x, y, w, h},
+  videoStart, vscale}`. Record it with `promo_record.py --scale=3` when it will be staged large. Acts (count, ring,
+  type, pop, callout) sit on an item in its own CSS px, so a figure counts up and a field types, on the object.
+- **`wall` shot.** Many components on a plane in perspective (`plane`: floor or wall), appearing in a quick cascade,
+  with the camera gliding across in one move (`from` → `to`, plane px); the far edge falls into the world; a large
+  `label` sits in a corner on a scrim. Use it for breadth (every codec, every template), with components or crops
+  as tiles, never shrunken full pages.
+- **The staged outro.** An `outro` with a `world` gathers the film's own components (the still parts of its object
+  and wall shots, up to 6) in depth round the mark: each arrives from further away to its place in a loose ring,
+  softer the deeper it sits, then steps back and dims as the mark lands in a band of light (glow) or a spotlight
+  (paper), with the tagline and CTA under it. Give it a `stampAt` of ~30 so the gathering is seen before the mark.
+  The round-4 outro was a small mark on an empty ground.
+- **Layers.** A frame with one object on a void reads empty. Put one or two of the film's other components behind
+  the hero (`z` -300..-450, `blur` 3-4, `from: fade`) — depth, and the product's world around its subject.
+- **A full-page shot is the exception**: at most one, to establish where we are. Everything else is a component.
+
+Sharpness and stillness hold as for pages. `check` refuses a part shown larger than its pixels, an object is laid
+out once at its size at rest and arrives from further away (scale ≤ 1), a landed object holds while its content
+moves, and grounds do not crawl. The glide gate judges object and wall shots too.
+
 ## Stillness: the camera must glide, measured
 
 A page under a moving camera that steps or shimmers reads as 抖动, the first thing a viewer notices. The camera is
@@ -168,10 +211,12 @@ Every `box` is a dict `{"x": .., "y": .., "w": .., "h": ..}` in the capture's CS
 | title | `text` (`*accent*`), `kicker`, `index` (false = unnumbered), `size` | |
 | page | `src`, `w`, `h`, `keys`, `layers` (or `acts`), `caption` {text, at, dur, pos}, `contain` (default true), `maxZoom` (2), `radius` | the caption strip sits in a corner: `pos` bl (default), br, tl, tr; left out, it moves off type by itself |
 | page (recording) | `recording` (a promo_record layout; sets src/video/w/h), `videoStart` (frame), `cursor` (false = none) | the recording plays under the camera |
-| outro | `mark`, `aspect`, `tagline`, `cta`, `stampAt` (default 46), `markH`, `recall` (page-shot indices, from 0) | |
+| outro | `mark`, `aspect`, `tagline`, `cta`, `stampAt` (default 46), `markH`, `recall` (page-shot indices, from 0), `world` (staged: the film's components gather round the mark) | |
 | statement | `text` (`*accent*`), `ground` (paper/accent/ink), `size`, `sub` | one line of type, word by word out of a blur, then still |
 | compare | `a`, `b` (regions: {src, w, h, box}), `labelA`, `labelB`, `at`, `sweep` | the same region of two captures, a divider sweeping across |
 | montage | `items` (regions), `every` (frames each, 8-18), `full` | the product's own crops in quick succession, each landing and holding |
+| object | `world` (glow/paper/pastel), `items` [{`src`, `w`, `h`, `radius`, `bg`, `x`, `y` (centre, frame shares), `width` (share of the frame width), `rx`, `ry`, `rz`, `z`, `blur`, `at`, `from` (tilt/rise/fade/none), `acts`; or `video`, `vw`, `vh`, `crop`, `videoStart`, `vscale`}], `label` {`index`, `kicker`, `text` (`\n` between lines, `*accent*`), `sub`, `side` (left/right), `at`} | components as objects in the film's world, a feature label beside them |
+| wall | `world`, `tiles` [{`src`, `w`, `h`, `radius`, `bg`, `acts`; or `video`, `crop`, ...}], `cols` (4), `tile` (plane px, 560), `gap`, `plane` (floor/wall), `from`/`to` ({x, y} plane px), `label` {`text`, `sub`, `at`} | many components on a plane in perspective, the camera gliding across |
 | any shot | `say` (the voice's line), `throughAt` ({x, y} in frame shares, for a `through` cut), `morphFrom` ({x, y, w, h} in frame shares, for a `morph` cut) | |
 | film (voice) | `narrate`, `voice` (edge voice id), `voice_rate` | |
 | key | `f`, `cx`, `cy`, `zoom` (at a 1920-wide reference), `rx`, `ry`, `rz`, `persp`, `ease` | |
@@ -244,7 +289,9 @@ before.
      in one click);
    - its WHY-NOW tension: what the viewer struggles with without it;
    - its PAYOFF: the frame you would end on.
-2. **Shape the arc from those four, not from the block list.**
+2. **Shape the arc from those four, not from the block list.** Film the product as OBJECTS (§ Staging): each feature
+   is an `object` shot of its component with a feature label, breadth is a `wall`, and a full page appears once at
+   most.
    - **The hook is the first 2 s.** It can be the proof itself (open on the result, then show how), a tension line, a
      detail macro, or the brand. Whatever it is, it is chosen for this product.
    - **Each block earns its place.**
@@ -329,8 +376,9 @@ paywall.
    `caps/home.boxes.jpg` and `caps/home.layout.json` and read what the product IS from its own title, description
    and UI. Ask the page with `--eval` (`JSON.stringify([...document.querySelectorAll('button,a')].map(e =>
    e.innerText).filter(Boolean))`) rather than guessing selectors. Capture each STATE the story needs (an opened
-   editor, a result, a settings panel) as its own capture, reaching it with `--eval` steps. Take a `--hires=` close-up of
-   the one detail the hero moment pushes onto, and a `--mark` cut of the logo from the product's own page.
+   editor, a result, a settings panel) as its own capture, reaching it with `--eval` steps, and write the film's demo
+   content into it (`__ttv.fill`). Take the COMPONENTS each feature will be staged with as `--parts` (§ Staging), and a
+   `--mark` cut of the logo from the product's own page.
 3. **Record the proof, if it moves.** (any `--fps`; the recording keeps its rate and the film times it in film
    frames) When the product's proof is something HAPPENING (a slider dragged, a result
    arriving, a panel opening), record it: `promo_record.py <dir> <url> --name=proof --seconds=4-6 --setup="<reach

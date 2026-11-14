@@ -2,7 +2,7 @@
 """promo_record — the product IN MOTION: a deterministic 2x recording of a web page acting out a script.
 
     python3 scripts/promo_record.py <film_dir> <url> --name=rec --seconds=6 [--script=steps.json] [--setup="js"]
-                                    [--width=1440] [--height=900] [--fps=30] [--wait=2]
+                                    [--width=1440] [--height=900] [--fps=30] [--wait=2] [--scale=2|3]
 
 A capture (promo_capture) is the product still; this is the product doing something — a field filling, a panel
 opening, a result arriving with the page's OWN animation. After load (and `--setup`), the time the page can see is
@@ -142,7 +142,7 @@ def _click(s, x, y):
         s.cmd("Input.dispatchMouseEvent", {"type": t, "x": x, "y": y, "button": "left", "clickCount": 1})
 
 
-def record(film, url, name, seconds=6.0, script=(), setup=None, W=1440, H=900, fps=30, wait=2.0):
+def record(film, url, name, seconds=6.0, script=(), setup=None, W=1440, H=900, fps=30, wait=2.0, scale=2):
     chrome = find_chrome()
     if not chrome:
         raise SystemExit("[promo_record] no Chrome/Chromium found")
@@ -152,7 +152,8 @@ def record(film, url, name, seconds=6.0, script=(), setup=None, W=1440, H=900, f
     tmp = tempfile.mkdtemp(prefix="promo_rec_")
     n = int(round(seconds * fps))
     events_out = []
-    with _cdp.Chrome(chrome, W, H, device_scale=2, timeout=90) as c:
+    # `scale` 2 by default (a page under the camera); 3 when the recording is cropped to ONE component and staged large
+    with _cdp.Chrome(chrome, W, H, device_scale=scale, timeout=90) as c:
         s = _Session(c)
         s.cmd("Page.navigate", {"url": url})
         deadline = time.monotonic() + 60
@@ -161,6 +162,7 @@ def record(film, url, name, seconds=6.0, script=(), setup=None, W=1440, H=900, f
         s.js("Promise.race([document.fonts ? document.fonts.ready.then(()=>1) : 1, new Promise(r=>setTimeout(()=>r(0), 8000))])")
         time.sleep(wait)
         if setup:
+            s.js(pc.FILL_JS)
             for step in pc.split_steps(setup):
                 s.js(step)
                 time.sleep(wait)
@@ -257,11 +259,11 @@ def record(film, url, name, seconds=6.0, script=(), setup=None, W=1440, H=900, f
     from PIL import Image
     with Image.open(os.path.join(caps, name + ".png")) as im:
         pw, ph = im.size
-    els = [e for e in lay["elements"] if e["x"] >= 0 and e["y"] >= 0 and e["x"] + e["w"] <= pw / 2 + 1 and e["y"] + e["h"] <= ph / 2 + 1]
+    els = [e for e in lay["elements"] if e["x"] >= 0 and e["y"] >= 0 and e["x"] + e["w"] <= pw / scale + 1 and e["y"] + e["h"] <= ph / scale + 1]
     els.sort(key=lambda e: (e["y"], e["x"]))
     for i, e in enumerate(els):
         e["id"] = i
-    out = {"src": "caps/%s.png" % name, "video": "caps/%s.mp4" % name, "w": pw // 2, "h": ph // 2, "fps": fps, "frames": n,
+    out = {"src": "caps/%s.png" % name, "video": "caps/%s.mp4" % name, "w": pw // scale, "h": ph // scale, "scale": scale, "fps": fps, "frames": n,
            "url": url, "title": lay.get("title", ""), "description": lay.get("description", ""), "elements": els, "events": events_out}
     json.dump(out, open(os.path.join(caps, name + ".layout.json"), "w"), indent=1)
     pc.overlay(os.path.join(caps, name + ".png"), out, os.path.join(caps, name + ".boxes.jpg"))
@@ -273,12 +275,13 @@ def main(argv):
     if len(argv) < 2 or argv[0].startswith("-"):
         print(__doc__.strip())
         return 0 if argv[:1] in (["--help"], ["-h"]) else 2
-    refuse_unknown(argv[2:], valued=("name", "seconds", "script", "setup", "width", "height", "fps", "wait"))
+    refuse_unknown(argv[2:], valued=("name", "seconds", "script", "setup", "width", "height", "fps", "wait", "scale"))
     film = os.path.abspath(argv[0])
     sp = argflag(argv, "script", None)
     script = json.load(open(sp if os.path.isabs(sp) else os.path.join(film, sp))) if sp else []
     out = record(film, argv[1], argflag(argv, "name", "rec"), float(argflag(argv, "seconds", 6)), script, argflag(argv, "setup", None),
-                 int(argflag(argv, "width", 1440)), int(argflag(argv, "height", 900)), int(argflag(argv, "fps", 30)), float(argflag(argv, "wait", 2)))
+                 int(argflag(argv, "width", 1440)), int(argflag(argv, "height", 900)), int(argflag(argv, "fps", 30)), float(argflag(argv, "wait", 2)),
+                 int(argflag(argv, "scale", 2)))
     print("[promo_record] %s: %d frames at %d fps, %d event(s) -> caps/%s.layout.json" % (out["video"], out["frames"], out["fps"],
                                                                                        len(out["events"]), argflag(argv, "name", "rec")))
     return 0

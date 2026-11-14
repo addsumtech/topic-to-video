@@ -93,7 +93,7 @@ def test_eval_steps_split_however_the_separator_is_written(js):
 def test_hires_items_resolve_by_text_selector_box_or_id(capsys):
     els = [{"id": 0, "x": 0, "y": 0, "w": 800, "h": 400, "text": "Compress MozJPEG 862 kB", "tag": "div"},
            {"id": 1, "x": 600, "y": 300, "w": 120, "h": 30, "text": "862 kB", "tag": "span"}]
-    css = lambda sel: {"x": 5, "y": 6, "w": 7, "h": 8} if sel == "#export" else None  # noqa: E731
+    css = lambda sel: {"x": 5, "y": 6, "w": 7, "h": 8} if sel == "#export" else None  # noqa: E731 (no page: text: uses the layout)
     out = pc._hires_boxes("text:862 KB;css:#export;10,20,30,40;0", els, css)
     assert out[0] == {"x": 600, "y": 300, "w": 120, "h": 30}          # the SMALLEST element holding the text
     assert out[1] == {"x": 5, "y": 6, "w": 7, "h": 8}
@@ -105,3 +105,21 @@ def test_hires_items_resolve_by_text_selector_box_or_id(capsys):
         pc._hires_boxes("text:nowhere", els, css)
     with pytest.raises(SystemExit):
         pc._hires_boxes("css:#nope", els, css)
+
+
+@pytest.mark.skipif(not pc.find_chrome(), reason="no Chrome")
+def test_parts_are_captured_on_their_own_with_the_films_demo_text(tmp_path):
+    html = tmp_path / "p.html"
+    html.write_text("""<!doctype html><html><body style="margin:0;background:#eee;font:16px sans-serif">
+<div id="card" style="position:absolute;left:60px;top:50px;width:300px;height:140px;border-radius:18px;background:#fff">
+<input id="q" style="margin:20px;width:240px;font-size:18px"><div id="res">nothing yet</div></div></body></html>""")
+    lay = pc.capture_web(str(tmp_path), "file://" + str(html), "p", W=600, H=400, wait=0.2,
+                         js="__ttv.fill('#q', 'hello film') ;;; __ttv.text('#res', 'Result: 3 matches') ;;; document.querySelector('#q').value",
+                         parts_spec="card=css:#card;result=text:Result: 3 matches")
+    assert lay["eval"][-1] == "hello film"                                # the film's own demo state, in the page
+    card, res = lay["parts"]["card"], lay["parts"]["result"]
+    assert (card["w"], card["h"], card["radius"]) == (300, 140, 18) and card["bg"] == "rgb(255, 255, 255)"
+    from PIL import Image
+    with Image.open(tmp_path / card["src"]) as im:
+        assert im.size == (1200, 560)                                     # 4x: staged large, still sharp
+    assert res["h"] < 40 and (tmp_path / res["src"]).is_file()        # the result LINE, not the card holding it

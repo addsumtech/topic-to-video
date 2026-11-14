@@ -11,8 +11,9 @@ import {span} from './kit';
 import {LookContext, DEFAULT_LOOK, type Look} from './kit';
 import {PageCam, Ground, type CamKey, type Macro} from './PageCam';
 import {Layers, OVERLAY_KINDS, type LayerSpec} from './Layers';
-import {ChapterCard, FlashCut, CaptionStrip, BrandOpen, RecallOutro, carryStyle} from './Cards';
+import {ChapterCard, FlashCut, CaptionStrip, BrandOpen, RecallOutro, OutroLockup, carryStyle} from './Cards';
 import {Statement, Compare, Montage, Subtitles, throughStyle, type Region, type Sub} from './Shots';
+import {ObjectShot, WallShot, StageOutro, type StageItem, type WallTile, type FeatureLabel, type World, type OutroObject} from './Stage';
 
 type Cut = 'carry' | 'flash' | 'hard' | 'through' | 'morph';
 export type PageShot = {kind: 'page'; dur: number; src: string; w: number; h: number; keys: CamKey[]; layers?: LayerSpec[]; acts?: LayerSpec[];
@@ -22,10 +23,13 @@ export type Shot =
   | {kind: 'brand'; dur: number; mark: string; aspect: number; kicker?: string; markH?: number; plate?: boolean; cut?: Cut}
   | {kind: 'title'; dur: number; text: string; kicker?: string; sub?: string; size?: number; index?: number | false; cut?: Cut}
   | PageShot
-  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string; plate?: boolean}
+  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string; plate?: boolean; world?: World}
   | {kind: 'statement'; dur: number; text: string; ground?: 'paper' | 'accent' | 'ink'; size?: number; sub?: string; cut?: Cut}
   | {kind: 'compare'; dur: number; a: Region; b: Region; labelA?: string; labelB?: string; at?: number; sweep?: number; cut?: Cut}
-  | {kind: 'montage'; dur: number; items: Region[]; every?: number; full?: boolean; cut?: Cut};
+  | {kind: 'montage'; dur: number; items: Region[]; every?: number; full?: boolean; cut?: Cut}
+  | {kind: 'object'; dur: number; world?: World; items: StageItem[]; label?: FeatureLabel; cut?: Cut}
+  | {kind: 'wall'; dur: number; world?: World; tiles: WallTile[]; cols?: number; tile?: number; gap?: number; plane?: 'floor' | 'wall';
+     from?: {x: number; y: number}; to?: {x: number; y: number}; label?: {text: string; sub?: string; at?: number}; cut?: Cut};
 
 export type PromoProps = {look?: Partial<Look>; shots: Shot[]; cut?: Cut; subtitles?: Sub[]};
 
@@ -122,6 +126,19 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', sub
       }
       case 'page': return <PageShotView s={s} />;
       case 'outro': {
+        if (s.world) {
+          // STAGED: the film's own components (its object and wall shots' still parts) gather round the mark
+          const objs: OutroObject[] = [];
+          for (const x of shots) {
+            if (x.kind === 'object') objs.push(...x.items.filter((it) => it.src && !it.video).map((it) => ({src: it.src as string, w: it.w, h: it.h, radius: it.radius})));
+            if (x.kind === 'wall') objs.push(...x.tiles.filter((t) => t.src && !t.video).map((t) => ({src: t.src as string, w: t.w, h: t.h, radius: t.radius})));
+          }
+          const seen = new Set<string>();
+          const uniq = objs.filter((o) => (seen.has(o.src) ? false : (seen.add(o.src), true)));
+          const pick = uniq.length <= 6 ? uniq : Array.from({length: 6}, (_, k) => uniq[Math.round((k * (uniq.length - 1)) / 5)]);
+          return <StageOutro dur={s.dur} world={s.world} objects={pick} stampAt={s.stampAt}
+            lockup={<OutroLockup mark={s.mark} aspect={s.aspect} tagline={s.tagline} stampAt={s.stampAt} markH={s.markH} cta={s.cta} plate={s.plate} />} />;
+        }
         // the wall: the film's product shots at their settled frames (default: up to 6, spread across the film)
         const pick = s.recall ?? (pages.length <= 6 ? pages : Array.from({length: 6}, (_, k) => pages[Math.round((k * (pages.length - 1)) / 5)]));
         const tiles = pick.filter((j) => shots[j]?.kind === 'page').map((j) => (
@@ -132,6 +149,9 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', sub
       case 'statement': return <Statement text={s.text} dur={s.dur} ground={s.ground} size={s.size} sub={s.sub} />;
       case 'compare': return <Compare a={s.a} b={s.b} labelA={s.labelA} labelB={s.labelB} at={s.at} sweep={s.sweep} dur={s.dur} />;
       case 'montage': return <Montage items={s.items} every={s.every} full={s.full} dur={s.dur} />;
+      case 'object': return <ObjectShot dur={s.dur} world={s.world} items={s.items} label={s.label} />;
+      case 'wall': return <WallShot dur={s.dur} world={s.world} tiles={s.tiles} cols={s.cols} tile={s.tile} gap={s.gap} plane={s.plane}
+        from={s.from} to={s.to} label={s.label} />;
       default: throw new Error(`PromoFilm: unknown shot kind ${(s as {kind: string}).kind}`);
     }
   };

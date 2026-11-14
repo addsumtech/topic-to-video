@@ -291,7 +291,8 @@ export const Count: React.FC<CountSpec> = ({box, to, from = 0, decimals, prefix 
   const dp = decimals ?? (String(to).split('.')[1]?.length ?? 0);
   const v = from + (to - from) * p;
   const txt = prefix + v.toLocaleString('en-US', {minimumFractionDigits: dp, maximumFractionDigits: dp}) + suffix;
-  if (frame < at - 2) return null;
+  // drawn from the shot's first frame at `from`: left to the capture until `at`, its own figure showed and then jumped
+  // back to `from` when the roll began (seen on a staged object arriving before its count)
   return (
     <div style={{position: 'absolute', left: box.x, top: box.y, width: box.w, height: box.h, background: fill, display: 'flex', alignItems: 'center',
       justifyContent: align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center', fontFamily: font ?? SANS, fontSize: size ?? box.h * 0.78,
