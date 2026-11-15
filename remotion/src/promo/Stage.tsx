@@ -418,6 +418,7 @@ export const StageOutro: React.FC<{dur: number; world?: World; objects: OutroObj
   return (
     <WorldGround world={world} focus={{x: 0.5, y: 0.5}}>
       <AbsoluteFill style={{perspective: 1900 * s, perspectiveOrigin: '50% 50%', opacity: 1 - (glow ? 0.45 : 0.12) * back}}>
+        {/* @truncates: never reached — promo_film.check refuses an outro of more objects than these six slots */}
         {objects.slice(0, slots.length).map((o, i) => {
           const [x, y, z, ry, rx] = slots[i];
           const a = span(frame, i * 3, i * 3 + 26, 'out');

@@ -56,8 +56,8 @@ def evaluate(data, out_dir=None):
     # is the HOW/WHY, not a restated summary. WARN (the semantic judge is critic-content C0).
     mech = str(data.get("mechanism") or "")
     if mech.strip() and not re.search(
-            r"\b(because|therefore|thus|hence|so that|which\s+(?:means|lets|gives)|leads?\s+to|so)\b|因为|所以|因此|从而", mech, re.I):
-        warnings.append("`mechanism` has no causal connective (because/therefore/thus/so · 因为/所以/因此/从而) — "
+            r"\b(because|therefore|thus|hence|so that|which\s+(?:means|lets|gives)|leads?\s+to)\b|因为|所以|因此|从而", mech, re.I):
+        warnings.append("`mechanism` has no causal connective (because/therefore/thus/so that · 因为/所以/因此/从而) — "
                         "a mechanism is a ≥1 because→therefore chain (the load-bearing WHY), not a restated summary")
 
     ot = data.get("the_one_thing")

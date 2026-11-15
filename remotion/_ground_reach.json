@@ -3477,7 +3477,7 @@
   "StarfieldWarp": "5aaa249db66b6d17",
   "StateSheet": "f298df26c4c67883",
   "StatedBy": "ee2808a8875deccb",
-  "StrataColumn": "af1de033b6730644",
+  "StrataColumn": "ed2594b91858d396",
   "SurfaceCarousel": "954c2d129784425c",
   "SwissEditorial": "41f8f93c0c9c0657",
   "TallyLedger": "dbfbe66defddf35a",
@@ -3546,8 +3546,8 @@
   "LivingMap": "a2a657e37fba902e",
   "PhotoToDiagram": "5e06b739673b9939",
   "FilmScreen": "d114c8dc6ffa4239",
-  "ChapterCard": "4e95297f34874bb6",
-  "ProductPage": "ba03b4a0cb9541ef"
+  "ChapterCard": "aeccee653f887b3d",
+  "ProductPage": "a3b6c8c4f008483f"
  },
  "failed": {
   "StatedBy": "ProtocolError: Protocol error (Runtime.callFunctionOn): Target closed. https://www.remotion.dev/docs/target-closed",

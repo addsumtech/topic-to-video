@@ -3676,8 +3676,8 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
                     errors.append(f"remotion: beat {i + 1} asks for seam '{raw}' ({key}), which this renderer "
                                   f"does not know — it would render as an unmarked fade. Known seams: {known} "
                                   f"(aliases in render_remotion._TRANSITION_STYLE)")
-    except Exception:
-        pass
+    except Exception as e:                                 # an ERROR-level check that cannot run is not a pass
+        errors.append(f"remotion: the seam-word check could not run ({type(e).__name__}: {e}) — fix the check")
     # the anchored seams and the punch: OUTSIDE the try above — a crash in this check must not pass as a clean run
     _anchored_seams(meta, slides, errors, warnings, out_dir)
     try:                                                   # A RETURN MUST NAME A PLACE THE FILM HAS BEEN
@@ -3689,8 +3689,8 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
         import film_board as _fb
         for beat, why in _fb.refusals(slides):
             errors.append(f"remotion: beat {beat} — {why}")
-    except Exception:
-        pass
+    except Exception as e:                                 # an ERROR-level check that cannot run is not a pass
+        errors.append(f"remotion: the return-relation check could not run ({type(e).__name__}: {e}) — fix the check")
     try:                                                   # marked-seam BUDGET: most seams ride the safe fade
         import render_remotion as _rr
         marked = sum(1 for s in slides[1:] if _rr.is_mark(s))   # scene 0 has no incoming seam; a hard cut is no mark
@@ -3848,7 +3848,11 @@ def _check_build_fidelity(entries, items, errors, warnings, out_dir):
                               "proportions and parts (references/object-authoring.md rule 7)" % where)
                 continue
             src = _ws.shot_part_source(out_dir, eid) if out_dir and eid in items else None
-            for lv, m in _fid.problems(rec, out_dir or ".", where, _fid.source_part_names(src) if src else None):
+            try:
+                found = _fid.problems(rec, out_dir or ".", where, _fid.source_part_names(src) if src else None)
+            except _fid.FidelityParseError as e:     # one unreadable source is a finding on that shot, not a crash
+                found = [("ERROR", "%s: its source could not be read for fidelity (%s)" % (where, e))]
+            for lv, m in found:
                 (errors if lv == "ERROR" else warnings).append(m)
         elif e.get("kind") == "object" and e.get("fidelity") is not None:
             warnings.append("%s: an object's fidelity record lives in its META (workshop/objects/%s.tsx), not on its "
@@ -6180,7 +6184,15 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     _design_plan_lints(out_dir, warnings, meta)
 
     # Truthful-content backstop: flag any statistic spoken/shown that doesn't trace to brief.json evidence.
-    _figure_traceability(slides, out_dir, warnings)
+    _figure_traceability(slides, out_dir, warnings, skips=skips)
+    # THE COMPREHENSION BRIEF'S FLOOR (scripts/brief_qa.py). SKILL.md runs it at step 3.5, but no code ever called it,
+    # so a hollow or missing brief reached every later stage on a film nobody ran it by hand on. A film made from a
+    # deck (meta.source) is narrated from its slides and needs no brief; a topic film over 60 s does.
+    if out_dir:
+        import brief_qa as _bq
+        _br = _bq.check(out_dir, None if meta.get("source") else meta.get("target_seconds"))
+        errors.extend("brief: " + e for e in _br.get("errors") or [])
+        warnings.extend("brief: " + w for w in _br.get("warnings") or [])
 
     # Blender plates are a remotion-tier capability (spec 2026-11-04 §9: the HTML tier comes later)
     if any("blender" in s for s in slides):

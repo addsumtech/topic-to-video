@@ -57,6 +57,12 @@ export const StrataColumn: React.FC<{
   base = '',
   note = ''} = {}) => {
   const LAYERS = listOf<Layer>(LAYERS_IN, 'layers', 'StrataColumn');
+  // SIX BANDS IS WHAT THE COLUMN HOLDS; a seventh layer the film supplied was cut away in silence (`slice(0, 6)`, the
+  // content contract read it clean because the list's name is upper-case). Refused, so the beat is split instead.
+  if (LAYERS.length > 6) {
+    throw new Error(`StrataColumn holds at most 6 layers, got ${LAYERS.length} — split the column across two beats ` +
+      `(the upper and the lower strata), or merge layers`);
+  }
   const dna = useDNA();
   const t = useT();
   const {width: W, height: H} = useVideoConfig();
@@ -70,7 +76,7 @@ export const StrataColumn: React.FC<{
   const top = CONTENT_TOP + H * 0.03;
   const bottom = H - captionBand(W, H) - H * 0.05;
   const n = Math.max(1, Math.min(6, LAYERS.length));
-  const rows = LAYERS.slice(0, n);
+  const rows = LAYERS.slice(0, n);   // @truncates: never — more than 6 layers is refused above
   const truncated = LAYERS.length > n;   // the column does not bottom out where the frame does
   const bandH = (bottom - top) / n;
 

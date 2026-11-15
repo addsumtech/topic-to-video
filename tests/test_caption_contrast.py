@@ -185,12 +185,16 @@ def test_the_gate_judges_the_spoken_word_in_its_own_colour(tmp_path):
 
 
 # ── the Remotion tier: the ground beside the caption block, from the census lines (2026-11-12) ────────────────────
-def _rm_frame(bar_x=None, bar_w=24, ground=(200, 200, 200)):
+def _rm_frame(bar_x=None, bar_w=24, ground=(200, 200, 200), ink=0):
+    """a caption band with GLYPHS drawn in one of Film's two inks (0 dark, 1 light) — the gate reads the ink off them"""
     import numpy as np
     f = np.zeros((1080, 1920, 3), np.uint8)
     f[:] = ground
     if bar_x is not None:
         f[:, bar_x:bar_x + bar_w] = (30, 30, 30)       # a dark object running down through the caption band
+    c = cc._caption_inks()[ink].astype(np.uint8)
+    for x in range(226, 896, 13):                      # stems of letters inside the line box (983..1038)
+        f[995:1028, x:x + 4] = c
     return f
 
 
@@ -208,6 +212,18 @@ def test_a_dark_bar_behind_a_dark_caption_letter_is_found():
     assert clean[0] == 0.0
     thin = cc.judge_caption_block(_rm_frame(bar_x=500, bar_w=4), block, inks)
     assert thin[0] < cc.RM_LETTER_WARN, "a hairline behind the line is not a lost letter"
+
+
+def test_the_ink_judged_is_the_ink_film_drew():
+    """Film picks its caption ink from the beat's ground TOKEN; the gate used to judge the better of the two inks for
+    the pixels, so a light caption Film drew on a light ground passed. It reads the drawn ink off the glyphs now."""
+    inks = cc._caption_inks()
+    block = cc.caption_blocks(_RM_LINES, 1920, 1080)
+    share, ink, _x = cc.judge_caption_block(_rm_frame(ground=(230, 230, 230), ink=1), block, inks)
+    assert ink.sum() > 600 and share >= cc.RM_LETTER_ERROR, "light ink on a light ground is a melted caption"
+    import numpy as np
+    nothing = np.full((1080, 1920, 3), 200, np.uint8)
+    assert cc.judge_caption_block(nothing, block, inks)[0] == 1.0, "the census says a caption is there and no letter shows: melted"
 
 
 def test_only_the_caption_bands_lines_are_the_caption():

@@ -58,7 +58,9 @@ import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REM = os.path.join(_HERE, "..", "remotion", "src")
 SHOTS = os.path.join(_REM, "shots")
-EXTRA = [os.path.join(_REM, "runtime", "uiSurface.tsx")]
+# the stage and promo layers draw the film's own lists too (a promo's objects, a world's stops): read like a register
+EXTRA = [os.path.join(_REM, "runtime", "uiSurface.tsx")] + sorted(
+    glob.glob(os.path.join(_REM, "stage", "*.tsx")) + glob.glob(os.path.join(_REM, "promo", "*.tsx")))
 OBJECTS = os.path.join(_REM, "objects")
 
 RULES = ("cycle", "position", "relabel", "retype", "fallback", "invent", "truncate")
@@ -75,7 +77,7 @@ _FONTISH = re.compile(r"(serif|sans|mono|cursive|fantasy|system-ui|Impact|Georgi
 def _declared(lines, idx, rule):
     """A declaration for `rule` on this line or the line above, with a reason after the colon."""
     tag = _DECL[rule]
-    pat = re.compile(r"//[ \t]*@%s:[ \t]*\S" % re.escape(tag))
+    pat = re.compile(r"(?://|/\*)[ \t]*@%s:[ \t]*\S" % re.escape(tag))     # a // comment, or {/* */} in JSX
     return any(pat.search(lines[k]) for k in (idx, idx - 1) if 0 <= k < len(lines))
 
 
@@ -142,8 +144,13 @@ _UNIT_GRID = re.compile(r"^\[\s*(\[\s*[01]\s*,\s*[01]\s*\]\s*,?\s*)+\]$")   # [[
 _KIND_TABLE = re.compile(r"\bconst\s+(kinds?|types?|shapes?|glyphs?|icons?|widgets?|forms?)\w*\s*(?::[^=]+)?=\s*\[\s*'")
 
 
-def violations(src, name=""):
-    """[(line_no, rule, line_text)] for one register's source."""
+# the stage and promo layers position their own furniture with defaults (`it.x ?? 0.5`) and style a title's marked part
+# by index; what they must never do is drop the film's list in silence — they are read for that rule only
+LAYER_RULES = ("truncate",)
+
+
+def violations(src, name="", rules=None):
+    """[(line_no, rule, line_text)] for one register's source (`rules`: only these)."""
     out = []
     lines = src.split("\n")
     for idx, raw in enumerate(lines):
@@ -152,6 +159,8 @@ def violations(src, name=""):
             continue
 
         def hit(rule):
+            if rules is not None and rule not in rules:
+                return
             if not _declared(lines, idx, rule):
                 out.append((idx + 1, rule, raw.strip()))
 
@@ -188,12 +197,14 @@ def violations(src, name=""):
             name = recv.group(1) if recv else ""
             tail = code[m_tr.end():m_tr.end() + 24]
             # a string being shortened (a hex colour parsed, an error message quoting its input) is not a list
-            if name in ("h", "hex", "v", "str", "txt", "text", "name", "id", "raw", "s"):
+            if name in ("h", "hex", "v", "str", "txt", "text", "name", "id", "raw", "s") or re.search(
+                    r"\bhex\b[^;]*\.replace\([^()]*\)\s*$", code[:m_tr.start()]):
                 continue
             # A REVEAL IS NOT A CUT. `command.slice(0, typed)` types a string out character by character and
             # shows all of it by the settled frame; flagging it teaches the reader to ignore this rule, which
             # is how a checker that cries wolf ends up protecting nothing.
-            if cap in ("typed", "cut", "chars", "shown", "revealed", "visible", "nChars", "letters"):
+            # (`SS.slice(0, live)`: the statements already held, before the live one — all of them land in turn)
+            if cap in ("typed", "cut", "chars", "shown", "revealed", "visible", "nChars", "letters", "live"):
                 continue
             # A PREFIX SUM IS NOT A CUT EITHER: `metric.slice(0, i).reduce(...)` adds up what came before i.
             if tail.lstrip().startswith(".reduce("):
@@ -202,8 +213,11 @@ def violations(src, name=""):
             if re.search(r"\.slice\(\s*%s\s*\)" % re.escape(cap), code):
                 continue
             # NOR IS CUTTING THE REGISTER'S OWN DEFAULT TABLE DOWN TO THE FILM'S COUNT — `ROUTE.slice(0, n)`
-            # takes as many poses as the film gave steps. The table is the register's, not the film's.
-            if re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
+            # takes as many poses as the film gave steps. The table is the register's, not the film's — and only a
+            # table declared at MODULE level is: an upper-case name was enough, so StrataColumn's
+            # `const LAYERS = listOf(props.layers)` (the film's own list, upper-case inside the component) was cut
+            # to six with this reading it clean, and every layer after the sixth vanished.
+            if re.fullmatch(r"[A-Z][A-Z0-9_]*", name) and re.search(r"^(?:export\s+)?const\s+%s\b" % re.escape(name), src, re.M):
                 continue
             hit("truncate")
             break
@@ -232,7 +246,8 @@ def library(names=None):
         n = os.path.basename(f)[:-4]
         if names and n not in names:
             continue
-        v = violations(open(f, encoding="utf-8").read(), n)
+        layer = os.path.basename(os.path.dirname(f)) in ("stage", "promo")
+        v = violations(open(f, encoding="utf-8").read(), n, LAYER_RULES if layer else None)
         if v:
             out[n] = v
     return out

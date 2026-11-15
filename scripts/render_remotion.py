@@ -1415,8 +1415,26 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
                 print("[render_remotion] cover -> %s" % os.path.basename(_cover.cover(out_dir)))
             except (SystemExit, Exception) as e:          # noqa: BLE001 — a film without a cover still renders
                 print("[render_remotion] no cover: %s" % e)
+        _write_plan(out_dir, props, out_mp4)
         _not_delivered(out_dir)
     return out_mp4
+
+
+def _write_plan(out_dir, props, out_mp4):
+    """`_plan.json`: each beat's frame span and where its seam is — what the pixel gates that must know where the film
+    cuts read (scripts/rewind_qa.py), instead of guessing the cuts from the picture. Film.tsx's own timeline
+    (remotion_segments.timeline): a beat after a seam starts `tr` frames before the last one ends."""
+    try:
+        import remotion_segments as _rs
+        segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
+        plan = {"video": os.path.basename(out_mp4), "frames": int(total), "fps": int(props.get("fps") or 30),
+                "cuts": [int(a) for a, _b in segs[1:]],
+                "segments": [{"start": int(a), "end": int(b) + 1, "kind": "shot", "beat": k + 1,
+                              "shot": sc.get("shot")} for k, ((a, b), sc) in enumerate(zip(segs, props["scenes"]))]}
+        with open(os.path.join(out_dir, "_plan.json"), "w", encoding="utf-8") as fh:
+            json.dump(plan, fh, indent=1)
+    except Exception as e:  # noqa: BLE001 — the film is written; the gates that need the plan say it is missing
+        print("[render_remotion] no _plan.json: %s" % e)
 
 
 # THE RENDERER MUST NOT END ON A GREEN LIGHT. This one used to finish with "wrote out.srt + N keyframes

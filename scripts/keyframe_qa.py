@@ -112,7 +112,12 @@ _OVERFLOW_JS = (
     "myst++;if(!mystEx)mystEx=String(e.className).slice(0,40);}}"
     "var oy=cs.overflowY;if((oy==='hidden'||oy==='clip')&&e.scrollHeight-e.clientHeight>8"
     "&&(e.innerText||'').trim().length>12&&!(e.matches&&e.matches(FILL))){"
-    "var cc=e.scrollHeight-e.clientHeight;if(cc>clip)clip=cc;}}"
+    "var cc=e.scrollHeight-e.clientHeight;if(cc>clip)clip=cc;}"
+    # ...AND ACROSS: a `white-space:nowrap` line in an `overflow:hidden` box loses its end to the side (an ellipsis
+    # or a bare cut), and only the vertical clip was measured — the audit, 2026-11-15
+    "var ox=cs.overflowX;if((ox==='hidden'||ox==='clip')&&e.scrollWidth-e.clientWidth>8"
+    "&&(e.innerText||'').trim().length>12&&!(e.matches&&e.matches(FILL))){"
+    "var cx=e.scrollWidth-e.clientWidth;if(cx>clip)clip=cx;}}"
     "var nm=0,nmEx='',crowd=0,crowdEx='';var pars=document.querySelectorAll('.stage,.split,.stage *,.split *');"
     "for(var pi=0;pi<pars.length;pi++){var pe=pars[pi],ch=pe.children;"
     "if(ch.length<2||ch.length>12)continue;var bx=[];"

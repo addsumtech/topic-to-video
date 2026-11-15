@@ -161,6 +161,11 @@ def beat_key(out_dir, slide, meta, tool, extra=None):
         for f in code_closure(entry):
             _hash_file(h, f, "code:" + os.path.basename(os.path.dirname(f)) + "/" + os.path.basename(f))
     _workshop_assets(h, out_dir)
+    # THE PICTURES THE BEAT LOADS, by content: a photograph replaced at the same path kept the beat's key, and every
+    # measurement keyed on it replayed the verdict on the old picture (the same walk the segment cache uses)
+    if out_dir:
+        import remotion_segments as _rs
+        h.update(json.dumps(_rs.referenced_files(slide.get("shot_props"), out_dir), sort_keys=True).encode())
     meta = meta or {}
     h.update(json.dumps([shot, slide.get("shot_props"), slide.get("duration"), slide.get("audio_duration"),
                          meta.get("design_dna") or meta.get("shot_template"), meta.get("aspect"),

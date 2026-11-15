@@ -1453,7 +1453,9 @@ _PROBE_JS = r"""(function(){
     var big=parseFloat(cs.fontSize)||16;e.querySelectorAll('*').forEach(function(d){
       big=Math.max(big,parseFloat(getComputedStyle(d).fontSize)||0);});
     var tol=Math.max(1,0.35*big);
-    if(e.clientWidth>0&&e.scrollWidth-e.clientWidth>tol)out.over.push([desc(e),e.scrollWidth-e.clientWidth,'wider than its own box']);
+    // ACROSS, no glyph stands proud of its box: anything wider by more than a pixel is a line that does not fit (the
+    // .35em allowance let a 26 px label run 9 px past its card — the audit, 2026-11-15)
+    if(e.clientWidth>0&&e.scrollWidth-e.clientWidth>1)out.over.push([desc(e),e.scrollWidth-e.clientWidth,'wider than its own box']);
     if(e.clientHeight>0&&e.scrollHeight-e.clientHeight>tol)out.over.push([desc(e),e.scrollHeight-e.clientHeight,'taller than its own box']);
     if(cs.animationName&&cs.animationName!=='none'&&cs.animationPlayState!=='paused')out.unfrozen.push(desc(e));
   });

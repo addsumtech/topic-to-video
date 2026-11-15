@@ -135,6 +135,10 @@ def caption_blocks(lines, W, H):
     return [tuple(v) for _k, v in sorted(rows.items())]
 
 
+GLYPH_MIN = 0.02   # share of the line boxes on one side of their own median ground that is letters
+GLYPH_STEP = 24.0  # grey levels from the ground's median that put a pixel on one side of it
+
+
 def judge_caption_block(frame, block, inks, scale=1):
     """(worst letter-wide melted share, ink rgb, x of that window) of one caption block on one frame, or None."""
     if not block:
@@ -150,8 +154,26 @@ def judge_caption_block(frame, block, inks, scale=1):
         return None
     above = _lum(frame[ya[0]:ya[1], c0:c1].reshape(-1, 3)).reshape(ya[1] - ya[0], c1 - c0)
     below = _lum(frame[yb[0]:yb[1], c0:c1].reshape(-1, 3)).reshape(yb[1] - yb[0], c1 - c0)
-    ground = np.median(np.concatenate([above.ravel(), below.ravel()]))
-    ink = max(inks, key=lambda c: _contrast(_lum(c[None, :])[0], np.array([ground]))[0])
+    # THE INK FILM DREW, read off the glyphs — not the better of the two for this ground. Film picks its ink from the
+    # beat's ground TOKEN (Film.tsx captionInk), not from the pixels, so "the ink that would contrast best" passed a
+    # caption drawn in the wrong one. Film's two inks are a dark and a light one, so the letters are told by which
+    # SIDE of their ground they sit on — the ground being the line boxes' own median (letters cover well under half of
+    # a line box; the strips above and below can hold a panel the line sits under). Direction, not an exact colour:
+    # anti-aliasing at the decode scale, a caption fading out and karaoke's unlit words all move a glyph's colour but
+    # never its side. When neither side shows letters, the census says a caption is there and none can be seen: it
+    # has melted whole, and is judged so.
+    inside = np.concatenate([frame[max(0, int(r[2] / scale)):min(Hh, int(r[3] / scale)),
+                                   max(0, int(r[0] / scale)):min(Ww, int(r[1] / scale))].reshape(-1, 3) for r in block])
+    if not len(inside):
+        return None
+    gi = inside.astype(np.float64).mean(axis=1)
+    g0 = float(np.median(gi))
+    dark, light = float((gi < g0 - GLYPH_STEP).mean()), float((gi > g0 + GLYPH_STEP).mean())
+    by_lum = sorted(inks, key=lambda c: float(c.mean()))           # [the dark ink, the light ink]
+    if max(dark, light) < GLYPH_MIN:
+        ink = min(inks, key=lambda c: abs(float(c.mean()) - g0))
+        return 1.0, ink, c0 * scale
+    ink = by_lum[0] if dark >= light else by_lum[-1]
     li = _lum(ink[None, :])[0]
     melt = (np.median(_contrast(li, above), axis=0) < MIN_CONTRAST) & (np.median(_contrast(li, below), axis=0) < MIN_CONTRAST)
     win = max(4, int(round(max(r[4] for r in block) / scale)))
@@ -179,6 +201,7 @@ def check_remotion(out_dir, video=None):
         frames_c[f].get("lines") or [], W, H)]
     dec = _decode_scaled(video, want, W // RM_SCALE, H // RM_SCALE)
     rows = []
+    cap_beats = sorted({next((k + 1 for k, (a, b) in enumerate(segs) if a <= f <= b), None) for f in want} - {None})
     for f in want:
         if f not in dec:
             continue
@@ -198,8 +221,23 @@ def check_remotion(out_dir, video=None):
         k = (r["beat"], r["text"])
         if k not in keep or r["melt"] > keep[k]["melt"]:
             keep[k] = r
-    return {"skipped": None, "rows": list(keep.values()), "jobs": len(keep), "unseen": [], "no_record": [],
-            "remotion": True}
+    # COVERAGE IS COUNTED IN BEATS. `jobs` was len(rows), so a film where no caption block was found (or none could be
+    # read) printed "OK — 0 caption chunk(s)" and exited 0: unmeasured read as clean. A narrated beat with no caption
+    # in the census, or one whose caption could not be read on any frame, is listed and the run is not clean.
+    import render_remotion as _rr
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    meta = board.get("meta") or {}
+
+    def burns(sl):        # Film burns this beat's caption — unless its own headline sets the line (captionOnScreen)
+        cap = (sl.get("caption") or _rr._caption_for_eye(sl.get("narration") or sl.get("script") or "")).strip()
+        return bool(cap) and not (meta.get("caption_on_screen") is not False and _rr.caption_on_screen(
+            {"shot": sl.get("shot"), "props": sl.get("shot_props") or {}, "caption": cap}))
+    spoken = [k + 1 for k, sl in enumerate(board.get("slides") or []) if burns(sl)]
+    judged = {r["beat"] for r in keep.values()}
+    unseen = [{"beat": b, "text": "(no caption read on this beat%s)" % ("" if b in cap_beats else " — none in the census")}
+              for b in spoken if b not in judged]
+    return {"skipped": None, "rows": list(keep.values()), "jobs": len(keep) + len(unseen), "unseen": unseen,
+            "no_record": [], "remotion": True}
 
 
 def _probe_wh(video):
@@ -235,10 +273,21 @@ def judge_frame(frame, core, edge):
         return None, None
     px = frame[core].astype(np.float64)
     ink = np.median(px, axis=0)
-    if (np.abs(px - ink).max(axis=1) <= 40).mean() < PRESENT:
-        return None, None
-    c = _contrast(_lum(ink[None, :])[0], _lum(frame[edge]))
-    return float((c < MIN_CONTRAST).mean()), ink
+    near = np.abs(px - ink).max(axis=1) <= 40
+    inks = [ink]
+    if near.mean() < PRESENT:
+        # A SHORT CHUNK HALF IN ITS HIGHLIGHT carries two inks, neither a majority (「叫定位方块。」 with 定位 lit: the QR
+        # film's three short chunks were never read). The second ink is the median of what the first leaves; the
+        # caption is there when the two together carry the cores, and the worse of the two is its verdict.
+        rest = px[~near]
+        ink2 = np.median(rest, axis=0)
+        near2 = np.abs(px - ink2).max(axis=1) <= 40
+        if (near | near2).mean() < PRESENT or near2.mean() < 0.15 or near.mean() < 0.15:
+            return None, None
+        inks = [ink, ink2]
+    g = _lum(frame[edge])
+    worst = max(((float((_contrast(_lum(k[None, :])[0], g) < MIN_CONTRAST).mean()), k) for k in inks), key=lambda t: t[0])
+    return worst
 
 
 def _decode(video, wanted, W, H):
@@ -261,6 +310,11 @@ def _decode(video, wanted, W, H):
 def check(out_dir, video=None):
     import render as rd
     import jitter_html as jh
+    if not os.path.exists(os.path.join(out_dir, "storyboard.json")):
+        # a promo film (promo.json) burns no caption; anything else without a board cannot be read
+        if os.path.exists(os.path.join(out_dir, "promo.json")):
+            return {"skipped": "a promo film: no burned captions", "rows": []}
+        return {"skipped": "no storyboard.json in %s" % out_dir, "rows": [], "unmeasured": True}
     board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     meta = dict(board.get("meta") or {}, _out=out_dir)
     slides = board.get("slides") or []
@@ -272,11 +326,13 @@ def check(out_dir, video=None):
         return {"skipped": "captions are off", "rows": []}
     if rd._caption_band_px(meta, int(meta.get("width") or 1920), int(meta.get("height") or 1080)):
         return {"skipped": "band mode: the caption sits on its own strip", "rows": []}
-    W, H = int(meta.get("width") or 1920), int(meta.get("height") or 1080)
     fps = meta.get("fps", 30)
     video = video or os.path.join(out_dir, "out.mp4")
     if not os.path.exists(video):
         return {"skipped": "no %s" % os.path.basename(video), "rows": [], "unmeasured": True}
+    # the frame the captions were burned on is the DELIVERED frame: a --vertical render with no meta.width/height was
+    # decoded at 1920x1080 and every caption mask landed in the wrong place
+    W, H = _probe_wh(video)
     counts, _src = jh.scene_frames(out_dir, slides, fps, jh.video_frames(video))
     counts = list(counts)
     starts = np.cumsum([0] + counts[:-1]).tolist()
@@ -329,7 +385,7 @@ def check(out_dir, video=None):
                          "frame": worst[1], "ink": worst[2], "level": "error" if worst[0] > ERROR_FRAC else
                          "warn" if worst[0] > WARN_FRAC else "ok"})
         else:
-            unseen.append({"beat": j["beat"], "text": j.get("word") or j["text"]})
+            unseen.append({"beat": j["beat"], "text": j.get("word") or j["text"], "word": bool(j.get("word"))})
     # one row per caption and per spoken word: keep the worst of each
     keep = {}
     for r in rows:
@@ -338,6 +394,11 @@ def check(out_dir, video=None):
             keep[k] = r
     rows = list(keep.values())
     return {"skipped": None, "rows": rows, "jobs": len(jobs), "unseen": unseen, "no_record": no_record}
+
+
+def _unmeasured(rep):
+    """a chunk or beat not read (karaoke word layers aside), or a clip with no caption manifest"""
+    return bool(rep.get("no_record")) or any(not u.get("word") for u in rep.get("unseen") or [])
 
 
 def main(argv):
@@ -380,8 +441,11 @@ def main(argv):
     worst = max((r["melt"] for r in rep["rows"]), default=0.0)
     errs = [r for r in rep["rows"] if r["level"] == "error"]
     print("[caption_contrast] %s — %d caption chunk(s), worst edge melt %.0f%% (ERROR > %.0f%%, WARN > %.0f%%)"
-          % ("FAIL" if errs else "OK", n, worst * 100, ERROR_FRAC * 100, WARN_FRAC * 100))
-    return 1 if errs else (2 if not n and rep["jobs"] else 0)
+          % ("FAIL" if errs else "NOT FULLY MEASURED" if _unmeasured(rep) else "OK", n, worst * 100, ERROR_FRAC * 100, WARN_FRAC * 100))
+    # a caption CHUNK (or a beat) nobody could read is NOT MEASURED, not clean: 2 — it was 0 unless nothing at all was
+    # read. A karaoke WORD read at its one mid-window frame is a finer look at a chunk already judged; missing it is said
+    # above, not a refusal (the QR film: 24 of 483 such words, every chunk measured)
+    return 1 if errs else (2 if _unmeasured(rep) else 0)
 
 
 if __name__ == "__main__":

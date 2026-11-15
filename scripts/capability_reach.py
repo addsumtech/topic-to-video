@@ -85,7 +85,9 @@ def narrated(film_dir, board):
     meta = board.get("meta") or {}
     shots = sorted({s.get("shot") for s in slides if isinstance(s, dict) and s.get("shot")})
     src = "\n".join(_shot_source(film_dir, sh) for sh in shots)
-    dna = meta.get("design_dna") or {}
+    # a STRING design_dna is a preset NAME (Film's coerceDna expands it); it carries no material/optics keys this can
+    # read, and .get on it crashed every film that named a preset (AttributeError — render_remotion printed and moved on)
+    dna = meta.get("design_dna") if isinstance(meta.get("design_dna"), dict) else {}
     used = {
         "light": bool(re.search(r"\bLitStage\b|\bLitGround\b", src)) or bool((meta.get("style") or {}).get("surface")),
         "material": bool(re.search(r"@runtime/material|\bsurface\(|\bsoftShadow\(|feSpecularLighting|@material\b", src))

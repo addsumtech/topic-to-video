@@ -28,6 +28,8 @@ import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 RECORD = "_delivery_check.json"
+sys.path.insert(0, _HERE)
+from critic_ledger import UNWAIVABLE_GATES as UNWAIVABLE  # noqa: E402
 
 # (gate, tiers it runs in, renderers it applies to). The fast gates read out.mp4; the full ones render a census.
 GATES = (
@@ -39,7 +41,8 @@ GATES = (
     ("named_objects_qa", "fast", ("remotion",)),
     ("media_res_qa", "full", ("remotion",)),
     ("text_safe_qa", "full", ("remotion",)),
-    ("jitter_qa", "full", ("remotion",)),
+    # the HTML tier's type trembles too (a page's own camera, a matrix3d reveal, Ken Burns): jitter_html builds its census
+    ("jitter_qa", "full", ("remotion", "local")),
 )
 
 
@@ -105,7 +108,9 @@ def check(out_dir, full=False, run=None, force=False):
         rc, summary = run(g, out_dir)
         status = "pass" if rc == 0 else "not measured" if rc == 2 else "fail"
         row = {"name": g, "rc": rc, "status": status, "seconds": round(time.time() - t0, 1), "summary": summary}
-        if status != "pass" and isinstance(waivers.get(g), str) and waivers[g].strip():
+        # sync and the board's own contract are never the user's to waive — the rule critic_ledger --final holds; this
+        # check honoured a waiver on any gate, so a film the final gate refuses could be delivered here
+        if status != "pass" and g not in UNWAIVABLE and isinstance(waivers.get(g), str) and waivers[g].strip():
             row["status"], row["waiver"] = "waived", waivers[g].strip()
         rows.append(row)
     rec = {"film": film, "board": bsha, "tier": tier, "ok": all(r["status"] in ("pass", "waived") for r in rows),

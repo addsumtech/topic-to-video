@@ -71,8 +71,15 @@ class FidelityParseError(ValueError):
 # stripper the other declaration readers share deletes `//` to end of line, which cuts every URL in a source.
 
 def _skip_string(src, i):
-    """Index just past the string literal starting at src[i] (', " or `)."""
-    q, n = src[i], len(src)
+    """Index just past the string literal starting at src[i] (', " or `).
+
+    JSX TEXT IS NOT CODE. `<div>Don't stop</div>` holds an apostrophe that opens no string, and reading it as one
+    raised "an unterminated string" — validate then crashed on any built shot with an English contraction in its copy.
+    A JS quote never follows a letter or digit, and a '…' or "…" string never spans a line: a quote that breaks either
+    rule is a character of text, and this returns just past it."""
+    q, n, i0 = src[i], len(src), i
+    if q in "'\"" and i0 > 0 and (src[i0 - 1].isalnum() or src[i0 - 1] == "_"):
+        return i0 + 1
     i += 1
     while i < n:
         c = src[i]
@@ -81,7 +88,11 @@ def _skip_string(src, i):
             continue
         if c == q:
             return i + 1
+        if c == "\n" and q != "`":
+            return i0 + 1
         i += 1
+    if q != "`":
+        return i0 + 1
     raise FidelityParseError("an unterminated string")
 
 
@@ -1150,7 +1161,7 @@ def sheet(out_dir, name, props=None, host="ObjectStage", slot=None, dna=None):
     compose(png, name, rec, base, hero_png, hero_parts, film_png, film_parts, findings,
             "on %s, frame %d" % (comp, frame))
     scope = scope_lines(declared, kind, comp, frame, payload.get("aspect") or "16:9", hero_parts, film_parts)
-    report = {"name": name, "kind": kind, "record": rec, "hero": hero_parts, "film": film_parts,
+    report = {"name": name, "kind": kind, "key": sheet_key(rec, src), "record": rec, "hero": hero_parts, "film": film_parts,
               "film_host": comp, "frame": frame, "style": style.get("name") if style else None, "aspect": payload.get("aspect") or "16:9", "scope": scope,
               "problems": [{"level": lv, "message": m} for lv, m in findings]}
     jp = os.path.join(outd, name + ".json")
@@ -1199,21 +1210,37 @@ def real_built_things(out_dir):
     return out
 
 
+def sheet_key(rec, src):
+    """what a sheet was made FROM: the fidelity record and the source that draws it"""
+    import hashlib
+    return hashlib.sha1((json.dumps(rec, sort_keys=True, ensure_ascii=False) + "\0" + (src or "")).encode("utf-8")).hexdigest()
+
+
 def sheet_status(out_dir, name):
-    """'ok' | 'errors' | 'missing' | 'stale' for a built thing's sheet — stale when its source or record moved
-    after the sheet was made."""
+    """'ok' | 'errors' | 'missing' | 'stale' for a built thing's sheet — stale when its source or record changed
+    after the sheet was made. By CONTENT: an mtime test saw only a workshop .tsx, so a record edited in the build list
+    (a shot's fidelity lives there) or a library object's source kept a sheet 'ok' that judged something else."""
     import workshop as ws
     jp = os.path.join(out_dir, SHEET_DIR, name + ".json")
     if not os.path.isfile(jp):
         return "missing"
-    t = os.path.getmtime(jp)
-    srcs = [p for p in (os.path.join(ws.workshop_dir(out_dir), k, name + ".tsx") for k in ws.KINDS) if os.path.isfile(p)]
-    if any(os.path.getmtime(p) > t for p in srcs):
-        return "stale"
     try:
         rep = json.load(open(jp, encoding="utf-8"))
     except (OSError, ValueError):
         return "missing"
+    try:
+        rec, _b, src, _w, _k = record_for(out_dir, name)
+        now = sheet_key(rec, src)
+    except Exception:                                    # noqa: BLE001 — an unreadable record: validate.py reports it
+        now = None
+    if rep.get("key") or now is None:
+        if now is not None and rep.get("key") != now:
+            return "stale"
+    else:                                                # a sheet made before keys: the old mtime rule
+        t = os.path.getmtime(jp)
+        srcs = [p for p in (os.path.join(ws.workshop_dir(out_dir), k, name + ".tsx") for k in ws.KINDS) if os.path.isfile(p)]
+        if any(os.path.getmtime(p) > t for p in srcs):
+            return "stale"
     return "errors" if any(p.get("level") == "ERROR" for p in rep.get("problems") or []) else "ok"
 
 

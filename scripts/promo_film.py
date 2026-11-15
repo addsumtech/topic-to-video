@@ -686,6 +686,9 @@ def check(spec, film_dir):
             for j in s.get("recall") or []:
                 if not (isinstance(j, int) and 0 <= j < len(shots) and shots[j].get("kind") == "page"):
                     errs.append("%s: recall %r is not the index of a page shot (0-based)" % (where, j))
+            if k == "outro" and isinstance(s.get("objects"), list) and len(s["objects"]) > OUTRO_OBJECTS:
+                errs.append("%s: %d objects, and the outro has %d places — Stage drops the rest in silence; choose %d"
+                            % (where, len(s["objects"]), OUTRO_OBJECTS, OUTRO_OBJECTS))
             if k == "outro" and s.get("world") not in (None, "glow", "paper", "pastel"):
                 errs.append("%s: world must be glow, paper or pastel (a staged outro: the film's objects gather round the mark)" % where)
             if k == "outro" and "backdrop" in s:
@@ -1659,7 +1662,34 @@ def main(argv):
     rc = glide_check(film, spec_path, out)
     if rc == 1:
         print("[promo_film] the CAMERA steps or shimmers on a page shot (above) — fix it before delivery")
+    # THE PICTURE NEVER GOES BACK, read from the pixels (scripts/rewind_qa.py) on the film's own cuts: a replayed cut, a
+    # reset, a push that returns. The slide-maker promo shipped two rewinds at 1:20 and 1:24 that only the table check
+    # (recording_continuity) could have seen, and the topic-to-video promo a typed line that reset at 8.5 s that no
+    # check saw at all. ADVISORY until it has run clean across the corpus (the audit's step 4 makes it refuse).
+    plan = write_plan(film, spec, out)
+    try:
+        import rewind_qa as _rw
+        probs, scope = _rw.judge(out, plan=plan)
+        for pr in probs or []:
+            print("[promo_film] REWIND (advisory) %s %s" % (pr["kind"], pr["msg"]))
+        print("[promo_film] rewind: %s — %s" % (scope, "%d finding(s): LOOK at those frames" % len(probs) if probs
+                                                  else "UNMEASURED" if probs is None else "clean"))
+    except Exception as e:  # noqa: BLE001 — an advisory read never breaks the render; said, not swallowed
+        print("[promo_film] rewind could not run: %s" % e)
     return rc                                   # a film whose camera fails is written, and the run still says so
+
+
+def write_plan(film, spec, out):
+    """`_plan.json` beside the film: the cut frames and each shot's span and kind — what every pixel gate that needs to
+    know where the film cuts reads (rewind_qa), instead of guessing the cuts from the picture."""
+    st, total = starts(spec)
+    segs = [{"start": int(a), "end": int(a + sh["dur"]), "kind": sh.get("kind") or "shot",
+             **({"recording": sh["recording"]} if sh.get("recording") else {})} for a, sh in zip(st, spec["shots"])]
+    plan = {"video": os.path.basename(out), "frames": int(total), "fps": FPS, "cuts": [s["start"] for s in segs[1:]],
+            "segments": segs}
+    with open(os.path.join(film, "_plan.json"), "w", encoding="utf-8") as fh:
+        json.dump(plan, fh, indent=1)
+    return plan
 
 
 def sheet(film, spec_path, video, out_name="_sheet.jpg"):

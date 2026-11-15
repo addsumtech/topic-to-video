@@ -222,8 +222,10 @@ def main(argv):
     if "--json" in argv:
         print(json.dumps(rep, ensure_ascii=False, indent=1))
     if rep["skipped"]:
-        print("[caption_breaks] NOT CHECKED: %s" % rep["skipped"])
-        return 0
+        # UNMEASURED IS NOT CLEAN: this exited 0 without node and the remotion tier then shipped its CJK captions
+        # unread (the audit, 2026-11-15) — 2 says "not measured" to every gate runner
+        print("[caption_breaks] UNMEASURED: %s" % rep["skipped"])
+        return 2
     if rep.get("tier") == "html":
         print("[caption_breaks] %d beat(s) as render.py burns them at %dx%d (html/image tier)"
               % (len(rep["beats"]), rep["frame"][0], rep["frame"][1]))

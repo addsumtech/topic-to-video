@@ -2125,6 +2125,7 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
         print(f"({rendered} slide(s) rendered, {len(clips) - rendered} reused from cache; "
               f"{time.monotonic()-t_all:.1f}s total)")
         if not preview:
+            _write_plan(out_dir, data, clips, dst)
             # a portrait film posted to a platform also needs its feed card (scripts/cover.py), as render_remotion
             # writes one: best-effort and said aloud — a film without a cover still renders
             if _platform_safe(meta, W, H):
@@ -2134,6 +2135,23 @@ def render(out_dir, sample=None, vertical=False, only=None, reduced_motion=False
                     print("[render] no cover: %s" % e)
             _not_delivered(out_dir, data)
         return dst
+
+
+def _write_plan(out_dir, data, clips, dst):
+    """`_plan.json`: each scene's frame span in out.mp4 (the clips are concatenated as they are, so a scene's span is
+    its clip's frames) — what the pixel gates that must know where the film cuts read (scripts/rewind_qa.py)."""
+    try:
+        import jitter_html as _jh
+        counts = [_jh.video_frames(c) for c in clips]
+        a, segs = 0, []
+        for k, (n, s) in enumerate(zip(counts, data.get("slides") or [])):
+            segs.append({"start": a, "end": a + n, "kind": "shot", "beat": k + 1, "type": s.get("type") or "slide"})
+            a += n
+        with open(os.path.join(out_dir, "_plan.json"), "w", encoding="utf-8") as fh:
+            json.dump({"video": os.path.basename(dst), "frames": a, "fps": int((data.get("meta") or {}).get("fps") or 30),
+                       "cuts": [g["start"] for g in segs[1:]], "segments": segs}, fh, indent=1)
+    except Exception as e:  # noqa: BLE001 — the film is written; the gates that need the plan say it is missing
+        print("[render] no _plan.json: %s" % e)
 
 
 def _write_cover(out_dir, data, meta, W, H, workdir):

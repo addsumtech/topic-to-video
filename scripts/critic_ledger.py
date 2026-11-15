@@ -248,6 +248,9 @@ DELIVERY_GATES = {
         # gate reads a frame, a beat or a line of type; a Grok Bot film shipped three such flashes with all 16 green
         ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", (), 300, True, None),
         ("keyframes", "keyframe_qa_remotion.py", (), 240, True, None),
+        # a CAPTION line broken inside a word or a number, or starting on closing punctuation — Film.tsx's own
+        # captionBreak.ts run in node. validate's comment said the remotion tier was judged here; nothing ran it
+        ("CAPTION line breaks (Film.tsx's own breaker, in node)", "caption_breaks_qa.py", (), 240, True, None),
         # THE AUTHORITATIVE TYPE GATE GOES FIRST, AND IT WAS MISSING ENTIRELY. This brief shipped `frame_safe_qa` —
         # the border-ink measure whose own header records it as INVERTED (it passes every genuinely-cut case and
         # blocks every deliberate full-bleed) — and omitted `text_safe_qa`, which asks the DOM whether any TYPE is
@@ -278,6 +281,11 @@ DELIVERY_GATES = {
         # behind WorkBuddy beat 6's first word, dark on dark (2026-11-12) — read on the delivered pixels beside the line
         ("CAPTIONS read on their ground (delivered pixels, census lines)", "caption_contrast_qa.py", (), 600, True, None),
         # the only gates that judge the FILM rather than a frame: does it move, and does it move without vibrating
+        # every hard cut of a kinetic film carries a move through it (runtime/cutCarry) — measured on out.mp4; deliver.py's
+        # fast check ran it and this list did not, so a review could pass a film the fast check refuses
+        ("SEAMS — cuts carry motion (out.mp4)", "seam_ledger.py", (), 300, True, None),
+        # a list the voice names is shown as itself, read off the rendered frame (the fast check ran it; this did not)
+        ("NAMED OBJECTS on screen when the voice names them", "named_objects_qa.py", (), 300, True, None),
         ("FILM ENERGY — motion, light, light arc (density measured)", "film_energy_qa.py", (), 300, True, None),
         ("SHAKE — travelling vs vibrating", "shake_qa.py", (), 300, True, None),
         # a sharp change OFF the planned cuts (seams, coverage steps), as a strip to LOOK at: three defects of one film

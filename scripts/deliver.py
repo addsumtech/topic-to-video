@@ -146,6 +146,20 @@ def main(argv=None):
                       "reason (meta.delivery_waivers), or hand it over as unchecked with --anyway")
                 return 1
             tag = " (unchecked)"
+        # THE REVIEW'S OWN MARKER. Every full render writes NOT_DELIVERED.md and only `critic_ledger.py --final` on a
+        # PASS removes it; this handed a film over with the marker standing (the review never concluded), and the
+        # Desktop copy read as the finished film.
+        nd = os.path.join(a.out_dir, "NOT_DELIVERED.md")
+        if os.path.exists(nd):
+            head = open(nd, encoding="utf-8", errors="replace").read().strip().splitlines()[:3]
+            print("[deliver] NOT_DELIVERED.md stands in %s — the review has not passed this render:" % a.out_dir)
+            for ln in head:
+                print("    " + ln)
+            if not a.anyway:
+                print("[deliver] NOT delivered: finish the review (python3 scripts/critic_ledger.py <out_dir> --final), "
+                      "or hand it over as unreviewed with --anyway")
+                return 1
+            tag += " (unreviewed)"
     paths = deliver(a.out_dir, a.to, what=a.what, tag=tag)
     for p in paths:
         print("[deliver] %s" % p)

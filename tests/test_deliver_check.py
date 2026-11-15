@@ -66,7 +66,9 @@ def test_the_full_tier_adds_the_census_gates_and_the_html_tier_runs_only_its_own
     full = dc.gates_for({"renderer": "remotion"}, "full")
     assert {"media_res_qa", "text_safe_qa", "jitter_qa"} <= set(full)
     html = dc.gates_for({"renderer": "local"}, "full")
-    assert "seam_ledger" not in html and "jitter_qa" not in html and "check_av" in html
+    # the HTML tier's type is judged in its pixels too (jitter_html builds the census); seams are remotion's
+    assert "seam_ledger" not in html and "jitter_qa" in html and "check_av" in html
+    assert "jitter_qa" not in dc.gates_for({"renderer": "local"}, "fast")
 
 
 def test_deliver_refuses_a_film_whose_check_fails_and_says_why(tmp_path, monkeypatch, capsys):

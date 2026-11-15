@@ -1229,9 +1229,13 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    which of its warnings you accepted. `rhythm_qa`/`pedagogy_qa` still apply (they read `content_plan.json`).
 
    **Hand the film over before chasing sub-visible findings.** When gates still fail after ONE fix round and what
-   remains is below what a viewer sees — sub-pixel tremble, energy a hair under its floor, a caption a second late — deliver
-   the film (`deliver.py`), list each remaining finding with its size, and ask before another full re-render: a
-   promo spent four ~45-minute rounds on 0.17 px and a 0.0003 motion gap, and the user called it too long.
+   remains is below what a viewer sees — energy a hair under its floor, a caption a second late — deliver the film
+   (`deliver.py`), list each remaining finding with its size, and ask before another full re-render: a promo spent
+   four ~45-minute rounds on a 0.0003 motion gap, and the user called it too long. **Three kinds of finding are never
+   "below what a viewer sees": type that trembles (jitter_qa, `--glide`), a picture that goes backwards (a replay, a
+   reset, a push that returns) and type cut off by the frame or a container.** The owner named all three, one film after
+   another, as the defects they will not accept; fix them at their source (the register, the runtime, the scene's
+   code) before handing over, and if one is a gate's false positive, show the frames that prove it.
    **9d · 🔴 THE REVIEW-DEPTH QUESTION — asked after the FIRST clean render, with the film in front of the user**
    (modelled on slide-maker's post-build review question). When every machine gate is green —
    `python3 scripts/critic_brief.py <out_dir> --gates` exits 0: it runs the tier's delivery gates once on this render

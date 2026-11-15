@@ -1746,7 +1746,7 @@ def _ink_fraction(png):
         a = np.asarray(Image.open(png).convert("L"), dtype=float)
         return float((np.abs(a - np.median(a)) > 25).mean())
     except Exception:                                    # noqa: BLE001 — no measurement is not a verdict
-        return 1.0
+        return None                                      # (it returned 1.0 — "full of ink" — which read as clean)
 
 
 # WHERE A REGISTER'S `src` RESOLVES. The library sweep's evidence fixtures live in remotion/public; a FILM's
@@ -1992,6 +1992,9 @@ def audit(shot, props, frame, tmp, dna=DEFAULT_DNA, aspect=None, why=None):
     # same lie as measuring an empty plate: nothing collided because nothing was drawn. So a probe that
     # renders almost nothing is reported as UNFED, never as a pass.
     got = _ink_fraction(tmp)
+    if got is None:
+        return [{"kind": "unfed", "depth": 0, "font": "", "cls": "",
+                 "text": "(the probe frame could not be read back — nothing is known about this frame)"}]
     if got >= SUSPECT_INK:
         return []
     # LOW INK IS THE TRIGGER, NOT THE VERDICT. Comparing the ink against the register's own demo defaults
