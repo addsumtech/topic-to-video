@@ -448,6 +448,67 @@ def length_advice(spec):
     return []
 
 
+def feature_coverage(spec):
+    """(errors, advisories): does the film show the WHOLE product? WHY (the user, 2026-11-15, of three job-hunt
+    directions each built round one mode — discover, assess, apply — of a four-mode product): "你的这个A,B,C是不是都只是
+    展示了skill的一部分". A direction is a language for the whole film, not a feature to film.
+    `features`: the product's inventory from its own README, [{id, claim}] (or ids); each shot's `shows`: [id, ...].
+    A declared feature no shot shows is an error (a film of part of the product); no inventory at all is advised;
+    one feature filling over half of the film's showing frames is advised (the film is about that feature)."""
+    errs, adv = [], []
+    feats = spec.get("features")
+    shots = [s for s in spec.get("shots") or [] if isinstance(s, dict)]
+    if feats is None:
+        if (spec.get("waivers") or {}).get("features"):
+            return errs, adv
+        return errs, ["no `features`: list the product's modes and features from its own README ([{id, claim}]) and "
+                      "tag each shot's `shows` — a film that shows part of the product is a film of a feature "
+                      "(references/promo-film.md § The whole product)"]
+    if not isinstance(feats, list) or not feats:
+        return ["`features` is a non-empty list of the product's features ([{id, claim}] or ids)"], adv
+    ids = []
+    for j, f in enumerate(feats):
+        fid = f.get("id") if isinstance(f, dict) else f
+        if not isinstance(fid, str) or not fid.strip():
+            errs.append("features[%d]: needs an `id`" % j)
+            continue
+        if fid in ids:
+            errs.append("features: %r is listed twice" % fid)
+        ids.append(fid)
+    shown = {}
+    for i, s in enumerate(shots):
+        sh = s.get("shows")
+        if sh is None:
+            continue
+        if isinstance(sh, str):
+            sh = [sh]
+        if not isinstance(sh, list):
+            errs.append("shot %d: `shows` is a list of feature ids" % i)
+            continue
+        for fid in sh:
+            if fid not in ids:
+                errs.append("shot %d shows %r, which is not in `features` (%s)" % (i, fid, ", ".join(ids)))
+                continue
+            shown[fid] = shown.get(fid, 0) + float(s.get("dur") or 0) / max(1, len(sh))
+    missing = [f for f in ids if f not in shown]
+    waived = (spec.get("waivers") or {}).get("features")
+    if missing and not waived:
+        errs.append("no shot shows %s: the film shows part of the product — give each its shot, or say why in "
+                    "waivers {\"features\": \"...\"}" % ", ".join(missing))
+    # WHY (the user, 2026-11-15, of a slide-maker rebuild that showed only its results): "宣传的话你除了效果，工作原理
+    # 也要介绍下，原始的这些就不错" — a product film shows how it works (the steps the product takes) as well as what it makes
+    if not any(isinstance(f, dict) and f.get("kind") == "how" for f in feats) and not waived:
+        adv.append("no feature is `kind: \"how\"`: the film shows what the product makes but not how it works (its "
+                   "steps: what it asks, checks, reviews, keeps) — list those too")
+    total = sum(shown.values())
+    if total > 0 and len(ids) > 1:
+        top = max(shown, key=shown.get)
+        if shown[top] / total > 0.5:
+            adv.append("%r fills %d%% of the frames that show a feature: the film is about that one feature, not the "
+                       "product" % (top, round(100 * shown[top] / total)))
+    return errs, adv
+
+
 def check(spec, film_dir):
     """Errors (list) and advisories (list) for a promo table. Errors stop the render."""
     errs, adv = [], []
@@ -720,6 +781,9 @@ def check(spec, film_dir):
         errs.append("cut must be carry, flash, hard, through or morph")
     adv += skeleton_advice(spec, film_dir)
     adv += length_advice(spec)
+    e3, a3 = feature_coverage(spec)
+    errs += e3
+    adv += a3
     e2, a2 = composition_advice(spec)
     import capability_reach as _cr
     a2 = a2 + _cr.unused_lines(*_cr.promo(spec))

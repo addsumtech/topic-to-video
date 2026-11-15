@@ -325,12 +325,30 @@ stepping each row, a wall, statements — with different pictures; the user: "�
    pages fanning, one lifting to the lens and becoming the live slide). A film-maker makes films: the film is made of
    its films. A document tool makes documents; a dashboard tool makes numbers that move.
 2. **Show 2-3 genuinely different directions as BUILT hero frames** (rendered, not described), each a different
-   medium or world, and let the user pick before building the film.
+   medium or world carrying the WHOLE product (§ The whole product), and let the user pick before building the film.
 3. **Mix the tools by what each does best.** Physical shots are Blender plates under `kit.studio.product_light`
    (`promo_capture.py --footage=<mp4>` turns a render into a recording a page shot plays full frame); type, live
    pages and transitions are the promo layer's.
 4. **`check` compares every film's LOOK** (its worlds, staging devices, labels, links, footage and dominant act) with
    the films made before it and advises at 75 % alike: a repeat is a template, whatever the order of its blocks.
+
+## The whole product — what it makes AND how it works (before any direction)
+
+Two corrections on 2026-11-15. Three job-hunt directions were each built round ONE mode of a four-mode product
+("你的这个A,B,C是不是都只是展示了skill的一部分"). A slide-maker rebuild showed what the product made and dropped the
+steps the earlier film explained ("宣传的话你除了效果，工作原理也要介绍下，原始的这些就不错").
+
+1. **Write the inventory first**, from the product's own README and from every claim in the film being replaced.
+   It goes in the table's `features: [{id, claim, kind}]`:
+   - `kind: "what"` for what it makes;
+   - `kind: "how"` for a step it takes (what it asks, reads, checks, reviews, keeps).
+2. **A rebuild keeps every claim of the old film**: the new film changes how the claims are shown, never which.
+3. **A direction is a visual language for the WHOLE inventory.**
+   - Its hero frames show that language carrying at least three different items, at least one of them a `how`.
+   - A direction that only works for one feature is a shot inside the film, not a direction.
+4. **Tag each shot's `shows: [id]`.**
+   - `check` errors on an inventory item no shot shows (`waivers.features` names why).
+   - It advises when nothing is a `how`, and when one feature fills over half the film.
 
 ## Design the film's own arc (no fixed structure)
 

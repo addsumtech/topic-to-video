@@ -30,7 +30,7 @@ def test_a_clean_table_passes(film):
     spec = {"shots": [{"kind": "brand", "dur": 80, "mark": "mark.svg", "aspect": 1}, {"kind": "title", "dur": 56, "text": "One *idea.*"}, page(),
                       {"kind": "outro", "dur": 120, "mark": "mark.svg", "aspect": 1, "recall": [2]}]}
     spec["length"] = sum(s["dur"] for s in spec["shots"]) / 30.0      # a fixture: its length is the one asked for
-    spec["waivers"] = {k: "a structure fixture" for k in ("staging", "breadth", "links", "acts", "composition", "outro")}
+    spec["waivers"] = {k: "a structure fixture" for k in ("staging", "breadth", "links", "acts", "composition", "outro", "features")}
     errs, adv = pf.check(spec, str(film))
     assert errs == [] and adv == []
 
@@ -84,7 +84,7 @@ def test_low_contrast_accent_ink_is_refused(film):
 
 def test_shot_lengths_outside_the_band_are_advised_not_refused(film):
     errs, adv = pf.check({"shots": [{"kind": "title", "dur": 150, "text": "x"}, page(dur=20)], "length": 170 / 30.0,
-                          "waivers": {k: "a fixture" for k in ("staging", "breadth", "links", "acts", "composition", "outro")}}, str(film))
+                          "waivers": {k: "a fixture" for k in ("staging", "breadth", "links", "acts", "composition", "outro", "features")}}, str(film))
     assert errs == [] and len(adv) == 2
 
 
@@ -716,3 +716,34 @@ def test_glide_judges_the_camera_not_a_recordings_own_motion(tmp_path, monkeypat
     assert run(moving, {"rms": 0.05, "shimmer": 0.01}) == 0
     assert seen and "video" not in seen[0] and seen[0]["src"] == "caps/p.png"
     assert run(moving, {"rms": 0.3, "shimmer": 0.2}) == 1            # the camera itself steps: still a failure
+
+
+def test_a_film_of_part_of_the_product_is_refused_and_one_without_how_it_works_is_told():
+    shots = [dict(kind='statement', dur=60, text='a', shows=['discover']),
+             dict(kind='statement', dur=60, text='b', shows=['assess'])]
+    feats = [dict(id='discover', claim='finds postings', kind='what'), dict(id='assess', claim='judges fit', kind='what'),
+             dict(id='apply', claim='three reviewers', kind='how')]
+    e, a = pf.feature_coverage(dict(shots=shots, features=feats))
+    assert any("no shot shows apply" in x for x in e)
+    assert not any("kind: \"how\"" in x for x in a)                    # one item is a how
+    shots.append(dict(kind='statement', dur=60, text='c', shows=['apply']))
+    e, a = pf.feature_coverage(dict(shots=shots, features=feats))
+    assert e == []
+    # without any how-it-works item the film is told
+    e, a = pf.feature_coverage(dict(shots=shots, features=[dict(f, kind='what') for f in feats]))
+    assert any("how it works" in x for x in a)
+    # an unknown id, and a film without an inventory
+    e, _ = pf.feature_coverage(dict(shots=[dict(kind='statement', dur=30, shows=['nope'])], features=feats))
+    assert any("'nope'" in x for x in e)
+    _, a = pf.feature_coverage(dict(shots=shots))
+    assert any("no `features`" in x for x in a)
+    # a waiver names why a feature is not shown
+    e, _ = pf.feature_coverage(dict(shots=shots[:2], features=feats, waivers={'features': 'apply has its own film'}))
+    assert e == []
+
+
+def test_one_feature_filling_the_film_is_told():
+    feats = ['a', 'b']
+    shots = [dict(kind='statement', dur=300, shows=['a']), dict(kind='statement', dur=60, shows=['b'])]
+    _, adv = pf.feature_coverage(dict(shots=shots, features=feats))
+    assert any("'a' fills 83%" in x for x in adv)
