@@ -251,7 +251,10 @@ def referenced_files(obj, public_dir):
     """{name: sha256} for every string in `obj` naming a file inside the public dir — what `staticFile()`
     will load. Every staticFile call in the film takes its argument from a prop, the beat's mp3 or the
     brand block, so walking the props finds them all without knowing any register."""
-    root = os.path.realpath(public_dir)
+    # containment is judged on the path AS WRITTEN (a "../" escape is refused), not after symlinks resolve: a folder the
+    # author linked INTO the film dir (slide-maker's printed deck linked its decks from an earlier film, 2026-11-15) is
+    # the film's own, and resolving it dropped those pages from the bundle while --check, which follows links, passed
+    root = os.path.abspath(public_dir)
     found = {}
 
     def walk(v):
@@ -262,7 +265,7 @@ def referenced_files(obj, public_dir):
             for x in v:
                 walk(x)
         elif isinstance(v, str) and 0 < len(v) < 1024 and "\n" not in v:
-            p = os.path.realpath(os.path.join(root, v.lstrip("/")))
+            p = os.path.normpath(os.path.join(root, v.lstrip("/")))
             if p.startswith(root + os.sep) and os.path.isfile(p):
                 found[v] = file_sha(p)
 

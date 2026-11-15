@@ -250,7 +250,7 @@ Every `box` is a dict `{"x": .., "y": .., "w": .., "h": ..}` in the capture's CS
 | title | `text` (`*accent*`), `kicker`, `index` (false = unnumbered), `size` | |
 | page | `src`, `w`, `h`, `keys`, `layers` (or `acts`), `caption` {text, at, dur, pos}, `contain` (default true), `maxZoom` (2), `radius` | the caption strip sits in a corner: `pos` bl (default), br, tl, tr; left out, it moves off type by itself |
 | page (recording) | `recording` (a promo_record layout; sets src/video/w/h), `videoStart` (frame), `cursor` (false = none) | the recording plays under the camera |
-| outro | `mark`, `aspect`, `tagline`, `cta`, `stampAt` (default 46), `markH`, `recall` (page-shot indices, from 0), `world` (staged: the film's components gather round the mark) | |
+| outro | `mark`, `aspect`, `tagline`, `cta`, `stampAt` (default 46), `markH`, `recall` (page-shot indices, from 0), `world` (staged: the film's components gather round the mark), `backdrop` (the index of an EARLIER page shot: the lockup lands over its last frame as the picture softens and dims — a footage film ends on its own ground, not an empty colour; not with `world`) | |
 | statement | `text` (`*accent*`), `ground` (paper/accent/ink), `size`, `sub` | one line of type, word by word out of a blur, then still |
 | compare | `a`, `b` (regions: {src, w, h, box}), `labelA`, `labelB`, `at`, `sweep` | the same region of two captures, a divider sweeping across |
 | montage | `items` (regions), `every` (frames each, 8-18), `full` | the product's own crops in quick succession, each landing and holding |

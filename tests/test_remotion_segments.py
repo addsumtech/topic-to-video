@@ -562,6 +562,21 @@ def test_the_minimal_public_folder_holds_exactly_what_the_props_name(public, tmp
     assert got == ["audio/01.mp3", "audio/02.mp3"], got
 
 
+def test_a_folder_linked_into_the_film_dir_is_the_films_own_and_an_escape_is_not(tmp_path):
+    """slide-maker's printed deck linked caps/decks from an earlier film: resolving the link put its pages OUTSIDE
+    the film dir, so the bundle lacked them and every live page failed to load while --check passed."""
+    film, elsewhere = tmp_path / "film", tmp_path / "elsewhere"
+    (film / "caps").mkdir(parents=True)
+    (elsewhere / "decks").mkdir(parents=True)
+    (elsewhere / "decks" / "p.png").write_bytes(b"png")
+    (elsewhere / "secret.txt").write_bytes(b"x")
+    os.symlink(elsewhere / "decks", film / "caps" / "decks")
+    got = rs.referenced_files({"a": "caps/decks/p.png", "b": "../elsewhere/secret.txt"}, str(film))
+    assert list(got) == ["caps/decks/p.png"]
+    dest = rs.minimal_public({"a": "caps/decks/p.png"}, str(film), str(tmp_path / "pub"))
+    assert (tmp_path / "pub" / "caps" / "decks" / "p.png").read_bytes() == b"png"
+
+
 def test_the_two_readers_of_the_seam_length_agree():
     """render_remotion and this module both read SEAM_FRAMES from runtime/motion.ts. The value cannot drift
     — it is one file — but a parse can: a regex that stopped matching would drop the timeline by a whole

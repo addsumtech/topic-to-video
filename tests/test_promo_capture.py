@@ -194,8 +194,44 @@ def test_footage_becomes_a_recording_a_page_shot_plays(tmp_path):
     lay = pc.footage(str(tmp_path), str(clip), "fan")
     assert lay["video"] == "caps/fan.mp4" and lay["src"] == "caps/fan.png" and (lay["w"], lay["h"]) == (960, 540)
     assert lay["events"] == [] and os.path.isfile(tmp_path / "caps" / "fan.png")
+    assert "still_from" not in lay                                      # testsrc moves to its end
+    held = tmp_path / "held.mp4"                                          # 1 s of motion, then 2 s of one frame
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=1920x1080:rate=30:duration=1",
+                    "-vf", "tpad=stop_mode=clone:stop_duration=2", "-pix_fmt", "yuv420p", str(held)], check=True)
+    sf = pc.footage(str(tmp_path), str(held), "held")["still_from"]
+    assert 25 <= sf <= 32, sf
     small = tmp_path / "small.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=640x360:rate=30:duration=1",
                     "-pix_fmt", "yuv420p", str(small)], check=True)
     with pytest.raises(SystemExit):
         pc.footage(str(tmp_path), str(small), "tiny")
+
+
+def test_footage_takes_a_blender_runner_folder_assembling_its_reused_frames(tmp_path):
+    """A runner out dir (rgba/ full frames, patch/ patches, run.json `frames`) is assembled before it is encoded: the
+    copies and patches the runner skipped are filled in (the printed deck's plates had 1 of 180 frames on disk)."""
+    import json
+    import shutil
+    from PIL import Image
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg needed")
+    work = tmp_path / "plate"
+    (work / "rgba").mkdir(parents=True)
+    (work / "patch").mkdir()
+    Image.new("RGBA", (1920, 1080), (40, 30, 20, 255)).save(work / "rgba" / "0001.png")
+    frames = [{"kind": "full"}]
+    for i in range(2, 31):
+        x = 40 * i
+        Image.new("RGBA", (200, 200), (230, 220, 200, 255)).save(work / "patch" / ("%04d.png" % i))
+        frames.append({"kind": "patch", "rect": [x, 300, x + 200, 500], "ids": "full"})
+    frames += [{"kind": "copy"}] * 30
+    (work / "run.json").write_text(json.dumps({"frames": frames}))
+    lay = pc.footage(str(tmp_path), str(work), "plate")
+    assert lay["frames"] == 60 and len(os.listdir(work / "rgba")) == 60
+    assert 25 <= lay["still_from"] <= 32                                  # the copied half is a still
+    (tmp_path / "empty").mkdir()
+    with pytest.raises(SystemExit):
+        pc.footage(str(tmp_path), str(tmp_path / "empty"), "nope")
+    (work / "run.json").write_text(json.dumps({"frames": frames + [{"kind": "full"}]}))   # a full frame never rendered
+    with pytest.raises(Exception):
+        pc.footage(str(tmp_path), str(work), "plate")

@@ -6,7 +6,7 @@
                                      [--hires="text:862 kB;css:#export;520,300,240,120"]   # 4x close-ups
     python3 scripts/promo_capture.py <film_dir> --boxes=<capture.png> [--parts="card=7;panel=120,80,400,260"]
                                      # a screenshot with no DOM (desktop app); parts by found-box id or CSS box
-    python3 scripts/promo_capture.py <film_dir> --footage=<clip.mp4> --name=<n>
+    python3 scripts/promo_capture.py <film_dir> --footage=<clip.mp4 | blender runner out dir> --name=<n>
                                      # rendered FOOTAGE (a Blender plate, a film) as a recording a page shot plays
     python3 scripts/promo_capture.py <film_dir> --mark=<capture.png> --box=x,y,w,h [--name=mark]
                                      # the brand's own logo, cut from its own page: a transparent PNG for any ground
@@ -515,7 +515,20 @@ def footage(film, clip, name):
     os.makedirs(caps, exist_ok=True)
     mp4 = os.path.join(caps, name + ".mp4")
     png = os.path.join(caps, name + ".png")
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", clip, "-r", "30", "-c:v", "libx264", "-preset", "slow", "-crf", "14",
+    src = ["-i", clip]
+    if os.path.isdir(clip):                      # a Blender runner's out dir: assemble its reused frames, then encode
+        run = os.path.join(clip, "run.json")
+        if not os.path.isfile(run):
+            raise SystemExit("[promo_capture] footage %s is a folder with no run.json (not a Blender plate)" % clip)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import blender_plate
+        frames = json.load(open(run))["frames"]
+        blender_plate.assemble(clip, frames)
+        got = len([f for f in os.listdir(os.path.join(clip, "rgba")) if f.endswith(".png")])
+        if got != len(frames):
+            raise SystemExit("[promo_capture] plate %s assembled %d of %d frames" % (clip, got, len(frames)))
+        src = ["-framerate", "30", "-i", os.path.join(clip, "rgba", "%04d.png")]
+    subprocess.run(["ffmpeg", "-v", "error", "-y", *src, "-r", "30", "-c:v", "libx264", "-preset", "slow", "-crf", "14",
                     "-pix_fmt", "yuv420p", "-an", mp4], check=True)
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mp4, "-frames:v", "1", png], check=True)
     out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,nb_frames",
@@ -524,9 +537,31 @@ def footage(film, clip, name):
     if w < 1280:
         raise SystemExit("[promo_capture] footage %s is %d px wide: a full-frame shot needs >= 1280 (it would be upscaled)" % (clip, w))
     lay = {"src": "caps/%s.png" % name, "video": "caps/%s.mp4" % name, "w": w // 2, "h": h // 2, "fps": 30, "frames": n,
-           "events": [], "elements": [], "footage": os.path.basename(clip)}
+           "events": [], "elements": [], "footage": os.path.basename(clip.rstrip("/"))}
+    sf = still_from(mp4, n)
+    if sf is not None:
+        lay["still_from"] = sf
+        print("[promo_capture] footage %s stops moving at frame %d of %d: a shot that plays past ~%d holds a still"
+              % (name, sf, n, sf + STILL_TAIL))
     json.dump(lay, open(os.path.join(caps, name + ".layout.json"), "w"), indent=1)
     return lay
+
+
+STILL_TAIL = 24          # frames (0.8 s) a footage shot may rest on its last moving frame before it reads as dead
+
+
+def still_from(mp4, n, fps=30):
+    """The frame from which a clip stops moving to its end (ffmpeg freezedetect), or None if it moves to the end.
+    WHY (slide-maker's printed deck, 2026-11-15): a Blender plate whose motion ends early (the fan was spread by frame
+    86 of 180) played as a 3 s still inside a cut film, and nothing said so: the check reads this to say it."""
+    import subprocess
+    r = subprocess.run(["ffmpeg", "-v", "info", "-i", mp4, "-vf", "freezedetect=n=-55dB:d=0.4", "-map", "0:v", "-f", "null", "-"],
+                       capture_output=True, text=True)
+    starts = [float(m) for m in re.findall(r"freeze_start: ([0-9.]+)", r.stderr)]
+    ends = [float(m) for m in re.findall(r"freeze_end: ([0-9.]+)", r.stderr)]
+    if len(starts) > len(ends):                  # the last freeze never ended: it runs to the clip's end
+        return max(1, int(round(starts[-1] * fps)))
+    return None
 
 
 def cut_mark(png, box, out_png):

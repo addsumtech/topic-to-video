@@ -59,6 +59,22 @@ def test_outro_recalls_page_shots_only(film):
     assert any("recall" in e for e in errs) and any("there are none" in e for e in errs)
 
 
+def test_an_outro_lands_on_an_earlier_page_shots_last_frame_or_is_refused_by_name(film):
+    """slide-maker's printed deck ended on a small mark over an empty colour after a film shot entirely on a desk: a
+    `backdrop` outro lands the lockup over an earlier page shot (the squared deck), its picture softening."""
+    o = {"kind": "outro", "dur": 120, "mark": "mark.svg", "aspect": 1, "backdrop": 0, "stampAt": 30}
+    errs = pf.check({"shots": [page(), o]}, str(film))[0]
+    assert not any("backdrop" in e for e in errs), errs
+    for bad in (1, 5, -1, True, "0"):                                   # itself, past the end, negative, not an index
+        errs = pf.check({"shots": [page(), dict(o, backdrop=bad)]}, str(film))[0]
+        assert any("backdrop is the index" in e for e in errs), (bad, errs)
+    t = {"kind": "title", "dur": 56, "text": "x"}
+    errs = pf.check({"shots": [t, page(), dict(o, backdrop=0)]}, str(film))[0]  # a title is not a page
+    assert any("backdrop is the index" in e for e in errs)
+    errs = pf.check({"shots": [page(), dict(o, world="glow")]}, str(film))[0]
+    assert any("two different endings" in e for e in errs)
+
+
 def test_low_contrast_accent_ink_is_refused(film):
     errs, _ = pf.check({"look": {"accentInk": "#16805f", "paper": "#f6f5f1"}, "shots": [page()]}, str(film))
     assert any("4.5:1" in e for e in errs)
@@ -239,6 +255,23 @@ def test_a_recording_shot_takes_its_poster_and_size_from_the_recording(recording
     assert errs == []
     out = pf.resolve_recordings(str(recording), {"shots": [rec_shot()]})["shots"][0]
     assert (out["src"], out["video"], out["w"], out["h"]) == ("caps/rec.png", "caps/rec.mp4", 400, 300)
+
+
+def test_a_shot_resting_on_frozen_footage_is_said_and_a_moving_camera_or_short_shot_is_not(recording):
+    """slide-maker's fan plate stopped moving at frame 86 of 180 and played as a 3 s still: the check says so from the
+    layout's still_from, and stays quiet when the shot ends near it or the table's camera moves over the hold."""
+    import json
+    lp = recording / "caps" / "rec.layout.json"
+    lay = json.loads(lp.read_text())
+    lay["still_from"] = 30
+    lp.write_text(json.dumps(lay))
+    title = {"kind": "title", "dur": 56, "text": "One *idea.*"}
+    msg = lambda s: [a for a in pf.check({"shots": [title, s]}, str(recording))[1] if "stops moving" in a]
+    hit = msg(rec_shot(dur=80))
+    assert hit and "frame 30" in hit[0] and "dur 54" in hit[0]
+    assert msg(rec_shot(dur=50)) == []                                   # 20 frames past: inside the allowance
+    assert msg(rec_shot(dur=80, keys=[{"f": 0, "cx": 200, "cy": 150, "zoom": 1.0},
+                                      {"f": 70, "cx": 220, "cy": 150, "zoom": 1.3}])) == []
 
 
 def test_a_recording_gets_a_cursor_on_the_recorded_frames_shifted_by_videoStart(recording):
@@ -655,3 +688,31 @@ def test_a_film_whose_look_repeats_another_is_told(tmp_path, monkeypatch):
     footage = {"shots": [{"kind": "page", "recording": "caps/fan.layout.json"}, {"kind": "statement", "text": "x"},
                          {"kind": "page", "recording": "caps/macro.layout.json", "layers": [{"kind": "count"}]}, {"kind": "outro"}]}
     assert not any("LOOK" in a for a in pf.skeleton_advice(footage, str(tmp_path / "film_c")))
+
+
+def test_glide_judges_the_camera_not_a_recordings_own_motion(tmp_path, monkeypatch):
+    """slide-maker's printed deck: four Blender plates played under a HELD camera failed the glide gate as "the CAMERA
+    steps" while their own frames changed smoothly. A held camera over a recording is not judged on the recording; a
+    moving one is re-judged over its still poster (no video in the proxy), and fails only if THAT fails."""
+    import json
+    import picture_glide_qa as pg
+    held = {"kind": "page", "dur": 90, "src": "caps/p.png", "video": "caps/p.mp4", "w": 960, "h": 540,
+            "keys": [{"f": 0, "cx": 480, "cy": 270, "zoom": 2.0}]}
+    moving = dict(held, keys=[{"f": 0, "cx": 480, "cy": 270, "zoom": 1.0}, {"f": 40, "cx": 400, "cy": 270, "zoom": 1.6}])
+    sp = tmp_path / "spec.json"
+    seen = []
+
+    def run(shot, proxy_verdict):
+        sp.write_text(json.dumps({"shots": [shot]}))
+        seen.clear()
+        monkeypatch.setattr(pg, "_probe", lambda v: (1920, 1080, 90, 30))
+        monkeypatch.setattr(pg, "spans_of", lambda film, spec: [(1, 0, 90)])
+        calls = iter([{"rms": 0.2, "shimmer": 0.14}, proxy_verdict])
+        monkeypatch.setattr(pg, "judge_span", lambda *a: next(calls))
+        monkeypatch.setattr(pf, "render_picture", lambda film, pj, mp4: seen.append(json.load(open(pj))["shots"][0]))
+        return pf.glide_check(str(tmp_path), str(sp), "out.mp4")
+
+    assert run(held, None) == 0 and seen == []                       # held: nothing re-rendered, nothing failed
+    assert run(moving, {"rms": 0.05, "shimmer": 0.01}) == 0
+    assert seen and "video" not in seen[0] and seen[0]["src"] == "caps/p.png"
+    assert run(moving, {"rms": 0.3, "shimmer": 0.2}) == 1            # the camera itself steps: still a failure

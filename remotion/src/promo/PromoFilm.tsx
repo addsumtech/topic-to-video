@@ -23,7 +23,7 @@ export type Shot =
   | {kind: 'brand'; dur: number; mark: string; aspect: number; kicker?: string; markH?: number; plate?: boolean; cut?: Cut}
   | {kind: 'title'; dur: number; text: string; kicker?: string; sub?: string; size?: number; index?: number | false; cut?: Cut}
   | PageShot
-  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string; plate?: boolean; world?: World; objects?: OutroObject[]}
+  | {kind: 'outro'; dur: number; mark: string; aspect: number; tagline?: string; stampAt?: number; markH?: number; recall?: number[]; cut?: Cut; cta?: string; plate?: boolean; world?: World; objects?: OutroObject[]; backdrop?: number}
   | {kind: 'statement'; dur: number; text: string; ground?: 'paper' | 'accent' | 'ink'; size?: number; sub?: string; cut?: Cut}
   | {kind: 'compare'; dur: number; a: Region; b: Region; labelA?: string; labelB?: string; at?: number; sweep?: number; cut?: Cut}
   | {kind: 'montage'; dur: number; items: Region[]; every?: number; full?: boolean; cut?: Cut}
@@ -104,6 +104,18 @@ const MorphIn: React.FC<{from?: {x: number; y: number; w: number; h: number}; ch
   );
 };
 
+const BackdropOutro: React.FC<{under: React.ReactNode; lockup: React.ReactNode; stampAt: number}> = ({under, lockup, stampAt}) => {
+  const frame = useCurrentFrame();
+  const k = span(frame, stampAt - 12, stampAt + 18, 'smooth');
+  return (
+    <AbsoluteFill>
+      {/* a still picture, so a blur does not shimmer; it deepens like a lens racking off the subject onto the mark */}
+      <AbsoluteFill style={{filter: k > 0.01 ? `blur(${(k * 12).toFixed(2)}px) brightness(${(1 - 0.5 * k).toFixed(3)})` : undefined}}>{under}</AbsoluteFill>
+      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>{lockup}</AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
 export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', subtitles = []}) => {
   const L: Look = {...DEFAULT_LOOK, ...(look ?? {})};
   for (const k of ['accent', 'accentInk', 'paper', 'ground'] as const) {
@@ -126,6 +138,15 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', sub
       }
       case 'page': return <PageShotView s={s} />;
       case 'outro': {
+        if (typeof s.backdrop === 'number') {
+          // ON ITS OWN GROUND: the lockup lands over an earlier page shot's last frame (a film shot on a desk ends on
+          // the desk, not on an empty colour) — the picture softens and dims as the mark arrives
+          const b = shots[s.backdrop];
+          if (!b || b.kind !== 'page') throw new Error(`PromoFilm: outro backdrop ${s.backdrop} is not a page shot`);
+          return <BackdropOutro stampAt={s.stampAt ?? 34}
+            under={<Freeze frame={Math.max(0, Math.round(b.dur) - 1)}><PageShotView s={{...(b as PageShot), caption: undefined}} /></Freeze>}
+            lockup={<OutroLockup mark={s.mark} aspect={s.aspect} tagline={s.tagline} stampAt={s.stampAt} markH={s.markH} cta={s.cta} plate={s.plate} />} />;
+        }
         if (s.world) {
           // STAGED: the film's own components (its object and wall shots' still parts) gather round the mark
           // promo_film.resolve_outro_objects chose them (near-blank parts left out); the blind pick below is the fallback

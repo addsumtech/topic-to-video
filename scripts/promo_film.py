@@ -36,6 +36,7 @@ from _common import argflag, refuse_unknown  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REMOTION = os.path.join(ROOT, "remotion")
 FPS = 30
+STILL_TAIL = 24           # frames a footage shot may rest on its last moving frame (promo_capture.still_from)
 MAX_ZOOM = 2.0            # a 2x capture: past this the texture is upsampled (PageCam clamps and warns)
 TITLE_BAND = (40, 80)     # a title card is a breath: long enough to read, short enough to stay one
 SHOT_BAND = (36, 240)
@@ -498,6 +499,17 @@ def check(spec, film_dir):
                     adv.append("%s: the recording lasts %d film frames (%d at %s fps); from videoStart %d the shot's %d frames "
                                "run past it (its last frame holds after)" % (where, rec_len, L.get("frames", 0), L.get("fps", FPS),
                                                                           int(s.get("videoStart", 0)), d))
+                sf = L.get("still_from")
+                if isinstance(sf, int):
+                    sf_film = int(sf * FPS / float(L.get("fps", FPS) or FPS))
+                    keys = s.get("keys") or []
+                    cam_moves = len({(q.get("cx"), q.get("cy"), q.get("zoom")) for q in keys}) > 1
+                    over = int(s.get("videoStart", 0)) + d - sf_film
+                    if over > STILL_TAIL and not cam_moves:
+                        adv.append("%s: the footage stops moving at its frame %d and the shot holds that still for %d frames "
+                                   "(%.1f s): end the shot by ~%d frames (dur %d) or move the camera over the hold"
+                                   % (where, sf_film, over, over / float(FPS), sf_film + STILL_TAIL,
+                                      sf_film + STILL_TAIL - int(s.get("videoStart", 0))))
                 s = dict(s, src=L["src"], w=L["w"], h=L["h"])
         if k == "title":
             if not (TITLE_BAND[0] <= d <= TITLE_BAND[1]):
@@ -575,7 +587,13 @@ def check(spec, film_dir):
                     errs.append("%s: recall %r is not the index of a page shot (0-based)" % (where, j))
             if k == "outro" and s.get("world") not in (None, "glow", "paper", "pastel"):
                 errs.append("%s: world must be glow, paper or pastel (a staged outro: the film's objects gather round the mark)" % where)
-            if k == "outro" and not s.get("world") and s.get("recall") != [] and not any(x.get("kind") == "page" for x in shots):
+            if k == "outro" and "backdrop" in s:
+                b = s["backdrop"]
+                if not (isinstance(b, int) and not isinstance(b, bool) and 0 <= b < i and shots[b].get("kind") == "page"):
+                    errs.append("%s: backdrop is the index of an EARLIER page shot (the lockup lands over its last frame)" % where)
+                elif s.get("world"):
+                    errs.append("%s: a backdrop outro and a staged (world) outro are two different endings: name one" % where)
+            if k == "outro" and not s.get("world") and "backdrop" not in s and s.get("recall") != [] and not any(x.get("kind") == "page" for x in shots):
                 errs.append("%s: the outro recalls the film's page shots and there are none (a staged film: `recall: []`)" % where)
         elif k == "statement":
             if not str(s.get("text", "")).strip():
@@ -1305,6 +1323,9 @@ def render_stills(film_dir, spec_path, frames, out_dir):
     os.makedirs(out_dir, exist_ok=True)
     jobs = [{"tag": int(f), "id": "PromoFilm", "props": spec, "frame": int(f), "png": os.path.join(out_dir, "f%04d.png" % int(f))}
             for f in frames]
+    for j in jobs:                                   # a frame that fails must not leave an OLD still standing in for it
+        if os.path.isfile(j["png"]):                 # (slide-maker's printed deck: two timed-out frames showed the
+            os.remove(j["png"])                      # previous table's pictures and were nearly judged as the new one)
     tmp = tempfile.mkdtemp(prefix="promo_stills_")
     jp, op = os.path.join(tmp, "jobs.json"), os.path.join(tmp, "out.jsonl")
     json.dump(jobs, open(jp, "w"))
@@ -1603,6 +1624,18 @@ def glide_check(film, spec_path, video):
             shot[key] = still_items
             shot.pop("links", None)
             keep = None
+        elif shot.get("kind") == "page" and shot.get("video"):
+            # A RECORDING's picture moves by itself — a Blender plate's own camera, a screen recording's scroll — and that
+            # is content, not this shot's camera (slide-maker's printed deck, 2026-11-15: four plates whose own frames
+            # change smoothly, second difference ~0, failed as "the CAMERA steps"). A held camera cannot step; a moving
+            # one is re-judged over the recording's still poster (acts stripped, macros kept, as below).
+            poses = {tuple(q.get(k_) for k_ in ("cx", "cy", "zoom", "rx", "ry", "rz")) for q in shot.get("keys") or []}
+            if len(poses) <= 1:
+                print(line + "   camera holds — what moved is the recording's own picture, not the camera")
+                continue
+            for k_ in ("video", "videoStart"):
+                shot.pop(k_, None)
+            keep = [l for l in (shot.get("layers") or shot.get("acts") or []) if l.get("kind") == "macro"]
         elif not (shot.get("layers") or shot.get("acts")):
             print(line + "   <- the CAMERA steps or shimmers")
             bad.append(beat - 1)
