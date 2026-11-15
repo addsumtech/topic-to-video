@@ -509,6 +509,32 @@ def feature_coverage(spec):
     return errs, adv
 
 
+def recording_continuity(shots):
+    """(errors, advisories) for page shots cut back to back on ONE recording (a long plate cut into segments with
+    `videoStart`). WHY (the user, 2026-11-15, of slide-maker v2 at 1:20 and 1:24): "有几次快速回退" — two segments of
+    the desk walk sat back to back, each padded into the other's frames, so every cut replayed 20 frames: a rewind.
+    Next shot starting before the last one ended is an error; starting exactly where it ended is a cut inside one
+    continuous take (invisible: merge the two, or put a shot between them)."""
+    errs, adv = [], []
+    for i in range(1, len(shots)):
+        a, b = shots[i - 1], shots[i]
+        if not (isinstance(a, dict) and isinstance(b, dict) and a.get("kind") == b.get("kind") == "page"):
+            continue
+        ra, rb = a.get("recording") or a.get("video"), b.get("recording") or b.get("video")
+        if not ra or ra != rb:
+            continue
+        a0, b0 = int(a.get("videoStart", 0)), int(b.get("videoStart", 0))
+        a1 = a0 + int(a.get("dur", 0))
+        if b0 < a1:
+            errs.append("shots %d -> %d play %s back to back and the second starts at its frame %d, before the first "
+                        "ended (%d): the cut replays %d frames — a visible rewind. Start it at %d, or put a shot "
+                        "between them" % (i - 1, i, ra, b0, a1, a1 - b0, a1))
+        elif b0 == a1:
+            adv.append("shots %d -> %d cut inside one continuous take of %s (frame %d): the cut is invisible — merge "
+                       "them, or put another shot between" % (i - 1, i, ra, b0))
+    return errs, adv
+
+
 def check(spec, film_dir):
     """Errors (list) and advisories (list) for a promo table. Errors stop the render."""
     errs, adv = [], []
@@ -793,6 +819,9 @@ def check(spec, film_dir):
             errs.append("%s: an empty `say`" % where)
     if spec.get("cut") not in (None, "carry", "flash", "hard", "through", "morph"):
         errs.append("cut must be carry, flash, hard, through or morph")
+    e4, a4 = recording_continuity(shots)
+    errs += e4
+    adv += a4
     adv += skeleton_advice(spec, film_dir)
     adv += length_advice(spec)
     e3, a3 = feature_coverage(spec)

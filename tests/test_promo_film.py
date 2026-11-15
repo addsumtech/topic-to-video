@@ -764,3 +764,14 @@ def test_read_mark_and_scan_are_checked(film):
     cues = pf.plan_sfx({"shots": [base]})
     kinds = [c[1] for c in cues]
     assert "glass" in kinds and kinds.count("select") >= 1
+
+
+def test_back_to_back_segments_of_one_recording_never_rewind():
+    seg = lambda vs, dur, rec='caps/tour.layout.json': {"kind": "page", "dur": dur, "recording": rec, "videoStart": vs}
+    e, _ = pf.recording_continuity([seg(590, 220), seg(790, 120)])
+    assert e and "replays 20 frames" in e[0] and "Start it at 810" in e[0]
+    e, a = pf.recording_continuity([seg(590, 220), seg(810, 100)])
+    assert e == [] and "continuous take" in a[0]
+    # a shot between them, or another recording, is fine
+    e, a = pf.recording_continuity([seg(590, 220), {"kind": "page", "dur": 90, "recording": "caps/range.layout.json"}, seg(790, 120)])
+    assert e == [] and a == []
