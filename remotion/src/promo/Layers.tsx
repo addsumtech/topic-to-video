@@ -10,6 +10,9 @@
 //   cursor a pointer travels and clicks
 //   callout a leader line draws from a point on an element to a label (kicker + line), the label rising into place
 //   note   a callout without a leader
+//   read   a reading line travels down a passage; what it has not reached lies veiled
+//   mark   a highlighter / underline drawn across the page's own lines in reading order
+//   scan   a line passes down a region and, above it, the page becomes another capture of it
 import React from 'react';
 import {staticFile, useCurrentFrame} from 'remotion';
 import {span, track, useLook, SANS, MONO, alpha, isDarkHex, isCJK, type Box, type Key} from './kit';
@@ -300,10 +303,78 @@ export const Count: React.FC<CountSpec> = ({box, to, from = 0, decimals, prefix 
   );
 };
 
+export type ReadSpec = {kind: 'read'; box: Box; at: number; until: number; veil?: number; fill?: string; color?: string; hold?: boolean};
+/** READ: a reading line travels down the box from `at` to `until`; what it has passed is the page as it is, what it
+ *  has not reached lies under a veil of the page's own fill — the page being read, at the pace of the read. The line
+ *  fades once it reaches the bottom (`hold` keeps it there). */
+export const Read: React.FC<ReadSpec> = ({box, at, until, veil = 0.8, fill = '#ffffff', color, hold = false}) => {
+  const frame = useCurrentFrame();
+  const look = useLook();
+  const c = color ?? look.accent;
+  const p = span(frame, at, until, 'smooth');
+  const y = box.y + box.h * p;
+  const gone = hold ? 0 : span(frame, until, until + 12, 'out');
+  return (
+    <>
+      {p < 1 ? <div style={{position: 'absolute', left: box.x, top: y, width: box.w, height: box.y + box.h - y, background: fill, opacity: veil}} /> : null}
+      {gone < 1 ? <div style={{position: 'absolute', left: box.x - 6, top: y - 2, width: box.w + 12, height: 4, borderRadius: 2, background: c,
+        opacity: (1 - gone) * span(frame, at - 6, at + 4, 'out'), boxShadow: `0 0 14px ${c}, 0 0 40px ${alpha(c, 0.35)}`}} /> : null}
+    </>
+  );
+};
+
+export type MarkSpec = {kind: 'mark'; boxes: Box[]; at: number; every?: number; style?: 'highlight' | 'underline'; color?: string; until?: number};
+/** MARK: a stroke drawn across the page's own line(s) of type in reading order — a highlighter behind the lower part of
+ *  each line (multiplied, so the type stays sharp on top) or an underline drawn beneath it. `boxes` are the measured
+ *  line boxes of the passage, one per line. */
+export const Mark: React.FC<MarkSpec> = ({boxes, at, every = 10, style = 'highlight', color, until = 1e9}) => {
+  const frame = useCurrentFrame();
+  const look = useLook();
+  const c = color ?? (style === 'highlight' ? '#ffd84d' : look.accent);
+  const off = span(frame, until, until + 10, 'out');
+  if (off >= 1) return null;
+  return (
+    <>
+      {boxes.map((b, i) => {
+        const w = span(frame, at + i * every, at + (i + 1) * every, i === boxes.length - 1 ? 'out' : 'linear');
+        if (w <= 0) return null;
+        const hl = style === 'highlight';
+        return <div key={i} style={{position: 'absolute', left: b.x - (hl ? 3 : 0), top: hl ? b.y + b.h * 0.5 : b.y + b.h - 2,
+          width: (b.w + (hl ? 6 : 0)) * w, height: hl ? b.h * 0.44 : Math.max(3, b.h * 0.09), background: c, borderRadius: hl ? 3 : 2,
+          mixBlendMode: hl ? 'multiply' : 'normal', opacity: (hl ? 0.85 : 1) * (1 - off)}} />;
+      })}
+    </>
+  );
+};
+
+export type ScanSpec = {kind: 'scan'; box: Box; at: number; until: number; src: string; srcBox?: Box; srcW?: number; srcH?: number; color?: string};
+/** SCAN: a line passes down the box and, above it, the page becomes ANOTHER capture of the same region (the CV becoming
+ *  the text a parser reads; a draft becoming its checked page) — a change of state shown as a pass, not a cut. */
+export const Scan: React.FC<ScanSpec & {pageW: number; pageH: number}> = ({box, at, until, src, srcBox, srcW, srcH, color, pageW, pageH}) => {
+  const frame = useCurrentFrame();
+  const look = useLook();
+  const c = color ?? look.accent;
+  const p = span(frame, at, until, 'smooth');
+  if (p <= 0) return null;
+  const sb = srcBox ?? box;
+  const hgt = box.h * p;
+  const gone = span(frame, until, until + 12, 'out');
+  return (
+    <>
+      <div style={{position: 'absolute', left: box.x, top: box.y, width: box.w, height: hgt, overflow: 'hidden'}}>
+        <Crop src={src} pageW={srcW ?? pageW} pageH={srcH ?? pageH} box={{...sb, w: box.w, h: box.h}} radius={0} style={{left: 0, top: 0}} />
+      </div>
+      {gone < 1 ? <div style={{position: 'absolute', left: box.x, top: box.y + hgt - 3, width: box.w, height: 6, background: c, opacity: 1 - gone,
+        boxShadow: `0 0 24px 4px ${alpha(c, 0.7)}, 0 0 90px 20px ${alpha(c, 0.2)}`}} /> : null}
+    </>
+  );
+};
+
 export type MacroSpec = {kind: 'macro'; box: Box; src: string; scale?: number; at?: number; radius?: number};
 /** Acts drawn OVER the page and its macros (annotation, not page content). */
 export const OVERLAY_KINDS = ['callout', 'note', 'ring', 'cursor', 'count'];   // count rolls OVER a macro's figure
-export type LayerSpec = PopSpec | LiftSpec | FocusSpec | RingSpec | TypeSpec | CursorSpec | CalloutSpec | NoteSpec | MacroSpec | DealSpec | WriteSpec | CountSpec;
+export type LayerSpec = PopSpec | LiftSpec | FocusSpec | RingSpec | TypeSpec | CursorSpec | CalloutSpec | NoteSpec | MacroSpec | DealSpec | WriteSpec | CountSpec
+  | ReadSpec | MarkSpec | ScanSpec;
 
 /** Layers in the order given (later = on top). Pop/lift need the capture they crop from. */
 export const Layers: React.FC<{layers: LayerSpec[]} & Common> = ({layers, ...c}) => (
@@ -322,6 +393,9 @@ export const Layers: React.FC<{layers: LayerSpec[]} & Common> = ({layers, ...c})
         case 'deal': return <Deal key={i} {...l} {...c} />;
         case 'write': return <Write key={i} {...l} />;
         case 'count': return <Count key={i} {...l} />;
+        case 'read': return <Read key={i} {...l} />;
+        case 'mark': return <Mark key={i} {...l} />;
+        case 'scan': return <Scan key={i} {...l} pageW={c.pageW} pageH={c.pageH} />;
         case 'macro': return null;   // drawn by PageCam on its own layer (a 4x close-up)
         default: throw new Error(`promo layer: unknown kind ${(l as {kind: string}).kind}`);
       }

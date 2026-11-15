@@ -127,15 +127,19 @@ def pages(film_dir, board):
 def promo(spec):
     shots = [s for s in spec.get("shots") or [] if isinstance(s, dict)]
     acts = {a.get("kind") for s in shots for it in s.get("items") or [] for a in (it.get("acts") or []) if isinstance(a, dict)}
+    # a PAGE shot's own acts are the claim acted on the product too (they were missed: a film that read, marked and
+    # scanned its pages was told "acts unused")
+    acts |= {a.get("kind") for s in shots if s.get("kind") == "page" for a in (s.get("layers") or s.get("acts") or []) if isinstance(a, dict)}
     places = [s["label"].get("side", "left") for s in shots if s.get("kind") == "object" and isinstance(s.get("label"), dict)]
     nolabel = any(s.get("kind") == "object" and not s.get("label") for s in shots)
     used = {
         "staging": any(s.get("kind") == "object" for s in shots),
         "breadth": any(s.get("kind") == "wall" for s in shots),
         "links": any(s.get("links") for s in shots),
-        "acts": bool(acts & {"count", "type", "write", "ring", "focus"}),
+        "acts": bool(acts & {"count", "type", "write", "ring", "focus", "read", "mark", "scan"}),
         "composition": len(places) < 4 or len(set(places)) >= 3 or (nolabel and len(set(places)) >= 2),
-        "outro": any(s.get("kind") == "outro" and s.get("world") for s in shots),
+        # an outro that lands in a world, or over the film's own last picture (`backdrop`), ends on the product
+        "outro": any(s.get("kind") == "outro" and (s.get("world") or isinstance(s.get("backdrop"), int)) for s in shots),
     }
     return PROMO, used, spec.get("waivers") or {}
 

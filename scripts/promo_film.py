@@ -220,7 +220,7 @@ def _obstacles(film_dir, sh, aspect="16:9"):
         at, until = float(l.get("at", 0)), float(l.get("until", 1e9))
         # the acts that put TYPE or a mark on the page (a macro, a focus, a lift are areas — the close-up's whole
         # region — and covering part of an area is not covering a line of type)
-        if k in ("ring", "count", "pop", "type", "write") and isinstance(l.get("box"), dict):
+        if k in ("ring", "count", "pop", "type", "write", "scan") and isinstance(l.get("box"), dict):
             out.append((l["box"], SUBJECT_WEIGHT, "its %s" % k, at, until))
         elif k in ("callout", "note") and l.get("text"):
             size = float(l.get("size", 30))
@@ -615,7 +615,8 @@ def check(spec, film_dir):
                     errs.append("%s: key f=%s aims off the capture (%s, %s)" % (where, kk.get("f"), kk.get("cx"), kk.get("cy")))
             for j, l in enumerate(s.get("layers") or s.get("acts") or [], 1):
                 lw = "%s layer %d (%s)" % (where, j, l.get("kind"))
-                if l.get("kind") not in ("pop", "lift", "focus", "ring", "type", "cursor", "callout", "note", "macro", "deal", "write", "count"):
+                if l.get("kind") not in ("pop", "lift", "focus", "ring", "type", "cursor", "callout", "note", "macro", "deal", "write", "count",
+                                          "read", "mark", "scan"):
                     errs.append("%s: unknown layer kind" % lw)
                 if l.get("kind") == "macro":
                     msz = cap(l.get("src", ""), lw)
@@ -623,8 +624,21 @@ def check(spec, film_dir):
                     if msz and isinstance(b, dict) and b and (abs(msz[0] - b.get("w", 0) * sc) > 3 or abs(msz[1] - b.get("h", 0) * sc) > 3):
                         errs.append("%s: %s is %dx%d px, not its box %sx%s at %gx — it would be stretched"
                                     % (lw, l.get("src"), msz[0], msz[1], b.get("w"), b.get("h"), sc))
-                if l.get("kind") in ("pop", "lift", "focus", "ring", "type", "macro", "write", "count"):
+                if l.get("kind") in ("pop", "lift", "focus", "ring", "type", "macro", "write", "count", "read", "scan"):
                     inside(l.get("box", {}), w, h, lw)
+                if l.get("kind") in ("read", "scan"):
+                    if not (isinstance(l.get("until"), (int, float)) and isinstance(l.get("at"), (int, float)) and l["until"] > l["at"]):
+                        errs.append("%s: `until` is the frame the line reaches the bottom, after `at`" % lw)
+                if l.get("kind") == "mark" and not (isinstance(l.get("boxes"), list) and l["boxes"]):
+                    errs.append("%s: `boxes` are the passage's measured line boxes, one per line, in reading order" % lw)
+                if l.get("kind") == "mark" and l.get("style", "highlight") not in ("highlight", "underline"):
+                    errs.append("%s: style is highlight or underline" % lw)
+                if l.get("kind") == "scan":
+                    ssz = cap(l.get("src", ""), lw)
+                    if ssz and isinstance(l.get("box"), dict):
+                        sb = dict(l.get("srcBox") or l["box"])
+                        sb["w"], sb["h"] = l["box"]["w"], l["box"]["h"]
+                        inside(sb, ssz[0] / 2, ssz[1] / 2, lw + " srcBox")
                 for bj, bb in enumerate(l.get("boxes") or []):
                     inside(bb, w, h, "%s box %d" % (lw, bj + 1))
                 if l.get("kind") == "pop" and l.get("src") and l.get("src") != s.get("src") and isinstance(l.get("box"), dict) \
@@ -1233,6 +1247,16 @@ def plan_sfx(spec, placed=False):
                 elif kind == "count":
                     for j in range(0, int(l.get("dur", 42)), 6):
                         cues.append((a + int(l["at"]) + j, "key", 0.12, _pan_at(s, int(l["at"]) + j, _box_x(l))))
+                elif kind in ("read", "scan"):
+                    # the line's pass is heard as one soft breath of air down the page; a scan lands with a glassy tick
+                    f0, f1 = a + int(l["at"]), a + int(l["until"])
+                    cues.append((f0 + 2, "whoosh", 0.16 if kind == "read" else 0.26, "wide"))
+                    if kind == "scan":
+                        cues.append((f1, "glass", 0.2, _pan_at(s, int(l["until"]), _box_x(l))))
+                elif kind == "mark":
+                    for bj, bb in enumerate(l.get("boxes") or []):
+                        f = a + int(l["at"] + bj * l.get("every", 10))
+                        cues.append((f, "select", 0.12 if bj else 0.18, _pan_at(s, f - a, bb.get("x", 0) + bb.get("w", 0) / 2)))
                 elif kind == "lift":
                     p_ = _pan_at(s, int(l["at"]) + 18, _box_x(l))
                     cues += [(a + int(l["at"]) + 6, "whoosh", 0.36, ("wide", p_)), (a + int(l["at"]) + 18, "glass", 0.22, p_),

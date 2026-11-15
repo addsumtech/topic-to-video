@@ -747,3 +747,20 @@ def test_one_feature_filling_the_film_is_told():
     shots = [dict(kind='statement', dur=300, shows=['a']), dict(kind='statement', dur=60, shows=['b'])]
     _, adv = pf.feature_coverage(dict(shots=shots, features=feats))
     assert any("'a' fills 83%" in x for x in adv)
+
+
+def test_read_mark_and_scan_are_checked(film):
+    base = page(layers=[{"kind": "read", "box": {"x": 0, "y": 0, "w": 200, "h": 100}, "at": 10, "until": 40},
+                        {"kind": "mark", "boxes": [{"x": 10, "y": 10, "w": 100, "h": 20}], "at": 12},
+                        {"kind": "scan", "box": {"x": 0, "y": 0, "w": 200, "h": 100}, "at": 5, "until": 50, "src": "page.png"}])
+    errs, _ = pf.check({"shots": [base]}, str(film))
+    assert errs == []
+    bad = page(layers=[{"kind": "read", "box": {"x": 0, "y": 0, "w": 200, "h": 100}, "at": 40, "until": 10},
+                       {"kind": "mark", "boxes": [], "at": 12},
+                       {"kind": "mark", "boxes": [{"x": 0, "y": 0, "w": 10, "h": 10}], "at": 1, "style": "circle"}])
+    errs, _ = pf.check({"shots": [bad]}, str(film))
+    assert any("until" in e for e in errs) and any("measured line boxes" in e for e in errs) and any("highlight or underline" in e for e in errs)
+    # the line's pass and each marked line are heard
+    cues = pf.plan_sfx({"shots": [base]})
+    kinds = [c[1] for c in cues]
+    assert "glass" in kinds and kinds.count("select") >= 1

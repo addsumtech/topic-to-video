@@ -4,6 +4,8 @@
     python3 scripts/promo_capture.py <film_dir> <url> --name=home [--width=1440] [--height=900] [--full]
                                      [--wait=1.5] [--eval="js ;;; js" (steps split by ;;;)] [--select="css,css"] [--max=80]
                                      [--hires="text:862 kB;css:#export;520,300,240,120"]   # 4x close-ups
+                                     [--lines="css,css"]   # each match's text measured line by line (`lines` in the layout:
+                                                           # the boxes a `mark` act strokes)
     python3 scripts/promo_capture.py <film_dir> --boxes=<capture.png> [--parts="card=7;panel=120,80,400,260"]
                                      # a screenshot with no DOM (desktop app); parts by found-box id or CSS box
     python3 scripts/promo_capture.py <film_dir> --footage=<clip.mp4 | blender runner out dir> --name=<n>
@@ -117,6 +119,35 @@ def _parts(spec):
 
 # the element whose box this is (walking up from the point at its centre), and its own corner radius and fill — a
 # part is staged with the corners and ground it has on the page
+# LINE BOXES: a `mark` act strokes the passage's own lines, so each matching element's text is measured LINE BY LINE
+# (a Range over its text: one rect per line fragment, fragments on one line merged) in page CSS px. A box guessed from a
+# thumbnail was wrong on the slide-maker crop the user saw ("有些地方不准"); a measured one cannot be.
+LINES_JS = r"""
+((sels) => {
+  const out = [];
+  for (const s of sels) {
+    let i = 0;
+    for (const el of document.querySelectorAll(s)) {
+      const rg = document.createRange(); rg.selectNodeContents(el);
+      const rows = [];
+      for (const r of rg.getClientRects()) {
+        if (r.width < 1 || r.height < 1) continue;
+        const y = r.top + scrollY, x = r.left + scrollX;
+        const row = rows.find((q) => Math.abs(q.y - y) < r.height * 0.5);
+        if (row) { const x1 = Math.max(row.x + row.w, x + r.width); row.x = Math.min(row.x, x); row.w = x1 - row.x;
+                   row.h = Math.max(row.h, r.height); }
+        else rows.push({x, y, w: r.width, h: r.height});
+      }
+      rows.sort((a, b) => a.y - b.y);
+      out.push({sel: s, i: i++, text: (el.innerText || '').trim().slice(0, 200),
+                boxes: rows.map((q) => ({x: +q.x.toFixed(2), y: +q.y.toFixed(2), w: +q.w.toFixed(2), h: +q.h.toFixed(2)}))});
+    }
+  }
+  return out;
+})(%s)
+"""
+
+
 # DEMO STATE, WRITTEN BY THE FILM: `__ttv.fill(selector, text)` puts the film's own demo text into a field, a textarea
 # or an editor (contenteditable, CodeMirror) the way a user's typing would (React sees an input event), and
 # `__ttv.text(selector, text)` replaces an element's visible text. Available to every --eval step.
@@ -184,17 +215,17 @@ def _hires_boxes(spec, els, css=None):
 
 
 def capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80, hires_spec=None, parts_spec=None,
-                parts_scale=4):
+                parts_scale=4, lines=()):
     import socket
     try:
-        return _capture_web(film, url, name, W, H, full, wait, js, select, max_el, hires_spec, parts_spec, parts_scale)
+        return _capture_web(film, url, name, W, H, full, wait, js, select, max_el, hires_spec, parts_spec, parts_scale, lines)
     except (socket.timeout, TimeoutError) as e:
         raise SystemExit("[promo_capture] %s did not answer in time (%s). A slow or very long page: try --wait=4, a "
                          "narrower page, or capture it by hand and use --boxes" % (url, e))
 
 
 def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, select=(), max_el=80, hires_spec=None,
-                 parts_spec=None, parts_scale=4):
+                 parts_spec=None, parts_scale=4, lines=()):
     import _cdp
     chrome = find_chrome()
     if not chrome:
@@ -253,6 +284,13 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
         png = os.path.join(caps, name + ".png")
         with open(png, "wb") as f:
             f.write(base64.b64decode(shot))
+        line_sets = []
+        if lines:
+            line_sets = c._cmd("Runtime.evaluate", {"expression": LINES_JS % json.dumps(list(lines)), "returnByValue": True},
+                               c.sid)["result"]["result"].get("value") or []
+            for sel in lines:
+                if not any(ls["sel"] == sel and ls["boxes"] for ls in line_sets):
+                    raise SystemExit("[promo_capture] --lines %r matched no text on the page" % sel)
         from PIL import Image
         with Image.open(png) as im:
             pw, ph = im.size
@@ -338,7 +376,7 @@ def _capture_web(film, url, name, W=1440, H=900, full=False, wait=1.5, js=None, 
     # the page's own title and description: the product's words, citable as the film's source
     out = {"src": "caps/%s.png" % name, "w": pw // 2, "h": ph // 2, "url": url, "title": lay.get("title", ""),
            "description": lay.get("description", ""), "captured": time.strftime("%Y-%m-%d"), "elements": els, "hires": hires,
-           "parts": parts if part_boxes else {}, "eval": eval_results}
+           "parts": parts if part_boxes else {}, "eval": eval_results, "lines": line_sets}
     json.dump(out, open(os.path.join(caps, name + ".layout.json"), "w"), indent=1)
     overlay(png, out, os.path.join(caps, name + ".boxes.jpg"))
     return out
@@ -615,7 +653,8 @@ def main(argv):
     if not argv or argv[0].startswith("-"):
         print(__doc__.strip())
         return 0 if argv[:1] in (["--help"], ["-h"]) else 2
-    refuse_unknown(argv[1:], valued=("name", "width", "height", "wait", "eval", "select", "max", "boxes", "mark", "box", "hires", "parts", "parts-scale", "footage"), switches=("full",))
+    refuse_unknown(argv[1:], valued=("name", "width", "height", "wait", "eval", "select", "max", "boxes", "mark", "box", "hires", "parts", "parts-scale", "footage",
+                                     "lines"), switches=("full",))
     film = os.path.abspath(argv[0])
     fo = argflag(argv, "footage", None)
     if fo:
@@ -653,7 +692,8 @@ def main(argv):
     sel = [s for s in (argflag(argv, "select", "") or "").split(",") if s.strip()]
     lay = capture_web(film, argv[1], argflag(argv, "name", "page"), int(argflag(argv, "width", 1440)), int(argflag(argv, "height", 900)),
                       "--full" in argv, float(argflag(argv, "wait", 1.5)), argflag(argv, "eval", None), sel, int(argflag(argv, "max", 80)),
-                      argflag(argv, "hires", None), argflag(argv, "parts", None), int(argflag(argv, "parts-scale", 4)))
+                      argflag(argv, "hires", None), argflag(argv, "parts", None), int(argflag(argv, "parts-scale", 4)),
+                      [x for x in (argflag(argv, "lines", "") or "").split(",") if x.strip()])
     print("[promo_capture] %s: %dx%d CSS, %d elements -> caps/%s.layout.json" % (lay["src"], lay["w"], lay["h"], len(lay["elements"]),
                                                                                argflag(argv, "name", "page")))
     return 0

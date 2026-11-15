@@ -54,3 +54,12 @@ def test_a_page_film_is_read_in_its_own_vocabulary(tmp_path):
     fams, used, _ = cr.reach(str(tmp_path))
     assert fams is cr.PAGES
     assert used["seams"] and used["cues"] and used["motion"] and used["emphasis"] and not used["light"]
+
+
+def test_a_page_shots_own_acts_and_a_backdrop_ending_count_as_used():
+    spec = {"shots": [{"kind": "page", "dur": 60, "layers": [{"kind": "read", "box": {}, "at": 0, "until": 30}]},
+                      {"kind": "outro", "dur": 60, "backdrop": 0}]}
+    _, used, _ = cr.promo(spec)
+    assert used["acts"] and used["outro"]
+    _, used, _ = cr.promo({"shots": [{"kind": "page", "dur": 60, "layers": [{"kind": "cursor", "path": []}]}, {"kind": "outro", "dur": 60}]})
+    assert not used["acts"] and not used["outro"]

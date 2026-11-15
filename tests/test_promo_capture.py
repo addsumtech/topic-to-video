@@ -235,3 +235,18 @@ def test_footage_takes_a_blender_runner_folder_assembling_its_reused_frames(tmp_
     (work / "run.json").write_text(json.dumps({"frames": frames + [{"kind": "full"}]}))   # a full frame never rendered
     with pytest.raises(Exception):
         pc.footage(str(tmp_path), str(work), "plate")
+
+
+@pytest.mark.skipif(not pc.find_chrome(), reason="no Chrome")
+def test_lines_are_measured_one_box_per_line(tmp_path):
+    html = tmp_path / "l.html"
+    html.write_text('<html><body style="margin:40px;font:20px/30px sans-serif;width:300px">'
+                    'Before. <span id="m">This passage runs on long enough to wrap onto a second line here.</span></body></html>')
+    lay = pc.capture_web(str(tmp_path), "file://" + str(html), "l", W=600, H=300, wait=0.2, lines=["#m"])
+    (ls,) = lay["lines"]
+    assert ls["sel"] == "#m" and len(ls["boxes"]) >= 2
+    b0, b1 = ls["boxes"][:2]
+    assert abs(b1["y"] - b0["y"] - 30) < 3 and b0["x"] > 40 and abs(b1["x"] - 40) < 2     # line 1 starts after "Before."
+    assert all(b["x"] + b["w"] <= 341 for b in ls["boxes"])
+    with pytest.raises(SystemExit, match="matched no text"):
+        pc.capture_web(str(tmp_path), "file://" + str(html), "l2", W=600, H=300, wait=0.2, lines=["#nope"])

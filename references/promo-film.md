@@ -239,6 +239,9 @@ Every `box` is a dict `{"x": .., "y": .., "w": .., "h": ..}` in the capture's CS
 | `deal` | the page's own cards start as one stack and fly out to their slots one by one along a lifted arc, settling flat | `boxes` (from the layout / `--boxes`), `at, every, dur, from, fill` |
 | `write` | a block of the capture's own text appears line by line behind an accent caret (the document writing itself, in its own words) | `box, at, lineH, every, fill` |
 | `count` | the page's own figure counts up to its value in place (over its own digits, on its field's fill) — a number arriving, not a number shown | `box, to, from, decimals, prefix, suffix, at, dur` (42), `fill, color, size, weight, align, font` |
+| `read` | a reading line travels down a passage; what it has not reached lies under a veil of the page's fill (the product READS) | `box, at, until, veil` (0.8), `fill, color, hold` |
+| `mark` | a highlighter (multiplied behind the lower half of each line) or an underline drawn across the page's own lines, in reading order | `boxes` (the passage's MEASURED line boxes), `at, every` (10), `style: highlight/underline, color, until` |
+| `scan` | a line passes down a region and, above it, the page becomes ANOTHER capture of the same region (the CV becoming the parser's text) | `box, at, until, src, srcBox, srcW, srcH, color` |
 
 ### Every field (what the table accepts)
 
