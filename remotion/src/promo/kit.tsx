@@ -67,7 +67,7 @@ export const span = (frame: number, a: number, b: number, e: Ease = 'snappy') =>
 /** `*…*` marks the accent span of a line (any language). Returns reveal UNITS: a Latin word, or one CJK character
  *  (a Chinese line has no spaces to split on — read word by word it would arrive as one block), each knowing whether
  *  it is accented and whether a space follows it. */
-export type Unit = {text: string; accent: boolean; space: boolean};
+export type Unit = {text: string; accent: boolean; space: boolean; brk?: boolean};   // brk: a line break after it (a '\n' in the text)
 const CJK_RE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
 export const isCJK = (t: string) => CJK_RE.test(t);
 export const parseUnits = (text: string): Unit[] => {
@@ -77,7 +77,10 @@ export const parseUnits = (text: string): Unit[] => {
     const accent = /^\*[^*]+\*$/.test(part);
     const body = accent ? part.slice(1, -1) : part;
     for (const tok of body.match(/\s+|[^\s]+/g) ?? []) {
-      if (/^\s+$/.test(tok)) { if (out.length) out[out.length - 1].space = true; continue; }
+      if (/^\s+$/.test(tok)) {
+        if (out.length) { out[out.length - 1].space = true; if (tok.includes('\n')) out[out.length - 1].brk = true; }
+        continue;
+      }
       if (isCJK(tok)) {
         // a CJK run: one unit per character, but closing punctuation rides with the character before it
         for (const ch of Array.from(tok)) {

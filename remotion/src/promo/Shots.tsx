@@ -36,8 +36,24 @@ export const Statement: React.FC<{text: string; dur: number; ground?: 'paper' | 
   const s = typeScale(W, H);
   const units = parseUnits(text);
   const cjk = isCJK(text);
-  const chars = units.reduce((n, u) => n + (cjk ? 1 : u.text.length + 1), 0);
-  const px = size ? size * s : Math.min(170 * s, (W * 0.84) / Math.max(4, chars * (cjk ? 1.0 : 0.52)) * (chars > 26 ? 1.7 : 1));
+  const ulen = (u: {text: string}) => (cjk ? Array.from(u.text).filter((c) => !/[，。、！？；：,.!?;:）」』”]/.test(c)).length + 0.5 * (Array.from(u.text).length > 1 ? 1 : 0) : u.text.length + 1);
+  // CJK lines: a '\n' in the text breaks the line; a CJK statement that would wrap on its own is broken at the
+  // punctuation nearest its middle — flex-wrapping one character at a time left 才算通 / 过。 (an orphan, 2026-11-15)
+  if (cjk && !units.some((u) => u.brk)) {
+    const total = units.reduce((n, u) => n + ulen(u), 0);
+    if (total * 150 * s > W * 0.84) {
+      let best = -1, bestD = 1e9, acc = 0;
+      units.forEach((u, i) => {
+        acc += ulen(u);
+        if (i < units.length - 1 && /[，、；：,;:]$/.test(u.text) && Math.abs(acc - total / 2) < bestD) { best = i; bestD = Math.abs(acc - total / 2); }
+      });
+      if (best >= 0) units[best] = {...units[best], brk: true};
+    }
+  }
+  const lines: number[] = [0];
+  units.forEach((u, i) => { lines[lines.length - 1] += ulen(u); if (u.brk && i < units.length - 1) lines.push(0); });
+  const chars = Math.max(...lines);
+  const px = size ? size * s : Math.min(170 * s, (W * 0.84) / Math.max(4, chars * (cjk ? 1.04 : 0.52)) * (chars > 26 && !cjk ? 1.7 : 1));
   const bg = ground === 'accent' ? look.accent : ground === 'ink' ? look.ink : look.paper;
   // on any ground but the paper, the ink that reads best on it from the film's own (on a dark look `ink` IS the light
   // colour: the old rule drew cream type on the cream `ink` ground, an empty frame)
@@ -52,10 +68,13 @@ export const Statement: React.FC<{text: string; dur: number; ground?: 'paper' | 
         {units.map((u, i) => {
           const t = span(frame, 2 + i * 2, 6 + i * 2, 'out');
           return (
-            <span key={i} style={{opacity: t, filter: t < 1 ? `blur(${(1 - t) * 6}px)` : undefined, marginRight: u.space ? '0.22em' : 0,
-              ...(u.accent ? {color: acc, fontFamily: !cjk ? SERIF : undefined, fontStyle: !cjk ? 'italic' : 'normal', fontWeight: !cjk ? 560 : 720} : {})}}>
-              {u.text}
-            </span>
+            <React.Fragment key={i}>
+              <span style={{opacity: t, filter: t < 1 ? `blur(${(1 - t) * 6}px)` : undefined, marginRight: u.space && !(cjk && u.brk) ? '0.22em' : 0,
+                ...(u.accent ? {color: acc, fontFamily: !cjk ? SERIF : undefined, fontStyle: !cjk ? 'italic' : 'normal', fontWeight: !cjk ? 560 : 720} : {})}}>
+                {u.text}
+              </span>
+              {u.brk && i < units.length - 1 ? <span style={{flexBasis: '100%', height: 0}} /> : null}
+            </React.Fragment>
           );
         })}
       </div>
