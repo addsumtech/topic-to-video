@@ -1373,3 +1373,12 @@ def test_a_register_the_film_gives_no_chinese_is_not_failed_as_unfed():
     src = open(c.__file__, encoding="utf-8").read()
     body = src.split("no_chinese, nofeed = sorted(nofeed), []")[1].split("notmeasured =")[0]
     assert "unfed = {n: v for n, v in unfed.items() if n not in set(no_chinese)}" in body
+
+
+def test_a_films_own_short_labels_overprinting_each_other_are_a_defect():
+    over = {"PressureWave": [{"kind": "overlap", "text": "Squeezed", "other": "Stretched"}],
+            "BrutalistType": [{"kind": "overlap", "text": "A HEADLINE SET LARGE ACROSS THE FRAME", "other": "ANOTHER LONG DISPLAY LINE ON IT"}],
+            "Glitch": [{"kind": "overlap", "text": "SIGNAL", "other": "SIGNAL"}],
+            "Tilted": [{"kind": "overlap", "text": "a", "other": "b", "rot": True}]}
+    got = c.film_label_overlaps(over)
+    assert list(got) == ["PressureWave"]

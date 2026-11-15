@@ -212,6 +212,15 @@ def _cjk_copy(out_dir):
     return any(_HAS_CJK.search(json.dumps(s.get("shot_props") or {}, ensure_ascii=False)) for s in slides or [])
 
 
+def _type_at_risk(out_dir):
+    """True when the film's type can collide: Chinese copy (cjk_type_qa's original subject), or a frame that is not
+    16:9 — shots author positions in fractions of W and type in fractions of the short side, so a recomposed film is
+    where labels meet. An English film rendered 9:16 never ran the gate, and the ANC film's «Squeezed» landed on
+    «Stretched» there."""
+    meta, _slides = _board(out_dir)
+    return _cjk_copy(out_dir) or str((meta or {}).get("aspect") or "16:9") != "16:9"
+
+
 def _has_blender(out_dir):
     """True when a beat carries a Blender plate (slide.blender) — the films plate_qa judges."""
     _meta, slides = _board(out_dir)
@@ -257,7 +266,8 @@ DELIVERY_GATES = {
         # cannot judge type a compositor moves (3D surfaces, will-change) and handed it over; a product film's UI
         # panel inside a 3D screen trembled with every gate green (scripts/jitter_qa.py)
         ("TYPE trembles in the pixels (every frame, every layer incl. 3D)", "jitter_qa.py", (), 600, True, None),
-        ("CJK type holds together in this film's registers", "cjk_type_qa.py", (), 600, True, _cjk_copy),
+        ("TYPE holds together in this film's registers (CJK copy, or any non-16:9 frame)", "cjk_type_qa.py", (), 600, True,
+         _type_at_risk),
         # A PICTURE magnified past its own pixels — every type gate measures text, none of them an image's pixels; a
         # product film shipped its hero UI at 2.9x and its bots row at 2.0x with all of them green (scripts/media_res_qa.py)
         ("PICTURES at their own resolution (every 3rd frame, census)", "media_res_qa.py", (), 300, True, None),

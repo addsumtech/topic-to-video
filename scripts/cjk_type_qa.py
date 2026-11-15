@@ -2280,6 +2280,18 @@ def controls():
     return 0 if ok else 1
 
 
+def film_label_overlaps(over, max_len=24):
+    """{register: [hits]} of a FILM's overlap hits that are two different short labels, flat, overprinting each other —
+    the ones that are a defect in a film's own copy (see main)."""
+    out = {}
+    for n, hs in over.items():
+        bad = [h for h in hs if not h.get("rot") and h.get("text") and h.get("other") and h["text"] != h["other"]
+               and len(h["text"]) <= max_len and len(h.get("other", "")) <= max_len]
+        if bad:
+            out[n] = bad
+    return out
+
+
 def main(argv):
     ap = argparse.ArgumentParser(
         description="Does the type hold together in Chinese? "
@@ -2389,6 +2401,13 @@ def main(argv):
     lead = {n: h for n, h in lead.items() if h}
     over = {n: [h for h in v["hits"] if h["kind"] == "overlap"] for n, v in res.items()}
     over = {n: h for n, h in over.items() if h}
+    # IN A FILM, TWO LABELS PRINTED OVER EACH OTHER ARE A DEFECT, NOT A CANDIDATE. The library's registers carry demo
+    # copy and some stack type on purpose (a brutalist stack, a glitch's offset copies: long display lines, or the
+    # same words twice), so the sweep only lists overlaps. A film's beats carry the film's OWN words: two different
+    # short labels, flat, overprinting each other are unreadable whatever the intent. Measured: the ANC film's
+    # PressureWave set «Squeezed» over «Stretched» at 9:16 and 1:1 (its labels half a wavelength apart — 240 px at
+    # 16:9, 135 px on a 1080-wide frame) and this gate listed it and exited 0.
+    labels_over = film_label_overlaps(over) if a.out_dir else {}
     tight = {n: [h for h in v["hits"] if h["kind"] == "tight"] for n, v in res.items()}
     tight = {n: h for n, h in tight.items() if h}
     orph = {n: [h for h in v["hits"] if h["kind"] == "orphan"] for n, v in res.items()}
@@ -2525,11 +2544,17 @@ def main(argv):
                      ", and %d beat(s) that select none" % len(left_out) if left_out else ""))
             for n, whynot in notmeasured + left_out:
                 print("    %-22s %s" % (n, whynot))
+        if labels_over:
+            print("\nLABELS PRINTED OVER EACH OTHER — this film's own short labels, flat, overprinting (a defect: "
+                  "give them room at this aspect, or stack them):")
+            for n in sorted(labels_over):
+                for h in labels_over[n][:3]:
+                    print("    %-22s «%s» × «%s»" % (n, h["text"], h["other"]))
         if not lead:
             print("\nNo register sets Chinese copy into itself.")
     # A COVERAGE HOLE IS NOT A CLEAN RUN. The exit code counted `lead or unfed or unmeas` only, so a sweep
     # that failed to render part of its universe — the 2 this pass found on the real library — returned 0.
-    return 1 if (lead or unfed or unmeas) else (2 if (notmeasured or left_out) else 0)
+    return 1 if (lead or unfed or unmeas or labels_over) else (2 if (notmeasured or left_out) else 0)
 
 
 if __name__ == "__main__":
