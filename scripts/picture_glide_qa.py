@@ -51,8 +51,10 @@ def frames(video, a, b, W, H, fps):
     """Gray frames a..b (inclusive) at full resolution, decoded once in order."""
     # FRAME-EXACT: an input seek (`-ss` before `-i`) lands on a keyframe and can hand back the first frame twice — a
     # zero shift followed by the real one, which read as a 0.4 px "pop" on the first pair of every span
+    # ...and it STOPS at b: `select` alone dropped the frames after the span while ffmpeg decoded on to the end of the
+    # film, for every span (audit 2026-11-15, step 7). The same frames.
     cmd = ["ffmpeg", "-v", "error", "-i", video, "-vf", "select=between(n\\,%d\\,%d)" % (a, b), "-vsync", "0",
-           "-f", "rawvideo", "-pix_fmt", "gray", "-"]
+           "-frames:v", str(int(b) - int(a) + 1), "-f", "rawvideo", "-pix_fmt", "gray", "-"]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     n = W * H
     while True:
