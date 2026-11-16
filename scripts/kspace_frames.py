@@ -81,7 +81,7 @@ def square_gray(path, rows):
     return sq.resize((rows, rows), Image.LANCZOS)
 
 
-def write(out_dir, image, name="kspace", rows=256, frames=24, order="centre", display=512):
+def write(out_dir, image, name="kspace", rows=256, frames=24, order="centre", display=768):
     from PIL import Image
     import numpy as np
     if not (8 <= rows <= 4096):
@@ -128,7 +128,7 @@ def main(argv=None):
     ap.add_argument("--rows", type=int, default=256)
     ap.add_argument("--frames", type=int, default=24)
     ap.add_argument("--order", default="centre", choices=("centre", "top"))
-    ap.add_argument("--display", type=int, default=512)
+    ap.add_argument("--display", type=int, default=768)   # the shots draw it up to 1.37x larger than 512 (audit 2026-11-15): 3x the 256 rows, each row whole
     a = ap.parse_args(argv)
     try:
         props = write(a.out_dir, a.image, a.name, a.rows, a.frames, a.order, a.display)
