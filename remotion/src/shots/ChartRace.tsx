@@ -39,8 +39,11 @@ type Row = {
   display?: string;
 };
 
-const DEFAULT_DATA: Row[] = [{label: 'Alpha', value: 92, delay: 0.0}, {label: 'Bravo', value: 78, delay: 0.28},
-  {label: 'Charlie', value: 100, delay: 0.42}, {label: 'Delta', value: 64, delay: 0.1}, {label: 'Echo', value: 84, delay: 0.5}];
+// NO STAGED OVERTAKE in the default: the rows' start delays made a bar that started late overtake one that did not —
+// a race the data never ran (audit 2026-11-15, step 8). Every bar starts together and the order is the values'; a film
+// that knows when its items really started gives each its own `delay`.
+const DEFAULT_DATA: Row[] = [{label: 'Alpha', value: 92}, {label: 'Bravo', value: 78},
+  {label: 'Charlie', value: 100}, {label: 'Delta', value: 64}, {label: 'Echo', value: 84}];
 
 const normalise = (data: unknown, unit: string) => {
   if (!Array.isArray(data) || data.length < MIN_RACE_ROWS || data.length > MAX_RACE_ROWS) {

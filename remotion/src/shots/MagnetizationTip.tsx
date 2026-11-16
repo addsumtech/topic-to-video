@@ -48,7 +48,11 @@ export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; labe
   // tip 0 → 90° (nutation), while precessing (azimuth) — driven only once the resonant RF "arrives"
   const drive = seg(t, 0.18, 0.9);
   const tip = easeInOutCubic(drive) * (Math.PI / 2);
-  const az = drive * Math.PI * 4 + t * 0.6;                 // precession about B0
+  // precession about B0 at ONE rate the whole beat (the Larmor rate does not depend on the pulse): it ran at 4pi over
+  // the pulse and then all but stopped as the pulse ended — just as the free induction decay begins (audit
+  // 2026-11-15, step 8 — content accuracy). The same rate the pulse window had: 4pi over its 0.72 of the beat.
+  const OMEGA = (Math.PI * 4) / 0.72;
+  const az = t * OMEGA;
   // M endpoint (project 3D → 2D with a squashed transverse plane)
   const mx = ox + L * Math.sin(tip) * Math.cos(az);
   const my = oy - L * Math.cos(tip) + L * Math.sin(tip) * Math.sin(az) * ell;
@@ -56,7 +60,7 @@ export const MagnetizationTip: React.FC<{accent?: string; accent2?: string; labe
   // spiral trace of the tip so far
   const trace: string[] = [];
   for (let s = 0; s <= drive; s += 0.02) {
-    const tp = easeInOutCubic(s) * (Math.PI / 2), a = s * Math.PI * 4 + t * 0.6;
+    const tp = easeInOutCubic(s) * (Math.PI / 2), a = (0.18 + s * 0.72) * OMEGA;   // the azimuth at that moment
     trace.push(`${(ox + L * Math.sin(tp) * Math.cos(a)).toFixed(1)},${(oy - L * Math.cos(tp) + L * Math.sin(tp) * Math.sin(a) * ell).toFixed(1)}`);
   }
 

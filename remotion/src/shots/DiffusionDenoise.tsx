@@ -16,8 +16,7 @@ export const DURATION = 165; // 5.5s
 // graph, not sample copy about a topic. Declared so onscreen_text_qa can tell them apart from the
 // demo furniture that used to print on every film (WORKBUDDY, DASHBOARD, x:960 y:540).
 export const INTRINSIC_TEXT = [
-  'noise → image · denoising steps ·',
-  'pinned to the measured data',
+  'noise → image · denoising steps',
 ];
 
 export const DiffusionDenoise: React.FC<{src?: string; accent?: string; label?: string; credit?: string}> = ({
@@ -80,7 +79,8 @@ export const DiffusionDenoise: React.FC<{src?: string; accent?: string; label?: 
         {Array.from({length: 8}).map((_, i) => (
           <rect key={i} x={left + i * (S / 8)} y={top + S + 20} width={S / 8 - 6} height={6} rx={3}
             fill={i < step ? accent : spent} opacity={i < step ? 0.9 : 0.5} />))}
-        <text x={W / 2} y={top + S + 54} textAnchor="middle" fill={meta} fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">noise → image · denoising steps · <tspan fill={accent}>pinned to the measured data</tspan></text>
+        <text x={W / 2} y={top + S + 54} textAnchor="middle" fill={meta} fontSize="18" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)">noise → image · denoising steps</text>{/* it printed "pinned to the measured data" on every film — a claim about
+          the film's own method that is true only where the film says so (audit 2026-11-15, step 8) */}
       </svg>
       <div style={{position: 'absolute', left: 0, right: 0, top: 92, textAlign: 'center',
         color: ink, font: '700 40px/1.1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.01em',

@@ -58,8 +58,11 @@ export const InducedFID: React.FC<{accent?: string; accent2?: string; label?: st
     const u = (x - x0) / span, d = Math.exp(-u * 3.4) * (H * 0.24);
     envTop.push(`${x.toFixed(1)},${(midY - d).toFixed(1)}`); envBot.push(`${x.toFixed(1)},${(midY + d).toFixed(1)}`);
   }
-  // the read-out point (where the coil is currently sensing) + a small precessing spin above the coil
-  const spin = t * Math.PI * 6;
+  // the precessing spin above the coil IS the signal's source: the SAME phase as the trace at its read-out head, and an
+  // orbit shrinking with the SAME T2* envelope as the spins dephase. It turned 3 times (t * 6pi) while the trace it
+  // induces made 15 cycles, at a constant radius (audit 2026-11-15, step 8 — content accuracy)
+  const phase = reveal * cyc * Math.PI * 2;
+  const mag = Math.exp(-reveal * 3.4);
 
   const A = (o: number) => `${accent}${Math.round(clamp01(o) * 255).toString(16).padStart(2, '0')}`;
 
@@ -76,7 +79,7 @@ export const InducedFID: React.FC<{accent?: string; accent2?: string; label?: st
         {/* the receive COIL at the origin (a loop) + a precessing spin inducing the signal */}
         <ellipse cx={x0} cy={midY} rx={20} ry={40} fill="none" stroke={accent} strokeWidth={3} />
         <ellipse cx={x0} cy={midY} rx={11} ry={26} fill="none" stroke={accent} strokeWidth={2} opacity={0.6} />
-        <circle cx={x0 + Math.cos(spin) * 22} cy={midY - 78 + Math.sin(spin) * 8} r={7} fill={accent} />
+        <circle cx={x0 + Math.cos(phase) * 22 * mag} cy={midY - 78 - Math.sin(phase) * 8 * mag} r={7} fill={accent} />
         <text x={x0 - 6} y={midY + 74} fill={meta} fontSize="20" fontFamily="var(--f-body, Inter, sans-serif)" fontWeight={600}>coil</text>
         {/* labels */}
         <text x={x0 + span * 0.16} y={midY - H * 0.24 - 16} fill={accent} fontSize="19" fontFamily="var(--f-mono, 'JetBrains Mono', monospace)" letterSpacing="1">T2* decay</text>

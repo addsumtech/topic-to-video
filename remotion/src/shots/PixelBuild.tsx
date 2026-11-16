@@ -39,7 +39,8 @@ const GRID = [
 const PX = 46;
 
 export const PixelBuild: React.FC<{hud?: string; label?: string}> = ({
-  hud = 'SCORE 9999',label = 'WORDMARK · COMPLETE'} = {}) => {
+  // a HUD with no invented figure: 'SCORE 9999' printed a number on every film that kept the default (audit 2026-11-15)
+  hud = '1UP',label = 'WORDMARK · COMPLETE'} = {}) => {
   const t = useT();
   const glide = useGlide();
   const dna = useDNA();
