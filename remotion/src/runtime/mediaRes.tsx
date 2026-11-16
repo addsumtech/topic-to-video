@@ -9,7 +9,7 @@
 // Mounted only by the Film when `mediaRes` is set (Film.tsx), never imported by a register, so no register's source
 // hash moves because it exists.
 import React from 'react';
-import {continueRender, delayRender, useCurrentFrame} from 'remotion';
+import {useFrameCensus} from './frameCensus';
 
 export const MEDIA_RES_TAG = 'MEDIA-RES ';
 
@@ -140,33 +140,9 @@ export const censusObjects = (root: HTMLElement): ORow[] => {
 };
 
 export const MediaResAudit: React.FC = () => {
-  const frame = useCurrentFrame();
-  const ref = React.useRef<HTMLDivElement>(null);
-  React.useLayoutEffect(() => {
-    const handle = delayRender(`media-resolution census, frame ${frame}`, {timeoutInMilliseconds: 60000});
-    let released = false;
-    const release = () => {
-      if (!released) {
-        released = true;
-        continueRender(handle);
-      }
-    };
-    (async () => {
-      const host = ref.current;
-      if (host) {
-        // an image still decoding reports a natural size of 0 and would be skipped as if it were not there
-        await Promise.all(Array.from(host.ownerDocument.images).map((im) => im.decode().catch(() => null)));
-        await new Promise((res) => requestAnimationFrame(() => res(null)));
-      }
-      if (!released && ref.current) {
-        const rec = {...censusMedia(ref.current.ownerDocument.body, ref.current.getBoundingClientRect()),
-          o: censusObjects(ref.current.ownerDocument.body)};
-        // eslint-disable-next-line no-console
-        console.log(MEDIA_RES_TAG + JSON.stringify({f: frame, ...rec}));
-      }
-      release();
-    })();
-    return release;
-  }, [frame]);
+  // waits for every image to decode, as it always did (runtime/frameCensus)
+  const ref = useFrameCensus('media-resolution census', MEDIA_RES_TAG,
+    (host) => ({...censusMedia(host.ownerDocument.body, host.getBoundingClientRect()), o: censusObjects(host.ownerDocument.body)}),
+    {images: true});
   return <div ref={ref} style={{position: 'absolute', inset: 0, pointerEvents: 'none'}} />;
 };

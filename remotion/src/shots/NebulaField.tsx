@@ -12,6 +12,7 @@
 // THE COLOURS are the film's `colors` ([outer, inner]) or the declared emission lines (volumeCore.NEBULA_EMISSION:
 // H-alpha 656.3 nm, [O III] 500.7 nm, display approximations). No ITS OWN SOUND: a nebula is silent and slow.
 import React from 'react';
+import {useGlide} from '../runtime/glide';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, readableOn, mix} from '../runtime/dna';
@@ -37,6 +38,9 @@ export const NebulaField: React.FC<{
 }> = ({title = 'Where stars are born', kicker = '', note = '', colors, star, seed = 11} = {}) => {
   const dna = useDNA();
   const t = useT();
+  // the title rises on a fractional translate carrying the baseline unlock (runtime/glide): `Math.round` stepped it a
+  // whole pixel at a time (audit 2026-11-15)
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H), portrait = W < H;
   if (colors !== undefined && !(Array.isArray(colors) && colors.length >= 1 && colors.length <= 2 && colors.every(isHex))) {
@@ -81,7 +85,7 @@ export const NebulaField: React.FC<{
         {kicker ? <div style={{color: dna?.accent ?? c[1] ?? c[0], font: `600 ${kickPx}px/1.2 ${MONO}`, letterSpacing: '0.16em',
           textTransform: 'uppercase', marginBottom: kickPx * 0.6, opacity: tin}}>{kicker}</div> : null}
         <div style={{color: ink, font: `700 ${titlePx}px/1.1 ${DISPLAY}`, letterSpacing: '-0.01em', textWrap: 'balance',
-          opacity: tin, transform: `translateY(${Math.round((1 - tin) * U * 0.02)}px)`} as React.CSSProperties}>{title}</div>
+          opacity: tin, transform: glide(`translateY(${(1 - tin) * U * 0.02}px)`, true)} as React.CSSProperties}>{title}</div>
         {note ? <div style={{color: dim, font: `500 ${notePx}px/1.35 ${BODY}`, marginTop: U * 0.02, textWrap: 'balance',
           opacity: nin} as React.CSSProperties}>{note}</div> : null}
       </div>

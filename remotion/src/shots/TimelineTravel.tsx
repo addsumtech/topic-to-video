@@ -81,9 +81,11 @@ export const TimelineTravel: React.FC<{nodes?: {time: string; label: string}[]}>
           textAlign: 'center', font: `800 ${ghostPx}px/1 var(--f-display, Inter, system-ui, sans-serif)`, color: INK, opacity: o,
           letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums lining-nums', pointerEvents: 'none'}}>{n.time}</div> : null;
       }) : null}
+      {/* moved by a TRANSLATE carrying the unlock (runtime/glide): `left` is rounded to the pixel, so the world and every
+          label on it stepped as the camera travelled (audit 2026-11-15) */}
       {/* data-bleed: the WORLD travels past the frame — that is the shot. Stops already visited leave to the
           left and stops still ahead wait to the right; both are off-frame on purpose. */}
-      <div data-bleed style={{position: 'absolute', left: wx, top: 0, width: worldW, height: H}}>
+      <div data-bleed style={{position: 'absolute', left: 0, top: 0, width: worldW, height: H, transform: glide(`translateX(${wx}px)`, true)}}>
         {/* the rail: a dim base + a bright progress fill up to the camera */}
         <div style={{position: 'absolute', left: x0, top: railY - 3, width: worldW - x0 * 2, height: 6, background: RAIL, borderRadius: 3}} />
         <div style={{position: 'absolute', left: x0, top: railY - 3, width: Math.max(0, Math.min(worldW - x0 * 2, passedX - x0)), height: 6, background: ACCENT, borderRadius: 3,

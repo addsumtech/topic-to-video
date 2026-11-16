@@ -883,10 +883,17 @@ def _pick(cands, last_family, used, prefer=None, last_luma=None, soften=False, b
         cands = sorted(cands, key=lambda c: (FAMILY.get(c) not in prefer, order[c]))
     sets = {_TWIN_OF[u] for u in used if u in _TWIN_OF}
     twin = lambda c: c in used or _TWIN_OF.get(c) in sets
+    in_band = (lambda c: c in motion and band[0] <= motion[c] < band[1]) if (band and motion) else (lambda c: True)
     pool = ([c for c in cands if FAMILY.get(c) != last_family and not twin(c)]
             or [c for c in cands if FAMILY.get(c) != last_family and c not in used]
             or [c for c in cands if FAMILY.get(c) != last_family] or list(cands))
-    in_band = (lambda c: c in motion and band[0] <= motion[c] < band[1]) if (band and motion) else (lambda c: True)
+    # THE BEAT'S ENERGY OUTRANKS A TWIN: when no fresh candidate is in the beat's band, an unused TWIN that is takes
+    # the beat before an out-of-band one — a beat the plan declared low, cast with one of the library's liveliest,
+    # is a defect on screen; a second register of a look is only a repetition (shot_director TWINS, 2026-11-16)
+    if band and motion and not any(in_band(c) for c in pool):
+        spare = [c for c in cands if FAMILY.get(c) != last_family and c not in used and in_band(c)]
+        if spare:
+            pool = spare
     flips = (lambda c: _hard_flip(shot_luma(c), last_luma)) if (soften and last_luma is not None) else (lambda c: False)
     # `summit`: this is the PEAK beat, and the film's most kinetic register belongs on it — the liveliest
     # in-band candidate, not the first. Otherwise the summit lands wherever a medium beat happened to draw

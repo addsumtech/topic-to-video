@@ -2,77 +2,84 @@
   "_why": "Registers whose own content reaches into the band the renderer reserves for the burned caption, or past the action-safe border. Some are legitimately FULL-BLEED — a generative field's ground IS the frame, and a caption sits on that ground the way it sits on any other. TYPE is different: a title in the band is two pieces of copy drawn on top of each other, which is why `text` is measured separately and why any value at all counts. The fraction cannot see it: CardStack3D set its title wholly inside the band and measured 2.1%, under the threshold, while AuroraFlow's legitimate field measured 53%. Swept that way, 32 of 152 registers were placing copy in the band and none of them was in this file. Measured by scripts/band_debt.py --write on a standalone still of each register at its demo defaults, at the frame useT() calls SETTLED.",
   "_measured_against": "band/edge = ink FRACTIONS (thresholds shot_still_qa CAPTION_FRAC_ERR / EDGE_FRAC_ERR); band = captionBand(W,H) at 1920x1080 = 227px. `text` = px of the register's own TYPE reaching into that band, asked of the DOM (runtime/textSafe.tsx) — ANY value is debt. Rendered under dna=product, the themed path every delivered film uses.",
   "registers": {
-    "AsciiField": {
-      "band": 10.17,
-      "edge": 0.0,
-      "text": 39,
-      "says": "Z"
-    },
     "AuroraFlow": {
-      "band": 55.84,
+      "band": 5.22,
       "edge": 13.74
     },
     "CartoonPop": {
       "band": 100.0,
-      "edge": 2.38
-    },
-    "ComicPanels": {
-      "band": 38.01,
-      "edge": 0.0
+      "edge": 2.61
     },
     "FlowField": {
-      "band": 4.46,
+      "band": 4.91,
       "edge": 9.55
     },
     "FractureIn": {
-      "band": 5.21,
+      "band": 11.54,
       "edge": 0.0
     },
     "GameOfLife": {
-      "band": 11.5,
+      "band": 11.61,
       "edge": 12.63
     },
     "HalftonePop": {
-      "band": 18.76,
+      "band": 29.21,
       "edge": 35.82
     },
     "InOrder": {
       "band": 0.0,
-      "edge": 17.7
+      "edge": 17.65
     },
     "InfiniteCanvas": {
-      "band": 15.42,
-      "edge": 18.87
+      "band": 15.35,
+      "edge": 18.71
+    },
+    "KSpaceAnatomy": {
+      "band": 5.03,
+      "edge": 0.0
     },
     "LastLeg": {
-      "band": 0.02,
-      "edge": 33.99
+      "band": 0.0,
+      "edge": 36.0
+    },
+    "LitMedium": {
+      "band": 12.41,
+      "edge": 0.87
     },
     "MadeOf": {
       "band": 0.0,
-      "edge": 33.97
+      "edge": 33.86
     },
     "MaterialHero": {
-      "band": 11.14,
-      "edge": 3.28
+      "band": 6.99,
+      "edge": 0.0
+    },
+    "NebulaField": {
+      "band": 1.21,
+      "edge": 9.6
+    },
+    "PageWrite": {
+      "band": 0.0,
+      "edge": 98.17
     },
     "PaperCutout": {
       "band": 0.0,
       "edge": 8.31
     },
     "PixelBuild": {
-      "band": 42.56,
+      "band": 21.14,
       "edge": 0.0
     },
     "SwissEditorial": {
       "band": 0.0,
-      "edge": 4.81
-    },
-    "VersusSplit": {
-      "band": 62.84,
-      "edge": 41.63
+      "edge": 4.9
     }
   },
   "_regenerate": "python3 scripts/band_debt.py --write",
-  "_measured_at": "the frame useT() calls SETTLED (REDUCED_MOTION_T), derived per register from its own exported DURATION — the frame every visual gate reads"
+  "_measured_at": "the frame useT() calls SETTLED (REDUCED_MOTION_T), derived per register from its own exported DURATION — the frame every visual gate reads",
+  "_swept": {
+    "registers": 227,
+    "of": 227,
+    "why": "the rows below are the registers IN DEBT; this is how many were measured to find them, so a row that disappears can be told from one never looked at"
+  }
 }

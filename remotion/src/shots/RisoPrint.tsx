@@ -9,7 +9,7 @@ import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic} from '../runtime/mo
 import {leading} from '../runtime/cjkType';
 import {useDNA} from '../runtime/dna';
 import {lumValue} from '../runtime/shotLuma';
-import {bottomInset} from '../runtime/layout';
+import {bottomInset, fitTextPx} from '../runtime/layout';
 import {useGlide} from '../runtime/glide';
 
 export const DURATION = 145; // ~4.8s
@@ -70,7 +70,7 @@ export const RisoPrint: React.FC<{title?: string; tagline?: string}> = ({
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, 210), textAlign: 'center', opacity: tagIn,
         transform: glide(`translateY(${(1 - tagIn) * 12}px)`, true), color: tagC,
-        font: '700 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.22em', textTransform: 'uppercase'}}>{TAG}</div>
+        font: `700 ${fitTextPx(String(TAG), W, Math.round(34 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.22})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.22em', textTransform: 'uppercase'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

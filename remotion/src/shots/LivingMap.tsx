@@ -97,14 +97,18 @@ export const LivingMap: React.FC<{nodes?: MapNode[]; edges?: GEdge[]; before?: s
   const nodeOn = (id: string) => (shownBefore.has(id) ? 1 : shownAfter.has(id) ? easeOutBack(clamp01(seg(t, win[id][0], win[id][1]))) : 0);
   const lit = (id: string) => lerp(fFrom.includes(id) ? 1 : 0, fTo.includes(id) ? 1 : 0, move);
   const scale = cam.s * k;
-  const labelPx = LABEL_WORLD * scale;
   // ONE label size for the whole map: the size at which every label fits its box (per-node fitting made a short word
   // larger than its neighbours)
   // a NOTE is secondary: it shows only while the camera is close enough for it to fit its box at the type floor, fading
   // across the threshold (in the whole-map view a node is too small to hold one, and it overflowed)
   const floorPx = Math.round(U * 0.028);
   const noteFits = (note: string, w: number) => clamp01((fitTextPx(note, w * 0.9, floorPx * 2) / floorPx - 0.97) / 0.06);
-  const nodePx = Math.max(Math.round(U * 0.028), Math.min(labelPx, ...nodes.map((n) => fitTextPx(n.label, NODE_W * scale * 0.86, labelPx))));
+  // NODES ARE LAID OUT ONCE, at the larger of the beat's two camera scales (so a transform only ever shrinks them), and
+  // the camera's zoom reaches them as a transform: their box and label size used to be recomputed from the live scale
+  // every frame, so the labels re-laid-out and snapped a pixel at a time as the camera moved (audit 2026-11-15)
+  const sRef = Math.max(blendCam(c0, c1, 0, wz).s, blendCam(c0, c1, 1, wz).s) * k;
+  const labelRef = LABEL_WORLD * sRef;
+  const nodePx = Math.max(Math.round(U * 0.028), Math.min(labelRef, ...nodes.map((n) => fitTextPx(n.label, NODE_W * sRef * 0.86, labelRef))));
 
   return (
     <AbsoluteFill style={{background: dna ? `radial-gradient(100% 90% at 50% 40%, ${mix(BG, ACC, 0.06)}, ${BG} 72%)` : BG}}>
@@ -142,7 +146,8 @@ export const LivingMap: React.FC<{nodes?: MapNode[]; edges?: GEdge[]; before?: s
         const on = nodeOn(n.id);
         if (on <= 0) return null;
         const p = placed[n.id], c = S(p.x, p.y), L = lit(n.id);
-        const w = NODE_W * scale, h = NODE_H * scale;
+        const w = NODE_W * scale;                                    // its size on screen now (the edge fade)
+        const wR = NODE_W * sRef, hR = NODE_H * sRef, z = scale / sRef;  // its layout, and the zoom that reaches it
         // A NODE THE CAMERA HAS LEFT BEHIND fades out before it reaches the frame's edge and is not drawn across it: a
         // label half off the frame read as broken ("our receiver" on the test film, text_safe_qa CUT OFF)
         const room = Math.min(c.x - w / 2, W - (c.x + w / 2));
@@ -150,16 +155,19 @@ export const LivingMap: React.FC<{nodes?: MapNode[]; edges?: GEdge[]; before?: s
         if (edgeFade <= 0.01) return null;
         const px = nodePx;
         return (
-          <div key={n.id} style={{position: 'absolute', left: c.x - w / 2, top: c.y - h / 2, width: w, height: h, boxSizing: 'border-box',
+          <div key={n.id} style={{position: 'absolute', left: 0, top: 0, width: wR, height: hR, boxSizing: 'border-box',
             opacity: clamp01(on * 1.3) * edgeFade * (1 - 0.35 * (1 - L) * (fTo.length < after.length ? 1 : 0)),
-            transform: glide(`scale(${lerp(0.85, 1, on)})`, true), transformOrigin: 'center',
-            borderRadius: 18 * scale, border: `${Math.max(1.5, (2 + 2 * L) * scale)}px solid ${mix(EDGE, ACC, 0.2 + 0.8 * L)}`,
+            transform: glide(`translate(${c.x}px, ${c.y}px) scale(${z * lerp(0.85, 1, on)}) translate(${-wR / 2}px, ${-hR / 2}px)`, true),
+            transformOrigin: '0 0',
+            borderRadius: 18 * sRef, border: `${Math.max(1.5, (2 + 2 * L) * sRef)}px solid ${mix(EDGE, ACC, 0.2 + 0.8 * L)}`,
             background: `linear-gradient(160deg, ${mix(SURF, ACC, 0.06 + 0.14 * L)}, ${mix(SURF, BG, 0.35)})`,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-            boxShadow: `0 ${12 * scale}px ${30 * scale}px #0006`}}>
+            boxShadow: `0 ${12 * sRef}px ${30 * sRef}px #0006`}}>
             <div style={{color: FG, font: `700 ${px}px/${leading(n.label, 1.1)} ${DISPLAY}`, whiteSpace: 'nowrap'}}>{n.label}</div>
-            {n.note && noteFits(n.note, w) > 0 ? <div style={{color: mix(DIM, FG, 0.3), marginTop: 4 * scale, whiteSpace: 'nowrap',
-              opacity: noteFits(n.note, w), font: `500 ${floorPx}px/1.1 var(--f-body, Inter, system-ui, sans-serif)`}}>{n.note}</div> : null}
+            {/* the note is set at the type floor in the laid-out box: it shows while it fits that box AND the zoom keeps
+                it at or above the floor on screen, fading across that threshold as before */}
+            {n.note && noteFits(n.note, wR) * clamp01((z - 0.97) / 0.06) > 0 ? <div style={{color: mix(DIM, FG, 0.3), marginTop: 4 * sRef, whiteSpace: 'nowrap',
+              opacity: noteFits(n.note, wR) * clamp01((z - 0.97) / 0.06), font: `500 ${floorPx}px/1.1 var(--f-body, Inter, system-ui, sans-serif)`}}>{n.note}</div> : null}
           </div>
         );
       })}

@@ -1247,8 +1247,9 @@ def scan_film_glide(out_dir, concurrency=None):
         errors.append("scene %02d (%s): SWAY — %r swings %.0f px back and forth, frames %d-%d, and does not settle — an "
                       "idle float or breathing camera reads as the frame shaking; hold it still once it has landed"
                       % (labels[k], shots[k], (r["t"] or "")[:40], r["swing"], r["a"], r["b"]))
-    # TYPE CUT OFF WHILE IT IS READ — ADVISORY until it has run clean across the corpus (the audit's step 4 makes it
-    # refuse). On WorkBuddy it found the sidebar and task titles a camera push held under the window's edge.
+    # TYPE CUT OFF WHILE IT IS READ — an ERROR since the audit's step 4 (2026-11-16): across the corpus it read 0 on ANC,
+    # slide-maker v2 and WorkBuddy v3, and on WorkBuddy 15, each confirmed on its frame — a camera push holding the
+    # sidebar and task titles under the window's edge ("nnectors", "e market data"). A designed ellipsis stays a warning.
     for r in judge_cut_while_read(res["frames"]):
         k = beat_of(r["a"])
         if r.get("ellipsis"):
@@ -1256,7 +1257,7 @@ def scan_film_glide(out_dir, concurrency=None):
                          "frames %d-%d; fine for a UI row, not for a line the voice reads" % (
                              labels[k], shots[k], (r["t"] or "")[:40], round(r["v"] * 100), r["a"], r["b"]))
             continue
-        warns.append("scene %02d (%s): CUT WHILE READ (advisory) — %r is readable with only %d%% of it visible, frames "
+        errors.append("scene %02d (%s): CUT WHILE READ — %r is readable with only %d%% of it visible, frames "
                      "%d-%d: a clip, its container or the frame edge cuts it; widen the box, move it in, or let it "
                      "leave the frame instead of resting cut" % (labels[k], shots[k], (r["t"] or "")[:40],
                                                                  round(r["v"] * 100), r["a"], r["b"]))
@@ -1415,7 +1416,7 @@ def main_promo(argv):
         errors.append("SWAY — %r swings %.0f px back and forth, frames %d-%d, and does not settle"
                       % ((r["t"] or "")[:40], r["swing"], r["a"], r["b"]))
     for r in judge_cut_while_read(res["frames"]):
-        warns.append("CUT WHILE READ (advisory) — %r readable with only %d%% of it visible, frames %d-%d"
+        errors.append("CUT WHILE READ — %r readable with only %d%% of it visible, frames %d-%d"
                      % ((r["t"] or "")[:40], round(r["v"] * 100), r["a"], r["b"]))
     for e in errors:
         print("[text_safe] ERROR %s" % e)

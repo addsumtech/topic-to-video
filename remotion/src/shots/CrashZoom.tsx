@@ -85,7 +85,9 @@ export const CrashZoom: React.FC<{items?: string[]; label?: string; target?: num
   const fit = Math.min(W * 0.80 / tw, (zoneBot - zoneTop) * 0.88 / th) / OVERSHOOT;
 
   const z = easeInOutCubic(seg(t, 0.34, 0.74));               // the punch
-  const over = 1 + (OVERSHOOT - 1) * easeOutBack(clamp01(seg(t, 0.68, 0.82))) * (1 - clamp01(seg(t, 0.82, 0.95)));
+  // the punch LANDS and stays: it overshot (easeOutBack) and relaxed back out, a zoom in and back (audit 2026-11-15).
+  // `fit` is already divided by OVERSHOOT, so the landed scale is the largest that fits the zone
+  const over = 1 + (OVERSHOOT - 1) * easeOutCubic(clamp01(seg(t, 0.68, 0.82)));
   const scale = lerp(1, fit, z) * over;
   // Scale about the target centre, then dolly that centre to the content-zone centre.
   const dx = lerp(0, W / 2 - tcx, z), dy = lerp(0, cy - tcy, z);

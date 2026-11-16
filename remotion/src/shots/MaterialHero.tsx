@@ -87,7 +87,9 @@ const pxPerUnit = (W: number, H: number) => {
   const d = Math.hypot(cam[0] - AIM[0], cam[1] - AIM[1], cam[2] - AIM[2]);
   return W / 2 / (d * tanW);
 };
-const YAW = (frame: number) => Math.sin(frame * 0.0075) * 0.20;   // a slow settle, not a turntable spin
+// a slow settle, not a turntable spin — and ONE way: a sine of the absolute frame turned back after 209 frames, so a long
+// beat swung the object round and back (audit 2026-11-15). Held at its quarter period: the same curve, then still.
+const YAW = (frame: number) => Math.sin(Math.min(frame * 0.0075, Math.PI / 2)) * 0.20;
 
 /** Each arc's arrival, staggered so the eye can follow one piece at a time. */
 const seatAt = (t: number, i: number, n: number) =>

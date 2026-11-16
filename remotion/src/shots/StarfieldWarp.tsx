@@ -37,6 +37,18 @@ export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?:
   const speed = easeInOutCubic(clamp01(seg(t, 0.05, 0.62)));       // accelerate then hold
   const decel = clamp01(seg(t, 0.66, 0.9));                        // slow into the reveal
   const warp = speed * (1 - 0.7 * decel);
+  // HOW FAR THE STARS HAVE TRAVELLED is the integral of the speed, not the speed: the radius used to be `warp * 1.4`,
+  // so when the ship slowed into the reveal every star streamed BACK toward the centre (a rewind, audit 2026-11-15).
+  // A fixed 64-step midpoint sum over [0, t] — deterministic, and monotone because the speed is never negative.
+  const travelled = (() => {
+    const steps = 64, dt = t / steps;
+    let acc = 0;
+    for (let k = 0; k < steps; k++) {
+      const u = (k + 0.5) * dt;
+      acc += easeInOutCubic(clamp01(seg(u, 0.05, 0.62))) * (1 - 0.7 * clamp01(seg(u, 0.66, 0.9))) * dt;
+    }
+    return acc * 2.6;   // ~ the old peak displacement (1.4 at full speed) reached by the end of the acceleration
+  })();
   const flash = Math.sin(clamp01(seg(t, 0.6, 0.78)) * Math.PI);    // white core bloom at peak
   const titleIn = easeOutCubic(seg(t, 0.72, 0.92));
   const maxR = Math.hypot(cx, cy) * 1.1;
@@ -53,7 +65,7 @@ export const StarfieldWarp: React.FC<{title?: string; tagline?: string; accent?:
         {[...Array(N)].map((_, i) => {
           const ang = hash01(i * 2.3) * Math.PI * 2;
           const seed = 0.02 + hash01(i * 5.1) * 0.98;
-          const rr = ((seed + warp * 1.4) % 1);                    // looping radius so stars keep streaming
+          const rr = ((seed + travelled) % 1);                     // looping radius so stars keep streaming OUTWARD
           const r = rr * maxR;
           const trail = (40 + warp * 260) * (0.3 + rr);            // longer streaks at higher speed / outer
           const x2 = cx + Math.cos(ang) * r, y2 = cy + Math.sin(ang) * r;

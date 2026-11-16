@@ -1,5 +1,6 @@
 import React from 'react';
 import {AbsoluteFill, Composition, useVideoConfig} from 'remotion';
+import {DnaTypeVars} from './runtime/dnaTypeVars';
 import {Device, deviceGeometry} from './runtime/device';
 import {TextSafeAudit, TypeGlideAudit} from './runtime/textSafe';
 import {TitleProbe, TitleProbeFixture} from './runtime/titleProbe';
@@ -526,7 +527,8 @@ const DnaPreview: React.FC<{C: React.FC<any>; p: Record<string, unknown>}> = ({C
   if (!active) return shot;
   return (
     <DesignDNAContext.Provider value={active}>
-      <style>{`.dna-film { --f-display: ${active.fontDisplay}; --f-body: ${active.fontBody}; --f-mono: ${active.fontMono}; }`}</style>
+      {/* the film's own type rules (runtime/dnaTypeVars): autospace on, as a film's is unless meta.cjk_autospace is false */}
+      <DnaTypeVars dna={active} autospace={(p as {autospace?: unknown}).autospace !== false} />
       <AbsoluteFill className="dna-film" style={{background: active.bgGrad ?? active.bg}}>{shot}</AbsoluteFill>
     </DesignDNAContext.Provider>
   );

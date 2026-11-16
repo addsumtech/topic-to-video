@@ -58,7 +58,9 @@ def test_cjk_latin_spacing_is_on_for_the_beats_and_not_for_the_caption(tmp_path)
     type by hand or forget (`normal`: the only value this Chrome accepts — `ideograph-alpha` was measured as refused). The caption is OUTSIDE `.dna-film`: its lines are broken by a canvas measure that knows
     nothing of the gap, so a caption under it could wrap a line the measure said fits."""
     film = open(os.path.join(ROOT, "remotion", "src", "Film.tsx"), encoding="utf-8").read()
-    assert re.search(r"\.dna-film \{ text-autospace: normal; \}", film), "no autospace on the beats"
+    tv = open(os.path.join(ROOT, "remotion", "src", "runtime", "dnaTypeVars.tsx"), encoding="utf-8").read()
+    assert re.search(r"\.dna-film \{ text-autospace: normal; \}", tv), "no autospace rule"
+    assert "{autospace ? <DnaTypeVars dna={null} autospace /> : null}" in film, "no autospace on the beats"
     cap = film.index("<CaptionTrack")
     root = film.index('className="dna-film"')
     close = film.index("</AbsoluteFill>", film.index("</TransitionSeries>"))

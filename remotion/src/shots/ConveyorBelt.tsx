@@ -50,7 +50,9 @@ export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel
   const titleFont = dna?.fontMono ?? '"JetBrains Mono", monospace', titleCol = dna?.dim ?? '#aeb6ca';
   const beltBorder = dna?.surfaceBorder ?? '#262c40', treadCol = dna?.line ?? '#2a3048';
   const beltY = H / 2 + 60, beltH = 176, cx = W / 2;
-  const treadOff = (t * 1400) % 64;
+  // the tread runs the way the cards ride, at their speed (0.85 of the run per beat): it ran LEFT at 1400 px under cards
+  // moving right — a belt going backwards under its own load (audit 2026-11-15). The pattern repeats every 64 px.
+  const treadOff = ((t * 0.85 * (W + 440)) % 64 + 64) % 64;
   const titleIn = easeOutCubic(seg(t, 0.03, 0.16));
   const n = ITEMS.length;
   // items flow continuously; each card's centre x sweeps across the full width
@@ -75,8 +77,8 @@ export const ConveyorBelt: React.FC<{items?: string[]; title?: string; doneLabel
       <div style={{position: 'absolute', left: -20, top: beltY, width: W + 40, height: beltH, borderRadius: 14,
         background: 'linear-gradient(#1b1f2e, #10131d)', border: `1px solid ${beltBorder}`, overflow: 'hidden'}}>
         <svg width={W + 40} height={beltH}>
-          {[...Array(Math.ceil((W + 40) / 64) + 1)].map((_, i) => (
-            <line key={i} x1={i * 64 - treadOff} y1={0} x2={i * 64 - treadOff} y2={beltH} stroke={treadCol} strokeWidth={6} />
+          {[...Array(Math.ceil((W + 40) / 64) + 2)].map((_, i) => (
+            <line key={i} x1={(i - 1) * 64 + treadOff} y1={0} x2={(i - 1) * 64 + treadOff} y2={beltH} stroke={treadCol} strokeWidth={6} />
           ))}
         </svg>
       </div>

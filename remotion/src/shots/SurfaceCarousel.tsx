@@ -128,7 +128,9 @@ export const SurfaceCarousel: React.FC<{
   // Upright, pitch < panel width so neighbours' edges always overlap the frame. Standing up, the pitch has to
   // clear the pill as well, or every label lands on the window above it.
   const SP = Math.round(vert ? panelH + pillH * 0.75 + gap : panelW * 0.92);
-  const RING = SP * n;
+  // at least three slots: with two panels the ±RING/2 window is ±SP, so a panel at the edge teleported to the other
+  // edge in view (audit 2026-11-15); an empty slot keeps the wrap off-frame, as it is for three
+  const RING = SP * Math.max(n, 3);
 
   // The track: three eased steps, the first blended with a slower curve so 15% of its travel arrives late.
   // `seg` returns a RAW 0→1 ramp and takes no easing — the curve is applied around it. Written the other way

@@ -19,6 +19,8 @@ import {captionBandBare, CAPTION_SIZE_FRAC, CAPTION_MARGIN_FRAC, CAPTION_LINES,
 import {ObjectIdleContext} from './runtime/objectSlot';
 import {SceneDurationContext, ReducedMotionContext, clamp01, SEAM_FRAMES,
         easeOutCubic, setStyleEase, PictureLeadContext} from './runtime/motion';
+import {rawEaseOutCubic} from './runtime/rawEase';
+import {DnaTypeVars} from './runtime/dnaTypeVars';
 import {NarrationContext} from './runtime/voice';
 import {CueContext, warpFrame} from './runtime/cue';
 import {PlateClock} from './runtime/blenderPlate';
@@ -902,7 +904,7 @@ const ThroughDarkPresentation = ({presentationProgress: p, presentationDirection
   const raw = isEnter
     ? interpolate(p, [1 - FLIGHT_CROSS, 1], [0, 1], c)
     : interpolate(p, [0, FLIGHT_CROSS], [0, 1], c);
-  const q = isEnter ? easeOutCubic(raw) : raw * raw * raw;
+  const q = isEnter ? rawEaseOutCubic(raw) : raw * raw * raw;   // a seam is the film's, never the style's (rawEase)
   const bright = isEnter ? q : 1 - q;
   const scale = isEnter ? FLIGHT_TOWARD + (1 - FLIGHT_TOWARD) * q : 1 + (FLIGHT_AWAY - 1) * q;
   // brightness() is a colour filter: it passes an unlock written beside it through to the glyphs
@@ -944,7 +946,7 @@ const PortalPresentation = ({presentationProgress: p, presentationDirection, chi
   // because the centre sits above the middle. Measured rather than assumed — a radius taken from the frame
   // centre leaves an uncovered sliver along the bottom edge at 9:16.
   const far = Math.hypot(Math.max(W - W / 2, W / 2), Math.max(H - cy, cy));
-  const r = easeOutCubic(p) * far;
+  const r = rawEaseOutCubic(p) * far;
   const glide = useGlide();
   if (!isEnter) {
     // The leaving beat holds its light until the aperture has taken most of the frame; a long fade under an
@@ -1761,15 +1763,14 @@ export const Film: React.FC<{scenes?: SceneSpec[]; camera?: number; cameraBed?: 
           unset, the original list applies, and the frame is pixel-identical to before this layer
           existed (scripts/null_dna_pixel_gate.py proves it on real renders). A uniformType DNA's
           `!important` rule below still wins, so terminal is unchanged. */}
-      {activeDna ? <style>{`.dna-film { --f-display: ${activeDna.fontDisplay}; --f-body: ${activeDna.fontBody}; --f-mono: ${activeDna.fontMono}; }`}</style> : null}
-      {activeDna?.uniformType ? <style>{`.dna-film, .dna-film * { font-family: ${activeDna.fontMono} !important; }`}</style> : null}
+      <DnaTypeVars dna={activeDna} />
       {/* THE GAP BETWEEN HAN AND LATIN OR DIGITS, set by the browser (Chrome's text-autospace): 手机的GPS reads 手机的 GPS
           without the author typing the space — about an eighth of an em, the spacing W3C's Chinese layout requirements
           (clreq) ask for between Han and Western letters and numerals. `normal` is the only value this Chrome accepts
           (measured: `ideograph-alpha` is refused, and a refused value silently does nothing). On the beats only — the
           caption sits outside .dna-film, and its lines are broken by a canvas measure that knows nothing of the gap.
           `autospace: false` (meta.cjk_autospace) leaves it out. */}
-      {autospace ? <style>{`.dna-film { text-autospace: normal; }`}</style> : null}
+      {autospace ? <DnaTypeVars dna={null} autospace /> : null}
       {/* ISOLATED WHILE A CONTAINER IS ON SCREEN, and only then: a container's copy is lifted over both beats with a
           z-index (seams.tsx), and without a stacking context of its own here it would rise over the caption and the
           finish too. Every other frame carries no isolation, so it draws exactly what it drew before. */}

@@ -3,6 +3,7 @@
 // (family M · glitch/digital-decay). Deterministic (head y = fn of t; glyphs from a hash-stepped charset).
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
@@ -57,10 +58,10 @@ export const CodeRain: React.FC<{title?: string; tagline?: string}> = ({
       <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(38% 34% at 50% 50%, #02060388, #0000 72%)'}} />
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: '#eafff4',
-          font: '800 130px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
+          font: `800 ${fitTextPx(String(TITLE), W, Math.round(130 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em',
           textShadow: `0 0 40px ${GREEN}, 0 12px 40px #000`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: GREEN,
-          font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em', textShadow: `0 0 16px ${GREEN}`}}>{TAG}</div>
+          font: `600 ${fitTextPx(String(TAG), W, Math.round(30 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.2})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.2em', textShadow: `0 0 16px ${GREEN}`}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

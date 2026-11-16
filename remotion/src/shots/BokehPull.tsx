@@ -3,6 +3,7 @@
 // storytelling, distinct from FocalIsolation's UI blur. Deterministic (drift + focus = fn of t/frame).
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, hash01, radians} from '../runtime/motion';
 import {leading} from '../runtime/cjkType';
@@ -63,10 +64,10 @@ export const BokehPull: React.FC<{title?: string; tagline?: string}> = ({title =
       {/* the resolving wordmark */}
       <AbsoluteFill style={{display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column'}}>
         <div style={{filter: `blur(${wordBlur}px)`, opacity: wordOp, color: '#f4f8ff',
-          font: `800 190px/${leading(title, 0.92)} var(--f-display, "Playfair Display", Georgia, serif)`, letterSpacing: '-0.01em',
+          font: `800 ${fitTextPx(String(title), W, Math.round(190 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.01})}px/${leading(title, 0.92)} var(--f-display, "Playfair Display", Georgia, serif)`, letterSpacing: '-0.01em',
           textShadow: '0 20px 80px #000'}}>{title}</div>
         <div style={{marginTop: 24, filter: `blur(${wordBlur * 0.5}px)`, opacity: clamp01(seg(t, 0.62, 0.84)),
-          color: '#9fb2cc', font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.4em', paddingLeft: '0.4em'}}>{tagline}</div>
+          color: '#9fb2cc', font: `600 ${fitTextPx(String(tagline), W, Math.round(32 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.4})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.4em', paddingLeft: '0.4em'}}>{tagline}</div>
       </AbsoluteFill>
 
       {/* lens vignette */}

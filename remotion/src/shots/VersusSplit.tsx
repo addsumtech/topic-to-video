@@ -15,6 +15,7 @@
 // to four with `.slice(0, 4)`, silently dropping the film's fifth attribute — more than four now throws.
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutExpo, easeOutCubic} from '../runtime/motion';
 import {useDNA, dnaPalette, mix, shade, tint, separated, separatedPair, readableOn, readableOnAll, dimOn, TONE_MIN_STEP} from '../runtime/dna';
@@ -62,6 +63,9 @@ const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone:
   t: number; base: number; ground: string; themed: boolean}> = ({
   side, enter, align, tone, win, t, base, ground, themed}) => {
   const glide = useGlide();
+  const {width: W, height: H} = useVideoConfig();
+  // the side's name FITS its half, inside the 130 px padding (it was 92 px whatever its length)
+  const labelPx = fitTextPx(String(side.label), W / 2 - 130 - Math.round(W * 0.03), Math.round(92 * Math.min(W, H) / 1080), {usable: 1, track: -0.03});
   // The EFFECTIVE ground, not the half. A winning panel paints `${tone}2e` over its own half — 18% of the
   // accent — and the text sits on that composite, which is lighter than the half it was picked against.
   // Measured: picking ink from the half alone left the right column at 2.63:1 after the halves were
@@ -88,7 +92,7 @@ const Panel: React.FC<{side: Side; enter: number; align: 'left' | 'right'; tone:
     display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: align === 'left' ? '0 0 0 130px' : '0 130px 0 0',
     alignItems: align === 'left' ? 'flex-start' : 'flex-end',
     background: win ? `linear-gradient(${align === 'left' ? 105 : 255}deg, ${tone}2e, #0000 70%)` : 'transparent'}}>
-    <div style={{color: strong, font: '800 92px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
+    <div style={{color: strong, font: `800 ${labelPx}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em',
       textShadow: win ? `0 0 40px ${tone}88` : 'none'}}>{side.label}</div>
     <div style={{marginTop: 30, display: 'flex', flexDirection: 'column', gap: 18,
       alignItems: align === 'left' ? 'flex-start' : 'flex-end'}}>
@@ -184,7 +188,7 @@ export const VersusSplit: React.FC<{left?: Side; right?: Side; winner?: number |
         boxShadow: onLight(dna) ? `0 0 18px ${mix(FG, BG, 0.62)}` : '0 0 30px #000'}} />
 
       <div style={{position: 'absolute', top: 54, left: 0, right: 0, textAlign: 'center', opacity: titleIn, zIndex: 5,
-        color: titleInk, font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
+        color: titleInk, font: `700 ${fitTextPx(String(TITLE), W, Math.round(30 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.3})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em', textTransform: 'uppercase'}}>{TITLE}</div>
 
       <Panel side={LEFT} enter={lEnter} align="left" tone={toneL} win={WINNER === 0} t={t} base={0.5} ground={halfL} themed={Boolean(dna)} />
       <Panel side={RIGHT} enter={rEnter} align="right" tone={toneR} win={WINNER === 1} t={t} base={0.56} ground={halfR} themed={Boolean(dna)} />

@@ -11,6 +11,7 @@
 // THE COLOUR is the film's `color`, else the DNA's accent warmed toward daylight — never a hue picked for the look.
 // ITS OWN SOUND (runtime/sound.ts): `breakAt` makes a `swell` as the light comes through. No breakAt, no sound.
 import React from 'react';
+import {useGlide} from '../runtime/glide';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, easeInOutCubic} from '../runtime/motion';
 import {useDNA, readableOn, mix} from '../runtime/dna';
@@ -46,6 +47,9 @@ export const LightShafts: React.FC<{
 }> = ({title = 'A gap is enough', kicker = '', note = '', occluder = 'clouds', source, color, breakAt, seed = 5} = {}) => {
   const dna = useDNA();
   const t = useT();
+  // the title rises on a fractional translate carrying the baseline unlock (runtime/glide): `Math.round` stepped it a
+  // whole pixel at a time (audit 2026-11-15)
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H), portrait = W < H;
   if (!(OCCLUDERS as readonly string[]).includes(occluder)) {
@@ -87,7 +91,7 @@ export const LightShafts: React.FC<{
         {kicker ? <div style={{color: dna?.accent ?? light, font: `600 ${kickPx}px/1.2 ${MONO}`, letterSpacing: '0.16em',
           textTransform: 'uppercase', marginBottom: kickPx * 0.6, opacity: tin}}>{kicker}</div> : null}
         <div style={{color: ink, font: `700 ${titlePx}px/1.1 ${DISPLAY}`, letterSpacing: '-0.01em', textWrap: 'balance',
-          opacity: tin, transform: `translateY(${Math.round((1 - tin) * U * 0.02)}px)`} as React.CSSProperties}>{title}</div>
+          opacity: tin, transform: glide(`translateY(${(1 - tin) * U * 0.02}px)`, true)} as React.CSSProperties}>{title}</div>
         {note ? <div style={{color: dim, font: `500 ${notePx}px/1.35 ${BODY}`, marginTop: U * 0.02, textWrap: 'balance',
           opacity: nin} as React.CSSProperties}>{note}</div> : null}
       </div>

@@ -81,7 +81,9 @@ export const fitDistanceMulti = (
     const cam = at(aim, u, d);
     for (const g of groups) {
       const b = screenBounds(g.pts, cam, aim, fovDeg, W, H);
-      if (!b || b.x0 < g.box.left || b.x1 > g.box.right || b.y0 < g.box.top || b.y1 > g.box.bottom) return false;
+      // POSITIVE comparisons: a NaN bound (a degenerate projection) must read as NOT fitting — the negated form
+      // `b.x0 < left || ...` is false for NaN, so it "fitted" (audit 2026-11-15, step 6)
+      if (!(b && b.x0 >= g.box.left && b.x1 <= g.box.right && b.y0 >= g.box.top && b.y1 <= g.box.bottom)) return false;
     }
     return true;
   };
@@ -96,30 +98,11 @@ export const fitDistanceMulti = (
   return hi;
 };
 
+/** One group — `fitDistanceMulti` with a single box (it kept a copy of the same search, and the two compared
+ *  differently: see the NaN note there). */
 export const fitDistance = (
   pts: Vec3[], aim: Vec3, dir: Vec3, fovDeg: number, W: number, H: number, box: FitBox, d0: number,
-): number => {
-  if (!(box.right > box.left && box.bottom > box.top)) {
-    throw new Error(`fitCamera: the box has no area (left ${box.left} right ${box.right} top ${box.top} ` +
-      `bottom ${box.bottom}). A shot given no room to draw in cannot be framed, and silently returning some ` +
-      'distance would hide whichever reservation grew past the frame.');
-  }
-  if (!pts.length) throw new Error('fitCamera: nothing to frame — `pts` is empty.');
-  const u = norm(dir);
-  const fits = (d: number) => {
-    const b = screenBounds(pts, at(aim, u, d), aim, fovDeg, W, H);
-    return !!b && b.x0 >= box.left && b.x1 <= box.right && b.y0 >= box.top && b.y1 <= box.bottom;
-  };
-  if (fits(d0)) return d0;
-  let hi = d0;
-  for (let i = 0; i < 48 && !fits(hi); i++) hi *= 1.2;
-  let lo = d0;
-  for (let i = 0; i < 26; i++) {
-    const mid = (lo + hi) / 2;
-    if (fits(mid)) hi = mid; else lo = mid;
-  }
-  return hi;
-};
+): number => fitDistanceMulti([{pts, box}], aim, dir, fovDeg, W, H, d0);
 
 /**
  * Distance AND position: fit, then slide the rig sideways so the object sits in the MIDDLE of the box it is

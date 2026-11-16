@@ -7,7 +7,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, contrastOf, mix, readableOnAll} from '../runtime/dna';
 import {ACCENT_CONTRAST_MIN, onLight} from '../runtime/light';
-import {bottomInset} from '../runtime/layout';
+import {bottomInset, fitTextPx} from '../runtime/layout';
 import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
@@ -47,6 +47,8 @@ export const ClothWave: React.FC<{title?: string; tagline?: string; accent?: str
   const slope = (x: number, r: number) => (wave(x + 20, r) - wave(x - 20, r)) / 40; // for sheen
   const titleIn = easeOutCubic(seg(t, 0.4, 0.66));
   const letters = TITLE.split('');
+  // the wordmark FITS the width it ships at (it was 150 px whatever its length or the frame)
+  const markPx = fitTextPx(String(TITLE), W, Math.round(150 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03});
   // The wordmark rides the SILK, never the ground, and white is right on this register's own silk on either
   // ground. It is KEPT while it clears the ink floor against both ends of the fabric and re-picked from the
   // film's own two inks only when a film hands the register a pale silk of its own — `readableOnAll`
@@ -91,7 +93,7 @@ export const ClothWave: React.FC<{title?: string; tagline?: string; accent?: str
             // the ripple never stops (it is the register's whole point), so each letter carries the unlock for
             // the whole beat rather than a span that would have to end on motion that does not
             return <span key={i} style={{display: 'inline-block', transform: glide(`translateY(${dy}px)`, true),
-              color: titleInk, font: '900 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
+              color: titleInk, font: `900 ${markPx}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em',
               // the drop stays literal: the wordmark is always ON the silk, so this shadow always falls on
               // fabric and never on the page, whichever way the film's ground goes
               textShadow: '0 8px 30px #000a'}}>{ch}</span>;
@@ -100,7 +102,7 @@ export const ClothWave: React.FC<{title?: string; tagline?: string; accent?: str
       </AbsoluteFill>
       <div style={{position: 'absolute', bottom: bottomInset(W, H, 120), left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.62, 0.84)), color: tagInk, ...tagCarve,
-        font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>{TAG}</div>
+        font: `600 ${fitTextPx(String(TAG), W, Math.round(30 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.2})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.2em'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

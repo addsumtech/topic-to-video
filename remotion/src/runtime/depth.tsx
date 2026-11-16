@@ -20,8 +20,10 @@
 // belongs in neither this file nor the film.
 
 import React from 'react';
+import {facesLoaded} from './kineticDom';
 import {continueRender, delayRender, Freeze, useVideoConfig} from 'remotion';
 import {useT, ReducedMotionContext, SceneDurationContext, clamp01, easeInOutCubic, hash01} from './motion';
+import {rawEaseInOutCubic} from './rawEase';
 import {SETTLED_T} from './teaser';
 import {CONTENT_TOP, contentBottom, maxCameraPush, captionSlackPx} from './layout';
 import {focusAt, type Focus} from './focus';
@@ -345,7 +347,7 @@ export const dollyAt = (t: number, U: number, o: DollyOpts = {}): Dolly => {
   if (!(span > 0)) {
     throw new Error(`dollyAt needs a positive span, got ${span} — a move with no duration is not a move.`);
   }
-  const p = easeInOutCubic(clamp01((t - start) / span));
+  const p = rawEaseInOutCubic(clamp01((t - start) / span));   // the camera's curve, never the style's (rawEase)
   const k = direction === 'out' ? 1 - p : p;
   return {
     ground: 1 + (swell - 1) * k,
@@ -359,7 +361,7 @@ export const dollyAt = (t: number, U: number, o: DollyOpts = {}): Dolly => {
 
 export const cameraAt = (move: CameraMove, t: number): number => {
   if (move === 'hold') return 0;
-  const p = easeInOutCubic(clamp01((t - CAMERA_START) / CAMERA_SPAN));
+  const p = rawEaseInOutCubic(clamp01((t - CAMERA_START) / CAMERA_SPAN));   // never the style's (rawEase)
   return move === 'push' ? p : 1 - p;
 };
 
@@ -635,7 +637,7 @@ export const SceneCamera: React.FC<{
       // tab's first frames did — the topic-to-video promo's closing title popped 7% smaller on six isolated frames
       // (2026-11-12; a single-scene render, warmed differently, had none). runtime/coverage.tsx waits the same way.
       const fonts = el.ownerDocument?.fonts;
-      if (fonts && fonts.status !== 'loaded') {
+      if (!facesLoaded() || (fonts && fonts.status !== 'loaded')) {   // OUR faces in, not just the set's status
         el.style.transform = xf || '';
         return false;
       }

@@ -37,7 +37,7 @@ import {useT, useAnimSpan, ReducedMotionContext, SceneDurationContext, REDUCED_M
 import {useGlide, BaselineUnlockContext} from './glide';
 import {useCues, REACH_CUBIC} from './cue';
 import {CJK_MIN_LEADING, hasCJK} from './cjkType';
-import {getLength, getPointAtLength} from '@remotion/paths';
+import {pathTable, alongTable} from './pathWalk';
 import {KIN_ALIGN, KIN_ALT, KIN_GLYPH, KIN_LINE, KIN_READ, KIN_ROOT, KINETIC_HOLDS_TAG, kineticBusy, kineticIdle,
   facesReady} from './kineticDom';
 import {
@@ -941,63 +941,15 @@ const frameState = (lay: KLayout, m: KMotion, ctx: Ctx): GState[][] => {
   });
 };
 
-// A PATH, SAMPLED ONCE BY ARC LENGTH. Every glyph on a path asks for a point and a tangent every frame, and the hold
-// report asks for every frame of the clip; so each path is walked once into a table (2048 steps — under a pixel
-// apart on any path that fits a frame) and read by linear interpolation: the same numbers on every frame, cold or
-// warm.
-//
-// THE WALK IS THE BROWSER'S OWN, NOT @remotion/paths'. Measured on a 1710px cubic (TypeOnPath's `rise`): its
-// getPointAtLength went BACKWARDS 45 times in 2048 steps, by up to 2.3px, with steps up to 4.0px where 0.83 was due —
-// the points lie on the curve but jitter along it, so letters were spaced unevenly and one glyph whose neighbours'
-// order flipped was drawn upside down under the line. Its getTangentAtLength is also REVERSED on arc commands. The
-// SVG engine's own arc length is exact, so it is used wherever there is a DOM; the library is the fallback for node.
-const PATHS = new Map<string, {L: number; xs: Float64Array; ys: Float64Array; tx: Float64Array; ty: Float64Array}>();
-const PATH_STEPS = 2048;
-const pathLUT = (d: string) => {
-  const hit = PATHS.get(d);
-  if (hit) return hit;
-  const xs = new Float64Array(PATH_STEPS + 1), ys = new Float64Array(PATH_STEPS + 1);
-  const tx = new Float64Array(PATH_STEPS + 1), ty = new Float64Array(PATH_STEPS + 1);
-  let L: number;
-  const el = typeof document !== 'undefined'
-    ? (document.createElementNS('http://www.w3.org/2000/svg', 'path') as SVGPathElement) : null;
-  if (el) {
-    el.setAttribute('d', d);
-    L = el.getTotalLength();
-    for (let k = 0; k <= PATH_STEPS; k++) {
-      const p = el.getPointAtLength((L * k) / PATH_STEPS);
-      xs[k] = p.x; ys[k] = p.y;
-    }
-  } else {
-    L = getLength(d);
-    for (let k = 0; k <= PATH_STEPS; k++) {
-      const p = getPointAtLength(d, (L * k) / PATH_STEPS);
-      xs[k] = p.x; ys[k] = p.y;
-    }
-  }
-  // the tangent from the points (a few steps either side), never asked of the library: see above
-  for (let k = 0; k <= PATH_STEPS; k++) {
-    const a = Math.max(0, k - 3), b = Math.min(PATH_STEPS, k + 3);
-    const vx = xs[b] - xs[a], vy = ys[b] - ys[a], n = Math.hypot(vx, vy) || 1;
-    tx[k] = vx / n; ty[k] = vy / n;
-  }
-  if (PATHS.size >= 64) PATHS.clear();
-  const v = {L, xs, ys, tx, ty};
-  PATHS.set(d, v);
-  return v;
-};
+// A PATH, SAMPLED ONCE BY ARC LENGTH — runtime/pathWalk (the browser's own walk; why, there). Every glyph on a path
+// asks for a point and a tangent every frame, and the hold report asks for every frame of the clip, so a path here is
+// always tabled: the same numbers on every frame, cold or warm.
+const pathLUT = (d: string) => pathTable(d);
 /** A path's arc length as the glyphs on it are placed by — a register sizing type to a path asks this, not another
  *  library, so the two cannot disagree. */
 export const kineticPathLength = (d: string): number => pathLUT(d).L;
 /** Point and direction (degrees) `s` px along `d`. */
-const alongAt = (d: string, s: number): {x: number; y: number; deg: number} => {
-  const P = pathLUT(d);
-  const u = Math.max(0, Math.min(1, s / Math.max(1e-9, P.L))) * PATH_STEPS;
-  const k = Math.min(PATH_STEPS - 1, Math.floor(u)), f = u - k;
-  const x = P.xs[k] + (P.xs[k + 1] - P.xs[k]) * f, y = P.ys[k] + (P.ys[k + 1] - P.ys[k]) * f;
-  const vx = P.tx[k] + (P.tx[k + 1] - P.tx[k]) * f, vy = P.ty[k] + (P.ty[k + 1] - P.ty[k]) * f;
-  return {x, y, deg: (Math.atan2(vy, vx) * 180) / Math.PI};
-};
+const alongAt = (d: string, s: number): {x: number; y: number; deg: number} => alongTable(pathLUT(d), s);
 
 // Mask boxes depend only on the layout, the mask kind and the glyph — never on the frame — so they are computed once
 // per layout: the word mask walks the line for each glyph, which per frame per glyph is quadratic.

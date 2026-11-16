@@ -49,6 +49,19 @@ export const kineticIdle = async (maxMs = 60000): Promise<void> => {
  * Resolves once the bundled faces are in `document.fonts` (runtime/fonts.ts publishes the promise). Where fonts.ts
  * never ran there is nothing of ours to wait for, and the browser's own `document.fonts.ready` is the answer.
  */
+/**
+ * Synchronously: are the bundled faces in? (fonts.ts sets the flag when FACES_READY resolves.) Where fonts.ts never ran
+ * there is nothing of ours to wait for, and the document's own status is the answer. `document.fonts.status` alone is
+ * NOT this: it reads 'loaded' before the faces are added, so a measurement gated on it can be of the fallback face.
+ */
+export const facesLoaded = (): boolean => {
+  const g = globalThis as unknown as {__dnaFacesReady?: Promise<void>; __dnaFacesLoaded?: boolean;
+    document?: {fonts?: {status?: string}}};
+  if (g.__dnaFacesReady) return g.__dnaFacesLoaded === true;
+  const st = g.document?.fonts?.status;
+  return st === undefined || st === 'loaded';
+};
+
 export const facesReady = (): Promise<unknown> => {
   const p = (globalThis as unknown as {__dnaFacesReady?: Promise<void>}).__dnaFacesReady;
   if (p) return p;

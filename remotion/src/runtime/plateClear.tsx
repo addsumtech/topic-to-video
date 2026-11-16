@@ -9,7 +9,7 @@
 //
 // Mounted only by the Film when `plateClear` is set (Film.tsx), never imported by a register.
 import React from 'react';
-import {continueRender, delayRender, useCurrentFrame} from 'remotion';
+import {useFrameCensus} from './frameCensus';
 
 export const PLATE_CLEAR_TAG = 'PLATE-CLEAR ';
 const MIN_OPACITY = 0.25;                       // fainter than this the type is arriving or leaving
@@ -75,25 +75,9 @@ export const censusPlateClear = (root: HTMLElement) => {
 };
 
 export const PlateClearAudit: React.FC = () => {
-  const frame = useCurrentFrame();
-  const ref = React.useRef<HTMLDivElement>(null);
-  React.useLayoutEffect(() => {
-    const handle = delayRender(`plate-clear census, frame ${frame}`, {timeoutInMilliseconds: 60000});
-    let released = false;
-    const release = () => {
-      if (!released) {
-        released = true;
-        continueRender(handle);
-      }
-    };
-    requestAnimationFrame(() => {
-      if (!released && ref.current) {
-        // eslint-disable-next-line no-console
-        console.log(PLATE_CLEAR_TAG + JSON.stringify({f: frame, ...censusPlateClear(ref.current.ownerDocument.body)}));
-      }
-      release();
-    });
-    return release;
-  }, [frame]);
+  // waits for the bundled faces and every KineticText's glyphs: it used to measure on the next animation frame, so a
+  // plate read "clear" on frames where a KineticText had not drawn yet (runtime/frameCensus)
+  const ref = useFrameCensus('plate-clear census', PLATE_CLEAR_TAG,
+    (host) => censusPlateClear(host.ownerDocument.body), {fonts: true, kinetic: true});
   return <div ref={ref} style={{position: 'absolute', inset: 0, pointerEvents: 'none'}} />;
 };

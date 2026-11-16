@@ -44,11 +44,15 @@ export const typeChunks = (value: string | string[]): string[] => {
 
 /** How many chunks are on screen at t: each lands at the START of its share of [ta, t1]; shares follow the
  *  chunk's nominal time with a deterministic jitter. */
+// each chunk's share of the typing — ONE definition for typedCount (the picture) and chunkTimes (the sound keyed to
+// it), which kept a copy each. scripts/shot_sounds.chunk_times is the Python mirror (tests/test_shot_sound.py)
+const chunkWeights = (chunks: string[], seed: number): number[] => chunks.map((c, i) =>   // @decor: keystroke rhythm, not a reading about anything the film named
+  (CJK.test(c) ? spec.minSeconds.typeCjkWord : spec.minSeconds.typeLatinKey) * (0.65 + 0.7 * hash01(seed * 131 + i)));
+
 export const typedCount = (t: number, ta: number, t1: number, chunks: string[], seed = 1): number => {
   if (!chunks.length || t < ta) return 0;
   if (t >= t1) return chunks.length;
-  const w = chunks.map((c, i) =>   // @decor: keystroke rhythm, not a reading about anything the film named
-    (CJK.test(c) ? spec.minSeconds.typeCjkWord : spec.minSeconds.typeLatinKey) * (0.65 + 0.7 * hash01(seed * 131 + i)));
+  const w = chunkWeights(chunks, seed);
   const total = w.reduce((a, b) => a + b, 0);
   const u = ((t - ta) / Math.max(1e-6, t1 - ta)) * total;
   let acc = 0, n = 0;
@@ -59,8 +63,7 @@ export const typedCount = (t: number, ta: number, t1: number, chunks: string[], 
 /** The t at which each chunk lands — the instants typedCount steps up on (chunk k at the start of its share). A sound
  *  keyed to the typing (runtime/sound.ts `step: 'type'`) reads these, so it cannot drift from the picture. */
 export const chunkTimes = (ta: number, t1: number, chunks: string[], seed = 1): number[] => {
-  const w = chunks.map((c, i) =>   // @decor: keystroke rhythm — typedCount's own weights
-    (CJK.test(c) ? spec.minSeconds.typeCjkWord : spec.minSeconds.typeLatinKey) * (0.65 + 0.7 * hash01(seed * 131 + i)));
+  const w = chunkWeights(chunks, seed);
   const total = w.reduce((a, b) => a + b, 0);
   let acc = 0;
   return w.map((x) => { const at = ta + (t1 - ta) * (acc / Math.max(1e-12, total)); acc += x; return at; });

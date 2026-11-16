@@ -4,6 +4,7 @@
 // field is a pure fn of position, each streamline a fixed traced path animated by strokeDashoffset.
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, shade} from '../runtime/dna';
@@ -89,10 +90,10 @@ export const FlowField: React.FC<{title?: string; tagline?: string; accent?: str
         {/* the wordmark and its kicker are on the ground, so they are the film's ink and its metadata; the
             separation shadow is the ground's OWN colour on paper, never a fixed black under dark type */}
         <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, true), color: dna?.fg ?? '#eafcff',
-          font: '800 132px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
+          font: `800 ${fitTextPx(String(TITLE), W, Math.round(132 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em',
           textShadow: `0 0 50px ${ACC_L}55, 0 12px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 22, color: dna?.dim ?? '#9fb2c8',
-          font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em'}}>{TAG}</div>
+          font: `600 ${fitTextPx(String(TAG), W, Math.round(32 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.18})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.18em'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

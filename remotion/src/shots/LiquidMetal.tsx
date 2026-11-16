@@ -3,6 +3,7 @@
 // beige), a chrome wordmark on top. The "liquid chrome, alive" trend (family F · fluid). Deterministic.
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01, radians} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
@@ -74,13 +75,13 @@ export const LiquidMetal: React.FC<{title?: string; tagline?: string}> = ({
             title's unlock has to be BELOW the filter to reach its glyphs (runtime/glide.ts) */}
         <div style={{filter: 'drop-shadow(0 3px 0 #ffffffcc) drop-shadow(0 10px 22px #1a1f3aaa)'}}>
         <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true),
-          font: '900 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.04em',
+          font: `900 ${fitTextPx(String(TITLE), W, Math.round(150 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.04})}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.04em',
           background: 'linear-gradient(180deg, #ffffff, #6b76a0 44%, #171b33 51%, #9aa6cc 58%, #eef2ff)',
           WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
           WebkitTextStroke: '2px #2b3050'} as React.CSSProperties}>{TITLE}</div>
         </div>
         <div style={{opacity: tagIn, marginTop: 18, color: TAGc,
-          font: '700 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em', textTransform: 'uppercase'}}>{TAG}</div>
+          font: `700 ${fitTextPx(String(TAG), W, Math.round(30 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.2})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.2em', textTransform: 'uppercase'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

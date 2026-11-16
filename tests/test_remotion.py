@@ -760,21 +760,20 @@ _BASE_CSS = os.path.join(os.path.dirname(__file__), "..", "assets", "html", "bas
 
 
 def test_fonts_ts_loads_every_bundled_face_with_base_css_weights():
-    """SCOPE: only the 4 faces base.css declares (Space Grotesk, Playfair Display, JetBrains Mono,
+    """SCOPE: only the 5 faces base.css declares (Space Grotesk, Playfair Display, Source Serif 4, JetBrains Mono,
     Bangers) — these are the faces the HTML tier already renders, so the remotion tier must name the
     SAME families with the SAME weight ranges there, or a variable font silently renders synthesised
-    weights. This does NOT cover the other 6 faces fonts.ts loads (Inter, Source Serif 4, IBM Plex
-    Sans, IBM Plex Mono, Bodoni Moda, Baloo 2) — base.css has no @font-face for them at all, so there
-    is no second source of truth to check their weights against."""
+    weights. Source Serif 4 joined 2026-11-16 (the serif body face with lining figures, replacing Georgia). This
+    does NOT cover the other 5 faces fonts.ts loads (Inter, IBM Plex Sans, IBM Plex Mono, Bodoni Moda, Baloo 2)."""
     css = open(_BASE_CSS, encoding="utf-8").read()
     faces = re.findall(
         r'@font-face\{font-family:"([^"]+)";src:url\("\.\./fonts/([^"]+)"\);font-weight:([^;]+);',
         css,
     )
-    # Exact count, not a floor: base.css names exactly 4 faces today. A floor (`>= 4`) would never
+    # Exact count, not a floor: base.css names exactly 5 faces today. A floor (`>= 4`) would never
     # fire again once the set grows past 4, silently going blind to a 5th @font-face this test was
     # never updated to expect. If base.css legitimately grows, update this number deliberately.
-    assert len(faces) == 4, "expected exactly 4 @font-face rules in base.css, got %r" % (faces,)
+    assert len(faces) == 5, "expected exactly 5 @font-face rules in base.css, got %r" % (faces,)
     ts = open(_FONTS_TS, encoding="utf-8").read()
     for family, filename, weight in faces:
         assert "family: '%s'" % family in ts, "fonts.ts does not load %r" % family
@@ -907,10 +906,17 @@ def _film_tsx():
 
 
 def test_film_injects_the_three_type_variables():
+    """Through runtime/dnaTypeVars — the one element Film, Root's DnaPreview and the specimen all mount, so a per-shot
+    gate measures the film's own type rules."""
     src = _film_tsx()
+    assert "<DnaTypeVars dna={activeDna}" in src, "Film.tsx does not mount the DNA's type rules"
+    tv = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "runtime", "dnaTypeVars.tsx"),
+              encoding="utf-8").read()
     for var in ("--f-display", "--f-body", "--f-mono"):
-        assert var in src, "Film.tsx does not inject %s" % var
-    assert ".dna-film {" in src or ".dna-film{" in src, "the type variables must be scoped to .dna-film"
+        assert var in tv, "dnaTypeVars does not inject %s" % var
+    assert ".dna-film {" in tv, "the type variables must be scoped to .dna-film"
+    root = open(os.path.join(os.path.dirname(__file__), "..", "remotion", "src", "Root.tsx"), encoding="utf-8").read()
+    assert "<DnaTypeVars dna={active}" in root, "the per-shot preview must mount the same type rules as the film"
 
 
 def test_caption_typography_follows_the_dna():

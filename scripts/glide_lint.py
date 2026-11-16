@@ -26,6 +26,7 @@ KNOWN_SWITCHED = {}     # emptied by the source sweep of 2026-11-16: every site 
 FORWARDS = {("runtime/glide.ts", "glide", "moving"), ("kits/Kit.tsx", "place", "moving")}
 _PLACE = re.compile(r"(?:(?<=\.\.\.)|(?<![\w.$]))place\(")      # `...place(` (a spread) is a call; `x.place(` is not
 _MOVING_PROP = re.compile(r"\bmoving=\{")
+_GLIDE_PROP = re.compile(r"(?<![\w.$])glide=\{")     # a component's `glide={on}` prop (stage3d OnSurface, depth)
 _USES_PLACE = re.compile(r"\bplace\s*=\s*usePlaceGlide\(\)")
 # runtime/glide.ts's own forwarding call — `useGlide` passes its caller's `on` through, gated by the context
 _FORWARD = ["transform", "allowed && on", "under"]
@@ -100,7 +101,8 @@ def switched(src, path=""):
 
     # `place` is usePlaceGlide's only where the file takes it from there (other files have a `place` of their own), and
     # `moving` is the unlock only on a kit Tile
-    scans = [(_CALL, "glide")] + ([(_PLACE, "place")] if _USES_PLACE.search(src) else []) + [(_MOVING_PROP, "prop")]
+    scans = [(_CALL, "glide")] + ([(_PLACE, "place")] if _USES_PLACE.search(src) else []) + [(_MOVING_PROP, "prop"),
+                                                                                             (_GLIDE_PROP, "gprop")]
     for rx, which in scans:
         for m in rx.finditer(src):
             if which == "prop" and not re.search(r"<Tile\b[^<>]*$", src[max(0, m.start() - 600):m.start()]):
@@ -108,7 +110,7 @@ def switched(src, path=""):
             line_start = src.rfind("\n", 0, m.start()) + 1
             if src[line_start:m.start()].lstrip().startswith(("//", "*")):
                 continue
-            if which == "prop":
+            if which in ("prop", "gprop"):
                 on = _args(src, m.end())[0][0]
             else:
                 args, _ = _args(src, m.end())
@@ -120,7 +122,7 @@ def switched(src, path=""):
             if held(on) or (rel, which, on) in FORWARDS:
                 continue
             out.append((src.count("\n", 0, m.start()) + 1, on if which == "glide" else "%s: %s" % (
-                "place(on, …)" if which == "place" else "<Tile moving>", on)))
+                {"place": "place(on, …)", "prop": "<Tile moving>", "gprop": "glide={on} prop"}[which], on)))
     return out
 
 

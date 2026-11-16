@@ -13,6 +13,7 @@
 // material's MEASURED shade span (MATERIAL_SPAN: the 2nd and 98th percentile of the lit ground, rendered), not its
 // base colour alone — a lit ground is a range, and a reader sees its worst end.
 import React from 'react';
+import {useGlide} from '../runtime/glide';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, easeOutCubic} from '../runtime/motion';
 import {useDNA, readableOnAll, contrastOf, mix} from '../runtime/dna';
@@ -44,6 +45,9 @@ export const LitMedium: React.FC<{
        note = 'one light, moving slowly across it'} = {}) => {
   const dna = useDNA();
   const t = useT();
+  // the title rises on a fractional translate carrying the baseline unlock (runtime/glide): `Math.round` stepped it a
+  // whole pixel at a time (audit 2026-11-15)
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const material = matIn ?? dnaMaterial(dna) ?? 'paper';
   if (!isMaterial(material)) {
@@ -82,7 +86,7 @@ export const LitMedium: React.FC<{
           <div style={{opacity: kin, color: DIM, font: `600 ${KICK}px/1.2 ${MONO}`, letterSpacing: '0.18em',
             textTransform: 'uppercase'}}>{kicker}</div>
         ) : null}
-        <div style={{opacity: tin, transform: `translateY(${Math.round((1 - tin) * U * 0.02)}px)`, color: INK,
+        <div style={{opacity: tin, transform: glide(`translateY(${(1 - tin) * U * 0.02}px)`, true), color: INK,
           font: `700 ${titlePx}px/1.08 ${DISPLAY}`, letterSpacing: '-0.01em', textWrap: 'balance'} as React.CSSProperties}>{title}</div>
         {note ? (
           // balanced: Chinese breaks between any two glyphs, and unbalanced the 9:16 note left «件» alone on its last

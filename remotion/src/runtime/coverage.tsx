@@ -30,6 +30,7 @@
 //   * a gain under MIN_GAIN (a 1.08x "cut" reads as a jump, not a new framing);
 //   * an item the DOM does not separate (focusLead.findContainers says null).
 import React, {useContext, useLayoutEffect, useRef} from 'react';
+import {facesLoaded} from './kineticDom';
 import {AbsoluteFill, continueRender, delayRender, Freeze, useCurrentFrame, useVideoConfig} from 'remotion';
 import {findContainers} from './focusLead';
 import {contentBottom} from './layout';
@@ -530,7 +531,7 @@ const CoverageOn: React.FC<{plan: CoverStep[]; items: Record<string, string> | n
   const ready = (): boolean => {
     if (forced.current) return true;
     const doc = live.current?.ownerDocument;
-    if (doc?.fonts && doc.fonts.status !== 'loaded') return false;
+    if (!facesLoaded() || (doc?.fonts && doc.fonts.status !== 'loaded')) return false;   // OUR faces, not just the set
     return need.every((j) => probeFrames(plan, j, durF, fps).every((pf) => {
       const p = probes.current.get(`${j}@${pf}`);
       return !!p && p.offsetWidth > 0 && p.offsetHeight > 0;
@@ -557,7 +558,9 @@ const CoverageOn: React.FC<{plan: CoverStep[]; items: Record<string, string> | n
       if (!cache.has(k)) {
         const prs = probeFrames(plan, j, durF, fps).map((pf) => probes.current.get(`${j}@${pf}`))
           .filter(Boolean) as HTMLDivElement[];
-        cache.set(k, prs.length ? frameStep(prs, st, items, W, H) : null);
+        // FORCED (never laid out after 240 frames): refused, not measured — a framing measured on probes that were never
+        // laid out differs in every render tab, and the beat cut five ways (audit 2026-11-15). Wide is the same everywhere.
+        cache.set(k, prs.length && !forced.current ? frameStep(prs, st, items, W, H) : null);
         // eslint-disable-next-line no-console
         console.log(`[coverage] beat ${beat} step ${j} ${JSON.stringify(st.frame)} -> ${JSON.stringify(cache.get(k))} ${lastWhy}`);
       }

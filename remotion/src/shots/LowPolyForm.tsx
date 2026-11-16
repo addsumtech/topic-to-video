@@ -20,6 +20,7 @@
 // light. The pool then gives the type its own ground in either exposure, as the near-black one always did.
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutBack, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
@@ -100,9 +101,9 @@ export const LowPolyForm: React.FC<{title?: string; tagline?: string; accent?: s
         background: `radial-gradient(38% 40% at 50% 50%, ${BG}, #0000 72%)`}} />
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, true), color: INK,
-          font: '800 138px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: `0 12px 50px ${BLOOM}`}}>{TITLE}</div>
+          font: `800 ${fitTextPx(String(TITLE), W, Math.round(138 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em', textShadow: `0 12px 50px ${BLOOM}`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 22, color: TAG_INK,
-          font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em', textShadow: `0 4px 20px ${BLOOM}`}}>{TAG}</div>
+          font: `600 ${fitTextPx(String(TAG), W, Math.round(32 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.18em', textShadow: `0 4px 20px ${BLOOM}`}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

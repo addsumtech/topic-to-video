@@ -3,6 +3,7 @@
 // organic — distinct from discrete metaballs (family F · fluid). Deterministic (spread + tendrils = fn of t).
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
@@ -54,10 +55,10 @@ export const InkBloom: React.FC<{title?: string; tagline?: string; ink?: string}
       </svg>
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: FG,
-          font: '800 132px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
+          font: `800 ${fitTextPx(String(TITLE), W, Math.round(132 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em',
           textShadow: `0 4px 30px ${INKc}, 0 0 60px ${INKc}aa`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: TAGc,
-          font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em'}}>{TAG}</div>
+          font: `600 ${fitTextPx(String(TAG), W, Math.round(32 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.18})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.18em'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

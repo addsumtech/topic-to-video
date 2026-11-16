@@ -1,6 +1,6 @@
 {
  "_why": "Registers that set some visible type under the size floor (runtime/textSafe.tsx TYPE_ERROR_FRAC / TYPE_WARN_FRAC of the frame's short side: ~24 px / ~30 px at 1080). Nothing measured type SIZE before 2026-10-16, and the first sweep found 53 of 194 registers under 24 px and 70 more under 30 px — the library-wide cause of a user's review that the labels were too small to read. In a film, small type on ANY library register is a WARNING (the debt is the library's; a register fed a film's copy can show more than this default-props sweep saw), small type on a film's OWN shot is an ERROR, and the list may only shrink: raise a register's type and re-run the sweep to take it off.",
- "_measured": "python3 scripts/text_safe_qa.py --library --type-size --write-debt · 197 of 197 registers at default props · dna=product",
+ "_measured": "python3 scripts/text_safe_qa.py --library --type-size --write-debt · 227 of 227 registers at default props · dna=product",
  "registers": {
   "Aliasing": {
    "min_px": 15.0,
@@ -27,15 +27,30 @@
    "under_error": 5,
    "under_warn": 6
   },
+  "ChapterCard": {
+   "min_px": 22.0,
+   "under_error": 2,
+   "under_warn": 0
+  },
   "CircuitTrace": {
    "min_px": 26.0,
    "under_error": 0,
    "under_warn": 5
   },
   "CodeCompose": {
-   "min_px": 24.0,
+   "min_px": 26.0,
    "under_error": 0,
    "under_warn": 1
+  },
+  "CodeRain": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 12
+  },
+  "CollaborativeCursors": {
+   "min_px": 16.0,
+   "under_error": 12,
+   "under_warn": 0
   },
   "ComicPanels": {
    "min_px": 26.0,
@@ -51,6 +66,11 @@
    "min_px": 18.0,
    "under_error": 2,
    "under_warn": 2
+  },
+  "ConveyorBelt": {
+   "min_px": 18.0,
+   "under_error": 5,
+   "under_warn": 0
   },
   "CraneUp": {
    "min_px": 15.0,
@@ -68,9 +88,9 @@
    "under_warn": 0
   },
   "EdCompare": {
-   "min_px": 24.0,
+   "min_px": 26.0,
    "under_error": 0,
-   "under_warn": 3
+   "under_warn": 1
   },
   "EdStat": {
    "min_px": 26.0,
@@ -84,7 +104,7 @@
   },
   "Escalation": {
    "min_px": 16.0,
-   "under_error": 7,
+   "under_error": 8,
    "under_warn": 4
   },
   "ExplodedSchematic": {
@@ -96,6 +116,16 @@
    "min_px": 21.0,
    "under_error": 2,
    "under_warn": 2
+  },
+  "FlightArcs": {
+   "min_px": 27.0,
+   "under_error": 0,
+   "under_warn": 3
+  },
+  "FlowSankey": {
+   "min_px": 28.0,
+   "under_error": 0,
+   "under_warn": 5
   },
   "FrequencyEncode": {
    "min_px": 18.0,
@@ -137,11 +167,6 @@
    "under_error": 0,
    "under_warn": 4
   },
-  "InOrder": {
-   "min_px": 26.0,
-   "under_error": 0,
-   "under_warn": 1
-  },
   "InducedFID": {
    "min_px": 19.0,
    "under_error": 3,
@@ -167,10 +192,10 @@
    "under_error": 1,
    "under_warn": 0
   },
-  "KnowledgeGraph": {
+  "LandscapeWell": {
    "min_px": 24.0,
    "under_error": 0,
-   "under_warn": 7
+   "under_warn": 2
   },
   "LarmorPrecession": {
    "min_px": 24.0,
@@ -181,6 +206,11 @@
    "min_px": 26.0,
    "under_error": 0,
    "under_warn": 4
+  },
+  "LitMedium": {
+   "min_px": 28.0,
+   "under_error": 0,
+   "under_warn": 1
   },
   "MRIPipeline": {
    "min_px": 24.0,
@@ -224,8 +254,8 @@
   },
   "OverlapSeparation": {
    "min_px": 19.0,
-   "under_error": 9,
-   "under_warn": 2
+   "under_error": 12,
+   "under_warn": 0
   },
   "PhaseEncodeStep": {
    "min_px": 17.0,
@@ -252,6 +282,11 @@
    "under_error": 5,
    "under_warn": 1
   },
+  "PositioningMatrix": {
+   "min_px": 30.0,
+   "under_error": 0,
+   "under_warn": 1
+  },
   "ProfileGrowth": {
    "min_px": 24.0,
    "under_error": 0,
@@ -266,6 +301,11 @@
    "min_px": 26.0,
    "under_error": 0,
    "under_warn": 1
+  },
+  "RankRace": {
+   "min_px": 26.0,
+   "under_error": 0,
+   "under_warn": 3
   },
   "RealVersus": {
    "min_px": 22.0,
@@ -319,16 +359,11 @@
   },
   "StateSheet": {
    "min_px": 15.0,
-   "under_error": 11,
+   "under_error": 12,
    "under_warn": 0
   },
   "StatedBy": {
    "min_px": 26.0,
-   "under_error": 0,
-   "under_warn": 4
-  },
-  "StrataColumn": {
-   "min_px": 24.0,
    "under_error": 0,
    "under_warn": 4
   },
@@ -350,7 +385,7 @@
   "TaskFold": {
    "min_px": 25.0,
    "under_error": 0,
-   "under_warn": 11
+   "under_warn": 12
   },
   "TechnicalPlate": {
    "min_px": 24.0,
@@ -373,8 +408,8 @@
    "under_warn": 2
   },
   "TermSpace": {
-   "min_px": 12.0,
-   "under_error": 6,
+   "min_px": 10.0,
+   "under_error": 8,
    "under_warn": 4
   },
   "UndersampledKspace": {

@@ -48,12 +48,17 @@ export const DURATION = 190; // ~6.3s
 
 /** Where the screens stand. Hand-set and deterministic: a room whose walls move every render is not a room.
  *  x/y/z are fractions of the frame's short side, scaled below; ry turns each screen to face the middle. */
-const ROOM: Pose[] = [
+// IN TOUR ORDER, one way across the room: left top, left bottom, right bottom, right top. The tour used to visit them
+// left, right, left, right — the camera swinging back and forth across the same room (audit 2026-11-15). Two screens
+// take the room's two diagonal ends, so a pair still faces itself across the middle.
+const ROOM_AT: Pose[] = [
   {x: -0.34, y: -0.10, z: 0.06, rx: 4, ry: 26},
-  {x: 0.33, y: -0.14, z: -0.16, rx: -3, ry: -24},
   {x: -0.26, y: 0.22, z: -0.30, rx: 9, ry: 18},
   {x: 0.30, y: 0.18, z: 0.12, rx: -7, ry: -20},
+  {x: 0.33, y: -0.14, z: -0.16, rx: -3, ry: -24},
 ];
+const ROOM = ROOM_AT;
+const roomFor = (n: number): Pose[] => (n <= 2 ? [ROOM_AT[0], ROOM_AT[2]] : ROOM_AT);
 export const MAX_SCREENS = ROOM.length;
 
 // THE GLYPH CARRIES RUN-STATE, and for a long time it carried the TYPEWRITER. `done` means "this status
@@ -100,8 +105,9 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
     }
   });
   const n = list.length;
+  const room = roomFor(n);
   const poses: Pose[] = list.map((_, i) => {
-    const p = ROOM[i];
+    const p = room[i];
     // @fallback: an omitted pose coordinate is the origin of the space: a camera position, not a reading about a screen
     return {x: (p.x ?? 0) * U, y: (p.y ?? 0) * U, z: (p.z ?? 0) * U, rx: p.rx, ry: p.ry};
   });
@@ -263,7 +269,7 @@ export const TermSpace: React.FC<{screens?: Screen[]; summary?: string}> = ({
         return (
           // A CONSOLE'S TEXT STARTS AT THE TOP, under the title bar — centring it in the window is a card's
           // habit, not a terminal's. `ltop` above is that offset in the window's own units.
-          <OnSurface key={k} pose={p} cam={cam} persp={P} W={W} H={H} glide={out !== 1}
+          <OnSurface key={k} pose={p} cam={cam} persp={P} W={W} H={H} glide
             left={lleft} top={ltop} width={lw} height={lblock} affine={aff}
             style={{opacity: (0.3 + 0.7 * near) * fade, textShadow: '0 2px 10px rgba(0,0,0,.6)'}}>
             {/* NO `overflow: hidden` HERE. A clipped name is a string the register DECLINED to draw, and

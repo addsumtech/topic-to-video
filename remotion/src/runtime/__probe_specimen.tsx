@@ -13,6 +13,7 @@
 import React from 'react';
 import {AbsoluteFill} from 'remotion';
 import {DesignDNAContext, DNA_PRESETS} from './dna';
+import {DnaTypeVars} from './dnaTypeVars';
 import {REGISTRY} from '../registry';
 
 export const DURATION = 150;
@@ -24,8 +25,7 @@ export const TypeSpecimen: React.FC<{shot?: string; dnaId?: string}> = ({
   return (
     <AbsoluteFill style={{background: dna?.bg ?? '#000'}}>
       <DesignDNAContext.Provider value={dna}>
-        {dna ? <style>{`.dna-film { --f-display: ${dna.fontDisplay}; --f-body: ${dna.fontBody}; --f-mono: ${dna.fontMono}; }`}</style> : null}
-        {dna?.uniformType ? <style>{`.dna-film, .dna-film * { font-family: ${dna.fontMono} !important; }`}</style> : null}
+        <DnaTypeVars dna={dna} />
         <AbsoluteFill className="dna-film">{C ? <C /> : null}</AbsoluteFill>
       </DesignDNAContext.Provider>
     </AbsoluteFill>

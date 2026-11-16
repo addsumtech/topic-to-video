@@ -549,10 +549,13 @@ def _dep_bytes(dep, name, ignore_follows=False, tree=None):
 def _sources_stamp():
     """One digest over (path, mtime, size) of every file a source hash can read — remotion/src, the manifests
     beside it (ground-follow membership is read from one) and this file's own hashing code. Stat calls only."""
-    rem = _REMOTION
-    h = hashlib.sha256()
+    # the tree the hashes READ — derived from _SHOTS, never a fixed path: a caller (a test, a copy) that repoints
+    # _SHOTS at another tree must stamp that tree, or the cache answers for the wrong source
+    src = os.path.dirname(os.path.abspath(_SHOTS))
+    rem = os.path.dirname(src)
+    h = hashlib.sha256(src.encode("utf-8"))
     files = [os.path.abspath(__file__)]
-    for root, _dirs, names in os.walk(os.path.join(rem, "src")):
+    for root, _dirs, names in os.walk(src):
         files += [os.path.join(root, n) for n in names]
     files += glob.glob(os.path.join(rem, "*.json"))
     for f in sorted(files):

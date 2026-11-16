@@ -24,7 +24,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutBack, easeOutCubic} from '../runtime/motion';
 import {useDNA, mix, shade, dnaPalette} from '../runtime/dna';
 import {onLight, groundFrom} from '../runtime/light';
-import {bottomInset} from '../runtime/layout';
+import {bottomInset, fitTextPx} from '../runtime/layout';
 import {useGlide} from '../runtime/glide';
 
 export const DURATION = 155; // ~5.2s
@@ -178,9 +178,9 @@ export const AtomOrbital: React.FC<{title?: string; tagline?: string; shells?: n
         {/* the title and its tagline are ON the ground, so they are the film's ink and its metadata; the
             separation shadow is the ground's own colour on paper, never a fixed black under near-black type */}
         <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: TITLE_INK,
-          font: '800 104px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
+          font: `800 ${fitTextPx(String(TITLE), W, Math.round(104 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 16, color: TAG_INK,
-          font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em'}}>{TAG}</div>
+          font: `600 ${fitTextPx(String(TAG), W, Math.round(30 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.18em'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>
   );

@@ -17,6 +17,7 @@
 // ITS OWN SOUND (runtime/sound.ts): `surgeAt` — a substorm brightening at that point of the beat (NOAA: "the arcs may
 // expand ... becoming very bright") — makes a `swell`, on the frame the light crests. No surgeAt, no surge, no sound.
 import React from 'react';
+import {useGlide} from '../runtime/glide';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, readableOn, mix} from '../runtime/dna';
@@ -56,6 +57,9 @@ export const AuroraCurtain: React.FC<{
        seed = 7} = {}) => {
   const dna = useDNA();
   const t = useT();
+  // the title rises on a fractional translate carrying the baseline unlock (runtime/glide): `Math.round` stepped it a
+  // whole pixel at a time (audit 2026-11-15)
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H), portrait = W < H;
   const ground = darkGround(dna?.bg, '#03060c');
@@ -204,7 +208,7 @@ export const AuroraCurtain: React.FC<{
         <div style={{position: 'absolute', left: x0, top: titleTop, width: colW, color: ink,
           font: `700 ${titlePx}px/1.1 ${DISPLAY}`, letterSpacing: '-0.01em', textWrap: 'balance',
           opacity: easeOutCubic(clamp01(seg(t, 0.06, 0.26))),
-          transform: `translateY(${Math.round((1 - easeOutCubic(clamp01(seg(t, 0.06, 0.26)))) * U * 0.02)}px)`} as React.CSSProperties}>{title}</div>
+          transform: glide(`translateY(${(1 - easeOutCubic(clamp01(seg(t, 0.06, 0.26)))) * U * 0.02}px)`, true)} as React.CSSProperties}>{title}</div>
       ) : null}
     </AbsoluteFill>
   );

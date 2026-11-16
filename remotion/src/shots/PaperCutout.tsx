@@ -5,7 +5,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutBack, hash01} from '../runtime/motion';
-import {captionBand} from '../runtime/layout';
+import {captionBand, fitTextPx} from '../runtime/layout';
 import {useDNA, mix} from '../runtime/dna';
 import {paleEnd, onLight} from '../runtime/light';
 import {useGlide} from '../runtime/glide';
@@ -86,14 +86,14 @@ export const PaperCutout: React.FC<{label?: string; tagline?: string}> = ({label
             <div style={{transform: glide(`translate(-50%, ${(1 - rise) * 120}px) rotate(-2deg)`, true), opacity: rise > 0 ? 1 : 0}}>
               <div style={{background: CARD, border: `6px solid ${CARD_EDGE}`, borderRadius: 14, padding: '16px 54px',
                 transform: glide(undefined, true),
-                font: '900 92px/1 var(--f-display, "Baloo 2", Inter, sans-serif)', color: CARD_INK, letterSpacing: '0.02em'}}>{label}</div>
+                font: `900 ${fitTextPx(String(label), W, Math.round(92 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.02})}px/1 var(--f-display, "Baloo 2", Inter, sans-serif)`, color: CARD_INK, letterSpacing: '0.02em'}}>{label}</div>
             </div>
           </div>
         );
       })()}
       {/* was bottom: H*0.08 — under the burned caption. Lifted clear of the reserved band. */}
       <div style={{position: 'absolute', left: 0, right: 0, bottom: captionBand(W, H) + H * 0.03, textAlign: 'center',
-        opacity: clamp01(seg(t, 0.7, 0.9)), color: TAG, font: '800 40px/1 var(--f-body, "Baloo 2", Inter, sans-serif)',
+        opacity: clamp01(seg(t, 0.7, 0.9)), color: TAG, font: `800 ${fitTextPx(String(tagline), W, Math.round(40 * Math.min(W, H) / 1080), {usable: 0.86})}px/1 var(--f-body, "Baloo 2", Inter, sans-serif)`,
         textShadow: `0 3px 0 ${TAG_SHADOW}`}}>{tagline}</div>
     </AbsoluteFill>
   );

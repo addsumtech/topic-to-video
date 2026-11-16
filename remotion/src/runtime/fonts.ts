@@ -147,6 +147,9 @@ export const FACES_READY: Promise<void> = Promise.all(
 // importing this module: importing it would make every register drawn with kinetic type depend on the font FILES,
 // which the library's measurement hashes (scripts/register_energy.py) read as source.
 (globalThis as unknown as {__dnaFacesReady?: Promise<void>}).__dnaFacesReady = FACES_READY;
+// ...and as a flag a SYNCHRONOUS check can read (runtime/kineticDom facesLoaded): code that measures inside a layout
+// effect cannot await, and `document.fonts.status` reads 'loaded' before these faces are even added (see above)
+FACES_READY.then(() => { (globalThis as unknown as {__dnaFacesLoaded?: boolean}).__dnaFacesLoaded = true; });
 FACES_READY
   .then(() => continueRender(handle))
   .catch((err) => cancelRender(err));

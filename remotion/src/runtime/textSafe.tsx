@@ -26,7 +26,7 @@ import React from 'react';
 import {cancelRender, continueRender, delayRender, useCurrentFrame} from 'remotion';
 import {captionBandBare} from './layout';
 import {CJK_MIN_LEADING, hasCJK} from './cjkType';
-import {KIN_ALT, KIN_GLYPH, KIN_LINE, KIN_ROOT, kineticIdle} from './kineticDom';
+import {KIN_ALT, KIN_GLYPH, KIN_LINE, KIN_ROOT, facesReady, kineticIdle} from './kineticDom';
 import {MATH_GLYPH, MATH_ROOT} from './mathDom';
 
 /** Prefix on the render-cancelling error, so a caller can find the JSON payload in the CLI's stderr. */
@@ -1974,7 +1974,7 @@ export const TypeGlideAudit: React.FC = () => {
     };
     (async () => {
       try {
-        await (document as unknown as {fonts?: {ready: Promise<unknown>}}).fonts?.ready;
+        await facesReady().catch(() => null);   // the BUNDLED faces — `document.fonts.ready` resolves before they are added (fonts.ts); a failed face is the font gate's to report
       } catch {
         /* a browser without the API still lays out; measure what it has */
       }
@@ -2018,7 +2018,7 @@ export const TextSafeAudit: React.FC<{enabled?: boolean; mode?: 'safe' | 'collis
       try {
         // Fonts change every metric this audit measures; auditing before they load reports the fallback
         // face's geometry, which is a different layout than the one that ships.
-        await (document as unknown as {fonts?: {ready: Promise<unknown>}}).fonts?.ready;
+        await facesReady().catch(() => null);   // the BUNDLED faces — `document.fonts.ready` resolves before they are added (fonts.ts); a failed face is the font gate's to report
       } catch {
         /* a browser without the API still lays out; measure what it has */
       }

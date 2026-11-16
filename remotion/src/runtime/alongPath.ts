@@ -17,33 +17,20 @@
 // also what `pathLength={1}` gives the stroke (see runtime/draw), so a head placed this way stays welded to
 // the tip of the stroke it is leading, at every frame and on every path.
 
-import {getLength, getPointAtLength, getTangentAtLength} from '@remotion/paths';
+// THE WALK IS runtime/pathWalk's — the browser's own arc length, the one kinetic's type on a path is placed by. This
+// file asked @remotion/paths, whose points jitter backwards along a curve (GenerationLoop's return stroke went back 50
+// of 66 times in 2048 steps) and whose tangent is reversed on arcs (audit 2026-11-15, step 6).
+import {walkAt, walkLength, _walkInternals} from './pathWalk';
 
-// Parsing a `d` string is not free and these are called per travelling object per frame — six routes at 30fps
-// is 180 parses a second for six strings that change only when the layout does. The key is the string itself,
-// so a path that genuinely changes shape is measured again and one that does not is measured once.
-const LENGTHS = new Map<string, number>();
-const MAX = 512;                       // a register builds a bounded set of paths; this only bounds a leak
-
-const lengthOf = (d: string): number => {
-  const hit = LENGTHS.get(d);
-  if (hit !== undefined) return hit;
-  const L = getLength(d);
-  if (LENGTHS.size >= MAX) LENGTHS.clear();
-  LENGTHS.set(d, L);
-  return L;
-};
-
-// The clamp is here for NEGATIVES, which is not a style point: `getPointAtLength` THROWS on a length below
-// zero ("Length less than 0 was passed"), and `seg()` and the springs both undershoot at the start of a
-// window — so an un-clamped `u` takes the render down. Past the end it saturates on its own, and NaN it
-// already answers with the path's start (both verified against the installed version), so the plain form is
-// honest here; `runtime/draw` uses a NaN-safe clamp because there the number reaches the DOM unmediated.
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+// NaN-SAFE: `Math.max(0, Math.min(1, NaN))` is NaN, and NaN reaching the DOM as `cx="NaN"` is dropped by the browser,
+// parking the object at the frame's origin. A comparison that is false for NaN sends it to the start instead.
+const clamp01 = (x: number) => (x > 0 ? (x < 1 ? x : 1) : 0);
 
 /** The point `u` of the way along `d`, measured in ARC LENGTH (0 = start, 1 = end). */
-export const pointAt = (d: string, u: number): {x: number; y: number} =>
-  getPointAtLength(d, lengthOf(d) * clamp01(u));
+export const pointAt = (d: string, u: number): {x: number; y: number} => {
+  const p = walkAt(d, walkLength(d) * clamp01(u));
+  return {x: p.x, y: p.y};
+};
 
 /**
  * The direction of travel at `u`, in DEGREES, for turning a travelling object to face where it is going.
@@ -51,14 +38,12 @@ export const pointAt = (d: string, u: number): {x: number; y: number} =>
  * Returned in degrees because that is what a CSS/SVG `rotate()` takes — a caller converting from radians
  * every time is a caller with a chance to convert wrong.
  */
-export const angleAt = (d: string, u: number): number => {
-  const t = getTangentAtLength(d, lengthOf(d) * clamp01(u));
-  return (Math.atan2(t.y, t.x) * 180) / Math.PI;
-};
+export const angleAt = (d: string, u: number): number => walkAt(d, walkLength(d) * clamp01(u)).deg;
 
 /** The path's own length, memoised — for a register that needs to reason about it directly. */
-export const pathLength = lengthOf;
+export const pathLength = walkLength;
 
 // for the test that holds the memo to its bound — a cache with no ceiling is a leak that only shows up on a
 // register whose paths change every frame
-export const _internals = {LENGTHS, MAX};
+export const _internals = {LENGTHS: _walkInternals.SEEN, MAX: _walkInternals.MAX_SEEN,
+  TABLES: _walkInternals.TABLES, MAX_TABLES: _walkInternals.MAX_TABLES};

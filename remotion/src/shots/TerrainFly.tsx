@@ -6,6 +6,7 @@
 // camera/landscape register (family B · camera/space). Deterministic (heights = summed sines of x, z+t).
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
@@ -72,11 +73,11 @@ export const TerrainFly: React.FC<{title?: string; tagline?: string}> = ({
       <svg width={W} height={H} style={{position: 'absolute', inset: 0}}>{lines}</svg>
       <div style={{position: 'absolute', top: 96, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: INK,
-        font: '800 120px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
+        font: `800 ${fitTextPx(String(TITLE), W, Math.round(120 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em',
         textShadow: TITLE_GLOW}}>{TITLE}</div>
       <div style={{position: 'absolute', top: 244, left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.3, 0.56)), color: TAG_INK,
-        font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.2em'}}>{TAG}</div>
+        font: `600 ${fitTextPx(String(TAG), W, Math.round(30 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.2})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.2em'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

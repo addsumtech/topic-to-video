@@ -17,7 +17,7 @@ import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeInOutCubic, easeOutBack} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
-import {contentBottom, inkBlockH} from '../runtime/layout';
+import {contentBottom, inkBlockH, fitTextPx} from '../runtime/layout';
 
 export const DURATION = 165; // 5.5s
 // LEVEL-C: frosted glass IS translucent-white on any ground (kept — that's what glass looks like), so the GROUND
@@ -109,7 +109,7 @@ export const LiquidGlass: React.FC<{items?: string[]; title?: string; target?: n
         background: `radial-gradient(closest-side, ${ORB2}66, ${ORB2}00)`, filter: 'blur(20px)'}} />
 
       {/* the UI beneath */}
-      <div style={{position: 'absolute', left: listX, top: titleY, color: FG, font: '800 60px/1 var(--f-body, Inter, system-ui, sans-serif)', letterSpacing: '-0.02em'}}>{title}</div>
+      <div style={{position: 'absolute', left: listX, top: titleY, color: FG, font: `800 ${fitTextPx(String(title), W, Math.round(60 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.02})}px/1 var(--f-body, Inter, system-ui, sans-serif)`, letterSpacing: '-0.02em'}}>{title}</div>
       {ROWS.map((r, i) => {
         const done = settled > 0.5 && i === target;
         return (

@@ -3,6 +3,7 @@
 // register done as true metaballs, not gradients (family F · fluid). Deterministic (blob orbits = fn of t).
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01, radians} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
@@ -58,10 +59,10 @@ export const MetaballMerge: React.FC<{title?: string; tagline?: string; accent?:
 
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
         <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 16}px)`, true), color: '#fff',
-          font: '800 150px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em',
+          font: `800 ${fitTextPx(String(TITLE), W, Math.round(150 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em',
           textShadow: '0 6px 30px #000, 0 0 60px #000c, 0 2px 0 #ffffff40'}}>{TITLE}</div>
         <div style={{opacity: tagIn, marginTop: 20, color: '#fff',
-          font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em',
+          font: `600 ${fitTextPx(String(TAG), W, Math.round(32 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.18})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.18em',
           textShadow: '0 2px 14px #000, 0 0 24px #000c'}}>{TAG}</div>
       </AbsoluteFill>
     </AbsoluteFill>

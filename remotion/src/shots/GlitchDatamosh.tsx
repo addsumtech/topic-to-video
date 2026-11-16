@@ -8,7 +8,7 @@ import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
 import {darkGround} from '../runtime/light';
-import {bottomInset} from '../runtime/layout';
+import {bottomInset, fitTextPx} from '../runtime/layout';
 import {useGlide} from '../runtime/glide';
 
 export const DURATION = 140; // ~4.7s
@@ -38,7 +38,9 @@ export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?:
   const g = clamp01(base * (0.5 + 0.5 * burst));
   const step = Math.floor(t * 14);                       // stutter clock (deterministic)
   const wordStyle: React.CSSProperties = {position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-    justifyContent: 'center', font: '900 240px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em'};
+    justifyContent: 'center', letterSpacing: '-0.03em',
+    // fitted to the width it ships at (240 px whatever the word or the frame ran a long word off both edges)
+    font: `900 ${fitTextPx(String(WORD), W, Math.round(240 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`};
   const tagIn = easeOutCubic(seg(t, 0.7, 0.9));
   return (
     <AbsoluteFill style={{background: BG, overflow: 'hidden'}}>
@@ -76,7 +78,7 @@ export const GlitchDatamosh: React.FC<{word?: string; tagline?: string; accent?:
       <div style={{position: 'absolute', inset: 0, background: 'radial-gradient(120% 100% at 50% 50%, #0000 55%, #000a 100%)'}} />
 
       <div style={{position: 'absolute', left: 0, right: 0, bottom: bottomInset(W, H, 150), textAlign: 'center', opacity: tagIn,
-        color: ACC, font: '700 34px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.3em', textTransform: 'uppercase',
+        color: ACC, font: `700 ${fitTextPx(String(TAG), W, Math.round(34 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.3})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.3em', textTransform: 'uppercase',
         textShadow: `0 0 20px ${ACC}`}}>{TAG}</div>
     </AbsoluteFill>
   );

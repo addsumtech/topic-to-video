@@ -146,7 +146,9 @@ export const GlowPick: React.FC<{
 
   // ── the four moves, each starting where the last one stopped ────────────────────────────────────────────
   const rise = easeOutCubic(clamp01(seg(t, 0, 0.12)));
-  const drift = Math.sin(t * Math.PI * 1.15);            // never stops: a still surface reads as a bitmap
+  // never stops (a still surface reads as a bitmap) and never turns back: sin(t·1.15π) passed its peak at t 0.43 and
+  // tilted the surface back the way it came (audit 2026-11-15); a quarter period keeps it moving one way to the cut
+  const drift = Math.sin(t * Math.PI * 0.5);
   const roam = (() => {
     const path = ROAM.map((k, i) => i === ROAM.length - 1
       ? {...k, x: (tgt.x + tgt.w * 0.5) / surfW, y: (tgt.y + tgt.h * 0.86) / surfH}

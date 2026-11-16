@@ -3,6 +3,7 @@
 // (family X · weather/atmosphere). Muted palette. Deterministic (droplet y = fn of t + seed).
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA} from '../runtime/dna';
@@ -38,10 +39,10 @@ export const RainGlass: React.FC<{title?: string; tagline?: string; accent?: str
         <div style={{position: 'absolute', inset: 0,
           background: `radial-gradient(30% 40% at 26% 34%, ${ACC}44, #0000 60%), radial-gradient(26% 34% at 74% 62%, #ffd79955, #0000 60%), radial-gradient(20% 26% at 60% 20%, #ffffff33, #0000 60%)`}} />
         <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
-          <div style={{opacity: titleIn, color: '#f2f7ff', font: '800 138px/1 var(--f-display, Inter, system-ui, sans-serif)',
+          <div style={{opacity: titleIn, color: '#f2f7ff', font: `800 ${fitTextPx(String(TITLE), W, Math.round(138 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`,
             letterSpacing: '-0.03em', textShadow: '0 10px 50px #0009'}}>{TITLE}</div>
           <div style={{opacity: clamp01(seg(t, 0.5, 0.74)), marginTop: 22, color: '#cfe0f5',
-            font: '600 32px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.18em'}}>{TAG}</div>
+            font: `600 ${fitTextPx(String(TAG), W, Math.round(32 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.18em'}}>{TAG}</div>
         </AbsoluteFill>
       </div>
 

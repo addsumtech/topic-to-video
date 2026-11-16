@@ -36,6 +36,16 @@ Where a thing is when it travels along an SVG path, by arc length — so a trave
 **Smallest real use:** `const p = pointAt(d, u); <circle cx={p.x} cy={p.y} r={6} />`
 **Exports:** `pointAt`, `angleAt`, `pathLength`.
 
+### `rawEase`
+`rawEaseInOutCubic`, `rawEaseOutCubic` — the curves as drawn, never bent by the film's easing personality. For the
+CAMERA and the SEAMS only: they are the film's language, and a style that overshoots bent a push past its framing and
+back. A register's own motion keeps motion's easings, which a style is meant to bend.
+
+### `pathWalk`
+`pathTable`, `alongTable`, `walkAt`, `walkLength` — one walker of a path by arc length, the browser's own (the library's
+points jitter backwards along a curve and its tangent is reversed on arcs). Type on a path and a thing sent down a
+path read it, so they agree about where the curve is. A path is tabled the second time it is asked about.
+
 ### `gesture`
 The one implementation of typing, tapping, clicking and the caret, on frames or on a schedule — never on a
 beat-relative rate.
@@ -950,6 +960,16 @@ Publication-grade interface parts for product shots: every word and value is a p
 **Reach for it:** a product's window, a cursor doing the action, a plan ticking, files, a done-toast.
 **Smallest real use:** `const t = uiTheme(ground, accent); <StepRow text={s} theme={t} px={24} state="done" />`
 **Exports:** `uiTheme`, `AppWindow`, `Cursor`, `Chip`, `Button`, `Avatar`, `Sparkline`, `FileBadge`, `MetricTile`, `StepRow`, `PromptBox`, `Toast`.
+
+### `dnaTypeVars`
+`DnaTypeVars` — the film's type rules as one element (the DNA's three font variables, a uniform-type DNA's mono
+rule, the Han/Latin autospace). Mount it wherever a register is drawn under a DNA, so a gate that renders a shot on
+its own measures the type the film ships.
+
+### `frameCensus`
+`useFrameCensus` — one census per frame after what it measures is drawn: it holds the frame, waits for the bundled
+faces, for every kinetic line and (for pictures) every image to decode, measures, logs one tagged line, releases.
+`CensusWaits` says which waits a census needs.
 
 ## Recipes
 

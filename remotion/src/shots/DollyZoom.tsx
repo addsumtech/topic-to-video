@@ -37,6 +37,7 @@
 // a column of labels taller than the zone, drawn on top of each other — is now part of the size fit below,
 // which steps the type down and refuses loudly if no size fits, exactly as it already did for the travel.
 import React from 'react';
+import {useGlide} from '../runtime/glide';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic} from '../runtime/motion';
 import {useDNA, readableOn} from '../runtime/dna';
@@ -81,6 +82,7 @@ export const DollyZoom: React.FC<{
 } = {}) => {
   const dna = useDNA();
   const t = useT();
+  const glide = useGlide();
   const {width: W, height: H} = useVideoConfig();
   const U = Math.min(W, H);
 
@@ -240,7 +242,9 @@ export const DollyZoom: React.FC<{
       const left = portrait ? run : W / 2 + sign * off - fit.w / 2;
       const top = portrait ? cy + sign * off - h / 2 : run;
       labels.push(
-        <div key={`${gi}-${i}`} style={{position: 'absolute', left: Math.round(left), top: Math.round(top),
+        // placed by a TRANSLATE carrying the unlock: rounded left/top stepped each label a whole pixel as the room
+        // receded (audit 2026-11-15)
+        <div key={`${gi}-${i}`} style={{position: 'absolute', left: 0, top: 0, transform: glide(`translate(${left}px, ${top}px)`, true),
           width: fit.w, textAlign: 'center', opacity: ctxOn, color: FG, filter: roomFilter,
           font: `600 ${fit.px}px/${fit.lead} var(--f-body, system-ui, sans-serif)`, letterSpacing: '0.01em'}}>
           {s}

@@ -121,7 +121,7 @@ export const PositioningMatrix: React.FC<{
       {items.map((it, i) => {
         // the stagger closes up with the count so the last dot has landed by the end (four keep 0.1)
         const st = 0.42 + i * Math.min(0.1, 0.3 / Math.max(1, n - 1));
-        const r = easeOutBack(clamp01(seg(t, st, st + 0.24)));
+        const r = easeOutCubic(clamp01(seg(t, st, st + 0.24)));   // lands, never overshoots and returns
         const X = px(it.x), Y = py(it.y);
         const hero = !!it.hero;
         const size = hero ? 34 : 20;

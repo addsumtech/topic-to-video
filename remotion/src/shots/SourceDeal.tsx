@@ -193,8 +193,9 @@ export const SourceDeal: React.FC<{
   // it left a 360px dead band between the source and the first pill and used half the frame for nothing.
   const parkedEnd = (px: number) => px * parkScale;
 
-  // whole periods, so the last frame is where the first one was and the next shot can cut in on a still doc
-  const scroll = (t * 3) % 1;
+  // ONE read down the document, eased to rest: `(t * 3) % 1` jumped back to the top twice a beat (a rewind, audit
+  // 2026-11-15). It starts and ends still, so the next shot can still cut in on a still doc.
+  const scroll = 0.5 - 0.5 * Math.cos(Math.PI * clamp01(t));
 
   // ── the deal ─────────────────────────────────────────────────────────────────────────────────────────────
   // THE INTERVAL IS A SPOKEN SENTENCE, and it has to be derived from the room, not from a fraction someone

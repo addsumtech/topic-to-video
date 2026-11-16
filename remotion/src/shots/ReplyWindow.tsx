@@ -251,7 +251,7 @@ const Pane: React.FC<{x: number; y: number; w: number; h: number; ink: Ink; U: n
   const depth = U * L.depth;
   const steps = 14;
   const shade = faceShade(pose, {}, 0.55);
-  const unlockOn = unlockAllowed && !reduced;
+  const unlockOn = unlockAllowed && !reduced;   // @glide-span: the film's unlock context and reduced motion, constant over the beat
   // A BLOCK OF WORDS ON THE FACE, as a 2D affine fitted to ALL FOUR projected corners (least squares) rather than
   // three: on a slab leaning back, the face is a trapezoid; a three-corner fit takes the slant of its left edge
   // for the whole block, and the lines read as italic. Over four corners the slants of the two sides cancel, the

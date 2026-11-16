@@ -3,6 +3,7 @@
 // surface. Pure CSS 3D (preserve-3d) — no WebGL. The "many shards → one image" reveal (family E). Deterministic.
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, easeOutExpo, hash01} from '../runtime/motion';
 import {useDNA, mix} from '../runtime/dna';
@@ -70,10 +71,10 @@ export const FractureIn: React.FC<{title?: string; tagline?: string; accent?: st
       <AbsoluteFill style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         pointerEvents: 'none'}}>
         <div style={{opacity: titleIn, transform: glide(`translateY(${(1 - titleIn) * 20}px)`, true),
-          color: INK, font: `800 128px/1 ${dna?.fontDisplay ?? 'var(--f-display, Inter, system-ui, sans-serif)'}`, letterSpacing: '-0.03em',
+          color: INK, font: `800 ${fitTextPx(String(TITLE), W, Math.round(128 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 ${dna?.fontDisplay ?? 'var(--f-display, Inter, system-ui, sans-serif)'}`, letterSpacing: '-0.03em',
           textShadow: '0 20px 60px #000a'}}>{TITLE}</div>
         <div style={{opacity: clamp01(seg(t, 0.72, 0.9)), marginTop: 22, color: TAG_INK,
-          font: `600 34px/1 ${dna?.fontMono ?? 'var(--f-mono, "JetBrains Mono", monospace)'}`,
+          font: `600 ${fitTextPx(String(TAG), W, Math.round(34 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.14})}px/1 ${dna?.fontMono ?? 'var(--f-mono, "JetBrains Mono", monospace)'}`,
           letterSpacing: dna?.labelSpacing ?? '0.14em',
           textShadow: '0 4px 20px #000'}}>{TAG}</div>
       </AbsoluteFill>

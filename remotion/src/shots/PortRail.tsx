@@ -57,7 +57,8 @@ const LIFT = 1.22;
 const CAM: Vec3 = [0, 2.30, 5.55];
 const AIM: Vec3 = [0, 0.34, 0];
 const FOV = 34;
-const YAW = (frame: number) => Math.sin(frame * 0.005) * 0.055;   // a breath, not a turntable
+// a breath, not a turntable — one way (held at its quarter period; a sine of the frame turned back on a long beat)
+const YAW = (frame: number) => Math.sin(Math.min(frame * 0.005, Math.PI / 2)) * 0.055;
 
 // THE RAIL TURNS IN PORTRAIT, because a row does not fit one. At 9:16 the horizontal rail ran four of its
 // six modules clean off both edges — the library's own rule is that a multi-column layout must STACK there,

@@ -213,7 +213,9 @@ export const CollaborativeCursors: React.FC<{names?: (string | CollabBoard)[]}> 
   const camKeys: Cam[] = [
     {at: 0.0, cx: WORLD_W / 2, cy: WORLD_H / 2, z: Math.min(0.66, zEnd)},
     {at: 0.20, cx: WORLD_W / 2, cy: WORLD_H / 2, z: Math.min(0.70, zEnd)},
-    {at: 0.60, cx: WORLD_W / 2 + 240, cy: WORLD_H / 2 + 150, z: lerp(Math.min(0.70, zEnd), zEnd, 0.75)},
+    // ONE WAY: it swept 240 px right and came back to centre (a push-and-return, audit 2026-11-15); its centre now
+    // travels straight from the wide's to the grid's, the zoom building as before
+    {at: 0.60, cx: WORLD_W / 2, cy: lerp(WORLD_H / 2, cyEnd, 0.75), z: lerp(Math.min(0.70, zEnd), zEnd, 0.75)},
     {at: 1.0, cx: WORLD_W / 2, cy: cyEnd, z: zEnd},
   ];
   const cam = camAt(t, camKeys);

@@ -118,13 +118,16 @@ export const NeonTickerWall: React.FC<{headline?: string; tickers?: string[]; ac
         // run starts 800px left of the frame so a strip scrolling right never opens a gap at the left edge
         const unit = String(TICKERS[i]);   // strips are TICKERS.map(...), so strip i IS ticker i
         const unitW = Math.max(1, textWidthPx(unit, 42, {adv: 0.6, cjk: 1.0}));   // low estimate → enough copies
-        const txt = unit.repeat(Math.ceil((W + 1600) / unitW) + 1);
-        const shift = ((t * s.sp * 420) % 800) * s.dir;
+        // NO WRAP: `% 800` jumped back at a period that is not the text's own (a strip leapt at t~0.9, audit
+        // 2026-11-15). The strip travels its whole distance once, and the run starts that far off the frame.
+        const travel = Math.ceil(s.sp * 420) + 40;
+        const txt = unit.repeat(Math.ceil((W + 2 * travel) / unitW) + 1);
+        const shift = t * s.sp * 420 * s.dir;
         return (
           <div key={i} style={{position: 'absolute', left: 0, right: 0, top: s.y, height: 64, overflow: 'hidden',
             background: PANEL, borderTop: `1px solid ${col}55`, borderBottom: `1px solid ${col}55`,
             opacity: flick(i * 3.3)}}>
-            <div style={{position: 'absolute', whiteSpace: 'nowrap', top: 10, left: -800, transform: `translateX(${-shift}px)`,
+            <div style={{position: 'absolute', whiteSpace: 'nowrap', top: 10, left: -travel, transform: `translateX(${-shift}px)`,
               color: col, font: '800 42px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.06em',
               textShadow: `0 0 14px ${col}`}}>{txt}</div>
           </div>

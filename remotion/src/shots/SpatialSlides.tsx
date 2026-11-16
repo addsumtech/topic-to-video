@@ -156,8 +156,9 @@ export const SpatialSlides: React.FC<{steps?: string[]; notes?: string[]; overvi
         const half = w / 2, deep = (lblock * aff.scale) / 2;
         if (q.x - half < 0 || q.x + half > W) return null;
         if (q.y - deep < CONTENT_TOP * 0.4 || q.y + deep > contentBottom(W, H)) return null;
+        // held for the span: switched off when fully in (`out !== 1`), the type stepped to the whole pixel as it landed
         return (
-          <OnSurface key={k} pose={p} cam={cam} persp={P} W={W} H={H} glide={out !== 1}
+          <OnSurface key={k} pose={p} cam={cam} persp={P} W={W} H={H} glide
             left={-lw / 2} top={-inkBlockH(px) / 2} width={lw} height={lblock} affine={aff}
             style={{textAlign: 'center', opacity: 0.25 + 0.75 * near,
             color: INK, font: `700 ${px.toFixed(1)}px/${leading(list[k], 1.08)} var(--f-display, Inter, system-ui, sans-serif)`,

@@ -3,6 +3,7 @@
 // organic/botanical). Deterministic (branch geometry is a pure recursion; draw-on staggered by depth).
 
 import React from 'react';
+import {fitTextPx} from '../runtime/layout';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useT, seg, lerp, clamp01, easeOutCubic, hash01} from '../runtime/motion';
 import {useDNA, shade} from '../runtime/dna';
@@ -101,10 +102,10 @@ export const FractalTree: React.FC<{title?: string; tagline?: string; branch?: s
           separation shadow is the ground's own colour on paper, never a fixed black under near-black type */}
       <div style={{position: 'absolute', top: 120, left: 0, right: 0, textAlign: 'center', opacity: titleIn,
         transform: glide(`translateY(${(1 - titleIn) * 14}px)`, true), color: dna?.fg ?? '#eafff2',
-        font: '800 120px/1 var(--f-display, Inter, system-ui, sans-serif)', letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
+        font: `800 ${fitTextPx(String(TITLE), W, Math.round(120 * Math.min(W, H) / 1080), {usable: 0.86, track: -0.03})}px/1 var(--f-display, Inter, system-ui, sans-serif)`, letterSpacing: '-0.03em', textShadow: `0 8px 40px ${lit ? BG : '#000'}`}}>{TITLE}</div>
       <div style={{position: 'absolute', top: 268, left: 0, right: 0, textAlign: 'center',
         opacity: easeOutCubic(seg(t, 0.7, 0.9)), color: dna?.dim ?? '#9fc4b0',
-        font: '600 30px/1 var(--f-mono, "JetBrains Mono", monospace)', letterSpacing: '0.16em'}}>{TAG}</div>
+        font: `600 ${fitTextPx(String(TAG), W, Math.round(30 * Math.min(W, H) / 1080), {usable: 0.86, track: 0.16})}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.16em'}}>{TAG}</div>
     </AbsoluteFill>
   );
 };

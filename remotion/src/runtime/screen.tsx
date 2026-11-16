@@ -44,9 +44,16 @@ export const ScreenVideo: React.FC<{src: string; spans: VideoSpan[]; w: number; 
   return (
     <div style={{position: 'absolute', left: 0, top: 0, width: w, height: h, overflow: 'hidden', background: '#000000'}}>
       {spans.map((s, i) => {
-        const frames = Math.max(1, Math.round(s.f1 - s.f0));
+        // BOTH ENDS ROUNDED, the length their difference: rounding the start and the length apart left a frame between
+        // two spans that met (round(f0) + round(f1 - f0) < round(f1)) — one black frame mid-recording (audit
+        // 2026-11-15, simulated at frame 95). A span that runs backwards is a broken script, said by name.
+        if (!(s.f1 >= s.f0)) {
+          throw new Error(`ScreenVideo: span ${i} runs backwards (f0 ${s.f0} > f1 ${s.f1}) — the recording would rewind`);
+        }
+        const f0 = Math.round(s.f0);
+        const frames = Math.max(1, Math.round(s.f1) - f0);
         return (
-          <Sequence key={i} from={Math.round(s.f0)} durationInFrames={frames + (i === spans.length - 1 ? lead : 0)} layout="none">
+          <Sequence key={i} from={f0} durationInFrames={frames + (i === spans.length - 1 ? lead : 0)} layout="none">
             <OffthreadVideo src={staticFile(src)} muted trimBefore={Math.round(s.v0 * fps)}
               playbackRate={Math.max(0.01, ((s.v1 - s.v0) * fps) / frames)}
               style={{position: 'absolute', left: 0, top: 0, width: w, height: h, objectFit: 'cover'}} />
