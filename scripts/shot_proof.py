@@ -105,7 +105,7 @@ def _unfed_text(shot, payload, frame, proof, beat, out_dir, scope, declared):
     with open(pj, "w", encoding="utf-8") as fh:
         json.dump(dict(payload, unfedText=fed, unfedScope=scope), fh, ensure_ascii=False)
     png = os.path.join(proof, "beat_%02d.unfed.png" % beat)
-    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame, "--gl=angle",
+    r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=%d" % frame, "--gl=" + _gl(),
                         "--props=" + pj, "--log=error", "--public-dir=" + os.path.abspath(out_dir)],
                        cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
     for f in (pj, png):
@@ -210,7 +210,7 @@ def _kinetic_holds(shot, payload, slide, proof, beat, out_dir):
         json.dump(dict(payload, kineticHolds=True, holdFrames=int(round(dur * 30))), fh, ensure_ascii=False)
     png = os.path.join(proof, "beat_%02d.holds.png" % beat)
     r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png, "--frame=0",
-                                       "--gl=angle", "--props=" + pj, "--log=error",
+                                       "--gl=" + _gl(), "--props=" + pj, "--log=error",
                                        "--public-dir=" + os.path.abspath(out_dir)],
                       cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
     for f in (pj, png):
@@ -488,6 +488,33 @@ def _keep(proof, key, suffix, src=None, data=None):
             json.dump(data, fh, ensure_ascii=False)
 
 
+def _gl():
+    """The GL backend every render uses (remotion_segments.default_gl) — this file hard-coded `angle` in four calls."""
+    import remotion_segments as _rs
+    return _rs.default_gl()
+
+
+_ALIASES = {"stamp": None, "table": {}}
+
+
+def _runtime_aliases():
+    """{type name: is a union of string literals} over runtime/*.ts(x), first definition in sorted file order — read
+    ONCE per process and re-read when a file changes: switch_props re-read all of runtime/ and ran its regex over it
+    for every beat (30 beats, ~11 s — audit 2026-11-15, step 7)."""
+    d = os.path.join(_REMOTION, "src", "runtime")
+    files = sorted(f for f in os.listdir(d) if f.endswith((".ts", ".tsx")))
+    stamp = tuple((f, os.stat(os.path.join(d, f)).st_mtime_ns) for f in files)
+    if _ALIASES["stamp"] != stamp:
+        lit = r"(?:'[^']*'\s*\|\s*)*'[^']*'"
+        table = {}
+        for f in files:
+            text = open(os.path.join(d, f), encoding="utf-8").read()
+            for name, body in re.findall(r"(?:export\s+)?type\s+(\w+)\s*=\s*([^;]+);", text):
+                table.setdefault(name, bool(re.fullmatch(lit, body.strip())))
+        _ALIASES.update(stamp=stamp, table=table)
+    return _ALIASES["table"]
+
+
 def switch_props(shot):
     """Props typed as a CHOICE of string literals — `camera?: 'still'`, `device?: DeviceKind` — whose value is a
     setting, not copy. Their default is a real choice a film makes (a phone), never leftover demo furniture, so
@@ -496,18 +523,14 @@ def switch_props(shot):
         src = open(_src_path(shot), encoding="utf-8").read()
     except OSError:
         return set()
-    runtime = []
-    for f in sorted(os.listdir(os.path.join(_REMOTION, "src", "runtime"))):
-        if f.endswith((".ts", ".tsx")):
-            runtime.append(open(os.path.join(_REMOTION, "src", "runtime", f), encoding="utf-8").read())
     lit = r"(?:'[^']*'\s*\|\s*)*'[^']*'"
+    runtime = _runtime_aliases()
 
     def literal_alias(name):
-        for text in [src] + runtime:
-            m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*([^;]+);" % re.escape(name), text)
-            if m:
-                return bool(re.fullmatch(lit, m.group(1).strip()))
-        return False
+        m = re.search(r"(?:export\s+)?type\s+%s\s*=\s*([^;]+);" % re.escape(name), src)   # the shot's own first
+        if m:
+            return bool(re.fullmatch(lit, m.group(1).strip()))
+        return runtime.get(name, False)
     out = set()
     for key, typ in re.findall(r"\b(\w+)\?\s*:\s*([^;\n]+);", src):
         typ = typ.strip()
@@ -1421,7 +1444,7 @@ def _prove(argv, out_dir, board, ws_durs):
                     r = subprocess.CompletedProcess([], 0, "", "")
                 else:
                     r = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, png,
-                                        "--frame=%d" % frame, "--gl=angle", "--props=" + pj, "--log=error",
+                                        "--frame=%d" % frame, "--gl=" + _gl(), "--props=" + pj, "--log=error",
                                         "--public-dir=" + os.path.abspath(out_dir)],
                                        cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
                     if r.returncode == 0 and os.path.exists(png):
@@ -1508,7 +1531,7 @@ def _prove(argv, out_dir, board, ws_durs):
                     rm = subprocess.CompletedProcess([], 0, "", "")
                 else:
                     rm = _c.run_render(subprocess.run, ["npx", "remotion", "still", "src/index.ts", shot, mid_png,
-                                         "--frame=%d" % int(int(dm.group(1)) * 0.5), "--gl=angle",
+                                         "--frame=%d" % int(int(dm.group(1)) * 0.5), "--gl=" + _gl(),
                                          "--props=" + pj, "--log=error",
                                          "--public-dir=" + os.path.abspath(out_dir)],
                                         cwd=_REMOTION, capture_output=True, text=True, **_FILM_ENV)
