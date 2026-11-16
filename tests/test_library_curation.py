@@ -44,11 +44,24 @@ def test_the_tables_name_real_registers():
 
 
 def test_a_film_takes_one_register_of_a_twin_set_while_fresh_ones_remain():
+    """A second register of a twin set is cast only once every FRESH candidate is used — a fresh one being a statement
+    register the beat may take (its subject allows it) that is neither used nor a twin of one used. Asserted as that
+    rule, not as "at most one": once the audit of 2026-11-15 put 13 statement registers in the wordmark set, a 24-beat
+    film of nothing but statements has fewer distinct looks than beats, and a repeat is the only choice left."""
+    allowed = [c for c in sd.CANDIDATES["statement"] if sd.topic_allows(c, "A calendar app for teams")]
     for n in (14, 24, 30):
         shots = _film(n, "A calendar app for teams")
-        for name, group in sd.TWINS.items():
-            hit = [s for s in shots if s in group]
-            assert len(hit) <= 1, (n, name, hit)
+        if n == 14:                                   # plenty of fresh looks: no twin is spent
+            for name, group in sd.TWINS.items():
+                assert len([s for s in shots if s in group]) <= 1, (n, name)
+        for k, s in enumerate(shots):
+            g = sd._TWIN_OF.get(s)
+            before = shots[:k]
+            if not g or not any(sd._TWIN_OF.get(b) == g for b in before):
+                continue
+            sets = {sd._TWIN_OF[b] for b in before if b in sd._TWIN_OF}
+            fresh = [c for c in allowed if c not in before and sd._TWIN_OF.get(c) not in sets]
+            assert not fresh, (n, k, s, "a twin was cast while these were fresh", fresh[:5])
 
 
 def test_a_subject_register_is_not_a_backdrop_for_another_subject():

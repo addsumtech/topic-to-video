@@ -441,10 +441,16 @@ CLIMAX = ["ParticleForm", "RadialBurst", "FractureIn", "MorphForms", "SpectrumPu
 # then in neon has shown one picture three times, and the variety rule — which refuses only a register already used and
 # an adjacent family — let it. A twin of a register the film uses is taken only when no fresh candidate is left.
 TWINS = {
-    "wordmark": ["CinematicTitle", "BokehPull", "HoloFoil", "LiquidChrome", "NeonGrid", "AnalogTape"],
-    "hub": ["KnowledgeGraph", "MapRoutes", "DataOrrery", "RadialBurst"],
-    "done": ["LightTrails", "LiquidFill", "LiquidMorph", "ParticleForm", "CartoonPop", "HalftonePop", "PixelBuild"],
+    # the audit of 2026-11-15 (step 8) found these left out: a film could cast two of one look under different names
+    "wordmark": ["CinematicTitle", "BokehPull", "HoloFoil", "LiquidChrome", "NeonGrid", "AnalogTape",
+                 "InkBloom", "SpectrumPulse", "GlitchDatamosh", "FractureIn", "MetaballMerge", "LiquidMetal",
+                 "CodeRain", "TerrainFly", "RisoPrint"],
+    "hub": ["KnowledgeGraph", "MapRoutes", "DataOrrery", "RadialBurst", "InfiniteCanvas"],
+    "done": ["LightTrails", "LiquidFill", "LiquidMorph", "ParticleForm", "CartoonPop", "HalftonePop", "PixelBuild",
+             "ClayStack", "VoxelBuild", "PaperCutout"],
     "race": ["ChartRace", "RankRace"],
+    "command": ["CommandSummon", "CursorStory"],
+    "inflate": ["ElasticType", "InflateType"],
 }
 _TWIN_OF = {r: name for name, group in TWINS.items() for r in group}
 
