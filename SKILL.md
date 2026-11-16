@@ -105,10 +105,14 @@ seams. **This timeline is the film's clock: every picture is built to it.** Capt
 
 ### 5. One look — the user picks it (the one checkpoint)
 
-1. From `references/visual-styles.md` (18 named styles: swiss, editorial, bauhaus, memphis, risograph, blueprint,
-   terminal, glassmorphism, …), shortlist 2-3 that fit THIS subject and purpose — its domain map and guardrail
-   vetoes apply (no playful style on a somber subject; no busy ground under data). A brand's own colours and
-   logo (`input` assets) override the palette, not the style's structure.
+0. **If the user named a style** ("Memphis 风格", "like a blueprint", "像纪录片那样"), that is the look: map it to
+   its look and sub-register, render one style frame to set it, and skip the choice. A brand's colours still apply.
+1. From `references/video-looks.md` (11 video looks, each a production technique plus a vibe: flat illustrated,
+   mathematical, editorial motion graphics, kinetic type, product UI, lit 3D, isometric, cut-out collage,
+   documentary, whiteboard, retro registers), shortlist 2-3 GENUINELY DIFFERENT looks that fit this subject and
+   purpose (its choosing map). For each, take the palette and type from a sub-register in
+   `references/visual-styles.md` (its guardrail vetoes apply: no playful register on a somber subject, no busy
+   ground under data). A brand's own colours and logo override the palette, not the look's technique.
 2. For each, render ONE **style frame**: a 1920x1080 still of the film's real subject at its key moment (the real
    QR code, the real product screen), in that look, with a caption. `python3 scripts/theme.py <film_dir> --style
    <key>` gives the style's contrast-safe palette and type as CSS variables. **The frames must differ as LOOKS**:
@@ -161,6 +165,18 @@ made this way. A film that wants the kit below may be built in the skill's Remot
 - No blank holds: every shot puts its subject on screen from its first frame (lead the cut by ~0.1 s).
 - Text on screen is labels, keywords and numbers, never the narration as body text.
 - Build each sequence, export its settled frames, look at them, fix, then move on.
+
+**A launch or product film** has its own grammar (measured on 20 official launch films, `references/craft-standard.md`
+"A product film"; `references/launch-film-study.md`). The WorkBuddy blind round showed what happens without it: the
+film that kept the real product large matched one that redrew the product as icons on empty paper.
+- **The real product is the hero, at size.** Its real screens fill most of the frame (about 55 % of the width or
+  more), or a crop pushes onto the exact component the voice names, within the screenshot's pixel density. A
+  redrawn icon, card or device outline is a stand-in: use one only where no real screen shows the idea.
+- **One hero object persists**: the product's window stays, and the beats are its states, not new scenes.
+- **Type beats alternate with product beats.** A type beat is one short display line on the brand ground (the
+  problem, the promise, the payoff), the key word in the brand accent.
+- **The brand early and at the end**: the real logo within the first ~10 s, and a closing lockup (mark + line).
+- **One small celebration** (a task completing, a toast) and a quick rhythm: few shots hold still past 1 s.
 
 **Render** `<film_dir>/final.mp4`: 1920x1080 (or 1080x1920 when asked for vertical), 30 fps, H.264 + AAC.
 Write `<film_dir>/_plan.json` with the cut frames computed by **the same rule the renderer uses to switch shots**
