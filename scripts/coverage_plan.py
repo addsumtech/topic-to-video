@@ -10,8 +10,12 @@ into its climax; TE and B&O show fragments and give the whole last).
 
 THE RULES.
   * items    a clause that names a listed item cuts to a close-up of it (focus_plan's own matching, at a burst pace:
-             MIN_SHOT_S between cuts instead of the lead's 1.2 s). After the last item the beat cuts back to the WHOLE
-             for its closing END_WIDE_S — fragments first, the whole last.
+             MIN_SHOT_S between cuts instead of the lead's 1.2 s), and the beat stays on its last close-up to its cut.
+             It used to cut back to the WHOLE for its closing 0.9 s ("fragments first, the whole last"), but the
+             entrance is always wide, so the whole was the frame the beat had OPENED on: wide → close → close → wide
+             read as a zoom in and back out, the punch's defect again (ANC beat 13, "A check" held then snapped back
+             to the opening frame; rewind_qa, 2026-11-16). The brand films give the whole last because they never
+             showed it first. A clause naming no item keeps the framing it is in, for the same reason.
   * punch    a beat with no named item and at least PUNCH_MIN_BEAT_S long cuts once, on a clause onset in the middle
              of the beat, from the composition IN to a PUNCH crop around its centre, and stays in until the cut (a
              punch that cut back out to the same frame read as a zoom in and out — 2026-11-12).
@@ -24,7 +28,8 @@ THE RULES.
   * entrance a beat's first ENTRY_S (its seam; a register re-posing from the beat before) is never framed: a step
              planned inside it starts at ENTRY_S and the beat opens wide.
   * seams    an anchored seam (container / grow / through-window / punch / carry / return) measures its anchor on the
-             composed frame, so a beat on either side of one starts or ends WIDE for at least END_WIDE_S.
+             composed frame, so a beat after one starts WIDE; a beat BEFORE one must end wide, and since it opens wide
+             too, any framing in it would return to its own opening — that beat is not covered at all.
   * framing  only WHICH framing is decided here; the runtime measures the frame and refuses any crop that would cut a
              line of type, push content into the caption band or magnify a raster — that step then renders wide.
 """
@@ -40,7 +45,6 @@ MIN_BEAT_S = 3.0
 PUNCH_MIN_BEAT_S = 5.0
 PUNCH = 1.3               # the punch-in's scale: a clear change of framing that keeps the composition's core
 PUNCH_WINDOW = (0.35, 0.7)
-END_WIDE_S = 0.9          # the whole, held at the end of an item burst (and either side of an anchored seam)
 ENTRY_S = 0.8             # a beat's entrance (the seam, a register re-posing from the beat before): never framed —
                           # measured on the fridge film, FridgeLoop re-composes over its first ~0.8 s
 ANCHORED = frozenset(("container", "grow", "through-window", "punch", "carry", "return"))
@@ -155,12 +159,10 @@ def coverage_plan(sc, duration, index, n_beats, prev=None, nxt=None, enabled=Tru
         if first["t"] >= 0.6 or wide_in:
             steps.append({"t": 0.0, "frame": "wide"})
         for s in items_plan:
+            if not s.get("key"):
+                continue                     # a clause naming no item keeps the framing it is in (never back to wide)
             t = 0.0 if (s is first and not steps) else s["t"]
-            steps.append({"t": round(t, 3), "frame": {"key": s["key"]} if s.get("key") else "wide"})
-        last = max(s["t"] for s in items_plan)
-        back = max(last + MIN_SHOT_S + 0.4, duration - END_WIDE_S - 0.6)
-        if back <= duration - END_WIDE_S:
-            steps.append({"t": round(back, 3), "frame": "wide"})
+            steps.append({"t": round(t, 3), "frame": {"key": s["key"]}})
     elif duration >= PUNCH_MIN_BEAT_S:
         lo, hi = PUNCH_WINDOW[0] * duration, PUNCH_WINDOW[1] * duration
         onsets = [t for t, _txt, _end in _fp._clauses(spans, caption) if lo <= t <= hi and duration - t >= 1.5]
@@ -176,8 +178,8 @@ def coverage_plan(sc, duration, index, n_beats, prev=None, nxt=None, enabled=Tru
         steps = [{"t": 0.0, "frame": "wide"}] + [dict(x, t=max(x["t"], ENTRY_S)) for x in steps]
     else:
         steps = [x if (x["frame"] == "wide" or x["t"] >= ENTRY_S) else dict(x, t=ENTRY_S) for x in steps]
-    if wide_out and steps and steps[-1]["frame"] != "wide":
-        steps.append({"t": round(duration - END_WIDE_S, 3), "frame": "wide"})
+    if wide_out and any(x["frame"] != "wide" for x in steps):
+        return None                          # it opens wide and must end wide: any framing would return to its opening
     steps = _tidy(steps, duration)
     if not any(s["frame"] != "wide" for s in steps):
         return None

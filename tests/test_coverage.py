@@ -31,13 +31,14 @@ LIST_CAP = ("It has an outside mic, then an inside mic, a speaker, and a chip. "
             "All four work together on every sound you hear.")
 
 
-def test_a_list_read_aloud_is_a_burst_of_close_ups_that_ends_on_the_whole():
+def test_a_list_read_aloud_is_a_burst_of_close_ups_that_never_returns_to_its_opening():
+    """the entrance is wide, so a burst that ended on the whole ended on the frame it opened on: wide -> close ->
+    close -> wide read as a zoom in and back out (ANC beat 13). It stays on its last close-up."""
     plan = cp.coverage_plan(_scene(LIST_CAP, LIST, dur_s=8.0), 8.0, 3, 10)
     steps = plan["coverage"]
     keys = [s["frame"]["key"] for s in steps if isinstance(s["frame"], dict) and "key" in s["frame"]]
     assert keys[:2] == ["parts.0", "parts.1"]
-    assert steps[-1]["frame"] == "wide"
-    assert 8.0 - steps[-1]["t"] >= cp.END_WIDE_S - 1e-9
+    assert steps[0]["frame"] == "wide" and all(s["frame"] != "wide" for s in steps[1:])
     assert plan["coverageItems"]["parts.0"] == "outside mic"
 
 
@@ -113,11 +114,24 @@ def test_coverage_stays_off_where_it_must(why):
     assert cp.coverage_plan(sc, sc["durF"] / 30.0, i, n, prev=prev, enabled=on) is None
 
 
-def test_an_anchored_seam_out_leaves_the_beat_wide():
+def test_a_beat_before_an_anchored_seam_is_not_covered():
+    """it opens wide and must end wide (the seam measures its anchor on the composed frame): any framing between would
+    return to its own opening"""
     cap = "The wave travels through the air, and when it reaches your ear, the drum moves with it every time."
     nxt = {"transitionIn": {"type": "container", "carry": "x"}}
-    steps = cp.coverage_plan(_scene(cap, {}, dur_s=7.0), 7.0, 4, 10, nxt=nxt)["coverage"]
-    assert steps[-1]["frame"] == "wide"
+    assert cp.coverage_plan(_scene(cap, {}, dur_s=7.0), 7.0, 4, 10, nxt=nxt) is None
+    assert cp.coverage_plan(_scene(LIST_CAP, LIST, dur_s=8.0), 8.0, 3, 10, nxt=nxt) is None
+
+
+def test_no_plan_ever_returns_to_the_wide_it_left():
+    caps = [LIST_CAP, "The wave travels through the air, and when it reaches your ear, the drum moves with it every time.",
+            "It has an outside mic. Nothing else matters here, really. Then an inside mic and a chip."]
+    for cap in caps:
+        for dur in (4.0, 6.0, 9.0):
+            plan = cp.coverage_plan(_scene(cap, LIST, dur_s=dur), dur, 3, 10)
+            frames = [s["frame"] for s in (plan or {}).get("coverage", [])]
+            first_framed = next((i for i, f in enumerate(frames) if f != "wide"), len(frames))
+            assert "wide" not in frames[first_framed:], (cap[:30], dur, frames)
 
 
 def test_a_one_beat_sample_is_judged_where_its_beat_sits_in_the_film():

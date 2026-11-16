@@ -21,7 +21,9 @@ promoted (scripts/promote.py). Spec: docs/superpowers/specs/2026-09-27-adaptive-
 
 LAYOUT (all optional):
     <out_dir>/workshop/objects/<Name>.tsx   export const <Name>: React.FC<ObjectProps & {...}>; export const META
-    <out_dir>/workshop/shots/<Name>.tsx     export const <Name>; DURATION; GROUND; PROVENANCE
+    <out_dir>/workshop/shots/<Name>.tsx     export const <Name>; DURATION; GROUND; PROVENANCE; LOOP (optional: `true`
+                                            when its motion is periodic by design — a travelling wave, a particle
+                                            stream; _plan.json marks the beat `loop` and rewind_qa skips it)
     <out_dir>/workshop/objects|shots/*.ts   helper modules, imported relatively
     <out_dir>/workshop/assets/...           imported by the tsx, so the bundler carries them
     <out_dir>/workshop/index.ts             GENERATED here — never hand-edited

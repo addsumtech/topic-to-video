@@ -71,3 +71,14 @@ def test_the_whole_library_switches_the_unlock_only_where_it_is_known():
     assert found <= set(gl.KNOWN_SWITCHED), "a new switched unlock: %s" % sorted(found - set(gl.KNOWN_SWITCHED))
     assert set(gl.KNOWN_SWITCHED) <= found, "fixed — remove it from KNOWN_SWITCHED: %s" % sorted(
         set(gl.KNOWN_SWITCHED) - found)
+
+
+def test_the_callers_of_a_forwarder_are_read():
+    """usePlaceGlide and a kit Tile pass their caller's flag through: the switch is at the CALLER (Fan's tiles switched
+    `moving` with their travel and no lint saw it)"""
+    src = ("const place = usePlaceGlide();\nconst a = <div style={{...place(t < 1, x, y)}} />;\n"
+           "const b = <Tile text='x' moving={e > 0 && e < 1} />;\nconst c = <Tile text='y' moving />;\n"
+           "const d = <Other moving={p < 1} />;\n")
+    assert [on for _ln, on in gl.switched(src)] == ["place(on, …): t < 1", "<Tile moving>: e > 0 && e < 1"]
+    own = "const place = (a, b) => a + b;\nplace(r.cx, r.cy);\n"
+    assert gl.switched(own) == [], "a file's own `place` is not usePlaceGlide's"

@@ -1084,7 +1084,7 @@ export const KineticText: React.FC<KineticTextProps> = ({k, x, y, color, emphCol
   const spanF = useAnimSpan();
   const sceneDur = React.useContext(SceneDurationContext);
   const reduced = React.useContext(ReducedMotionContext);
-  const allowed = React.useContext(BaselineUnlockContext);
+  const allowed = React.useContext(BaselineUnlockContext);  // @glide-span: the film's context, constant over the beat
   const glide = useGlide();
   const cue = useCues();
   const report = React.useContext(KineticHoldContext);
@@ -1273,7 +1273,9 @@ export const KineticText: React.FC<KineticTextProps> = ({k, x, y, color, emphCol
           <span {...attrs} style={{display: 'block', color: ink,
             fontWeight: sc?.kind === 'weight' ? sc.weight : s.wght ? restW + s.wght : g.emph ? lay.emphWeight : undefined,
             fontStretch: s.wdth ? `${lay.stretch + s.wdth}%` : undefined,
-            transform: glide(undefined, allowed && s.moving, under),
+            // HELD for the beat, not switched with the glyph's own motion: on/off with `s.moving` the glyph stepped from
+            // its quarter-pixel path to the whole pixel on the frame it came to rest (glide_lint, 2026-11-16)
+            transform: glide(undefined, allowed, under),
             ...({textSpacingTrim: g.trim ? 'trim-start' : 'space-all'} as React.CSSProperties)}}>
             {face}
           </span>

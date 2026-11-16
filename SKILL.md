@@ -433,6 +433,10 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
 - `scripts/flash_qa.py <out_dir>`: FLASH gate, both tiers — a run of 1-2 frames unlike both of its agreeing neighbours (a
   layer that drops out or re-sorts for one frame). Every other gate reads a frame, a beat or a line of type; a film shipped
   three such flashes (near-coplanar translateZ layers re-sorting) with all of them green. Cuts and fades never trip it.
+- `scripts/rewind_qa.py <video> --plan <out_dir>/_plan.json`: REWIND gate, every path (advisory until the corpus reads
+  clean) — a cut that replays what was just seen, or a shot whose picture leaves a state and comes back to it (a reset,
+  a push that returns, 拉进又拉出). A register whose motion is periodic by design declares it (`export const LOOP = true`,
+  or META `loop: true`): the plan marks its beat `loop` and the gate skips it. Never declare it to silence a real return.
 - `scripts/film_energy_qa.py <out_dir>`: remotion FILM-ENERGY gate (motion p75, ink, luminance span against floors derived
   from four launch films). A deliberately quiet film declares `meta.energy_waiver` with a REASON. The waiver is PER-AXIS:
   an object waives only the axis it names; a plain string waives all four and says so. Waive the axis you actually

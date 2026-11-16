@@ -137,6 +137,7 @@ export const CardStage: React.FC<{
 }> = () => {
   const dna = useDNA();
   const now = useStageRun(normalize);
+  const held = !now.reduced;  // @glide-span: reduced motion is the film's setting, constant over the beat
   const place = usePlaceGlide();
   // a 9:16 film for the platforms (runtime/safeZone): the title starts below the platform's tabs, the zone ends
   // above the caption (which sits above the platform's description), labels keep out of the button column
@@ -444,7 +445,8 @@ export const CardStage: React.FC<{
       const fill = i >= hiFrom && i < hiTo ? clamp01(sweep - (i - hiFrom)) : -1;
       // the rise carries the baseline unlock over the arrival (runtime/glide): its slow tail stepped whole pixels
       return <span key={i} style={{position: 'relative', zIndex: 0, display: 'inline-block', whiteSpace: 'pre', opacity: a,
-        transform: glide(`translateY(${(1 - a) * titlePx * 0.3}px)`, !leaving && q < 1),
+        // held for the beat (runtime/glide): switched off as the rise landed (`q < 1`), the glyph popped to its pixel
+        transform: glide(`translateY(${(1 - a) * titlePx * 0.3}px)`, true),
         color: fill > 0.5 ? hiInk : titleInk}}>
         {fill > 0 ? <span style={{position: 'absolute', left: -titlePx * 0.03, right: -titlePx * 0.03, top: '8%', bottom: '2%',
           background: hiBg, zIndex: -1, transformOrigin: 'left center', transform: `scaleX(${fill})`}} /> : null}
@@ -524,7 +526,7 @@ export const CardStage: React.FC<{
         {/* placed by a translate that carries the baseline unlock (runtime/glide): the card floats while it holds,
             so a name on it crawls under a pixel a frame, and type moved by left/top stepped a whole pixel at a time
             (text_safe_qa --glide: '可编辑' stepped 4px over 43 frames) */}
-        <div style={{position: 'absolute', ...place(!now.reduced, at.x, at.y, `scale(${0.94 + 0.06 * on})`),
+        <div style={{position: 'absolute', ...place(held, at.x, at.y, `scale(${0.94 + 0.06 * on})`),
           width: pw, height: ph, boxSizing: 'border-box', transformOrigin: `${at.bx - at.x}px ${at.by - at.y}px`,
           opacity: on, background: ink.acc, color: ink.on, borderRadius: labelPx * 0.4, padding: `${padY}px ${padX}px`,
           whiteSpace: 'nowrap', boxShadow: elevation(0.3, U, ground, dark)}}>
@@ -698,7 +700,7 @@ export const CardStage: React.FC<{
             <React.Fragment>
               <div style={{position: 'absolute', left: sp.ax, top: sp.ay - stroke / 2, width: len, height: stroke,
                 background: ink.acc, opacity: panelOn, transformOrigin: '0 50%', transform: `rotate(${ang}rad) scaleX(${panelOn})`}} />
-              <div style={{position: 'absolute', ...place(!now.reduced, sp.x, sp.y, `scale(${0.96 + 0.04 * panelOn})`),
+              <div style={{position: 'absolute', ...place(held, sp.x, sp.y, `scale(${0.96 + 0.04 * panelOn})`),
                 width: pw, height: ph, boxSizing: 'border-box', transformOrigin: `${sp.bx - sp.x}px ${sp.by - sp.y}px`,
                 opacity: panelOn, background: ink.surface, color: ink.fg, borderRadius: rowPx * 0.5, padding: pad,
                 boxShadow: `${elevation(0.7, U, ground, dark)}, 0 0 0 1px ${mix(ink.fg, ink.surface, 0.85)}`}}>

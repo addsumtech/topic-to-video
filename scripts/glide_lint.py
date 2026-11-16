@@ -20,13 +20,13 @@ _CALL = re.compile(r"(?<![\w.$])glide\(")
 # unlock too, and type drawn there trembles the same way. These sites were found when the scope widened; each is
 # PRINTED on every run as known debt, never passed in silence, and the source sweep (the audit's step 5) removes them.
 # Keyed by file and the `on` expression, so a moved line stays matched and a new switched call is an ERROR.
-KNOWN_SWITCHED = {
-    ("Film.tsx", "on"): "FrameUnlock's `on` is a prop constant over the beat: mark it @glide-span",
-    ("runtime/glide.ts", "moving"): "usePlaceGlide forwards its caller's `moving`: its callers are the switch",
-    ("runtime/kinetic.tsx", "allowed && s.moving"): "a kinetic glyph's unlock follows its own motion",
-    ("stage/CardStage.tsx", "!leaving && q < 1"): "the title rise switches the unlock off as it lands",
-    ("stage/WorldStage.tsx", "camMoves"): "a stage label's unlock follows the camera",
-}
+KNOWN_SWITCHED = {}     # emptied by the source sweep of 2026-11-16: every site holds its unlock for the span now
+# FORWARDERS pass their caller's flag through; the CALLERS are the switch, and are read in their turn: usePlaceGlide's
+# `moving` is the first argument of every `place(` call, a kit Tile's `moving` is its JSX prop.
+FORWARDS = {("runtime/glide.ts", "glide", "moving"), ("kits/Kit.tsx", "place", "moving")}
+_PLACE = re.compile(r"(?:(?<=\.\.\.)|(?<![\w.$]))place\(")      # `...place(` (a spread) is a call; `x.place(` is not
+_MOVING_PROP = re.compile(r"\bmoving=\{")
+_USES_PLACE = re.compile(r"\bplace\s*=\s*usePlaceGlide\(\)")
 # runtime/glide.ts's own forwarding call — `useGlide` passes its caller's `on` through, gated by the context
 _FORWARD = ["transform", "allowed && on", "under"]
 
@@ -89,20 +89,38 @@ def _constant_names(src):
 
 
 def switched(src, path=""):
-    """[(line, on)] for every glide call whose `on` is not held for the span."""
+    """[(line, on)] for every unlock that is not held for the span: a `glide(t, on)` call's `on`, a `place(on, …)`
+    call's first argument (runtime/glide usePlaceGlide), and a `moving={on}` prop (kits/Kit Tile)."""
     consts = _constant_names(src)
+    rel = path.replace("\\", "/").split("remotion/src/")[-1]
     out = []
-    for m in _CALL.finditer(src):
-        line_start = src.rfind("\n", 0, m.start()) + 1
-        if src[line_start:m.start()].lstrip().startswith(("//", "*")):
-            continue
-        args, _ = _args(src, m.end())
-        if len(args) < 2 or args == _FORWARD:
-            continue
-        on = args[1]
-        if on == "true" or on in consts:
-            continue
-        out.append((src.count("\n", 0, m.start()) + 1, on))
+
+    def held(on):
+        return on in ("true", "") or on in consts
+
+    # `place` is usePlaceGlide's only where the file takes it from there (other files have a `place` of their own), and
+    # `moving` is the unlock only on a kit Tile
+    scans = [(_CALL, "glide")] + ([(_PLACE, "place")] if _USES_PLACE.search(src) else []) + [(_MOVING_PROP, "prop")]
+    for rx, which in scans:
+        for m in rx.finditer(src):
+            if which == "prop" and not re.search(r"<Tile\b[^<>]*$", src[max(0, m.start() - 600):m.start()]):
+                continue
+            line_start = src.rfind("\n", 0, m.start()) + 1
+            if src[line_start:m.start()].lstrip().startswith(("//", "*")):
+                continue
+            if which == "prop":
+                on = _args(src, m.end())[0][0]
+            else:
+                args, _ = _args(src, m.end())
+                if which == "glide" and (len(args) < 2 or args == _FORWARD):
+                    continue
+                if which == "place" and not args:
+                    continue
+                on = args[1] if which == "glide" else args[0]
+            if held(on) or (rel, which, on) in FORWARDS:
+                continue
+            out.append((src.count("\n", 0, m.start()) + 1, on if which == "glide" else "%s: %s" % (
+                "place(on, …)" if which == "place" else "<Tile moving>", on)))
     return out
 
 
@@ -129,8 +147,9 @@ def main(argv):
         print("[glide_lint] KNOWN %s:%d glide(..., %s) — %s (the source sweep removes it)"
               % (f, ln, on, KNOWN_SWITCHED[(f, on)]))
     for f, ln, on in bad:
-        print("[glide_lint] ERROR %s:%d glide(..., %s) — the unlock switches with the motion; hold it for the span "
-              "(`true`, or a name marked `@glide-span: <why constant over the beat>`)" % (f, ln, on))
+        print("[glide_lint] ERROR %s:%d %s — the unlock switches with the motion; hold it for the span "
+              "(`true`, or a name marked `@glide-span: <why constant over the beat>`)"
+              % (f, ln, on if ": " in on else "glide(..., %s)" % on))
     print("[glide_lint] %s  %d switched call(s)%s" % ("FAIL" if bad else "OK", len(bad),
                                                      ", %d known (listed above)" % len(known) if known else ""))
     return 1 if bad else 0

@@ -623,7 +623,7 @@
     "light": 1.0,
     "dark": 0.0003035269910469651
    },
-   "moved": 0.9174710516324981,
+   "moved": 0.9174283409263477,
    "ok": true,
    "why": []
   },
@@ -837,7 +837,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9945781131359149,
+   "moved": 0.9947181093394077,
    "ok": true,
    "why": []
   },
@@ -993,7 +993,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9196991268033409,
+   "moved": 0.9196801442672741,
    "ok": true,
    "why": []
   },
@@ -1051,7 +1051,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9920130979498861,
+   "moved": 0.9921222475322703,
    "ok": true,
    "why": []
   },
@@ -1212,7 +1212,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9919347949886105,
+   "moved": 0.9918588648443432,
    "ok": true,
    "why": []
   },
@@ -1268,7 +1268,7 @@
     "light": 0.8154844641685486,
     "dark": 0.006043577566742897
    },
-   "moved": 0.9695638762338649,
+   "moved": 0.9695140470766894,
    "ok": true,
    "why": []
   },
@@ -1548,7 +1548,7 @@
     "light": 1.0,
     "dark": 0.0009105809731408954
    },
-   "moved": 0.9976770121488231,
+   "moved": 0.9976176917236143,
    "ok": true,
    "why": []
   },
@@ -1810,7 +1810,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.985378701594533,
+   "moved": 0.9853881928625664,
    "ok": true,
    "why": []
   },
@@ -3131,7 +3131,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9868095102505695,
+   "moved": 0.9866291761579347,
    "ok": true,
    "why": []
   },
@@ -3287,7 +3287,7 @@
     "light": 1.0,
     "dark": 0.0
    },
-   "moved": 0.9735573272589217,
+   "moved": 0.9735810554290053,
    "ok": true,
    "why": []
   },
@@ -3518,24 +3518,24 @@
   "RangeSpheres": "28694853b1fcc111",
   "LightShellOrbit": "0664c555f4fbbe8f",
   "OrbitClockGain": "a9ebe12c4e544153",
-  "ReplyWindow": "0d935955d87a8e4e",
-  "WeightedWheel": "d5224da66e595e9c",
-  "ForkingAnswers": "e52b175cb50bfe3f",
-  "HeadlineReveal": "3010cf55c64b05ab",
-  "WordRoll": "59653b52b25a0a16",
-  "TypeOnPath": "e4354ed98e01ec9c",
-  "CroppedType": "a978423607f9d54c",
-  "EquationMorph": "5bbe61d0a6801635",
-  "GrowingFigure": "7e8d44d452840d5e",
-  "FunctionPlot": "827cf84419e72e2c",
-  "GlobeFocus": "7b57720f2fbe5553",
-  "FlightArcs": "8a457116957692a0",
-  "FlowSankey": "bafba27ca0b53719",
-  "FlowCounter": "874ecd3ad354d228",
-  "RankRace": "80b206814cc1ec0c",
+  "ReplyWindow": "a7d2066469af2bda",
+  "WeightedWheel": "1df271a5480a96c8",
+  "ForkingAnswers": "bd8c601d48ddba8d",
+  "HeadlineReveal": "0ea6c96f0a004b83",
+  "WordRoll": "9213d4335a2e23f1",
+  "TypeOnPath": "1fa0376fb3c41bc4",
+  "CroppedType": "23b721ea1a4cff41",
+  "EquationMorph": "fae1e0bf9ab98bff",
+  "GrowingFigure": "1b1c9377110d3d96",
+  "FunctionPlot": "2cb8dcf7010ba495",
+  "GlobeFocus": "8481035572ac15f2",
+  "FlightArcs": "6945c03314e40564",
+  "FlowSankey": "7bd4091435101f8c",
+  "FlowCounter": "44b453b4ee5f4e12",
+  "RankRace": "39c8995b184935f5",
   "LitMedium": "b134b574775be726",
-  "LandscapeWell": "30b446c1586c8ea7",
-  "MagicMoveType": "a3f5740b278c841c",
+  "LandscapeWell": "2b50b7bf6074c295",
+  "MagicMoveType": "806af6d9d5d36c81",
   "AuroraCurtain": "168c403df31306e4",
   "LightShafts": "8bdb4b744c97f68c",
   "NebulaField": "b3f331eb07066482",

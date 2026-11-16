@@ -1493,7 +1493,10 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
     bottom: number}} | null = null;
   const devices = Array.from(root.querySelectorAll('[data-device-body]')).map((d) => d.getBoundingClientRect())
     .filter((d) => d.width > 0 && d.height > 0);
-  const judge = (el: Element, text: string, r: DOMRect, tag?: string) => {
+  // `bleed`: the author's explicit escape from a clip (`data-bleed`). It exempts the line's POSITION — cut at an
+  // edge, set into the caption band (a word bled off the bottom is in it by construction) — never its SIZE or a device
+  // it covers: skipping the element whole hid ConveyorBelt's 13-23 px labels from type_debt (audit, 2026-11-15).
+  const judge = (el: Element, text: string, r: DOMRect, tag?: string, bleed = false) => {
     if (typeSize && composedOpacity(el) >= 0.5) {
       const tpx = renderedPx(el, win.getComputedStyle(el));
       if (!title || tpx > title.px) title = {el, text, px: tpx, r};
@@ -1508,14 +1511,14 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
     const floor = Math.max(TOL, parseFloat(cs.fontSize || '16') * CUT_FRAC_OF_GLYPH);
     const sides: Violation['out'] = {};
     (Object.keys(over) as (keyof typeof over)[]).forEach((k) => {
-      if (over[k] > floor) sides[k] = Math.round(over[k]);
+      if (over[k] > floor && !bleed) sides[k] = Math.round(over[k]);
     });
     // The caption strip is not a canvas edge — text inside it is not cut, it is COLLIDING with copy that
     // will be burned over it later. Same glyph-scaled floor, so a descender grazing the boundary is not a
     // finding and a whole title sitting in it is.
     const bandTop = frame.bottom - captionBandBare(frame.width, frame.height);   // the caption's own strip
     const intoBand = r.bottom - bandTop;
-    const band = intoBand > floor ? Math.round(Math.min(intoBand, r.height)) : 0;
+    const band = intoBand > floor && !bleed ? Math.round(Math.min(intoBand, r.height)) : 0;
     // ON A DEVICE: the overlap of the text's box with a device body's, in its smaller dimension — a glyph-scaled
     // floor, so a label that grazes a crown's box is not a finding and one set across the band is.
     let device = 0;
@@ -1549,26 +1552,25 @@ export const auditTextSafety = (root: Element, frame: DOMRect, typeSize = false)
     if (!text) return;
     if (isEcho(el)) return;                           // already measured on its sharp original
     if (isKineticGlyph(el)) return;                   // read below, as the line it belongs to
-    if (el.closest?.('[data-bleed]')) return;         // an explicit, rare escape from a clip
-    const r = visibleRect(el, frame);
-    if (!r) return;
-    judge(el, text, r);
+    const bleed = !!el.closest?.('[data-bleed]');      // an explicit, rare escape from a clip: its size is still judged
+    const vr = visibleRect(el, frame);               // hidden, transparent or clipped away entirely: not on screen
+    if (!vr) return;
+    judge(el, text, bleed ? el.getBoundingClientRect() : vr, undefined, bleed);
   });
   // KINETIC TYPE, as the lines a viewer reads: one finding per cut line, naming the line, measured on the union of
   // its glyphs' visible boxes. Judged through its most opaque glyph (its size, its opacity).
   kineticGroups(root, frame).forEach((kl) => {
-    if (kl.root.closest?.('[data-bleed]')) return;
+    const bleedK = !!kl.root.closest?.('[data-bleed]');
     const vis = kl.holders.filter((h) => (h.textContent ?? '').trim())
       .map((h) => ({h, r: visibleRect(h, frame), o: composedOpacity(h)}))
       .filter((x): x is {h: Element; r: DOMRect; o: number} => !!x.r && x.r.width > 0 && x.r.height > 0);
     if (!vis.length) return;
     const lead = vis.reduce((a, b) => (b.o > a.o ? b : a));
-    judge(lead.h, kl.text, unionRect(vis.map((x) => x.r)), 'kinetic');
+    judge(lead.h, kl.text, unionRect(vis.map((x) => x.r)), 'kinetic', bleedK);
   });
   // TYPESET MATHS, as one line named by its TeX, judged through its root (whose font-size is the equation's em)
   mathGroups(root, frame).forEach((ml) => {
-    if (ml.root.closest?.('[data-bleed]')) return;
-    judge(ml.root, ml.text, unionRect(ml.rects), 'math');
+    judge(ml.root, ml.text, unionRect(ml.rects), 'math', !!ml.root.closest?.('[data-bleed]'));
   });
   out.sort(worstFirst);                               // stable: equal ranks keep the walk's order
   if (title) {
@@ -1617,7 +1619,7 @@ export const TYPE_GLIDE_TAG = 'TYPE-GLIDE ';
  *  through a blur or drop-shadow filter (or a mask over composited content), `s` declared stepped, `c` on a composited
  *  layer (listed, not judged). */
 export type GlideLine = {k: string; y: number; x?: number; w?: number; h?: number; o: number; t: string;
-  ly?: number; u?: 1; fl?: string; px?: number; b?: string; v?: number;
+  ly?: number; u?: 1; fl?: string; px?: number; b?: string; v?: number; c?: number[]; cf?: string;
   /** a KINETIC line's glyphs, each its own run of type that can step: [grapheme index, true top, unlocked 0|1,
    *  composed opacity]. The reader judges each glyph's track and reports the LINE once (scripts/text_safe_qa.py). */
   g?: [number, number, 0 | 1, number][]};
@@ -1685,6 +1687,31 @@ const syncFields = (c: GlideChain, vr: DOMRect, r: DOMRect, frame: DOMRect): {b?
     if (v < 0.995) out.v = Math.round(v * 100) / 100;
   }
   return out;
+};
+
+// THE CLIP A LINE IS READ THROUGH (the audit of 2026-11-15). `c`: the rectangle its clipping ancestors leave visible
+// (the frame-covering root excepted, as visibleRect does) — scripts/jitter_qa.py keeps its measuring window inside it,
+// so a plate's static border never mixes into the margin of type scrolling near its edge (a code plate moving 3.00 px
+// a frame read as a 0.93 px tremble). Flags for text_safe_qa's cut-while-read: `e` the line is truncated by its own
+// `text-overflow: ellipsis` (a designed cut, a warning), `b` it is inside `data-bleed` (an author's escape from a clip:
+// exempt from the CUT, never from the type-size rules).
+const clipFields = (el: Element, frame: DOMRect): {c?: number[]; cf?: string} => {
+  const win = el.ownerDocument?.defaultView;
+  if (!win) return {};
+  let l = -Infinity, t = -Infinity, r = Infinity, b = Infinity, clipped = false, ell = false;
+  for (let node: Element | null = el; node; node = node.parentElement) {
+    const cs = win.getComputedStyle(node);
+    if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+    const he = node as HTMLElement;
+    if (cs.textOverflow === 'ellipsis' && typeof he.scrollWidth === 'number' && he.scrollWidth > he.clientWidth + 1) ell = true;
+    if (node === el) continue;
+    const q = node.getBoundingClientRect();
+    if (q.left <= frame.left + TOL && q.top <= frame.top + TOL && q.right >= frame.right - TOL && q.bottom >= frame.bottom - TOL) continue;
+    clipped = true;
+    l = Math.max(l, q.left); t = Math.max(t, q.top); r = Math.min(r, q.right); b = Math.min(b, q.bottom);
+  }
+  const cf = (ell ? 'e' : '') + (el.closest?.('[data-bleed]') ? 'b' : '');
+  return {...(clipped ? {c: [l, t, r, b].map((v) => Math.round(v * 10) / 10)} : {}), ...(cf ? {cf} : {})};
 };
 
 export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; u: number; z: number} => {
@@ -1816,7 +1843,7 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
       const v = Math.min(sf.v ?? 1, share);
       lines.push({k: c.key, y: Math.round(r.top * 1e4) / 1e4, x: Math.round(r.left * 100) / 100,
         w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, o: Math.round(c.op * 100) / 100,
-        t: cutText(text), fl: 'c', ...sf, ...(v < 0.995 ? {v: Math.round(v * 100) / 100} : {})});
+        t: cutText(text), fl: 'c', ...sf, ...(v < 0.995 ? {v: Math.round(v * 100) / 100} : {}), ...clipFields(el, frame)});
       return;
     }
     // SVG type outside any filter: the screen CTM is exact — it carries the viewBox's scale, which no css transform
@@ -1838,7 +1865,7 @@ export const auditGlide = (root: Element, frame: DOMRect): {lines: GlideLine[]; 
       w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100, o: Math.round(c.op * 100) / 100,
       t: cutText(text), ly: layoutY(el), ...(unlocked ? {u: 1 as const} : {}), ...syncFields(c, vr, r, frame),
       px: Math.round(parseFloat(el.ownerDocument?.defaultView?.getComputedStyle(el).fontSize || '0') * 100) / 100,
-      ...(fl ? {fl} : {})});
+      ...(fl ? {fl} : {}), ...clipFields(el, frame)});
   });
   // KINETIC TYPE: one record per line (per alternative, for a swap's slot), keyed under its KineticText. Every glyph
   // is its own run of type with its own matrix, so each one can step on its own — its track rides along in `g`, the

@@ -1146,6 +1146,8 @@ def judge_cut_while_read(frames):
             v = ln.get("v")
             if k is None or v is None or float(ln.get("o") or 0) < CUT_READ_O or not CUT_READ_MIN_V <= float(v) < CUT_READ_V:
                 continue
+            if "b" in (ln.get("cf") or ""):
+                continue                          # data-bleed: the author's escape from the clip (runtime/textSafe)
             seen.add(k)
             r = open_.get(k)
             if r and prev is not None and r["b"] == prev and abs(float(v) - r["v0"]) <= CUT_READ_HOLD:
@@ -1153,7 +1155,8 @@ def judge_cut_while_read(frames):
             else:
                 if r:
                     _close_cut_run(runs, r)
-                open_[k] = {"k": k, "t": ln.get("t") or "", "a": fi, "b": fi, "v0": float(v), "v": float(v)}
+                open_[k] = {"k": k, "t": ln.get("t") or "", "a": fi, "b": fi, "v0": float(v), "v": float(v),
+                            "ellipsis": "e" in (ln.get("cf") or "")}
         for k in [k for k in open_ if k not in seen]:
             _close_cut_run(runs, open_.pop(k))
         prev = fi
@@ -1165,7 +1168,7 @@ def judge_cut_while_read(frames):
 def _close_cut_run(runs, r):
     if r["b"] - r["a"] + 1 >= CUT_READ_FRAMES and (r["k"] not in runs or
                                                      r["b"] - r["a"] > runs[r["k"]]["b"] - runs[r["k"]]["a"]):
-        runs[r["k"]] = {k: r[k] for k in ("k", "t", "a", "b", "v")}
+        runs[r["k"]] = {k: r[k] for k in ("k", "t", "a", "b", "v", "ellipsis") if k in r}
 
 
 def scan_film_glide(out_dir, concurrency=None):
@@ -1218,6 +1221,11 @@ def scan_film_glide(out_dir, concurrency=None):
     # refuse). On WorkBuddy it found the sidebar and task titles a camera push held under the window's edge.
     for r in judge_cut_while_read(res["frames"]):
         k = beat_of(r["a"])
+        if r.get("ellipsis"):
+            warns.append("scene %02d (%s): TRUNCATED (by design: text-overflow ellipsis) — %r shows %d%% of itself, "
+                         "frames %d-%d; fine for a UI row, not for a line the voice reads" % (
+                             labels[k], shots[k], (r["t"] or "")[:40], round(r["v"] * 100), r["a"], r["b"]))
+            continue
         warns.append("scene %02d (%s): CUT WHILE READ (advisory) — %r is readable with only %d%% of it visible, frames "
                      "%d-%d: a clip, its container or the frame edge cuts it; widen the box, move it in, or let it "
                      "leave the frame instead of resting cut" % (labels[k], shots[k], (r["t"] or "")[:40],

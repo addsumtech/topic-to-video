@@ -161,7 +161,8 @@ export const WorldStage: React.FC<Record<string, unknown>> = () => {
   const camPrev = camOf(now.frame - 1);
   // the camera moves somewhere in this run (its framings differ, or it breathes): the whole run's type carries the
   // baseline unlock (runtime/glide — a span, never a frame)
-  const camMoves = driftOn > 0 || camKeys.some((k, i) => i > 0 && JSON.stringify(k.target) !== JSON.stringify(camKeys[i - 1].target));
+  // whether the camera moves AT ALL over the beat — read from its keys and drift, so constant for the beat
+  const camMoves = driftOn > 0 || camKeys.some((k, i) => i > 0 && JSON.stringify(k.target) !== JSON.stringify(camKeys[i - 1].target)); // @glide-span: the beat's whole camera
 
   // ── the world as it stands now: positions and presences carried across the move ──
   const layBefore = layoutWorld(objectsOf(before), U, where);

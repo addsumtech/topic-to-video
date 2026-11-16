@@ -72,13 +72,13 @@ export const Fan: React.FC<{
         // each option comes OUT of the slot being scored and travels down its branch to its row
         const e = easeOutCubic(clamp01(clamp01(grow) * 1.35 - k * 0.07));
         const x = lerp(ox, x2, e), y = lerp(oy, ys[k], e);
-        return <Tile key={k} text={cd.token} x={x} y={y} px={px} fill={cd.end ? ink.fg : fill} moving={(e > 0 && e < 1) || (a > 0 && a < 1)}
+        return <Tile key={k} text={cd.token} x={x} y={y} px={px} fill={cd.end ? ink.fg : fill} moving
           ink={cd.end ? ink.bg : ink.fg} opacity={a * (chosen ? 1 : fadeTo(wither))} scale={0.9 + 0.1 * a} ring={ring} />;
       })}
       {/* the picked piece, rising out of the list into the text */}
       {pick !== null && travel > 0 ? (
         <Tile text={cands[pick].token} x={lerp(x2, to.x, tr)} y={lerp(ys[pick], to.y, tr)} px={lerp(px, toPx ?? px, tr)}
-          fill={cands[pick].end ? ink.fg : fill} ink={cands[pick].end ? ink.bg : ink.fg} moving={travel < 1} />
+          fill={cands[pick].end ? ink.fg : fill} ink={cands[pick].end ? ink.bg : ink.fg} moving />
       ) : null}
       {cands.map((cd, k) => {
         if (!cd.label) return null;

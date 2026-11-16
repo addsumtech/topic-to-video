@@ -10,6 +10,7 @@
 import React from 'react';
 import {AbsoluteFill, useVideoConfig} from 'remotion';
 import {useKinetic, KineticText, KMotion, KSpec} from './kinetic';
+import {BaselineUnlockContext} from './glide';
 import {captionBand} from './layout';
 
 export const DURATION = 90;
@@ -66,7 +67,15 @@ export const KineticProbe: React.FC<{variant?: string; text?: string; lang?: str
           {copy.replace(/\*/g, '')}
         </div>
       ) : null}
-      {ref ? k.anchor : (
+      {/* the IDENTITY proof (`settled` against `reference`) runs with the unlock off — runtime/glide's switch "for
+          identity proofs, never for a film": a film's glyph keeps its unlock through the rest (it used to drop it on
+          the frame it landed, a step to the whole pixel), and that 1/1024 skew is not what this proof is about —
+          where the glyphs are placed is. Every other variant inherits the composition's own setting, as a film does. */}
+      {ref ? k.anchor : variant === 'settled' ? (
+      <BaselineUnlockContext.Provider value={false}>
+        <KineticText k={k} x={px} y={py} color="#111" emphColor="#111" motion={motion} id={`probe-${variant}`} read />
+      </BaselineUnlockContext.Provider>
+      ) : (
       <KineticText k={k} x={px} y={py} color="#111" emphColor="#111" motion={motion} id={`probe-${variant}`}
           read={variant !== 'drift' && variant !== 'drift-ok'} />
       )}

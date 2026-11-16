@@ -228,7 +228,7 @@ export const WeightedWheel: React.FC<{
               <React.Fragment key={k}>
                 <TileRow tokens={context} pos={fl.pos} px={px} on={lineOn} ink={ink.fg} opacity={k === shown - 1 || (k === shown && t >= a) ? 1 : 0.55} />
                 {add > 0 ? <Tile text={slices0[r].token} x={textX + ctxW} y={y} px={px} fill={tintAt(r)} ink={ink.fg}
-                  opacity={add} scale={0.9 + 0.1 * add} moving={add > 0 && add < 1} ring={k === shown - 1 ? ink.acc : undefined} /> : null}
+                  opacity={add} scale={0.9 + 0.1 * add} moving ring={k === shown - 1 ? ink.acc : undefined} /> : null}
                 {add <= 0 && lineOn > 0 ? <Caret x={textX + ctxW + px * 0.12} y={y} h={th * 0.9} color={ink.acc2} on={lineOn} U={U} /> : null}
               </React.Fragment>
             );

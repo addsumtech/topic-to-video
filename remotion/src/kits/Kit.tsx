@@ -84,7 +84,7 @@ export const TileRow: React.FC<{tokens: string[]; pos: {x: number; y: number}[];
       {tokens.map((k, i) => {
         const a = clamp01(on * n - i);
         return <Tile key={i} text={k} x={pos[i].x} y={pos[i].y} px={px} fill={tintAt(tint0 + i)} ink={ink}
-          opacity={a * opacity} scale={0.9 + 0.1 * a} moving={a > 0 && a < 1} />;
+          opacity={a * opacity} scale={0.9 + 0.1 * a} moving />;
       })}
     </>
   );

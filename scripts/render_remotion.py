@@ -1420,6 +1420,24 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
     return out_mp4
 
 
+def _segment_kind(out_dir, shot):
+    """"loop" when the beat's register DECLARES its motion periodic by design (`loop: true` in its META: a travelling
+    wave, a particle stream, a spin) — rewind_qa does not read such a beat's returns as a rewind. A wave field that
+    loops twice in its shot cannot be told from an action done twice by its pixels alone (ANC's PressureWave and
+    DelayTwoWaves read as RETURNs); the register knows. Anything else is "shot"."""
+    try:
+        import fidelity as _fid
+        import workshop as _ws
+        src = _ws.shot_source(out_dir, str(shot or "")) or ""
+        body = _fid.meta_body_without_fidelity(src) or ""
+    except Exception:  # noqa: BLE001 — an unreadable register is judged like any other beat
+        return "shot"
+    # either spelling a register uses for its declarations: META's `loop: true`, or a film register's top-level
+    # `export const LOOP = true` (beside its DURATION / GROUND / PROVENANCE)
+    return "loop" if (re.search(r"\bloop\s*:\s*true\b", body)
+                      or re.search(r"^export\s+const\s+LOOP\s*=\s*true\b", src, re.M)) else "shot"
+
+
 def _write_plan(out_dir, props, out_mp4):
     """`_plan.json`: each beat's frame span and where its seam is — what the pixel gates that must know where the film
     cuts read (scripts/rewind_qa.py), instead of guessing the cuts from the picture. Film.tsx's own timeline
@@ -1429,8 +1447,9 @@ def _write_plan(out_dir, props, out_mp4):
         segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
         plan = {"video": os.path.basename(out_mp4), "frames": int(total), "fps": int(props.get("fps") or 30),
                 "cuts": [int(a) for a, _b in segs[1:]],
-                "segments": [{"start": int(a), "end": int(b) + 1, "kind": "shot", "beat": k + 1,
-                              "shot": sc.get("shot")} for k, ((a, b), sc) in enumerate(zip(segs, props["scenes"]))]}
+                "segments": [{"start": int(a), "end": int(b) + 1, "kind": _segment_kind(out_dir, sc.get("shot")),
+                              "beat": k + 1, "shot": sc.get("shot")}
+                             for k, ((a, b), sc) in enumerate(zip(segs, props["scenes"]))]}
         with open(os.path.join(out_dir, "_plan.json"), "w", encoding="utf-8") as fh:
             json.dump(plan, fh, indent=1)
     except Exception as e:  # noqa: BLE001 — the film is written; the gates that need the plan say it is missing

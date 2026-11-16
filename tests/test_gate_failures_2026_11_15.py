@@ -142,6 +142,10 @@ def test_type_held_cut_while_it_is_read_is_found_and_a_reveal_is_not():
     assert tsq.judge_cut_while_read(film([None] * 20)) == [], "fully visible (the census leaves v out)"
     assert tsq.judge_cut_while_read(film([0.1] * 40)) == [], "waiting under its mask: leading shows, not ink"
     assert tsq.judge_cut_while_read(film([0.9] * 40)) == [], "a rise wrapper clipping only leading"
+    bled = {str(f): {"lines": [{"k": "/a", "t": "x", "o": 1, "v": 0.4, "cf": "b"}]} for f in range(20)}
+    assert tsq.judge_cut_while_read(bled) == [], "data-bleed: the author's escape"
+    ell = {str(f): {"lines": [{"k": "/a", "t": "x", "o": 1, "v": 0.6, "cf": "e"}]} for f in range(20)}
+    assert [r["ellipsis"] for r in tsq.judge_cut_while_read(ell)] == [True]
 
 
 def test_picture_glide_judges_the_beats_a_camera_moves(tmp_path):
@@ -163,3 +167,17 @@ def test_picture_glide_reads_any_renderers_plan(tmp_path):
     import pytest
     with pytest.raises(RuntimeError):
         pg.spans_of(str(tmp_path / "nothing"))
+
+
+def test_a_register_that_declares_its_loop_is_planned_as_one(tmp_path):
+    """ANC's travelling waves and particle fields returned twice in their beats and read as rewinds: the register knows
+    its motion is periodic, says so (`export const LOOP = true` or META `loop: true`), and the plan marks the beat"""
+    import render_remotion as rr
+    shots = tmp_path / "workshop" / "shots"
+    shots.mkdir(parents=True)
+    (shots / "Wave.tsx").write_text("export const DURATION = 90;\nexport const LOOP = true;\nexport const Wave = () => null;\n")
+    (shots / "Push.tsx").write_text("export const DURATION = 90;\n// LOOP = true is only a comment here\n"
+                                    "export const Push = () => null;\n")
+    assert rr._segment_kind(str(tmp_path), "Wave") == "loop"
+    assert rr._segment_kind(str(tmp_path), "Push") == "shot"
+    assert rr._segment_kind(str(tmp_path), "Nowhere") == "shot"

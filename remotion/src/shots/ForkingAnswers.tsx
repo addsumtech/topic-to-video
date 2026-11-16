@@ -226,7 +226,6 @@ export const ForkingAnswers: React.FC<{
         const g = sequential ? 0.5 - 0.5 * Math.cos(Math.PI * gq) : easeOutCubic(gq);
         const fx = par ? xOf(par) + wOf(par) : xOf(n), fy = par ? par.y : n.y;
         const x = lerp(fx, xOf(n), g), y = lerp(fy, n.y, g);
-        const moving = g > 0 && g < 1;
         if (n.node.answer) {
           return <div key={`n${i}`} style={{position: 'absolute', left: 0, top: 0,
             transform: glide(`translate(${x}px, ${y - th * 0.55}px)`, true), height: th * 1.1,
@@ -235,7 +234,7 @@ export const ForkingAnswers: React.FC<{
             font: `600 ${px}px/1 ${MONO}`, whiteSpace: 'pre', boxSizing: 'border-box'}}>{n.text}</div>;
         }
         return <Tile key={`n${i}`} text={n.text} x={x} y={y} px={px} fill={tintAt(n.depth - 1)} ink={ink.fg}
-          opacity={on} scale={0.86 + 0.14 * Math.min(1, pop)} moving={moving} />;
+          opacity={on} scale={0.86 + 0.14 * Math.min(1, pop)} moving />;
       })}
       {/* each answer's tip: its caret (still being written), its end mark (finished), its count, its verdict */}
       {flat.filter((n) => !n.kids.length).map((n, i) => {

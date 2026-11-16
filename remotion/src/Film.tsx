@@ -256,7 +256,8 @@ const SAFE_FRAME_MASK = `linear-gradient(90deg, transparent 0%, #000 ${SAFE_EDGE
 // BaselineUnlockContext false (identity proofs) and reduced motion draw the frame exactly as before.
 const FrameUnlock: React.FC<{k: number; on: boolean; children: React.ReactNode}> = ({k, on, children}) => {
   const glide = useGlide();
-  const tf = glide(undefined, on, k);
+  const held = on;  // @glide-span: the frame's own prop, constant over the beat (Film sets it once per beat)
+  const tf = glide(undefined, held, k);
   return tf ? <AbsoluteFill style={{transform: tf}}>{children}</AbsoluteFill> : <>{children}</>;
 };
 
