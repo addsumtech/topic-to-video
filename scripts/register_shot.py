@@ -301,8 +301,9 @@ def register(shot, family=None, use_when="", provenance=""):
             return s
         nums = [int(x) for x in re.findall(r"^(\d+)\. \*\*", s, re.M)]
         nxt = (max(nums) + 1) if nums else 1
-        line = "%d. **%s** — %s *Use: %s*\n" % (nxt, shot, use_when or "TODO: describe the design.",
-                                                use_when or "TODO")
+        # what it IS and when to use it are two things: the same text in both slots made 20 entries that said one
+        # sentence twice. The description waits for its card's Identity (remotion/cards/<Id>.md)
+        line = "%d. **%s** — TODO: what it draws (its card's Identity). *Use: %s*\n" % (nxt, shot, use_when or "TODO")
         anchor = re.search(r"\n## [A-Z]{1,2} · ", s[s.index("## A ·"):]) if "## A ·" in s else None
         m = None
         if family:
@@ -551,7 +552,9 @@ def main(argv):
     if not family:
         print("[register_shot] give a family letter (A-Z, or a new two-letter one): register_shot.py Id D --use-when '…'")
         return 2
-    use_when = re.sub(r"\s+", " ", use_when).strip()[:160]   # a newline here produced an invalid .tsx
+    # one line (a newline here produced an invalid .tsx) — and WHOLE: cut at 160 it left LIBRARY.md entries ending
+    # mid-sentence, and the catalogue is what the shot-director picks by (audit 2026-11-15, step 8)
+    use_when = re.sub(r"\s+", " ", use_when).strip()
     res = register(shot, family, use_when, provenance)
     for k, v in res.items():
         print("  %-28s %s" % (k, v))
