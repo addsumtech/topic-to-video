@@ -221,11 +221,25 @@ def test_synthesize_codex_cache_path_distinct(tmp_path):
 
 
 def test_apply_style_noop_and_structure():
-    # no meta.style_preamble → prompt unchanged (backward-compatible)
+    # no meta.style_preamble → the subject, then the faithfulness tail all the same (it is not the style's: without it
+    # a prompt went out with no "no text" clause — audit 2026-11-15)
     p = "a coral reef from above, calm water"
-    assert imagegen._apply_style(p, {}) == p
+    plain = imagegen._apply_style(p, {})
+    assert plain.startswith(p) and "no text, no letters" in plain and "visual style" not in plain
     # with a preamble → subject first, style middle, faithfulness tail ALWAYS last
     styled = imagegen._apply_style(p, {"style_preamble": "risograph spot-ink print, halftone, matte"})
     assert styled.startswith(p) and "risograph" in styled
     assert styled.rstrip().endswith("the style treats the atmosphere, never the data.")
     assert "no text, no letters, no numbers, no logos" in styled
+
+
+def test_an_image_made_before_the_tail_is_kept_not_redrawn(tmp_path):
+    """A film with no preamble has images cached under its raw prompts; the tail must not redraw them."""
+    raw = "a coral reef from above, calm water"
+    old = imagegen._cache_path(str(tmp_path), raw, "codex", "1536x1024", "high")
+    os.makedirs(os.path.dirname(old), exist_ok=True)
+    open(old, "wb").write(b"png")
+    prompt, cp = imagegen._styled_cached(str(tmp_path), raw, {}, "codex", "1536x1024", "high")
+    assert (prompt, cp) == (raw, old)
+    fresh, cp2 = imagegen._styled_cached(str(tmp_path), "a quiet harbour at dawn", {}, "codex", "1536x1024", "high")
+    assert "no text" in fresh and cp2 != old

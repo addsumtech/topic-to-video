@@ -135,11 +135,25 @@ def _apply_style(prompt, meta):
     deck is stylistically coherent AND the style can never leak into the data (it's structurally sandwiched
     before the negatives). No `meta.style_preamble` → returns the prompt unchanged (backward-compatible)."""
     pre = (meta.get("style_preamble") or "").strip()
+    # the FAITHFULNESS TAIL is not the style's: without a preamble a prompt went out with no "no text" clause at all,
+    # and a generator letters what it is not told to leave blank (audit 2026-11-15, step 8)
+    tail = ("Generic atmospheric b-roll only — no text, no letters, no numbers, no logos, no readable signage, no "
+            "real-world named specifics; the style treats the atmosphere, never the data.")
     if not pre:
-        return prompt
-    return (f"{prompt}. Rendered in the visual style of {pre}. Generic atmospheric b-roll only — no text, "
-            f"no letters, no numbers, no logos, no readable signage, no real-world named specifics; the "
-            f"style treats the atmosphere, never the data.")
+        return f"{prompt}. {tail}"
+    return f"{prompt}. Rendered in the visual style of {pre}. {tail}"
+
+
+def _styled_cached(out_dir, raw, meta, model, size, quality):
+    """(prompt, cache path) for a raw prompt: the styled prompt's — unless the film has no preamble and an image already
+    sits under the raw prompt's key (made before the tail was added there), which is kept rather than redrawn."""
+    prompt = _apply_style(raw, meta)
+    cp = _cache_path(out_dir, prompt, model, size, quality)
+    if not os.path.exists(cp) and not (meta.get("style_preamble") or "").strip():
+        old = _cache_path(out_dir, raw, model, size, quality)
+        if os.path.exists(old):
+            return raw, old
+    return prompt, cp
 
 def synthesize_soft_textures(out_dir, data, key, provider, size, quality, date=""):
     """Generate a SMALL reusable set (<=3) of on-topic soft background textures for the AI look
@@ -156,8 +170,7 @@ def synthesize_soft_textures(out_dir, data, key, provider, size, quality, date="
     model = "codex" if provider == "codex" else DEFAULT_MODEL
     rels, made, cached, failed = [], 0, 0, 0
     for _raw in prompts:
-        prompt = _apply_style(_raw, meta)                 # same style preamble as the per-scene images
-        cp = _cache_path(out_dir, prompt, model, size, quality)
+        prompt, cp = _styled_cached(out_dir, _raw, meta, model, size, quality)   # the per-scene images' style
         rel = os.path.relpath(cp, out_dir)
         if os.path.exists(cp):
             rels.append(rel); cached += 1; continue
@@ -224,8 +237,7 @@ def synthesize_images(out_dir, key=None, date=""):
         key = key or os.environ.get("OPENAI_API_KEY") or _read_key_file()
     made = cached = failed = 0
     for owner, dest, label, tag in _image_slots(data):
-        prompt = _apply_style(owner["image_prompt"], meta)   # the styled prompt is what gets hashed + generated
-        cp = _cache_path(out_dir, prompt, model, size, quality)
+        prompt, cp = _styled_cached(out_dir, owner["image_prompt"], meta, model, size, quality)   # hashed + generated
         rel = os.path.relpath(cp, out_dir)
         if os.path.exists(cp):
             owner[dest] = rel; cached += 1; continue

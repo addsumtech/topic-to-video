@@ -1465,7 +1465,8 @@ def render_stills(film_dir, spec_path, frames, out_dir):
     tmp = tempfile.mkdtemp(prefix="promo_stills_")
     jp, op = os.path.join(tmp, "jobs.json"), os.path.join(tmp, "out.jsonl")
     json.dump(jobs, open(jp, "w"))
-    r = subprocess.run(["node", os.path.join(ROOT, "scripts", "fidelity_stills.cjs"), REMOTION, serve, jp, op, "--gl=angle"],
+    r = subprocess.run(["node", os.path.join(ROOT, "scripts", "fidelity_stills.cjs"), REMOTION, serve, jp, op,
+                        "--gl=" + __import__("remotion_segments").default_gl()],
                        capture_output=True, text=True)
     errs = []
     if os.path.isfile(op):
@@ -1494,8 +1495,10 @@ def render_picture(film_dir, spec_path, out, frames=None):
     pub = os.path.join(film_dir, "_promo_public")
     shutil.rmtree(pub, ignore_errors=True)
     rs.minimal_public(spec, film_dir, pub)           # a bundle COPIES its public dir: not the film folder's old renders
+    # the GL backend every key and still is drawn with (remotion_segments.default_gl): the film was rendered with
+    # Remotion's own default while its stills were drawn with --gl=angle (audit 2026-11-15, step 8)
     cmd = ["npx", "remotion", "render" if frames is None else "still", "src/index.ts", "PromoFilm", out,
-           "--props=" + props, "--public-dir=" + pub]
+           "--props=" + props, "--public-dir=" + pub, "--gl=" + rs.default_gl()]
     if frames is not None:
         cmd.append("--frame=%d" % frames)
     else:
