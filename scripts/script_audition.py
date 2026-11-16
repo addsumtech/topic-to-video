@@ -141,17 +141,20 @@ def audition(out_dir, beats=None, out_name="audition.mp3", allow_paid=False):
         parts.append(p)
 
     gap = _tts._tail_pad(meta)                                               # the film's own seam, not 0
-    lst = os.path.join(work, "list.txt")
-    sil = os.path.join(work, "gap.mp3")
-    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
-                    "anullsrc=r=48000:cl=mono", "-t", "%.3f" % gap, sil], check=True)
-    with open(lst, "w", encoding="utf-8") as fh:
-        for i, p in enumerate(parts):
-            fh.write("file '%s'\n" % os.path.abspath(p))
-            if i < len(parts) - 1:
-                fh.write("file '%s'\n" % os.path.abspath(sil))
+    # DECODED and resampled, then joined (the concat FILTER): the concat demuxer needs every file in one format, and
+    # a `say` voice writes AIFF at its own rate — joined to a 48 kHz mp3 gap, the pauses came out as noise (audit
+    # 2026-11-15, step 8). Every engine's output is brought to 48 kHz mono first.
     out = os.path.join(out_dir, out_name)
-    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst,
+    ins, chain, labels = [], [], []
+    for i, p in enumerate(parts):
+        ins += ["-i", p]
+        chain.append("[%d:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=mono[p%d]" % (i, i))
+        labels.append("[p%d]" % i)
+        if i < len(parts) - 1:
+            chain.append("anullsrc=r=48000:cl=mono,atrim=0:%.3f,aformat=sample_fmts=fltp[g%d]" % (gap, i))
+            labels.append("[g%d]" % i)
+    chain.append("%sconcat=n=%d:v=0:a=1[out]" % ("".join(labels), len(labels)))
+    subprocess.run(["ffmpeg", "-y", "-v", "error", *ins, "-filter_complex", ";".join(chain), "-map", "[out]",
                     "-c:a", "libmp3lame", "-ar", "48000", "-ac", "1", out], check=True)
     return out, picked, voice
 
