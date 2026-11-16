@@ -23,7 +23,13 @@ def _sat(rgb):
 def _hue(rgb):
     r, g, b = [c / 255 for c in rgb]; return colorsys.rgb_to_hls(r, g, b)[0]
 def _mix(a, b, t): return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
+def _q(rgb):
+    """The colour as it ships (rounded to hex): contrast judged before rounding let 91 of 20,000 accents ship < 3:1."""
+    return tuple(max(0, min(255, int(round(c)))) for c in rgb)
+
+
 def _contrast(a, b):
+    a, b = _q(a), _q(b)
     la, lb = _rel_lum(a) + 0.05, _rel_lum(b) + 0.05
     return max(la, lb) / min(la, lb)
 
@@ -36,7 +42,11 @@ def _sample_frames(out_dir, k=4, n_colors=5):
     for p in paths:
         im = Image.open(p).convert("RGB"); im.thumbnail((120, 120))
         q = im.quantize(colors=n_colors).convert("RGB")
-        cols += [rgb for _, rgb in q.getcolors(maxcolors=100000)]
+        got = q.getcolors(maxcolors=100000)
+        total = float(sum(c for c, _ in got)) or 1.0
+        # each colour as often as it COVERS the frame (in twentieths, at least once): counted once each, a white deck
+        # with dark type and one bright accent averaged under 0.5 and was themed DARK (audit 2026-11-15, step 8)
+        cols += [rgb for c, rgb in got for _ in range(max(1, int(round(20 * c / total))))]
     return cols or None
 
 def _sample_logo(path):
@@ -128,8 +138,10 @@ _CJK_SERIF = '"Songti SC","Source Han Serif SC","SimSun"'
 _FONT_FAMILIES = {   # kind -> (display stack, body stack)
     "sans":  (f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif',
               f'"Space Grotesk","Helvetica Neue",Arial,{_CJK_SANS},sans-serif'),
-    "serif": (f'"Playfair Display",Georgia,"Times New Roman",{_CJK_SERIF},serif',
-              f'Georgia,"Times New Roman",{_CJK_SERIF},serif'),
+    # body: Source Serif 4 (bundled, LINING figures) — Georgia has only old-style figures, which the user's rule
+    # forbids ("digits jump up and down"); Georgia stays a fallback name only
+    "serif": (f'"Playfair Display","Source Serif 4",Georgia,"Times New Roman",{_CJK_SERIF},serif',
+              f'"Source Serif 4",Georgia,"Times New Roman",{_CJK_SERIF},serif'),
     "mono":  (f'"JetBrains Mono","SF Mono",Menlo,{_CJK_SANS},monospace',
               f'"JetBrains Mono","SF Mono",Menlo,{_CJK_SANS},monospace'),
     "comic": (f'"Bangers","Space Grotesk",Impact,"Hannotate SC","HanziPen SC",{_CJK_SANS},sans-serif',

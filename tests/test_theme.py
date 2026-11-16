@@ -284,3 +284,26 @@ def test_storyboard_without_brand_is_silent(tmp_path, capsys):
     (tmp_path / "storyboard.json").write_text(_json.dumps({"meta": {}, "slides": []}))
     theme.derive_theme(str(tmp_path))
     assert capsys.readouterr().out == ""                             # best-effort, silent-on-absence
+
+
+def test_a_white_deck_with_dark_type_is_light(tmp_path):
+    """Palette colours count by the share of the frame they cover: counted once each, a white deck with dark type and one
+    bright accent averaged under 0.5 and was themed DARK (audit 2026-11-15, step 8)."""
+    from PIL import Image, ImageDraw
+    import theme
+    fr = tmp_path / "frames"
+    fr.mkdir()
+    for k in range(4):
+        im = Image.new("RGB", (1920, 1080), (250, 250, 248))
+        d = ImageDraw.Draw(im)
+        d.rectangle([120, 120, 900, 220], fill=(20, 20, 24))          # a headline's ink
+        d.rectangle([120, 300, 700, 330], fill=(60, 60, 66))
+        d.rectangle([1500, 800, 1700, 900], fill=(230, 40, 90))       # one accent block
+        d.rectangle([120, 400, 600, 420], fill=(10, 60, 140))
+        im.save(fr / ("%02d.png" % k))
+    t = theme.derive_theme(str(tmp_path))
+    assert t.get("mode") == "light", t.get("mode")
+    # the vote is by AREA: the ground that covers most of the frame holds most of the sampled colours
+    cols = theme._sample_frames(str(tmp_path))
+    ground = sum(1 for c in cols if theme._lum(c) > 0.9)
+    assert ground / len(cols) > 0.7, (ground, len(cols))

@@ -7,6 +7,8 @@
    so no absolute path is baked in. Chrome renders any weight from the variable files. */
 @font-face{font-family:"Space Grotesk";src:url("../fonts/SpaceGrotesk-VF.ttf");font-weight:300 700;font-display:swap}
 @font-face{font-family:"Playfair Display";src:url("../fonts/PlayfairDisplay-VF.ttf");font-weight:400 900;font-display:swap}
+@font-face{font-family:"Source Serif 4";src:url("../fonts/SourceSerif4-VF.ttf");font-weight:200 900;font-display:swap}
+@font-face{font-family:"Source Serif 4";src:url("../fonts/SourceSerif4-Italic-VF.ttf");font-weight:200 900;font-style:italic;font-display:swap}
 @font-face{font-family:"JetBrains Mono";src:url("../fonts/JetBrainsMono-VF.ttf");font-weight:100 800;font-display:swap}
 @font-face{font-family:"Bangers";src:url("../fonts/Bangers-Regular.ttf");font-weight:400;font-display:swap}
 
@@ -28,7 +30,8 @@
   --hairline:var(--border-weight,1px) solid var(--border-ink,rgba(127,127,127,.18));
 }
 *{box-sizing:border-box}
-html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--fg);
+html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--fg);font-variant-numeric:lining-nums;   /* the user's rule: never old-style figures (digits "up and down") */
+  
   /* body text follows the picked visual_style's body face (--font-body, set by theme.py) — else the
      default CJK-first sans stack (PingFang first). Style body stacks keep the CJK fonts as a fallback so 中文 decks render. */
   font-family:var(--font-body,"PingFang SC","Hiragino Sans GB","Songti SC","Source Han Serif SC",
@@ -36,23 +39,23 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
   overflow:hidden;text-wrap:pretty;-webkit-font-smoothing:antialiased}
 .stage{width:1920px;height:1080px;padding:120px 150px;display:flex;flex-direction:column;
   justify-content:center;gap:36px}
-.kicker{color:var(--orange);font-size:30px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.kicker{color:var(--orange);font-size:30px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-family:var(--font-mono);font-variant-numeric:tabular-nums lining-nums}
 .rule{height:6px;width:140px;background:var(--orange);border-radius:3px}
 .title{font-size:104px;font-weight:800;line-height:var(--lh-display,1.08);letter-spacing:calc(-.025em * var(--track-scale,1));text-wrap:balance;
   font-family:var(--font-display,inherit)}   /* a chosen visual_style biases the headline face (serif/sans/mono) */
 .sub{color:var(--muted);font-size:42px;line-height:1.4}
-.stat{font-size:240px;font-weight:800;color:var(--blue);line-height:.95;letter-spacing:calc(-.04em * var(--track-scale,1));font-variant-numeric:tabular-nums}
+.stat{font-size:240px;font-weight:800;color:var(--blue);line-height:.95;letter-spacing:calc(-.04em * var(--track-scale,1));font-variant-numeric:tabular-nums lining-nums}
 .unit{font-size:64px;color:var(--muted);font-weight:600}
 .grid{display:grid;gap:48px}
 .row{display:flex;align-items:baseline;gap:32px;font-size:52px}
 .dot{width:22px;height:22px;border-radius:50%;background:var(--blue);flex:none;align-self:center}
-.label{font-size:54px;font-weight:700;font-variant-numeric:tabular-nums}
+.label{font-size:54px;font-weight:700;font-variant-numeric:tabular-nums lining-nums}
 .note{color:var(--muted);font-size:34px}
 /* attribution for a DOCUMENTARY (real fetched) image — CC-BY requires a credit. A quiet mono line in
    the lower corner; on a dark scrimmed photo set color inline to a light --bg tint. */
 .credit{position:absolute;right:26px;bottom:16px;z-index:6;font-family:var(--font-mono);font-size:15px;
   letter-spacing:.02em;color:var(--muted);opacity:.72;max-width:46%;text-align:right;line-height:1.3}
-.bar{height:90px;border-radius:var(--radius,10px);display:flex;align-items:center;padding:0 28px;color:var(--on-accent);font-size:40px;font-weight:700;font-variant-numeric:tabular-nums}
+.bar{height:90px;border-radius:var(--radius,10px);display:flex;align-items:center;padding:0 28px;color:var(--on-accent);font-size:40px;font-weight:700;font-variant-numeric:tabular-nums lining-nums}
 /* seekable reveals — paused so render_html/seek.js can freeze them at any progress p.
    Stagger by adding an inline positive animation-delay (e.g. style="animation-delay:.18s"). */
 .reveal{opacity:0;animation:fade var(--dur) ease forwards;animation-play-state:paused}
@@ -82,7 +85,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 @keyframes fade{to{opacity:1}}
 @keyframes rise{to{opacity:1;transform:translateY(0) matrix(1,.0009765625,0,1,0,0)}}
 /* 8-pt grid: gaps/padding use multiples of 8. hierarchy contract: .title/.sub ≥ 2.5×, .title/.note ≥ 3×. */
-.mono{font-family:var(--font-mono);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.mono{font-family:var(--font-mono);letter-spacing:.04em;font-variant-numeric:tabular-nums lining-nums}
 /* spring overshoot for a hero stat / pop-in (paused -> seek.js freezes it) */
 .reveal-pop{opacity:0;transform:scale(.88) matrix(1,.0009765625,0,1,0,0);animation:pop var(--dur) var(--ease-over) forwards;animation-play-state:paused}
 @keyframes pop{to{opacity:1;transform:scale(1) matrix(1,.0009765625,0,1,0,0)}}
@@ -166,9 +169,9 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .tile{background:var(--surface);border:var(--hairline);border-radius:var(--radius,16px);padding:40px 44px;
   box-shadow:var(--shadow-float);display:flex;flex-direction:column;justify-content:center}
 .tile .num{font-size:150px;font-weight:800;line-height:.9;letter-spacing:calc(-.03em * var(--track-scale,1));color:var(--accent);
-  font-variant-numeric:tabular-nums}
+  font-variant-numeric:tabular-nums lining-nums}
 .tile .lab{font-size:36px;color:var(--muted);margin-top:14px}
-.delta{font-size:40px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:8px}
+.delta{font-size:40px;font-weight:700;font-variant-numeric:tabular-nums lining-nums;margin-top:8px}
 .delta.up{color:var(--green)} .delta.down{color:var(--accent2)}
 
 /* Relationship — one idea, verbatim: a pull-quote carries the whole slide */
@@ -237,11 +240,11 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 /* Parts of a whole — a 100% segmented bar (widths inline) and a single-share meter */
 .segbar{display:flex;height:118px;border-radius:var(--radius,16px);overflow:hidden;box-shadow:var(--shadow-float)}
 .segbar .seg{display:flex;align-items:center;justify-content:center;color:var(--on-accent);
-  font-size:38px;font-weight:700;font-variant-numeric:tabular-nums;min-width:0}
+  font-size:38px;font-weight:700;font-variant-numeric:tabular-nums lining-nums;min-width:0}
 .meter{height:72px;border-radius:var(--radius,36px);background:var(--surface);overflow:hidden;border:var(--hairline)}
 .meter .fill{height:100%;background:var(--accent);display:flex;align-items:center;justify-content:flex-end;
   padding-right:30px;color:var(--on-accent);font-size:38px;font-weight:700;border-radius:var(--radius,36px);
-  font-variant-numeric:tabular-nums}
+  font-variant-numeric:tabular-nums lining-nums}
 
 /* Colour-block panels — bold, scannable categories; ONE hue per block (set background inline), never grey */
 .blocks{display:grid;gap:22px}
@@ -259,7 +262,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
    toggle `.on` (or add `.reveal`) to glow it. For heavy LaTeX: pre-render via matplotlib mathtext to a
    .media image (deterministic/offline), or author native <math> MathML (Chrome renders it offline). */
 .eqn{font-family:"STIX Two Math","Latin Modern Math",Cambria,Georgia,"Songti SC","Source Han Serif SC",serif;font-size:100px;
-  line-height:1.35;text-align:center;letter-spacing:.01em;font-variant-numeric:tabular-nums}
+  line-height:1.35;text-align:center;letter-spacing:.01em;font-variant-numeric:tabular-nums lining-nums}
 .eqn .eqn-term{border-radius:var(--radius,10px);padding:.02em .1em}
 .eqn .eqn-term.on{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
 /* term-by-term GLOW on the voice: paused so seek.js lights each term when its cue fires (put a
@@ -281,7 +284,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
   background:var(--surface);border:var(--hairline);border-radius:var(--radius,12px);padding:30px 40px;
   color:var(--fg);max-width:min(1500px,92%);overflow:hidden;text-align:left;counter-reset:ln}
 .code .ln{display:block;white-space:pre;padding:2px 12px;border-radius:6px;position:relative;
-  font-variant-numeric:tabular-nums}                    /* white-space:pre PER line preserves indentation */
+  font-variant-numeric:tabular-nums lining-nums}                    /* white-space:pre PER line preserves indentation */
 .code.numbered .ln{padding-left:66px}
 .code.numbered .ln::before{counter-increment:ln;content:counter(ln);position:absolute;left:0;width:46px;
   text-align:right;color:var(--muted);opacity:.55;font-size:.72em}
@@ -292,7 +295,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 
 /* Results table — a compact benchmark / ablation matrix; the winning row gets `.win` so the comparison
    lands. Header mono/muted, figures right-aligned tabular, the winner in accent. */
-.rtable{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.rtable{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums lining-nums}
 .rtable th{font-family:var(--font-mono);font-size:26px;color:var(--muted);text-transform:uppercase;
   letter-spacing:.08em;text-align:right;padding:16px 30px;font-weight:600}
 .rtable th:first-child{text-align:left}
@@ -341,7 +344,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .gauge::after{content:"";position:absolute;width:calc(var(--gsize) - 68px);height:calc(var(--gsize) - 68px);
   border-radius:50%;background:var(--bg)}
 .gauge>.g-val{position:relative;z-index:1;font-size:104px;font-weight:800;line-height:1;white-space:nowrap;
-  font-variant-numeric:tabular-nums}
+  font-variant-numeric:tabular-nums lining-nums}
 .gauge>.g-lab{position:relative;z-index:1;font-size:30px;color:var(--muted);margin-top:6px}
 
 /* Count / ratio as REPEATED UNITS — isotype/pictograph ("7 of 10 responded"). N `.u` glyphs; the real
@@ -362,12 +365,12 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .bullet .band.hi{background:color-mix(in srgb,var(--fg) 24%,transparent)}
 .bullet .val{position:absolute;top:34px;bottom:34px;left:0;background:var(--accent);border-radius:var(--radius,8px);
   display:flex;align-items:center;justify-content:flex-end;padding-right:20px;color:var(--on-accent);
-  font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+  font-size:30px;font-weight:800;font-variant-numeric:tabular-nums lining-nums}
 .bullet .tgt{position:absolute;top:12px;bottom:12px;width:6px;background:var(--fg);border-radius:3px}
 
 /* Comparison MARKS — check / cross / partial glyphs for a feature-comparison matrix built on `.rtable`
    cells (rows = features, cols = options). Semantic-var colours; ≥40px so they survive encoding. */
-.mk{font-weight:800;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.mk{font-weight:800;font-size:44px;line-height:1;font-variant-numeric:tabular-nums lining-nums}
 .mk.yes{color:var(--green)} .mk.no{color:var(--accent2)} .mk.mid{color:var(--muted)}
 
 /* Bridge — a WATERFALL: a start total becomes an end total through signed steps. Each `.wcol` is a
@@ -381,7 +384,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .waterfall .wcap{position:absolute;bottom:-44px;left:0;right:0;text-align:center;font-size:26px;
   color:var(--muted);font-family:var(--font-mono)}
 .waterfall .wval{text-align:center;font-size:30px;font-weight:700;margin-bottom:10px;
-  font-variant-numeric:tabular-nums}
+  font-variant-numeric:tabular-nums lining-nums}
 
 /* Set overlap — a VENN (2–3 circles): shared vs unique membership. Author each `.set` with inline
    size/position + its hue `--c` (e.g. `--c:var(--accent)`). Each circle is OUTLINED in its hue over a
@@ -413,7 +416,7 @@ html,body{margin:0;width:1920px;height:1080px;background:var(--bg);color:var(--f
 .stepper .step:first-child::before{display:none}
 .stepper .step .n{position:relative;z-index:1;width:72px;height:72px;border-radius:50%;margin:0 auto 20px;
   display:grid;place-items:center;font-size:34px;font-weight:800;background:var(--surface);
-  border:2px solid var(--rule);color:var(--muted);font-variant-numeric:tabular-nums}
+  border:2px solid var(--rule);color:var(--muted);font-variant-numeric:tabular-nums lining-nums}
 .stepper .step.done .n{background:var(--rule);color:var(--on-accent2);border-color:var(--rule)}
 .stepper .step.on .n{background:var(--accent);color:var(--on-accent);border-color:var(--accent);
   box-shadow:0 0 0 10px color-mix(in srgb,var(--accent) 24%,transparent)}
