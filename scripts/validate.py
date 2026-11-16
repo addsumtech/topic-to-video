@@ -39,7 +39,8 @@ import render as rd                       # caption-fit + font helpers, reused v
 import cues as _cues                      # anchor matcher (timed-callout cues + reveal alignment)
 
 # A zoom delta beyond this reads as a lurch, not a gentle Ken Burns (SKILL.md / motion-grammar).
-MAX_ZOOM_DELTA = 0.20
+MAX_ZOOM_DELTA = rd.MAX_ZOOM_DELTA   # render.py's own limits, one definition (validate kept a copy of each)
+MAX_ZOOM_ABS = rd.MAX_ZOOM_ABS
 # A static frame held longer than this drags even with motion (SKILL.md pacing guardrail).
 PACE_CEILING_S = 8.0
 # A caption that needs more than this many wrapped lines is a wall of text on screen.
@@ -56,10 +57,6 @@ CPS_CJK, CPS_LATIN = 9.0, 20.0     # adult reading speed, characters per second
 CJK_CHARS_PER_LINE = rd.CJK_CAPTION_LINE   # zh-Hans per-line ceiling — the one render.py's own chunks are cut to
 # A Latin caption line that ends on a lone short word ("…to the / future") reads as a typo.
 DANGLING_WORD_MAX_CHARS = 8
-# A single cue denser than this is a wall even when it wraps to <= MAX_CAPTION_LINES (line count
-# alone misses a 2-line-but-packed CJK cue). CJK glyphs are full-width, so the ceiling is tighter.
-MAX_CAPTION_CHARS_CJK = 36
-MAX_CAPTION_CHARS_LATIN = 90
 # A caption ending on a clause mark looks cut-off mid-thought at the line break.
 TRAIL_CLAUSE_MARKS = "，、：；,;:"
 # Reveal-vs-voice alignment: a point should appear ~when the narration speaks it. Flag a point whose
@@ -834,7 +831,6 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     shots = s.get("shots") or (s.get("props") or {}).get("shots")
     planes = s.get("planes") or (s.get("props") or {}).get("planes")
     camera3d = s.get("camera3d") or (s.get("props") or {}).get("camera3d")
-    component = s.get("component") or (s.get("props") or {}).get("component")
 
     # THE TIER THESE FIELDS BELONG TO WAS REMOVED, AND THIS GATE WAS STILL CERTIFYING THEM. `render.py`
     # refuses a slide carrying `layers`/`lens` ("it renders on the cinematic tier"); `render_remotion.py`
@@ -847,10 +843,12 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
     # at the end of a render.
     # `stage` as a STRING is the content plan's learning stage (hook|ground|build|why|land), which storyboard.py
     # --from-plan writes onto every slide on every tier and rhythm_qa reads; only the old tier's stage OBJECT is gone.
-    _removed = [k for k in ("lens", "layers", "camera3d", "perspective", "planes", "stage", "shots")
+    # `component` too: the bespoke tier it named (Scene.tsx, remotion/src/bespoke/, _stage_bespoke) was removed in
+    # 3c408f6 and no renderer reads it — and it used to EXEMPT a board from this very check (`and not component`)
+    _removed = [k for k in ("lens", "layers", "camera3d", "perspective", "planes", "stage", "shots", "component")
                 if (s.get(k) or (s.get("props") or {}).get(k))
                 and not (k == "stage" and isinstance(s.get(k) or (s.get("props") or {}).get(k), str))]
-    if _removed and not component:
+    if _removed:
         errors.append(
             f"{tag}: carries {_removed} — fields of the generic-scene tier REMOVED in the phase-3 cutover. "
             f"No renderer consumes them: render.py refuses the scene and render_remotion.py refuses the "
@@ -939,47 +937,7 @@ def _cinematic_fields(s, meta, out_dir, tag, errors, warnings):
         if p.get("kind") == "surface" and isinstance(p.get("data"), list):
             if any(isinstance(v, float) and not math.isfinite(v) for v in p["data"] if isinstance(v, (int, float))):
                 errors.append(f"{tag}: plane {j} surface `data` has a NaN/Infinity value — it blanks the render")
-    # BESPOKE hero beat: a `component` names a custom React/R3F file staged into the Remotion bundle. validate
-    # can't judge the component's VISUAL interior (that's rendered-frame review, D12), but it CAN guard the
-    # WIRING deterministically — an unsafe name / missing file / missing export would render an empty frame.
-    if component is not None:
-        name = str(component)
-        cprops = s.get("componentProps") or s.get("component_props") or (s.get("props") or {}).get("componentProps")
-        if not re.match(r"^[A-Za-z][A-Za-z0-9_]*$", name):
-            errors.append(f"{tag}: component name {name!r} must be a bare identifier ([A-Za-z][A-Za-z0-9_]*) — "
-                          f"it becomes a filename + a TS import; rename the component + its file")
-        else:
-            src = os.path.join(out_dir, "bespoke", name + ".tsx")
-            if not os.path.isfile(src):
-                errors.append(f"{tag}: component {name!r} is set but {os.path.join('bespoke', name + '.tsx')} is "
-                              f"missing under {out_dir} — author it there (references/bespoke-components.md)")
-            else:
-                try:
-                    with open(src, encoding="utf-8") as _f:
-                        txt = _f.read()
-                except OSError:
-                    txt = ""
-                # The registry imports `_Name.<Name> ?? _Name.default`, so the file MUST expose one of those.
-                if txt and not re.search(r"export\s+(?:const|function|class)\s+" + re.escape(name) + r"\b", txt) \
-                        and not re.search(r"export\s*\{[^}]*\b" + re.escape(name) + r"\b", txt) \
-                        and "export default" not in txt:
-                    errors.append(f"{tag}: {name}.tsx exports neither a named `{name}` nor a default — the registry "
-                                  f"can't resolve it and the beat renders BLANK; add `export const {name} = ...`")
-                if txt and re.search(r"<Captions\b|staticFile\([^)]*audio|<Audio\b", txt):
-                    warnings.append(f"{tag}: {name}.tsx renders its own Captions/Audio — the Scene wrapper ALREADY "
-                                    f"adds them (double captions/audio). The component should return only its visual body")
-        if cprops is not None and not isinstance(cprops, dict):
-            errors.append(f"{tag}: `componentProps` must be an object (author params passed to {name})")
-        # A bespoke component renders the WHOLE beat and owns its OWN camera — it receives only
-        # {theme, componentProps, reducedMotion, atmosphere, durationInFrames}. So pipeline render/camera fields
-        # are DEAD here (a `camera3d` that never moves the view, `planes` that never draw); warn, don't silently drop.
-        _dead = [k for k in ("planes", "camera3d", "stage", "shots", "layers", "lens", "camera", "perspective")
-                 if s.get(k) or (s.get("props") or {}).get(k)]
-        if _dead:
-            warnings.append(f"{tag}: component {name!r} also carries {_dead} — those are IGNORED on a bespoke beat "
-                            f"(the component renders the beat and owns its camera; it gets only theme/componentProps/"
-                            f"reducedMotion/atmosphere/durationInFrames). Move that motion INTO the component or drop the fields")
-    if not cam and not lens and not layers and not camera3d and not component:
+    if not cam and not lens and not layers and not camera3d:
         return
     fps = int((meta or {}).get("fps", 30) or 30)
     dur = s.get("duration")
@@ -1757,7 +1715,6 @@ def _idiom_world(meta, slides, errors, warnings, out_dir=None):
     if len(off) > 10:
         errors.append("remotion: %d more beat(s) draw from undeclared worlds" % (len(off) - 10))
 
-_KNOWN_DNA_IDS = {'terminal', 'product', 'apple', 'editorial', 'blueprint', 'data', 'retro'}
 
 
 def _caption_legibility(meta, slides, errors, warnings, out_dir=None):
@@ -5563,19 +5520,12 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
     if _aud and _aud not in ("conservative", "balanced", "bold", "experimental"):
         warnings.append(f"meta.audacity '{meta.get('audacity')}' is not a known level — use "
                         "conservative | balanced (default) | bold | experimental; it scales how far the design_register pushes")
-    # DIEGETIC BRIDGE — only 'type-enter' renders today (others are designed, not built). A documented-but-
-    # unrendered gesture (or a typo) SILENTLY no-ops and swallows every bridge_label, so warn pre-render;
-    # and a long bridge_label overflows the command bar, so cap it. (Audit P0/P2; mirrors render_remotion.)
-    _br = str(meta.get("bridge") or "").strip().lower()
-    if _br and _br not in ("none", "auto", "type-enter"):
-        warnings.append(f"meta.bridge '{meta.get('bridge')}' is not a rendered gesture — only 'type-enter' "
-                        "(and 'auto') render today; the seams will fall back to a plain cut (references/camera-and-bridges.md lists the designed menu)")
-    if _br and _br not in ("none", ""):
-        for s in data.get("slides", []):
-            _lbl = str(s.get("bridge_label") or "")
-            if len(_lbl) > 28:
-                warnings.append(f"scene {s.get('index')}: bridge_label {_lbl!r} is ~{len(_lbl)} chars — keep a "
-                                "diegetic command ≤~28 chars so it reads at the held framing and doesn't run off the bar")
+    # DIEGETIC BRIDGE: meta.bridge / a scene's bridge_label belonged to the removed generic-scene tier. No tier renders
+    # either (the old warning said 'type-enter' rendered — it does not), so a board carrying them is told once.
+    if (str(meta.get("bridge") or "").strip().lower() not in ("", "none")
+            or any(s.get("bridge_label") for s in data.get("slides", []))):
+        warnings.append("meta.bridge / bridge_label are not rendered by any tier (they belonged to the removed "
+                        "generic-scene tier) — a seam is chosen by its transition; drop the fields")
     vertical = vertical or meta.get("aspect") == "9:16"
     W, H = rd._canvas(meta, vertical)
     voice = (meta.get("voice") or "auto")
@@ -5799,8 +5749,8 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
             # under reduced motion the renderer forces to==from, so zoom warnings don't apply
             if dz > MAX_ZOOM_DELTA and not reduced:
                 warnings.append(f"{tag}: zoom delta {dz:.2f} > {MAX_ZOOM_DELTA} — the zoom will lurch")
-            if m["to"][2] > 1.25 and not reduced:
-                warnings.append(f"{tag}: zoom ends at {m['to'][2]:.2f}× (> 1.25) — fine text softens past the 1.25× scale limit (the fitted frame is upsampled)")
+            if m["to"][2] > MAX_ZOOM_ABS and not reduced:
+                warnings.append(f"{tag}: zoom ends at {m['to'][2]:.2f}× (> {MAX_ZOOM_ABS}) — fine text softens past the {MAX_ZOOM_ABS}× scale limit (the fitted frame is upsampled)")
             # motivated motion: a callout should be framed by where the camera settles — flag
             # whenever motion.to is far from the callout center (a static centered hold OR a
             # pan aimed somewhere else both leave the highlight unframed).
@@ -5835,12 +5785,6 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
         if _ts and _ts not in ("dip", "fadethrough", "drift", "push", "lift", "wipe", "blur"):
             warnings.append(f"{tag}: unknown transition_style '{_ts}' — use dip / fadethrough / drift / "
                             f"push / lift / wipe / blur (see motion-grammar 'Transition STYLE'); falls back to dip")
-        elif _ts == "blur" and meta.get("renderer") == "remotion":
-            # blur is a KNOWN seam key but the Remotion tier has no rack-defocus presentation yet — it renders
-            # as a cross-dissolve (Video.tsx presentationFor default). Surface the approximation so a template
-            # that leans on a "blur coda" doesn't silently ship a plain fade (legacy cinematic tier, removed).
-            warnings.append(f"{tag}: transition_style 'blur' renders as a cross-dissolve on the Remotion tier "
-                            f"(real rack-defocus is roadmap) — author a rack via a scene DoF beat if you need it")
         _tsec = s.get("transition_seconds")
         if isinstance(_tsec, (int, float)) and _tsec > 0.5:
             warnings.append(f"{tag}: transition_seconds {_tsec} > 0.5 — a seam past ~0.45s reads as a stall "
@@ -6017,152 +5961,6 @@ def evaluate(data, out_dir, pre_tts=False, vertical=False):
                       "meta.renderer is '%s' — set meta.renderer:'remotion' (the local renderer has no "
                       "cinematic path and would crash at render)"
                       % (", ".join("#%s" % i for i in cine), meta.get("renderer") or "local"))
-
-    # Remotion cinematic tier renders IMAGE scenes only — a non-image scene would render BLANK and still
-    # pass the A/V gate (a blank video's audio is in sync). Fail at THIS gate too, not just at render.
-    if meta.get("renderer") == "remotion":
-        blank = [(s.get("index"), s.get("type", "slide")) for s in slides
-                 if not (s.get("image") or (s.get("props") or {}).get("image"))
-                 and not _cine_content(s)   # stage+shots / planes / layers all render content without an image
-                 and s.get("type", "slide") not in ("slide", "title")]
-        if blank:
-            errors.append("renderer=remotion (cinematic tier) renders IMAGE scenes only, but scene(s) "
-                          + ", ".join("#%s(%s)" % (i, t) for i, t in blank)
-                          + " carry non-image content (html/chart/…) that would render BLANK — use "
-                            "renderer=local for an html/designed deck, or give them an `image`")
-
-        # PARITY: the Remotion tier silently DROPS several local-tier looks. Warn so an authored look
-        # isn't discarded without notice (parity with the brand-bug lint below).
-        if meta.get("caption_mode") == "band":
-            warnings.append("renderer=remotion ignores meta.caption_mode:'band' — captions render as a "
-                            "bottom overlay (no dedicated strip); keep content clear of the lower ~15%")
-        _ts = meta.get("transition_style")
-        if _ts == "blur":
-            warnings.append("renderer=remotion: transition_style:'blur' (rack-defocus) is not yet a Remotion "
-                            "presentation — it renders as a cross-dissolve (fade). Use dip/push/lift/wipe for "
-                            "an exact seam, or the blur coda on the local tier.")
-        if meta.get("captions_karaoke") not in (None, "off", False):
-            warnings.append("renderer=remotion has no karaoke caption highlight — captions render plain; "
-                            "meta.captions_karaoke is ignored on this tier")
-        _co = [s.get("index") for s in slides
-               if (s.get("type") == "cinematic" or s.get("layers")) and s.get("callouts")]
-        if _co:
-            warnings.append("scene(s) %s carry `callouts` but the cinematic path does not render them — "
-                            "put the highlight IN a layer, or move it to an image scene"
-                            % ", ".join("#%s" % i for i in _co))
-        # cinematic layers are authored in absolute px tuned for a 1920-wide landscape canvas; on a
-        # 1080-wide 9:16 frame a full-width panel overflows and NO gate re-checks the pixels.
-        if (vertical or meta.get("aspect") == "9:16") and any(
-                s.get("type") in ("cinematic", "cinematic3d") or s.get("layers") for s in slides):
-            warnings.append("cinematic scenes are landscape-tuned (stage/plane sizes + camera framing assume "
-                            "1920-wide) — on a 9:16 frame panels/hero/display/3D planes can crop; verify the "
-                            "render, or keep cinematic scenes to 16:9")
-        # CJK on the cinematic tier is a PORTABILITY trap: the 4 bundled display faces are Latin-only, so 3D
-        # text/label planes route to a HOST system CJK font (present on macOS, absent on a bare headless
-        # Linux/Lambda box — the --gl=swangle target), and DOM stage text (panel/display/metaphor) resolves
-        # only through the CSS system-font chain. A clean mac preview can ship boxes on CI. Warn loud here
-        # (~1s) so it isn't discovered after a multi-minute render — the HTML tier has the real CJK fallbacks.
-        if str(meta.get("language") or "").lower()[:2] in ("zh", "ja", "ko") and any(
-                s.get("type") in ("cinematic", "cinematic3d") for s in slides):
-            warnings.append("CJK deck on the cinematic tier: the bundled display faces are Latin-only, so 3D "
-                            "text/label planes and DOM stage text depend on a HOST CJK font — a macOS preview "
-                            "renders but a headless Linux/Lambda target can tofu. Use the HTML tier for a CJK "
-                            "deck, or ensure the render host has a CJK font (Noto Sans CJK) installed")
-        # CINEMATIC TEMPLATE (the whole-film LOOK): a cinematic film should DECLARE meta.cinematic_template — a
-        # key from (the removed legacy cinematic tier) — so the design-director instantiates a bold, coherent,
-        # GENERALISABLE look (accent -> per-beat colour worlds via cine_palette) instead of an ad-hoc concept.
-        # Absent -> warn (nudge the director to run the template contest); set-but-unknown -> error.
-        if cine:
-            _tpl = meta.get("cinematic_template")
-            # (legacy generic-scene tier, retained inert — the live Remotion tier is remotion/shot-director)
-            _known = {"command-surface", "liquid-model", "molten-ledger", "aurora-bloom", "ignition-monument",
-                      "doorway-gallery", "rakelight", "exploded-schematic", "defrag"}
-            if _tpl is None:
-                warnings.append("cinematic film has no `meta.cinematic_template` — pick one from "
-                                "(the removed legacy cinematic tier) (design-director runs a template contest) so "
-                                "the film gets a bold, coherent, generalisable look, not an ad-hoc concept")
-            elif str(_tpl) not in _known:
-                errors.append("unknown meta.cinematic_template %r (known: %s)" % (_tpl, sorted(_known)))
-            elif not meta.get("accent"):
-                # the colour-world generator (render_remotion._generate_color_worlds -> cine_palette) derives
-                # every beat's palette from meta.accent; without it, `colorWorld` cards fall back to the theme
-                # accent and the template's colour intent is lost.
-                warnings.append("meta.cinematic_template %r is set but meta.accent is not — the colour-world "
-                                "generator derives every beat's palette from the accent; set meta.accent (the "
-                                "brand/topic hue) so the template re-colours to this topic" % _tpl)
-            # TEMPLATE CONTEST trace (mirrors register_contest): the STEP-0 contest ("offer 2–4 → USER picks")
-            # should leave a record, else a hardcoded single template passes green with no user involvement.
-            # meta.template_contest = {candidates:[≥2 template keys], winner, user_pick}.
-            if _tpl is not None and str(_tpl) in _known:
-                _tc = meta.get("template_contest")
-                _aud = str(meta.get("audacity") or "balanced").strip().lower()
-                if not (isinstance(_tc, dict) and _tc):
-                    # A contest is EXPECTED at every audacity except conservative (which deliberately SKIPS it —
-                    # see the contest-width rule: conservative skips · balanced 3 · bold 5 · experimental 7). So a
-                    # missing record ERRORs at balanced/bold/experimental (the default is balanced) and is only a
-                    # warning at conservative — a hardcoded single template must not pass as "the user picked it".
-                    if _aud != "conservative":
-                        errors.append("cinematic film at audacity '%s' records no `meta.template_contest` — a "
-                                      "single hardcoded template is not a contest; run STEP-0 (offer 2–4, user "
-                                      "picks) and record {candidates:[>=2], winner, user_pick}" % _aud)
-                    else:
-                        warnings.append("cinematic film at audacity 'conservative' records no `meta.template_contest` "
-                                        "— conservative may skip the contest, but recording {candidates, winner, "
-                                        "user_pick} still documents the STEP-0 choice")
-                else:
-                    _cand = [str(c) for c in (_tc.get("candidates") or []) if isinstance(c, str)]
-                    if len(_cand) < 2:
-                        errors.append("meta.template_contest needs >=2 `candidates` — a contest is divergence")
-                    _win = _tc.get("winner")
-                    if _win is not None and str(_win) != str(_tpl):
-                        errors.append("meta.template_contest.winner %r != meta.cinematic_template %r — the winner "
-                                      "IS the chosen template" % (_win, _tpl))
-                    if _win is not None and _cand and str(_win) not in _cand:
-                        errors.append("meta.template_contest.winner %r is not among its candidates %s" % (_win, _cand))
-                    # the AIM is ~3 distinct candidates (the user's "give me 3"); >=2 is the hard floor. And the
-                    # pick is a HUMAN choice — record user_pick so a self-selection isn't passed off as a contest.
-                    if 0 < len(_cand) < 3:
-                        warnings.append("meta.template_contest offered only %d candidate(s) — aim for ~3 distinct "
-                                        "templates so the user has a real choice (>=2 is the floor)" % len(_cand))
-                    if _tc.get("user_pick") is not True:
-                        warnings.append("meta.template_contest has no `user_pick:true` — record that the USER "
-                                        "chose (a contest is a human pick, not a self-selection)")
-
-            # ATMOSPHERE (the whole-film WORLD substrate — the removed legacy tier): meta.atmosphere binds the
-            # render's material CLASS + post profile + style to the picked world (terminal/cartoon/app/…), so
-            # the chosen world actually reaches the pixels. Unknown key -> ERROR (it silently no-ops to the
-            # default look). The topic-routed contest (the removed atmosphere router) offers the best ~3 to pick from.
-            _atmo_key = meta.get("atmosphere")
-            if _atmo_key is not None:
-                _known_atmo = set()   # (legacy generic-scene tier retired; the world catalogue no longer ships)
-                if _known_atmo and str(_atmo_key).lower() not in _known_atmo:
-                    errors.append("unknown meta.atmosphere %r (known: %s)" % (_atmo_key, sorted(_known_atmo)))
-                # ATMOSPHERE CONTEST trace (mirror template_contest): record which WORLDS were offered so a
-                # hardcoded world isn't passed off as a topic-routed pick. Absent -> warn; present -> validate.
-                _ac = meta.get("atmosphere_contest")
-                if not (isinstance(_ac, dict) and _ac):
-                    warnings.append("meta.atmosphere is set but no `meta.atmosphere_contest` — record the STEP-0a "
-                                    "contest {candidates:[>=2 keys from the removed atmosphere router], winner, user_pick} so a "
-                                    "hardcoded world isn't passed off as a topic-routed pick")
-                else:
-                    _ac_cand = [str(c).lower() for c in (_ac.get("candidates") or []) if isinstance(c, str)]
-                    if len(_ac_cand) < 2:
-                        errors.append("meta.atmosphere_contest needs >=2 `candidates` — a contest is a choice")
-                    elif len(_ac_cand) < 3:
-                        warnings.append("meta.atmosphere_contest offered only 2 worlds — aim for ~3 (the removed atmosphere router "
-                                        "returns 3 by default)")
-                    _ac_win = _ac.get("winner")
-                    if _ac_win is not None and str(_ac_win).lower() != str(_atmo_key).lower():
-                        errors.append("meta.atmosphere_contest.winner %r != meta.atmosphere %r — the winner IS the "
-                                      "chosen world" % (_ac_win, _atmo_key))
-                    if _ac_win is not None and _ac_cand and str(_ac_win).lower() not in _ac_cand:
-                        errors.append("meta.atmosphere_contest.winner %r is not among its candidates %s" % (_ac_win, _ac_cand))
-                    if _known_atmo:
-                        _bad_w = [c for c in _ac_cand if c not in _known_atmo]
-                        if _bad_w:
-                            errors.append("meta.atmosphere_contest has unknown candidate world(s): %s" % _bad_w)
-                    if _ac.get("user_pick") is not True:
-                        warnings.append("meta.atmosphere_contest has no `user_pick:true` — record that the USER chose the world")
 
     # meta.brand (user-supplied REAL assets — the mirror of the "never fabricate logos in generated
     # imagery" doctrine): render.py composites the corner bug from the raster file, and the cover/
@@ -6544,8 +6342,7 @@ def _narration_ai_tells(text):
 
 def _ordered_anchors(html):
     """The page's data-cue anchor phrases, ordered by data-cue-index (attr order-independent)."""
-    pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
-    pts += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+    pts = _common.cue_pairs(html)
     seen = {}
     for i, a in pts:
         seen.setdefault(int(i), a)
@@ -6613,8 +6410,7 @@ def _reveal_truncation(html, narration, duration, words_path, tag, errors, warni
     animation mid-flight and hard-cuts — a connector that stops in mid-air, a bar that never reaches
     its value. keyframe_qa cannot see this: with no ?cues= it renders in blind-envelope mode where
     p=1.0 means "every animation has finished" by construction, so only this gate catches it."""
-    pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
-    pts += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+    pts = _common.cue_pairs(html)
     seen = {}
     for i, a in pts:
         seen.setdefault(int(i), a)
@@ -6642,7 +6438,7 @@ def _reveal_truncation(html, narration, duration, words_path, tag, errors, warni
     end = dur - (out_edge or 0.0)
     table = _css_anim_durations()
     for el in re.findall(r"<[^>]+>", html):
-        mi = re.search(r'data-cue-index="(\d+)"', el)
+        mi = re.search(r'''data-cue-index\s*=\s*["'](\d+)["']''', el)
         if not mi:
             continue
         ci = int(mi.group(1))
@@ -6940,7 +6736,7 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
             warnings.append(f"{tag}: {live_bg} element(s) INSIDE a full-bleed backdrop carry a data-cue-index/"
                             f".reveal — a backdrop must be inert atmosphere; strip every data-cue*/id/.reveal* from "
                             f"any SVG copied into .bg-motif (else render_html scrapes its anchors and poisons reveal timing)")
-        cued_all = re.findall(r'data-cue-index="(\d+)"', html)
+        cued_all = re.findall(r'''data-cue-index\s*=\s*["'](\d+)["']''', html)
         # Connectors (.arrow/.hs-connect) legitimately BORROW their destination block's cue-index and
         # carry no data-cue= of their own — subtract one occurrence per connector index so the
         # duplicate + missing-anchor accounting counts only real content points (not co-revealing arrows).
@@ -6949,7 +6745,7 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         for cc in conn_cues:
             if str(cc) in cued:
                 cued.remove(str(cc))
-        anchored = re.findall(r'data-cue-index="\d+"[^>]*data-cue="|data-cue="[^"]*"[^>]*data-cue-index="\d+"', html)
+        anchored = _common.cue_pairs(html)
         if len(anchored) < len(cued):
             warnings.append(f"{tag}: {len(cued) - len(anchored)} cued point(s) missing a data-cue anchor — they fall back to the paced stagger")
         # A shared index is only a BUG when the two points anchor to DIFFERENT spoken phrases:
@@ -6958,8 +6754,7 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         # together (e.g. two 0.00-probability bars both anchored to the same clause). Flagging every
         # shared index false-positived on exactly that pattern; only a genuine second, DIFFERENT
         # anchor is silently dropped (its own timing lost) and worth a warning.
-        pair_pts = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
-        pair_pts += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+        pair_pts = _common.cue_pairs(html)
         anchors_by_idx = {}
         for i, a in pair_pts:
             a = (a or "").strip()
@@ -7054,8 +6849,7 @@ def _check_html_assets(out_dir, page_rel, wants_edge, index, errors, warnings,
         # opening — reads as broken. Anchor the first reveal to an OPENING phrase (or add a kicker/title).
         header_early = _has_static_opening_text(html) or _has_static_opening_picture(html)
         if not header_early and (narration or "").strip():
-            pairs = re.findall(r'data-cue-index="(\d+)"[^>]*?data-cue="([^"]*)"', html)
-            pairs += [(i, a) for (a, i) in re.findall(r'data-cue="([^"]*)"[^>]*?data-cue-index="(\d+)"', html)]
+            pairs = _common.cue_pairs(html)
             if pairs:
                 first_idx = min(int(i) for i, _ in pairs)
                 first_anchor = next((a for i, a in pairs if int(i) == first_idx and a.strip()), None)

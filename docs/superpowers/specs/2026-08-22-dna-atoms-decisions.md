@@ -9,7 +9,9 @@ five Critical defects found during this work all passed `test_null_dna_preserves
 
 # SDD ledger — plan: docs/superpowers/plans/2026-08-22-dna-atoms.md
 
-Spec: docs/superpowers/specs/2026-08-22-dna-atoms-design.md (read — it is the binding authority)
+Spec: docs/superpowers/specs/2026-08-22-dna-atoms-design.md — RETIRED 2026-11-16 with its plan (the audit's step 6;
+both described a finished migration). The binding authority now is the code and references/building-blocks.md;
+this ledger is kept for its decisions, not as a pointer
 Branch: dna-atoms (created from main @ 0837e2c — NOT f658726 as this line originally said; main already
 carried six commits, the spec and the plan, when the branch was cut. Corrected after the merge, when
 `git checkout main` reported being six commits ahead of origin and exposed the error.)

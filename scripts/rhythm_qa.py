@@ -318,7 +318,8 @@ def _hits_on_still(out_dir, data, m, r):
     import craft_qa
     slides = data.get("slides") or []
     starts = {idx: (f0 - 1) / float(craft_qa.FPS) for idx, _shot, f0, _f1 in
-              fe.beat_spans(data, len(m["motion"]) + 1, craft_qa.FPS)}
+              fe.beat_spans(data, len(m["motion"]) + 1, craft_qa.FPS,
+                            video=os.path.join(out_dir, "out.mp4"))}
     for i, s in enumerate(slides, 1):
         spec = s.get("time") if isinstance(s.get("time"), dict) else None
         if not spec or not spec.get("hits") or i not in starts or not s.get("duration"):

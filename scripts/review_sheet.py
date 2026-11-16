@@ -33,25 +33,19 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 POINTS = (0.3, 0.6, 0.9)
 CELL_W = 640
 ROWS = 8
-SEAM = 12
 LABEL_H = 20
 
 
 def spans(out_dir, n_frames, fps):
-    """[(a, b)] film frames per beat (its own span, the seam before it excluded) — from the render record, else from
-    the board's durations."""
-    rec = os.path.join(out_dir, ".render_record.json")
-    try:
-        segs = [(int(a), int(b)) for a, b, *_ in json.load(open(rec, encoding="utf-8"))["segments"]]
-        return [(a + (SEAM if k else 0), b) for k, (a, b) in enumerate(segs)]
-    except (OSError, ValueError, KeyError, TypeError):
-        pass
-    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
-    out, t = [], 0
-    for s in board.get("slides") or []:
-        d = int(round(float(s.get("duration") or 0) * fps))
-        out.append((t, min(n_frames - 1, t + max(1, d) - 1)))
-        t += d
+    """[(a, b)] film frames per beat — its own span, the seam IN excluded (scripts/beat_clock: the film's _plan.json,
+    else the board on its renderer's clock). A hard-coded 12-frame seam used to be trimmed after every beat, even one
+    continuing a stage run, which has none."""
+    import beat_clock as _bc
+    sp = _bc.spans(out_dir)
+    out = []
+    for k, (s, e) in enumerate(sp):
+        a = max(s, sp[k - 1][1]) if k else s
+        out.append((int(round(a * fps)), min(n_frames - 1, max(int(round(a * fps)), int(round(e * fps)) - 1))))
     return out
 
 

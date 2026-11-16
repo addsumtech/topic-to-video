@@ -13,7 +13,7 @@ library's hash manifests stay fresh. Each check is calibrated on our own films b
 **Tech Stack:** Python 3 + PIL + numpy (scripts), TypeScript/React + Remotion (runtime), Blender 5.2 (kit), pytest +
 `tests/_tsprobe.py` (TS pure functions in node).
 
-**Spec:** `docs/superpowers/specs/2026-11-06-design-craft-design.md`
+**Spec:** `docs/superpowers/specs/2026-11-06-design-craft-design.md` — retired 2026-11-16 (finished work); this plan stays for its Rulings
 
 ## Global Constraints
 - The taste ledger lives at `~/.topic-to-video/taste-ledger.json` (override `TTV_TASTE_LEDGER` for tests); the user's

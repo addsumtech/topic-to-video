@@ -39,27 +39,17 @@ def sound_kinds():
     return tuple(re.findall(r"'(\w+)'", m.group(1)))
 
 
-def _motion_consts():
-    src = open(_MOTION_TS, encoding="utf-8").read()
-    seam = re.search(r"export const SEAM_FRAMES = (\d+);", src)
-    entry = re.search(r"export const ENTRY_T = ([0-9.]+);", src)
-    if not (seam and entry):
-        raise RuntimeError("runtime/motion.ts no longer exports SEAM_FRAMES / ENTRY_T as literals — shot sounds "
-                           "cannot be placed on the frames useT reaches them on")
-    return int(seam.group(1)), float(entry.group(1))
+# THE CLOCK IS render_remotion's: one inversion of useT (frame_at_t) and one reading of motion.ts's SEAM_FRAMES /
+# ENTRY_T, delegated to — this module kept a line-for-line copy of each (audit 2026-11-15, step 6; the two agreed on
+# every dur 0-399 at T steps of 0.001, and a copy is how they would stop agreeing).
+import render_remotion as _rr  # noqa: E402
 
-
-SEAM_FRAMES, ENTRY_T = _motion_consts()
+SEAM_FRAMES, ENTRY_T = int(_rr.SEAM_FRAMES), float(_rr.ENTRY_T)
 
 
 def frame_at_t(T, dur):
-    """The beat frame at which useT() reaches T — runtime/optics useFrameAtT, line for line (useT holds its pads at
-    both edges, so t=0 is not frame 0 and t=1 is not the last frame)."""
-    dur = int(dur)
-    pad = min(SEAM_FRAMES, (max(0, dur - 1)) // 3)
-    span = max(1, dur - 1 - 2 * pad)
-    x = min(1.0, max(0.0, (float(T) - ENTRY_T) / (1.0 - ENTRY_T)))
-    return int(round(pad + span * x))
+    """The beat frame at which useT() reaches T, rounded to the nearest frame (render_remotion.frame_at_t)."""
+    return int(round(_rr.frame_at_t(int(dur), float(T))))
 
 
 def first_frame_at_t(T, dur):
@@ -69,11 +59,7 @@ def first_frame_at_t(T, dur):
     anything moves — it was never typed in view, so it has no key."""
     if float(T) <= ENTRY_T:
         return None
-    dur = int(dur)
-    pad = min(SEAM_FRAMES, (max(0, dur - 1)) // 3)
-    span = max(1, dur - 1 - 2 * pad)
-    x = min(1.0, (float(T) - ENTRY_T) / (1.0 - ENTRY_T))
-    return int(math.ceil(pad + span * x - 1e-9))
+    return int(math.ceil(_rr.frame_at_t(int(dur), float(T)) - 1e-9))
 
 
 # ── the literal parser ──────────────────────────────────────────────────────────────────────────────────────────
@@ -317,6 +303,12 @@ def problems(slides, out_dir=None):
                     out.append("slide %s: sounds[%d] cues %r, which this beat's narration does not say"
                                % (s.get("index"), k, at["cue"]))
                     continue
+            # gain in (0, 1], as a register's own declaration must be (parse_sounds): unchecked here, a string crashed
+            # the mix's float() and a 0 or negative gain dropped the sound in silence
+            g = ev.get("gain", 1.0) if isinstance(ev, dict) else 1.0
+            if ok and (isinstance(g, bool) or not isinstance(g, (int, float)) or not 0 < g <= 1):
+                out.append("slide %s: sounds[%d] gain is a number in (0, 1], got %r" % (s.get("index"), k, g))
+                continue
             if not ok:
                 out.append("slide %s: sounds[%d] must be {kind: one of %s, at: seconds | {\"cue\": words}, gain?}"
                            % (s.get("index"), k, ", ".join(kinds)))

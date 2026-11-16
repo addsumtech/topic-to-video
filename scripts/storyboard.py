@@ -144,16 +144,17 @@ def _validate_props(s):
         def _f(key):
             return s.get(key) or (p.get(key) if isinstance(p, dict) else None)
         layers, stage, shots, planes = _f("layers"), _f("stage"), _f("shots"), _f("planes")
-        component = _f("component")   # a BESPOKE component draws the whole beat itself — satisfies either type
+        if _f("component"):           # the bespoke tier (Scene.tsx, remotion/src/bespoke/) was removed in 3c408f6
+            raise StoryboardError(f"slide {s.get('index')}: `component` names the bespoke tier, which was removed — "
+                                  f"no renderer reads it. Re-author the beat as `shot` + `shot_props` (remotion/LIBRARY.md)")
         if t == "cinematic3d":
-            if not (isinstance(planes, list) and planes) and not component:
-                raise StoryboardError(f"slide {s.get('index')}: cinematic3d scene needs a non-empty 'planes' list "
-                                      f"(or a `component` that renders the beat itself)")
+            if not (isinstance(planes, list) and planes):
+                raise StoryboardError(f"slide {s.get('index')}: cinematic3d scene needs a non-empty 'planes' list")
             return
-        ok = (isinstance(layers, list) and layers) or (stage and shots) or (isinstance(planes, list) and planes) or component
+        ok = (isinstance(layers, list) and layers) or (stage and shots) or (isinstance(planes, list) and planes)
         if not ok:
             raise StoryboardError(f"slide {s.get('index')}: cinematic scene needs `stage`+`shots`, or `planes`, "
-                                  f"or a non-empty `layers` list, or a `component`")
+                                  f"or a non-empty `layers` list")
         return
     if not isinstance(p, dict):
         raise StoryboardError(f"slide {s.get('index')}: type '{t}' needs a props dict")

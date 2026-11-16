@@ -553,3 +553,12 @@ film. What would lift it: prove coverage (render every register over a garish, t
 assert no atmosphere pixel survives, at settled AND seam frames — a full-library sweep), or drive the
 atmosphere from beat-relative time (a visible change to every film). **Not done: correctness first; the cost
 is the tail of the film on a narration edit.**
+
+**D5 · Backlog kept from the retired HyperFrames notes (2026-11-16).** Three ideas from
+`references/hyperframes-inspiration.md` (retired: its "no BGM/SFX" and 0.7 s seam claims were out of date) are
+still open. (1) Seekable paused-timeline rendering for the HTML tier: one paused timeline seeked per frame instead
+of N authored CSS reveal states, with a determinism contract (animate only opacity / x / y / scale / rotation /
+colour; no clock or unseeded randomness; measure layout once at setup) — prototype on one scene first. (2) 3-4
+vetted design presets beyond theme.py's sampled palette, each palette + type scale + spacing + composition + a
+pre-render self-audit. (3) A media ledger (manifest.jsonl) with each AI or stock asset's source, licence and
+prompt. **Not started.**

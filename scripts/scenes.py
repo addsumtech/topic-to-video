@@ -894,8 +894,7 @@ def html_capture_plan(props, meta, frames, index, html=None, ambient=None):
     # collect cued points: (cue-index, anchor) where anchor = data-cue="..." (required on cued points)
     # quote-agnostic: single-quoted attrs (data-cue-index='0') must sync too, else the whole page
     # silently falls back to the blind paced stagger (reveals unhooked from the voice).
-    pts = re.findall(r'''data-cue-index=["'](\d+)["'][^>]*?data-cue=["']([^"']*)["']''', html)
-    pts += [(i, a) for (a, i) in re.findall(r'''data-cue=["']([^"']*)["'][^>]*?data-cue-index=["'](\d+)["']''', html)]
+    pts = _common.cue_pairs(html)   # the one reader validate uses too (quote-matched)
     cue_param = None        # comma list for seek.js, indexed by data-cue-index (sparse-safe)
     cue_times = []          # the resolved reveal moments (for the capture bursts)
     cue_err = None

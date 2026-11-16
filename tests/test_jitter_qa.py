@@ -5,6 +5,7 @@ every gate passed (the type-glide census lists type on a composited layer and ne
 the type tremble. These tests pin the estimator against controls whose true path is known exactly, the reader on
 hand-made tracks, the census hand-off, and the gate's place among the blocking delivery gates.
 """
+import io
 import os
 import re
 import shutil
@@ -376,3 +377,16 @@ def test_a_line_at_its_clips_edge_is_not_measured_and_its_window_keeps_inside_th
     assert skip.get("at the edge of its clip (no margin for the window)") == 2
     assert jq._window((100, 300, 200, 20), (100, 297, 200, 20), 1920, 1080, (90, 100, 400, 500))[0] == 92
     assert jq._window((100, 300, 200, 20), (100, 297, 200, 20), 1920, 1080, (95, 100, 400, 500))[0] == 95
+
+
+# ── the FAIL report's hint (merged from test_jitter_report_hint.py): a jitter FAIL says how big the worst tremble is
+# and how a user who watched it and accepts it waives it by name — the ANC film's seven sub-pixel findings (0.12-0.26
+# px) needed a waiver nobody could find from the report
+def test_a_fail_names_the_worst_size_and_the_waiver():
+    rep = {"lines": [("error", "scene 07 (P): 'A' (2D): trembles 0.15px RMS against its own geometry", None, {}),
+                     ("error", "scene 12 (L): 'B' (2D): trembles 0.26px RMS against its own geometry", None, {})],
+           "universe": 2, "measured": 2, "composited": 0, "skip": {}, "seconds": 1.0}
+    out = io.StringIO()
+    jq.report(rep, out)
+    text = out.getvalue()
+    assert "worst 0.26 px" in text and "delivery_waivers" in text

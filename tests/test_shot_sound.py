@@ -172,6 +172,17 @@ def test_a_board_sound_is_checked_before_the_render():
     assert len(probs) == 2 and "slide 3" in probs[0] and "slide 4" in probs[1] and "does not say" in probs[1], probs
 
 
+def test_a_board_sound_gain_is_held_to_the_registers_range():
+    """A board's gain was unchecked (a register's is (0, 1]): a string crashed the mix, a 0 dropped the sound."""
+    def probs(g):
+        return shot_sounds.problems([{"index": 1, "shot": "NebulaField", "narration": "星云",
+                                      "sounds": [{"kind": "swell", "at": 1.0, "gain": g}]}])
+    assert probs(0.4) == [] and probs(1) == []
+    for bad in ("loud", 0, -0.5, 1.5, True):
+        p = probs(bad)
+        assert len(p) == 1 and "gain is a number in (0, 1]" in p[0], (bad, p)
+
+
 def test_a_strike_peaks_on_its_frame_in_the_built_track(tmp_path):
     """build_sfx_track aligns a cue by its envelope's peak: a strike planned at 1.0 s peaks there (within 5 ms)."""
     import wave

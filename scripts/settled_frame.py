@@ -56,25 +56,14 @@ def grab(clip, out_png, at=SETTLED):
 
 
 def beat_window(out_dir, beat):
-    """(start, end) of `beat` in the film's OWN timeline — the renderer compresses each cut by SEAM frames,
-    so a beat's position in out.mp4 is not the running sum of the board's durations."""
-    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
-    slides = board.get("slides") or []
-    if not 1 <= beat <= len(slides):
-        raise SystemExit("[settled_frame] beat %d is outside this board's 1..%d" % (beat, len(slides)))
+    """(start, end) of `beat` in the film's OWN timeline (scripts/beat_clock: its _plan.json, else the board on its
+    renderer's clock) — a beat's position in the film is not the running sum of the board's durations."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import render_remotion as rr                                   # for the seam length, so the two cannot drift
-    fps = float((board.get("meta") or {}).get("fps") or 30)
-    seam = rr._REMOTION2_TR / fps
-    import stage_runs as _sr
-    joined = _sr.joined_flags(slides)                              # no seam inside a stage run
-    t = 0.0
-    for i, s in enumerate(slides):
-        d = float(s.get("duration") or 0)
-        if i + 1 == beat:
-            return t, t + d
-        t += d - (seam if i + 1 < len(slides) and not joined[i + 1] else 0)
-    raise SystemExit("[settled_frame] unreachable")
+    import beat_clock as _bc
+    sp = _bc.spans(out_dir)
+    if not 1 <= beat <= len(sp):
+        raise SystemExit("[settled_frame] beat %d is outside this film's 1..%d" % (beat, len(sp)))
+    return sp[beat - 1]
 
 
 def clear_window(out_dir, beat):
@@ -82,19 +71,9 @@ def clear_window(out_dir, beat):
     out to the beat after. "90% of the beat" is only clear of the seam on a long beat — on a 3.07 s beat with a 0.4 s
     seam it is 0.3 s from the end, inside the dissolve: two "settled" frames of the launch benchmark were mid-seam,
     one a blank light frame. contest_sample's settled still was fixed for the same reason."""
-    s, e = beat_window(out_dir, beat)
-    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
-    slides = board.get("slides") or []
-    import render_remotion as rr
-    import stage_runs as _sr
-    seam = rr._REMOTION2_TR / float((board.get("meta") or {}).get("fps") or 30)
-    joined = _sr.joined_flags(slides)
-    k = beat - 1
-    a = s + (seam if k > 0 and not joined[k] else 0.0)
-    b = e - (seam if k + 1 < len(slides) and not joined[k + 1] else 0.0)
-    if b <= a:                                   # a beat shorter than its two seams: there is no clear frame
-        return s, e
-    return a, b
+    beat_window(out_dir, beat)                   # the range check
+    import beat_clock as _bc
+    return _bc.clear(_bc.spans(out_dir), beat - 1)
 
 
 def main():

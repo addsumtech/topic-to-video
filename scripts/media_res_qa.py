@@ -27,9 +27,7 @@ a native rebuild of UI in the register, or draw the picture smaller. Prefer loss
 """
 import json
 import os
-import shutil
 import sys
-import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -90,24 +88,8 @@ def judge(frames, beat_of, labels, shots):
 def census_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
     """(census, segs, slides, total frames) — the Film rendered once with the census armed: per sampled frame its
     pictures (`m`, judged here) and its objects (`o`, scripts/object_closeups.py's)."""
-    import remotion_segments as _rs
-    import render_remotion as rr
     import text_safe_qa as ts
-    import workshop as _ws
-    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
-    props, slides = rr.film_props(out_dir, board)
-    props = dict(props, mediaRes=True)
-    segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
-    env = _ws.prepare(out_dir)
-    work = tempfile.mkdtemp(prefix="media_res_")
-    try:
-        public = _rs.minimal_public(props, out_dir, os.path.join(work, "public"))
-        bundle = ts.glide_bundle(os.path.join(work, "bundle"), public, env)
-        res = ts.glide_run([{"tag": "film", "id": "Film", "props": props}], bundle, concurrency,
-                           extra=("--tag=" + TAG.replace(" ", "_"), "--every=%d" % every))["film"]
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-    return res, segs, slides, total
+    return ts.census_film(out_dir, {"mediaRes": True}, TAG, every, concurrency, derive_warps=False, prefix='media_res_')
 
 
 def scan_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
@@ -125,7 +107,26 @@ def scan_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
                 return k
         return len(segs) - 1
 
-    return finish(res, want, why, beat_of, labels, shots, out_dir, total, every, len(slides), t0)
+    out = finish(res, want, why, beat_of, labels, shots, out_dir, total, every, len(slides), t0)
+    _object_closeups_from(out_dir, every, (res, segs, slides, total), why)
+    return out
+
+
+def _object_closeups_from(out_dir, every, census, why):
+    """Write scripts/object_closeups.py's record and sheet from THIS census, when out.mp4 is a render of the board as it
+    is now — one census for both, where object_closeups rendered its own. Whatever happens here never changes this
+    gate's verdict: a sheet is a review aid, the media-res judgment is the gate."""
+    if why:
+        return
+    try:
+        import remotion_segments as _rs
+        state, _b, _why = _rs.render_currency(out_dir, os.path.join(out_dir, "out.mp4"))
+        if state != "current":
+            return
+        import object_closeups as _oc
+        _oc.run(out_dir, every, census=census)
+    except Exception as e:  # noqa: BLE001 — the sheet is advisory; the gate's verdict stands
+        print("[media_res] object close-up sheet not written: %s" % e)
 
 
 def finish(res, want, why, beat_of, labels, shots, out_dir, total, every, beats, t0):

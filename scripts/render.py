@@ -987,6 +987,19 @@ def _overwide_units(slide, meta, W, H):
     return any(d.textlength(a.rstrip(), font=font) > mw for a in _atoms(" ".join(text.split())))
 
 
+def _old_cue_read_differs(slide, meta):
+    """True when scenes.render_html's OLD cue regex read this page's (index, anchor) pairs differently from
+    _common.cue_pairs — the pages whose frames the quote-matched reader changes. False when the page cannot be read."""
+    try:
+        src = os.path.abspath(os.path.join((meta or {}).get("_out", "."), (slide.get("props") or {}).get("html", "")))
+        html = open(src, encoding="utf-8", errors="replace").read()
+    except (OSError, TypeError):
+        return False
+    old = re.findall(r'''data-cue-index=["'](\d+)["'][^>]*?data-cue=["']([^"']*)["']''', html)
+    old += [(i, a) for (a, i) in re.findall(r'''data-cue=["']([^"']*)["'][^>]*?data-cue-index=["'](\d+)["']''', html)]
+    return old != _common.cue_pairs(html)
+
+
 def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     """A short hash of everything that affects a slide's rendered clip, so a re-render can
     skip slides that didn't change (the cache key). Includes the image/audio file
@@ -1061,6 +1074,10 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     # the same bytes, so only html scenes are salted.
     if slide.get("type") == "html":
         fp["range"] = "tv1"
+        # the renderer's cue reader is quote-MATCHED now (_common.cue_pairs): only a page the old one read
+        # differently (an apostrophe in a double-quoted anchor) changes what it draws, so only its key is salted
+        if _old_cue_read_differs(slide, meta):
+            fp["cues"] = "qm1"
     # a CJK beat's own caption chunks are one 16-glyph line now (CJK_CAPTION_LINE) and start on their first word; only
     # a burned beat that leaves its captions to the splitter and has CJK text burns differently
     if burn and len(slide.get("captions") or []) < 2 and _CJK_RE.search(slide.get("narration") or ""):
@@ -1233,8 +1250,9 @@ def _karaoke_hl_rgb(out, band_bg, base):
 # The lurch / soft-text ceilings the validate gate enforces on the AUTHORED move. Kept here (not
 # imported from validate — validate imports render, not the reverse) so the intensity dial can't push
 # the EFFECTIVE move past them. Keep in sync with validate.MAX_ZOOM_DELTA / its 1.25 check.
-_MAX_ZOOM_DELTA = 0.20   # a bigger zoom delta reads as a lurch, not a Ken Burns
-_MAX_ZOOM_ABS = 1.25     # fine text softens magnified past 1.25x when the SOURCE has no pixels to spare (_kenburns_master)
+MAX_ZOOM_DELTA = 0.20    # a bigger zoom delta reads as a lurch, not a Ken Burns
+MAX_ZOOM_ABS = 1.25      # fine text softens magnified past 1.25x when the SOURCE has no pixels to spare (_kenburns_master)
+_MAX_ZOOM_DELTA, _MAX_ZOOM_ABS = MAX_ZOOM_DELTA, MAX_ZOOM_ABS   # the old private names, kept for any reader
 
 # Visual-ENERGY amplitude dial (baoyu "mood"/comic "tone"): scales the Ken Burns MOVE so a bold beat
 # pushes harder + a subtle one drifts. meta.intensity sets the deck default; a per-scene slide.intensity
@@ -1261,8 +1279,8 @@ def _motion_params(m, reduced_motion=False, amp=1.0):
         # intensity is a gentle DIAL, not a bypass of the caps validate enforces on the authored move:
         # clamp the amplified result so a bold beat (or a raw multiplier) can't exceed a 0.20 zoom-delta,
         # a 1.25 absolute zoom, or pan the anchor off-canvas — the exact lurch/soft-text this dial invites.
-        dz = max(-_MAX_ZOOM_DELTA, min(_MAX_ZOOM_DELTA, z1 - z0))
-        z1 = min(_MAX_ZOOM_ABS, max(1.0, z0 + dz))
+        dz = max(-MAX_ZOOM_DELTA, min(MAX_ZOOM_DELTA, z1 - z0))
+        z1 = min(MAX_ZOOM_ABS, max(1.0, z0 + dz))
         tx = min(1.0, max(0.0, tx))
         ty = min(1.0, max(0.0, ty))
     return fx, fy, z0, tx, ty, z1

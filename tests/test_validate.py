@@ -1951,3 +1951,39 @@ def test_a_board_without_meta_music_gets_no_music_finding(tmp_path):
     data = _board(str(tmp_path), [_slide_scene(tmp_path, 0), _slide_scene(tmp_path, 1)])
     r = validate.evaluate(data, str(tmp_path))
     assert not any("meta.music" in m for m in r["errors"] + r["warnings"])
+
+
+# ── grouped warnings (merged from test_validate_grouped.py): validate prints at most a few warnings of one kind and
+# counts the rest — the ANC film's runs carried a dozen advisory lines, most of them repeats of one kind, and the ones
+# worth acting on drowned among them
+def test_repeats_of_one_kind_are_counted_not_listed():
+    ws = ["rhythm: beat %d is long" % i for i in (7, 12, 16, 19, 21)] + ["tier: purpose is teach"]
+    lines = validate._grouped_warnings(ws, keep=3)
+    assert lines[:3] == ws[:3] and "tier: purpose is teach" in lines
+    assert any("2 more" in l and "rhythm" in l for l in lines), lines
+    assert len(lines) == 5
+
+
+def test_scene_numbered_warnings_are_one_kind():
+    ws = ["scene #%d: X has no recorded shot_adaptation" % i for i in range(1, 6)]
+    lines = validate._grouped_warnings(ws, keep=2)
+    assert len(lines) == 3 and "3 more" in lines[-1]
+
+
+# ── one cue reader for gate and renderer (audit step 6): validate read double quotes only, and the renderer cut an
+# anchor at its first apostrophe
+def test_cue_pairs_read_either_quote_and_keep_an_apostrophe():
+    import _common
+    html = ('<p data-cue-index="1" data-cue="the user\'s pick">a</p>'
+            "<p data-cue='second phrase' data-cue-index='2'>b</p>"
+            '<p data-cue-index="3" data-cue="">c</p>')
+    assert _common.cue_pairs(html) == [("1", "the user's pick"), ("3", ""), ("2", "second phrase")]
+
+
+def test_only_a_page_the_old_reader_misread_changes_its_cache_key(tmp_path):
+    import render as rd
+    (tmp_path / "a.html").write_text('<p data-cue-index="1" data-cue="plain words">x</p>', encoding="utf-8")
+    (tmp_path / "b.html").write_text('<p data-cue-index="1" data-cue="the user\'s pick">x</p>', encoding="utf-8")
+    meta = {"_out": str(tmp_path)}
+    assert rd._old_cue_read_differs({"props": {"html": "a.html"}}, meta) is False
+    assert rd._old_cue_read_differs({"props": {"html": "b.html"}}, meta) is True

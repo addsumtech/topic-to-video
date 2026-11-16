@@ -718,6 +718,36 @@ def glide_concurrency():
     return int(os.environ.get("GLIDE_CONCURRENCY") or max(1, min(6, (os.cpu_count() or 4) // 2)))
 
 
+def census_film(out_dir, props_flags, tag, every, concurrency=None, derive_warps=False, prefix="census_"):
+    """(census, segs, slides, total frames) — the Film rendered ONCE with a census armed (`props_flags`, e.g.
+    {"plateClear": True, "captions": True}), sampled every `every` frames under `tag`. The shared body of
+    plate_qa.census_film and media_res_qa.census_film (audit 2026-11-15, step 6), which each module keeps as its own
+    name (tests patch it there). `derive_warps`: the film AS IT WILL PLAY — a beat whose sync warp is missing or stale
+    is derived first, as the render does (plate_qa's layout gate runs before any render); off for media_res, where it
+    would cost a sync census and write a sidecar for nothing."""
+    import shutil
+    import tempfile
+    import remotion_segments as _rs
+    import workshop as _ws
+    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    props, slides = rr.film_props(out_dir, board)
+    if derive_warps and os.environ.get("REMOTION_SYNC", "1") != "0":
+        import sync_qa as _sq
+        _sq.derive_warps(out_dir, board, props, slides, log=print)
+    props = dict(props, **props_flags)
+    segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
+    env = _ws.prepare(out_dir)
+    work = tempfile.mkdtemp(prefix=prefix)
+    try:
+        public = _rs.minimal_public(props, out_dir, os.path.join(work, "public"))
+        bundle = glide_bundle(os.path.join(work, "bundle"), public, env)
+        res = glide_run([{"tag": "film", "id": "Film", "props": props}], bundle, concurrency,
+                        extra=("--tag=" + tag.replace(" ", "_"), "--every=%d" % every))["film"]
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return res, segs, slides, total
+
+
 def glide_bundle(dest, public_dir=None, env=None):
     """Bundle the remotion project once for a census, with a film's workshop when `env` carries one."""
     # one bundle per film state, shared with the render and every other census (scripts/bundle_cache.py); `dest` is

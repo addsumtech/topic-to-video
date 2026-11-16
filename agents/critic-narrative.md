@@ -61,7 +61,7 @@ re-conceived coverage and narrative pull.
 - FAIL if narration is a comma-separated list with no connective tissue.
 - PASS if each sentence is one idea, addressed to "you", with context.
 
-### R1a — Natural & human, not marketing copy (see `references/human-subtitle-guide.md`)
+### R1a — Natural & human, not marketing copy (the rules: `references/narration-writing.md` §Natural & human)
 The narration is also the on-screen subtitle, so it must read like a person talking, not ad copy.
 - **FAIL on buzzwords / marketing tone:** AI-powered, intelligent, revolutionary, cutting-edge,
   best-in-class, next-generation, seamless, world-class (and CJK equivalents: 智能、颠覆、赋能、

@@ -285,6 +285,21 @@ _DEFINE = re.compile(r"customElements\s*\.\s*define\s*\(\s*['\"`]([a-z][a-z0-9]*
 _VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 
 
+# THE CUE PAIRS OF A PAGE — one reader for the renderer (scenes.render_html) and the gate (validate), which kept FIVE
+# copies: validate's read only double quotes, so a page cued with single quotes passed a gate that never saw its cues;
+# the renderer's own `["']([^"']*)["']` cut an anchor at its first apostrophe (data-cue="the user's"). Quote-MATCHED:
+# an attribute in double quotes may hold an apostrophe and the reverse. [(index str, anchor)], index-first pairs then
+# anchor-first, as both copies listed them.
+_CUE_IA = re.compile(r"""data-cue-index\s*=\s*["'](\d+)["'][^>]*?data-cue\s*=\s*(?:"([^"]*)"|'([^']*)')""")
+_CUE_AI = re.compile(r"""data-cue\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*?data-cue-index\s*=\s*["'](\d+)["']""")
+
+
+def cue_pairs(html):
+    html = html or ""
+    return ([(i, a if a or not b else b) for i, a, b in _CUE_IA.findall(html)]
+            + [(i, a if a or not b else b) for a, b, i in _CUE_AI.findall(html)])
+
+
 def component_spans(html):
     """{custom tag: seconds} — each component's declared `static span` (how long after its start its last part
     finishes animating), read from the component scripts the page links. A component with no declaration is

@@ -13,7 +13,9 @@ import settled_frame as sf  # noqa: E402
 
 def _board(tmp_path, durs):
     slides = [{"index": i + 1, "duration": d, "narration": "x"} for i, d in enumerate(durs)]
-    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {"fps": 30}, "slides": slides}))
+    # a REMOTION film (the launch benchmark's tier): its beats overlap by a seam. An HTML film's clips do not, and a
+    # board that names no renderer is read on render.py's clock (scripts/beat_clock)
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {"fps": 30, "renderer": "remotion"}, "slides": slides}))
     return str(tmp_path)
 
 
@@ -36,3 +38,11 @@ def test_a_beat_shorter_than_its_seams_keeps_its_whole_window(tmp_path):
     seam = rr._REMOTION2_TR / 30.0
     out = _board(tmp_path, [4.0, seam * 1.5, 4.0])
     assert sf.clear_window(out, 2) == sf.beat_window(out, 2)
+
+
+def test_an_html_film_beat_starts_where_its_clips_add_up(tmp_path):
+    """The defect beat_clock fixed: the seam was subtracted on an HTML film too (0.4 s early per cut)."""
+    slides = [{"index": i + 1, "duration": d, "narration": "x"} for i, d in enumerate([4.0, 3.07, 4.0])]
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {"fps": 30}, "slides": slides}))
+    assert sf.beat_window(str(tmp_path), 3) == (7.07, 11.07)
+    assert sf.clear_window(str(tmp_path), 2) == sf.beat_window(str(tmp_path), 2)   # no seam to clear

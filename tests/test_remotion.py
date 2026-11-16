@@ -907,62 +907,9 @@ def test_caption_typography_follows_the_dna():
     assert "font: '700 44px/1.26 Inter" not in src, "the caption font is still hardcoded"
 
 
-def _migrate_mod():
-    import importlib.util
-    p = os.path.join(os.path.dirname(__file__), "..", "scripts", "dna_migrate_type.py")
-    spec = importlib.util.spec_from_file_location("dna_migrate_type", p)
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-def test_codemod_assigns_display_body_and_mono_by_size_and_family():
-    m = _migrate_mod()
-    out, rep = m.rewrite_font_decl("font: '800 200px/0.9 Inter, system-ui, sans-serif'")
-    assert out == "font: '800 200px/0.9 var(--f-display, Inter, system-ui, sans-serif)'"
-    assert rep[0]["role"] == "display" and rep[0]["size"] == 200.0
-
-    out, _ = m.rewrite_font_decl("font: '400 36px/1.4 Inter, system-ui, sans-serif'")
-    assert out == "font: '400 36px/1.4 var(--f-body, Inter, system-ui, sans-serif)'"
-
-    out, _ = m.rewrite_font_decl("font: '500 30px/1 \"JetBrains Mono\", ui-monospace, monospace'")
-    assert out == "font: '500 30px/1 var(--f-mono, \"JetBrains Mono\", ui-monospace, monospace)'"
-
-
-def test_codemod_rewrites_template_literals_whose_family_is_hardcoded():
-    """A template literal can interpolate the WEIGHT and still hardcode the family:
-    font: `${i === 2 ? 700 : 500} 30px/1 Inter`. Skipping every string containing ${ would miss
-    this whole class - 4 shots use exactly this shape."""
-    m = _migrate_mod()
-    out, rep = m.rewrite_font_decl("font: `${i === 2 ? 700 : 500} 30px/1 Inter`")
-    assert out == "font: `${i === 2 ? 700 : 500} 30px/1 var(--f-body, Inter)`"
-    assert rep[0]["role"] == "body"
-
-
-def test_codemod_skips_a_family_that_is_already_dynamic():
-    """`${disp}` is already reading the DNA (or a prop). Rewriting it would double-wrap."""
-    m = _migrate_mod()
-    out, rep = m.rewrite_font_decl("font: `${c.hero ? 500 : 400} 46px/1.3 ${disp}`")
-    assert out == "font: `${c.hero ? 500 : 400} 46px/1.3 ${disp}`"
-    assert rep == []
-
-
-def test_codemod_never_touches_a_kebab_case_svg_font_family_attribute():
-    """This is the XML/kebab-case spelling `font-family="..."`, which has zero occurrences in this
-    library (JSX only accepts the camelCase `fontFamily="..."` attribute name) - NOT the same claim
-    as "var() cannot apply to an SVG presentation attribute" (that belief was WRONG: a real `remotion
-    render` confirmed var() resolves correctly in the JSX `fontFamily="..."` spelling, and the codemod
-    rewrites 62 such declarations across 17 shots - see rewrite_font_decl's sub_svg). This test only
-    pins that the never-used kebab-case spelling is left untouched, which it is regardless."""
-    m = _migrate_mod()
-    src = '<text font-family="Inter, sans-serif">x</text>'
-    out, rep = m.rewrite_font_decl(src)
-    assert out == src and rep == []
-
-
 # ── Task 10 regression: no shot may re-hardcode a font family ───────────────────────────────────
 #
-# Task 9's codemod covers the shapes it recognises, but the migration this plan drove found FOUR
+# The type codemod (removed 2026-11-16) covered the shapes it recognised, but the migration this plan drove found FOUR
 # shapes a regex anchored only on the literal `font:` shorthand would miss entirely - each of which
 # actually existed, hardcoded, somewhere in this library before being migrated by hand:
 #   (a) a family in a DOUBLE-quoted `font: "..."` shorthand;
@@ -1004,8 +951,8 @@ def _looks_like_font_family(value):
 
 
 # (a) `font:` shorthand, any of the three quote styles (the plan's original test only recognised
-# `'`/`` ` ``). Requires a literal `<digits>px` in the body - mirrors dna_migrate_type.py's own
-# scope, so this test polices exactly what that codemod is responsible for.
+# `'`/`` ` ``). Requires a literal `<digits>px` in the body - the scope the one-time type
+# codemod covered (removed 2026-11-16), so this test polices what it was responsible for.
 _FONT_SHORTHAND_RE = re.compile(
     r"font: *(?:'([^'\n]*?\d+px[^'\n]*)'|`([^`\n]*?\d+px[^`\n]*)`|\"([^\"\n]*?\d+px[^\"\n]*)\")"
 )

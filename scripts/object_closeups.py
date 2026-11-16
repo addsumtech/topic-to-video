@@ -189,13 +189,15 @@ def build_sheet(items, frame_files, out_path):
     return sheet.size
 
 
-def run(out_dir, every=3):
+def run(out_dir, every=3, census=None):
+    """`census`: media_res_qa's own (res, segs, slides, total), taken at `every` — the sheet is written from the census
+    that gate already rendered instead of a second full census of the film (audit 2026-11-15, step 6)."""
     import media_res_qa as mr
     video = os.path.join(out_dir, "out.mp4")
     if not os.path.isfile(video):
         return None, "no out.mp4 — render the film first (render_remotion.py)"
     fps = video_fps(video)                      # read first: a census is minutes, a bad file should fail at once
-    res, segs, slides, total = mr.census_film(out_dir, every)
+    res, segs, slides, total = census if census is not None else mr.census_film(out_dir, every)
     want = (total - 1) // every + 1
     import text_safe_qa as ts
     why = ts._glide_measured(res, want)

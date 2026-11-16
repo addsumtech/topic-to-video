@@ -175,3 +175,25 @@ def test_a_small_picture_is_soft_and_a_large_one_is_not_at_portrait_and_square(t
     assert res["large"][0] == 0 and " ok " in res["large"][1], res["large"]
     for _code, out in res.values():
         assert "scope: MEASURED" in out and "scope: NOT MEASURED" in out
+
+
+# ── one census for both (audit 2026-11-15, step 6): object_closeups writes its sheet from media_res's census
+def test_object_closeups_takes_the_census_it_is_given(tmp_path, monkeypatch):
+    import media_res_qa as mr
+    import object_closeups as oc
+    (tmp_path / "out.mp4").write_bytes(b"x")
+    monkeypatch.setattr(oc, "video_fps", lambda v: 30.0)
+    monkeypatch.setattr(mr, "census_film", lambda *a, **k: (_ for _ in ()).throw(AssertionError("a second census")))
+    res = {"frames": {f: {"n": 0} for f in (0, 3, 6, 9)}, "done": {"logged": 4}}
+    out, why = oc.run(str(tmp_path), 3, census=(res, [(0, 9)], [{"index": 1}], 10))
+    assert out is None and "no object box" in why          # it read the census it was handed, and rendered none
+
+
+def test_a_failing_sheet_never_changes_the_gate(tmp_path, monkeypatch, capsys):
+    import media_res_qa as mr
+    import remotion_segments as rs
+    monkeypatch.setattr(rs, "render_currency", lambda *a: ("current", [], ""))
+    import object_closeups as oc
+    monkeypatch.setattr(oc, "run", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    mr._object_closeups_from(str(tmp_path), 3, ({}, [], [], 1), None)    # must not raise
+    assert "not written: boom" in capsys.readouterr().out

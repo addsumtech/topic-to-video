@@ -60,7 +60,7 @@ machine tell — filler ("值得注意的是 / it's worth noting / in conclusion
 over-hedging, balanced-triplet padding, and em-dash overuse. Read each line back: if it sounds like
 a press release or a chatbot, rewrite it the way a person would say it out loud.
 
-## Natural & human (anti-marketing) — see `references/human-subtitle-guide.md`
+## Natural & human (anti-marketing)
 The narration IS the on-screen subtitle, so every line must read like a person talking, not ad copy.
 Apply the guide's principles to each line:
 - **Explain, don't advertise.** "Turn meeting notes into action items," not "AI-powered productivity."

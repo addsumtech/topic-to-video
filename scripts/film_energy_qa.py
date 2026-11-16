@@ -168,23 +168,16 @@ _EDGE = 0.04          # a local step this size is a mark; below it is paper grai
 DENSITY_LONG_SIDE = 384
 
 
-def beat_spans(board, n, fps):
-    """[(index, shot, f0, f1)] — each beat's sampled frames [f0, f1) ON THE FILM'S OWN CLOCK. A beat's position in
-    out.mp4 is NOT the running sum of the board's durations: the renderer compresses every cut by its seam length,
-    so summing durations drifts further out of place with every seam — eleven seconds of it by the end of a 30-beat
-    film. The seam length is read from the renderer rather than restated here, so the two cannot disagree. The
-    first and last sampled frame of each window are dropped (they straddle a cut); a beat shorter than two sampled
-    frames is left out. Raises when the board cannot be read; callers keep their film-level numbers."""
-    import render_remotion as _rr
+def beat_spans(board, n, fps, video=None):
+    """[(index, shot, f0, f1)] — each beat's sampled frames [f0, f1) ON THE FILM'S OWN CLOCK (scripts/beat_clock: the
+    film's _plan.json when it describes `video`, else the board on its renderer's clock — a Remotion seam is not an
+    HTML cut). The first and last sampled frame of each window are dropped (they straddle a cut); a beat shorter than
+    two sampled frames is left out. Raises when the board cannot be read; callers keep their film-level numbers."""
+    import beat_clock as _bc
     slides = board.get("slides") or []
-    seam = _rr._REMOTION2_TR / float((board.get("meta") or {}).get("fps") or 30)
-    import stage_runs as _sr
-    joined = _sr.joined_flags(slides)                 # no seam inside a stage run (Film.tsx sceneStarts)
-    out, t = [], 0.0
-    for i, sl in enumerate(slides):
-        a = t
-        b = a + float(sl.get("duration") or 0)
-        t = b - (seam if i + 1 < len(slides) and not joined[i + 1] else 0)
+    sp = _bc.spans(board=board, video=video) if video else _bc.board_spans(board)
+    out = []
+    for i, ((a, b), sl) in enumerate(zip(sp, slides)):
         f0, f1 = int(a * fps) + 1, min(n, int(b * fps) - 1)
         if f1 > f0:
             out.append((i + 1, sl.get("shot"), f0, f1))
@@ -218,7 +211,7 @@ def density(path, board=None, fps=12, long_side=None):
     # PER-BEAT, ON THE FILM'S OWN CLOCK (beat_spans).
     if board:
         try:
-            for idx, shot, f0, f1 in beat_spans(board, n, fps):
+            for idx, shot, f0, f1 in beat_spans(board, n, fps, video=path):
                 out["beats"].append({"index": idx, "shot": shot,
                                      "drawn": float(np.mean([_drawn(f) for f in F[f0:f1]]))})
         except Exception:                          # noqa: BLE001 — the per-beat half never breaks the axis
@@ -330,7 +323,7 @@ def measure(path, fps=12, long_side=192, board=None):
     # length is read from the renderer rather than restated, so the two cannot disagree.
     return {
         "beats": [],
-        "motion_beats": motion_by_beat(d, moved, board, n, fps) if board else [],
+        "motion_beats": motion_by_beat(d, moved, board, n, fps, video=path) if board else [],
         # the share of frame differences under the motion floor: p75 < floor exactly when this is over 0.75
         "motion_under_floor": float((d < MOTION_P75_FLOOR).mean()),
         "seconds": n / fps,
@@ -362,14 +355,14 @@ def measure(path, fps=12, long_side=192, board=None):
 # 20,736-pixel decode), while a NeuralField beat was under it for 96% and frozen for 74%. A reason like "the motion IS
 # the mechanism" is about the first kind; only FROZEN seconds — no pixel changed by a mark's step — say that nothing
 # on the frame moves. Reading the under-floor seconds as "still" would call the first beat inert.
-def motion_by_beat(d, moved, board, n, fps):
+def motion_by_beat(d, moved, board, n, fps, video=None):
     """[{index, shot, seconds, under_s, frozen_s, p75}] — each beat's sampled seconds, how many of them are under the
     motion floor, how many are FROZEN (no pixel changed), and the beat's own p75. [] when the board cannot be placed
     on the film."""
     try:
         import numpy as np
         rows = []
-        for idx, shot, f0, f1 in beat_spans(board, n, fps):
+        for idx, shot, f0, f1 in beat_spans(board, n, fps, video=video):
             hi = max(f0, f1 - 1)                     # differences BETWEEN this beat's own frames
             seg, mv = d[f0:hi], moved[f0:hi]
             if len(seg) < 4:

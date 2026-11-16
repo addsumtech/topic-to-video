@@ -595,7 +595,7 @@ already-dynamic without ever looking at what the const holds). A per-letter rand
 typeface) is the one legitimate exception: it must stay dynamic and is never wired to a single `--f-` variable.
 
 **Tooling:** `scripts/font_gate.py` (every declared face actually loads, not a silent fallback to its generic),
-`scripts/dna_migrate_type.py` (the codemod that rewrote 355 declarations across ~122 shots onto these variables),
+a one-time codemod (removed 2026-11-16 once it reported 0 rewrites left) rewrote 355 declarations across ~122 shots onto these variables;
 `scripts/null_dna_pixel_gate.py` (proves an un-themed render is pixel-identical before/after), `scripts/
 type_specimens.py` (renders a per-direction specimen sheet for a human to confirm the eight directions actually
 read as different typographic systems, not just different colours), and `scripts/dna_audit.py --type` (per-role

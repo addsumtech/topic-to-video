@@ -24,9 +24,7 @@ orbit beat 'on' the Earth). THE FIX IS NEVER A THRESHOLD: move the type, or move
 """
 import json
 import os
-import shutil
 import sys
-import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -120,29 +118,8 @@ def judge(frames, beat_of, labels, coverage):
 
 def census_film(out_dir, every=DEFAULT_EVERY, concurrency=None):
     """(census, segs, slides, total) — the Film rendered once with the plate-clear census armed, captions on."""
-    import remotion_segments as _rs
-    import render_remotion as rr
     import text_safe_qa as ts
-    import workshop as _ws
-    board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
-    props, slides = rr.film_props(out_dir, board)
-    # the film AS IT WILL PLAY: a beat whose warp is missing or stale is derived now, exactly as the render does
-    # first (the layout gate runs before any render, and type on its register's own clock is not where it will be)
-    if os.environ.get("REMOTION_SYNC", "1") != "0":
-        import sync_qa as _sq
-        _sq.derive_warps(out_dir, board, props, slides, log=print)
-    props = dict(props, plateClear=True, captions=True)
-    segs, total = _rs.timeline(props["scenes"], _rs.seam_frames())
-    env = _ws.prepare(out_dir)
-    work = tempfile.mkdtemp(prefix="plate_clear_")
-    try:
-        public = _rs.minimal_public(props, out_dir, os.path.join(work, "public"))
-        bundle = ts.glide_bundle(os.path.join(work, "bundle"), public, env)
-        res = ts.glide_run([{"tag": "film", "id": "Film", "props": props}], bundle, concurrency,
-                           extra=("--tag=" + TAG.replace(" ", "_"), "--every=%d" % every))["film"]
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-    return res, segs, slides, total
+    return ts.census_film(out_dir, {"plateClear": True, "captions": True}, TAG, every, concurrency, derive_warps=True, prefix='plate_clear_')
 
 
 def scan_film(out_dir, every=DEFAULT_EVERY, concurrency=None):

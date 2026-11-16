@@ -482,8 +482,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   candidates, and a fix is kept only if a render shows it.
   `scripts/null_dna_pixel_gate.py`: run `--save` BEFORE your change and `--check` after. `scripts/determinism_qa.py
   <Id> | --film <out_dir>` asks whether a frame is the same however and whenever it is rendered (advisory for a new
-  register that keeps any state; `references/pipeline-scripts.md`). `scripts/type_specimens.py`,
-  `scripts/dna_migrate.py` / `dna_migrate_bg.py` / `dna_migrate_type.py` are codemods and specimens.
+  register that keeps any state; `references/pipeline-scripts.md`). `scripts/type_specimens.py`;
+  `scripts/dna_migrate.py` is a guarded codemod and `type_specimens` a specimen sheet (the background and type codemods
+  ran their migrations — 0 rewrites left — and were removed 2026-11-16).
 
 ## Workflow (follow in order)
 

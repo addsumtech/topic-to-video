@@ -667,7 +667,7 @@ finding it prints that you do not understand.
   ground the frame ACTUALLY has) against 160 renders. `gen_dna_ground.py` is RETIRED and exits 2: it wrote a
   BOOLEAN set meaning "grounds on the DNA", which was then read as "…so its luminance is luminance(dna.bg)"
   — false for any shot grounded in another token, and its `--check` compared the file against its own
-  detector, so a detection gap was invisible by construction. `scripts/dna_migrate.py` / `dna_migrate_bg.py` are the guarded migration codemods.
+  detector, so a detection gap was invisible by construction. `scripts/dna_migrate.py` is the guarded migration codemod (the background codemod ran its migration and was removed).
   `remotion/src/runtime/atoms.tsx` — the content atoms (bar / figure / list / label / divider / marker) whose FORM
   follows the DNA; a shot declares the part, never the form. **Type** — a shot's face comes from `var(--f-display|
   body|mono, <original list>)`, never a bare family name (`references/remotion-shot-authoring.md` §C3). Loading
@@ -676,8 +676,8 @@ finding it prints that you do not understand.
   rendered whatever the render host had installed; now they render the real bundled fonts (~42,779 px differ on
   `EdStat` un-themed, pre-layer vs. now — see `remotion/LIBRARY.md`). `python scripts/font_gate.py` proves each
   declared face actually loads (not a silent fallback to its generic — known blind spot: a family whose name
-  matches a font already on the render host, see the script's docstring); `python scripts/dna_migrate_type.py
-  [--report|--apply]` is the codemod that rewrote hardcoded families onto those variables; `python
+  matches a font already on the render host, see the script's docstring); a one-time codemod (removed
+  2026-11-16, its report at 0 rewrites left) rewrote hardcoded families onto those variables; `python
   scripts/null_dna_pixel_gate.py --save/--check <hashes.json>` is a ONE-SHOT migration-verification instrument
   (not a standing CI gate — no baseline is committed to the repo) that proves an un-themed render stays
   pixel-identical across a change you make: run `--save` yourself against the tree BEFORE your change, then

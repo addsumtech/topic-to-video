@@ -235,7 +235,7 @@ def measure(path, board=None):
            "motion": [round(float(x), 3) for x in d]}
     if board:
         import film_energy_qa as fe
-        for idx, shot, f0, f1 in fe.beat_spans(board, len(g), FPS):
+        for idx, shot, f0, f1 in fe.beat_spans(board, len(g), FPS, video=path):
             seg = d[f0:max(f0, f1 - 1)]
             if len(seg) < 4:
                 continue
