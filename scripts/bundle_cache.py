@@ -58,7 +58,17 @@ def _tree(h, root, by_content=True, skip=("node_modules",)):
 def key(public_dir, env, args):
     env = env if env is not None else os.environ
     h = hashlib.sha256()
-    for part, root, content in (("remotion", REMOTION, True), ("assets", os.path.join(SKILL_ROOT, "assets"), False),
+    # THE CODE THE BUNDLE IS BUILT FROM (remotion_segments.code_files: src, what src imports from outside it, the
+    # bundler and TypeScript config), by content — not the whole remotion/ tree, where every sweep, gate and render
+    # writes its json and logs: each of those re-keyed the bundle and the next render built it again (audit
+    # 2026-11-15, step 7). public/ is keyed below, as before.
+    import remotion_segments as _rs
+    h.update(b"remotion\0")
+    for f in _rs.code_files(root=REMOTION):
+        h.update(os.path.relpath(f, REMOTION).encode("utf-8") + b"\0")
+        with open(f, "rb") as fh:
+            h.update(hashlib.sha256(fh.read()).digest())
+    for part, root, content in (("assets", os.path.join(SKILL_ROOT, "assets"), False),
                                 ("workshop", env.get("SLIDES_WORKSHOP"), True),
                                 ("public", public_dir or os.path.join(REMOTION, "public"), False)):
         h.update(part.encode() + b"\0")

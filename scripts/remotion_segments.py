@@ -278,11 +278,13 @@ _IMPORT = re.compile(r"""(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*imp
 _EXTS = ("", ".ts", ".tsx", ".js", ".jsx", ".json", "/index.ts", "/index.tsx", "/index.js")
 
 
-def code_files(out_dir=None):
+def code_files(out_dir=None, root=None):
     """Every file the bundle is built from: remotion/src, whatever src imports from OUTSIDE src (the fonts
     live in the skill's assets/fonts), the lockfile and the bundler/TypeScript config — and, for a film with
-    a workshop, every source of it (scripts/workshop.py)."""
-    src = os.path.join(REMOTION, "src")
+    a workshop, every source of it (scripts/workshop.py). `root`: another remotion/ tree (bundle_cache keys the tree
+    it bundles)."""
+    rem = root or REMOTION
+    src = os.path.join(rem, "src")
     files = set()
     for dp, dn, fn in os.walk(src):
         dn[:] = sorted(d for d in dn if d != "node_modules" and not d.startswith("."))
@@ -303,7 +305,7 @@ def code_files(out_dir=None):
                                         "cache cannot hash what it cannot find" % (p, m.group(1)))
                 files.add(hit)
     for extra in ("package.json", "package-lock.json", "remotion.config.ts", "remotion.config.js", "tsconfig.json"):
-        p = os.path.join(REMOTION, extra)
+        p = os.path.join(rem, extra)
         if os.path.isfile(p):
             files.add(p)
     if out_dir:

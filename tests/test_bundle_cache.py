@@ -104,3 +104,19 @@ def test_the_runner_is_looked_up_when_called_not_when_imported(project, monkeypa
     # and every later bundle in that process went to the lambda (test_workshop_routing, 2026-11-05)
     monkeypatch.setattr(bc.subprocess, "run", project.run)
     assert os.path.isfile(os.path.join(bc.bundle(), "index.html")) and len(project.calls) == 1
+
+
+def test_files_written_beside_the_code_do_not_rekey_the_bundle(tmp_path, monkeypatch):
+    """The key is the code the bundle is built from (remotion_segments.code_files), not the remotion/ tree, where
+    every sweep and gate writes json and logs (each re-keyed it, and the next render bundled again)."""
+    import bundle_cache as bc
+    import remotion_segments as rs
+    files = [str(tmp_path / "a.tsx")]
+    (tmp_path / "a.tsx").write_text("export const A = 1;\n")
+    monkeypatch.setattr(rs, "code_files", lambda out_dir=None, root=None: list(files))
+    monkeypatch.setattr(bc, "REMOTION", str(tmp_path))
+    k1 = bc.key(None, {}, [])
+    (tmp_path / "register_energy.json").write_text('{"x": 1}')          # a sweep's output beside the code
+    assert bc.key(None, {}, []) == k1
+    (tmp_path / "a.tsx").write_text("export const A = 2;\n")            # the code itself
+    assert bc.key(None, {}, []) != k1
