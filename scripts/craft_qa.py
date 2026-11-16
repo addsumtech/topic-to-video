@@ -161,13 +161,13 @@ def _ground_ink(f):
     return (m & ~light) | (ndimage.binary_fill_holes(ndimage.binary_closing(found, iterations=1)) & light)
 
 
-def _occupancy_one(frame):
+def _occupancy_one(frame, m=None):
     """(cover, extent, width) above the caption band: the share of the frame that is drawn, the share inside the box
     holding the central 96 % of what is drawn (a stray mark at an edge does not stretch it), and that box's share of
     the frame's width. None when nothing is."""
     import numpy as np
-    f = frame[: int(frame.shape[0] * (1 - CAPTION_CROP))].astype(np.int16)
-    m = _ground_ink(f)
+    if m is None:
+        m = _ground_ink(frame[: int(frame.shape[0] * (1 - CAPTION_CROP))].astype(np.int16))
     if m.sum() < 30:
         return None
     ys, xs = np.nonzero(m)
@@ -185,13 +185,14 @@ def _occ_summary(rows):
             "width_med": round(float(np.median([r[2] for r in got])), 3)}
 
 
-def _hierarchy_one(frame):
+def _hierarchy_one(frame, m=None):
     """(dom, nblob) for one RGB frame, or None when nothing is drawn above the caption band."""
     import numpy as np
     from scipy import ndimage
     f = frame[: int(frame.shape[0] * (1 - CAPTION_CROP))].astype(np.int16)
     h, w, _ = f.shape
-    m = _ground_ink(f)
+    if m is None:
+        m = _ground_ink(f)
     if m.sum() < 30:
         return None
     r = max(1, int(round(DILATE_SHARE * min(frame.shape[0], frame.shape[1]))))
@@ -216,16 +217,21 @@ def _hier_summary(rows):
             "one_thing": round(float((d > ONE_THING).mean()), 3), "measured_s": len(got)}
 
 
-def measure(path, board=None):
+def measure(path, board=None, layout=True):
     """{longest_still_s, still_share, motion_p90, hierarchy, beats}. Raises Unmeasurable when the film cannot be
     decoded — a film that was not looked at is never reported as one that passed."""
     import numpy as np
     g = _decode(path, FPS, LONG_SIDE, gray=True).astype(np.float32)
     d = np.abs(np.diff(g, axis=0)).mean(axis=(1, 2))
     still = d < STILL_DELTA
-    rgb = _decode(path, 1, None, gray=False, short_side=HIER_SHORT_SIDE)
-    hier = [_hierarchy_one(f) for f in rgb]
-    occ = [_occupancy_one(f) for f in rgb]
+    # THE LAYOUT HALF (hierarchy, occupancy) is a second, RGB decode — `layout=False` skips it for a caller that reads
+    # only the motion (rhythm_qa). One ground-ink mask per frame serves both measures (it was computed twice).
+    hier, occ = [], []
+    if layout:
+        for f in _decode(path, 1, None, gray=False, short_side=HIER_SHORT_SIDE):
+            m = _ground_ink(f[: int(f.shape[0] * (1 - CAPTION_CROP))].astype(np.int16))
+            hier.append(_hierarchy_one(f, m))
+            occ.append(_occupancy_one(f, m))
     out = {"seconds": round(len(g) / float(FPS), 2),
            "longest_still_s": round(_longest_run(still) / float(FPS), 2),
            "still_share": round(float(still.mean()), 3),

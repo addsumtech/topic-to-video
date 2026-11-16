@@ -94,10 +94,22 @@ def _frames(path, fps=SAMPLE_FPS, long_side=LONG_SIDE):
     n = len(raw) // (w * h)
     if n < 8:
         return None
-    return np.frombuffer(raw[:n * w * h], dtype=np.uint8).reshape(n, h, w).astype(np.float64) / 255.0
+    # kept as the decoder's bytes: as float64 a whole film was ~4.3 GB in memory (audit 2026-11-15, step 7); each
+    # frame is converted where it is transformed (_spectrum), to the same numbers
+    return np.frombuffer(raw[:n * w * h], dtype=np.uint8).reshape(n, h, w)
 
 
-def _shift(a, b, np):
+def _window(shape, np):
+    h, w = shape
+    return np.outer(np.hanning(h), np.hanning(w))
+
+
+def _spectrum(f, win, np):
+    """One frame's windowed spectrum — taken ONCE per frame: frame i+1's is step i's B and step i+1's A."""
+    return np.fft.rfft2((f.astype(np.float64) / 255.0) * win)
+
+
+def _shift(a, b, np, A=None, B=None):
     """Global translation from a to b, in pixels of the sampled frame, with a sub-pixel peak fit.
 
     Sub-pixel matters more than it sounds: the ugliest shake is the smallest. A frame trembling by half a
@@ -107,9 +119,13 @@ def _shift(a, b, np):
     h, w = a.shape
     # A window kills the wrap-around edge response, which otherwise puts a false peak at (0,0) and makes
     # everything look locked.
-    win = np.outer(np.hanning(h), np.hanning(w))
-    A = np.fft.rfft2(a * win)
-    B = np.fft.rfft2(b * win)
+    win = None
+    if A is None or B is None:
+        win = np.outer(np.hanning(h), np.hanning(w))
+    if A is None:
+        A = np.fft.rfft2(a * win)
+    if B is None:
+        B = np.fft.rfft2(b * win)
     R = A * np.conj(B)
     m = np.abs(R)
     R = np.divide(R, m, out=np.zeros_like(R), where=m > 1e-12)
@@ -148,7 +164,12 @@ def measure(path):
     F = _frames(path)
     if F is None:
         return None
-    steps = [_shift(F[i], F[i + 1], np) for i in range(len(F) - 1)]
+    win = _window(F.shape[1:], np)
+    specs = [None, _spectrum(F[0], win, np)]
+    steps = []
+    for i in range(len(F) - 1):
+        specs = [specs[1], _spectrum(F[i + 1], win, np)]
+        steps.append(_shift(F[i], F[i + 1], np, A=specs[0], B=specs[1]))
     dx = np.array([s[0] for s in steps])
     dy = np.array([s[1] for s in steps])
     conf = np.array([s[2] for s in steps])

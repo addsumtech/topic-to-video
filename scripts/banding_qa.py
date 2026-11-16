@@ -35,8 +35,10 @@ def cambi_samples(mp4, every=1.0):
     fd, log = tempfile.mkstemp(suffix=".json")
     os.close(fd)
     try:
-        r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", mp4, "-i", mp4, "-lavfi",
-                            "[0:v][1:v]libvmaf=feature=name=cambi:n_subsample=%d:log_fmt=json:log_path=%s" % (n, log),
+        # ONE decode, split: CAMBI is no-reference, libvmaf only needs two streams (two `-i` decoded the film twice)
+        r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", mp4, "-lavfi",
+                            "[0:v]split[a][b];[a][b]libvmaf=feature=name=cambi:n_subsample=%d:log_fmt=json:log_path=%s"
+                            % (n, log),
                             "-f", "null", "-"], capture_output=True, text=True)
         if r.returncode != 0:
             return None

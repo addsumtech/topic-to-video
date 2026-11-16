@@ -356,7 +356,7 @@ def _shot_holds(out_dir, board_path, data, r):
         return
     import craft_qa
     try:
-        m = craft_qa.measure(film, data)
+        m = craft_qa.measure(film, data, layout=False)   # the motion only: its layout half is a second decode
     except Exception as e:                   # noqa: BLE001 — a film this cannot read is reported, never passed
         r["errors"].append("held-frame check: out.mp4 could not be measured (%s)" % e)
         r["ok"] = False

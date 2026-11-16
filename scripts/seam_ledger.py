@@ -57,7 +57,8 @@ def hard_cuts(props, tr):
 
 
 def _frames(mp4, n_max):
-    """The film's frames, grey, _W wide, as float arrays (one decode)."""
+    """The film's frames, grey, _W wide, as the decoder's bytes (one decode; converted per frame where used — as
+    float32 the whole film was four times the memory, audit 2026-11-15 step 7)."""
     import numpy as np
     probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
                             "-of", "csv=p=0", mp4], capture_output=True, text=True).stdout.strip().split(",")
@@ -67,7 +68,7 @@ def _frames(mp4, n_max):
                           "-pix_fmt", "gray", "-"], capture_output=True, check=True).stdout
     a = np.frombuffer(raw, dtype=np.uint8)
     n = min(len(a) // (_W * hh), n_max)
-    return a[: n * _W * hh].reshape(n, hh, _W).astype(np.float32) / 255.0
+    return a[: n * _W * hh].reshape(n, hh, _W)
 
 
 def measure(out_dir):
@@ -80,7 +81,8 @@ def measure(out_dir):
     props = json.load(open(pj, encoding="utf-8"))
     cuts = hard_cuts(props, rr.SEAM_FRAMES)
     F = _frames(mp4, 10 ** 7)
-    step = lambda i: float(np.abs(F[i] - F[i - 1]).mean()) if 1 <= i < len(F) else None
+    g = lambda i: F[i].astype(np.float32) / 255.0                       # noqa: E731 — the same numbers as before
+    step = lambda i: float(np.abs(g(i) - g(i - 1)).mean()) if 1 <= i < len(F) else None
     rows = []
     for k, c in cuts:
         before = [step(c - i) for i in range(1, WINDOW + 1)]
