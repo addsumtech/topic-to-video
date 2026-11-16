@@ -2104,6 +2104,18 @@ def _film_language(meta, slides, errors, warnings, skips=None):
     # CAMERA, which a short film has exactly as much of as a long one.
     _camera_vocabulary(meta, slides, errors, warnings)
     n = len(slides)
+    # THE MARKED-SEAM BUDGET, ONE CHECK, EVERY LENGTH (audit 2026-11-15, step 6). This file kept two: one counted any
+    # `transition_style` (so dip / none / fade read as marks) and ran only from 12 beats; the other used
+    # render_remotion.is_mark with a budget of a third of the seams, which let a 40-beat film mark 13. A mark is what
+    # is_mark says it is (any resolved seam but a hard cut), and the budget is the stricter of the two.
+    import render_remotion as _rr
+    marked = [i for i, s in enumerate(slides) if i > 0 and _rr.is_mark(s)]
+    budget = min(max(4, n // 8), max(3, (n - 1) // 3))
+    if len(marked) > budget:
+        warnings.append(
+            "%d of %d cuts are MARKED with a kinetic transition (budget ~%d) — a marked seam is punctuation and only reads as punctuation while "
+            "it is rare; let the rest ride the luminance-safe default and the hard cuts (shot-director Rule 5)"
+            % (len(marked), max(0, n - 1), budget))
     if n < 12:
         if skips is not None:
             skips.append("seam vocabulary (%s): this film is %d beats and the check needs 12 — a marked cut "
@@ -2116,8 +2128,6 @@ def _film_language(meta, slides, errors, warnings, skips=None):
     # message read "20 of 19 cuts are MARKED"
     # a HARD CUT is not a mark: it is the absence of a transition, the default grammar of a film whose energy asks
     # for it (seam_plan.py plans them), and counting it here reported a launch film's cuts as "too many marks"
-    marked = [i for i, s in enumerate(slides)
-              if i > 0 and (s.get("transition_in") or s.get("transition_style")) and not _rr_cut(s)]
     # `meta.design_dna` is EITHER an inline DNA object OR a preset NAME — both are documented, both are
     # accepted by coerceDna() on the TS side, and the string form is validated a few hundred lines below.
     # This check read it as a dict unconditionally and crashed the whole gate with an AttributeError the
@@ -2140,10 +2150,6 @@ def _film_language(meta, slides, errors, warnings, skips=None):
             "and the board already says which beats are new-topic / payoff / close. Run "
             "`python3 scripts/seam_plan.py <out_dir>` to derive ~2-3 marked cuts from that, or set them by "
             "hand; leave it bare only if the film is deliberately one unbroken line." % n)
-    elif len(marked) > max(4, n // 8):
-        warnings.append(
-            "%d of %d cuts are MARKED — a marked seam is punctuation and only reads as punctuation while it "
-            "is rare. Budget ~2-3 per film and let the rest be the default cut." % (len(marked), n - 1))
     seam_vocab = {"wipe", "slide", "clock", "dissolve", "screen-clear", "fade", "cut"}
     if native and native not in seam_vocab:
         warnings.append(
@@ -3648,17 +3654,6 @@ def _check_remotion(meta, slides, errors, warnings, out_dir=None, skips=None, ve
             errors.append(f"remotion: beat {beat} — {why}")
     except Exception as e:                                 # an ERROR-level check that cannot run is not a pass
         errors.append(f"remotion: the return-relation check could not run ({type(e).__name__}: {e}) — fix the check")
-    try:                                                   # marked-seam BUDGET: most seams ride the safe fade
-        import render_remotion as _rr
-        marked = sum(1 for s in slides[1:] if _rr.is_mark(s))   # scene 0 has no incoming seam; a hard cut is no mark
-        seams = max(0, len(slides) - 1)
-        budget = max(3, seams // 3)
-        if marked > budget:
-            warnings.append(f"remotion: {marked} of {seams} seams are MARKED with a kinetic transition (budget "
-                            f"~{budget}) — most seams should ride the luminance-safe default fade; marking them "
-                            f"all is as monotonous as marking none (shot-director Rule 5)")
-    except Exception:
-        pass
     try:                                                   # the HARD-CUT RATE, measured from the board
         # a launch/promo or scored film whose every seam dissolves reads as slides changing (seam_plan.py plans the
         # cuts; `cut_shortfall` measures the share and the rate against the film's tempo and says which bound)

@@ -308,6 +308,19 @@ def test_validate_warns_on_over_marked_seams():
     assert not any("MARKED with a kinetic transition" in w for w in v.evaluate(d2, "/tmp")["warnings"])
 
 
+def test_one_marked_seam_budget_holds_a_long_film_and_never_counts_a_fade():
+    """validate kept two budgets (audit 2026-11-15, step 6): a third of the seams let a 40-beat film mark 13, and the
+    other counted any transition_style, so a 'fade' read as a mark. One check, the stricter budget."""
+    d = _deck(40)
+    for k in range(1, 14):
+        d["slides"][k * 3]["transition_style"] = "slide"           # 13 kinetic marks
+    assert any("MARKED with a kinetic transition (budget ~5)" in w for w in v.evaluate(d, "/tmp")["warnings"])
+    f = _deck(40)
+    for s in f["slides"][1:]:
+        s["transition_style"] = "fade"                              # the default seam, spelled out: no mark
+    assert not any("MARKED with a kinetic" in w for w in v.evaluate(f, "/tmp")["warnings"])
+
+
 def test_frame_safe_qa_reports_a_flooded_border_without_blocking_it(tmp_path):
     # This test used to require an ERROR on border ink. That contract was measurably backwards: border
     # coverage is HIGH for a deliberate full-bleed field and LOW for a word the canvas actually cut (1.00%,
