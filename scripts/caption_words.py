@@ -104,8 +104,57 @@ def backend():
     return _BACKEND["name"], _BACKEND["why"]
 
 
+# ICU's word starts for a text, kept ON DISK across runs: validate segmented every caption, sentence and chunk in its
+# own node process (104 of them on the QR film, ~9 s of a 23 s run — audit 2026-11-15, step 7). A text is
+# segmented once; the cache is keyed by the node binary (its path and mtime), so another ICU is asked again.
+_DISK = {"path": None, "data": None, "dirty": False}
+_DISK_MAX = 50000
+
+
+def _disk():
+    if _DISK["data"] is None:
+        import tempfile
+        node = shutil.which("node") or ""
+        try:
+            tag = "%s|%d" % (os.path.realpath(node), os.stat(node).st_mtime_ns) if node else "none"
+        except OSError:
+            tag = node
+        _DISK["path"] = os.path.join(tempfile.gettempdir(), "ttv_icu_words.json")
+        try:
+            got = json.load(open(_DISK["path"], encoding="utf-8"))
+            _DISK["data"] = got["words"] if got.get("node") == tag else {}
+        except (OSError, ValueError, KeyError, TypeError):
+            _DISK["data"] = {}
+        _DISK["tag"] = tag
+    return _DISK["data"]
+
+
+def _disk_save():
+    if not _DISK["dirty"]:
+        return
+    data = _DISK["data"]
+    if len(data) > _DISK_MAX:
+        data.clear()                               # bounded: past the cap it starts again rather than grows
+    try:
+        tmp = _DISK["path"] + ".%d" % os.getpid()
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"node": _DISK["tag"], "words": data}, fh, ensure_ascii=False)
+        os.replace(tmp, _DISK["path"])
+        _DISK["dirty"] = False
+    except OSError:
+        pass
+
+
 def _starts_icu(texts):
     todo = [t for t in dict.fromkeys(texts) if t not in _CACHE]
+    if todo and _BACKEND["name"] != "per-character":
+        disk = _disk()
+        hit = [t for t in todo if t in disk]
+        for t in hit:
+            _CACHE[t] = set(disk[t])
+        if hit and _BACKEND["name"] is None:
+            _BACKEND.update(name="icu", why=None)      # only ICU results are ever written there
+        todo = [t for t in todo if t not in _CACHE]
     if todo and _BACKEND["name"] != "per-character":
         node = shutil.which("node")
         res = None
@@ -124,8 +173,12 @@ def _starts_icu(texts):
                              % _BACKEND["why"])
         else:
             _BACKEND.update(name="icu", why=None)
+            disk = _disk()
             for t, s in zip(todo, res):
                 _CACHE[t] = set(s)
+                disk[t] = sorted(s)
+            _DISK["dirty"] = True
+            _disk_save()
     return [_CACHE.get(t) for t in texts]
 
 

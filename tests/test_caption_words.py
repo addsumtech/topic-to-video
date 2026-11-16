@@ -166,3 +166,26 @@ def test_without_node_numbers_still_hold_and_the_fallback_says_so(monkeypatch, c
     assert not any(a < k < b for k in pts) and pts, pts
     # Korean keeps its spaces as its only boundaries
     assert cw.break_points("벌집 이야기를 합니다") == [3, 8]
+
+
+@has_node
+def test_segmentation_is_cached_across_runs_and_keyed_by_the_node_binary(tmp_path, monkeypatch):
+    """A text is segmented ONCE (validate ran node per caption, 104 times on the QR film — audit 2026-11-15, step 7);
+    a fresh process reads it back without node, and another node binary is asked again."""
+    import importlib
+    import subprocess as sp
+    import tempfile
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    m = importlib.reload(cw)
+    text = "这是真的二维码，拿手机扫一下。"
+    first = m.word_starts(text, joined=False)
+    assert (tmp_path / "ttv_icu_words.json").exists()
+    m = importlib.reload(cw)                                    # a fresh process: empty memory, the disk kept
+    monkeypatch.setattr(sp, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("node was called")))
+    assert m.word_starts(text, joined=False) == first and m.backend()[0] == "icu"
+    # ANOTHER node binary: the cache written by the first is not served to it
+    monkeypatch.setattr(m, "_DISK", {"path": None, "data": None, "dirty": False})
+    monkeypatch.setattr(m.shutil, "which", lambda name: "/elsewhere/bin/node")
+    assert m._disk() == {}
+    monkeypatch.undo()
+    importlib.reload(cw)

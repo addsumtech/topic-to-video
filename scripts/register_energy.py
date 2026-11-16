@@ -546,14 +546,52 @@ def _dep_bytes(dep, name, ignore_follows=False, tree=None):
     return (stripped + " | " + " ".join(sorted(mine))).encode("utf-8")
 
 
+def _sources_stamp():
+    """One digest over (path, mtime, size) of every file a source hash can read — remotion/src, the manifests
+    beside it (ground-follow membership is read from one) and this file's own hashing code. Stat calls only."""
+    rem = _REMOTION
+    h = hashlib.sha256()
+    files = [os.path.abspath(__file__)]
+    for root, _dirs, names in os.walk(os.path.join(rem, "src")):
+        files += [os.path.join(root, n) for n in names]
+    files += glob.glob(os.path.join(rem, "*.json"))
+    for f in sorted(files):
+        try:
+            st = os.stat(f)
+        except OSError:
+            continue
+        h.update(("%s|%d|%d\n" % (os.path.relpath(f, rem), st.st_mtime_ns, st.st_size)).encode("utf-8"))
+    return h.hexdigest()
+
+
 def source_hashes():
     """{register: sha256 over its .tsx AND the runtime modules it imports}. A measured row describes the
     SOURCE it was rendered from, and nothing said so: three registers were rewritten and the committed
     manifest went on reporting 0.6%, 2.0% and 1.0% against measured 32.2%, 51.1% and 2.4%, while
     `density_advice.py` — which reads this file — kept offering one of the densest registers in the library as
     a starved beat's problem. A record nobody can tell is stale is not a record, it is a lie with a
-    timestamp."""
-    return {n: source_hash(n) for n in universe()}
+    timestamp.
+
+    CACHED ON DISK by `_sources_stamp` (every file it can read, by mtime and size): hashing all 227 registers cost
+    validate ~10 s of its run on every call (audit 2026-11-15, step 7). An edit to any of those files re-keys it."""
+    import tempfile
+    stamp = _sources_stamp()
+    cache = os.path.join(tempfile.gettempdir(), "ttv_source_hashes.json")
+    try:
+        got = json.load(open(cache, encoding="utf-8"))
+        if got.get("stamp") == stamp and isinstance(got.get("hashes"), dict):
+            return got["hashes"]
+    except (OSError, ValueError):
+        pass
+    out = {n: source_hash(n) for n in universe()}
+    try:
+        tmp = cache + ".%d" % os.getpid()
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"stamp": stamp, "hashes": out}, fh)
+        os.replace(tmp, cache)
+    except OSError:
+        pass                                   # a cache that cannot be written only costs the time it saves
+    return out
 
 
 def fed_hash(name, ev=None):

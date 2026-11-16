@@ -36,9 +36,24 @@ def blender_bin(meta=None):
     return shutil.which("blender")
 
 
+_VERSION_LINES = {}
+
+
 def _version_line(binary):
+    """`blender --version`'s first line, once per binary per process (keyed by its file's mtime and size, so an
+    upgraded Blender is asked again): validate spawned it nine times for a three-plate film, ~0.7 s each."""
+    try:
+        st = os.stat(os.path.realpath(binary))
+        key = (os.path.realpath(binary), st.st_mtime_ns, st.st_size)
+    except OSError:
+        key = None
+    if key in _VERSION_LINES:
+        return _VERSION_LINES[key]
     r = subprocess.run([binary, "--version"], capture_output=True, text=True, timeout=60)
-    return (r.stdout or "").strip().splitlines()[0] if (r.stdout or "").strip() else ""
+    line = (r.stdout or "").strip().splitlines()[0] if (r.stdout or "").strip() else ""
+    if key is not None and line:
+        _VERSION_LINES[key] = line
+    return line
 
 
 def blender_version(binary):
@@ -608,10 +623,17 @@ def verify_rekey(out_dir, pid):
     return True, diffs, "re-keyed — three stills match the delivered frames within encode noise"
 
 
+_FILM_PROPS = {}
+
+
 def _frame_facts(out_dir, board, i):
     """(frames, fps, w, h) of slide i as the Film renders it: its scene's durF and the film's frame."""
     import render_remotion as rr
-    props, slides = rr.film_props(out_dir, board)
+    # the Film's props, once per board per process: validate asked once per plate (~1.1 s each)
+    bkey = (os.path.abspath(out_dir), hashlib.sha256(json.dumps(board, sort_keys=True, default=str).encode()).hexdigest())
+    if bkey not in _FILM_PROPS:
+        _FILM_PROPS[bkey] = rr.film_props(out_dir, board)
+    props, slides = _FILM_PROPS[bkey]
     k = next(n for n, s in enumerate(slides) if s is board["slides"][i] or s.get("index") == board["slides"][i].get("index"))
     from _caption_band import aspect_table
     w, h = aspect_table().get(str((board.get("meta") or {}).get("aspect") or "16:9"), (1920, 1080))

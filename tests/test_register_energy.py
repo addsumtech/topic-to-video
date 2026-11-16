@@ -115,3 +115,23 @@ def test_another_shots_dna_ground_entry_does_not_stale_a_reader():
         open(p, "w", encoding="utf-8").write(base.replace("?? 'bg'", "?? 'surface'"))
         assert re_._dep_bytes(p, "Alpha") != alpha_before, "a change to the module's code no longer stales it"
 
+
+
+def test_the_source_hash_cache_rekeys_on_any_edit(tmp_path, monkeypatch):
+    """source_hashes is cached on disk by every file's mtime and size (it cost validate ~10 s a run); an edit to a
+    file it reads must re-key it, so a stale row can never be read as fresh (audit 2026-11-15, step 7)."""
+    import tempfile
+    import register_energy as r
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    first = r._sources_stamp()
+    assert r._sources_stamp() == first
+    calls = {"n": 0}
+    real = r.source_hash
+    monkeypatch.setattr(r, "source_hash", lambda n, **k: (calls.__setitem__("n", calls["n"] + 1), real(n, **k))[1])
+    a = r.source_hashes()
+    n_cold = calls["n"]
+    b = r.source_hashes()
+    assert a == b and calls["n"] == n_cold, "the second call re-hashed"
+    monkeypatch.setattr(r, "_sources_stamp", lambda: first + "-edited")
+    r.source_hashes()
+    assert calls["n"] == 2 * n_cold, "an edit did not re-key the cache"
