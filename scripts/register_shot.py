@@ -88,7 +88,7 @@ STUB = '''// SHOT · {id} — {use_when}
 import React from 'react';
 import {{AbsoluteFill, useVideoConfig}} from 'remotion';
 import {{useT, seg, clamp01, easeOutCubic}} from '../runtime/motion';
-import {{captionBand, CONTENT_TOP}} from '../runtime/layout';
+import {{captionBand, CONTENT_TOP, fitTextPx}} from '../runtime/layout';
 // import {{Plane, DEPTH}} from '../runtime/depth';   // DEPTH, when the beat's argument IS about depth
 //   <Plane depth={{DEPTH.behind}}>…</Plane> puts a layer one step back: smaller, softer, and it parallaxes
 //   against the camera. `DEPTH.lifted` puts one ON the surface — it keeps its registration exactly (it must,
@@ -109,11 +109,15 @@ export const {id}: React.FC<{{title?: string}}> = ({{title: TITLE = '{id}'}} = {
   const {{width: W, height: H}} = useVideoConfig();
   const zoneBottom = H - captionBand(W, H);   // content must never enter the burned-caption band
   const inn = easeOutCubic(clamp01(seg(t, 0.05, 0.3)));
+  const side = Math.round(W * 0.07);
+  const titlePx = fitTextPx(TITLE, W - 2 * side, Math.round(Math.min(W, H) * 0.06), {{usable: 1}});
   return (
     <AbsoluteFill style={{{{background: dna?.bgGrad ?? dna?.bg ?? BG_D0, color: dna?.fg ?? FG_D0}}}}>
-      <div style={{{{position: 'absolute', top: (CONTENT_TOP + zoneBottom) / 2, left: 0, right: 0,
+      {{/* sized off min(W, H) and FITTED to the width it ships at (runtime/layout fitTextPx), inside side margins:
+          the stub is copied into every new register, and a bare `W * 0.03` with left/right 0 set copy edge to edge */}}
+      <div style={{{{position: 'absolute', top: (CONTENT_TOP + zoneBottom) / 2, left: side, right: side,
         textAlign: 'center', opacity: inn,
-        font: `700 ${{Math.round(W * 0.03)}}px/1.2 var(--f-display, system-ui, sans-serif)`}}}}>{{TITLE}}</div>
+        font: `700 ${{titlePx}}px/1.2 var(--f-display, system-ui, sans-serif)`}}}}>{{TITLE}}</div>
     </AbsoluteFill>
   );
 }};

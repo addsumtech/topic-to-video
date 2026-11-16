@@ -1164,3 +1164,43 @@ def test_keypoints_long_title_fits_and_clears_the_points(tmp_path, wh, lang):
     px_f, px_o = full.load(), only.load()
     pt_rows = [y for y in range(0, H, 2) if any(px_f[x, y] != px_o[x, y] for x in range(0, W, 4))]
     assert pt_rows and min(pt_rows) > max(rows), "points start at y %d, inside the title (ends %d)" % (min(pt_rows), max(rows))
+
+
+# ── audit 2026-11-15 A5: a keypoint `sub` was set at a fixed size with no width fit (1301 px on a 1080 frame), and a
+# kicker fitted to ONE line drew only that line's first piece when it needed two (its tail silently lost)
+_LONG_SUB = {"en": "the measured share of every viewer's attention that a burned subtitle takes from the picture behind it",
+             "zh": "一条烧录进画面的字幕从它身后的画面上拿走的那一部分观众注意力，经过测量之后的比例"}
+
+
+@pytest.mark.parametrize("wh", [(1920, 1080), (1080, 1920)])
+@pytest.mark.parametrize("lang", ["en", "zh"])
+def test_keypoints_long_sub_stays_inside_the_frame(tmp_path, wh, lang):
+    W, H = wh
+    meta = META_ZH if lang == "zh" else META
+    pts = [{"label": "Captions", "sub": _LONG_SUB[lang]}, {"label": "Picture", "sub": "short"}]
+    im = Image.open(scenes.render_keypoints({"points": pts}, meta, W, H, 1, str(tmp_path), 1) % 0).convert("RGB")
+    bg = im.getpixel((2, 2))
+    _rows, cols = _ink(im, bg)
+    assert cols and max(cols) <= W - int(W * 0.04), "the sub runs to x %d of %d" % (max(cols), W)
+
+
+@pytest.mark.parametrize("lang", ["en", "zh"])
+def test_title_long_kicker_draws_all_of_its_text(tmp_path, lang):
+    """The kicker that cannot fit one line wraps to two and draws both — the second line's ink is there."""
+    W, H = 1080, 1920
+    meta = META_ZH if lang == "zh" else META
+    kicker = _LONG_SUB[lang]
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
+    one = Image.open(scenes.render_title({"title": "T", "kicker": kicker}, meta, W, H, 1, str(tmp_path / "a"), 1) % 0)
+    short = Image.open(scenes.render_title({"title": "T", "kicker": "K"}, meta, W, H, 1, str(tmp_path / "b"), 1) % 0)
+    one, short = one.convert("RGB"), short.convert("RGB")
+    bg = one.getpixel((2, 2))
+    rows, cols = _ink(one, bg)
+    assert max(cols) <= W - int(W * 0.04)
+    font, lines = scenes._fit_lines(meta, kicker, W - 2 * int(W * 0.08), int(H * 0.028), max_lines=1)
+    assert len(lines) > 1, "the kicker fits one line — the test lost its point"
+    # count the separate lines of ink (rule, title, kicker lines): the wrapped kicker adds one band over the short one
+    def bands(rs):
+        return sum(1 for i, y in enumerate(rs) if i == 0 or y - rs[i - 1] > 4)
+    srows, _ = _ink(short, bg)
+    assert bands(rows) == bands(srows) + 1, "only the kicker's first line was drawn (%d vs %d bands)" % (bands(rows), bands(srows))

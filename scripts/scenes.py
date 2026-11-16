@@ -303,6 +303,9 @@ def render_title(props, meta, W, H, frames, workdir, index):
     tfont, title_lines = _fit_lines(meta, title, max_w, int(H * 0.085), max_lines=3, role="serif")
     sfont, sub_lines = _fit_lines(meta, subtitle, max_w, int(H * 0.040), max_lines=2) if subtitle else (None, [])
     kfont, kick_lines = _fit_lines(meta, kicker, max_w, int(H * 0.028), max_lines=1) if kicker else (None, [])
+    if len(kick_lines) > 1:     # it cannot hold one line even at the floor: two lines, ALL drawn (only [0] was —
+        kfont, kick_lines = _fit_lines(meta, kicker, max_w, int(H * 0.028), max_lines=2)   # its tail was lost)
+    k_lh = int(kfont.size * 1.28) if kfont else 0
     t_lh = int(tfont.size * 1.14)
     s_lh = int(sfont.size * 1.28) if sfont else 0
     # lay the blocks out top-down from a fixed anchor so multi-line titles never collide with the subtitle
@@ -333,7 +336,8 @@ def render_title(props, meta, W, H, frames, workdir, index):
                 d.text((x, sub_y0 + k * s_lh), ln, font=sfont, fill=muted + (a2,))
         if kick_lines:
             a3 = int(255 * _prog(i, 2 * sub_delay))
-            d.text((x, kick_y0), kick_lines[0], font=kfont, fill=muted + (a3,))
+            for k, ln in enumerate(kick_lines):
+                d.text((x, kick_y0 + k * k_lh), ln, font=kfont, fill=muted + (a3,))
         return Image.alpha_composite(base, layer).convert("RGB")
 
     return _save_frames(draw, frames, workdir, index)
@@ -392,7 +396,16 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
     # with no width-fit → long labels overran the right edge), capped by the row height.
     longest = max((str(p.get("label", "")) for p in points), key=len, default="x") or "x"
     lfont, _ = _fit_lines(meta, longest, lbl_max_w, min(int(H * 0.050), int(row_h * 0.42)), max_lines=1)
-    sfont = _font(meta, sub_sample, min(int(H * 0.030), max(14, int(row_h * 0.26))))
+    # the sub FITS the label column like the label does (it was set at a fixed size, 1301 px on a 1080 frame): the
+    # widest sub on one line down to the floor, and past it every sub wraps to its lines, drawn under the label
+    scratch = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    s_px = min(int(H * 0.030), max(14, int(row_h * 0.26)))
+    s0 = _font(meta, sub_sample, s_px)
+    widest = max((str(p.get("sub", "")) for p in points if p.get("sub")),
+                 key=lambda t: scratch.textlength(t, font=s0), default="")
+    sfont = _fit_lines(meta, widest, lbl_max_w, s_px, max_lines=1)[0] if widest else s0
+    sub_lines = [_wrap_pil(scratch, str(p["sub"]), sfont, lbl_max_w) if p.get("sub") else [] for p in points]
+    s_lh = int(getattr(sfont, "size", s_px) * 1.2)
 
     def _prog(i, delay):
         if frames <= 1:
@@ -425,9 +438,8 @@ def render_keypoints(props, meta, W, H, frames, workdir, index):
                         fill=accent + (a,))
             lx = x - dx + mr + int(W * 0.018)
             d.text((lx, y), str(pnt.get("label", "")), font=lfont, fill=fg + (a,))
-            if pnt.get("sub"):
-                d.text((lx, y + int(row_h * 0.52)), str(pnt["sub"]), font=sfont,
-                       fill=muted + (a,))
+            for j, ln in enumerate(sub_lines[k]):
+                d.text((lx, y + int(row_h * 0.52) + j * s_lh), ln, font=sfont, fill=muted + (a,))
         return Image.alpha_composite(base, layer).convert("RGB")
 
     return _save_frames(draw, frames, workdir, index)

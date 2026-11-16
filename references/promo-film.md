@@ -332,6 +332,13 @@ stepping each row, a wall, statements — with different pictures; the user: "�
 3. **Mix the tools by what each does best.** Physical shots are Blender plates under `kit.studio.product_light`
    (`promo_capture.py --footage=<mp4>` turns a render into a recording a page shot plays full frame); type, live
    pages and transitions are the promo layer's.
+   **Footage you build yourself (an HTML scene captured to an mp4) is outside every census**: once it is a recording,
+   its type is pixels, and no gate sees it cut. Gate it at the source, on its own DOM, before capture: every line inside
+   the frame and its own plate, and every window onto a raster layer taking its crop from that layer's MEASURED ink box
+   (alpha bounds), never a typed offset. The ttv promo's equation plate was a 520 px window typed onto a 750 px
+   equation and shipped as "f = γ·B / constant × fi" with the scene's bounds check green (it read DOM text only), and
+   a quote card's straight flight crossed the same plate. Measure what moves too: a card flying to a target near
+   other type moves on a path that stays clear of it (drop, then slide), not the straight line between its ends.
 4. **`check` compares every film's LOOK** (its worlds, staging devices, labels, links, footage and dominant act) with
    the films made before it and advises at 75 % alike: a repeat is a template, whatever the order of its blocks.
 

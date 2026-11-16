@@ -155,6 +155,46 @@ def _atoms(text):
     import caption_words as _cw
     return _cw.atoms(text)
 
+_WIDE_BREAK = re.compile(r"[^/.\-_]*[/.\-_]+|[^/.\-_]+")
+
+
+def _graphemes(s):
+    """User-perceived characters, near enough for a cut: a combining mark, a variation selector, a skin-tone modifier
+    or a ZWJ-joined character rides with the one before it."""
+    import unicodedata
+    out = []
+    for ch in s:
+        o = ord(ch)
+        if out and (unicodedata.combining(ch) or 0xFE00 <= o <= 0xFE0F or 0x1F3FB <= o <= 0x1F3FF or o == 0x200D
+                    or out[-1].endswith("\u200d")):
+            out[-1] += ch
+        else:
+            out.append(ch)
+    return out
+
+
+def _split_wide(d, unit, font, max_w):
+    """Pieces of a unit wider than max_w, each at most max_w wide: broken just AFTER `/ . - _` (where a URL or an
+    identifier is read in parts), and a piece with no such break that is not a word cut between graphemes. Joined, they
+    are the unit. A CJK unit or a plain word is never cut (a piece may then stay wider than max_w: the layout fits it)."""
+    body, tail = unit.rstrip(), unit[len(unit.rstrip()):]
+    if _CJK_RE.search(body) or not re.search(r"[A-Za-z]", body):
+        return [unit]   # a CJK word or a NUMBER (1206×2622, 3.8) is never cut inside (caption_words: 四百 / 五十, 3.8 /
+                        # kg were the defects); it is a few glyphs — the layout's width fit covers a narrow measure
+    out, cur = [], ""
+    for seg in _WIDE_BREAK.findall(body):
+        # a piece still too wide is cut between graphemes only when it is not a WORD (a hash, an id with digits); a
+        # word stays whole and `_caption_layout` sizes the type to it instead
+        parts = [seg] if (d.textlength(seg, font=font) <= max_w or seg.rstrip("/.-_").isalpha()) else _graphemes(seg)
+        for p in parts:
+            if cur and d.textlength(cur + p, font=font) > max_w:
+                out.append(cur)
+                cur = ""
+            cur += p
+    out.append(cur + tail)
+    return out
+
+
 def _wrap(d, text, font, max_w, hang=True):
     """Greedy wrap to a max pixel width over `_atoms` — words, numbers kept whole, closing punctuation riding
     with the word before it — so Chinese/Japanese/Korean captions wrap at word boundaries instead of overflowing
@@ -169,6 +209,13 @@ def _wrap(d, text, font, max_w, hang=True):
     # space hangs (it is measured and drawn without it)
     lines, cur = [], ""
     for a in _atoms(" ".join((text or "").split())):
+        if d.textlength(a.rstrip(), font=font) > max_w:      # a unit no line can hold (a URL, a long identifier):
+            pieces = _split_wide(d, a, font, max_w)           # set at its own width it ran past the frame (1110 px on
+            if cur.strip():                                   # a 1080-wide 9:16 film — audit 2026-11-15, A5)
+                lines.append(cur.rstrip())
+            lines.extend(p.rstrip() for p in pieces[:-1])
+            cur = pieces[-1]
+            continue
         trial = cur + a
         if not cur or d.textlength(trial.rstrip(), font=font) <= max_w:
             cur = trial
@@ -226,7 +273,26 @@ def _caption_layout(d, text, W, H, meta=None, band=0, safe=None):
     (_safe_caption_fit); overlay the bottom caption_band_px of the frame — the band keyframe_qa keeps page content
     out of, so a caption that wraps to one more line no longer reaches up into the picture."""
     if safe and not band:
-        return _safe_caption_fit(d, text, W, H, meta, safe)
+        return _fit_width(d, text, *_safe_caption_fit(d, text, W, H, meta, safe), safe["measure"], False)
+    font, lines = _caption_layout_h(d, text, W, H, meta, band)
+    return _fit_width(d, text, font, lines, int(W * 0.9), True)
+
+
+def _fit_width(d, text, font, lines, measure, hang):
+    """No caption line wider than its measure: a unit `_wrap` will not cut (a long word) is fitted by a smaller size —
+    the type yields, never the frame edge. A no-op for every caption whose lines fit (all but a long-word one)."""
+    if hang:   # a soft edge may hang one closer past the measure, as `_wrap` allows
+        over = lambda ls: any(d.textlength(ln.rstrip("，。、：；！？…）』」》%"), font=font) > measure for ln in ls)  # noqa: E731
+    else:
+        over = lambda ls: any(d.textlength(ln, font=font) > measure for ln in ls)  # noqa: E731
+    path = getattr(font, "path", None)
+    while over(lines) and getattr(font, "size", 0) > 12 and path:
+        font = _load_font(font.size - 1, path)
+        lines = _wrap(d, text, font, measure, hang=hang)
+    return font, lines
+
+
+def _caption_layout_h(d, text, W, H, meta, band):
     path = _font_path(meta, text)
     font = _load_font(_caption_font_px(W, H, band=bool(band), meta=meta), path)
     lines = _wrap(d, text, font, int(W * 0.9))
@@ -901,6 +967,26 @@ def _has_long_cued_anim(slide, meta):
 
 _LEGACY_SS = 2   # the retired meta.motion_ss default, kept only as a constant cache-key slot (see render())
 
+def _overwide_units(slide, meta, W, H):
+    """True when this clip's caption text holds a unit wider than any caption measure could hold (a URL, a long
+    identifier): `_wrap` breaks such a unit now (it used to run past the frame), so only these clips change their
+    pixels and only their cache key is salted. Measured at the largest caption size this film can draw, against its
+    narrowest measure, so it errs toward a re-render, never toward a stale overflowing caption."""
+    from PIL import Image, ImageDraw
+    texts = [slide.get("narration") or ""]
+    for c in slide.get("captions") or []:
+        texts.append(c if isinstance(c, str) else (c.get("text") or "") if isinstance(c, dict) else "")
+    text = " ".join(t for t in texts if t)
+    if not text.strip():
+        return False
+    safe = _platform_safe(meta, W, H)
+    size = _caption_font_px(W, H, meta=meta, safe_scale=safe["cap_scale"] if safe else 1.0)
+    font = _load_font(size, _font_path(meta, text))
+    mw = min(int(W * 0.9), int(safe["measure"])) if safe else int(W * 0.9)
+    d = ImageDraw.Draw(Image.new("RGB", (4, 4)))
+    return any(d.textlength(a.rstrip(), font=font) > mw for a in _atoms(" ".join(text.split())))
+
+
 def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     """A short hash of everything that affects a slide's rendered clip, so a re-render can
     skip slides that didn't change (the cache key). Includes the image/audio file
@@ -990,6 +1076,10 @@ def _fingerprint(slide, meta, W, H, ss, burn, vertical):
     safe = _platform_safe(meta, W, H)
     if safe:
         fp["safe"] = ["html2", sorted(safe.items())]
+    # a unit wider than the measure is broken now (`_split_wide`) instead of burned past the frame: salt only the
+    # clips that hold one, so every other cached clip keeps its key
+    if burn and _overwide_units(slide, meta, W, H):
+        fp["capwide"] = "split1"
     payload = json.dumps(fp, sort_keys=True, default=str)
     return hashlib.sha1(payload.encode()).hexdigest()[:16]
 

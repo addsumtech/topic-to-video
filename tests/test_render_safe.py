@@ -402,3 +402,94 @@ def test_critic_brief_places_the_caption_where_the_delivered_film_has_it():
     assert "between y %d and %d" % (g["cap_bottom"] - g["cap_room"], g["cap_bottom"]) in safe_line
     assert "platform-safe" not in critic_brief._caption_band_line({"aspect": "9:16", "safe_zone": "none"})
     assert "platform-safe" not in critic_brief._caption_band_line({"aspect": "16:9"})
+
+
+# ── a unit wider than the measure (a URL, a long identifier) ────────────────────────────────────────────────────
+# The audit of 2026-11-15 (A5): `_wrap` set an over-wide atom on a line of its own, at its own width — a URL burned
+# 1110 px wide on a 1080-wide 9:16 frame. It now breaks such a unit at `/ . - _` (the character stays on the left),
+# and only a piece with no such break is cut between graphemes.
+
+OVERWIDE = [
+    "Install it from https://github.com/addsumtech/topic-to-video/blob/main/docs/install_and_first_run.md today",
+    "Set PLATFORM_SAFE_CAPTION_BOTTOM_MARGIN_FOR_PORTRAIT_FILMS before you render",
+    "见 https://example.org/a/very/long/path/that/never/ends/for_real.html 的说明",
+    "Antidisestablishmentarianismantidisestablishmentarianismantidisestablishmentarianism",
+]
+
+
+def test_no_caption_line_is_wider_than_its_measure_whatever_the_unit():
+    """The burned layout, every mode (overlay, band, platform-safe portrait): never a line past the measure."""
+    d = _d()
+    for W, H in ((1080, 1920), (1920, 1080), (1080, 1080)):
+        mw = int(W * 0.9)
+        for t in OVERWIDE:
+            for band in (0, int(H * 0.12)):
+                font, lines = render._caption_layout(d, t, W, H, {}, band=band)
+                assert "".join(lines).replace(" ", "") == t.replace(" ", ""), (t, lines)
+                wide = [(ln, d.textlength(ln, font=font)) for ln in lines if d.textlength(ln, font=font) > mw]
+                assert not wide, (W, H, band, t, wide)
+    meta = {}                                  # 9:16 is platform-safe by default (safe_zone "social")
+    safe = render._platform_safe(meta, 1080, 1920)
+    assert safe, "a 9:16 film is platform-safe by default — the test lost its point"
+    if safe:
+        for t in OVERWIDE:
+            font, lines = render._caption_layout(d, t, 1080, 1920, meta, safe=safe)
+            assert all(d.textlength(ln, font=font) <= safe["measure"] for ln in lines), (t, lines)
+
+
+def test_wrap_breaks_a_url_or_identifier_but_never_a_word():
+    font = render._load_font(render._caption_font_px(1080, 1920), render.BUNDLED_FONT)
+    d = _d()
+    mw = int(1080 * 0.9)
+    for t in (OVERWIDE[0], OVERWIDE[1], "commit 9f3a7c1e4b2d8a6f0c5e9b7d3a1f8e6c4b2a0d9f7e5c3b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1 landed"):
+        lines = render._wrap(d, t, font, mw)
+        assert all(d.textlength(ln, font=font) <= mw for ln in lines), (t, lines)
+    long_word = render._wrap(d, OVERWIDE[3], font, mw)
+    assert long_word == [OVERWIDE[3]]                 # a word is never cut: the layout sizes the type to it
+
+
+def test_an_overwide_url_breaks_after_a_slash_or_dot_not_mid_word():
+    font = render._load_font(render._caption_font_px(1080, 1920), render.BUNDLED_FONT)
+    lines = render._wrap(_d(), OVERWIDE[0], font, int(1080 * 0.9))
+    url_lines = [ln for ln in lines if "/" in ln or "." in ln]
+    assert len(url_lines) >= 2, lines
+    # every line that ends inside the URL ends just after a break character
+    for ln in url_lines[:-1]:
+        assert ln[-1] in "/.-_" or ln.endswith("Install it from"), lines
+
+
+def test_ordinary_captions_wrap_exactly_as_before():
+    """Nothing changes for a caption whose units fit: the clips cached before this fix stay valid."""
+    font = render._load_font(43, render.BUNDLED_FONT)
+    d = _d()
+    for mw in (400, 600, 900, 1700):
+        assert render._wrap(d, LATIN, font, mw) == _old_wrap(d, LATIN, font, mw)
+        assert render._wrap(d, CJK, render._load_font(43, render._font_path({"language": "zh"}, CJK)), mw) == \
+            _old_wrap(d, CJK, render._load_font(43, render._font_path({"language": "zh"}, CJK)), mw)
+
+
+def _old_wrap(d, text, font, max_w):
+    KIN = "，。、：；！？…）』」》%"
+    lines, cur = [], ""
+    for a in render._atoms(" ".join(text.split())):
+        trial = cur + a
+        if not cur or d.textlength(trial.rstrip(), font=font) <= max_w:
+            cur = trial
+            continue
+        lead = a.rstrip()
+        if lead and lead[-1] in KIN and d.textlength((cur + lead[:-1]).rstrip(), font=font) <= max_w:
+            cur = trial
+            continue
+        lines.append(cur.rstrip())
+        cur = a
+    if cur.strip():
+        lines.append(cur.rstrip())
+    return lines
+
+
+def test_only_a_clip_with_an_overwide_unit_changes_its_cache_key():
+    meta = {}
+    plain = {"narration": "A short line that fits.", "type": "html"}
+    url = {"narration": OVERWIDE[0], "type": "html"}
+    assert render._overwide_units(plain, meta, 1080, 1920) is False
+    assert render._overwide_units(url, meta, 1080, 1920) is True
