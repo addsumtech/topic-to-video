@@ -412,6 +412,13 @@ def pairs_from_census(census, W, H, seams=None):
             if x0 < 1 or y0 < 1 or x0 + w0 > W - 1 or y0 + h0 > H - 1:
                 no("partly clipped or off frame")
                 continue
+            clip = _clip(ln, l1)
+            if clip and any(bx - PAD < clip[0] or by - PAD < clip[1] or bx + bw + PAD > clip[2] or by + bh + PAD > clip[3]
+                            for bx, by, bw, bh in ((x0, y0, w0, h0), (x1, y1, w1, h1))):
+                # the frame edge's rule, at the clip's edge: a window there has no margin, and what is left of it reads
+                # the clip's own static border (a line with its foot ON the code plate's edge read a steady 0.27 px bias)
+                no("at the edge of its clip (no margin for the window)")
+                continue
             mx, my = moves[k]
             if max(abs(mx), abs(my)) > fast:
                 no("faster than %.1fpx a frame" % fast)
@@ -420,15 +427,31 @@ def pairs_from_census(census, W, H, seams=None):
                 no("growing faster than %d%% a frame" % round(SCALE_STEP * 100))
                 continue
             out.setdefault(f, []).append((k, ln.get("t") or "", (x0, y0, w0, h0), (x1, y1, w1, h1),
-                                          ln.get("fl") or "", ln.get("b"), moves))
+                                          ln.get("fl") or "", ln.get("b"), moves, clip))
     return out, skip
 
 
-def _window(b0, b1, W, H):
+def _clip(l0, l1):
+    """The rectangle both frames' clips leave visible, from the census's optional `c` ([left, top, right, bottom], the
+    line's clipping ancestors and the frame intersected), or None."""
+    c0, c1 = l0.get("c"), l1.get("c")
+    if not c0 and not c1:
+        return None
+    c0, c1 = c0 or c1, c1 or c0
+    return (max(c0[0], c1[0]), max(c0[1], c1[1]), min(c0[2], c1[2]), min(c0[3], c1[3]))
+
+
+def _window(b0, b1, W, H, clip=None):
+    """The correlation window: both boxes and PAD round them — never past the clip that holds the line. Type scrolling
+    in a clipped plate near its edge had the plate's static border and shadow in its margin, and the window measured a
+    mixture: a line moving exactly 3.00 px a frame read 0.0-2.0 px for its first frames, an 0.93 px 'tremble' (the
+    topic-to-video promo's code plate, 2026-11-16)."""
     x0 = min(b0[0], b1[0]) - PAD
     y0 = min(b0[1], b1[1]) - PAD
     x1 = max(b0[0] + b0[2], b1[0] + b1[2]) + PAD
     y1 = max(b0[1] + b0[3], b1[1] + b1[3]) + PAD
+    if clip:
+        x0, y0, x1, y1 = max(x0, clip[0]), max(y0, clip[1]), min(x1, clip[2]), min(y1, clip[3])
     x1 = min(x1, x0 + MAX_WIN)
     X0, Y0 = max(0, int(np.floor(x0))), max(0, int(np.floor(y0)))
     X1, Y1 = min(W, int(np.ceil(x1))), min(H, int(np.ceil(y1)))
@@ -464,8 +487,8 @@ def measure_census(video, census, seams=None):
             H, W = fr.shape
             todo, skip = pairs_from_census(census, W, H, seams)
         if prev is not None and (i - 1) in todo:
-            for key, text, b0, b1, fl, beat, moves in todo[i - 1]:
-                win = _window(b0, b1, W, H)
+            for key, text, b0, b1, fl, beat, moves, clip in todo[i - 1]:
+                win = _window(b0, b1, W, H, clip)
                 mx, my = moves[key]
                 if _crowded(win, key, i - 1, census, moves, mx, my):
                     skip["another line moving differently shares the window"] = \
@@ -842,19 +865,32 @@ def tiles_of(fr, tw=None, th=None, keep=12, gap=0):
     return out
 
 
-def measure_clip(path, truth=None, keep=12):
-    """Track the clip's edge-dense tiles (chosen on its first frame, followed by their own measured motion).
-    `truth` is a census for the clip: then the error is against it, as for a film."""
+def measure_clip(path, truth=None, keep=12, cuts=None):
+    """Track the clip's edge-dense tiles (chosen on the first frame of each SHOT, followed by their own measured motion).
+    `truth` is a census for the clip: then the error is against it, as for a film. `cuts` are the frames that open a
+    shot (a _plan.json's); a hard cut the picture makes is found as well. A tile is never followed across a cut: chosen
+    once on frame 0 and tracked through a 17-shot film, every tile read each cut as a 20-80 px 'tremble' (the
+    topic-to-video promo, fixed and defective alike)."""
     if truth is not None:
         tracks, skip, meta = measure_census(path, truth)
         return tracks, meta
     from scipy.signal import savgol_filter
-    pos, raw, prev, sc = None, {}, None, 1.0
+    pos, raw, prev, sc, seg = None, {}, None, 1.0, 0
+    cuts = set(int(c) for c in cuts or ())
+    diffs = []
     for i, fr in frames(path):
         H, W = fr.shape
-        if pos is None:
+        cut = False
+        if prev is not None:
+            # the rule rewind_qa.detect_cuts uses, read as the frames stream past (one pass, no second decode)
+            d = float(np.abs(fr[::4, ::4] - prev[::4, ::4]).mean())
+            cut = i in cuts or d > max(6.0, 6 * float(np.median(diffs[-15:] or [d])) + 2)
+            diffs.append(d)
+        if pos is None or cut:
             sc = frame_scale(W, H)
-            pos = {n: [float(t[0]), float(t[1]), t[2] - t[0], t[3] - t[1]] for n, t in enumerate(tiles_of(fr, keep=keep))}
+            seg += pos is not None
+            pos = {"s%dt%d" % (seg, n): [float(t[0]), float(t[1]), t[2] - t[0], t[3] - t[1]]
+                   for n, t in enumerate(tiles_of(fr, keep=keep))}
         else:
             for n, (x, y, w, h) in pos.items():
                 X0, Y0 = int(round(x)), int(round(y))
@@ -877,9 +913,10 @@ def measure_clip(path, truth=None, keep=12):
             sm = savgol_filter(d, SMOOTH_PAIRS, 2, axis=0)
             for r, s in zip(run, sm):
                 still = max(abs(s[0]), abs(s[1])) < STILL_PX * sc
-                tracks.setdefault("tile%d" % n, []).append((r[0], float(s[0]), float(s[1]), r[1], r[2], r[3],
-                                                             r[4] if still else None))
-        meta["tile%d" % n] = {"t": "tile %d" % n, "fl": ""}
+                tracks.setdefault(n, []).append((r[0], float(s[0]), float(s[1]), r[1], r[2], r[3],
+                                                 r[4] if still else None))
+        meta[n] = {"t": "tile %s" % n, "fl": ""}
+    meta["_shots"] = seg + 1
     return tracks, meta
 
 
@@ -1022,6 +1059,7 @@ def main(argv):
     ap.add_argument("--video", help="measure this render instead of <out_dir>/out.mp4")
     ap.add_argument("--clip", help="any clip (mp4 or PNG directory); no film needed")
     ap.add_argument("--truth", help="with --clip: a census for the clip (json.gz)")
+    ap.add_argument("--plan", help="with --clip and no --truth: a _plan.json whose cuts start new tracks")
     ap.add_argument("--calibrate", action="store_true", help="the synthetic controls and their separation")
     ap.add_argument("--aspect", default="16:9", choices=sorted(CAL_FRAMES),
                     help="with --calibrate: the frame the controls are drawn in (default %(default)s)")
@@ -1045,9 +1083,18 @@ def main(argv):
             W, H = clip_size(a.clip)
             sc = frame_scale(W, H)
             truth = load_census(a.truth) if a.truth else None
-            tracks, meta = measure_clip(a.clip, truth)
+            cuts = json.load(open(a.plan, encoding="utf-8")).get("cuts") if a.plan else None
+            tracks, meta = measure_clip(a.clip, truth, cuts=cuts)
         except (RuntimeError, OSError, ValueError) as e:
             print("%s NOT MEASURED — %s" % (TAG, e))
+            return 2
+        shots = meta.pop("_shots", 1)
+        if truth is None and shots > 1:
+            # A CUT FILM IS NOT A CLIP. Without a census a tile cannot tell type that trembles from a layer that flies
+            # in, a card that flips or a sweep: on the topic-to-video promo (17 shots) it reported 77-88 'trembles' of
+            # 10-50 px on the fixed and the defective film alike. Say so, never a verdict.
+            print("%s NOT MEASURED — %d shots: census-free tracking reads a shot's own animation as tremble; judge a "
+                  "cut film against its census (--truth, or <out_dir> for a board)" % (TAG, shots))
             return 2
         lines = judge(tracks, meta, scale=sc)
         for lv, k, m, j in lines:

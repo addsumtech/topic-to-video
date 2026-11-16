@@ -4134,17 +4134,17 @@ def test_the_critic_brief_ships_the_gate_that_decides_and_labels_the_one_that_do
     # asked of that list, in the order the brief prints it — not of whichever file happens to spell it out.
     import critic_ledger as cl
     rows = cl.DELIVERY_GATES["remotion"]
-    scripts = [s for _l, s, _a, _t, _b, _ap in rows]
+    scripts = [g.script for g in rows]
     assert "text_safe_qa.py" in scripts, (
         "critic_brief no longer hands the critic the gate that DECIDES whether type is cut off")
     assert scripts.index("text_safe_qa.py") < scripts.index("frame_safe_qa.py"), (
         "the advisory border measure is printed before the authoritative type gate — a reader takes the "
         "first verdict as the verdict")
-    label, _s, _a, _t, blocking, _ap = rows[scripts.index("frame_safe_qa.py")]
+    label, blocking = rows[scripts.index("frame_safe_qa.py")].label, rows[scripts.index("frame_safe_qa.py")].blocking
     assert "ADVISORY" in label and blocking is False, (
         "frame_safe_qa is still presented as a peer of the real gate; its own label has to say it is "
         "advisory, or the critic reads a known-inverted FAIL as a finding")
-    assert all(b for _l, s, _a, _t, b, _ap in rows if s == "text_safe_qa.py"), "the authoritative gate must block"
+    assert all(g.blocking for g in rows if g.script == "text_safe_qa.py"), "the authoritative gate must block"
 
 
 def test_lastleg_kicker_clears_its_own_rail_and_its_gap_label_is_bounded():

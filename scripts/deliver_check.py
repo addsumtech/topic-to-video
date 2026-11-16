@@ -29,32 +29,51 @@ import time
 _HERE = os.path.dirname(os.path.abspath(__file__))
 RECORD = "_delivery_check.json"
 sys.path.insert(0, _HERE)
-from critic_ledger import UNWAIVABLE_GATES as UNWAIVABLE  # noqa: E402
-
-# (gate, tiers it runs in, renderers it applies to). The fast gates read out.mp4; the full ones render a census.
-GATES = (
-    ("check_av", "fast", ("remotion", "local")),
-    ("flash_qa", "fast", ("remotion", "local")),
-    ("film_energy_qa", "fast", ("remotion",)),
-    ("rhythm_qa", "fast", ("remotion", "local")),
-    ("seam_ledger", "fast", ("remotion",)),
-    ("named_objects_qa", "fast", ("remotion",)),
-    ("media_res_qa", "full", ("remotion",)),
-    ("text_safe_qa", "full", ("remotion",)),
-    # the HTML tier's type trembles too (a page's own camera, a matrix3d reveal, Ken Burns): jitter_html builds its census
-    ("jitter_qa", "full", ("remotion", "local")),
-)
+from critic_ledger import DELIVERY_GATES, UNWAIVABLE_GATES as UNWAIVABLE  # noqa: E402
 
 
-def _renderer(meta):
-    r = str((meta or {}).get("renderer") or "local")
-    return "remotion" if r == "remotion" else "local"
+
+def film_path(out_dir, meta=None):
+    """"remotion" | "html" | "promo" — which rows of critic_ledger.DELIVERY_GATES the film runs. A folder with
+    promo.json and no storyboard is a promo film (scripts/promo_film.py); every board that is not remotion runs the
+    html rows (a supplied-slides film included: check_av, flash, rhythm and jitter read any render)."""
+    if not os.path.exists(os.path.join(out_dir, "storyboard.json")) and os.path.exists(os.path.join(out_dir, "promo.json")):
+        return "promo"
+    return "remotion" if str((meta or {}).get("renderer") or "") == "remotion" else "html"
 
 
-def gates_for(meta, tier="fast"):
-    """The gates a film of this renderer runs in `tier` (fast ⊂ full), in order."""
-    r = _renderer(meta)
-    return [g for g, t, rs in GATES if r in rs and (tier == "full" or t == "fast")]
+def gate_rows(path, tier="fast"):
+    """The DELIVERY_GATES rows of `path` that run in `tier` (fast ⊂ full), in the table's order."""
+    stages = ("fast",) if tier == "fast" else ("fast", "full")
+    return [g for g in DELIVERY_GATES[path] if g.stage in stages]
+
+
+def gates_for(meta, tier="fast", path=None):
+    """The gate names (script stems) a film of this renderer runs in `tier`, in order."""
+    if path is None:
+        path = "remotion" if str((meta or {}).get("renderer") or "") == "remotion" else "html"
+    return [g.script[:-3] for g in gate_rows(path, tier)]
+
+
+def film_video(out_dir):
+    """The film's delivered video: out.mp4, or for a promo film the file its _plan.json names (promo_film --out)."""
+    mp4 = os.path.join(out_dir, "out.mp4")
+    plan = os.path.join(out_dir, "_plan.json")
+    if not os.path.isfile(mp4) and os.path.isfile(plan):
+        try:
+            v = json.load(open(plan, encoding="utf-8")).get("video")
+        except (OSError, ValueError):
+            v = None
+        if isinstance(v, str) and v:
+            return v if os.path.isabs(v) else os.path.join(out_dir, v)
+    return mp4
+
+
+def _argv(g, out_dir, video):
+    """A gate's arguments: `{dir}`/`{video}` filled in; with neither, the folder is the one argument."""
+    if not any("{dir}" in a or "{video}" in a for a in g.args):
+        return [out_dir] + list(g.args)
+    return [a.replace("{dir}", out_dir).replace("{video}", video) for a in g.args]
 
 
 def _sha(path):
@@ -65,32 +84,42 @@ def _sha(path):
     return h.hexdigest()
 
 
-def _run_gate(gate, out_dir):
-    """(exit code, its last summary line) — the gate run as the pipeline runs it."""
-    r = subprocess.run([sys.executable, os.path.join(_HERE, gate + ".py"), out_dir], stdin=subprocess.DEVNULL,
-                       capture_output=True, text=True)
+def _run_gate(gate, out_dir, argv=None, timeout=None):
+    """(exit code, its last summary line) — the gate run as the pipeline runs it. A gate that outlives its timeout
+    measured nothing: exit 2."""
+    try:
+        r = subprocess.run([sys.executable, os.path.join(_HERE, gate + ".py")] + list(argv or [out_dir]),
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return 2, "[%s] NOT MEASURED — timed out after %ss" % (gate, timeout)
     lines = [ln for ln in (r.stdout + r.stderr).splitlines() if ln.strip()]
     summary = next((ln for ln in reversed(lines) if ln.lstrip().startswith("[")), lines[-1] if lines else "")
     return r.returncode, summary.strip()[:300]
 
 
 def _load(out_dir):
-    try:
-        with open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8") as fh:
-            return json.load(fh)
-    except (OSError, ValueError):
-        return {}
+    """The board — or for a promo film its promo.json, whose top-level `delivery_waivers` stands in for the meta's."""
+    for name in ("storyboard.json", "promo.json"):
+        try:
+            with open(os.path.join(out_dir, name), encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if name == "promo.json" and isinstance(doc, dict):
+            return {"meta": {"delivery_waivers": doc.get("delivery_waivers") or {}}, "promo": doc}
+        return doc
+    return {}
 
 
 def check(out_dir, full=False, run=None, force=False):
     """The record: {film, board, tier, ok, gates: [{name, status: pass|fail|not measured|waived, rc, seconds, summary,
     waiver?}]}. Reuses a record for the same film and board at the same or a fuller tier."""
-    run = run or _run_gate
-    mp4 = os.path.join(out_dir, "out.mp4")
-    if not os.path.isfile(mp4):
-        raise SystemExit("deliver_check: %s has no out.mp4 — render the film first" % out_dir)
     board = _load(out_dir)
     meta = board.get("meta") or {}
+    path_kind = film_path(out_dir, meta)
+    mp4 = film_video(out_dir)
+    if not os.path.isfile(mp4):
+        raise SystemExit("deliver_check: %s has no %s — render the film first" % (out_dir, os.path.basename(mp4)))
     film, bsha = _sha(mp4), hashlib.sha256(json.dumps(board, sort_keys=True).encode("utf-8")).hexdigest()
     tier = "full" if full else "fast"
     path = os.path.join(out_dir, RECORD)
@@ -103,17 +132,22 @@ def check(out_dir, full=False, run=None, force=False):
             pass
     waivers = meta.get("delivery_waivers") or {}
     rows = []
-    for g in gates_for(meta, tier):
+    for gate in gate_rows(path_kind, tier):
+        g = gate.script[:-3]
         t0 = time.time()
-        rc, summary = run(g, out_dir)
+        argv = _argv(gate, out_dir, mp4)
+        rc, summary = run(g, out_dir, argv) if run else _run_gate(g, out_dir, argv, gate.timeout)
         status = "pass" if rc == 0 else "not measured" if rc == 2 else "fail"
         row = {"name": g, "rc": rc, "status": status, "seconds": round(time.time() - t0, 1), "summary": summary}
+        if not gate.blocking:
+            row["advisory"] = True                        # recorded and printed; it does not decide the hand-off
         # sync and the board's own contract are never the user's to waive — the rule critic_ledger --final holds; this
         # check honoured a waiver on any gate, so a film the final gate refuses could be delivered here
         if status != "pass" and g not in UNWAIVABLE and isinstance(waivers.get(g), str) and waivers[g].strip():
             row["status"], row["waiver"] = "waived", waivers[g].strip()
         rows.append(row)
-    rec = {"film": film, "board": bsha, "tier": tier, "ok": all(r["status"] in ("pass", "waived") for r in rows),
+    rec = {"film": film, "board": bsha, "tier": tier, "path": path_kind,
+           "ok": all(r["status"] in ("pass", "waived") for r in rows if not r.get("advisory")),
            "gates": rows, "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(rec, fh, indent=1)
@@ -122,12 +156,18 @@ def check(out_dir, full=False, run=None, force=False):
 
 def report(rec):
     for r in rec["gates"]:
-        print("[deliver_check] %-14s %-12s %5.1fs  %s%s" % (r["name"], r["status"].upper(), r["seconds"], r["summary"],
+        print("[deliver_check] %-14s %-12s %5.1fs  %s%s" % (r["name"], r["status"].upper() + (" (adv.)" if r.get("advisory")
+                                                                                        else ""), r["seconds"], r["summary"],
                                                            ("  (waived: %s)" % r["waiver"]) if r.get("waiver") else ""))
     print("[deliver_check] %s — %s tier, %d gate(s)%s" % (
         "OK" if rec["ok"] else "FAIL", rec["tier"], len(rec["gates"]),
-        "" if rec["tier"] == "full" else "; the census gates (media_res, text_safe, jitter) run with --full, once, "
-                                         "for the cut that ships"))
+        "" if rec["tier"] == "full" else "; %s run%s with --full, once, for the cut that ships" % _full_only(rec)))
+
+
+def _full_only(rec):
+    path = rec.get("path") or "remotion"
+    extra = [n for n in gates_for({}, "full", path) if n not in gates_for({}, "fast", path)]
+    return (", ".join(extra) or "nothing more"), ("" if len(extra) > 1 else "s")
 
 
 def main(argv=None):

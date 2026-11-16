@@ -28,7 +28,7 @@ def _film(tmp_path, meta=None):
 
 
 def _runner(results, calls):
-    def run(gate, out_dir):
+    def run(gate, out_dir, *_argv):
         calls.append(gate)
         return results.get(gate, (0, "[%s] OK" % gate))
     return run
@@ -80,3 +80,46 @@ def test_deliver_refuses_a_film_whose_check_fails_and_says_why(tmp_path, monkeyp
     assert "check_av" in capsys.readouterr().out and not os.listdir(home / "Desktop")
     assert deliver.main([out, "--to", str(home / "Desktop"), "--anyway"]) == 0
     assert [f for f in os.listdir(home / "Desktop") if f.endswith(".mp4")] == ["Film (unchecked).mp4"]
+
+
+def _promo(tmp_path, census=False):
+    out = tmp_path / "promo"
+    out.mkdir(parents=True)
+    (out / "promo.json").write_text(json.dumps({"shots": [], "delivery_waivers": {"flash_qa": "a deliberate strobe"}}))
+    (out / "my_promo.mp4").write_bytes(b"not really a film")
+    (out / "_plan.json").write_text(json.dumps({"video": "my_promo.mp4", "frames": 10, "cuts": []}))
+    return str(out)
+
+
+def test_a_promo_film_runs_its_own_rows_on_the_video_its_plan_names(tmp_path):
+    """a promo film (promo.json, no board) had no delivery gate at all; it now runs the promo rows of the one table"""
+    out, seen = _promo(tmp_path), []
+
+    def run(gate, out_dir, argv):
+        seen.append((gate, argv))
+        return {"rewind_qa": (1, "[rewind] 1 problem(s)"), "flash_qa": (1, "[flash] FAIL")}.get(gate, (0, "ok"))
+    rec = dc.check(out, run=run)
+    assert rec["path"] == "promo" and [g for g, _a in seen] == ["promo_film", "flash_qa", "rewind_qa"]
+    video = os.path.join(out, "my_promo.mp4")
+    assert dict(seen)["flash_qa"] == [video] and dict(seen)["rewind_qa"][0] == video
+    st = {g["name"]: g for g in rec["gates"]}
+    assert st["flash_qa"]["status"] == "waived", "promo.json's own delivery_waivers stand in for the board's"
+    assert st["rewind_qa"]["advisory"] and rec["ok"], "an advisory finding is recorded, and does not decide"
+    assert dc.gates_for({}, "full", "promo")[-1] == "jitter_qa"
+
+
+def test_deliver_hands_over_the_promo_video(tmp_path, monkeypatch):
+    out = _promo(tmp_path)
+    (tmp_path / "Desk").mkdir()
+    monkeypatch.setattr(dc, "_run_gate", lambda g, o, *_a: (0, "ok"))
+    assert deliver.main([out, "--to", str(tmp_path / "Desk")]) == 0
+    assert os.listdir(tmp_path / "Desk") == ["promo.mp4"]
+
+
+def test_the_check_reads_the_review_table_and_no_list_of_its_own():
+    import critic_ledger as cl
+    for path in ("remotion", "html"):
+        rows = [g for g in cl.DELIVERY_GATES[path] if g.stage in ("fast", "full")]
+        assert dc.gates_for({}, "full", path) == [g.script[:-3] for g in rows]
+        assert all(not g.args for g in rows), "the check runs a gate on the folder alone"
+    assert not hasattr(dc, "GATES")

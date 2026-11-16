@@ -102,6 +102,9 @@ def deliver(out_dir, to=None, home=None, what="out", tag=""):
     if what not in WHAT:
         raise SystemExit("deliver: --what must be one of %s, got %r" % (", ".join(WHAT), what))
     src = os.path.join(out_dir, what + ".mp4")
+    if what == "out":
+        import deliver_check as _dc
+        src = _dc.film_video(out_dir)            # a promo film's video is the one its _plan.json names
     if not os.path.isfile(src):
         hint = "render the film first" if what == "out" else "render the %s first" % what
         raise SystemExit("deliver: %s has no %s.mp4 — %s" % (out_dir, what, hint))
@@ -110,7 +113,7 @@ def deliver(out_dir, to=None, home=None, what="out", tag=""):
     video = _free(os.path.join(folder, name + ".mp4"))
     shutil.copy2(src, video)
     delivered = [video]
-    srt = os.path.join(out_dir, what + ".srt")
+    srt = os.path.splitext(src)[0] + ".srt"
     if os.path.isfile(srt):
         captions = os.path.splitext(video)[0] + ".srt"
         shutil.copy2(srt, captions)

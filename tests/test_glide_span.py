@@ -61,3 +61,13 @@ def test_a_films_own_shot_that_switches_the_unlock_fails_the_workshop_check(tmp_
                                    "return glide('translateY(2px)', e !== 1); };\n", encoding="utf-8")
     problems = workshop.glide_problems(str(tmp_path))
     assert problems and "Bad.tsx" in problems[0] and "e !== 1" in problems[0]
+
+
+def test_the_whole_library_switches_the_unlock_only_where_it_is_known():
+    """the scope widened from shots/ to all of remotion/src: the runtime, the stages and Film switch it too. The known
+    sites are listed (KNOWN_SWITCHED) for the source sweep; the list may only shrink, and nothing new may join it"""
+    src = os.path.join(_ROOT, "remotion", "src")
+    found = {(f, on) for f, _ln, on in gl.scan(src)}
+    assert found <= set(gl.KNOWN_SWITCHED), "a new switched unlock: %s" % sorted(found - set(gl.KNOWN_SWITCHED))
+    assert set(gl.KNOWN_SWITCHED) <= found, "fixed — remove it from KNOWN_SWITCHED: %s" % sorted(
+        set(gl.KNOWN_SWITCHED) - found)

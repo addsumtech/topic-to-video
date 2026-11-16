@@ -458,7 +458,9 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
   **The film is checked first** (`scripts/deliver_check.py`, its FAST tier, ~30 s, reused while the film is unchanged):
   a failing gate refuses the hand-off; waive one by name with a reason (`meta.delivery_waivers`) or pass `--anyway`
   (delivered as "(unchecked)"). Run `deliver_check.py <out_dir> --full` once for the cut that ships (+ media_res,
-  text_safe, jitter: ~10 min).
+  text_safe, jitter: ~10 min). Its gates are the `fast`/`full` rows of `critic_ledger.DELIVERY_GATES`, the table the
+  review runs. A promo film (`promo.json`, no board) runs the table's `promo` rows (the table check, flash, rewind
+  advisory; `--full` adds jitter on the film's own `census.json.gz`, else NOT MEASURED) on the video its `_plan.json` names.
 
 **Library maintenance** (not part of a film run; full entries in the reference)
 - `scripts/register_shot.py <Id> <Family> --use-when "…"` scaffolds a new register at every sync point (`--check` verifies

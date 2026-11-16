@@ -1112,6 +1112,62 @@ def platform_zone_findings(frames, W, H, prof):
             for v in hits.values() if v["n"] >= 3]
 
 
+# TYPE CUT OFF WHILE IT IS READ (the audit of 2026-11-15): a line at full opacity that a clip, a container or the
+# frame edge keeps partly hidden for half a second or more. The still gates (text_safe, keyframe overflow) judge one
+# pose a beat; a camera push or a coverage step that slides a held line under its window's edge between those poses
+# was seen by no gate — the owner's third named defect, 字出框. `v` is the census's visible share of the line's box,
+# clipped by every ancestor and by the frame (runtime/textSafe syncFields). A MASK REVEAL is not this: its `v` keeps
+# changing as the word rises through the mask; only a share that HOLDS below CUT_READ_V is a cut.
+CUT_READ_O = 0.9          # readable: the line is at (nearly) full opacity
+# ...and this share of its box or less is visible. Not 0.97: a word-rise wrapper (overflow hidden, a little shorter
+# than the line box) clips only LEADING, never ink — slide-maker's outro and title words read 0.89-0.95 with every
+# glyph whole. Every real cut measured on WorkBuddy was 0.01-0.78. `v` is an AREA share and cannot say which side was
+# cut; a sideways cut of 5 % takes glyphs — the census recording the cut's side is the source sweep's (step 5).
+CUT_READ_V = 0.85
+# ...but more than this: a word WAITING under its mask before it rises shows the top ~10 % of its box, which is
+# leading, not ink (slide-maker's outro words sat at 0.09-0.15 for up to 60 frames with nothing on screen). Hidden,
+# not cut.
+CUT_READ_MIN_V = 0.25
+CUT_READ_FRAMES = 12      # ...for this many consecutive frames (0.4 s at 30 fps)
+CUT_READ_HOLD = 0.05      # ...with the visible share steady within this (a reveal moves more)
+
+
+def judge_cut_while_read(frames):
+    """[{k, t, a, b, v}] — each run of >= CUT_READ_FRAMES consecutive frames in which one line is readable, cut to a
+    steady visible share below CUT_READ_V. One finding per line (its longest run)."""
+    runs, open_ = {}, {}
+    order = sorted(frames, key=int)
+    prev = None
+    for f in order:
+        fi = int(f)
+        seen = set()
+        for ln in frames[f].get("lines") or []:
+            k = ln.get("k")
+            v = ln.get("v")
+            if k is None or v is None or float(ln.get("o") or 0) < CUT_READ_O or not CUT_READ_MIN_V <= float(v) < CUT_READ_V:
+                continue
+            seen.add(k)
+            r = open_.get(k)
+            if r and prev is not None and r["b"] == prev and abs(float(v) - r["v0"]) <= CUT_READ_HOLD:
+                r["b"], r["v"] = fi, min(r["v"], float(v))
+            else:
+                if r:
+                    _close_cut_run(runs, r)
+                open_[k] = {"k": k, "t": ln.get("t") or "", "a": fi, "b": fi, "v0": float(v), "v": float(v)}
+        for k in [k for k in open_ if k not in seen]:
+            _close_cut_run(runs, open_.pop(k))
+        prev = fi
+    for r in open_.values():
+        _close_cut_run(runs, r)
+    return sorted(runs.values(), key=lambda r: r["a"])
+
+
+def _close_cut_run(runs, r):
+    if r["b"] - r["a"] + 1 >= CUT_READ_FRAMES and (r["k"] not in runs or
+                                                     r["b"] - r["a"] > runs[r["k"]]["b"] - runs[r["k"]]["a"]):
+        runs[r["k"]] = {k: r[k] for k in ("k", "t", "a", "b", "v")}
+
+
 def scan_film_glide(out_dir, concurrency=None):
     """(errors, warns, excused, notes, checked, universe, unmeasured, seconds) for one film: every frame of the Film
     composition exactly as render_remotion renders it — its seams, its cameras and its whole-film drift included,
@@ -1158,6 +1214,14 @@ def scan_film_glide(out_dir, concurrency=None):
         errors.append("scene %02d (%s): SWAY — %r swings %.0f px back and forth, frames %d-%d, and does not settle — an "
                       "idle float or breathing camera reads as the frame shaking; hold it still once it has landed"
                       % (labels[k], shots[k], (r["t"] or "")[:40], r["swing"], r["a"], r["b"]))
+    # TYPE CUT OFF WHILE IT IS READ — ADVISORY until it has run clean across the corpus (the audit's step 4 makes it
+    # refuse). On WorkBuddy it found the sidebar and task titles a camera push held under the window's edge.
+    for r in judge_cut_while_read(res["frames"]):
+        k = beat_of(r["a"])
+        warns.append("scene %02d (%s): CUT WHILE READ (advisory) — %r is readable with only %d%% of it visible, frames "
+                     "%d-%d: a clip, its container or the frame edge cuts it; widen the box, move it in, or let it "
+                     "leave the frame instead of resting cut" % (labels[k], shots[k], (r["t"] or "")[:40],
+                                                                 round(r["v"] * 100), r["a"], r["b"]))
     # A PORTRAIT FILM FOR THE PLATFORMS keeps what must be read out of their UI (runtime/safeZone.ts): measured on
     # every frame the census read, the same lines the staircase is judged on
     if props.get("safe"):
@@ -1259,6 +1323,68 @@ def film_census(out_dir, props, concurrency=None):
             except OSError:
                 pass
     return res, segs, total
+
+
+PROMO_CENSUS = "_promo_census.json.gz"
+
+
+def promo_census(film_dir, concurrency=None):
+    """(census slot, total) for a PROMO film (scripts/promo_film.py): the PromoFilm composition with the props it was
+    last rendered with (_promo_props.json) and its own public dir, the census armed (PromoFilm `typeGlide`). Kept in
+    the film folder as PROMO_CENSUS, in the shape jitter_qa --truth reads ({"frames": {f: {"lines": [...]}}}). A
+    page shot's recording is pixels to this census: its type is read by the film's own page census, if it has one."""
+    import gzip
+    import shutil
+    import tempfile
+    import promo_film as _pf
+    props_path = os.path.join(film_dir, "_promo_props.json")
+    pub = os.path.join(film_dir, "_promo_public")
+    if not (os.path.isfile(props_path) and os.path.isdir(pub)):
+        raise RuntimeError("no _promo_props.json / _promo_public — render the promo first (promo_film.py)")
+    props = dict(json.load(open(props_path, encoding="utf-8")), typeGlide=True)
+    _st, total = _pf.starts(props)
+    work = tempfile.mkdtemp(prefix="promo_census_")
+    try:
+        bundle = glide_bundle(os.path.join(work, "bundle"), pub, None)
+        res = glide_run([{"tag": "promo", "id": "PromoFilm", "props": props}], bundle, concurrency)["promo"]
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    if not _glide_measured(res, total):
+        with gzip.open(os.path.join(film_dir, PROMO_CENSUS), "wt", encoding="utf-8") as fh:
+            json.dump({"frames": {str(f): v for f, v in res["frames"].items()}, "total": total}, fh)
+    return res, total
+
+
+def main_promo(argv):
+    """text_safe_qa.py <film_dir> --promo: a promo film's own type, every frame — staircase, sway and cut-while-read."""
+    film_dir = os.path.abspath(argv[0])
+    try:
+        res, total = promo_census(film_dir)
+    except RuntimeError as e:
+        print("[text_safe] NOT MEASURED — %s" % e)
+        return 2
+    why = _glide_measured(res, total)
+    if why:
+        print("[text_safe] NOT MEASURED — %s" % why)
+        return 2
+    errors, warns = [], []
+    level, worst = glide_level(judge_glide(res["frames"]))
+    if level == "error":
+        errors.extend("STAIRCASE — %s" % _describe_run(r) for r in worst)
+    elif level == "warn":
+        warns.extend(_describe_run(r) for r in worst)
+    for r in judge_sway(res["frames"]):
+        errors.append("SWAY — %r swings %.0f px back and forth, frames %d-%d, and does not settle"
+                      % ((r["t"] or "")[:40], r["swing"], r["a"], r["b"]))
+    for r in judge_cut_while_read(res["frames"]):
+        warns.append("CUT WHILE READ (advisory) — %r readable with only %d%% of it visible, frames %d-%d"
+                     % ((r["t"] or "")[:40], round(r["v"] * 100), r["a"], r["b"]))
+    for e in errors:
+        print("[text_safe] ERROR %s" % e)
+    for w in warns:
+        print("[text_safe] WARN  %s" % w)
+    print("[text_safe] promo %s — %d frames, census kept in %s" % ("FAIL" if errors else "OK", total, PROMO_CENSUS))
+    return 1 if errors else 0
 
 
 def beat_samples(frames, segs, fps):
@@ -1527,7 +1653,8 @@ _USAGE = ("usage: text_safe_qa.py <out_dir> | --library [--only=A,B] [--aspect=1
           "       text_safe_qa.py <out_dir> --glide | --library --glide [--only=A,B] [--aspect=..] [--dna=..] "
           "[--json=PATH]   (the type-glide census: every frame, no picture)\n"
           "       text_safe_qa.py <out_dir> --sync [--raw] [--json=PATH] [--census=PATH | --from-census=PATH]   (does each text element appear when "
-          "the narration says it? same census)")
+          "the narration says it? same census)\n"
+          "       text_safe_qa.py <promo_dir> --promo   (a promo film's own type: staircase, sway, cut-while-read)")
 
 
 def main(argv):
@@ -1539,6 +1666,8 @@ def main(argv):
         return main_sync(argv)
     if "--glide" in argv:
         return main_glide(argv)
+    if "--promo" in argv:
+        return main_promo([a for a in argv if a != "--promo"])
     if argv[0] == "--library" and "--all-dna" in argv:
         # THE SWEEP SWEPT ONE DNA, AND THE DNA IS WHAT CHOOSES THE FACE. `scan_library`'s own docstring says
         # the Design DNA "sets the type family and therefore every metric this audit measures" — and then

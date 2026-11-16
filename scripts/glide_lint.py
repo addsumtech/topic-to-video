@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """glide_lint — every baseline unlock is held for its SPAN, never switched on and off with the motion.
 
-    python3 scripts/glide_lint.py [dir ...]        # default: remotion/src/shots; exit 1 on any switched call
+    python3 scripts/glide_lint.py [dir ...]        # default: all of remotion/src; exit 1 on any switched call
 
 runtime/glide's header: the unlock must be on over the whole stretch in which a transform CAN change; switched with
 the motion itself, the type jumps from whole-pixel to quarter-pixel on the frame the motion starts and back on the
@@ -16,6 +16,17 @@ import re
 import sys
 
 _CALL = re.compile(r"(?<![\w.$])glide\(")
+# THE WHOLE LIBRARY, NOT ONLY shots/ (the audit of 2026-11-15): the runtime, the stages and Film itself switch the
+# unlock too, and type drawn there trembles the same way. These sites were found when the scope widened; each is
+# PRINTED on every run as known debt, never passed in silence, and the source sweep (the audit's step 5) removes them.
+# Keyed by file and the `on` expression, so a moved line stays matched and a new switched call is an ERROR.
+KNOWN_SWITCHED = {
+    ("Film.tsx", "on"): "FrameUnlock's `on` is a prop constant over the beat: mark it @glide-span",
+    ("runtime/glide.ts", "moving"): "usePlaceGlide forwards its caller's `moving`: its callers are the switch",
+    ("runtime/kinetic.tsx", "allowed && s.moving"): "a kinetic glyph's unlock follows its own motion",
+    ("stage/CardStage.tsx", "!leaving && q < 1"): "the title rise switches the unlock off as it lands",
+    ("stage/WorldStage.tsx", "camMoves"): "a stage label's unlock follows the camera",
+}
 # runtime/glide.ts's own forwarding call — `useGlide` passes its caller's `on` through, gated by the context
 _FORWARD = ["transform", "allowed && on", "under"]
 
@@ -110,12 +121,18 @@ def scan(*dirs):
 
 def main(argv):
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    dirs = argv or [os.path.join(here, "remotion", "src", "shots")]
+    dirs = argv or [os.path.join(here, "remotion", "src")]
     bad = scan(*dirs)
+    known = [b for b in bad if (b[0], b[2]) in KNOWN_SWITCHED] if not argv else []
+    bad = [b for b in bad if b not in known]
+    for f, ln, on in known:
+        print("[glide_lint] KNOWN %s:%d glide(..., %s) — %s (the source sweep removes it)"
+              % (f, ln, on, KNOWN_SWITCHED[(f, on)]))
     for f, ln, on in bad:
         print("[glide_lint] ERROR %s:%d glide(..., %s) — the unlock switches with the motion; hold it for the span "
               "(`true`, or a name marked `@glide-span: <why constant over the beat>`)" % (f, ln, on))
-    print("[glide_lint] %s  %d switched call(s)" % ("FAIL" if bad else "OK", len(bad)))
+    print("[glide_lint] %s  %d switched call(s)%s" % ("FAIL" if bad else "OK", len(bad),
+                                                     ", %d known (listed above)" % len(known) if known else ""))
     return 1 if bad else 0
 
 

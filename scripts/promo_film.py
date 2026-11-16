@@ -1729,13 +1729,18 @@ def glide_check(film, spec_path, video):
     import picture_glide_qa as pg
     spec = json.load(open(spec_path, encoding="utf-8"))
     W, H, _n, fps = pg._probe(video)
-    bad = []
+    bad, unjudged = [], []
     for beat, a, b in pg.spans_of(film, spec_path):
         if b - a < 14:
+            # said and counted, never dropped in silence: a flash shot is too short to read a camera path from
+            print("  shot %2d  not judged (only %d frames; a camera path needs 14)" % (beat - 1, b - a))
+            unjudged.append(beat - 1)
             continue
         r = pg.judge_span(video, a, b, W, H, fps)
         if r is None or r.get("rms") is None:
             print("  shot %2d  not judged (%s)" % (beat - 1, "nothing moving" if r is None else "too little texture"))
+            if r is not None:
+                unjudged.append(beat - 1)             # a held, still shot has nothing to step; a textureless one is unread
             continue
         fails = r["rms"] > pg.FAIL_RMS or (r.get("shimmer") or 0) > pg.FAIL_SHIMMER
         line = "  shot %2d  %.3f px RMS · shimmer %s" % (beat - 1, r["rms"], "%.1f%%" % (r["shimmer"] * 100) if r.get("shimmer") is not None
@@ -1778,7 +1783,28 @@ def glide_check(film, spec_path, video):
             # one is re-judged over the recording's still poster (acts stripped, macros kept, as below).
             poses = {tuple(q.get(k_) for k_ in ("cx", "cy", "zoom", "rx", "ry", "rz")) for q in shot.get("keys") or []}
             if len(poses) <= 1:
-                print(line + "   camera holds — what moved is the recording's own picture, not the camera")
+                # ...but the recording's own picture is still a picture the viewer watches: judged on the RECORDING, over
+                # the span this shot plays of it, at its own pixels (a plate that steps steps on screen too)
+                src = os.path.join(film, shot["video"])
+                v0 = int(round(float(shot.get("videoStart") or 0)))
+                try:
+                    sw, sh_, _sn, sfps = pg._probe(src)
+                    rr_ = pg.judge_span(src, v0, v0 + int(round(shot["dur"])), sw, sh_, sfps)
+                except Exception as e:  # noqa: BLE001 — said, and counted as not judged
+                    rr_ = {"error": str(e)}
+                if not rr_ or rr_.get("rms") is None:
+                    print(line + "   camera holds; the recording itself not judged (%s)"
+                          % ((rr_ or {}).get("error") or "nothing moving"))
+                    unjudged.append(beat - 1)
+                # STEPS only, not shimmer: shimmer is a resample's sharpness pulsing under a camera that creeps, and a held
+                # camera resamples at one constant phase. What pulses in a recording's own frames is its content — a
+                # Blender plate's per-frame render noise read 3.7-13.9 % "shimmer" at 0.02-0.06 px RMS (slide-maker v2)
+                elif rr_["rms"] > pg.FAIL_RMS:
+                    print(line + "   <- camera holds, and the RECORDING itself steps (%.3f px RMS over its frames %d-%d)"
+                          % (rr_["rms"], v0, v0 + int(round(shot["dur"]))))
+                    bad.append(beat - 1)
+                else:
+                    print(line + "   camera holds; the recording itself glides (%.3f px)" % rr_["rms"])
                 continue
             for k_ in ("video", "videoStart"):
                 shot.pop(k_, None)
@@ -1815,7 +1841,9 @@ def glide_check(film, spec_path, video):
         else:
             print(line + "   camera-only %s — the camera glides; what moved is the shot's acts"
                   % ("%.3f px" % rc_["rms"] if rc_ and rc_.get("rms") is not None else "still"))
-    print("[promo_film] glide (shots numbered as in the table, from 0): %s" % ("FAIL on shot(s) %s" % bad if bad else "OK — every page shot's camera glides"))
+    print("[promo_film] glide (shots numbered as in the table, from 0): %s%s" % (
+        "FAIL on shot(s) %s" % bad if bad else "OK — every judged page shot glides",
+        "; %d shot(s) NOT judged: %s" % (len(unjudged), unjudged) if unjudged else ""))
     return 1 if bad else 0
 
 

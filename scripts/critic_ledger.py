@@ -95,6 +95,7 @@ import json
 import os
 import re
 import sys
+from collections import namedtuple
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _CRITIC = os.path.join(_ROOT, "agents", "shot-critic.md")
@@ -240,13 +241,21 @@ def _styled(out_dir):
 # shake_qa, cjk_type_qa, rhythm_qa or pedagogy_qa, and a `none` film was never briefed at all, so a film those gates
 # refused was delivered while SKILL.md and this file's header said they "still gate delivery".
 # `applies(out_dir)` is None for every film of the tier. Advisory gates are run and recorded, never refuse.
-DELIVERY_GATES = {
+# One row per gate: label, script, args, timeout, blocking, applies (None = always, else a predicate on out_dir) and
+# STAGE — when the gate runs: "fast" on every hand-off (scripts/deliver_check.py, ~30 s, reads the delivered file),
+# "full" adds the gates that render a census (deliver_check --full, the cut that ships), "review" only in the review
+# (critic_brief --gates, held by --final). The review runs every row. deliver_check reads this table and no other: its
+# own list once ran seam_ledger and named_objects_qa, which no review recorded. `{dir}`/`{video}` in args are the film
+# folder and its video (a promo film's video is named by its _plan.json); with neither, the folder is the argument.
+Gate = namedtuple("Gate", "label script args timeout blocking applies stage")
+Gate.__new__.__defaults__ = ("review",)
+_ROWS = {
     "remotion": [
         ("validate", "validate.py", (), 240, True, None),
-        ("A/V", "check_av.py", (), 240, True, None),
+        ("A/V", "check_av.py", (), 240, True, None, "fast"),
         # a frame unlike both of its agreeing neighbours: a layer that drops out or re-sorts for one frame. Every other
         # gate reads a frame, a beat or a line of type; a Grok Bot film shipped three such flashes with all 16 green
-        ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", (), 300, True, None),
+        ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", (), 300, True, None, "fast"),
         ("keyframes", "keyframe_qa_remotion.py", (), 240, True, None),
         # a CAPTION line broken inside a word or a number, or starting on closing punctuation — Film.tsx's own
         # captionBreak.ts run in node. validate's comment said the remotion tier was judged here; nothing ran it
@@ -258,7 +267,7 @@ DELIVERY_GATES = {
         # 4-error FAIL, checked all four against the pixels, and found every one was the inverted measure (a
         # full-bleed diagonal read as 63% caption-band ink, a display word its own source documents as "cropped by
         # the frame on purpose"). It then had to run the right gate itself.
-        ("TYPE cut off (authoritative)", "text_safe_qa.py", (), 600, True, None),   # 2 stills a beat (title_of)
+        ("TYPE cut off (authoritative)", "text_safe_qa.py", (), 600, True, None, "full"),   # 2 stills a beat (title_of)
         # type that MOVES and steps a whole pixel at a time against its own drawing — no still can show it, so the
         # census reads every frame (runtime/glide.ts)
         ("TYPE steps while it moves (every frame, census)", "text_safe_qa.py", ("--glide",), 240, True, None),
@@ -268,12 +277,12 @@ DELIVERY_GATES = {
         # type that TREMBLES against its own geometry, judged from the delivered PIXELS on every layer — the census
         # cannot judge type a compositor moves (3D surfaces, will-change) and handed it over; a product film's UI
         # panel inside a 3D screen trembled with every gate green (scripts/jitter_qa.py)
-        ("TYPE trembles in the pixels (every frame, every layer incl. 3D)", "jitter_qa.py", (), 600, True, None),
+        ("TYPE trembles in the pixels (every frame, every layer incl. 3D)", "jitter_qa.py", (), 600, True, None, "full"),
         ("TYPE holds together in this film's registers (CJK copy, or any non-16:9 frame)", "cjk_type_qa.py", (), 600, True,
          _type_at_risk),
         # A PICTURE magnified past its own pixels — every type gate measures text, none of them an image's pixels; a
         # product film shipped its hero UI at 2.9x and its bots row at 2.0x with all of them green (scripts/media_res_qa.py)
-        ("PICTURES at their own resolution (every 3rd frame, census)", "media_res_qa.py", (), 300, True, None),
+        ("PICTURES at their own resolution (every 3rd frame, census)", "media_res_qa.py", (), 300, True, None, "full"),
         # TYPE ON A BLENDER PLATE'S OBJECT — the plate is a video, so its objects are pixels every DOM gate is blind to; a
         # GPS satellite's wing tip sat under its label with all of them green (scripts/plate_qa.py)
         ("TYPE clear of Blender plate objects (every 3rd frame, census)", "plate_qa.py", (), 300, True, _has_blender),
@@ -283,11 +292,14 @@ DELIVERY_GATES = {
         # the only gates that judge the FILM rather than a frame: does it move, and does it move without vibrating
         # every hard cut of a kinetic film carries a move through it (runtime/cutCarry) — measured on out.mp4; deliver.py's
         # fast check ran it and this list did not, so a review could pass a film the fast check refuses
-        ("SEAMS — cuts carry motion (out.mp4)", "seam_ledger.py", (), 300, True, None),
+        ("SEAMS — cuts carry motion (out.mp4)", "seam_ledger.py", (), 300, True, None, "fast"),
         # a list the voice names is shown as itself, read off the rendered frame (the fast check ran it; this did not)
-        ("NAMED OBJECTS on screen when the voice names them", "named_objects_qa.py", (), 300, True, None),
-        ("FILM ENERGY — motion, light, light arc (density measured)", "film_energy_qa.py", (), 300, True, None),
+        ("NAMED OBJECTS on screen when the voice names them", "named_objects_qa.py", (), 300, True, None, "fast"),
+        ("FILM ENERGY — motion, light, light arc (density measured)", "film_energy_qa.py", (), 300, True, None, "fast"),
         ("SHAKE — travelling vs vibrating", "shake_qa.py", (), 300, True, None),
+        # a PICTURE under a moving camera that steps instead of gliding — jitter_qa reads type, not pictures; ADVISORY
+        # until it has run clean across the corpus (the audit's step 4 makes it block)
+        ("PICTURES glide under a moving camera (ADVISORY)", "picture_glide_qa.py", (), 600, False, None),
         # a sharp change OFF the planned cuts (seams, coverage steps), as a strip to LOOK at: three defects of one film
         # passed every gate above (a framing jumping between render tabs, a light switching off, a mid-entrance cut)
         ("motion events off the plan (ADVISORY — look at _motion_events.jpg)", "motion_events_qa.py", (), 300, False, None),
@@ -295,7 +307,7 @@ DELIVERY_GATES = {
         ("one staging as the film's device (ADVISORY — look at _repetition.jpg)", "repetition_qa.py", (), 300, False, None),
         # a film with a drawing style: did the DRAWING change, on every beat, and not only its colours (scripts/style_qa.py)
         ("STYLE drawn, not recoloured (every beat, styled vs unstyled)", "style_qa.py", (), 600, True, _styled),
-        ("rhythm", "rhythm_qa.py", (), 240, True, None),
+        ("rhythm", "rhythm_qa.py", (), 240, True, None, "fast"),
         ("teaching order", "pedagogy_qa.py", (), 240, True, None),
         ("frame-safe (ADVISORY — border ink; known inverted, see above)", "frame_safe_qa.py", (), 240, False, None),
         # 600 s like text_safe_qa: a cold proof of a 25-beat film is two renders a beat (3-11 min measured on a busy
@@ -309,24 +321,41 @@ DELIVERY_GATES = {
     # made from must be the pages as they are now, not as they were when someone last ran it.
     "html": [
         ("keyframes, blank/overflow/caption zone, glide + sync audit", "keyframe_qa.py", (), 900, True, None),
+        # pages under their own camera and the image slides' Ken Burns, read from the pixels (spans from _plan.json)
+        ("PICTURES glide under a moving camera (ADVISORY)", "picture_glide_qa.py", (), 600, False, None),
         ("validate", "validate.py", (), 240, True, None),
-        ("A/V", "check_av.py", (), 240, True, None),
-        ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", (), 300, True, None),
+        ("A/V", "check_av.py", (), 240, True, None, "fast"),
+        ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", (), 300, True, None, "fast"),
         # type that TREMBLES in the delivered pixels: keyframe_qa's glide audit judges a RULE (will Chrome snap this
         # baseline?) and nothing read the encoded film — a page's own camera, a matrix3d reveal, the image slides'
         # Ken Burns. jitter_qa reads each line against its true path (scripts/jitter_html.py builds the census)
-        ("TYPE trembles in the pixels (pages + Ken Burns, every frame)", "jitter_qa.py", (), 600, True, None),
+        ("TYPE trembles in the pixels (pages + Ken Burns, every frame)", "jitter_qa.py", (), 600, True, None, "full"),
         # a CAPTION that melts into a busy photograph: every type gate measures the page's own type, none the burned
         # caption against the pixels behind it — a 1:1 film's dark caption over a bee close-up shipped with all of
         # them green (scripts/caption_contrast_qa.py reads out.mp4 where render.py recorded each caption)
         ("CAPTIONS read on their ground (delivered pixels)", "caption_contrast_qa.py", (), 300, True, None),
-        ("rhythm", "rhythm_qa.py", (), 240, True, None),
+        ("rhythm", "rhythm_qa.py", (), 240, True, None, "fast"),
         ("teaching order", "pedagogy_qa.py", (), 240, True, None),
         ("voice (ADVISORY — always exits 0)", "voice_qa.py", (), 240, False, None),
         ("banding (ADVISORY — CAMBI on the delivered file)", "banding_qa.py", (), 600, False, None),
         ("review sheets: every beat at 30/60/90 % + the ends (ADVISORY — LOOK at _review/)", "review_sheet.py", (), 600, False, None),
     ],
 }
+
+# A PROMO FILM (scripts/promo_film.py: promo.json, no storyboard) had no delivery gate at all: the slide-maker promo
+# reached the user with two rewinds only the table check could have seen and it never ran on the picture. It has no
+# review (no beats, no ledger), so every row is fast or full.
+_ROWS["promo"] = [
+    ("the promo table (shots, cuts, recordings, outro)", "promo_film.py", ("{dir}", "--check"), 120, True, None, "fast"),
+    ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", ("{video}",), 300, True, None, "fast"),
+    # advisory until the corpus reads clean: a loop of only two cycles cannot yet be told from an action done twice
+    ("REWIND — the picture never goes back (ADVISORY)", "rewind_qa.py", ("{video}", "--plan", "{dir}/_plan.json"), 300,
+     False, None, "fast"),
+    # a promo has no board to build a census from: its own census.json.gz, else NOT MEASURED (never a pass)
+    ("TYPE trembles in the pixels (the film's own census)", "jitter_qa.py",
+     ("--clip", "{video}", "--truth", "{dir}/census.json.gz"), 900, True, None, "full"),
+]
+DELIVERY_GATES = {tier: [Gate(*r) for r in rows] for tier, rows in _ROWS.items()}
 
 
 def gate_name(script, args=()):
@@ -337,8 +366,8 @@ def gate_name(script, args=()):
 def delivery_gates(out_dir):
     """[(label, script, args, timeout, blocking)] — the DELIVERY_GATES of this film's tier that apply to it; [] for a
     film with no authored page (film_tier None)."""
-    return [(lab, s, a, t, b) for lab, s, a, t, b, ap in DELIVERY_GATES.get(film_tier(out_dir)) or ()
-            if ap is None or ap(out_dir)]
+    return [(g.label, g.script, g.args, g.timeout, g.blocking) for g in DELIVERY_GATES.get(film_tier(out_dir)) or ()
+            if g.applies is None or g.applies(out_dir)]
 
 
 def routes_dimension(path=None, prefix="S"):

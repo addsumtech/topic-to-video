@@ -191,12 +191,21 @@ def judge_span(video, a, b, W, H, fps):
 
 
 def spans_of(out_dir, spec=None):
-    """Each beat's frames, seams excluded: a narrated film's render record, or a promo film's shot table."""
+    """Each beat's frames, seams excluded: a narrated film's render record, else the _plan.json every renderer writes
+    (render.py's html films had no spans at all, so no picture of theirs was ever judged), else a promo film's table."""
     rec = os.path.join(out_dir, ".render_record.json")
     if spec is None and os.path.isfile(rec):
         r = json.load(open(rec, encoding="utf-8"))
         return [(k + 1, int(a) + SEAM, int(b) - SEAM) for k, (a, b, *_) in enumerate(r["segments"])]
-    tbl = json.load(open(spec or os.path.join(out_dir, "promo.json"), encoding="utf-8"))
+    plan = os.path.join(out_dir, "_plan.json")
+    if spec is None and os.path.isfile(plan) and not os.path.isfile(os.path.join(out_dir, "promo.json")):
+        segs = json.load(open(plan, encoding="utf-8")).get("segments") or []
+        return [(k + 1, int(sg["start"]) + SEAM, int(sg["end"]) - SEAM) for k, sg in enumerate(segs)
+                if sg.get("kind") != "loop"]
+    path = spec or os.path.join(out_dir, "promo.json")
+    if not os.path.isfile(path):
+        raise RuntimeError("no render record, _plan.json or promo.json in %s — re-render to write the plan" % out_dir)
+    tbl = json.load(open(path, encoding="utf-8"))
     out, t = [], 0
     for k, sh in enumerate(tbl["shots"]):
         d = int(round(sh["dur"]))
@@ -204,6 +213,30 @@ def spans_of(out_dir, spec=None):
         if sh.get("kind") in ("page", "object", "wall"):
             out.append((k + 1, t + 8, t + d - 8))
         t += d
+    return out
+
+
+# registers that carry a camera of their own (a stage the camera travels through), judged whatever the beat's camera
+_OWN_CAMERA = ("WorldStage", "LivingMap", "CardStage")
+
+
+def camera_beats(out_dir):
+    """{beat (1-based): why it is judged} for a narrated board: a beat whose authored camera moves (push/pull, a
+    handoff) or whose register is a stage with its own camera. None when there is no board (a promo, a clip). On every
+    other beat what moves is the beat's own content — a travelling wave, an exploded part — and the tiles read that
+    as steps: on ANC, 7 of its 9 flags were beats with no camera at all (particles and parts in motion)."""
+    try:
+        board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    out = {}
+    for k, sl in enumerate(board.get("slides") or []):
+        cam = sl.get("camera") if isinstance(sl.get("camera"), dict) else {}
+        shot = str(sl.get("shot") or "")
+        if cam.get("move") not in (None, "hold"):
+            out[k + 1] = "camera %s" % cam["move"]
+        elif any(n in shot for n in _OWN_CAMERA):
+            out[k + 1] = "%s's own camera" % shot
     return out
 
 
@@ -260,13 +293,22 @@ def main(argv):
         video = argflag(argv, "video", os.path.join(out_dir, "out.mp4"))
         W, H, n, fps = _probe(video)
         spec = argflag(argv, "spec", None)
-        spans = spans_of(out_dir, os.path.join(out_dir, spec) if spec else None)
+        try:
+            spans = spans_of(out_dir, os.path.join(out_dir, spec) if spec else None)
+        except RuntimeError as e:
+            print("[picture_glide] NOT MEASURED — %s" % e)
+            return 2
     else:
         print(__doc__.strip().splitlines()[0])
         return 2
-    bad, judged = [], 0
+    cams = camera_beats(out_dir) if "--clip" not in argv and not os.path.isfile(os.path.join(out_dir, "promo.json")) else None
+    bad, judged, short = [], 0, []
     for beat, a, b in spans:
+        if cams is not None and beat not in cams:
+            print("  beat %2d  frames %d-%d  no camera move — what moves is the beat's own content (not judged)" % (beat, a, b))
+            continue
         if b - a < 14:
+            short.append(beat)                  # counted and said below: a path needs 14 frames, a flash shot has fewer
             continue
         r = judge_span(video, a, b, W, H, fps)
         if r is None:
@@ -286,8 +328,9 @@ def main(argv):
     if not judged:
         print("[picture_glide] NOTHING TO JUDGE — no beat moves a textured picture")
         return 2
-    print("[picture_glide] %s — %d of %d beat(s) judged%s" % ("FAIL" if bad else "OK", judged, len(spans),
-                                                             ", stepping: %s" % bad if bad else ""))
+    print("[picture_glide] %s — %d of %d beat(s) judged%s%s" % ("FAIL" if bad else "OK", judged, len(spans),
+                                                               ", stepping: %s" % bad if bad else "",
+                                                               "; too short to judge: %s" % short if short else ""))
     return 1 if bad else 0
 
 

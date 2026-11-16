@@ -13,6 +13,7 @@ import {PageCam, Ground, type CamKey, type Macro} from './PageCam';
 import {Layers, OVERLAY_KINDS, type LayerSpec} from './Layers';
 import {ChapterCard, FlashCut, CaptionStrip, BrandOpen, RecallOutro, OutroLockup, carryStyle} from './Cards';
 import {Statement, Compare, Montage, Subtitles, throughStyle, type Region, type Sub} from './Shots';
+import {TypeGlideAudit} from '../runtime/textSafe';
 import {ObjectShot, WallShot, StageOutro, type StageItem, type WallTile, type FeatureLabel, type World, type OutroObject, type StageLink} from './Stage';
 
 type Cut = 'carry' | 'flash' | 'hard' | 'through' | 'morph';
@@ -31,7 +32,9 @@ export type Shot =
   | {kind: 'wall'; dur: number; world?: World; tiles: WallTile[]; cols?: number; tile?: number; gap?: number; plane?: 'floor' | 'wall';
      from?: {x: number; y: number}; to?: {x: number; y: number}; label?: {text: string; sub?: string; at?: number; on?: 'corner' | 'plane'; size?: number}; cut?: Cut};
 
-export type PromoProps = {look?: Partial<Look>; shots: Shot[]; cut?: Cut; subtitles?: Sub[]};
+// `typeGlide` arms the type census (runtime/textSafe TypeGlideAudit) for scripts/text_safe_qa.py --promo: a promo's own
+// type (statements, chapter cards, outro, subtitles) was in no census at all. Inert without it, like Film's.
+export type PromoProps = {look?: Partial<Look>; shots: Shot[]; cut?: Cut; subtitles?: Sub[]; typeGlide?: boolean};
 
 export const promoDuration = (p: PromoProps) => {
   if (!p?.shots?.length) throw new Error('PromoFilm: no shots');
@@ -116,7 +119,7 @@ const BackdropOutro: React.FC<{under: React.ReactNode; lockup: React.ReactNode; 
   );
 };
 
-export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', subtitles = []}) => {
+export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', subtitles = [], typeGlide = false}) => {
   const L: Look = {...DEFAULT_LOOK, ...(look ?? {})};
   for (const k of ['accent', 'accentInk', 'paper', 'ground'] as const) {
     if (!/^#[0-9a-fA-F]{6}$/.test(L[k])) throw new Error(`PromoFilm: look.${k} must be #rrggbb (got ${L[k]})`);
@@ -204,6 +207,7 @@ export const PromoFilm: React.FC<PromoProps> = ({look, shots, cut = 'carry', sub
         {shots.map((_, i) => (cutInto(i) === 'flash' ? (
           <Sequence key={`fl${i}`} from={starts[i] - 5} durationInFrames={10}><FlashCut /></Sequence>
         ) : null))}
+        {typeGlide ? <TypeGlideAudit /> : null}
       </AbsoluteFill>
     </LookContext.Provider>
   );

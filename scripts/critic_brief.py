@@ -715,7 +715,7 @@ def closeup_lines(out_dir):
 
 def _advisory():
     import critic_ledger as _cl
-    return {s for rows in _cl.DELIVERY_GATES.values() for _l, s, _a, _t, blocking, _ap in rows if not blocking}
+    return {g.script for rows in _cl.DELIVERY_GATES.values() for g in rows if not g.blocking}
 
 
 ADVISORY_GATES = _advisory()

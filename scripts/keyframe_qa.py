@@ -514,6 +514,9 @@ _GLIDE_JS_TMPL = r"""(function(nFrames, plist){
       // the VISIBLE box for the sync audit: inside the frame and every clipping ancestor (a word rising
       // through a mask is not readable while its first row of pixels peeks out)
       var cl = Math.max(0, r.left), ct = Math.max(0, r.top), cr = Math.min(VW, r.right), cb = Math.min(VH, r.bottom);
+      // ...and the CLIP itself (`c`): jitter_qa keeps its window inside it, so a clipping plate's static border is
+      // never in the margin of a line scrolling near its edge
+      var kl = 0, kt = 0, kr = VW, kb = VH, clipped = false;
       for (var j = chain.length - 1; j >= 0; j--){
         var node = chain[j], cs = getComputedStyle(node);
         if (node === el) selfCs = cs;
@@ -525,6 +528,8 @@ _GLIDE_JS_TMPL = r"""(function(nFrames, plist){
         if (node !== el && (cs.overflowX !== 'visible' || cs.overflowY !== 'visible')){
           var c = node.getBoundingClientRect();
           cl = Math.max(cl, c.left); ct = Math.max(ct, c.top); cr = Math.min(cr, c.right); cb = Math.min(cb, c.bottom);
+          kl = Math.max(kl, c.left); kt = Math.max(kt, c.top); kr = Math.min(kr, c.right); kb = Math.min(kb, c.bottom);
+          clipped = true;
         }
       }
       if (hidden) continue;
@@ -549,6 +554,7 @@ _GLIDE_JS_TMPL = r"""(function(nFrames, plist){
                  ly: Math.round(ly), px: Math.round((parseFloat(selfCs.fontSize) || 0) * 100) / 100};
       var vis = Math.max(0, cr - cl) * Math.max(0, cb - ct) / (r.width * r.height);
       if (vis < 0.995) rec.v = Math.round(vis * 100) / 100;
+      if (clipped) rec.c = [kl, kt, kr, kb].map(function(q){ return Math.round(q * 10) / 10; });
       if (tb){ rec.tx = Math.round(tb.l * 1e4) / 1e4; rec.ty = Math.round(tb.t * 1e4) / 1e4;
                rec.tw = Math.round((tb.r - tb.l) * 1e4) / 1e4; rec.th = Math.round((tb.b - tb.t) * 1e4) / 1e4; }
       var fl = steps ? 's' : '';

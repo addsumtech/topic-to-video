@@ -123,6 +123,13 @@ def returns(F, a, z):
             nl = int(nl_t[b])
             if peak >= b:
                 continue
+            # A LOOP WITH A LONG PERIOD: a wave field, a particle stream or a card's ambient sway whose period is too long
+            # for two returns to fit in the window. A rewind returns ONCE; a loop leaves again and comes back again one
+            # period later (or did so one period before). Read on the whole film, past this segment's ends: frames across
+            # a real cut cannot repeat the cycle, and a detected "cut" inside a loop is no cut (ANC's wave and particle
+            # shots, QR's swaying card: every RETURN there was this).
+            if _cycles_again(F, idx[i], idx[i + 1 + b] - idx[i], np.flatnonzero(left_t[b])):
+                continue
             # SOMETHING CAME AND WENT is not a rewind: a label shown and then cleared leaves its ground as it found it,
             # and its tiles carry MORE structure at the furthest frame than at either end. A reset is the reverse (the
             # content vanishes, then returns) and a push that returns keeps its structure throughout. On the QR and
@@ -136,6 +143,30 @@ def returns(F, a, z):
                      "(furthest at frame %d) and ALL come back to it at frame %d — a reset, a ping-pong push or a move that turns back"
                      % (a, z, nl, idx[i], idx[i + 1 + peak], idx[i + 1 + b])}]
     return first or []
+
+
+def _cycles_again(F, f0, lag, ks):
+    """True when tiles `ks`, having left the state of frame f0 and come back after `lag` frames, also complete a second
+    cycle — leave again and return again — in the `lag` frames after the return, or completed one in the `lag` frames
+    before f0. A push that returns and then holds, or a line cleared and retyped, has no second cycle."""
+    if lag < 4 or not len(ks):
+        return False
+    s0 = tiles(F[[f0]])[0][ks]
+    tol = max(2, lag // 10)
+    for lo, hi, end in ((f0 + lag, f0 + 2 * lag, f0 + 2 * lag), (f0 - lag, f0, f0 - lag)):
+        if lo < 0 or hi >= len(F):
+            continue
+        span = list(range(lo, hi + 1, STEP))
+        D = np.abs(tiles(F[span])[:, ks] - s0[None]).mean(axis=2)          # (t, k)
+        exc = D.max(axis=0)
+        if (exc >= EXCURSION).mean() < 0.5:
+            continue                                     # most did not leave again: no second cycle on this side
+        near = list(range(max(0, end - tol), min(len(F), end + tol + 1)))
+        De = np.abs(tiles(F[near])[:, ks] - s0[None]).mean(axis=2)
+        # most of the regions, not all: a loop keeps looping while a label lands on part of it (ANC's "same delay")
+        if ((De <= NEAR).mean(axis=1) >= 0.5).any():
+            return True
+    return False
 
 
 def judge(path, plan=None, cuts=None):
@@ -177,6 +208,8 @@ def calibrate():
         pr.stdin.close(); pr.wait()
         return p
 
+    wave = np.tile(base[:, :80], (1, 8))                 # a texture that repeats every 80 px: scrolled, it loops
+
     def shift(dx):
         return np.roll(base, int(round(dx)), axis=1)
     cases = {
@@ -185,6 +218,11 @@ def calibrate():
         "steady push": (lambda f: shift(f * 0.8), 90, False),
         "hold": (lambda f: base, 90, False),
         "loop (5 turns)": (lambda f: shift(30 * np.sin(2 * np.pi * f / 18)), 90, False),
+        # a field travelling one period per 52 frames returns ONCE per period (a sway returns twice): only one return fits
+        # in the 90-frame window, the second comes after it (ANC's wave and particle shots)
+        "travelling wave (period 52)": (lambda f: np.roll(wave, int(round(f * 80 / 52)), axis=1), 160, False),
+        # a push that returns and then HOLDS still leaves once and returns once: no second cycle, still a rewind
+        "ping-pong, then a hold": (lambda f: shift(40 * np.sin(np.pi * min(f, 50) / 50)), 150, True),
         # a label shown for a second on a plain ground, then cleared: an element that came and went, not a rewind
         "label shown, then cleared": (lambda f: np.where((20 <= f < 50) & (np.arange(640)[None, :] < 320)
                                                           & (np.arange(360)[:, None] < 180), base, 90), 90, False),

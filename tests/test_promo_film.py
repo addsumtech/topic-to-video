@@ -692,8 +692,9 @@ def test_a_film_whose_look_repeats_another_is_told(tmp_path, monkeypatch):
 
 def test_glide_judges_the_camera_not_a_recordings_own_motion(tmp_path, monkeypatch):
     """slide-maker's printed deck: four Blender plates played under a HELD camera failed the glide gate as "the CAMERA
-    steps" while their own frames changed smoothly. A held camera over a recording is not judged on the recording; a
-    moving one is re-judged over its still poster (no video in the proxy), and fails only if THAT fails."""
+    steps" while their own frames changed smoothly. A held camera over a recording is judged on the RECORDING (its own
+    frames over the span played), not on the camera; a moving one is re-judged over its still poster (no video in the
+    proxy), and fails only if THAT fails."""
     import json
     import picture_glide_qa as pg
     held = {"kind": "page", "dur": 90, "src": "caps/p.png", "video": "caps/p.mp4", "w": 960, "h": 540,
@@ -713,6 +714,9 @@ def test_glide_judges_the_camera_not_a_recordings_own_motion(tmp_path, monkeypat
         return pf.glide_check(str(tmp_path), str(sp), "out.mp4")
 
     assert run(held, None) == 0 and seen == []                       # held: nothing re-rendered, nothing failed
+    # ...and the recording under a held camera is judged ITSELF, over the span the shot plays of it
+    assert run(held, {"rms": 0.4, "shimmer": 0.3}) == 1 and seen == []
+    assert run(held, {"rms": 0.02, "shimmer": 0.0}) == 0
     assert run(moving, {"rms": 0.05, "shimmer": 0.01}) == 0
     assert seen and "video" not in seen[0] and seen[0]["src"] == "caps/p.png"
     assert run(moving, {"rms": 0.3, "shimmer": 0.2}) == 1            # the camera itself steps: still a failure

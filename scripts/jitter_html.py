@@ -330,6 +330,10 @@ def film_census(out_dir, video):
                     for key in ("v", "fl", "g"):
                         if key in ln:
                             rec[key] = ln[key]
+                    if ln.get("c"):                       # the clip, into frame px like the box
+                        c0, c1, c2, c3 = ln["c"]
+                        cx, cy, cw, ch = place(c0, c1, c2 - c0, c3 - c1)
+                        rec["c"] = [cx, cy, cx + cw, cy + ch]
                     lines.append(rec)
                 census[f] = {"lines": lines}
             if per is None and nf - tail - lead >= 2:

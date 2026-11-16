@@ -31,7 +31,7 @@ def _film(tmp_path, meta=None, marker=False):
     return str(out)
 
 
-def _ok_runner(gate, out_dir):
+def _ok_runner(gate, out_dir, *_argv):
     return 0, "[%s] OK" % gate
 
 
@@ -49,14 +49,14 @@ def test_a_film_whose_review_has_not_passed_is_not_handed_over(tmp_path, monkeyp
 def test_a_user_waiver_never_passes_the_gates_no_one_may_waive(tmp_path):
     out = _film(tmp_path, meta={"delivery_waivers": {"check_av": "looks fine to me", "flash_qa": "a deliberate strobe"}})
     bad = {"check_av": (1, "[check_av] FAIL drift 0.6s"), "flash_qa": (1, "[flash] FAIL")}
-    rec = dc.check(out, run=lambda g, o: bad.get(g, (0, "ok")))
+    rec = dc.check(out, run=lambda g, o, *_a: bad.get(g, (0, "ok")))
     st = {g["name"]: g["status"] for g in rec["gates"]}
     assert st["check_av"] == "fail" and st["flash_qa"] == "waived" and not rec["ok"]
 
 
 def test_the_review_and_the_fast_check_judge_the_same_film_gates():
     """seam_ledger and named_objects_qa ran in deliver_check's fast tier and in no list the review records"""
-    full = {s[:-3] for _l, s, _a, _t, _b, _ap in critic_ledger.DELIVERY_GATES["remotion"]}
+    full = {g.script[:-3] for g in critic_ledger.DELIVERY_GATES["remotion"]}
     assert set(dc.gates_for({"renderer": "remotion"}, "full")) <= full
     assert "caption_breaks_qa" in full
 
@@ -124,3 +124,42 @@ def test_rewind_controls_separate():
     push, a hold, a loop, a label that came and went and a cut inside one take are not"""
     import rewind_qa
     assert rewind_qa.calibrate() == 0
+
+
+def test_type_held_cut_while_it_is_read_is_found_and_a_reveal_is_not():
+    """the owner's third defect (字出框): a readable line resting cut by its window, frame after frame"""
+    import text_safe_qa as tsq
+
+    def film(vs, o=1.0):
+        return {str(f): {"lines": [dict({"k": "/a", "t": "Experts", "o": o}, **({"v": v} if v is not None else {}))]}
+                for f, v in enumerate(vs)}
+    held = film([0.4] * 20)
+    assert [(r["a"], r["b"]) for r in tsq.judge_cut_while_read(held)] == [(0, 19)]
+    reveal = film([i / 20 for i in range(20)])                 # rising through a mask: not a cut
+    assert tsq.judge_cut_while_read(reveal) == []
+    assert tsq.judge_cut_while_read(film([0.4] * 11)) == [], "shorter than CUT_READ_FRAMES"
+    assert tsq.judge_cut_while_read(film([0.4] * 20, o=0.5)) == [], "fading, not being read"
+    assert tsq.judge_cut_while_read(film([None] * 20)) == [], "fully visible (the census leaves v out)"
+    assert tsq.judge_cut_while_read(film([0.1] * 40)) == [], "waiting under its mask: leading shows, not ink"
+    assert tsq.judge_cut_while_read(film([0.9] * 40)) == [], "a rise wrapper clipping only leading"
+
+
+def test_picture_glide_judges_the_beats_a_camera_moves(tmp_path):
+    """on ANC, 7 of picture_glide's 9 flags were beats with no camera (a travelling wave, an exploded part): the tiles
+    read the beat's own content as steps. Only a moving camera, or a register with its own, is judged."""
+    import picture_glide_qa as pg
+    (tmp_path / "storyboard.json").write_text(json.dumps({"meta": {}, "slides": [
+        {"shot": "PressureWave"}, {"shot": "PatentPlate", "camera": {"move": "push"}},
+        {"shot": "X", "camera": {"move": "hold"}}, {"shot": "WorldStage"}]}))
+    assert set(pg.camera_beats(str(tmp_path))) == {2, 4}
+    assert pg.camera_beats(str(tmp_path / "none")) is None
+
+
+def test_picture_glide_reads_any_renderers_plan(tmp_path):
+    import picture_glide_qa as pg
+    (tmp_path / "_plan.json").write_text(json.dumps({"segments": [{"start": 0, "end": 100, "kind": "shot"},
+                                                                    {"start": 100, "end": 150, "kind": "loop"}]}))
+    assert pg.spans_of(str(tmp_path)) == [(1, pg.SEAM, 100 - pg.SEAM)]
+    import pytest
+    with pytest.raises(RuntimeError):
+        pg.spans_of(str(tmp_path / "nothing"))

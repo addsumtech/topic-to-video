@@ -364,3 +364,15 @@ def test_type_an_author_distorts_under_a_filter_is_named_and_not_judged():
                             "textSafe.tsx"), encoding="utf-8").read()
     assert re.search(r"c\.spatial && [^\n]*closest\?\.\('\[data-distort\]'\)", src), \
         "the census grants `d` only under a spatial filter"
+
+
+def test_a_line_at_its_clips_edge_is_not_measured_and_its_window_keeps_inside_the_clip():
+    """a code plate scrolling 3.00 px a frame read as a 0.93 px tremble: the window's margin held the plate's static
+    border. The census's `c` (the clip) keeps the window inside it; a line within PAD of the clip is not judged."""
+    line = lambda y: {"k": "a", "t": "x = 1", "x": 100, "y": y, "w": 200, "h": 20, "c": [90, 100, 400, 500]}
+    census = {0: {"lines": [line(300)]}, 1: {"lines": [line(297)]}, 2: {"lines": [line(104)]}, 3: {"lines": [line(101)]}}
+    out, skip = jq.pairs_from_census(census, 1920, 1080)
+    assert 0 in out and 1 not in out and 2 not in out          # 1->2 lands at the edge, 2->3 is at it
+    assert skip.get("at the edge of its clip (no margin for the window)") == 2
+    assert jq._window((100, 300, 200, 20), (100, 297, 200, 20), 1920, 1080, (90, 100, 400, 500))[0] == 92
+    assert jq._window((100, 300, 200, 20), (100, 297, 200, 20), 1920, 1080, (95, 100, 400, 500))[0] == 95
