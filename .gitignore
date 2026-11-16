@@ -20,3 +20,7 @@ remotion/.render.lock
 # tests/_tsprobe.py's scratch TypeScript (removed after each probe; left behind only by a killed run)
 remotion/tsprobe_*
 tests/_promo_ledger_test.json
+
+# local tool state and the root-level Remotion render cache (generated; 193 MB measured 2026-11-16)
+/.claude/
+/.remotion/
