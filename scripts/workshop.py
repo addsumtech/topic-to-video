@@ -8,6 +8,7 @@
     python3 scripts/workshop.py <out_dir> still <Name> [--props p.json] [--host ObjectStage] [--frame N] [--aspect 9:16]
     python3 scripts/workshop.py <out_dir> fidelity <Name> [--props p.json] [--host ObjectStage]  # vs its references
     python3 scripts/workshop.py <out_dir> motion <Name> [--props p.json]  # does it keep moving? (the film gate's floor)
+    python3 scripts/workshop.py <out_dir> clip <Name> [--props p.json] [--aspect 9:16] [--frames 0-89]  # -> clips/<Name>.mp4
     python3 scripts/workshop.py <out_dir> media add <file> [--name n] [--at s] [--replace]   # a picture, a clip, a frame of one
     python3 scripts/workshop.py <out_dir> new-component <Name> --means "<what the viewer must see>"   # HTML tier
     python3 scripts/workshop.py <out_dir> still <Component> [--attrs a.json] [--p 0.9] [--aspect 16:9|9:16]
@@ -2133,6 +2134,27 @@ def measure_motion(out_dir, name, props=None, aspect=None, dna=None):
     return {"p75": p75, "floor": fe.MOTION_P75_FLOOR, "ok": p75 >= fe.MOTION_P75_FLOOR}
 
 
+def render_clip(out_dir, name, props=None, aspect=None, dna=None, frames=None):
+    """<out_dir>/clips/<name>.mp4 — a built shot or object rendered at full size, silent, for a film that is NOT
+    assembled by the storyboard renderer: the director path builds its film as one page and places the kit's lit,
+    material and 3D work into it as clips (SKILL.md step 6). Same composition and props `still` and `motion` use."""
+    comp, payload, _dur = still_plan(out_dir, name, props, aspect=aspect, dna=dna)
+    outd = os.path.join(os.path.abspath(out_dir), "clips")
+    os.makedirs(outd, exist_ok=True)
+    pf, mp4 = os.path.join(outd, name + ".props.json"), os.path.join(outd, name + ".mp4")
+    with open(pf, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False)
+    cmd = ["npx", "remotion", "render", "src/index.ts", comp, mp4, "--gl=angle", "--log=error", "--muted",
+           "--props=" + pf, "--public-dir=" + os.path.abspath(out_dir)]
+    if frames:
+        cmd.append("--frames=" + frames)
+    r = _c.run_render(subprocess.run, cmd, cwd=REMOTION, capture_output=True, text=True, **run_kwargs(out_dir))
+    if r.returncode != 0 or not os.path.exists(mp4):
+        import cjk_type_qa
+        raise WorkshopError(["the clip render of %s failed: %s" % (name, cjk_type_qa._why_it_refused(r.stdout + r.stderr))])
+    return mp4
+
+
 def still_plan(out_dir, name, props=None, host="ObjectStage", aspect=None, slot=None, dna=None):
     """(composition, props, duration) that render `name` the way `still` does — shared with the fidelity sheet.
 
@@ -2242,6 +2264,12 @@ def main(argv=None):
     p.add_argument("--props")
     p.add_argument("--aspect")
     p.add_argument("--dna")
+    p = sub.add_parser("clip", help="render a built shot or object to <out_dir>/clips/<Name>.mp4 (full size, silent)")
+    p.add_argument("name")
+    p.add_argument("--props")
+    p.add_argument("--aspect")
+    p.add_argument("--dna")
+    p.add_argument("--frames", help="a frame range, e.g. 0-89")
     p = sub.add_parser("media", help="this film's own pictures and clips, measured off their files (workshop/assets/media.ts)")
     p.add_argument("action", choices=["add", "list"])
     p.add_argument("src", nargs="?")
@@ -2300,6 +2328,12 @@ def main(argv=None):
                 "it settles and stops. Give it an idle that belongs to its picture (footage playing, a strip running, "
                 "a slow lean-in under its pixels, `life()` from runtime/motion) — a still frame reads as a slide"))
             return 0 if m["ok"] else 1
+        if a.cmd == "clip":
+            props = json.loads(_read(a.props)) if a.props else None
+            mp4 = render_clip(a.out_dir, a.name, props, aspect=a.aspect, dna=direction_dna(a.dna) if a.dna else None,
+                              frames=a.frames)
+            print("[workshop] %s -> %s" % (a.name, mp4))
+            return 0
         if a.cmd == "media":
             if a.action == "list":
                 for k, e in sorted(media_registry(a.out_dir).items()):

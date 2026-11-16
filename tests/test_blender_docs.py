@@ -13,7 +13,7 @@ def _read(rel):
 
 
 def test_skill_md_points_at_the_plate_tier():
-    s = _read("SKILL.md")
+    s = _read("SKILL.md") + _read("references/classic-pipeline.md")  # the classic workflow moved there
     for name in ("scripts/blender_plate.py", "scripts/plate_qa.py", "references/blender-plates.md"):
         assert name in s, name
 

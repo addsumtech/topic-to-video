@@ -250,7 +250,7 @@ def test_a_missing_file_is_skipped_for_the_next_candidate_without_waiting(tmp_pa
 def test_the_documentary_step_tells_the_author_a_failed_request_is_not_an_empty_search():
     """The workflow's own instruction is what an author acts on: it said "if fetch returns None, degrade", and
     with no word about a request that never got an answer, a rate limit read as "degrade the beat"."""
-    skill = open(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"), encoding="utf-8").read()
+    skill = open(os.path.join(os.path.dirname(__file__), "..", "references", "classic-pipeline.md"), encoding="utf-8").read()  # the classic workflow (moved from SKILL.md)
     step = skill[skill.index("4c. **Documentary (REAL-image) fetch"):skill.index("4d. **Author the pages")]
     assert "FetchError" in step and "exit 2" in step, "step 4c does not name the failed-request outcome"
     assert "run it again" in step and "never degrade the beat" in step, (

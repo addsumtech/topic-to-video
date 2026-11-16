@@ -17,7 +17,7 @@ def _read(*p):
 
 
 def test_style_scripts_are_indexed_and_documented():
-    skill, ps = _read("SKILL.md"), _read("references", "pipeline-scripts.md")
+    skill, ps = _read("SKILL.md") + _read("references", "classic-pipeline.md"), _read("references", "pipeline-scripts.md")
     for s in ("style_spec.py", "style_sample.py", "style_qa.py", "style_coverage.py"):
         assert s in skill, "SKILL.md does not index %s" % s
         assert re.search(r"scripts/%s" % re.escape(s), ps), "pipeline-scripts.md has no entry for %s" % s

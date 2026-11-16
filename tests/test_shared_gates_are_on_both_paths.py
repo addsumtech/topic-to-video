@@ -59,7 +59,7 @@ def _workflow_lead_ins(text, gate):
 
 @pytest.mark.parametrize("gate", SHARED_NARRATION_GATES)
 def test_a_shared_gate_is_not_introduced_by_a_single_tier_sentence(gate):
-    skill = open(os.path.join(_ROOT, "SKILL.md"), encoding="utf-8").read()
+    skill = open(os.path.join(_ROOT, "references", "classic-pipeline.md"), encoding="utf-8").read()  # the classic workflow (moved from SKILL.md)
     # the WORKFLOW mention, not the tool-list one: the workflow is the path an author walks
     hits = [m.start() for m in re.finditer(re.escape(gate), skill)]
     assert hits, "%s is not mentioned in SKILL.md at all" % gate

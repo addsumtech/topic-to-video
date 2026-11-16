@@ -44,7 +44,7 @@ def test_the_critic_brief_lists_what_the_film_built(tmp_path, monkeypatch):
 
 
 def test_skill_md_names_the_workshop_the_build_list_and_promotion():
-    s = _read("SKILL.md")
+    s = _read("SKILL.md") + _read("references/classic-pipeline.md")  # the classic workflow moved there
     for needle in ("scripts/workshop.py", "meta.build_list", "scripts/promote.py", "references/object-authoring.md",
                    "PROMOTION IS THE USER'S CHOICE"):
         assert needle in s, needle

@@ -80,7 +80,7 @@ def test_it_reads_only_what_BOTH_tiers_carry():
 def test_the_workflow_requires_it_before_the_script_checkpoint():
     """A capability nothing calls is indistinguishable from an absent one — the failure this repo keeps
     finding. The instruction it replaces actively FORBADE audio before the sign-off."""
-    skill = open(os.path.join(_ROOT, "SKILL.md"), encoding="utf-8").read()
+    skill = open(os.path.join(_ROOT, "references", "classic-pipeline.md"), encoding="utf-8").read()  # the classic workflow (moved from SKILL.md)
     assert "script_audition.py" in skill, "the workflow never tells anyone to run the audition"
     i_aud = skill.index("script_audition.py")
     i_chk = skill.index("present the full, critic-reviewed script")

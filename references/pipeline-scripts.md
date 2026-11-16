@@ -1136,3 +1136,15 @@ agent on the beats it points at.
   pooled across cores). Tunables in `meta`: `capture` (`cdp` default | `screenshot` to force the
   fallback), `chrome_workers` (parallel Chromes; default ≈ cores−1, capped 8), `jpeg_quality`
   (default 90). render prints a per-scene progress line + an in-place frame bar.
+
+## Director path (SKILL.md, the default since 2026-11-16)
+- `scripts/film_qc.py <film_dir>` — the director path's picture checks in one command: flash_qa, rewind_qa (against
+  `_plan.json`'s cuts), picture_glide_qa (`--video=` the plan's video) and empty_frame_qa on `<film_dir>/final.mp4`.
+  One line per check; exit 1 on any red, 2 when `_plan.json` or the video is missing.
+- `scripts/empty_frame_qa.py <film.mp4 | dir> [--json]` — a blank HOLD: the frame above the caption band under 3 %
+  occupied for >= 1 s (the closing 2 s exempt). Occupied = differs from the frame's dominant colour or sits on an
+  edge, closed outlines filled, so a light card on light paper and a big solid fill both count. Calibrated on six
+  films: it reported the two real holds and nothing else.
+- `scripts/workshop.py <film_dir> clip <Name> [--props p.json] [--aspect 9:16] [--frames a-b]` — render a workshop
+  shot or object to `<film_dir>/clips/<Name>.mp4` at full size, silent, so a film assembled outside the storyboard
+  renderer can place the kit's lit / material / 3D work in it.

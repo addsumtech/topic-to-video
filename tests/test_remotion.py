@@ -2755,6 +2755,8 @@ def test_every_remotion_capability_is_reachable_from_the_authoring_path():
     for rel in ("SKILL.md", "agents/shot-director.md", "agents/shot-critic.md",
                 "references/remotion-shot-authoring.md"):
         docs[rel] = open(os.path.join(root, rel), encoding="utf-8").read()
+    # SKILL.md's classic workflow moved to references/classic-pipeline.md (2026-11-16): the skill's docs are both
+    docs["SKILL.md"] += open(os.path.join(root, "references", "classic-pipeline.md"), encoding="utf-8").read()
     everything = "\n".join(docs.values())
 
     # Per DOCUMENT, not the union. A dispatched agent reads its OWN brief; naming a capability only in
@@ -2954,7 +2956,8 @@ def test_shot_proofs_rendered_checks_are_not_opt_in():
     assert 'if "--stills" in argv:' not in src, (
         "shot_proof still gates its rendered checks behind an opt-in --stills flag")
 
-    skill = open(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"), encoding="utf-8").read()
+    skill = (open(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"), encoding="utf-8").read()
+             + open(os.path.join(os.path.dirname(__file__), "..", "references", "classic-pipeline.md"), encoding="utf-8").read())
     assert "shot_proof.py <out_dir> --stills" not in skill, (
         "SKILL.md still tells the author to pass --stills, which no longer exists")
 

@@ -310,7 +310,8 @@ def test_the_reach_table_in_the_reference_names_exactly_the_code_s_routes():
 
 def test_the_director_and_the_skill_index_point_at_the_reach_table():
     director = open(os.path.join(_ROOT, "agents", "shot-director.md"), encoding="utf-8").read()
-    skill = open(os.path.join(_ROOT, "SKILL.md"), encoding="utf-8").read()
+    skill = (open(os.path.join(_ROOT, "SKILL.md"), encoding="utf-8").read()
+             + open(os.path.join(_ROOT, "references", "classic-pipeline.md"), encoding="utf-8").read())  # the classic workflow moved there
     for doc, name in ((director, "agents/shot-director.md"), (skill, "SKILL.md")):
         assert "remotion-shot-authoring.md` §F" in doc, "%s does not point at the reach table" % name
     for word in ("WorldStage", "`cut`", "optic", "HeadlineReveal", "EquationMorph", "FlowSankey", "FlightArcs"):

@@ -337,7 +337,8 @@ def test_the_docs_describe_the_pin_and_the_never_accepted_findings_the_code_enfo
         # the pin is the render id (sheet + out.mp4 + out.srt); a doc telling the reader to pin the sheet alone
         # writes exactly the pin critic_ledger.py now refuses
         assert "sha256 of _contact_sheet.png" not in src and "contact_sheet_sha256" not in src, rel
-    skill = open(os.path.join(_ROOT, "SKILL.md"), encoding="utf-8").read()
+    skill = (open(os.path.join(_ROOT, "SKILL.md"), encoding="utf-8").read()
+             + open(os.path.join(_ROOT, "references", "classic-pipeline.md"), encoding="utf-8").read())  # the classic workflow moved there
     # the code never accepts faithfulness/sourcing (S3 / H1) — and nothing else; A/V sync is check_av's gate
     assert cl.never_accepted() == {"S3"}
     assert "never on an A/V sync or faithfulness finding" not in skill
