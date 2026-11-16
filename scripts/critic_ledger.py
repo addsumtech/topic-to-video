@@ -297,9 +297,15 @@ _ROWS = {
         ("NAMED OBJECTS on screen when the voice names them", "named_objects_qa.py", (), 300, True, None, "fast"),
         ("FILM ENERGY — motion, light, light arc (density measured)", "film_energy_qa.py", (), 300, True, None, "fast"),
         ("SHAKE — travelling vs vibrating", "shake_qa.py", (), 300, True, None),
-        # a PICTURE under a moving camera that steps instead of gliding — jitter_qa reads type, not pictures; ADVISORY
-        # until it has run clean across the corpus (the audit's step 4 makes it block)
-        ("PICTURES glide under a moving camera (ADVISORY)", "picture_glide_qa.py", (), 600, False, None),
+        # a PICTURE under a moving camera that steps instead of gliding — jitter_qa reads type, not pictures. BLOCKING
+        # since the audit's step 4 (2026-11-16): beats where only content moves are not judged; on the corpus it keeps
+        # ANC's two shimmers (beats 7, 24), which its calibration called real — a film whose user accepts one waives it
+        ("PICTURES glide under a moving camera", "picture_glide_qa.py", (), 600, True, None),
+        # the picture GOES BACK — a reset, a push that returns, a cut that replays (the user: 回退). Promo-only until
+        # step 4; on the corpus it found ANC beat 13's zoom back to its opening (fixed at the source, coverage_plan)
+        # and two returns in slide-maker v2's tour, each confirmed on the frames, and no false one
+        ("REWIND — the picture never goes back", "rewind_qa.py", ("{video}", "--plan", "{dir}/_plan.json"), 300,
+         True, None, "fast"),
         # a sharp change OFF the planned cuts (seams, coverage steps), as a strip to LOOK at: three defects of one film
         # passed every gate above (a framing jumping between render tabs, a light switching off, a mid-entrance cut)
         ("motion events off the plan (ADVISORY — look at _motion_events.jpg)", "motion_events_qa.py", (), 300, False, None),
@@ -321,8 +327,11 @@ _ROWS = {
     # made from must be the pages as they are now, not as they were when someone last ran it.
     "html": [
         ("keyframes, blank/overflow/caption zone, glide + sync audit", "keyframe_qa.py", (), 900, True, None),
-        # pages under their own camera and the image slides' Ken Burns, read from the pixels (spans from _plan.json)
-        ("PICTURES glide under a moving camera (ADVISORY)", "picture_glide_qa.py", (), 600, False, None),
+        # pages under their own camera and the image slides' Ken Burns, read from the pixels (spans from _plan.json);
+        # a film rendered before plans were written is NOT MEASURED (re-render), never passed
+        ("PICTURES glide under a moving camera", "picture_glide_qa.py", (), 600, True, None),
+        ("REWIND — the picture never goes back", "rewind_qa.py", ("{video}", "--plan", "{dir}/_plan.json"), 300,
+         True, None, "fast"),
         ("validate", "validate.py", (), 240, True, None),
         ("A/V", "check_av.py", (), 240, True, None, "fast"),
         ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", (), 300, True, None, "fast"),
@@ -348,9 +357,9 @@ _ROWS = {
 _ROWS["promo"] = [
     ("the promo table (shots, cuts, recordings, outro)", "promo_film.py", ("{dir}", "--check"), 120, True, None, "fast"),
     ("FLASH — a frame unlike both neighbours (every frame)", "flash_qa.py", ("{video}",), 300, True, None, "fast"),
-    # advisory until the corpus reads clean: a loop of only two cycles cannot yet be told from an action done twice
-    ("REWIND — the picture never goes back (ADVISORY)", "rewind_qa.py", ("{video}", "--plan", "{dir}/_plan.json"), 300,
-     False, None, "fast"),
+    # blocking since step 4: a register that loops by design declares LOOP and its beat is skipped
+    ("REWIND — the picture never goes back", "rewind_qa.py", ("{video}", "--plan", "{dir}/_plan.json"), 300,
+     True, None, "fast"),
     # a promo has no board to build a census from: its own census.json.gz, else NOT MEASURED (never a pass)
     ("TYPE trembles in the pixels (the film's own census)", "jitter_qa.py",
      ("--clip", "{video}", "--truth", "{dir}/census.json.gz"), 900, True, None, "full"),

@@ -104,7 +104,8 @@ def test_a_promo_film_runs_its_own_rows_on_the_video_its_plan_names(tmp_path):
     assert dict(seen)["flash_qa"] == [video] and dict(seen)["rewind_qa"][0] == video
     st = {g["name"]: g for g in rec["gates"]}
     assert st["flash_qa"]["status"] == "waived", "promo.json's own delivery_waivers stand in for the board's"
-    assert st["rewind_qa"]["advisory"] and rec["ok"], "an advisory finding is recorded, and does not decide"
+    # BLOCKING since the audit's step 4 (2026-11-16): a rewind finding decides, as a flash would without its waiver
+    assert st["rewind_qa"]["status"] != "pass" and not st["rewind_qa"].get("advisory") and not rec["ok"], st["rewind_qa"]
     assert dc.gates_for({}, "full", "promo")[-1] == "jitter_qa"
 
 
@@ -121,5 +122,8 @@ def test_the_check_reads_the_review_table_and_no_list_of_its_own():
     for path in ("remotion", "html"):
         rows = [g for g in cl.DELIVERY_GATES[path] if g.stage in ("fast", "full")]
         assert dc.gates_for({}, "full", path) == [g.script[:-3] for g in rows]
-        assert all(not g.args for g in rows), "the check runs a gate on the folder alone"
+        # a gate runs on the folder alone, unless its row names {dir} / {video} (the rewind gate reads the film's video
+        # and its plan) — both the check and the review fill those in
+        assert all(not g.args or any("{dir}" in a or "{video}" in a for a in g.args) for g in rows), \
+            "a gate's arguments are the folder, or name it"
     assert not hasattr(dc, "GATES")

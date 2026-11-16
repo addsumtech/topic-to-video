@@ -64,8 +64,16 @@ def _run(script, out_dir, *args, timeout=240):
     """Run one gate and return its output (a GateOutput carrying its exit code). A gate that hangs must not take
     the brief with it — the brief is what a reviewer waits on, and six unbounded subprocesses is six ways to wait
     forever."""
+    # a row naming `{dir}` / `{video}` gets them filled, as deliver_check fills them (the rewind gate's rows): passed
+    # literally, `rewind_qa.py <dir> {video} --plan {dir}/_plan.json` could never have run
+    if any("{dir}" in str(a) or "{video}" in str(a) for a in args):
+        import deliver_check as _dc
+        video = _dc.film_video(out_dir)
+        argv = [str(a).replace("{dir}", out_dir).replace("{video}", video) for a in args]
+    else:
+        argv = [out_dir, *args]
     try:
-        r = subprocess.run([sys.executable, os.path.join(_HERE, script), out_dir, *args],
+        r = subprocess.run([sys.executable, os.path.join(_HERE, script), *argv],
                            capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return GateOutput("[%s] TIMED OUT after %ds — run it yourself before trusting this brief" % (script, timeout),
