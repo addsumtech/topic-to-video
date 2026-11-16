@@ -440,6 +440,15 @@ between two tilted lines could equally be missed.
 > is simpler as well as wider, and it has no singularity at 45°.
 
 
+### picture_glide_qa false STEPS on changing light and fast textureless moves (found 2026-11-16)
+The director-path film `rebirth/skill_v3_sky` (why the sky is blue) read STEPS on its opening shot: a time-lapse sky
+plus a 1.2 s tilt. Measured on the final frames, the horizon eases 0.2 -> 16.4 -> 0.06 px/frame with one change of
+acceleration and no step. A control render with nothing moving (sun removed, only the computed sky's colours
+changing) still read 0.103 px against the 0.12 px line. The tile tracker reads a colour change as displacement and
+cannot follow a fast move over a near-textureless gradient. Fix only with a corpus check (a measurement change is
+diffed against the old code on generated cases): candidate fixes are normalising each tile's luma before the phase
+correlation, and returning "too little texture" when the tile's gradient energy is below a floor.
+
 ## C · Peer-library capability gaps still open
 
 **~~C1 · The fake dolly-zoom.~~ DONE 2026-09-14.** `dollyAt` in `runtime/depth.tsx` (the move as a

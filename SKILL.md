@@ -111,7 +111,10 @@ seams. **This timeline is the film's clock: every picture is built to it.** Capt
    logo (`input` assets) override the palette, not the style's structure.
 2. For each, render ONE **style frame**: a 1920x1080 still of the film's real subject at its key moment (the real
    QR code, the real product screen), in that look, with a caption. `python3 scripts/theme.py <film_dir> --style
-   <key>` gives the style's contrast-safe palette and type as CSS variables.
+   <key>` gives the style's contrast-safe palette and type as CSS variables. **The frames must differ as LOOKS**:
+   palette, typeface, how the subject itself is drawn (lit and photographic, flat and graphic, inked, printed…),
+   ground and texture. The same picture with a different border or background colour is one look, not three
+   (the first end-to-end run, 2026-11-16, offered exactly that, which made the choice meaningless).
 3. Tile the frames on one image, show it, and ask (`AskUserQuestion`, recommended first; each option names the
    style and one line on why). Non-interactive: take the recommended one.
 
@@ -177,6 +180,10 @@ Write `<film_dir>/_plan.json` with the cut frames computed by **the same rule th
 
 1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide and empty-frame checks against
    `final.mp4` and `_plan.json`, and exits 1 on any red. Fix the film, re-render, re-run until CLEAN.
+   A red you believe is wrong is never silenced and never "fixed" by cutting good content: PROVE it on the frames
+   (measure the thing the check claims, e.g. the moving edge's position per frame) and with a CONTROL (the same
+   shot with the suspected cause removed), and record both in `NOTES.md`. Known blind spot of picture_glide_qa:
+   a sky or light whose colours change with nothing moving, and a fast move over a near-textureless gradient.
 2. **Look at the real film**: a contact sheet of every shot's settled frame (~90 % through the shot) on one image.
    One layout repeated, a frame cut off, a caption over a picture, an empty hold, a sequence that drops the look:
    fix before delivering. Then watch transitions at the seams.
