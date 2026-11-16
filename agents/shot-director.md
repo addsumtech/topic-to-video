@@ -702,8 +702,9 @@ reflex.
    forward push / building energy → `slide` (push); a payoff where the outgoing FORM becomes the incoming one
    (a solid → its particles) → `dissolve`; a CONTINUITY beat where the two shots should read as one continuous
    move (a chart collapses and the human takeaway grows from the same line, a converge → resolve) → `carry` (a
-   collapse-to-line match-cut — the ONE mark that also works across a dark↔light seam, its neutral line being the
-   luminance bridge).
+   collapse-to-line match-cut, its neutral line being the luminance bridge; across a dark↔light seam it is one of the
+   seams that keep their form — carry, focus, through-dark, drift, blur, container and cut (Film.tsx CANNOT_FLASH)
+   — where every other one is rewritten to a gentle fade).
 
    **The rest of the vocabulary, one word per relation** (the same words the html tier uses, so a film that
    changes tier keeps its seams — `references/motion-grammar.md` holds the full table):

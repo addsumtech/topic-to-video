@@ -143,10 +143,11 @@ budget (a Blender plate, a lit material, the hero camera). validate refuses a re
 ## Concept → form (reason from the data relationship — never map page-type to a template)
 Read the content's coarse intent (and the idea itself) and name its **data relationship** — order / magnitude /
 part-whole / two-axes / time / causality / structure / one-claim — then choose the form that SAYS it. The ONE
-dictionary of deliverable forms, with the honest substitute for every metaphor this renderer cannot draw (no
-Sankey, pyramid, cycle, tree, morph or heatmap), is **`references/design-intelligence-addendum.md` §4** — read it
-for every beat whose form is not obvious, and to fill `content_shape` + `rejected_default`. **Never promise a form
-the renderer can't draw.** Author every form as its **`html`** form (the promoted tier); a `render_*` programmatic
+dictionary of deliverable forms, with the honest substitute for every metaphor with no stock class, is
+**`references/design-intelligence-addendum.md` §4** — read it for every beat whose form is not obvious, and to fill
+`content_shape` + `rejected_default`. **Never promise a form with no way to draw it** — a stock class, a workshop
+component you BUILD for the film (SKILL.md: a Sankey, tree or morph is built as inline SVG or a component), or a
+Remotion register (LIBRARY.md: FlowSankey, the tree registers). The substitute is for a form with none of the three. Author every form as its **`html`** form (the promoted tier); a `render_*` programmatic
 renderer is the **no-Chrome fallback**, not a co-equal choice. The metaphor (river, galaxy, mountain) may live in a
 **generic broll backdrop** (`.bg-soft`/`.bg-photo`, `image_tag: broll`) — never as the carrier of a fact.
 

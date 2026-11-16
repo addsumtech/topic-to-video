@@ -86,6 +86,8 @@ The renderer burns captions derived from `narration` into the video. Check the r
   the same palette (one color world); e.g. a dark chart inside a light deck is a defect.
 - **FAIL** if any on-screen glyph renders as tofu (□□□) — Latin, CJK, or symbol — indicating a missing
   font.
+- **FAIL** if the picture goes back: a beat that returns to a state it left, or a cut that replays what was just
+  seen. Read `<out_dir>/_review/beats_NN.jpg` (each beat at 30 / 60 / 90 %) and `_motion_events.jpg`; name the beat.
 - **WARN** if motion (Ken Burns pan/zoom, animated scene transitions) appears jittery or stutters
   noticeably in the rendered frames (flag the slide index and approximate timestamp; on an image slide a
   zoom delta > 0.20 reads as a lurch, and a sub-pixel shiver is what `jitter_qa.py` measures).

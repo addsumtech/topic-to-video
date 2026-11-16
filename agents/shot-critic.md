@@ -50,7 +50,10 @@ answer each line, naming the beat:
      element crossing a title.
   5. **Repetition**: the same staging or treatment on many beats in a row. The user: "过于特意和重复" (too deliberate
      and repetitive).
-  6. **The ends** (`ends.jpg`): the film must open and close on its own ground or black, never through a flash of
+  6. **Going back**: a beat whose 30 / 60 / 90 % frames return to a state it left (a reset, a push that comes back, a
+     loop that is not the beat's subject), or a cut that replays what was just seen; `_motion_events.jpg` strips the
+     moves. The user saw these as 回退; rewind_qa reads the same, and it is never "invisible".
+  7. **The ends** (`ends.jpg`): the film must open and close on its own ground or black, never through a flash of
      white.
 Each finding goes into the ledger with its beat and the frame (the sheet's row label names the seconds).
 
@@ -217,9 +220,10 @@ decision. `validate.py` warns when a declared seam swamps the marks; whether the
 is yours. Two mechanics to read the marks correctly: `dissolve` now renders a true cross-dissolve (it used to
 render a black hole — the installed @remotion/transitions/dissolve is a WebGL film-burn — so an older
 complaint about it is stale), and the renderer's luminance guard silently DOWNGRADES a kinetic mark placed
-across a dark↔light boundary back to a fade — every type EXCEPT `carry`, whose bridge line IS the dip. So a
+across a dark↔light boundary back to a fade — every type EXCEPT the seven that cannot flash (Film.tsx CANNOT_FLASH:
+`carry`, whose bridge line IS the dip, `focus`, `through-dark`, `drift`, `blur`, `container` and `cut`). So a
 `slide`/`wipe`/`clock`/`dissolve` on a crossing seam is not on screen at all: count it as unmarked, say where
-the punctuation actually went, and FIX = make it a `carry` or move it. `python3 scripts/seam_plan.py
+the punctuation actually went, and FIX = make it one of those seven or move it. `python3 scripts/seam_plan.py
 <out_dir>` is the verify-and-fill pass for a film with no marks at all — it skips every beat the author
 marked, so it never competes with a deliberate choice.
 

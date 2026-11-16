@@ -48,8 +48,10 @@ unsplittable wall of text (`validate.py` warns; `critic-narrative` R7 fails a >3
 - Address the viewer as "you": "Notice how you can…", "Here you'll see…"
 - Expand every acronym on first use: "MRI — Magnetic Resonance Imaging".
 - Carry momentum between beats by inherit→hook, not signposts: honor the beat's `continuity` note —
-  end on a question/tension the next line answers ("so what does that leave?"), and save explicit
-  connectives ("but here's the catch…") for the few REAL section seams. Never bolt "Next…" /
+  where it names a hook, end on the tension the next line answers ("so what does that leave?") — and save
+  SIGNPOST openers ("but here's the catch…", "Next…") for the few REAL section seams. That rule is about the
+  seam between beats; INSIDE a line, keep the ordinary connective tissue people use (但/所以/其实/结果) —
+  a script without it reads as subtitle cards (`references/anti-ai-voice.md`, "Restore the connective tissue"). Never bolt "Next…" /
   "In the next slide…" onto every beat — mechanical signposting is an AI-tell (see "Sound human").
 
 **Sound human, not AI** — this is what the audience feels first. Write like a sharp person
@@ -159,8 +161,8 @@ Concrete benefit, second person, one sentence per idea. ~28 words ≈ ~9.5 s wit
 - [ ] **Caption-safe spelling (2D not "two-D", 19 not "nineteen"); no raw math/markup**
 - [ ] No bullet-list recitation
 - [ ] Each sentence is one idea
-- [ ] Beats hand off by inherit→hook; explicit connectives only at real section seams
-- [ ] Last sentence hooks into the next slide
+- [ ] Beats hand off by inherit→hook; signpost openers only at real section seams, ordinary connectives within lines
+- [ ] A beat whose `continuity` names a hook ends on it — not every beat (a hook on every beat is its own formula)
 - [ ] Word (Latin) / character (CJK) count matches target duration ±15%
 - [ ] Acronyms expanded on first use across the full storyboard (not just per slide)
 - [ ] Critic (step 5) returned PASS before TTS

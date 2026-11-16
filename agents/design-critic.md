@@ -102,9 +102,11 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
   N/M … same form family` — treat as a REVISE item, reconciled against the ledger.)
 - **REVISE** if >2 consecutive PROGRAMMATIC beats share a `visual.type` (`title`/`chart`/`keypoints`/
   `compare`/`timeline`). `html` beats are EXEMPT (judged by form family above).
-- **Deliverability:** **REVISE** a `form`/`props` that promises a render the skill can't land (a Sankey,
-  heatmap, pyramid triangle, decision tree, morph, flywheel) — require the honest substitute from
-  `agents/design-director.md`'s Concept→Visual dictionary (e.g. risk → `.quadrant` matrix, not a heatmap).
+- **Deliverability:** **REVISE** a `form`/`props` that promises a render with NO WAY TO LAND it. A form has one
+  when it is a stock class, a workshop component the plan BUILDS (SKILL.md: a Sankey, tree or morph with no stock
+  class is built as inline SVG or a component), or a Remotion register (remotion/LIBRARY.md has FlowSankey and tree
+  registers). A form with none of the three gets the honest substitute from `references/design-intelligence-addendum.md`
+  §4 (e.g. risk → `.quadrant` matrix, not a heatmap with nothing to draw it).
 - **Block dependency audit (`references/design-intelligence-addendum.md` §3) — stricter than the family
   gate.** Every card/`.blocks`/panel beat must justify ALL 5 conditions (parallel · unordered ·
   equal-weight · independent · not-better-as-time/flow/hierarchy/comparison/system/magnitude). **REVISE
@@ -439,7 +441,8 @@ overrides a floor.
 > **Precedent — none on record.**
 > **Ask yourself:** Name this film's register in one phrase — and point at the colour on screen that means something.
 
-**H6 · MOTION + REVEAL CADENCE.** From the filmstrips, the only motion evidence the pipeline has: D2e (3) (the
+**H6 · MOTION + REVEAL CADENCE.** From the filmstrips and `_review/beats_NN.jpg` (each beat at 30 / 60 / 90 %, from
+out.mp4) — a beat that goes back (a reset, a push that returns, a replayed cut) is a REVISE, never "invisible": D2e (3) (the
 motion personality realised, varying beat to beat and building toward the climax), D6c (content lands one by one
 on the voice — no page dumping two facts in one reveal, no connector painting before its blocks) and D9 (one moving
 thing, CSS-driven and seek-frozen, no GIF or video backdrop, static under reduced motion). `keyframe_qa`'s sync audit

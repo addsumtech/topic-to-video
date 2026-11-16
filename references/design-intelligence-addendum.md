@@ -7,8 +7,9 @@ choice risks becoming a **card grid, a repeated template, or a visually even med
 
 **Deliverability rule (non-negotiable):** every visual language below is named as a form the renderer
 can ACTUALLY land (the archetypes in `references/html-pages.md` + the programmatic renderers). Where a
-famous metaphor (Sankey, flywheel, fishbone, funnel, hourglass, heatmap) is NOT a first-class render, the
-honest substitute is named. A metaphor may live in a **generic broll backdrop** (`.bg-soft`/`.bg-photo`),
+famous metaphor (Sankey, flywheel, fishbone, funnel, hourglass, heatmap) has NO STOCK CLASS, the honest substitute
+is named — unless the film BUILDS it (a workshop component, SKILL.md) or its Remotion tier has a register for it
+(FlowSankey, the tree registers). A metaphor may live in a **generic broll backdrop** (`.bg-soft`/`.bg-photo`),
 never as the carrier of a fact. Never write a design plan that promises a diagram the renderer can't draw.
 
 ---

@@ -1018,8 +1018,8 @@ shown here, act on a gate finding you do not understand, or edit the library (a 
    beat (`{id → narration}`) + a `flags` list of any beat it could not source. Write those lines
    into each scene's `narration`; **resolve every flag** (drop or repair the unsourced beat)
    before proceeding. It may also return `duration_estimate` (if a beat's estimate exceeds its
-   `est_seconds` budget, swap in its `too_dense` fallback line or tighten it) and `pronunciation_notes`
-   (already folded into how a term is SPELLED in the line — the renderer has no SSML). The scriptwriter follows `references/narration-writing.md` (the style
+   `est_seconds` budget, swap in its `too_dense` fallback line or tighten it) and a `tts_lexicon` (merge it into
+   `meta.tts_lexicon`: spoken text only, the line and caption keep the written term). The scriptwriter follows `references/narration-writing.md` (the style
    basis). The on-screen **captions are auto-derived from the narration**, so its words are also
    the subtitle. (PLAN → **DESIGN** → **WRITE** → CHECK: content-planner plans, design-director designs, scriptwriter writes, the script critic of step 5 checks.)
 4b. **Image prompts (AI-backdrop look only — `image_source:"openai"`).** The generated art is

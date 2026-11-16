@@ -107,7 +107,10 @@ Compare `meta.voice` against `meta.language` (and the language the narration is 
   section seam (states a fact, connects to nothing).
 - Do NOT demand "Next…"/"Now…"/"In the following slide…" on every beat — mechanical per-slide
   signposting is an AI-tell (it collides with R1a and `references/narration-writing.md`).
-  Connectives belong at the few real section seams; interior beats may hand off by momentum alone.
+  Signpost OPENERS belong at the few real section seams; interior beats may hand off by momentum alone. Ordinary
+  connectives INSIDE a line (但/所以/其实/结果) are speech, not signposts — never REVISE them away (a script with none
+  reads as subtitle cards, `references/anti-ai-voice.md`). Nor demand a hook on every beat: only where the beat's
+  `continuity` names one (a hook ending every line is its own formula).
 - Exception: the final slide — no transition needed.
 
 ### R7 — Subtitle correctness (the on-screen captions are auto-derived from `narration`)

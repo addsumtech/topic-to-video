@@ -26,7 +26,7 @@ a polished, connected, faithful script that sounds great read aloud.
 ```json
 { "narration": { "1": "…final spoken line for beat 1…", "2": "…", "...": "..." },
   "duration_estimate": { "1": 5.2, "2": 4.1 },
-  "pronunciation_notes": [ { "term": "INR", "say_as": "I N R" }, { "term": "PyTorch", "say_as": "pie-torch" } ],
+  "tts_lexicon": { "PyTorch": "pie-torch" },
   "too_dense": { "3": "…a shorter fallback line for a beat that overruns its est_seconds…" },
   "flags": [ { "id": 3, "issue": "claim X in the intent has no support in the material" } ] }
 ```
@@ -36,11 +36,13 @@ a polished, connected, faithful script that sounds great read aloud.
   bare chars-per-second rate leaves out). Flag any beat whose estimate exceeds its `est_seconds` budget by >25%
   — either tighten the line or give a `too_dense` fallback — and run `python3 scripts/pace.py <out_dir>` once
   the lines are on the board: it reports the whole film against `meta.target_seconds`.
-- `pronunciation_notes` — only for terms a TTS voice will mangle: acronyms said letter-by-letter, unusual
-  proper nouns, units, non-English words in an English track. Keep it short; most lines need none. Put the
-  spoken form in **`say_as`** (e.g. `{"term":"INR","say_as":"I N R"}`) — the LINE/caption keeps the clean
-  written term ("INR"), so the burned caption reads normally and the script critic doesn't REVISE it. Do NOT
-  spell the term out inside the narration text itself (the renderer has no SSML, but the caption is the line).
+- `tts_lexicon` — {written: spoken}, merged into the board's **`meta.tts_lexicon`**, which the voice actually reads
+  (scripts/tts.py `spoken_text`; a `pronunciation_notes` list used to be asked for here and nothing read it). Only
+  for terms a voice mangles: unusual proper nouns, units, non-English words in an English track (a standalone 2-3
+  letter initialism in a line a Chinese edge voice reads is already spelled for it — SKILL.md, "Write English terms
+  as they are READ"). Keep it short; most films need none.
+  The LINE/caption keeps the clean written term, so the burned caption reads normally and the script critic doesn't
+  REVISE it. Do NOT spell the term out inside the narration text itself (the caption is the line).
   **Verbal J-cut at section seams:** a real audio J-cut is impossible (audio is per-clip), so author
   the pull in WORDS — end a section's last line with a forward hook naming the NEXT beat's subject
   (「那数字呢?」 into the numbers beat); the hook rides the audio breath across the cut.
@@ -60,8 +62,9 @@ You are not filling blanks beat-by-beat. Read every beat, then write so the line
   line should make the viewer want the next. If a beat carries a `continuity` note (what it
   *inherits* from the prior beat, the tension it *hooks* into the next), honor it: the end of one
   line should set up the start of the next so the video argues a case, not lists slides. (Don't
-  mechanically bolt "Next…" on every beat — seed connectives at the real section seams; overusing
-  them trips the anti-signposting rule below.) At a **`build`** beat, make the connective **conceptual** —
+  mechanically bolt "Next…" on every beat — seed signpost openers at the real section seams; overusing
+  them trips the anti-signposting rule below. Ordinary connectives inside a line — 但/所以/其实 — stay: they are
+  how a listener hears two facts relate, `references/anti-ai-voice.md`.) At a **`build`** beat, make the connective **conceptual** —
   reference the concept the prior beat established ("now that X…, Y…"), so the hand-off is a knowledge
   build, not only tonal momentum.
 - A **takeaway** that lands the arc's payoff.
