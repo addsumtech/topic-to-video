@@ -967,6 +967,29 @@ def _has_long_cued_anim(slide, meta):
 
 _LEGACY_SS = 2   # the retired meta.motion_ss default, kept only as a constant cache-key slot (see render())
 
+def _caption_overlay_chain(segs, cap_png_of, frame_at, W, H, fps, dur, meta, inks_by_text, band, band_text, band_bg,
+                           safe, vlabel, n_in, parts, extra_inputs, records):
+    """Each caption chunk drawn as its own layer and overlaid while it is on — ONE body for the html/programmatic clip
+    and the image clip, which kept a copy each (audit 2026-11-15, step 6). `cap_png_of(k)` names chunk k's layer,
+    `frame_at(n)` is the picture the overlay caption's inks are measured on. Returns (vlabel, n_in)."""
+    for k, seg in enumerate(segs):
+        if not (seg.get("text") or "").strip():
+            continue
+        cap_png = cap_png_of(k)
+        inks = None
+        if not band:                                   # overlay on the picture: measure the pixels under THIS caption
+            inks = _chunk_inks(seg, segs, frame_at, W, H, fps, dur, meta, inks_by_text, safe=safe)
+        rec = {"text": seg["text"], "start": seg["start"], "end": seg["end"]}
+        _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text,
+                       band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe, inks=inks, record=rec)
+        records.append(rec)
+        extra_inputs.append("-i"); extra_inputs.append(cap_png)
+        en = f"between(t,{seg['start']},{seg['end']})"
+        parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
+        vlabel = f"v{n_in}"; n_in += 1
+    return vlabel, n_in
+
+
 def _overwide_units(slide, meta, W, H):
     """True when this clip's caption text holds a unit wider than any caption measure could hold (a URL, a long
     identifier): `_wrap` breaks such a unit now (it used to run past the frame), so only these clips change their
@@ -1926,27 +1949,17 @@ def _encode_frames_clip(pattern, audio_rel, dur, caption_segs, meta, W, H, out_c
     band_text = None; band_bg = None                   # per-scene sampled caption text colour + strip ground
     records, inks_by_text = [], {}
 
+    def _page_at(on):                                  # the frames under a caption (a platform-safe film: the page's
+        fp = pattern % max(0, min(on, int(round(dur * fps)) - 1))      # own band, scaled into it)
+        return Image.open(fp) if os.path.exists(fp) else None
+
     def _add_caption_overlays():
         nonlocal vlabel, n_in
-        for k, seg in enumerate(caption_segs):
-            if not (seg.get("text") or "").strip():
-                continue
-            # index-scoped like every other per-scene artifact in the shared workdir (sbug_/cap_/
-            # scene_ frames) — the sequential loop makes a bare k safe today, a parallel one wouldn't
-            cap_png = os.path.join(workdir, f"scap_{(slide or {}).get('index', 0):02d}_{k:03d}.png")
-            inks = None
-            if not band:                               # overlay on the page: measure the frames under THIS caption
-                def _page_at(on):                      # (a platform-safe film: the page's own band, scaled into it)
-                    fp = pattern % max(0, min(on, int(round(dur * fps)) - 1))
-                    return Image.open(fp) if os.path.exists(fp) else None
-                inks = _chunk_inks(seg, caption_segs, _page_at, W, H, fps, dur, meta, inks_by_text, safe=safe)
-            rec = {"text": seg["text"], "start": seg["start"], "end": seg["end"]}
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe, inks=inks, record=rec)
-            records.append(rec)
-            extra_inputs.append("-i"); extra_inputs.append(cap_png)
-            en = f"between(t,{seg['start']},{seg['end']})"
-            parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
-            vlabel = f"v{n_in}"; n_in += 1
+        # index-scoped like every other per-scene artifact in the shared workdir (sbug_/cap_/scene_ frames)
+        vlabel, n_in = _caption_overlay_chain(
+            caption_segs, lambda k: os.path.join(workdir, f"scap_{(slide or {}).get('index', 0):02d}_{k:03d}.png"),
+            _page_at, W, H, fps, dur, meta, inks_by_text, band, band_text, band_bg, safe,
+            vlabel, n_in, parts, extra_inputs, records)
 
     if band:                                           # edge-treat the content, add the strip, then the captions
         ep, vlabel = _edge_filter(meta, dur, slide, vlabel, W, H)
@@ -2110,20 +2123,9 @@ def _render_slide(slide, meta, W, H, out_clip, burn_captions, workdir):
 
     def _cap_overlays():
         nonlocal vlabel, n_in
-        for k, seg in enumerate(segs):
-            if not (seg.get("text") or "").strip():
-                continue
-            cap_png = os.path.join(workdir, f"cap_{i:02d}_{k:02d}.png")
-            inks = None
-            if not band:                               # overlay on the picture: measure the pixels under THIS caption
-                inks = _chunk_inks(seg, segs, _kb_at, W, H, fps, dur, meta, inks_by_text, safe=safe)
-            rec = {"text": seg["text"], "start": seg["start"], "end": seg["end"]}
-            _caption_layer(seg["text"], W, H, cap_png, meta, hl_word=seg.get("hl"), band=band, text_rgb=band_text, band_bg=band_bg, hl_span=seg.get("hl_span"), safe=safe, inks=inks, record=rec)
-            records.append(rec)
-            extra_inputs.append("-i"); extra_inputs.append(cap_png)
-            en = f"between(t,{seg['start']},{seg['end']})"
-            parts.append(f"[{vlabel}][{n_in}:v]overlay=0:0:enable='{en}'[v{n_in}]")
-            vlabel = f"v{n_in}"; n_in += 1
+        vlabel, n_in = _caption_overlay_chain(
+            segs, lambda k: os.path.join(workdir, f"cap_{i:02d}_{k:02d}.png"), _kb_at, W, H, fps, dur, meta,
+            inks_by_text, band, band_text, band_bg, safe, vlabel, n_in, parts, extra_inputs, records)
 
     records = []
     if band:                                           # edge-treat content, add the strip, then the captions
