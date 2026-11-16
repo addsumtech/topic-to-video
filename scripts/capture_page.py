@@ -85,10 +85,11 @@ def capture(target, name, width=1400, max_height=4000, out_dir=DEFAULT_OUT, chro
     import _cdp
     import scenes
     url = _url_for(target)
-    ch = _cdp.Chrome(chrome_bin or scenes._chrome_bin({}), width, 900)
+    # at 2x: the texture is drawn at its CSS size (pageW x pageH) and the opening close-up magnifies it ~2.3x — at 1x
+    # that showed its own pixels (audit 2026-11-15, step 8)
+    ch = _cdp.Chrome(chrome_bin or scenes._chrome_bin({}), width, 900, device_scale=2)
     try:
         ch._cmd("Page.navigate", {"url": url}, ch.sid)
-        ch._wait_ready() if hasattr(ch, "_wait_ready") else None
         # settle: readyState alone lands before webfonts paint, and a texture baked mid-swap ships the
         # fallback face into every frame of the film
         import time
@@ -100,6 +101,13 @@ def capture(target, name, width=1400, max_height=4000, out_dir=DEFAULT_OUT, chro
             time.sleep(0.1)
         try:
             ch._cmd("Runtime.evaluate", {"expression": "document.fonts && document.fonts.ready",
+                                         "awaitPromise": True, "returnByValue": True}, ch.sid)
+        except Exception:
+            pass
+        # every image DECODED, within a bound: one still decoding is a blank box baked into the texture
+        try:
+            ch._cmd("Runtime.evaluate", {"expression": "Promise.race([Promise.all(Array.from(document.images).map("
+                                         "i => i.decode().catch(() => null))), new Promise(r => setTimeout(r, 8000))])",
                                          "awaitPromise": True, "returnByValue": True}, ch.sid)
         except Exception:
             pass
