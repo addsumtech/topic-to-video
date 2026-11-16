@@ -779,3 +779,18 @@ def test_back_to_back_segments_of_one_recording_never_rewind():
     # a shot between them, or another recording, is fine
     e, a = pf.recording_continuity([seg(590, 220), {"kind": "page", "dur": 90, "recording": "caps/range.layout.json"}, seg(790, 120)])
     assert e == [] and a == []
+
+
+def test_a_chinese_line_s_second_sentence_starts_on_its_own_first_word(tmp_path):
+    """The words a piece speaks are counted by the characters they cover: `split()` counted a Chinese sentence as one
+    word, so the second sentence took the second word's time and showed 2.2 s early (audit 2026-11-15, step 8)."""
+    import json
+    import promo_film as pf
+    wj = tmp_path / "w.json"
+    wj.write_text(json.dumps([{"w": "它", "t": 0.0}, {"w": "先", "t": 0.3}, {"w": "做", "t": 0.5}, {"w": "研究", "t": 0.7},
+                              {"w": "然后", "t": 2.4}, {"w": "写", "t": 2.8}, {"w": "脚本", "t": 3.0}], ensure_ascii=False))
+    chunks = pf._subtitle_chunks("它先做研究。然后写脚本。", str(wj), 10.0, 4.0)
+    assert [round(a, 2) for a, _b, _t in chunks] == [10.0, 12.4], chunks
+    wj.write_text(json.dumps([{"w": "It", "t": 0}, {"w": "researches", "t": 0.2}, {"w": "first.", "t": 0.8},
+                              {"w": "Then", "t": 1.5}, {"w": "it", "t": 1.7}, {"w": "writes.", "t": 1.9}]))
+    assert [a for a, _b, _t in pf._subtitle_chunks("It researches first. Then it writes.", str(wj), 0.0, 3.0)] == [0.0, 1.5]

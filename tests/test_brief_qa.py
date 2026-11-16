@@ -315,3 +315,23 @@ def test_a_bare_topic_label_is_still_flagged():
 def test_the_verb_heuristic_still_skips_non_english_theses():
     r = bq.evaluate(_brief(thesis="腾讯 WorkBuddy 把一句话变成你电脑上的一个文件。"))
     assert not any("recognizable verb" in w for w in r["warnings"])
+
+
+def test_a_claim_s_number_must_be_in_the_passage_it_cites(tmp_path):
+    """An anchor proves a passage exists; the claim's FIGURES must be in it (audit 2026-11-15, step 8). A claim of
+    35 resting on a passage that says 3.5 is a number the source never gave."""
+    import json as _json
+    import brief_qa as q
+    src = tmp_path / "sources"
+    src.mkdir()
+    (src / "index.json").write_text(_json.dumps({"shop": {"origin": "https://example.org", "kind": "page",
+                                                          "tier": "primary", "fetched": "2026-11-16"}}))
+    (src / "shop.txt").write_text("The kit sells for 3.5 dollars and ships in 2 or 3 days.", encoding="utf-8")
+
+    def errs(claim, anchor):
+        ev = [{"claim": claim, "source_ref": "shop#" + anchor}]
+        return [e for e in q.evaluate({"evidence": ev}, str(tmp_path))["errors"] if "no passage it cites" in e]
+    assert errs("it sells for 3.5 dollars", "sells for 3.5 dollars") == []
+    assert errs("it ships in 2-3 days", "ships in 2 or 3 days") == []          # a range given by both its ends
+    bad = errs("it sells for 35 dollars", "sells for 3.5 dollars")
+    assert len(bad) == 1 and "35" in bad[0], bad

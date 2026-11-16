@@ -70,7 +70,13 @@ def _font_scheme(theme_xml):
         body = b.group(1) if b else ""
         lat = re.search(r'<a:latin typeface="([^"]*)"', body)
         ea = re.search(r'<a:ea typeface="([^"]*)"', body)
-        out[role] = {"latin": (lat.group(1) if lat else "") or "", "ea": (ea.group(1) if ea else "") or ""}
+        # an Office theme usually leaves <a:ea typeface=""/> EMPTY and names its Chinese face per script
+        # (<a:font script="Hans" typeface="等线"/>): read only `ea`, the deck's Chinese font was lost (audit 2026-11-15)
+        scripts = dict(re.findall(r'<a:font script="([^"]+)" typeface="([^"]*)"', body))
+        ea_face = (ea.group(1) if ea else "") or ""
+        if not ea_face:
+            ea_face = next((scripts[k] for k in ("Hans", "Hant", "Jpan", "Hang") if scripts.get(k)), "")
+        out[role] = {"latin": (lat.group(1) if lat else "") or "", "ea": ea_face}
     return m.group(1), out
 
 

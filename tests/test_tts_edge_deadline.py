@@ -30,6 +30,7 @@ def _fake_edge(monkeypatch, plan):
     monkeypatch.setitem(sys.modules, "edge_tts", types.SimpleNamespace(Communicate=Communicate))
     monkeypatch.setattr(tts, "_EDGE_DEADLINE_S", 0.2)
     monkeypatch.setattr(tts, "_EDGE_DEADLINE_PER_CHAR", 0.0)
+    monkeypatch.setattr(tts, "EDGE_BACKOFF", (0.0, 0.0))     # the backoff between attempts, not under test here
     return calls
 
 
@@ -49,3 +50,27 @@ def test_no_audio_after_every_attempt_fails_loudly(monkeypatch, tmp_path):
         tts._edge("hi", str(out), "en-US-AndrewNeural")
     assert calls["n"] == 3
     assert not out.exists()
+
+
+def test_a_permanent_failure_is_not_retried_and_a_transient_one_reaches_the_outer_retry(monkeypatch, tmp_path):
+    """A 403 failed every attempt the same way and was retried at once; and the final RuntimeError was a type the outer
+    backoff retry never recognised (audit 2026-11-15, step 8)."""
+    monkeypatch.setattr(tts, "EDGE_BACKOFF", (0.0, 0.0))
+    calls = {"n": 0}
+
+    class Forbidden:
+        def __init__(self, *a, **k):
+            calls["n"] += 1
+
+        async def stream(self):
+            raise Exception("403, message='Invalid response status'")
+            yield  # pragma: no cover
+
+    monkeypatch.setitem(sys.modules, "edge_tts", types.SimpleNamespace(Communicate=Forbidden))
+    with pytest.raises(tts.EdgeNoAudio) as ei:
+        tts._edge("hi", str(tmp_path / "f.mp3"), "en-US-AndrewNeural")
+    assert calls["n"] == 1 and ei.value.transient is False and not tts._transient("edge", ei.value)
+    calls2 = _fake_edge(monkeypatch, ["empty", "empty", "empty"])
+    with pytest.raises(tts.EdgeNoAudio) as ej:
+        tts._edge("hi", str(tmp_path / "g.mp3"), "en-US-AndrewNeural")
+    assert calls2["n"] == 3 and tts._transient("edge", ej.value)

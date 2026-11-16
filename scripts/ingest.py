@@ -1,5 +1,5 @@
 """Turn any supported input into frames/*.png + a skeleton storyboard.json."""
-import argparse, os, glob, re, shutil, tempfile
+import argparse, os, glob, re, tempfile
 import fitz  # PyMuPDF
 import _common
 import storyboard as sb
@@ -12,11 +12,16 @@ def _natkey(f):
     '10' before '2', silently mis-ordering a PowerPoint/Keynote 'Save as Pictures' export)."""
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", os.path.basename(f))]
 
+MIN_PAGE_PX = 1920      # a page is rendered at least this many pixels along its long side: the frame's width, so a
+                        # page is never magnified onto it (150 dpi drew a 10-inch page 1500 px wide, audit 2026-11-15)
+
+
 def _render_pdf(pdf_path, frames_dir, dpi=150):
     doc = fitz.open(pdf_path)
     paths = []
     for i, page in enumerate(doc, 1):
-        pix = page.get_pixmap(dpi=dpi)
+        long_in = max(page.rect.width, page.rect.height) / 72.0
+        pix = page.get_pixmap(dpi=max(dpi, int(-(-MIN_PAGE_PX // max(1e-6, long_in)))))
         out = os.path.join(frames_dir, f"{i:02d}.png")
         pix.save(out)
         paths.append(out)
@@ -36,6 +41,10 @@ def _pptx_notes(pptx_path):
     from pptx import Presentation
     notes = []
     for slide in Presentation(pptx_path).slides:
+        # a HIDDEN slide is not in the PDF LibreOffice exports (its default leaves them out), so its note must not be
+        # either — kept, every later slide was handed the note of the one before it (audit 2026-11-15)
+        if slide._element.get("show") == "0":
+            continue
         txt = ""
         if slide.has_notes_slide:
             txt = slide.notes_slide.notes_text_frame.text or ""
@@ -51,9 +60,15 @@ def ingest(input_path, out_dir, dpi=150):
         imgs = sorted((f for f in glob.glob(os.path.join(input_path, "*"))
                        if f.lower().endswith(IMAGE_EXTS)), key=_natkey)
         frame_paths = []
+        from PIL import Image, ImageOps
         for i, src in enumerate(imgs, 1):
             dst = os.path.join(frames_dir, f"{i:02d}.png")
-            shutil.copyfile(src, dst); frame_paths.append(dst)
+            # decoded and written as the PNG its name says, UPRIGHT: a phone photo's EXIF orientation applied (copied
+            # as bytes, a JPEG sat in a .png name and every portrait photo came in on its side)
+            with Image.open(src) as im:
+                up = ImageOps.exif_transpose(im)
+                (up.convert("RGBA") if up.mode in ("P", "LA") else up.convert("RGB") if up.mode not in ("RGB", "RGBA") else up).save(dst, "PNG")
+            frame_paths.append(dst)
     elif input_path.lower().endswith(".pdf"):
         frame_paths = _render_pdf(input_path, frames_dir, dpi)
     elif input_path.lower().endswith(".pptx"):

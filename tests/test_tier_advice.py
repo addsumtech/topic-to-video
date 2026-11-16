@@ -240,3 +240,11 @@ def test_a_real_product_film_is_the_product_film_and_only_for_product_purposes()
     assert ta.recommend("launch", product=True, remotion_ok=False)["tier"] != "promo"   # promo_film renders with remotion
     assert ta.recommend("launch", product=True, chrome_ok=False)["tier"] != "promo"     # and captures with Chrome
     assert ta.recommend("launch")["tier"] == "remotion"                # no product: unchanged
+
+
+def test_a_chinese_purpose_label_resolves():
+    """A two-character Han alias is a word: 宣传片 / 产品发布 / 科普视频 resolved to nothing (audit 2026-11-15)."""
+    import tier_advice as t
+    assert t.canonical_purpose("宣传片") == "promo" and t.canonical_purpose("产品发布") == "launch"
+    assert t.canonical_purpose("科普视频") == "teach"
+    assert t.canonical_purpose("read the report") == "research" and t.canonical_purpose("an ad spot") == "promo"

@@ -117,6 +117,17 @@ def evaluate(data, out_dir=None):
                 m = _src.meta_of(out_dir, ref)
                 if m:
                     metas.append((ref, m))
+            # EVERY NUMBER THE CLAIM STATES is in a passage it cites: an anchor proves a passage exists, and a claim
+            # of '售价35元' resting on an anchor that says '3.5' is a figure the source never gave (audit 2026-11-15,
+            # step 8 — the matcher used to drop the decimal point and let it through)
+            anchors = [str(r).partition("#")[2] for r in refs if "#" in str(r)]
+            if anchors:
+                na = [_src._norm(x) for x in anchors]
+                missing = [g for g in _src.number_groups(ev.get("claim") or "")
+                           if not any(_src.supports_number(x, g) for x in na)]
+                if missing:
+                    errors.append(f"evidence '{claim}…' states {', '.join(missing)}, which no passage it cites "
+                                  f"contains — quote the passage that gives the figure, or fix the claim")
             if not metas:
                 continue
 

@@ -149,7 +149,15 @@ def canonical_purpose(raw):
     # contains points at ONE purpose. "product demo launch" contains a how-to alias and a launch alias, and
     # letting list order decide would silently answer a question the user did not answer; an ambiguous
     # purpose returns None, and the recommendation then says the purpose is unknown.
-    hits = {key for key, names in _PURPOSE_ALIASES.items() if any(n.lower() in s for n in names if len(n) > 2)}
+    # A Latin alias counts as a WORD of the label (so 'ad' is not found inside 'read'); a Han alias of two characters is
+    # already a word — `len(n) > 2` dropped every one, and 宣传片 / 产品发布 / 科普视频 resolved to nothing, so a
+    # promo was cut at an explainer's pace (audit 2026-11-15, step 8).
+    def _in(n):
+        n = n.lower()
+        if re.search(r"[\u3400-\u9fff]", n):
+            return len(n) >= 2 and n in s
+        return re.search(r"(?<![a-z])" + re.escape(n) + r"(?![a-z])", s) is not None
+    hits = {key for key, names in _PURPOSE_ALIASES.items() if any(_in(n) for n in names)}
     return hits.pop() if len(hits) == 1 else None
 
 

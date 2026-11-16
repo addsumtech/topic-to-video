@@ -225,6 +225,14 @@ def _words_from_boundaries(chunks):
     return out
 
 _EDGE_ATTEMPTS = 3
+
+
+class EdgeNoAudio(RuntimeError):
+    """edge-tts gave no audio after its attempts; `transient` is False when the cause was permanent (a 403)."""
+    def __init__(self, msg, transient=True):
+        super().__init__(msg)
+        self.transient = transient
+
 _EDGE_DEADLINE_S = 30.0          # per attempt, plus a little per character: a 200-character beat gets 60 s
 _EDGE_DEADLINE_PER_CHAR = 0.15
 
@@ -246,7 +254,8 @@ def _edge(text, out_path, voice, rate="+0%"):
     # call: an audition once sat 7 minutes on an established socket that never delivered a byte (a 5-beat
     # audition normally takes seconds; one beat ~2-5 s). An empty stream is a failure too, not a silent mp3.
     deadline = _EDGE_DEADLINE_S + len(text) * _EDGE_DEADLINE_PER_CHAR
-    last = None
+    last, audio, chunks = None, b"", []
+    import time as _time
     for attempt in range(1, _EDGE_ATTEMPTS + 1):
         try:
             audio, chunks = asyncio.run(asyncio.wait_for(_go(), deadline))
@@ -257,10 +266,18 @@ def _edge(text, out_path, voice, rate="+0%"):
             last = e
             print(f"[tts] edge-tts attempt {attempt}/{_EDGE_ATTEMPTS} for {os.path.basename(out_path)} failed "
                   f"({type(e).__name__}: {str(e) or 'no reply within %.0f s' % deadline})")
-    else:
-        raise RuntimeError(f"edge-tts gave no audio for {out_path} after {_EDGE_ATTEMPTS} attempts "
-                           f"(last: {type(last).__name__}: {last}) — the network or the voice service; run it "
-                           "again, or choose another voice engine") from last
+            # a PERMANENT failure (a 403: the library is older than the service's token check) fails every attempt
+            # the same way — it was retried at once, three times (audit 2026-11-15, step 8)
+            if failure_hint("edge", e):
+                break
+            if attempt < _EDGE_ATTEMPTS:
+                _time.sleep(EDGE_BACKOFF[min(attempt - 1, len(EDGE_BACKOFF) - 1)])
+    if not audio:
+        # it says whether the LAST failure was transient: a plain RuntimeError here was a type speak_retrying's
+        # _transient never lists, so the outer backoff retry could never run
+        raise EdgeNoAudio(f"edge-tts gave no audio for {out_path} after {attempt} attempts "
+                          f"(last: {type(last).__name__}: {last}) — the network or the voice service; run it "
+                          "again, or choose another voice engine", transient=not failure_hint("edge", last or "")) from last
     with open(out_path, "wb") as f:
         f.write(audio)
     try:
@@ -1113,6 +1130,8 @@ EDGE_BACKOFF = (1.5, 3.0)
 def _transient(prov, exc):
     if prov != "edge" or failure_hint(prov, exc):
         return False
+    if isinstance(exc, EdgeNoAudio):
+        return exc.transient
     name = type(exc).__name__
     return name in ("NoAudioReceived", "WebSocketError", "TimeoutError", "ClientConnectorError",
                     "ServerDisconnectedError", "ClientOSError", "ConnectionResetError", "ConnectionError")

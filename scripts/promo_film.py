@@ -1013,6 +1013,13 @@ def voice_pass(film_dir, spec):
     voice = spec.get("voice") or "en-US-AndrewNeural"
     voice = voice.split(":", 1)[1] if voice.startswith("edge:") else voice
     rate = spec.get("voice_rate", "+0%")
+    # the film's own voice path (tts.speak): its lexicon, acronym spelling and rate — `tts._edge` was called directly,
+    # so a promo said what a narrated film would have spelled out (audit 2026-11-15, step 8)
+    try:
+        speed = 1.0 + float(str(rate).strip().rstrip("%")) / 100.0
+    except ValueError:
+        raise SystemExit("[promo_film] voice_rate must read like '+10%%' or '-5%%', got %r" % rate)
+    vmeta = {"language": spec.get("language"), "tts_speed": speed, "tts_lexicon": spec.get("tts_lexicon") or {}}
     adir = os.path.join(film_dir, "audio")
     os.makedirs(adir, exist_ok=True)
     out = json.loads(json.dumps(spec))
@@ -1021,14 +1028,16 @@ def voice_pass(film_dir, spec):
         line = str(sh.get("say") or "").strip()
         d = int(round(sh["dur"]))
         if line:
-            h = hashlib.sha1(("%s|%s|%s" % (voice, rate, line)).encode("utf-8")).hexdigest()[:12]
+            said = tts.spoken_text(line, vmeta, "edge", voice)[0]
+            key = "%s|%s|%s" % (voice, rate, line) + ("|said:" + said if said != line else "")   # re-voiced only if it reads differently
+            h = hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
             mp3 = os.path.join(adir, "say_%02d_%s.mp3" % (i, h))
             off = os.path.join(adir, "say_%02d_%s.say.wav" % (i, h))
             if not os.path.isfile(mp3) and os.path.isfile(off):
                 mp3 = off
             elif not os.path.isfile(mp3):
                 try:
-                    tts._edge(line, mp3, voice, rate)
+                    tts.speak(line, mp3, vmeta, "edge", voice)
                     if not (os.path.isfile(mp3) and os.path.getsize(mp3) > 0):
                         raise RuntimeError("edge-tts wrote nothing")
                 except (Exception, SystemExit) as e:  # noqa: BLE001 — offline / blocked: the OFFLINE voice, said aloud
@@ -1072,10 +1081,17 @@ def _subtitle_chunks(line, words_json, start_s, secs, max_chars=64):
     out, wi = [], 0
     starts_ = []
     total = float(sum(len(p) for p in parts)) or 1.0
+    def ink(x):                                  # what a piece and a voiced word have in common: letters, digits, Han
+        return len(_re.sub(r"[\W_]+", "", str(x or "")))
     for k, p in enumerate(parts):
         # no word times (a `say` voice): each piece starts at its share of the characters spoken before it
         starts_.append(words[wi]["t"] if wi < len(words) else sum(len(q) for q in parts[:k]) / total * secs)
-        wi += len(p.split()) if words else 0
+        # the words this piece SPEAKS, counted by the characters they cover: `len(p.split())` counted a Chinese
+        # sentence (no spaces) as one word, so the next one took the second word's time and showed 2.2 s early
+        need, got = ink(p), 0
+        while words and wi < len(words) and got < need:
+            got += ink(words[wi].get("w") or words[wi].get("word") or "")
+            wi += 1
     for k, p in enumerate(parts):
         a = start_s + starts_[k]
         b = start_s + (starts_[k + 1] if k + 1 < len(parts) else secs) + (0.25 if k + 1 == len(parts) else 0)

@@ -63,7 +63,7 @@ def main():
     for vid in cands:
         out = os.path.join(sdir, f"{_safe(vid)}.mp3")
         try:
-            tts._minimax(text, out, vid, m)
+            tts.speak(text, out, m, "minimax", vid)   # the film's path (lexicon, spelling), so the sample IS the voice
             dur = _common.audio_duration(out)
             print(f"  ✓ {vid:42s} -> {os.path.basename(out)}  ({dur:.1f}s)")
             ok.append(vid)

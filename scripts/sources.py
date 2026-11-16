@@ -111,10 +111,50 @@ def add(out_dir, sid, text, origin, kind="web", title="", extra=None, fetched=No
     return meta
 
 
+# Separators BETWEEN DIGITS carry the number: '3.5' is not '35', '2-3' is not '23'. They used to be stripped with all
+# other punctuation, so a cited '3.5' supported '售价35元' and '2-3' supported '23天' — the anti-fabrication gate
+# passing an invented figure (audit 2026-11-15, step 8). A decimal point, a range dash and any comma that is not a
+# thousands comma are kept (a range dash canonical); a thousands comma ('28,800') is dropped, as an author may.
+_DIGIT_SEP = re.compile(r"(?<=\d)\s*([.,\-–—])\s*(?=\d)")
+_HOLD = {".": "\x01", ",": "\x02", "-": "\x03"}       # a kept separator, out of reach of the strip below
+_BACK = {v: k for k, v in _HOLD.items()}
+_GAP = "\x04"                                             # where two separate numbers stood apart
+
+
 def _norm(s):
     # match on visible characters: whitespace and the CJK/ASCII punctuation that varies between
     # a page's rendering and a hand-typed citation must not decide whether support exists.
-    return re.sub(r"[\s，,。.、；;：:！!？?（）()「」『』\"'’“”\-–—]+", "", s or "")
+    def sep(m):
+        c, rest = m.group(1), m.string[m.end():]
+        if c == "," and re.match(r"\d{3}(?!\d)", rest):
+            return ""                                    # a thousands comma
+        return _HOLD[{"–": "-", "—": "-"}.get(c, c)]
+    s = _DIGIT_SEP.sub(sep, s or "")
+    # two numbers the strip would FUSE ('Version 1 (21' -> '121') keep a boundary between them
+    s = re.sub(r"(?<=\d)[\s，,。.、；;：:！!？?（）()「」『』\"'’“”\-–—]+(?=\d)", _GAP, s)
+    s = re.sub(r"[\s，,。.、；;：:！!？?（）()「」『』\"'’“”\-–—]+", "", s)
+    return "".join(_BACK.get(ch, ch) for ch in s)
+
+
+def _contains(hay, needle):
+    """`needle` inside `hay` (both _norm'ed) on DIGIT BOUNDARIES: '35' is not inside '1350'."""
+    if not needle:
+        return True
+    pat = ("(?<!\\d)" if needle[0].isdigit() else "") + re.escape(needle) + ("(?!\\d)" if needle[-1].isdigit() else "")
+    return re.search(pat, hay) is not None
+
+
+def number_groups(text):
+    """The numbers a claim states, normalised as _norm keeps them ('3.5', '2-3', '28800')."""
+    return re.findall(r"\d+(?:[.,\-]\d+)*", _norm(text))
+
+
+def supports_number(passage_norm, group):
+    """Does a (_norm'ed) passage give this number? A range '1-2' is given by '1-2' or by both its ends ('1 or 2')."""
+    if _contains(passage_norm, group):
+        return True
+    ends = group.split("-")
+    return len(ends) == 2 and all(e and _contains(passage_norm, e) for e in ends)
 
 
 def resolve(out_dir, ref):
@@ -142,7 +182,7 @@ def resolve(out_dir, ref):
     # still matches. That is deliberate — the mechanical gate exists to stop a FABRICATED figure, and
     # judging whether the source actually claims the thing stays with critic-content, which reads the
     # extract. Widening this into semantic judgement would trade a reliable check for an unreliable one.
-    if _norm(anchor) in _norm(body):
+    if _contains(_norm(body), _norm(anchor)):
         return True, f"anchor found in '{sid}'"
     return False, (f"anchor not found in '{sid}' — the captured text does not contain "
                    f"\"{anchor[:40]}\"; quote the source, or fix the claim")

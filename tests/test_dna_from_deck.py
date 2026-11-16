@@ -347,3 +347,14 @@ def test_validate_warns_when_a_cjk_film_names_no_bundled_face():
     assert warns(board(sysonly)), "a CJK film with only system faces must be told"
     assert not warns(board(bundled)), "naming the bundled face must silence it"
     assert not warns(board(sysonly, "en", "An accepted result")), "an English film must never see this"
+
+
+def test_a_theme_s_chinese_face_is_read_from_its_script_font():
+    """Office themes leave <a:ea typeface=""/> empty and name the Chinese face per script (audit 2026-11-15)."""
+    import pptx_theme as pt
+    x = ('<a:fontScheme name="Office"><a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/>'
+         '<a:font script="Jpan" typeface="游ゴシック Light"/><a:font script="Hans" typeface="等线 Light"/></a:majorFont>'
+         '<a:minorFont><a:latin typeface="Calibri"/><a:ea typeface="微软雅黑"/><a:font script="Hans" typeface="等线"/>'
+         '</a:minorFont></a:fontScheme>')
+    name, roles = pt._font_scheme(x)
+    assert roles["major"]["ea"] == "等线 Light" and roles["minor"]["ea"] == "微软雅黑"
