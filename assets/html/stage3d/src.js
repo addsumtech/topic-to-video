@@ -38,7 +38,9 @@ function create(o) {
   renderer.setPixelRatio(1);
   renderer.setSize(W, H, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // ACES (default) is filmic and desaturates bright colours; 'neutral' keeps brand colours true (product films, a cast
+  // of coloured characters, logos)
+  renderer.toneMapping = o.toneMapping === 'neutral' ? THREE.NeutralToneMapping : THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = o.exposure == null ? 1.0 : o.exposure;
   renderer.shadowMap.enabled = o.shadows !== false;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -71,6 +73,9 @@ function create(o) {
       t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); res(t);
     }, undefined, () => rej(new Error('stage3d: cannot load ' + src))));
   };
+
+  const loadImage = (src) => (src instanceof HTMLImageElement && src.complete ? Promise.resolve(src) : new Promise((res, rej) => {
+    const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('stage3d: cannot load ' + src)); im.src = src.src || src; }));
 
   const st = {
     THREE, scene, camera, renderer,
@@ -145,6 +150,91 @@ function create(o) {
       scene.add(group);
       return group;
     },
+    // a flat character or mark (a PNG with transparency) as a soft, glossy 3D body: its outline inflated into a pillow
+    // (flat face rolling to a round rim), its own artwork on the face redrawn crisp at any size (the picture's few
+    // colours, snapped per pixel from a smooth upscale), its main colour on the back. For a product's mascot, a cast of
+    // characters, an app icon's glyph. The outline must be star-shaped about its centre (blobs, drops, flowers, clouds).
+    // Returns a group standing on its own y = 0; move/squash group.userData.body for acting (see hop()).
+    inflate(src, p) {
+      p = p || {};
+      const group = new THREE.Group(), body = new THREE.Group(); group.add(body);
+      const job = loadImage(src).then((img) => {
+        const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+        const c = document.createElement('canvas'); c.width = iw; c.height = ih;
+        const cx2 = c.getContext('2d', {willReadFrequently: true}); cx2.drawImage(img, 0, 0);
+        const px = cx2.getImageData(0, 0, iw, ih).data, A = (x, y) => {
+          x = Math.max(0, Math.min(iw - 1, x)); y = Math.max(0, Math.min(ih - 1, y));
+          const x0 = Math.floor(x), y0 = Math.floor(y), x1 = Math.min(iw - 1, x0 + 1), y1 = Math.min(ih - 1, y0 + 1), fx = x - x0, fy = y - y0;
+          const a = (xx, yy) => px[(yy * iw + xx) * 4 + 3] / 255;
+          return (a(x0, y0) * (1 - fx) + a(x1, y0) * fx) * (1 - fy) + (a(x0, y1) * (1 - fx) + a(x1, y1) * fx) * fy; };
+        let n = 0, mx = 0, my = 0; const bins = new Map();
+        for (let y = 0; y < ih; y++) for (let x = 0; x < iw; x++) { const i = (y * iw + x) * 4; if (px[i + 3] < 128) continue;
+          n++; mx += x; my += y;
+          if (px[i + 3] > 230) { const k = (px[i] >> 4) * 256 + (px[i + 1] >> 4) * 16 + (px[i + 2] >> 4), b = bins.get(k) || [0, 0, 0, 0];
+            b[0]++; b[1] += px[i]; b[2] += px[i + 1]; b[3] += px[i + 2]; bins.set(k, b); } }
+        if (!n) throw new Error('stage3d.inflate: ' + src + ' has no opaque pixels (it needs a transparent background)');
+        const ccx = mx / n, ccy = my / n;
+        // the outline as a radius per angle (px), marched out from the centre along the alpha edge
+        const NA = 160, rr = [];
+        for (let i = 0; i < NA; i++) { const a = i / NA * Math.PI * 2, dx = Math.cos(a), dy = -Math.sin(a); let r = 0;
+          while (A(ccx + dx * r, ccy + dy * r) >= 0.5) { r += 0.25; const x = ccx + dx * r, y = ccy + dy * r;
+            // the shape runs into the picture's edge: no outline to trace (an opaque tile, a cropped character)
+            if (x < 0 || y < 0 || x > iw - 1 || y > ih - 1) throw new Error('stage3d.inflate: ' + src + ' touches the image edge; it needs '
+              + 'the whole shape on a transparent background (cut it out, or pass a mark without its tile)'); }
+          rr.push(Math.max(1, r)); }
+        const R = Math.max(...rr), rOf = (a) => { a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+          const f = a / (Math.PI * 2) * NA, i0 = Math.floor(f) % NA, i1 = (i0 + 1) % NA, k = f - Math.floor(f);
+          return (rr[i0] * (1 - k) + rr[i1] * k) / R; };
+        // the picture's own colours (bins over 1.5% of the body), the largest is the body colour
+        const tot = [...bins.values()].reduce((s, b) => s + b[0], 0);
+        // small parts keep their colour (a four-colour logo on a white tile): a bin counts from 0.3% of the body or 4
+        // pixels; near-duplicates (anti-aliased blends) merge into the larger colour
+        const pal = [...bins.values()].filter((b) => b[0] >= Math.max(4, tot * 0.003)).sort((a, b) => b[0] - a[0]).map((b) => [b[1] / b[0], b[2] / b[0], b[3] / b[0]]);
+        const merged = []; for (const q of pal) if (!merged.some((m) => Math.hypot(m[0] - q[0], m[1] - q[1], m[2] - q[2]) < 56)) merged.push(q);
+        const bodyCol = p.color ? new THREE.Color(p.color) : new THREE.Color().setRGB(merged[0][0] / 255, merged[0][1] / 255, merged[0][2] / 255, THREE.SRGBColorSpace);
+        // the face: a smooth upscale, each pixel snapped to the nearest palette colour (crisp edges at any size)
+        const S = p.faceRes || 1024, half = R * 1.04, fc = document.createElement('canvas'); fc.width = fc.height = S;
+        const f2 = fc.getContext('2d', {willReadFrequently: true}); f2.imageSmoothingEnabled = true; f2.imageSmoothingQuality = 'high';
+        f2.fillStyle = '#' + bodyCol.getHexString(THREE.SRGBColorSpace); f2.fillRect(0, 0, S, S);
+        f2.drawImage(img, (ccx - half) / (2 * half) * -S, (ccy - half) / (2 * half) * -S, iw / (2 * half) * S, ih / (2 * half) * S);
+        const fd = f2.getImageData(0, 0, S, S), d = fd.data;
+        for (let i = 0; i < d.length; i += 4) { let best = 0, bd = 1e9;
+          for (let j = 0; j < merged.length; j++) { const m = merged[j], e = (d[i] - m[0]) ** 2 + (d[i + 1] - m[1]) ** 2 + (d[i + 2] - m[2]) ** 2; if (e < bd) { bd = e; best = j; } }
+          d[i] = merged[best][0]; d[i + 1] = merged[best][1]; d[i + 2] = merged[best][2]; d[i + 3] = 255; }
+        f2.putImageData(fd, 0, 0);
+        const tex = new THREE.CanvasTexture(fc); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        // the inflated body (outline radius 1 = R px): front dome `front`, back dome `back`, rings centre -> rim
+        const front = p.front == null ? 0.42 : p.front, back = p.back == null ? 0.3 : p.back, N = 128, SR = 24;
+        const prof = (s) => Math.pow(Math.max(0, 1 - Math.pow(s, 4)), 0.4);
+        const pos = [], uv = [], idx = [], k = R / half;
+        const ring = (side) => { const base = pos.length / 3;
+          pos.push(0, 0, side * (side > 0 ? front : back)); uv.push(0.5, 0.5);
+          for (let j = 1; j <= SR; j++) { const s = j / SR; for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2, r = rOf(a) * s;
+            const x = Math.cos(a) * r, y = Math.sin(a) * r; pos.push(x, y, side * (side > 0 ? front : back) * prof(s)); uv.push(0.5 + x * k / 2, 0.5 + y * k / 2); } }
+          const at = (j, i) => (j === 0 ? base : base + 1 + (j - 1) * N + (i % N)), start = idx.length;
+          for (let i = 0; i < N; i++) side > 0 ? idx.push(at(0, 0), at(1, i), at(1, i + 1)) : idx.push(at(0, 0), at(1, i + 1), at(1, i));
+          for (let j = 1; j < SR; j++) for (let i = 0; i < N; i++) { const a = at(j, i), b = at(j, i + 1), c2 = at(j + 1, i), e = at(j + 1, i + 1);
+            side > 0 ? idx.push(a, c2, b, b, c2, e) : idx.push(a, b, c2, b, e, c2); }
+          return [start, idx.length - start]; };
+        const gF = ring(1), gB = ring(-1);
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        g.setIndex(idx); g.computeVertexNormals(); g.addGroup(gF[0], gF[1], 0); g.addGroup(gB[0], gB[1], 1);
+        const mat = (map) => new THREE.MeshPhysicalMaterial({map, color: map ? 0xffffff : bodyCol, roughness: p.roughness == null ? 0.36 : p.roughness,
+          metalness: 0, clearcoat: p.clearcoat == null ? 1 : p.clearcoat, clearcoatRoughness: 0.08});
+        const mesh = new THREE.Mesh(g, [mat(tex), mat(null)]); mesh.castShadow = true; mesh.receiveShadow = true;
+        // size: `width` is the outline's widest extent in scene units; the body sits ON y = 0 of the group (feet down)
+        const xs = rr.map((r, i) => Math.cos(i / NA * Math.PI * 2) * r / R), ys = rr.map((r, i) => Math.sin(i / NA * Math.PI * 2) * r / R);
+        const sc = (p.width || 1) / (Math.max(...xs) - Math.min(...xs));
+        mesh.scale.setScalar(sc); mesh.position.set(-(Math.max(...xs) + Math.min(...xs)) / 2 * sc, -Math.min(...ys) * sc, 0);
+        body.add(mesh); group.userData.size = [p.width || 1, (Math.max(...ys) - Math.min(...ys)) * sc]; group.userData.color = bodyCol;
+      });
+      pending.push(job);
+      group.userData.body = body;
+      group.position.set(p.x || 0, p.y || 0, p.z || 0); group.rotation.set(p.rotX || 0, p.rotY || 0, p.rotZ || 0);
+      scene.add(group);
+      return group;
+    },
     ready() { return Promise.all(pending); },
     // one frame: camera position, where it looks, its fov, and the focus distance for depth of field
     render(c) {
@@ -165,4 +255,19 @@ function create(o) {
   return st;
 }
 
-export {create, ease, easeOut, lerp, lerp3, clamp01, THREE};
+// a character's hop over its own clock t01 in 0..1 (anticipation crouch, an arc, a landing squash, recovery) with its
+// volume kept (sx * sx * sy == 1, x and z share sx). Apply to an inflate()'d group's `userData.body`:
+//   const h = Stage3D.hop(u); body.position.y = h.y; body.scale.set(h.sx, h.sy, h.sx);
+// Same curve as remotion/src/runtime/character.ts.
+function hop(t01, o) {
+  o = o || {}; const antic = o.antic == null ? 0.15 : o.antic, land = o.land == null ? 0.15 : o.land;
+  const height = o.height == null ? 0.3 : o.height, squash = o.squash == null ? 0.25 : o.squash, stretch = o.stretch == null ? 0.1 : o.stretch;
+  const t = clamp01(t01); if (t <= 0 || t >= 1) return {y: 0, sx: 1, sy: 1};
+  let y = 0, sy = 1;
+  if (t < antic) sy = 1 - squash * Math.sin(Math.PI * (t / antic));
+  else if (t < 1 - land) { const u = (t - antic) / (1 - antic - land); y = height * Math.sin(Math.PI * u); sy = 1 + stretch * Math.abs(Math.sin(2 * Math.PI * u)); }
+  else sy = 1 - squash * Math.sin(Math.PI * ((t - (1 - land)) / land));
+  return {y, sx: 1 / Math.sqrt(sy), sy};
+}
+
+export {create, ease, easeOut, lerp, lerp3, clamp01, hop, THREE};

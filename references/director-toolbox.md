@@ -44,7 +44,7 @@ each sequence seam; no clipping, even loudness across lines.
 Icons: `references/icons.md` (one inline-SVG line family, Lucide). Captions: `python3 scripts/caption_words.py "…"`
 shows where a CJK caption may break.
 
-**The 3D stage (the default for product films)** — `assets/html/stage3d.js`, one classic script (three.js 0.169
+**The 3D stage** — `assets/html/stage3d.js`, one classic script (three.js 0.169
 bundled from `remotion/node_modules` by `scripts/build_stage3d.sh`), so a film page loads it with a plain `<script>`:
 
     const st = Stage3D.create({canvas, background: '#06070a', fog: {near: 9, far: 22}, dof: {aperture: 0.0016}});
@@ -57,7 +57,14 @@ bundled from `remotion/node_modules` by `scripts/build_stage3d.sh`), so a film p
     window.seek = (t) => st.render({pos: [...], look: [...], fov: 30, focus: 7});           // pure function of t
 
 Screens EMIT their picture (unlit, exact colours, rounded) inside a lit slab body; `dim` darkens a background one.
-Use CLEAN screens (crop out any documentation annotations first). Type stays in the page's DOM over the canvas
+Use CLEAN screens (crop out any documentation annotations first).
+
+**Characters and marks as soft 3D bodies**: `st.inflate('bot.png', {width: 0.9, x, z, front: 0.42, back: 0.3})` turns a
+flat character or mark on a TRANSPARENT background into a glossy inflated body standing on its own y = 0, its artwork
+redrawn crisp on the face (its own colours), its main colour on the back; it refuses a shape touching the image edge
+(an opaque tile, a character cropped by a phone frame: cut the whole shape out first). Act with
+`const h = Stage3D.hop(u, {height: 0.4}); g.userData.body.position.y = h.y; g.userData.body.scale.set(h.sx, h.sy, h.sx)`
+(anticipation, arc, a volume-keeping landing squash). Brand colours stay true with `create({toneMapping: 'neutral'})`. Type stays in the page's DOM over the canvas
 (crisp). Capture with Chrome's `--allow-file-access-from-files` (WebGL refuses `file://` images otherwise) or serve the
 folder over http. Measured on the first keyframes (2026-11-17): a hand-tuned frame went from "screens floating in a
 void" to cinematic only after three render-and-judge rounds — composition is the designer's work, not the kit's.
@@ -122,8 +129,9 @@ picture going back, as on a Memphis film's label pops).
 A starting point measured on 20 official launch films (`references/craft-standard.md` "A product film",
 `references/launch-film-study.md`); the WorkBuddy blind rounds (2026-11-16/17) chose the film that followed it:
 - the real product is the hero, at size: its real screens fill most of the frame (about 55 % of the width or more), or
-  a crop pushes onto the exact component the voice names, within the screenshot's pixel density; a redrawn icon, card
-  or device outline is a stand-in, used only where no real screen shows the idea;
+  a crop pushes onto the exact component the voice names, within the screenshot's pixel density, when the screen reads
+  at that size; when it cannot (its pixels are too few), the UI is drawn simplified from it, honest: its layout, colours
+  and sourced words, grey bars for text with no source (the Grok Bot film that read best did this throughout);
 - one hero object persists: the product's window stays, and the beats are its states, not new scenes;
 - type beats alternate with product beats: one short display line on the brand ground (the problem, the promise, the
   payoff), the key word in the brand accent;

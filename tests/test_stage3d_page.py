@@ -31,6 +31,48 @@ st.ready().then(() => st.render({pos: [0, 1.8, 6], look: [0, 1.6, 0], fov: 40}))
     assert im.getpixel((5, 5))[0] < 40                         # the ground is the dark stage, not blank white
 
 
+def _shoot(tmp_path, body, w=640, h=360):
+    shutil.copy(os.path.join(ROOT, "assets", "html", "stage3d.js"), tmp_path)
+    (tmp_path / "p.html").write_text("""<!doctype html><html><body style="margin:0;background:#000">
+<canvas id="c" width="%d" height="%d"></canvas><script src="stage3d.js"></script><script>
+(async () => { %s })().then(() => document.title = 'ok', (e) => document.title = 'ERR ' + e.message);
+</script></body></html>""" % (w, h, body))
+    shot = tmp_path / "shot.png"
+    r = subprocess.run([CHROME, "--headless=new", "--allow-file-access-from-files", "--hide-scrollbars",
+                        "--window-size=%d,%d" % (w, h), "--virtual-time-budget=6000", "--dump-dom",
+                        "file://%s" % (tmp_path / "p.html")], capture_output=True, timeout=120, text=True)
+    subprocess.run([CHROME, "--headless=new", "--allow-file-access-from-files", "--hide-scrollbars",
+                    "--window-size=%d,%d" % (w, h), "--virtual-time-budget=6000", "--screenshot=%s" % shot,
+                    "file://%s" % (tmp_path / "p.html")], capture_output=True, timeout=120)
+    return r.stdout, Image.open(shot).convert("RGB")
+
+
+@pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")
+def test_inflate_keeps_a_characters_shape_and_colours(tmp_path):
+    # a green disc with one small blue dot (2% of it) on a transparent ground: the body is green, the dot stays blue
+    from PIL import ImageDraw
+    im = Image.new("RGBA", (200, 200), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.ellipse((20, 20, 180, 180), fill=(0, 198, 106, 255)); d.ellipse((90, 60, 110, 80), fill=(16, 132, 254, 255))
+    im.save(tmp_path / "bot.png")
+    dom, shot = _shoot(tmp_path, """const st = Stage3D.create({canvas: document.getElementById('c'), background: '#05060a',
+      toneMapping: 'neutral'}); st.studio({env: 0.4}); const b = st.inflate('bot.png', {width: 2, x: 0, y: 0.2});
+      await st.ready(); st.render({pos: [0, 1.2, 5], look: [0, 1.2, 0], fov: 40});""")
+    assert "<title>ok</title>" in dom, dom[:300]
+    px = [shot.getpixel((x, y)) for x in range(250, 390, 6) for y in range(140, 260, 6)]
+    green = [p for p in px if p[1] > 120 and p[1] > p[0] + 50 and p[1] > p[2] + 30]
+    blue = [p for p in px if p[2] > 150 and p[2] > p[0] + 80]
+    assert len(green) > len(px) * 0.4, "the body lost its colour"
+    assert blue, "the small blue part was snapped away"
+
+
+@pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")
+def test_inflate_refuses_a_shape_that_touches_the_edge(tmp_path):
+    Image.new("RGBA", (100, 100), (240, 240, 240, 255)).save(tmp_path / "tile.png")   # opaque: no outline to trace
+    dom, _ = _shoot(tmp_path, """const st = Stage3D.create({canvas: document.getElementById('c')});
+      st.inflate('tile.png', {width: 1}); await st.ready();""")
+    assert "ERR stage3d.inflate" in dom and "touches the image edge" in dom, dom[:300]
+
+
 def test_the_committed_bundle_matches_its_source(tmp_path):
     out = tmp_path / "stage3d.js"
     subprocess.run([os.path.join(ROOT, "remotion", "node_modules", ".bin", "esbuild"),

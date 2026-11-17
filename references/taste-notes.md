@@ -55,6 +55,7 @@ included. Techniques by name live in `promo-shotcraft.md`; this file is about se
 - **Spectacle over truth.** A move that looks great but shows something false is worse than a plain true one.
 
 ## A designer's pass on any frame (ten seconds each)
+0. Read it cold for one second: what does it say, and is that the line the voice says over it?
 1. What is the ONE big thing? Is it big enough?
 2. Is there depth (glow, focus planes, shadow)?
 3. Is the light placed, and only once?

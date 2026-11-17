@@ -122,22 +122,26 @@ from it.
 
 ### 5. Design — concepts, hero moments, keyframes (a dedicated designer; the one checkpoint)
 
-**Competent is a failure.** Every film already clears the floors; what this step exists for is a design a viewer would
-stop scrolling for and remember (the user, 2026-11-17: "we don't want mediocre one, we want the best one with the best
-design and creativity… bold, novel design; avoid the ordinary"). Design gets its own phase, its own agent and its own
-effort, because a single pass that also researches, builds and fixes gates converges on safe and forgettable.
+**Understood first, then remembered.** A frame a first-time viewer cannot read in about a second fails however
+beautiful it is; a clear film nobody remembers fails too (the user, 2026-11-17: "we don't want mediocre one… avoid the
+ordinary"). The order matters: chasing "stunning" first produced a Grok Bot film of tilted screens in an abstract
+tower that lost to an older, plainer film whose own characters acted out the product. Design gets its own phase, its
+own agent and its own effort, because a single pass that also researches, builds and fixes gates converges on safe
+and forgettable.
 
 1. **Dispatch the designer**: `agents/film-designer.md` (`topic-to-video:film-designer` when the plugin registers it;
    otherwise a general-purpose agent given that file as its instructions), **with effort "high"** and a fresh
    context. Give it the brief, `script.json`, `timeline.json`, the purpose and length, and the material in `input/`;
    nothing about gates. It writes `design/story.md` (the viewer's journey: for a product film, how the product WORKS,
-   not only what it made), `design/concepts.md` (three genuinely different concepts, none built on the mediocre
-   catalogue, and the choice), the three **hero moments** rendered as finished keyframes (`design/keyframes.jpg`,
-   redesigned until each clears the poster bar), `design/treatment.md`, and a draft `shot_plan.json`.
+   not only what it made), `design/concepts.md` (three concepts, the first always the product's OWN world, its
+   characters, UI and marks, acting the journey out; and the choice), the three **hero moments** rendered as finished
+   keyframes (`design/keyframes.jpg`, redesigned until each reads in a second and stays in the memory), a
+   `design/treatment.md` with every shot's picture (not only the heroes'), and a draft `shot_plan.json`. If a film on
+   this subject already exists, give the designer its path: the new one is judged side by side with it.
 2. **The checkpoint.** Show the user the three concepts (one line each) and `design/keyframes.jpg`, and ask
    (`AskUserQuestion`): go with this concept, take another of the three, or push it further. **Non-interactive:** one
    round of `agents/keyframe-review.md` (a fresh-eyed reviewer, effort "high") on the keyframes; the designer revises
-   every frame it calls competent or weak, then the build starts. One round, not a loop.
+   every frame it calls unclear or forgettable, then the build starts. One round, not a loop.
 3. **A style the user named** ("a Memphis style", "like a blueprint", "like a documentary") is a constraint on the
    designer's concepts, not a replacement for them. A brand's own colours and logo always apply.
 
@@ -157,12 +161,14 @@ teaching, design, motion and sound principles) before building.
 
 **Engine.** Default: one HTML page for the whole film (`film.html`) in which **every frame is a pure function of
 time** (`window.seek(t)`: no CSS transitions, no timers, no randomness), captured frame by frame with headless
-Chrome at 1920x1080, 30 fps, encoded with ffmpeg. **The hero moments are built first and get the film's best effort**, from the
-designer's keyframes; everything else serves them. For a product film the default stage is **3D**:
-`assets/html/stage3d.js` puts the real screens in a lit space as physical panels (thickness, rounded screens that
-emit their own picture, a glossy floor, a placed light, a camera with depth of field), with the page's own type
-layered over it; a flat page of cards is the look of a website, not of a film (commands in the toolbox). Pieces made elsewhere (a Blender clip, a library shot rendered
-through the workshop) are placed as frames the page draws by frame number.
+Chrome at 1920x1080, 30 fps, encoded with ffmpeg. **The hero moments are built first**, from the designer's
+keyframes, and every other shot is built to its line in the treatment: the shots between the heroes are where
+labels, tilts and filler creep in. **3D where physicality is the content**: the product's characters or mascot as
+soft lit bodies that act (`st.inflate` + `Stage3D.hop` in `assets/html/stage3d.js`), a device, an object; a screen
+can be a lit panel there, and settles facing the viewer when it carries something to read. A film that stages every
+screen as a tilted panel on a dark floor turns into a visible device (rejected on Grok Bot twice, 2026-11-12 and
+-17); alternate grounds (light UI shots, dark 3D shots) for rhythm. Commands in the toolbox. Pieces made elsewhere (a
+Blender clip, a library shot rendered through the workshop) are placed as frames the page draws by frame number.
 
 **The kit, where the look calls for it** (commands in the toolbox): light and material from the Remotion runtime;
 real 3D from Blender (`scripts/blender_clip.py`) for what 3D physicality IS the content of — a real object, a
@@ -198,7 +204,9 @@ stays readable. `assets/html/accents.js` gives them as pure functions of time, w
 - Build each sequence, export its settled frames, look at them, fix, then move on.
 
 **A launch or product film** usually works best with the real product as the hero at size (its real screens large,
-or a crop onto the component the voice names), one persistent hero object, short type beats between product beats,
+or a crop onto the component the voice names, where they READ at that size; where they do not, a phone screenshot or
+a small dialog on a big desktop, draw the UI simplified and honest: the real layout and colours, the sourced words,
+grey bars for text with no source), its own characters acting the steps out when it has any, one persistent hero object, short type beats between product beats,
 the real logo early and a closing lockup, one small celebration, and a quick rhythm (the full grammar and its
 evidence in the toolbox). Before building one, write `<film_dir>/shot_plan.json` (features → shots, each shot's
 job, technique and seam, the motion voice, the signature idea; format in `scripts/shot_plan_qa.py`) and pass
