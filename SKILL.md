@@ -157,6 +157,18 @@ made this way. A film that wants the kit below may be built in the skill's Remot
 - **Captions:** the classic tier's line-break rules apply (`scripts/caption_words.py` shows where a CJK caption
   may break). Captions sit in their own band, which no picture enters; 1-2 lines; easy contrast on the ground.
 
+**Everything the classic version built is yours to use** where it serves this film (none of it is required):
+- **Writing:** `agents/scriptwriter.md` can draft the narration from the plan; one round of `agents/critic-narrative.md`
+  on the draft catches what the ear misses. `scripts/pace.py` for length.
+- **Real material:** `scripts/promo_capture.py <film_dir> <url> --name=<n>` and `scripts/capture_page.py` capture a
+  real product page at 2x; `scripts/imagefetch.py` fetches real, licensed images of a named subject.
+- **Pictures:** the kit above (lit stage, materials, Blender plates, objects such as devices and the Earth, the 227
+  library shots inside a workshop shot, rendered with `workshop.py <film_dir> clip`); `scripts/theme.py --style`
+  for a contrast-safe palette; `scripts/caption_words.py` for where a CJK caption may break.
+- **Sound:** `scripts/score.py` (a generated score on a beat grid), `scripts/sfx.py` and `assets/sfx/`.
+- **Checks:** everything in `film_qc.py`; any other script in `references/pipeline-scripts.md` that takes a film
+  folder or an mp4.
+
 **Rules every frame obeys** (each one cost a real film a defect):
 - Nothing cut off, overlapping or unreadable; nothing in the caption band but the caption.
 - **Never draw a raster beyond its native pixels**; a real screenshot is cropped and pushed within its density.
@@ -194,7 +206,7 @@ Write `<film_dir>/_plan.json` with the cut frames computed by **the same rule th
 
 ### 8. Check, fix, deliver
 
-1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide and empty-frame checks against
+1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame and shake checks against
    `final.mp4` and `_plan.json`, and exits 1 on any red. Fix the film, re-render, re-run until CLEAN.
    A red you believe is wrong is never silenced and never "fixed" by cutting good content: PROVE it on the frames
    (measure the thing the check claims, e.g. the moving edge's position per frame) and with a CONTROL (the same

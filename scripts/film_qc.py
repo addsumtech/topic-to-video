@@ -3,9 +3,10 @@
     python3 scripts/film_qc.py <film_dir>        # reads <film_dir>/final.mp4 and <film_dir>/_plan.json
 
 Runs, in order: flash_qa (a frame unlike both neighbours), rewind_qa (the picture going back after a cut, read
-against the plan's cuts), picture_glide_qa (a picture stepping instead of gliding under a moving camera) and
-empty_frame_qa (a blank hold of a second or more). Prints one line per check — OK, or the check's own findings —
-and exits 1 if any check is red, so "clean" is a fact the caller can test, not a reading of the log.
+against the plan's cuts), picture_glide_qa (a picture stepping instead of gliding under a moving camera),
+empty_frame_qa (a blank hold of a second or more) and shake_qa (the whole frame vibrating instead of travelling).
+Prints one line per check — OK, or the check's own findings — and exits 1 if any check is red, so "clean" is a
+fact the caller can test, not a reading of the log.
 
 _plan.json (written by the film's own renderer):
   {"video": "final.mp4", "fps": 30, "frames": <total>, "cuts": [<frame of every cut>],
@@ -26,6 +27,7 @@ def checks(d, video, plan):
         ("rewind", [py, os.path.join(HERE, "rewind_qa.py"), video, "--plan", plan]),
         ("glide", [py, os.path.join(HERE, "picture_glide_qa.py"), d, "--video=" + video]),
         ("empty", [py, os.path.join(HERE, "empty_frame_qa.py"), video]),
+        ("shake", [py, os.path.join(HERE, "shake_qa.py"), video]),
     ]
 
 
