@@ -74,7 +74,8 @@ that only this subject could have — an aha found by looking hard at the subjec
 diamond's fire rendered from its real dispersion; the sky computed by the physics the film explains; the QR code
 decoded on the film's own frames; the one-sentence prompt line that deals out the finished files. Decide it before
 building, name it in the plan (`signature`) and in `NOTES.md`, and give it the film's best moment. Learning a
-technique is the start: bend it, combine it, invent past it.
+technique is the start: bend it, combine it, invent past it. Train the eye with `references/taste-notes.md` (what
+good frames do, seen and judged) and give every frame its ten-second designer's pass.
 
 ### 1. Ask — once, plainly, with options
 
