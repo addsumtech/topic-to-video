@@ -99,3 +99,11 @@ def test_film_qc_runs_every_check_on_the_plan_video(blank_hold_film):
     assert names == ["flash", "rewind", "glide", "empty", "shake", "captions"]
     glide = dict(film_qc.checks(str(d), str(d / "final.mp4"), str(d / "_plan.json")))["glide"]
     assert "--video=" + str(d / "final.mp4") in glide   # picture_glide_qa otherwise reads <dir>/out.mp4
+
+
+def test_film_qc_adds_the_plan_and_seam_checks_with_a_shot_plan(tmp_path):
+    names = [n for n, _c in film_qc.checks(str(tmp_path), str(tmp_path / "final.mp4"), str(tmp_path / "_plan.json"))]
+    assert "shot plan" not in names and "seams" not in names
+    (tmp_path / "shot_plan.json").write_text("{}")
+    names = [n for n, _c in film_qc.checks(str(tmp_path), str(tmp_path / "final.mp4"), str(tmp_path / "_plan.json"))]
+    assert names[-2:] == ["shot plan", "seams"]

@@ -5,7 +5,8 @@
 Runs, in order: flash_qa (a frame unlike both neighbours), rewind_qa (the picture going back after a cut, read
 against the plan's cuts), picture_glide_qa (a picture stepping instead of gliding under a moving camera),
 empty_frame_qa (a blank hold of a second or more), shake_qa (the whole frame vibrating instead of travelling) and
-caption_size_qa (burned captions too small to read on a phone).
+caption_size_qa (burned captions too small to read on a phone); with a shot_plan.json, also shot_plan_qa (the craft
+plan is sound) and seam_qa (every seam the plan says is hidden really is).
 Prints one line per check — OK, or the check's own findings — and exits 1 if any check is red, so "clean" is a
 fact the caller can test, not a reading of the log.
 
@@ -30,7 +31,9 @@ def checks(d, video, plan):
         ("empty", [py, os.path.join(HERE, "empty_frame_qa.py"), video]),
         ("shake", [py, os.path.join(HERE, "shake_qa.py"), video]),
         ("captions", [py, os.path.join(HERE, "caption_size_qa.py"), video]),
-    ]
+    ] + ([("shot plan", [py, os.path.join(HERE, "shot_plan_qa.py"), d]),
+          ("seams", [py, os.path.join(HERE, "seam_qa.py"), d])]
+         if os.path.isfile(os.path.join(d, "shot_plan.json")) else [])
 
 
 def main(argv):

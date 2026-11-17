@@ -4,6 +4,9 @@ Studied 2026-11-17 from video-shotcraft (github.com/Vincentwei1021/video-shotcra
 motion samples, aesthetic rules each backed by a user's ruling). Restated here in this skill's words and adapted to its
 engine and checks; no code is copied. Use it for launch, promo and product-explainer films (SKILL.md step 6). It is a
 vocabulary for judgement (SKILL.md "Design is judgement"): pick what serves the moment, skip the rest.
+It is a technique stack, not a taste: knowing these moves lets you execute any idea; which idea the film should be
+is yours to find (SKILL.md "You are the film's designer"). The best moments in this skill's films came from no
+library — §7.
 
 ## 1. What makes these films look premium
 - **The product's UI is a physical object in a lit space**, not a flat screenshot on a gradient. Cards and windows have
@@ -163,3 +166,37 @@ Each: what it says → its critical point. Durations at 30 fps.
 - Deterministic everything (seeded randomness, pure functions of time): `assets/html/accents.js` has `blurSlide`
   (the default reveal) and `dealTimes` (an accelerating batch schedule ending in a rest), next to the accents.
 - For lit 3D of a physical product, `scripts/blender_clip.py` (devices: `laptop_screen`).
+
+## 6. Craft review before delivery (look at the frames, answer each with evidence)
+- Every feature in the plan is on screen, each in its own shot; no two shots say the same thing.
+- The opening is one hero with a complete arc (≥3 s); the close is the energy peak and the brand holds ≥1 s still.
+- Each technique stars once; the motion voice is one voice (three words for the motion match three for the brand).
+- Pause on any frame of a feature shot: is the UI an object in a lit space, or a flat screenshot on a gradient?
+- Every scene change is carried or hidden (`seam_qa` agrees with the plan); hard cuts are beat-cuts, match cuts or UI
+  states by design.
+- Holds: the key number, the claim and the wordmark each sit still long enough to read twice; batches rest at the end.
+- Text: captions pass `caption_size_qa`; every word meant to be read reads at phone size; texture text is softened.
+- Light: at most one sheen or glint per shot, on the hero, clipped to its corners.
+- Sound: film vocabulary and real foley, cut to each action; no game tones; nothing out of sync at a cut.
+- Copy: every line names a real feature or a concrete benefit and matches its picture.
+- The signature idea lands: the moment a viewer would describe to a friend.
+
+## 7. Our own way: craft that is also true
+video-shotcraft makes product films beautiful; this skill's films are beautiful and true, and that is where its
+signature moments come from. Bring both.
+- **Motion that is the evidence.** Choose the move by the claim, then build it from the real thing: the diamond's fire
+  rendered at its real red, green and blue refractive indices; the sky computed by the scattering law the film
+  explains; the QR code that viewers can scan, decoded on the film's own frames; real numbers counting to their sourced
+  values. A technique borrowed from a library becomes ours when the content drives it.
+- **Cut to meaning, voice first.** The narration's timeline is the clock: a technique lands on the word it proves. A
+  scored promo also lands its big moments on the beat, but never at the cost of the sentence.
+- **Physical truth in 3D.** Real light, material and optics from Blender where physicality is the content
+  (`scripts/blender_clip.py`); devices that show the product's real screen.
+- **Sourced, never invented.** The product's own docs and screens for a product film; research with captured sources
+  for an explainer; a number on screen is a claim.
+- **Measured, not eyeballed.** Flash, rewind, glide, empty frames, shake, caption size, seams and the plan are checked
+  on the pixels; a disputed red is proved with a control, never silenced.
+- **Invent past the library.** Read the subject until a move appears that belongs only to it: a torn QR corner
+  scattering as codewords, a lens's rays fanning from the candle, the prompt line dealing out the files. One such idea
+  per film is the signature (SKILL.md); everything else serves it.
+

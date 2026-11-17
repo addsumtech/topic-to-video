@@ -67,6 +67,15 @@ launch grammar, sequence counts, the craft principles, every example here) is a 
 bend it, or leave it, by what this subject, this audience and this moment need, and invent what the vocabulary
 lacks. A choice that departs from a suggestion here gets one line of why in `NOTES.md`; that is all it needs.
 
+**You are the film's designer** (the user, 2026-11-17: "你要时刻记住自己video设计者的身份…自发的再创作…基于你高级的taste和
+敏锐的洞察"). The references (looks, craft principles, promo technique) are your technique stack, studied so you can
+execute anything; your taste decides what the film should be. Every film carries at least one **signature idea**
+that only this subject could have — an aha found by looking hard at the subject itself, not picked from a list: the
+diamond's fire rendered from its real dispersion; the sky computed by the physics the film explains; the QR code
+decoded on the film's own frames; the one-sentence prompt line that deals out the finished files. Decide it before
+building, name it in the plan (`signature`) and in `NOTES.md`, and give it the film's best moment. Learning a
+technique is the start: bend it, combine it, invent past it.
+
 ### 1. Ask — once, plainly, with options
 
 Use ONE `AskUserQuestion` call (options, the recommended one first; never a typed question in chat). Skip any
@@ -184,7 +193,11 @@ stays readable. `assets/html/accents.js` gives them as pure functions of time, w
 **A launch or product film** usually works best with the real product as the hero at size (its real screens large,
 or a crop onto the component the voice names), one persistent hero object, short type beats between product beats,
 the real logo early and a closing lockup, one small celebration, and a quick rhythm (the full grammar and its
-evidence in the toolbox). What lifts one from correct to crafted (`references/promo-shotcraft.md`, studied from a
+evidence in the toolbox). Before building one, write `<film_dir>/shot_plan.json` (features → shots, each shot's
+job, technique and seam, the motion voice, the signature idea; format in `scripts/shot_plan_qa.py`) and pass
+`python3 scripts/shot_plan_qa.py <film_dir>`; `film_qc` then holds the film to it (`seam_qa`: a seam planned as hidden
+must not be a bare swap). An explainer may write one too, and gets the same checks. What lifts one from correct to
+crafted (`references/promo-shotcraft.md`, studied from a
 mature promo-film practice): the product's UI staged as **physical objects in a lit space** (thickness, contact
 shadows, one light, 3D angles), not flat screenshots on a gradient; the film's look grown from the **product's own
 design system**; every feature mapped to one shot and **each technique the star only once**; a focused opening (one

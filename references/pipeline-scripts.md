@@ -1156,3 +1156,11 @@ agent on the beats it points at.
   line in the bottom 22 %, median over 16 frames, under 4.6 % of the frame height in glyph ink (~54 px font at
   1080p; glyph ink ≈ 0.93 of the font size, calibrated on rendered captions). A film without burned captions is not
   judged. Part of film_qc.
+- `scripts/shot_plan_qa.py <film_dir> [--json]` — the craft plan (`shot_plan.json`) before building: features mapped to
+  shots, each technique the hero once, opening ≥3 s, closing hold ≥1 s, a named seam at every boundary (no bare
+  "cut"), one motion voice, shots tiling the film, a signature idea placed in a real shot. Part of film_qc when the plan
+  exists.
+- `scripts/seam_qa.py <film_dir> [--json]` — each cut of `_plan.json` measured for a bare swap (≥85 % of the change
+  within ±8 frames in one step, no flash spike; calibrated on synthetic hard cut 1.00 / flash 0.51 / cross-fade 0.58 /
+  push 0.28) and checked against the plan's seam: a seam planned as hidden that measures bare is an error. Without a
+  shot plan, bare cuts are only noted. Part of film_qc when the plan exists.
