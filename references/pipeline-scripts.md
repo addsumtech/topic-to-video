@@ -1152,3 +1152,7 @@ agent on the beats it points at.
   [--samples N] [--env] [--params JSON] [--still F]` — a Blender scene (the plate scene API and kit) rendered as a
   clip for a director-path film, with no storyboard: `blender/runner.py --no-reuse` into `<film_dir>/clips/<name>/rgba/`
   (alpha PNGs, or opaque with `--env`) plus a preview `<name>.mp4`; `--still F` renders one frame to look at first.
+- `scripts/caption_size_qa.py <film.mp4 | dir> [--json]` — burned captions too small for a phone: the tallest caption
+  line in the bottom 22 %, median over 16 frames, under 4.6 % of the frame height in glyph ink (~54 px font at
+  1080p; glyph ink ≈ 0.93 of the font size, calibrated on rendered captions). A film without burned captions is not
+  judged. Part of film_qc.

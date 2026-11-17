@@ -116,13 +116,15 @@ A starting point measured on 20 official launch films (`references/craft-standar
 - Score: `python3 scripts/score.py --bpm 112 --seconds S [--climax T] score.wav` (a generated score on a beat grid).
 - SFX: `python3 scripts/sfx.py --cues cues.json --seconds S --out sfx.wav`, cues `[{"t": s, "cue": name, "gain": 0..1}]`
   from 15 synthesised, deterministic sounds (`sfx.py --list`: click, key, tick, focus, whoosh, pop, riser, impact,
-  sparkle, strike, chime, swell, settle, reveal); recorded takes in `assets/sfx/kenney/` (click, select, drop, glass).
+  sparkle, strike, chime, swell, settle, reveal); recorded takes in `assets/sfx/kenney/` (click, select, drop, glass:
+  UI-game timbres; a product film prefers real-world foley, `promo-shotcraft.md` §4).
 - Mix: music well under the voice and ducked while it speaks; SFX short and high-passed; master to about -14 LUFS
   integrated with true peak at or under -2 dBTP: ffmpeg `loudnorm=I=-14:TP=-2:LRA=11`.
 
 ## Checks (step 8)
-`python3 scripts/film_qc.py <film_dir>`: flash, rewind (against `_plan.json`'s cuts), picture glide, empty frames and
-shake on `final.mp4`; exit 1 on any red. `_plan.json`:
+`python3 scripts/film_qc.py <film_dir>`: flash, rewind (against `_plan.json`'s cuts), picture glide, empty frames,
+shake and caption size (`caption_size_qa`: the burned caption line ≥ 4.6 % of the frame height in glyph ink, i.e. a
+~54-56 px font at 1080p) on `final.mp4`; exit 1 on any red. `_plan.json`:
 `{"video": "final.mp4", "fps": 30, "frames": N, "cuts": [...], "segments": [{"start", "end", "kind": "shot"|"loop"}]}`,
 the cuts computed by the same rule the renderer uses to switch shots (a plan that rounded differently put a cut one
 frame off and rewind_qa reported a replay). Known blind spot of picture_glide_qa: a sky or light whose colours change

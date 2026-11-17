@@ -10,6 +10,11 @@
  *   pop(t, d)        -> {scale, alpha}   an element arriving (0.7 -> 1), NO overshoot
  *   drawOn(t, d)     -> 0..1             an underline / circle / tick drawing itself (stroke-dashoffset = 1 - value)
  *   countUp(t, from, to, d, decimals) -> number, rising monotonically and landing exactly on `to`
+ *   blurSlide(t, i, {gap, d, rise, blur}) -> {y, blur, opacity}   the default text reveal for word i: one progress
+ *                                    drives all three channels on one easing, words `gap` s apart (references/
+ *                                    promo-shotcraft.md: "it surfaces out of focus" instead of "slides and fades")
+ *   dealTimes(n, {first, last, rest}) -> [start s of each item ..., end s incl. the rest]   a batch that arrives
+ *                                    faster and faster (first interval -> last interval), then rests
  *   drawParticles(ctx, particles)     -> draws burst() output on a 2D canvas
  *
  * NO OVERSHOOT, on purpose: an element that grows past full size and shrinks back is a picture going back, and
@@ -110,6 +115,28 @@
     return t >= (d || 1) ? to : Math.round(v * f) / f;
   }
 
+  function blurSlide(t, i, o) {
+    o = o || {};
+    var gap = o.gap == null ? 0.13 : o.gap, d = o.d || 0.6;
+    var p = easeOutCubic((t - i * gap) / d);
+    return { y: (o.rise == null ? 0.38 : o.rise) * (1 - p),          // in em
+             blur: (o.blur == null ? 18 : o.blur) * (1 - p),         // px
+             opacity: p };
+  }
+
+  function dealTimes(n, o) {
+    o = o || {};
+    var first = o.first == null ? 0.3 : o.first, last = o.last == null ? 0.08 : o.last;
+    var out = [], t = 0;
+    for (var i = 0; i < n; i++) {
+      out.push(t);
+      var k = n > 1 ? i / (n - 1) : 1;
+      t += first * Math.pow(last / first, k);                     // intervals shrink geometrically
+    }
+    out.push(out[n - 1] + (o.rest == null ? 0.5 : o.rest));      // the batch ends with a still rest
+    return out;
+  }
+
   function drawParticles(ctx, ps) {
     for (var i = 0; i < ps.length; i++) {
       var q = ps[i];
@@ -123,6 +150,7 @@
   }
 
   var api = { burst: burst, ring: ring, rays: rays, sparkle: sparkle, pop: pop, drawOn: drawOn, countUp: countUp,
+              blurSlide: blurSlide, dealTimes: dealTimes,
               drawParticles: drawParticles, rng: rng };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Accents = api;

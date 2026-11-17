@@ -132,6 +132,9 @@ The chosen look is **held for the whole film**: palette, type scale, grid, groun
 composition and scale, never from changing the look. Also decide the film's **recurring subject** here: the one
 thing the film keeps returning to and transforming (the code being torn, scanned and repaired; the companion
 and its three file cards). This, more than anything else, made the winning films feel like one film.
+Decide its **motion voice** too: one set of timings and easing for every entrance, transition and hold, chosen from
+the brand's energy (calm/premium ↔ bold/startup) and tone (serious ↔ playful); two voices in one film read as a
+patchwork (presets in `references/promo-shotcraft.md`).
 
 ### 6. Build — sequence by sequence
 
@@ -173,12 +176,21 @@ stays readable. `assets/html/accents.js` gives them as pure functions of time, w
 - No slow constant creep on fine detail (hard edges shimmer); a camera move has a job and an end.
 - No blank holds: every shot puts its subject on screen from its first frame (lead the cut by ~0.1 s).
 - Text on screen is labels, keywords and numbers, never the narration as body text.
+- **Text is either read or texture.** Words meant to be read are big enough on a phone: captions ≥ ~56 px at 1080p
+  (about 5 % of the frame height; `caption_size_qa` measures it), labels ≥ ~32 px, counted on the rendered frame
+  with every scale applied. Small text not meant to be read is visibly softened or dimmed; nothing in between.
 - Build each sequence, export its settled frames, look at them, fix, then move on.
 
 **A launch or product film** usually works best with the real product as the hero at size (its real screens large,
 or a crop onto the component the voice names), one persistent hero object, short type beats between product beats,
 the real logo early and a closing lockup, one small celebration, and a quick rhythm (the full grammar and its
-evidence in the toolbox).
+evidence in the toolbox). What lifts one from correct to crafted (`references/promo-shotcraft.md`, studied from a
+mature promo-film practice): the product's UI staged as **physical objects in a lit space** (thickness, contact
+shadows, one light, 3D angles), not flat screenshots on a gradient; the film's look grown from the **product's own
+design system**; every feature mapped to one shot and **each technique the star only once**; a focused opening (one
+hero, a complete ≥3 s arc) climbing to the energy peak at the close; **designed holds** (key number or wordmark ≥1 s,
+0.5 s after a batch, interactions at human speed); speed from **acceleration**; **no bare cuts** between scenes; and
+feature demos as **causal chains** (cursor, press, state change, reward). Read it before building one.
 
 **Render** `<film_dir>/final.mp4`: 1920x1080 (or 1080x1920 when asked for vertical), 30 fps, H.264 + AAC. Write
 `<film_dir>/_plan.json` (format in the toolbox) with the cut frames computed by **the same rule the renderer uses to
@@ -190,11 +202,12 @@ switch shots**.
 - **Music follows purpose:** an explainer can do without; a launch or promo is scored (`scripts/score.py`, or the
   user's own track), well under the voice and ducked while it speaks.
 - **SFX** on a few real events, short and high-passed (`scripts/sfx.py --cues`: 15 synthesised sounds). Not every cut
-  gets a sound.
+  gets a sound. A product film speaks the film vocabulary (whoosh, impact, riser, sparkle) with real foley for
+  visible actions, never game-feedback tones (`references/promo-shotcraft.md` §4).
 
 ### 8. Check, fix, deliver
 
-1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame and shake checks against
+1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame, shake and caption-size checks against
    `final.mp4` and `_plan.json`, and exits 1 on any red. Fix the film, re-render, re-run until CLEAN.
    A red you believe is wrong is never silenced and never "fixed" by cutting good content: PROVE it on the frames
    (measure the thing the check claims) and with a CONTROL (the same shot with the suspected cause removed), and
@@ -226,6 +239,6 @@ switch shots**.
 `references/classic-pipeline.md` holds the full classic workflow, moved there verbatim on 2026-11-16: the deck
 tiers (原样配音 / designed HTML / cinematic Remotion), the storyboard, the interview, the critics, every gate and
 its order, the shot library, promotion, and troubleshooting. Follow it whole when the classic mode is chosen.
-Other references: `director-toolbox.md` (the director path's commands), `pipeline-scripts.md` (every script),
+Other references: `director-toolbox.md` (the director path's commands), `promo-shotcraft.md` (product-film technique), `pipeline-scripts.md` (every script),
 `troubleshooting.md`, `engineering-case-law.md` (why the rules are what they are), `motion-grammar.md`,
 `launch-film-study.md`, `craft-standard.md`.

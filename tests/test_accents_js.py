@@ -63,6 +63,16 @@ for (let f = 0; f < 18; f++) {
 }
 r.ring_grows = rg; r.rays_outward = ro;
 r.ends = A.ring(0.6, {}) === null && A.rays(0.35, {}).length === 0;
+// blurSlide: one progress for all three channels; word i starts i*gap later; lands exactly at rest
+const b0 = A.blurSlide(0, 0), bEnd = A.blurSlide(5, 3), bMid = A.blurSlide(0.2, 0), bLate = A.blurSlide(0.2, 1);
+r.blur_starts_hidden = b0.opacity === 0 && b0.blur === 18 && Math.abs(b0.y - 0.38) < 1e-12;
+r.blur_lands = bEnd.opacity === 1 && bEnd.blur === 0 && bEnd.y === 0;
+r.blur_one_progress = Math.abs(bMid.blur / 18 - bMid.y / 0.38) < 1e-12 && Math.abs((1 - bMid.opacity) - bMid.blur / 18) < 1e-12;
+r.blur_staggered = bLate.opacity < bMid.opacity;
+// dealTimes: increasing starts, shrinking intervals, then a 0.5 s rest
+const dt = A.dealTimes(8), iv = dt.slice(1, 8).map((v, k) => v - dt[k]);
+r.deal_accelerates = iv.every((v, k) => k === 0 || v < iv[k - 1]) && Math.abs(iv[0] - 0.3) < 1e-12;
+r.deal_rest = dt.length === 9 && Math.abs(dt[8] - dt[7] - 0.5) < 1e-12;
 console.log(JSON.stringify(r));
 """
 

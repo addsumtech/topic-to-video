@@ -4,7 +4,8 @@
 
 Runs, in order: flash_qa (a frame unlike both neighbours), rewind_qa (the picture going back after a cut, read
 against the plan's cuts), picture_glide_qa (a picture stepping instead of gliding under a moving camera),
-empty_frame_qa (a blank hold of a second or more) and shake_qa (the whole frame vibrating instead of travelling).
+empty_frame_qa (a blank hold of a second or more), shake_qa (the whole frame vibrating instead of travelling) and
+caption_size_qa (burned captions too small to read on a phone).
 Prints one line per check — OK, or the check's own findings — and exits 1 if any check is red, so "clean" is a
 fact the caller can test, not a reading of the log.
 
@@ -28,6 +29,7 @@ def checks(d, video, plan):
         ("glide", [py, os.path.join(HERE, "picture_glide_qa.py"), d, "--video=" + video]),
         ("empty", [py, os.path.join(HERE, "empty_frame_qa.py"), video]),
         ("shake", [py, os.path.join(HERE, "shake_qa.py"), video]),
+        ("captions", [py, os.path.join(HERE, "caption_size_qa.py"), video]),
     ]
 
 
