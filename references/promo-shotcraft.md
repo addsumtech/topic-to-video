@@ -87,7 +87,7 @@ Each: what it says → its critical point. Durations at 30 fps.
 - Typewriter retype: types a plain word, hesitates, deletes it, types the real claim faster.
 - A number with its range: a dial sweeps past large values and stops on the small one, which slides into the headline
   as its first character.
-- Title demotes to label: the big title shrinks into a corner and becomes the section's label (free spatial memory).
+- Title demotes to label: the big title shrinks into a corner and becomes the section's label (free spatial memory) — for that section only, then it goes; never a running label over the film.
 
 **Show the product (screens and content)**
 - Real screens, captured at 2x (`capture_page.py`, `promo_capture.py`), as physical cards (section 1).

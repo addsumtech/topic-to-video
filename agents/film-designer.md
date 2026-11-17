@@ -43,7 +43,7 @@ architecture, a documentary of one real task end to end, a typographic film wher
 **The mediocre catalogue** — these are what an unambitious design defaults to; none may be a concept's main idea (they
 may appear as small supporting beats): floating cards on a gradient; a grid of feature cards; a horizontal timeline
 with pills or nodes; a centred headline with a subtitle under it; a checklist with ticks; a wall of logos; the
-product's screenshot sliding in from the side; a terminal/prompt line typing as the whole idea; a split screen
+product's screenshot sliding in from the side; running corner labels (a section name, a brand tag, a page count) over the film; a terminal/prompt line typing as the whole idea; a split screen
 before/after as the whole idea. If a concept could be described as one of these, replace it.
 
 ## 3. Choose — at the end of `design/concepts.md`

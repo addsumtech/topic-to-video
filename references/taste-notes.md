@@ -9,10 +9,12 @@ included. Techniques by name live in `promo-shotcraft.md`; this file is about se
 - **Scale contrast is the hierarchy.** One element is huge (a word filling half the width, a number taller than the
   UI around it) and everything else is small and quiet. Mid-sized everything is the look of a template. Ask of every
   frame: which ONE thing is big, and is it really big?
-- **Frame furniture makes a page.** Tiny monospace small caps in fixed places across the whole film: a section label
-  top-left ("02 · DELIVERY"), the brand mark top-right, a progress tick row along the bottom, a page count ("01 / 03").
-  Set once, never moved; it turns a sequence of pictures into one designed publication. Choose furniture that belongs
-  to the subject: camera metadata for a film about cameras, coordinates for a map, a lab sample ID for chemistry.
+- **No running labels: a film is not a slide deck.** No section label in a corner ("02 · DELIVERY"), no brand tag
+  top-right, no page count, no progress ticks repeated over the whole film; the user rejected them on sight
+  (2026-11-17: "左上角和右上角的文字没有必要，这也不是ppt"). Continuity comes from the world, the light and the
+  recurring subject, not from print furniture. Text on screen earns its place in THIS moment: the caption, a word the
+  picture needs, a legal line where it is required (an unofficial film says so at the open and the close, not in
+  every frame).
 - **One accent, used as meaning.** A ground (near-black with a soft glow, or a pale haze), ink, and ONE colour that
   marks what matters now. A second colour only for a second meaning.
 - **Empty space is composed.** The best frames are mostly empty and still feel full, because the one subject has a
@@ -46,7 +48,7 @@ included. Techniques by name live in `promo-shotcraft.md`; this file is about se
 
 ## What not to take
 - **A house style.** Those samples all promote one product in one clean SaaS look; consistent, and narrow. This skill
-  makes films about cells, cities, cats and products: take the DISCIPLINE (scale contrast, furniture, one accent,
+  makes films about cells, cities, cats and products: take the DISCIPLINE (scale contrast, one accent,
   depth, placed light, holds), and let each subject choose its own look (`video-looks.md`).
 - **Decoration without a reason.** Every ornament (hairline circles, tick rings, metadata) must belong to the subject
   or the claim; ornament for its own sake is the AI look.
@@ -56,5 +58,5 @@ included. Techniques by name live in `promo-shotcraft.md`; this file is about se
 1. What is the ONE big thing? Is it big enough?
 2. Is there depth (glow, focus planes, shadow)?
 3. Is the light placed, and only once?
-4. Does the frame furniture sit where it sat in the last shot?
+4. Is there any text on the frame that is not doing a job right now (a corner label, a tag)? Remove it.
 5. Would this frame make a good poster on its own?
