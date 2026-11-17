@@ -120,7 +120,10 @@ seams. **This timeline is the film's clock: every picture is built to it.** Capt
    ground and texture. The same picture with a different border or background colour is one look, not three
    (the first end-to-end run, 2026-11-16, offered exactly that, which made the choice meaningless).
 3. Tile the frames on one image, show it, and ask (`AskUserQuestion`, recommended first; each option names the
-   style and one line on why). Non-interactive: take the recommended one.
+   style and one line on why). **Non-interactive** (nobody can answer): still render and tile all the frames —
+   comparing finished frames is how the strongest look is found (two runs of the same request on 2026-11-16/17
+   chose very different looks; the one that skipped the frames chose without ever comparing) — then take the
+   strongest and keep the sheet in `<film_dir>` so the user can switch later.
 
 The chosen look is **held for the whole film**: palette, type scale, grid, ground, light. Variety comes from
 composition and scale, never from changing the look. Also decide the film's **recurring subject** here: the one
