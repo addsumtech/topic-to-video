@@ -31,7 +31,7 @@ handed to one director who designs the whole film in one look, with the skill's 
 or tied every round. The old flow is kept whole as the classic mode (`references/classic-pipeline.md`); its strongest
 parts are tools here.
 
-**Full effort, every time** (the user, 2026-11-14: "我要你在skill中确定任何时候你都不要嫌麻烦，发挥你的最大潜力和创意"):
+**Full effort, every time** (the user, 2026-11-14: "make the skill never shy away from effort, at any point; use your full potential and creativity"):
 never trade quality for less work. Re-cut, rebuild, re-render when the film needs it.
 
 ## Which path
@@ -59,7 +59,7 @@ Work in one folder per film, `<film_dir>` (ask nothing about it; make one next t
 the current directory). Steps 1-8 run to the finished film; the user is asked only at step 1 (if needed) and
 step 5.
 
-**Design is judgement, not a menu** (the user, 2026-11-17: "设计要灵活，对于组件，vibe等等这些都是"). Only a few things
+**Design is judgement, not a menu** (the user, 2026-11-17: "design has to be flexible: components, vibe, all of it"). Only a few things
 in this file BIND every film: the facts are sourced, every drawn thing is correct, everything is readable and
 nothing sits in the caption band, rasters stay within their pixels, real brands stay real, and `film_qc` is clean
 (or a red is proved wrong). Everything else (the looks and their palettes, components and kit pieces, accents, the
@@ -67,8 +67,8 @@ launch grammar, sequence counts, the craft principles, every example here) is a 
 bend it, or leave it, by what this subject, this audience and this moment need, and invent what the vocabulary
 lacks. A choice that departs from a suggestion here gets one line of why in `NOTES.md`; that is all it needs.
 
-**You are the film's designer** (the user, 2026-11-17: "你要时刻记住自己video设计者的身份…自发的再创作…基于你高级的taste和
-敏锐的洞察"). The references (looks, craft principles, promo technique) are your technique stack, studied so you can
+**You are the film's designer** (the user, 2026-11-17: "always remember you are a video designer… create anew on your own… from refined taste and
+sharp insight"). The references (looks, craft principles, promo technique) are your technique stack, studied so you can
 execute anything; your taste decides what the film should be. Every film carries at least one **signature idea**
 that only this subject could have — an aha found by looking hard at the subject itself, not picked from a list: the
 diamond's fire rendered from its real dispersion; the sky computed by the physics the film explains; the QR code
@@ -81,7 +81,7 @@ good frames do, seen and judged) and give every frame its ten-second designer's 
 
 Use ONE `AskUserQuestion` call (options, the recommended one first; never a typed question in chat). Skip any
 question the request already answers; if it answers all, ask nothing.
-- **What is it for?** Explain/teach (科普) · Launch/promote a product · Show how to do something · Other.
+- **What is it for?** Explain/teach (popular science) · Launch/promote a product · Show how to do something · Other.
 - **Language** of voice and captions (default: the request's language).
 - **Length:** about 1 minute · 1-2 minutes (recommended for an explainer) · 2-3 minutes.
 - **Material:** none (research it) · files or a folder (then ask the path) · a link.
@@ -114,7 +114,7 @@ voice past natural.
 ### 4. Voice first — then lock the cut
 
 Voice the lines with `scripts/say.py` (the skill's voice layer: word timings in the written words, a pronunciation
-lexicon for 多音字 and names, initialisms spelled for a Chinese voice; voices and flags in the toolbox). Fix a
+lexicon for characters with more than one reading and for names, initialisms spelled for a Chinese voice; voices and flags in the toolbox). Fix a
 misreading in the lexicon, never in the caption. Trim silences, keep pauses inside a line short and give each
 sequence seam a breath. Write `<film_dir>/timeline.json` from the timings: every line's start/end, every word's
 time, the sequence seams. **This timeline is the film's clock: every picture is built to it.** Captions are chunked
@@ -122,7 +122,7 @@ from it.
 
 ### 5. One look — the user picks it (the one checkpoint)
 
-0. **If the user named a style** ("Memphis 风格", "like a blueprint", "像纪录片那样"), that is the look: render one style
+0. **If the user named a style** ("a Memphis style", "like a blueprint", "like a documentary"), that is the look: render one style
    frame to set it and skip the choice. A brand's colours still apply.
 1. **Think about the vibe first**: what should this film FEEL like to its audience (playful, calm, urgent, warm,
    precise, nostalgic, premium…), and what does the subject itself look like? Then shortlist 2-3 GENUINELY
@@ -165,11 +165,11 @@ objects as parts inside a film's own workshop shot, rendered in the film's look 
 look, render one frame of it and read every word, since some library shots hard-code light ink); real images (`imagefetch`), page
 captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK caption breaks.
 
-**Accents** — small motion effects (动效) that make a moment FELT, drawn as motion, not as emoji glyphs. Where they
+**Accents** — small motion effects that make a moment FELT, drawn as motion, not as emoji glyphs. Where they
 go is your judgement, not a mapping: find the moments the viewer should feel something — an answer landing, a
 reveal, a turn in the argument, a number that surprises, the product finishing the job, a joke, the payoff — and
 design the motion that fits that moment, subject and look: a burst of confetti with a ring and rays, a sparkle, a
-glow pulse, a shockwave, a stroke drawing itself, a number counting up, a short phrase (花字) popping in, or one built
+glow pulse, a shockwave, a stroke drawing itself, a number counting up, a short pop-up caption phrase popping in, or one built
 from the subject itself (a torn QR corner scattering as fragments). No effect belongs to a particular element.
 Under a second, trailing what it marks; sparing (roughly one per 15-30 s in an explainer, more in a playful or
 launch film, none on a somber subject); energy matched to the look; drawn BEHIND what it celebrates so its text
@@ -179,7 +179,7 @@ stays readable. `assets/html/accents.js` gives them as pure functions of time, w
 - **Every drawn thing is correct.** A cat has four legs, a hand five fingers, a molecule its real bonds, a device its
   real ports; a simplified model is drawn as a simplification OF the real thing, never as a new creature. Before
   building, look at a real reference (a photo, the source's figure) for each recurring drawn subject; label a
-  schematic as a schematic (示意).
+  schematic as one, in the film's language.
 - Nothing cut off, overlapping or unreadable; nothing in the caption band but the caption.
 - **Never draw a raster beyond its native pixels**; a real screenshot is cropped and pushed within its density.
 - Time runs one way: a state reached stays reached; nothing replays after a cut; nothing overshoots and shrinks back.
@@ -251,7 +251,7 @@ switch shots**.
 ## Classic mode and its references
 
 `references/classic-pipeline.md` holds the full classic workflow, moved there verbatim on 2026-11-16: the deck
-tiers (原样配音 / designed HTML / cinematic Remotion), the storyboard, the interview, the critics, every gate and
+tiers (voice-as-is / designed HTML / cinematic Remotion), the storyboard, the interview, the critics, every gate and
 its order, the shot library, promotion, and troubleshooting. Follow it whole when the classic mode is chosen.
 Other references: `director-toolbox.md` (the director path's commands), `promo-shotcraft.md` (product-film technique), `pipeline-scripts.md` (every script),
 `troubleshooting.md`, `engineering-case-law.md` (why the rules are what they are), `motion-grammar.md`,
