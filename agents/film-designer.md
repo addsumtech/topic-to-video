@@ -30,6 +30,18 @@ using it) → what they get → why to start now. A film that only shows results
 is a gallery, not a launch. Write the journey as 4-7 movements, each with the line of narration it rides on.
 
 ## 2. Three concepts that are genuinely different — `design/concepts.md`
+**Start from what the product already has that is alive.** Its characters, mascot, signature object, the motion its
+own UI makes: that is the protagonist, and it should ACT (enter, carry the work, wait at the gate, hand it back) with a
+character's motion (anticipation, arc, squash that keeps volume, follow-through: `remotion/src/runtime/character.ts`).
+A concept whose metaphor pushes the product's own protagonist to the margins (a crop on a sill, a row of stickers) is
+the wrong concept, however bold (Grok Bot, 2026-11-17: an abstract tower beat the Bots' own 3D characters to the lead,
+and the user preferred the older film where the characters acted: "那些小人的动态很不错，但是你却没有想到").
+**Beat the baseline.** If a film on this subject already exists (a published version, an earlier cut), watch it first
+and write down what it does well; your keyframes are judged side by side with its frames, and a concept that loses
+what it did well is not an improvement.
+**Every element earns its place.** For each object, label and line on a frame, say what it tells the viewer and what
+is lost without it; nothing is lost, so remove it. Screens that carry content face the viewer when they settle.
+
 Three ideas, not three palettes. Each is a different WORLD and a different way of telling the journey, e.g. a physical
 metaphor staged for real, a single continuous camera through one impossible space, the product's own UI blown up into
 architecture, a documentary of one real task end to end, a typographic film where the words ARE the product. For each:
