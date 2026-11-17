@@ -176,15 +176,19 @@ made this way. A film that wants the kit below may be built in the skill's Remot
 - **Checks:** everything in `film_qc.py`; any other script in `references/pipeline-scripts.md` that takes a film
   folder or an mp4.
 
-**Accents** — small motion effects (动效) that mark a moment, drawn as motion, not as emoji glyphs: a celebration
-burst (confetti flying out with a ring and short rays) on a result or a payoff, a sparkle on something new or
-shiny, a tick drawing itself on "done", an underline or circle drawing under the key word, a number counting up to
-its value, a pulse of glow on the thing the voice names, a short phrase (花字) popping above the caption for a joke
-or a surprise.
-- **Earned, brief, sparing**: only on a moment the voice earns (a result, a payoff, a surprise, the key word), under
-  a second (accent lines 4-10 frames), trailing the element it marks by a few frames; the text stays still. About
-  one per 15-30 s in an explainer, more in a playful or launch film, none on a somber subject. Energy matches the
-  look: a calm look gets a tick and an underline, a playful one gets confetti.
+**Accents** — small motion effects (动效) that make a moment FELT, drawn as motion, not as emoji glyphs. Where they
+go is your judgement, not a mapping: read the script and the cut and find the moments the viewer should feel
+something — an answer landing, a reveal, a turn in the argument, a number that surprises, the product finishing the
+job, a joke, the payoff — then design the motion that fits that moment, that subject and that look. The vocabulary
+is open: a burst of confetti with a ring and short rays, a sparkle, a glow pulse, a shockwave from an impact, a
+stroke drawing itself (underline, circle, arrow, tick), a number counting up, a short phrase (花字) popping in, or
+one you build from the subject itself (the torn corner of a QR code scattering as fragments, light rays fanning from
+a lens). No effect belongs to a particular element: a celebration may mark a cat landing as well as a file being
+ready, and a ticked box needs none if the moment is not one to feel.
+- **Earned, brief, sparing**: under a second (accent lines 4-10 frames), trailing what it marks by a few frames; the
+  text stays still. As a rough measure, one every 15-30 s in an explainer, more in a playful or launch film, none
+  on a somber subject; a moment that does not move the viewer gets none. Energy matches the look: a calm look gets
+  a quiet stroke or glow, a playful one can take confetti.
 - **Deterministic, no overshoot**: `assets/html/accents.js` (burst, ring, rays, sparkle, pop, drawOn, countUp) gives
   each as a pure function of time and seed; a celebration is `burst` + `ring` + `rays` started together. Never `Math.random` in a film page; never grow past full size and shrink back (rewind_qa
   reads it as the picture going back).
