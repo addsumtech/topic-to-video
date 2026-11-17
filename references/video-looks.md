@@ -10,9 +10,11 @@ of explainer videos", Vmaker "Top 10 styles of animated explainer videos", Conte
 Videobolt "Top motion graphics trends for 2026", Designity "2D animation trends 2026", Kapwing "How to make
 informational videos like Vox", University of Michigan Arts "Simple, bright, beautiful: the work of Kurzgesagt".
 
-**How to use this file (SKILL.md step 5).** Pick 2-3 LOOKS below that fit the subject and purpose; for each, pick
-its palette and type from `visual-styles.md` (the listed sub-registers are the usual fits, not the only ones); render
-one style frame per look of the film's real subject. Frames must differ as looks: the technique differs, not just
+**How to use this file (SKILL.md step 5).** It is a vocabulary, not a menu. Start from the vibe the film should
+have and the subject's own look; use the entries below as starting points, and blend, bend or invent where the
+subject asks for it (say why in a line). Pick 2-3 genuinely different looks; for each, take its palette and type from
+`visual-styles.md` (the listed sub-registers are the usual fits, not the only ones); render one style frame per look
+of the film's real subject. Frames must differ as looks: the technique differs, not just
 the colours. Never copy a specific studio's characters, mascots or signature art; take the genre, not the artist.
 
 Each look: **what it is** · **made of** (palette, type, texture) · **moves like** · **best for** · **avoid when** ·

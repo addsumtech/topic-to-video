@@ -107,10 +107,14 @@ seams. **This timeline is the film's clock: every picture is built to it.** Capt
 
 0. **If the user named a style** ("Memphis 风格", "like a blueprint", "像纪录片那样"), that is the look: map it to
    its look and sub-register, render one style frame to set it, and skip the choice. A brand's colours still apply.
-1. From `references/video-looks.md` (11 video looks, each a production technique plus a vibe: flat illustrated,
+1. **Think about the vibe first**: what should this film FEEL like to its audience (playful, calm, urgent, warm,
+   precise, nostalgic, premium…), and what does the subject itself look like? Then shortlist 2-3 GENUINELY
+   DIFFERENT looks. `references/video-looks.md` is a vocabulary, not a menu: its 11 looks (flat illustrated,
    mathematical, editorial motion graphics, kinetic type, product UI, lit 3D, isometric, cut-out collage,
-   documentary, whiteboard, retro registers), shortlist 2-3 GENUINELY DIFFERENT looks that fit this subject and
-   purpose (its choosing map). For each, take the palette and type from a sub-register in
+   documentary, whiteboard, retro registers) and its choosing map are starting points. Blend two (risograph inks on
+   real archival photos), bend one to the subject, or invent a look the subject calls for, and say why in a line.
+   Fit beats habit: a blueprint is a fine look and still the wrong one for a cat's playful physics (the user,
+   2026-11-17). For each, take the palette and type from a sub-register in
    `references/visual-styles.md` (its guardrail vetoes apply: no playful register on a somber subject, no busy
    ground under data). A brand's own colours and logo override the palette, not the look's technique.
 2. For each, render ONE **style frame**: a 1920x1080 still of the film's real subject at its key moment (the real
@@ -172,7 +176,27 @@ made this way. A film that wants the kit below may be built in the skill's Remot
 - **Checks:** everything in `film_qc.py`; any other script in `references/pipeline-scripts.md` that takes a film
   folder or an mp4.
 
+**Accents** — small motions that mark a moment: a 🎉 confetti burst or sparkle on a result or a payoff, a tick
+popping in on "done", an underline or circle drawing under the key word, a number counting up to its value, a
+short phrase (花字) popping above the caption for a joke or a surprise, an emoji reacting (🤔 😮 🎉).
+- **Earned, brief, sparing**: only on a moment the voice earns (a result, a payoff, a surprise, the key word), under
+  a second (accent lines 4-10 frames), trailing the element it marks by a few frames; the text stays still. About
+  one per 15-30 s in an explainer, more in a playful or launch film, none on a somber subject. Energy matches the
+  look: a calm look gets a tick and an underline, a playful one gets confetti.
+- **Deterministic, no overshoot**: `assets/html/accents.js` (burst, sparkle, pop, drawOn, countUp) gives each as a pure
+  function of time and seed. Never `Math.random` in a film page; never grow past full size and shrink back (rewind_qa
+  reads it as the picture going back).
+- **Emoji**: the system emoji font, or Google's Noto Animated Emoji (Lottie; reported CC BY 4.0: confirm the licence
+  in its repository and credit it in NOTES.md and the description). A sound may mark it: a click, select or drop
+  from `assets/sfx/kenney/`, quiet under the voice.
+
 **Rules every frame obeys** (each one cost a real film a defect):
+- **Every drawn thing is correct.** A cat has four legs, a hand five fingers, a molecule its real bonds, a device its
+  real ports; a simplified model is drawn as a simplification OF the real thing, never as a new creature (a Memphis
+  film drew the physics model's two body halves as two cats' worth of legs: eight, 2026-11-17). Before building,
+  look at a real reference (a photo, the source's figure) for each recurring drawn subject; label a schematic as a
+  schematic (示意). For a built object in the kit, `workshop.py <film_dir> fidelity <Name>` compares it to its
+  references (`references/object-audit.md`).
 - Nothing cut off, overlapping or unreadable; nothing in the caption band but the caption.
 - **Never draw a raster beyond its native pixels**; a real screenshot is cropped and pushed within its density.
 - Time runs one way: a state reached stays reached; nothing replays after a cut.
@@ -218,7 +242,10 @@ Write `<film_dir>/_plan.json` with the cut frames computed by **the same rule th
 2. **Look at the real film**: a contact sheet of every shot's settled frame (~90 % through the shot) on one image.
    One layout repeated, a frame cut off, a caption over a picture, an empty hold, a sequence that drops the look:
    fix before delivering. Then watch transitions at the seams.
-3. Faithfulness: every number, name and quote on screen or in the voice traces to the brief's sources.
+3. **Accuracy, of words AND pictures**: every number, name and quote on screen or in the voice traces to the
+   brief's sources; and every drawn subject is checked on a close settled frame against its real reference: count
+   its parts (legs, fingers, wheels, keys), check proportions, direction and labels. A wrong drawing is a factual
+   error, fixed before delivery like a wrong number.
 4. Write `<film_dir>/NOTES.md`: what was made, the look and why, what the checks found and how it was fixed,
    anything not done. Deliver `final.mp4` and say where it is, its length, and the one thing it says.
    Offer: a vertical cut, a different look, a change to any line (re-voice that line, re-time, re-render).
