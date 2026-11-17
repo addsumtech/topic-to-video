@@ -987,6 +987,26 @@ if __name__ == "__main__":                          # CLI: preview the cue plan 
                       % (label, off, off * fps, fps, "" if abs(off) * fps < 0.5 else "   <-- OVER HALF A FRAME"))
                 bad = bad or abs(off) * fps >= 0.5
         sys.exit(1 if bad else 0)
+    if any(a in ("-h", "--help", "--list") for a in sys.argv[1:]) or "--cues" in " ".join(sys.argv[1:]):
+        # THE DIRECTOR PATH'S DOOR: a film with no storyboard places its own cues. cues.json = [{"t": seconds,
+        # "cue": name, "gain": 0..1}, ...]; every name is a synthesised, deterministic sound (cue()).
+        names = ("click", "key", "tick", "focus", "whoosh", "pop", "riser", "impact", "sparkle", "strike", "chime",
+                 "swell", "settle", "reveal")
+        if "--list" in sys.argv[1:] or "-h" in sys.argv[1:] or "--help" in sys.argv[1:]:
+            print("usage: sfx.py --cues cues.json --seconds S --out sfx.wav    (cues: [{t, cue, gain}])\n"
+                  "       sfx.py --calibrate | sfx.py <storyboard out_dir>\ncues: " + " ".join(names))
+            sys.exit(0)
+        _common.refuse_unknown(sys.argv[1:], valued=("cues", "seconds", "out"), switches=(),
+                               usage="usage: sfx.py --cues cues.json --seconds S --out sfx.wav")
+        spec = json.load(open(_common.argflag(sys.argv[1:], "cues", "")))
+        bad = [c.get("cue") for c in spec if c.get("cue") not in names]
+        if bad:
+            print("[sfx] unknown cue(s) %s; known: %s" % (bad, " ".join(names)), file=sys.stderr); sys.exit(2)
+        out = _common.argflag(sys.argv[1:], "out", "sfx.wav")
+        ok = build_sfx_track([(float(c["t"]), c["cue"], float(c.get("gain", 0.6))) for c in spec],
+                             float(_common.argflag(sys.argv[1:], "seconds", 0)), out)
+        print("[sfx] %d cue(s) -> %s" % (len(spec), out) if ok else "[sfx] needs numpy")
+        sys.exit(0 if ok else 1)
     out_dir = sys.argv[1]
     data = json.load(open(os.path.join(out_dir, "storyboard.json")))
     fps = int((data.get("meta") or {}).get("fps", 30))

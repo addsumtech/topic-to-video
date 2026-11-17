@@ -87,6 +87,9 @@ This is what made the skill's films the richest. Do it exactly as the classic mo
   on with `scripts/sources.py add` (tier the source; date time-sensitive facts with `--as-of`); write
   `<film_dir>/brief.json` (thesis, mechanism, evidence with `source_ref`, why_it_matters, the_one_thing,
   misconceptions, unknowns, coverage, source_health, self_check). Gate: `python3 scripts/brief_qa.py <film_dir>`.
+- **A deck, PDF or image folder as material**: `python3 scripts/ingest.py <deck> <film_dir>/deck` renders every page
+  to `deck/frames/` and pulls its text and speaker notes (into `deck/storyboard.json`, as reading material only).
+  Read it as a source like any other; its figures and screenshots can appear in the film.
 - **The content plan** — classic step 3.5: dispatch `agents/content-planner.md` with the brief, the material, and
   the purpose from step 1. Save `<film_dir>/content_plan.json` (audience, viewer_question, arc, beats with
   introduces/builds_on/stage, the climax). Gate: `python3 scripts/pedagogy_qa.py <film_dir>`.
@@ -104,9 +107,14 @@ holds. Over length → cut lines, never speed the voice past natural.
 
 ### 4. Voice first — then lock the cut
 
-Record the narration line by line (edge-tts; a natural neural voice for the language: zh `zh-CN-YunxiNeural` /
-`zh-CN-XiaoxiaoNeural`, en `en-US-AndrewMultilingualNeural` / `en-US-AvaMultilingualNeural`; `references/tts-voices.md`)
-with word timings. Trim leading/trailing silence, cap pauses inside a line (~0.25 s), and put a longer breath
+Record the narration line by line with the skill's voice layer:
+`python3 scripts/say.py --lines script.txt --out-dir <film_dir>/voice --voice edge:zh-CN-YunxiNeural [--speed 1.08]
+[--lexicon lexicon.json]` (or one line: `say.py "…" --out l01.mp3`). It gives each clip word timings
+(`<clip>.words.json`, in the WRITTEN words), applies a pronunciation lexicon `{written: spoken}` for the voice only
+(多音字, brand names, a term the engine misreads), and spells initialisms for a Chinese voice (AI as A-I). Voices: zh
+`zh-CN-YunxiNeural` / `zh-CN-XiaoxiaoNeural`, en `en-US-AndrewMultilingualNeural` / `en-US-AvaMultilingualNeural`
+(`references/tts-voices.md`); `minimax:<id>` or `openai:<id>` only with the user's own key. Listen for misreadings
+in the words file and fix them in the lexicon, never in the caption. Trim leading/trailing silence, cap pauses inside a line (~0.25 s), and put a longer breath
 (0.4-0.6 s) at each sequence seam. Listen-level check: no clipping, consistent loudness across lines.
 Write `<film_dir>/timeline.json` from the timings: every line's start/end, every word's time, the sequence
 seams. **This timeline is the film's clock: every picture is built to it.** Captions are chunked from it.
@@ -181,11 +189,26 @@ made this way. A film that wants the kit below may be built in the skill's Remot
 - **Writing:** `agents/scriptwriter.md` can draft the narration from the plan; one round of `agents/critic-narrative.md`
   on the draft catches what the ear misses. `scripts/pace.py` for length.
 - **Real material:** `scripts/promo_capture.py <film_dir> <url> --name=<n>` and `scripts/capture_page.py` capture a
-  real product page at 2x; `scripts/imagefetch.py` fetches real, licensed images of a named subject.
-- **Pictures:** the kit above (lit stage, materials, Blender plates, objects such as devices and the Earth, the 227
-  library shots inside a workshop shot, rendered with `workshop.py <film_dir> clip`); `scripts/theme.py --style`
-  for a contrast-safe palette; `scripts/caption_words.py` for where a CJK caption may break.
-- **Sound:** `scripts/score.py` (a generated score on a beat grid), `scripts/sfx.py` and `assets/sfx/`.
+  real product page at 2x; `python3 scripts/imagefetch.py "<query>" out.jpg` fetches a real, licensed image of a
+  named subject (Wikimedia Commons, with its credit).
+- **Generated imagery** (atmosphere only, never a fact): `python3 scripts/imagegen.py --prompt "…" --out bg.png`
+  draws through the Codex subscription with the no-text/no-invented-facts tail added; `--key` (the paid API) only
+  after the user agreed to pay.
+- **Library shots as parts:** a workshop shot may wrap any of the 227 (`import {ChartRace} from '@shots/ChartRace'`)
+  with this film's real data. Render it IN THE FILM'S LOOK: `workshop.py <film_dir> clip <Name> --props p.json --dna
+  film_dna.json`, where the DNA file gives the whole palette (`bg`, `fg`, `dim`, `accent`, `accent2`, `onAccent`,
+  `surface`, `surfaceBorder`, `line`, and the fonts); a partial one is filled from a DARK default. On a light look,
+  check the part reads first: `python3 scripts/ink_contrast_qa.py --only <Name>` (some library shots were built for
+  dark grounds and hard-code light ink); a failing one is restyled in the workshop or swapped.
+- **Devices:** the product's real screen on a lit MacBook, the camera pushing in to what the voice names:
+  `scripts/blender_clip.py <film_dir> blender/kit/scenes/laptop_screen.py --screen <folder of screen pictures>
+  --engine cycles` (its params in the scene file's header).
+- **Page craft:** `scripts/theme.py --style` for a contrast-safe palette as CSS variables, with
+  `assets/html/base.css` as a typeset base; `references/icons.md` (one inline-SVG line family, Lucide) for icons;
+  `scripts/caption_words.py` for where a CJK caption may break.
+- **Sound:** `scripts/score.py` (a generated score on a beat grid); `python3 scripts/sfx.py --cues cues.json --seconds S
+  --out sfx.wav` builds an SFX track from 15 synthesised, deterministic sounds (`sfx.py --list`: click, key, tick,
+  focus, whoosh, pop, riser, impact, sparkle, strike, chime, swell, settle, reveal); `assets/sfx/kenney/`.
 - **Checks:** everything in `film_qc.py`; any other script in `references/pipeline-scripts.md` that takes a film
   folder or an mp4.
 
@@ -244,7 +267,8 @@ Write `<film_dir>/_plan.json` with the cut frames computed by **the same rule th
 
 ### 7. Sound
 
-- **Voice** on the timeline, levelled.
+- **Voice** on the timeline, levelled. Master the final mix to about -14 LUFS integrated with true peak at or under
+  -2 dBTP (the skill's delivery target; ffmpeg `loudnorm=I=-14:TP=-2:LRA=11`).
 - **Music follows purpose:** an explainer can do without; a launch or promo is scored. `scripts/score.py` writes
   a generated score on a beat grid (`--bpm --seconds --climax`); a user's own track is used as given. Music sits
   well under the voice and ducks while it speaks.

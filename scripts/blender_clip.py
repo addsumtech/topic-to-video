@@ -27,13 +27,15 @@ sys.path.insert(0, HERE)
 RUNNER = os.path.join(os.path.dirname(HERE), "blender", "runner.py")
 
 
-def command(blender, scene, out, frames, fps, w, h, engine, samples, env, params, still=None):
+def command(blender, scene, out, frames, fps, w, h, engine, samples, env, params, still=None, screen=None):
     cmd = [blender, "-b", "--factory-startup", "--python-exit-code", "1", "--python", RUNNER, "--",
            "--scene", os.path.abspath(scene), "--out", out, "--frames", str(frames), "--fps", str(fps),
            "--w", str(w), "--h", str(h), "--engine", engine, "--samples", str(samples),
            "--mode", "env" if env else "rgba", "--no-reuse", "--params", params]
     if still:
         cmd += ["--still", str(still)]
+    if screen:
+        cmd += ["--screen", os.path.abspath(screen)]   # a device scene's screen: one picture per frame
     return cmd
 
 
@@ -50,6 +52,7 @@ def main(argv):
     ap.add_argument("--env", action="store_true", help="opaque: the scene draws its own ground")
     ap.add_argument("--params", default="{}")
     ap.add_argument("--still", type=int)
+    ap.add_argument("--screen", help="a folder of pictures a device's screen plays (blender/kit/scenes/laptop_screen.py)")
     a = ap.parse_args(argv)
     import blender_plate
     blender = blender_plate.blender_bin()
@@ -69,7 +72,7 @@ def main(argv):
     out = os.path.join(os.path.abspath(a.film_dir), "clips", name)
     os.makedirs(out, exist_ok=True)
     frames = max(1, int(round(a.seconds * a.fps)))
-    cmd = command(blender, a.scene, out, frames, a.fps, w, h, a.engine, a.samples, a.env, a.params, a.still)
+    cmd = command(blender, a.scene, out, frames, a.fps, w, h, a.engine, a.samples, a.env, a.params, a.still, a.screen)
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0 or "RUNNER-DONE" not in r.stdout:
         print("blender_clip: Blender failed (exit %d)\n%s" % (r.returncode, "\n".join((r.stdout + r.stderr).splitlines()[-30:])),

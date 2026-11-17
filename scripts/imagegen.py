@@ -261,11 +261,38 @@ def synthesize_images(out_dir, key=None, date=""):
     print(f"[imagegen] provider={provider}: generated {made}, cache-hit {cached}, fallback {failed}; {cost}")
     return data
 
+def one(prompt, out_path, key=None, size="1536x1024", quality="medium"):
+    """ONE image from ONE prompt, with no storyboard (the director path): the faithfulness tail added (no text, no
+    invented facts), Codex first (no API key, the subscription), the metered API only when `key` is given — which the
+    caller passes only after the user agreed to pay. Cached by prompt next to the output."""
+    styled = _apply_style(prompt, {})
+    cp = _cache_path(os.path.dirname(os.path.abspath(out_path)), styled, DEFAULT_MODEL, size, quality)
+    os.makedirs(os.path.dirname(cp), exist_ok=True)       # .assets/ — neither engine may be relied on to make it
+    if not os.path.exists(cp):
+        if key:
+            generate(styled, cp, key, size=size, quality=quality)
+        else:
+            _generate_codex(styled, cp, size=size, quality=quality)
+    if os.path.abspath(cp) != os.path.abspath(out_path):
+        shutil.copyfile(cp, out_path)
+    return out_path
+
+
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("out_dir")
-    ap.add_argument("--key", default=None)
+    ap = argparse.ArgumentParser(description="generated images: a storyboard's slots (out_dir), or one --prompt")
+    ap.add_argument("out_dir", nargs="?")
+    ap.add_argument("--key", default=None, help="OpenAI key: the PAID API — only with the user's permission")
+    ap.add_argument("--prompt", help="one image from this prompt (director path); needs --out")
+    ap.add_argument("--out")
+    ap.add_argument("--size", default="1536x1024")
     a = ap.parse_args()
+    if a.prompt:
+        if not a.out:
+            ap.error("--prompt needs --out <file.png>")
+        print("[imagegen] %s" % one(a.prompt, a.out, a.key, size=a.size))
+        return
+    if not a.out_dir:
+        ap.error("give a storyboard out_dir, or --prompt with --out")
     synthesize_images(a.out_dir, a.key)
 
 if __name__ == "__main__":
