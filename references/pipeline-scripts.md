@@ -1164,3 +1164,10 @@ agent on the beats it points at.
   within ±8 frames in one step, no flash spike; calibrated on synthetic hard cut 1.00 / flash 0.51 / cross-fade 0.58 /
   push 0.28) and checked against the plan's seam: a seam planned as hidden that measures bare is an error. Without a
   shot plan, bare cuts are only noted. Part of film_qc when the plan exists.
+- `scripts/page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--json]` — steps a film page's
+  `window.seek(t)` in headless Chrome and reports visible words / controls whose boxes overlap (per line fragment, by
+  more than a quarter of the smaller) for ≥0.5 s; `data-overlap-ok` exempts a deliberate stack. Found the Grok Bot
+  film's "Send an email" pill over "Check a calendar" (2026-11-17); 0 on the WorkBuddy films. Part of film_qc when a
+  `film.html` exists.
+- `scripts/build_stage3d.sh` — rebuilds `assets/html/stage3d.js` (the 3D stage, three.js bundled) from
+  `assets/html/stage3d/src.js`; `tests/test_stage3d_page.py` fails when the committed bundle is stale.

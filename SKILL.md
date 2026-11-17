@@ -120,31 +120,33 @@ sequence seam a breath. Write `<film_dir>/timeline.json` from the timings: every
 time, the sequence seams. **This timeline is the film's clock: every picture is built to it.** Captions are chunked
 from it.
 
-### 5. One look — the user picks it (the one checkpoint)
+### 5. Design — concepts, hero moments, keyframes (a dedicated designer; the one checkpoint)
 
-0. **If the user named a style** ("a Memphis style", "like a blueprint", "like a documentary"), that is the look: render one style
-   frame to set it and skip the choice. A brand's colours still apply.
-1. **Think about the vibe first**: what should this film FEEL like to its audience (playful, calm, urgent, warm,
-   precise, nostalgic, premium…), and what does the subject itself look like? Then shortlist 2-3 GENUINELY
-   DIFFERENT looks. `references/video-looks.md` (11 looks: flat illustrated, mathematical, editorial motion
-   graphics, kinetic type, product UI, lit 3D, isometric, cut-out collage, documentary, whiteboard, retro registers)
-   is a vocabulary, not a menu: blend two, bend one to the subject, or invent the look the subject calls for. Fit
-   beats habit. Palette and type come from a sub-register in `references/visual-styles.md` (its vetoes apply: no
-   playful register on a somber subject, no busy ground under data); a brand's colours override the palette.
-2. For each, render ONE **style frame**: a 1920x1080 still of the film's real subject at its key moment, in that
-   look, with a caption. **The frames must differ as LOOKS** (palette, typeface, how the subject itself is drawn,
-   ground and texture), not as borders or background colours.
-3. Tile the frames, show them, and ask (`AskUserQuestion`, recommended first, one line of why each).
-   **Non-interactive:** still render and compare all the frames, take the strongest, and keep the sheet in
-   `<film_dir>` so the user can switch later.
+**Competent is a failure.** Every film already clears the floors; what this step exists for is a design a viewer would
+stop scrolling for and remember (the user, 2026-11-17: "we don't want mediocre one, we want the best one with the best
+design and creativity… bold, novel design; avoid the ordinary"). Design gets its own phase, its own agent and its own
+effort, because a single pass that also researches, builds and fixes gates converges on safe and forgettable.
 
-The chosen look is **held for the whole film**: palette, type scale, grid, ground, light. Variety comes from
-composition and scale, never from changing the look. Also decide the film's **recurring subject** here: the one
-thing the film keeps returning to and transforming (the code being torn, scanned and repaired; the companion
-and its three file cards). This, more than anything else, made the winning films feel like one film.
-Decide its **motion voice** too: one set of timings and easing for every entrance, transition and hold, chosen from
-the brand's energy (calm/premium ↔ bold/startup) and tone (serious ↔ playful); two voices in one film read as a
-patchwork (presets in `references/promo-shotcraft.md`).
+1. **Dispatch the designer**: `agents/film-designer.md` (`topic-to-video:film-designer` when the plugin registers it;
+   otherwise a general-purpose agent given that file as its instructions), **with effort "high"** and a fresh
+   context. Give it the brief, `script.json`, `timeline.json`, the purpose and length, and the material in `input/`;
+   nothing about gates. It writes `design/story.md` (the viewer's journey: for a product film, how the product WORKS,
+   not only what it made), `design/concepts.md` (three genuinely different concepts, none built on the mediocre
+   catalogue, and the choice), the three **hero moments** rendered as finished keyframes (`design/keyframes.jpg`,
+   redesigned until each clears the poster bar), `design/treatment.md`, and a draft `shot_plan.json`.
+2. **The checkpoint.** Show the user the three concepts (one line each) and `design/keyframes.jpg`, and ask
+   (`AskUserQuestion`): go with this concept, take another of the three, or push it further. **Non-interactive:** one
+   round of `agents/keyframe-review.md` (a fresh-eyed reviewer, effort "high") on the keyframes; the designer revises
+   every frame it calls competent or weak, then the build starts. One round, not a loop.
+3. **A style the user named** ("a Memphis style", "like a blueprint", "like a documentary") is a constraint on the
+   designer's concepts, not a replacement for them. A brand's own colours and logo always apply.
+
+The designer draws on `references/video-looks.md` (11 looks), `references/visual-styles.md` (palettes, type and their
+vetoes: no playful register on a somber subject, no busy ground under data), `references/taste-notes.md` and
+`references/promo-shotcraft.md` as a technique stack. Whatever it chooses is **held for the whole film**: one world,
+one light, one **motion voice** (timings and easing from the brand's energy and tone; two voices read as a
+patchwork), one **recurring subject** that transforms from first frame to last (the code torn, scanned and repaired;
+the logo's cursor that types the task) — the thing that, more than anything else, makes a film feel like one film.
 
 ### 6. Build — sequence by sequence
 
@@ -155,7 +157,11 @@ teaching, design, motion and sound principles) before building.
 
 **Engine.** Default: one HTML page for the whole film (`film.html`) in which **every frame is a pure function of
 time** (`window.seek(t)`: no CSS transitions, no timers, no randomness), captured frame by frame with headless
-Chrome at 1920x1080, 30 fps, encoded with ffmpeg. Pieces made elsewhere (a Blender clip, a library shot rendered
+Chrome at 1920x1080, 30 fps, encoded with ffmpeg. **The hero moments are built first and get the film's best effort**, from the
+designer's keyframes; everything else serves them. For a product film the default stage is **3D**:
+`assets/html/stage3d.js` puts the real screens in a lit space as physical panels (thickness, rounded screens that
+emit their own picture, a glossy floor, a placed light, a camera with depth of field), with the page's own type
+layered over it; a flat page of cards is the look of a website, not of a film (commands in the toolbox). Pieces made elsewhere (a Blender clip, a library shot rendered
 through the workshop) are placed as frames the page draws by frame number.
 
 **The kit, where the look calls for it** (commands in the toolbox): light and material from the Remotion runtime;
@@ -221,7 +227,8 @@ switch shots**.
 
 ### 8. Check, fix, deliver
 
-1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame, shake and caption-size checks against
+1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame, shake, caption-size and (with a film page) word/control
+   overlap checks against
    `final.mp4` and `_plan.json`, and exits 1 on any red. Fix the film, re-render, re-run until CLEAN.
    A red you believe is wrong is never silenced and never "fixed" by cutting good content: PROVE it on the frames
    (measure the thing the check claims) and with a CONTROL (the same shot with the suspected cause removed), and

@@ -44,6 +44,24 @@ each sequence seam; no clipping, even loudness across lines.
 Icons: `references/icons.md` (one inline-SVG line family, Lucide). Captions: `python3 scripts/caption_words.py "…"`
 shows where a CJK caption may break.
 
+**The 3D stage (the default for product films)** — `assets/html/stage3d.js`, one classic script (three.js 0.169
+bundled from `remotion/node_modules` by `scripts/build_stage3d.sh`), so a film page loads it with a plain `<script>`:
+
+    const st = Stage3D.create({canvas, background: '#06070a', fog: {near: 9, far: 22}, dof: {aperture: 0.0016}});
+    st.studio();                                   // key + rim + fill + a room environment for reflections
+    st.floor({});                                  // dark, slightly glossy: it reflects and grounds the screens
+    const hero = st.panel('screens/dash.png', {width: 2.6, x: 2.5, y: 1.4, rotY: -0.55});   // a physical screen
+    st.panel('screens/chat.png', {width: 1.8, x: 0.9, y: 1.15, z: -2.2, dim: 0.5});        // a background one
+    st.spot(hero, {from: [0.5, 8, 6]});            // the one placed light
+    await st.ready();
+    window.seek = (t) => st.render({pos: [...], look: [...], fov: 30, focus: 7});           // pure function of t
+
+Screens EMIT their picture (unlit, exact colours, rounded) inside a lit slab body; `dim` darkens a background one.
+Use CLEAN screens (crop out any documentation annotations first). Type stays in the page's DOM over the canvas
+(crisp). Capture with Chrome's `--allow-file-access-from-files` (WebGL refuses `file://` images otherwise) or serve the
+folder over http. Measured on the first keyframes (2026-11-17): a hand-tuned frame went from "screens floating in a
+void" to cinematic only after three render-and-judge rounds — composition is the designer's work, not the kit's.
+
 **Light, material, depth.** In Remotion: `runtime/material`, the lit stage, the craft kit's `surface`, `slide.optic`
 (`references/building-blocks.md`). A lit film keeps one light direction and one material language throughout.
 
@@ -123,7 +141,8 @@ A starting point measured on 20 official launch films (`references/craft-standar
 
 ## Checks (step 8)
 `python3 scripts/film_qc.py <film_dir>`: flash, rewind (against `_plan.json`'s cuts), picture glide, empty frames,
-shake and caption size (`caption_size_qa`: the burned caption line ≥ 4.6 % of the frame height in glyph ink, i.e. a
+shake, overlaps (`page_overlap_qa`: words or controls colliding on `film.html` over time, judged per line
+fragment; mark a deliberate stack `data-overlap-ok`) and caption size (`caption_size_qa`: the burned caption line ≥ 4.6 % of the frame height in glyph ink, i.e. a
 ~54-56 px font at 1080p) on `final.mp4`; exit 1 on any red. `_plan.json`:
 `{"video": "final.mp4", "fps": 30, "frames": N, "cuts": [...], "segments": [{"start", "end", "kind": "shot"|"loop"}]}`,
 the cuts computed by the same rule the renderer uses to switch shots (a plan that rounded differently put a cut one
