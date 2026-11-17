@@ -149,7 +149,7 @@ through the workshop) are placed as frames the page draws by frame number.
 real 3D from Blender (`scripts/blender_clip.py`) for what 3D physicality IS the content of — a real object, a
 material, optics, physics, a device (the product's real screen on a lit MacBook); the library's 227 shots and its
 objects as parts inside a film's own workshop shot, rendered in the film's look (a FULL palette file; on a light
-look, `ink_contrast_qa` first, since some library shots hard-code light ink); real images (`imagefetch`), page
+look, render one frame of it and read every word, since some library shots hard-code light ink); real images (`imagefetch`), page
 captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK caption breaks.
 
 **Accents** — small motion effects (动效) that make a moment FELT, drawn as motion, not as emoji glyphs. Where they

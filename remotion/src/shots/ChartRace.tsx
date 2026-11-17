@@ -126,7 +126,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
   return (
     <AbsoluteFill style={{background: dna?.bgGrad ?? dna?.bg ?? `radial-gradient(120% 100% at 30% 20%, #12162a, ${BG} 72%)`, overflow: 'hidden'}}>
       {TITLE ? <div style={{position: 'absolute', top: 90, left: x0 - 40, opacity: titleIn,
-        color: '#aeb6ca', font: `700 ${titlePx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TITLE}</div> : null}
+        color: dna?.dim ?? '#aeb6ca', font: `700 ${titlePx}px/1 var(--f-mono, "JetBrains Mono", monospace)`, letterSpacing: '0.24em', textTransform: 'uppercase'}}>{TITLE}</div> : null}
       {live.map((r) => {
         const sr = lerp(softRank(r), finalRank(r), snap);
         // the row and its value TRAVEL BY TRANSLATE: by their layout top/left they were rounded to whole pixels
@@ -148,7 +148,8 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
             transform: glide(`translateY(${y}px)`, true)}}>
             {/* label */}
             <div style={{position: 'absolute', right: '100%', top: 0, height: rowH - 22, paddingRight: 26,
-              display: 'flex', alignItems: 'center', color: lead ? '#fff' : '#c7cee0',
+              // the film's own inks (a light film drew '#fff' labels on paper, 2026-11-17); the fallbacks are the old values
+              display: 'flex', alignItems: 'center', color: lead ? (dna?.fg ?? '#fff') : (dna?.dim ?? '#c7cee0'),
               font: `${lead ? 800 : 600} ${labelPx}px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>{r.label}</div>
             {/* bar */}
             <div style={{position: 'absolute', left: 0, top: 0, width: bw, height: rowH - 22, borderRadius: 12,
@@ -157,7 +158,7 @@ export const ChartRace: React.FC<{data?: Row[]; title?: string; unit?: string}> 
             {/* value — counts up with its bar and settles on the film's own string */}
             <div style={{position: 'absolute', left: 0, top: 0, transform: `translateX(${vx}px)`,
               height: rowH - 22, display: 'flex', alignItems: 'center',
-              color: lead ? tone : '#8b93a8', font: `800 ${valuePx}px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>
+              color: lead ? tone : (dna?.dim ?? '#8b93a8'), font: `800 ${valuePx}px/1 var(--f-body, Inter, system-ui, sans-serif)`, whiteSpace: 'nowrap'}}>
               {shown}</div>
           </div>
         );

@@ -449,6 +449,14 @@ cannot follow a fast move over a near-textureless gradient. Fix only with a corp
 diffed against the old code on generated cases): candidate fixes are normalising each tile's luma before the phase
 correlation, and returning "too little texture" when the tile's gradient energy is below a floor.
 
+### ink_contrast_qa misses a few unreadable labels beside large coloured shapes (found 2026-11-17)
+ChartRace drew '#fff' and pale labels on a warm-paper DNA (unreadable in the render) and still passed
+`ink_contrast_qa --only ChartRace`: the gate judges all ink (median mark, share of marks), and the coloured bars
+outvote the labels. ChartRace is fixed (fg/dim from the DNA); other library shots may hard-code light TEXT inks the
+same way. A type-specific measure (the text boxes' own contrast, e.g. from text_safe_qa's word boxes, against the
+light ground) would close it; change it only with a corpus check against the current gate. Until then the director
+path renders one frame of a part in the film's look and reads it (director-toolbox.md).
+
 ## C · Peer-library capability gaps still open
 
 **~~C1 · The fake dolly-zoom.~~ DONE 2026-09-14.** `dollyAt` in `runtime/depth.tsx` (the move as a

@@ -79,9 +79,12 @@ Write a film's own shot or object in its workshop and let it wrap any library sh
 - **In the film's look:** the DNA file gives the WHOLE palette (`bg`, `fg`, `dim`, `accent`, `accent2`, `onAccent`,
   `surface`, `surfaceBorder`, `line`, and the fonts `fontDisplay`, `fontBody`, `fontMono`); a partial one is filled
   from a DARK default (`runtime/dna.tsx` NEUTRAL_DNA).
-- **On a light look, check the part reads first:** `python3 scripts/ink_contrast_qa.py --only <Name>`. Some library
-  shots were built for dark grounds and hard-code light ink (ChartRace drew white labels on paper, 2026-11-17); a
-  failing one is restyled in the workshop or swapped.
+- **On a light look, LOOK at the part before using it:** render one frame in the film's DNA (`workshop.py <film_dir>
+  clip <Name> --props p.json --dna film_dna.json --frames 90-90`) and read every word on it. Some library shots were
+  built for dark grounds and hard-code light ink; `python3 scripts/ink_contrast_qa.py --only <Name>` catches a shot
+  whose ink is mostly near-white, but NOT a few labels beside large coloured shapes: ChartRace passed it while its
+  labels vanished on paper (fixed 2026-11-17: it now takes the film's `fg`/`dim`). A part whose words do not read is
+  restyled in the workshop or swapped.
 - **Placing a clip:** extract it to PNGs and let the page draw frame N at its time, so the page stays a pure function
   of time. Rendering: ChartRace with real rows took 45 s for 4 s.
 
