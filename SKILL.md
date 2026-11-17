@@ -155,10 +155,15 @@ frame by frame with headless Chrome at 1920x1080, 30 fps, then encoded with ffmp
 made this way. A film that wants the kit below may be built in the skill's Remotion project instead.
 
 **The kit — use it where the look calls for it** (the old pipeline's best parts; `references/building-blocks.md`):
-- **Light, material and depth:** `runtime/material`, the lit stage, the craft kit's `surface`, `slide.optic`;
-  real 3D plates from Blender (`references/blender-plates.md`, `scripts/blender_plate.py`) for what 3D physicality
-  IS the content of (a real object, material, optics, physics, a device). A lit film keeps one light direction
-  and one material language throughout.
+- **Light, material and depth:** `runtime/material`, the lit stage, the craft kit's `surface`, `slide.optic`; and
+  real 3D from Blender for what 3D physicality IS the content of (a real object, a material, optics, physics, a
+  device): write a scene script in the plate API (`build(k)` / `pose(k, t)`, `references/blender-plates.md`; the
+  kit's `studio.world` HDRI, `studio.softboxes`, `studio.tune_cycles`, `stage.place`, `materials`), look at one frame
+  first with `python3 scripts/blender_clip.py <film_dir> scene.py --seconds S --still F`, then render the clip
+  (alpha PNGs + a preview mp4 in `<film_dir>/clips/`). Glass, gems, water and metal show only what they refract or
+  mirror: render them in Cycles with the kit's HDRI and soft boxes (in EEVEE with no world a diamond came out flat
+  grey; with them, a believable stone in 10 s a frame at 640x360). A lit film keeps one light direction and one
+  material language throughout.
 - **Shots and objects as parts:** the library's 227 shots (`remotion/LIBRARY.md`) and its objects (devices, the
   Earth, satellites, clocks…) are parts. Write a film's own shot or object in its workshop
   (`python3 scripts/workshop.py <film_dir> new-shot|new-object <Name> --means "…"`; it may import library shots as

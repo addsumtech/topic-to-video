@@ -1148,3 +1148,7 @@ agent on the beats it points at.
 - `scripts/workshop.py <film_dir> clip <Name> [--props p.json] [--aspect 9:16] [--frames a-b]` — render a workshop
   shot or object to `<film_dir>/clips/<Name>.mp4` at full size, silent, so a film assembled outside the storyboard
   renderer can place the kit's lit / material / 3D work in it.
+- `scripts/blender_clip.py <film_dir> <scene.py> --seconds S [--name N] [--fps 30] [--size WxH] [--engine eevee|cycles]
+  [--samples N] [--env] [--params JSON] [--still F]` — a Blender scene (the plate scene API and kit) rendered as a
+  clip for a director-path film, with no storyboard: `blender/runner.py --no-reuse` into `<film_dir>/clips/<name>/rgba/`
+  (alpha PNGs, or opaque with `--env`) plus a preview `<name>.mp4`; `--still F` renders one frame to look at first.
