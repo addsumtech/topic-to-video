@@ -140,7 +140,8 @@ and forgettable.
    this subject already exists, give the designer its path: the new one is judged side by side with it.
 2. **The checkpoint.** Show the user the three concepts (one line each) and `design/keyframes.jpg`, and ask
    (`AskUserQuestion`): go with this concept, take another of the three, or push it further. **Non-interactive:** one
-   round of `agents/keyframe-review.md` (a fresh-eyed reviewer, effort "high") on the keyframes; the designer revises
+   round of `agents/keyframe-review.md` (a fresh-eyed reviewer, effort "high") on the keyframes, given each frame's
+   spoken line and the baseline film when one exists; the designer revises
    every frame it calls unclear or forgettable, then the build starts. One round, not a loop.
 3. **A style the user named** ("a Memphis style", "like a blueprint", "like a documentary") is a constraint on the
    designer's concepts, not a replacement for them. A brand's own colours and logo always apply.

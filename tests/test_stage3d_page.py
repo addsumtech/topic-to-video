@@ -66,6 +66,22 @@ def test_inflate_keeps_a_characters_shape_and_colours(tmp_path):
 
 
 @pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")
+@pytest.mark.parametrize("case,expect", [("holes", "has transparent holes"), ("crescent", "not one star-shaped body")])
+def test_inflate_refuses_what_it_would_draw_wrong(tmp_path, case, expect):
+    from PIL import ImageDraw
+    im = Image.new("RGBA", (200, 200), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.ellipse((20, 20, 180, 180), fill=(255, 90, 0, 255))
+    if case == "holes":       # white eyes removed with the background colour: transparent holes inside the face
+        d.rectangle((70, 70, 90, 120), fill=(0, 0, 0, 0)); d.rectangle((110, 70, 130, 120), fill=(0, 0, 0, 0))
+    else:                     # a crescent: its horns lie outside any outline traced from the centre
+        d.ellipse((70, 10, 200, 170), fill=(0, 0, 0, 0))
+    im.save(tmp_path / "s.png")
+    dom, _ = _shoot(tmp_path, """const st = Stage3D.create({canvas: document.getElementById('c')});
+      st.inflate('s.png', {width: 1}); await st.ready();""")
+    assert "ERR stage3d.inflate" in dom and expect in dom, dom[:400]
+
+
+@pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")
 def test_inflate_refuses_a_shape_that_touches_the_edge(tmp_path):
     Image.new("RGBA", (100, 100), (240, 240, 240, 255)).save(tmp_path / "tile.png")   # opaque: no outline to trace
     dom, _ = _shoot(tmp_path, """const st = Stage3D.create({canvas: document.getElementById('c')});

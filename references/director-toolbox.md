@@ -61,8 +61,11 @@ Use CLEAN screens (crop out any documentation annotations first).
 
 **Characters and marks as soft 3D bodies**: `st.inflate('bot.png', {width: 0.9, x, z, front: 0.42, back: 0.3})` turns a
 flat character or mark on a TRANSPARENT background into a glossy inflated body standing on its own y = 0, its artwork
-redrawn crisp on the face (its own colours), its main colour on the back; it refuses a shape touching the image edge
-(an opaque tile, a character cropped by a phone frame: cut the whole shape out first). Act with
+redrawn crisp on the face (its own colours), its main colour on the back. Cut the shape out of a screenshot with
+`python3 scripts/cutout.py <shot.png> <bot.png> --box x,y,w,h` (flood fill from the edge, so white eyes inside it
+stay; refuses a shape the box or a phone frame cuts off). inflate refuses what it would draw wrong: a shape touching
+the image edge, transparent holes inside it (a background removed by colour), a shape not star-shaped about its
+centre (a crescent, a ring, several parts). Act with
 `const h = Stage3D.hop(u, {height: 0.4}); g.userData.body.position.y = h.y; g.userData.body.scale.set(h.sx, h.sy, h.sx)`
 (anticipation, arc, a volume-keeping landing squash). Brand colours stay true with `create({toneMapping: 'neutral'})`. Type stays in the page's DOM over the canvas
 (crisp). Capture with Chrome's `--allow-file-access-from-files` (WebGL refuses `file://` images otherwise) or serve the

@@ -294,6 +294,10 @@ finding it prints that you do not understand.
   cross-fades (a `reduced-motion.css` linked last), still deterministic + seekable. It's an
   authoring-time opt-in variant (a baked mp4 can't read the viewer's OS setting), and it busts the
   clip cache.
+- `scripts/cutout.py <in.png> <out.png> [--box x,y,w,h] [--tol 28] [--pad 6]`: cuts ONE shape (a character, a mark)
+  out of a plain background by flood fill from the picture's (or box's) edge, so the background colour inside the shape
+  (white eyes) stays; anti-aliased edge, trimmed with a transparent pad. For `stage3d` `st.inflate()`. Exit 1 when the
+  shape touches the edge (cut off) or no plain background is found; 2 on a usage error.
 - `scripts/promo_capture.py <dir> <url> --name=n [--width --height --full --wait --eval --select --max]` | `--boxes=<png>` | `--mark=<png> --box=x,y,w,h`
   is the raw material of a product beat (references/promo-film.md).
   - **Web.** One headless Chrome at deviceScaleFactor 2 opens the page and waits, bounded, for load, fonts and the

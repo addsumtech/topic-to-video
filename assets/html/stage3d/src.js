@@ -182,6 +182,23 @@ function create(o) {
             if (x < 0 || y < 0 || x > iw - 1 || y > ih - 1) throw new Error('stage3d.inflate: ' + src + ' touches the image edge; it needs '
               + 'the whole shape on a transparent background (cut it out, or pass a mark without its tile)'); }
           rr.push(Math.max(1, r)); }
+        // the traced outline must BE the shape. Holes: transparent pixels the picture's edge cannot reach (a background
+        // removed by colour punches out white eyes). Lost parts: solid pixels outside the traced outline (a crescent's
+        // horns, a second piece, anything not star-shaped about the centre).
+        const reach = new Uint8Array(iw * ih), stack = [];
+        const seed = (x, y) => { const i = y * iw + x; if (!reach[i] && px[i * 4 + 3] < 128) { reach[i] = 1; stack.push(i); } };
+        for (let x = 0; x < iw; x++) { seed(x, 0); seed(x, ih - 1); } for (let y = 0; y < ih; y++) { seed(0, y); seed(iw - 1, y); }
+        while (stack.length) { const i = stack.pop(), x = i % iw, y = (i - x) / iw;
+          if (x > 0) seed(x - 1, y); if (x < iw - 1) seed(x + 1, y); if (y > 0) seed(x, y - 1); if (y < ih - 1) seed(x, y + 1); }
+        let holes = 0, lost = 0;
+        for (let y = 0; y < ih; y++) for (let x = 0; x < iw; x++) { const i = y * iw + x;
+          if (px[i * 4 + 3] < 128) { if (!reach[i]) holes++; continue; }
+          const ang = Math.atan2(-(y - ccy), x - ccx), f = ((ang + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * NA, i0 = Math.floor(f) % NA;
+          if (Math.hypot(x - ccx, y - ccy) > Math.max(rr[i0], rr[(i0 + 1) % NA]) + 1.5) lost++; }
+        if (holes > n * 0.002) throw new Error('stage3d.inflate: ' + src + ' has transparent holes inside its shape (' + holes + ' px): '
+          + 'a background removed by colour also removed parts of the face; cut it out with scripts/cutout.py (flood fill from the edge)');
+        if (lost > n * 0.01) throw new Error('stage3d.inflate: ' + src + ' is not one star-shaped body (' + lost + ' of ' + n + ' solid px lie '
+          + 'outside the outline traced from its centre): a crescent, a ring or several parts cannot be inflated');
         const R = Math.max(...rr), rOf = (a) => { a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
           const f = a / (Math.PI * 2) * NA, i0 = Math.floor(f) % NA, i1 = (i0 + 1) % NA, k = f - Math.floor(f);
           return (rr[i0] * (1 - k) + rr[i1] * k) / R; };
@@ -191,6 +208,9 @@ function create(o) {
         // pixels; near-duplicates (anti-aliased blends) merge into the larger colour
         const pal = [...bins.values()].filter((b) => b[0] >= Math.max(4, tot * 0.003)).sort((a, b) => b[0] - a[0]).map((b) => [b[1] / b[0], b[2] / b[0], b[3] / b[0]]);
         const merged = []; for (const q of pal) if (!merged.some((m) => Math.hypot(m[0] - q[0], m[1] - q[1], m[2] - q[2]) < 56)) merged.push(q);
+        if (!merged.length) throw new Error('stage3d.inflate: ' + src + ' has no solid colour (every pixel is semi-transparent)');
+        // flat art (a few colours) is snapped crisp; shaded art (a gradient, a photo) keeps its smooth upscale instead of banding
+        const snap = merged.length <= 12;
         const bodyCol = p.color ? new THREE.Color(p.color) : new THREE.Color().setRGB(merged[0][0] / 255, merged[0][1] / 255, merged[0][2] / 255, THREE.SRGBColorSpace);
         // the face: a smooth upscale, each pixel snapped to the nearest palette colour (crisp edges at any size)
         const S = p.faceRes || 1024, half = R * 1.04, fc = document.createElement('canvas'); fc.width = fc.height = S;
@@ -198,10 +218,10 @@ function create(o) {
         f2.fillStyle = '#' + bodyCol.getHexString(THREE.SRGBColorSpace); f2.fillRect(0, 0, S, S);
         f2.drawImage(img, (ccx - half) / (2 * half) * -S, (ccy - half) / (2 * half) * -S, iw / (2 * half) * S, ih / (2 * half) * S);
         const fd = f2.getImageData(0, 0, S, S), d = fd.data;
-        for (let i = 0; i < d.length; i += 4) { let best = 0, bd = 1e9;
+        if (snap) for (let i = 0; i < d.length; i += 4) { let best = 0, bd = 1e9;
           for (let j = 0; j < merged.length; j++) { const m = merged[j], e = (d[i] - m[0]) ** 2 + (d[i + 1] - m[1]) ** 2 + (d[i + 2] - m[2]) ** 2; if (e < bd) { bd = e; best = j; } }
           d[i] = merged[best][0]; d[i + 1] = merged[best][1]; d[i + 2] = merged[best][2]; d[i + 3] = 255; }
-        f2.putImageData(fd, 0, 0);
+        if (snap) f2.putImageData(fd, 0, 0);
         const tex = new THREE.CanvasTexture(fc); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
         // the inflated body (outline radius 1 = R px): front dome `front`, back dome `back`, rings centre -> rim
         const front = p.front == null ? 0.42 : p.front, back = p.back == null ? 0.3 : p.back, N = 128, SR = 24;
