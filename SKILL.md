@@ -60,6 +60,14 @@ Work in one folder per film, `<film_dir>` (ask nothing about it; make one next t
 the current directory). Steps 1-8 run to the finished film; the user is asked only at step 1 (if needed) and
 step 5.
 
+**Design is judgement, not a menu** (the user, 2026-11-17: "设计要灵活，对于组件，vibe等等这些都是"). Only a few things
+in this file BIND every film: the facts are sourced, every drawn thing is correct, everything is readable and
+nothing sits in the caption band, rasters stay within their pixels, real brands stay real, and `film_qc` is clean
+(or a red is proved wrong). Everything else (the looks and their palettes, components and kit pieces, accents, the
+launch grammar, sequence counts, the craft principles, every example here) is a VOCABULARY: use it, combine it,
+bend it, or leave it, by what this subject, this audience and this moment need, and invent what the vocabulary
+lacks. A choice that departs from a suggestion here gets one line of why in `NOTES.md`; that is all it needs.
+
 ### 1. Ask — once, plainly, with options
 
 Use ONE `AskUserQuestion` call (options, the recommended one first; never a typed question in chat). Skip any
@@ -212,7 +220,7 @@ ready, and a ticked box needs none if the moment is not one to feel.
 - Text on screen is labels, keywords and numbers, never the narration as body text.
 - Build each sequence, export its settled frames, look at them, fix, then move on.
 
-**A launch or product film** has its own grammar (measured on 20 official launch films, `references/craft-standard.md`
+**A launch or product film** usually works with this grammar (a starting point measured on 20 official launch films, `references/craft-standard.md`
 "A product film"; `references/launch-film-study.md`). The WorkBuddy blind round showed what happens without it: the
 film that kept the real product large matched one that redrew the product as icons on empty paper.
 - **The real product is the hero, at size.** Its real screens fill most of the frame (about 55 % of the width or

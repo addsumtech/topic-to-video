@@ -1,7 +1,9 @@
 # Director craft — the principles behind a film that reads as made, not assembled
 
 The director path's working knowledge, condensed from the established canon of editing, explainer teaching, graphic
-design and motion. Each rule says what to DO. Where this skill measured something itself, it says so.
+design and motion. Each principle says what usually works and why; they are defaults for judgement, not laws
+(SKILL.md "Design is judgement, not a menu"): break one when the film is better for it, and say why in NOTES.md.
+Where this skill measured something itself, it says so.
 Deeper skill-specific studies: `motion-grammar.md` (camera and transition grammar), `launch-film-study.md` (20
 official product films, measured), `craft-standard.md` (the product-film grammar), `narration-writing.md` and
 `anti-ai-voice.md` (the spoken script), `visual-styles.md` (the named looks).
