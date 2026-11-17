@@ -449,6 +449,13 @@ cannot follow a fast move over a near-textureless gradient. Fix only with a corp
 diffed against the old code on generated cases): candidate fixes are normalising each tile's luma before the phase
 correlation, and returning "too little texture" when the tile's gradient energy is below a floor.
 
+### picture_glide_qa reads caption swaps as picture motion (found 2026-11-17)
+On the director-path diamond film a slow push-in measured 0.128 px RMS (red) with burned captions and 0.080 (OK) for
+the same segment captured without them: the caption band's text changing inside a shot adds to the tile tracker's
+residual. Candidate fix (corpus-checked only): exclude the caption band from the tiles, as empty_frame_qa does.
+An exact affine render of a fast pan over the dim stone also failed (0.146), the textureless blind spot already
+logged above.
+
 ### ink_contrast_qa misses a few unreadable labels beside large coloured shapes (found 2026-11-17)
 ChartRace drew '#fff' and pale labels on a warm-paper DNA (unreadable in the render) and still passed
 `ink_contrast_qa --only ChartRace`: the gate judges all ink (median mark, share of marks), and the coloured bars

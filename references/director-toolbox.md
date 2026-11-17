@@ -126,7 +126,10 @@ shake on `final.mp4`; exit 1 on any red. `_plan.json`:
 `{"video": "final.mp4", "fps": 30, "frames": N, "cuts": [...], "segments": [{"start", "end", "kind": "shot"|"loop"}]}`,
 the cuts computed by the same rule the renderer uses to switch shots (a plan that rounded differently put a cut one
 frame off and rewind_qa reported a replay). Known blind spot of picture_glide_qa: a sky or light whose colours change
-with nothing moving, and a fast move over a near-textureless gradient (proved on the sky film, 2026-11-16).
+with nothing moving, and a fast move over a near-textureless gradient (proved on the sky film, 2026-11-16); and
+captions changing inside a shot under a slow push read as extra motion (the diamond film, 2026-11-17: 0.128 px with
+captions, 0.080 without). A turning object that repeats by design is a `kind: "loop"` segment in `_plan.json`, with
+the seam proved (the wrap frame differs no more than consecutive frames).
 picture_glide_qa is slow when several films render at once; on a busy machine run it per shot (`--clip --from --to`).
 
 ## Why these rules (the incidents behind SKILL.md)
