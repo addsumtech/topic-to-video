@@ -48,6 +48,21 @@ for (let f = 0; f < 24; f++) {
   if (s.length) sp = s[0];
 }
 r.sparkle_grows = sg;
+// ring only grows and fades; rays' both ends only travel outward; both end on time
+let rg = true, rl = null, ro = true, pr = null;
+for (let f = 0; f < 18; f++) {
+  const g = A.ring(f / 30, {x: 0, y: 0});
+  if (g && rl && (g.r < rl.r - 1e-9 || g.alpha > rl.alpha + 1e-9)) rg = false;
+  if (g) rl = g;
+  const ys = A.rays(f / 30, {x: 0, y: 0, seed: 1});
+  if (pr && ys.length) for (let i = 0; i < ys.length; i++) {
+    if (Math.hypot(ys[i].x1, ys[i].y1) + 1e-9 < Math.hypot(pr[i].x1, pr[i].y1)) ro = false;
+    if (Math.hypot(ys[i].x2, ys[i].y2) + 1e-9 < Math.hypot(pr[i].x2, pr[i].y2)) ro = false;
+  }
+  if (ys.length) pr = ys;
+}
+r.ring_grows = rg; r.rays_outward = ro;
+r.ends = A.ring(0.6, {}) === null && A.rays(0.35, {}).length === 0;
 console.log(JSON.stringify(r));
 """
 

@@ -176,19 +176,22 @@ made this way. A film that wants the kit below may be built in the skill's Remot
 - **Checks:** everything in `film_qc.py`; any other script in `references/pipeline-scripts.md` that takes a film
   folder or an mp4.
 
-**Accents** — small motions that mark a moment: a 🎉 confetti burst or sparkle on a result or a payoff, a tick
-popping in on "done", an underline or circle drawing under the key word, a number counting up to its value, a
-short phrase (花字) popping above the caption for a joke or a surprise, an emoji reacting (🤔 😮 🎉).
+**Accents** — small motion effects (动效) that mark a moment, drawn as motion, not as emoji glyphs: a celebration
+burst (confetti flying out with a ring and short rays) on a result or a payoff, a sparkle on something new or
+shiny, a tick drawing itself on "done", an underline or circle drawing under the key word, a number counting up to
+its value, a pulse of glow on the thing the voice names, a short phrase (花字) popping above the caption for a joke
+or a surprise.
 - **Earned, brief, sparing**: only on a moment the voice earns (a result, a payoff, a surprise, the key word), under
   a second (accent lines 4-10 frames), trailing the element it marks by a few frames; the text stays still. About
   one per 15-30 s in an explainer, more in a playful or launch film, none on a somber subject. Energy matches the
   look: a calm look gets a tick and an underline, a playful one gets confetti.
-- **Deterministic, no overshoot**: `assets/html/accents.js` (burst, sparkle, pop, drawOn, countUp) gives each as a pure
-  function of time and seed. Never `Math.random` in a film page; never grow past full size and shrink back (rewind_qa
+- **Deterministic, no overshoot**: `assets/html/accents.js` (burst, ring, rays, sparkle, pop, drawOn, countUp) gives
+  each as a pure function of time and seed; a celebration is `burst` + `ring` + `rays` started together. Never `Math.random` in a film page; never grow past full size and shrink back (rewind_qa
   reads it as the picture going back).
-- **Emoji**: the system emoji font, or Google's Noto Animated Emoji (Lottie; reported CC BY 4.0: confirm the licence
-  in its repository and credit it in NOTES.md and the description). A sound may mark it: a click, select or drop
-  from `assets/sfx/kenney/`, quiet under the voice.
+- **Behind, not over**: a celebration (confetti, ring, rays) is drawn BEHIND the element it celebrates, so its text
+  stays readable while the burst plays; an underline or circle sits on its word, never across the next line.
+- **Sound**: an accent may get a short sound (a click, select or drop from `assets/sfx/kenney/`), quiet under the
+  voice; not every accent needs one.
 
 **Rules every frame obeys** (each one cost a real film a defect):
 - **Every drawn thing is correct.** A cat has four legs, a hand five fingers, a molecule its real bonds, a device its

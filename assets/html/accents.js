@@ -3,7 +3,10 @@
  * what a page captured frame by frame needs (Math.random in a film page is a flash and a replay waiting to happen).
  *
  *   burst(t, {x, y, seed, colors, count, spread, power, life})  -> particles [{x, y, rot, scale, alpha, color, shape}]
+ *   ring(t, {x, y, r0, r1, life})                               -> {r, alpha, width}  an expanding shockwave ring
+ *   rays(t, {x, y, count, r0, len, life, seed})                 -> lines     [{x1, y1, x2, y2, alpha}]
  *   sparkle(t, {x, y, seed, count, radius, life})               -> stars     [{x, y, scale, alpha, rot}]
+ *   A celebration (the 🎉 motion) = burst + ring + rays started on the same frame.
  *   pop(t, d)        -> {scale, alpha}   an element arriving (0.7 -> 1), NO overshoot
  *   drawOn(t, d)     -> 0..1             an underline / circle / tick drawing itself (stroke-dashoffset = 1 - value)
  *   countUp(t, from, to, d, decimals) -> number, rising monotonically and landing exactly on `to`
@@ -31,8 +34,9 @@
 
   function burst(t, o) {
     o = o || {};
-    var life = o.life || 1.2, n = o.count || 36, spread = o.spread == null ? Math.PI * 0.9 : o.spread;
-    var power = o.power || 900, colors = o.colors || DEFAULT_COLORS, g = o.gravity == null ? 1400 : o.gravity;
+    // defaults tuned on a rendered sheet (2026-11-17): at 0.9pi / 900 the confetti stayed a puff on the card
+    var life = o.life || 1.2, n = o.count || 36, spread = o.spread == null ? Math.PI * 1.25 : o.spread;
+    var power = o.power || 1500, colors = o.colors || DEFAULT_COLORS, g = o.gravity == null ? 1400 : o.gravity;
     var drag = 2.2, out = [];
     if (t < 0 || t >= life) return out;
     var r = rng(o.seed == null ? 7 : o.seed);
@@ -48,6 +52,30 @@
       out.push({ x: x, y: y, rot: spin * t, scale: 0.6 + 0.6 * r(),
                  alpha: t < fadeStart ? 1 : clamp01(1 - (t - fadeStart) / (life - fadeStart)),
                  color: colors[i % colors.length], shape: r() < 0.5 ? 'rect' : 'circle' });
+    }
+    return out;
+  }
+
+  function ring(t, o) {
+    o = o || {};
+    var life = o.life || 0.6, r0 = o.r0 == null ? 10 : o.r0, r1 = o.r1 || 160;
+    if (t < 0 || t >= life) return null;
+    var p = easeOutCubic(t / life);                            // grows only, fades out
+    return { x: o.x || 0, y: o.y || 0, r: r0 + (r1 - r0) * p, alpha: 1 - clamp01(t / life),
+             width: (o.width || 6) * (1 - 0.7 * p) };
+  }
+
+  function rays(t, o) {
+    o = o || {};
+    var life = o.life || 0.35, n = o.count || 10, r0 = o.r0 == null ? 30 : o.r0, len = o.len || 70, out = [];
+    if (t < 0 || t >= life) return out;
+    var r = rng(o.seed == null ? 5 : o.seed), p = easeOutCubic(t / life);
+    for (var i = 0; i < n; i++) {
+      var a = (i / n) * Math.PI * 2 + (r() - 0.5) * 0.3;
+      var inner = r0 + len * p, outer = r0 + len * Math.min(1, p * 1.6);   // both ends travel outward
+      out.push({ x1: (o.x || 0) + Math.cos(a) * inner, y1: (o.y || 0) + Math.sin(a) * inner,
+                 x2: (o.x || 0) + Math.cos(a) * outer, y2: (o.y || 0) + Math.sin(a) * outer,
+                 alpha: 1 - clamp01((t / life - 0.5) / 0.5) });
     }
     return out;
   }
@@ -94,7 +122,7 @@
     }
   }
 
-  var api = { burst: burst, sparkle: sparkle, pop: pop, drawOn: drawOn, countUp: countUp,
+  var api = { burst: burst, ring: ring, rays: rays, sparkle: sparkle, pop: pop, drawOn: drawOn, countUp: countUp,
               drawParticles: drawParticles, rng: rng };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Accents = api;
