@@ -65,9 +65,15 @@ redrawn crisp on the face (its own colours), its main colour on the back. Cut th
 `python3 scripts/cutout.py <shot.png> <bot.png> --box x,y,w,h` (flood fill from the edge, so white eyes inside it
 stay; refuses a shape the box or a phone frame cuts off). inflate refuses what it would draw wrong: a shape touching
 the image edge, transparent holes inside it (a background removed by colour), a shape not star-shaped about its
-centre (a crescent, a ring, several parts). Act with
+centre (a crescent, a ring, several parts). **Cast from one official image**: take every character from the same
+screenshot that pairs it with its role (a Bot list, a roster) and keep that image's pairs; never pair a role with a
+character by colour from another picture (Grok Bot 2026-11-18: round Bots matched by colour, where the app's own
+list shows a hexagon, a bean, a triangle). A character is in one place at a time: one that leaves its group is gone
+from it. Act with
 `const h = Stage3D.hop(u, {height: 0.4}); g.userData.body.position.y = h.y; g.userData.body.scale.set(h.sx, h.sy, h.sx)`
-(anticipation, arc, a volume-keeping landing squash). Brand colours stay true with `create({toneMapping: 'neutral'})`. Type stays in the page's DOM over the canvas
+(anticipation, arc, a volume-keeping landing squash). Whatever a character carries rides on it:
+`Stage3D.carry(card, bot, {h: cardHeight})` every frame after the pose puts it on the top of the body as posed now
+(it rises with the hop, dips with the squash); never a fixed height, which a hopping head sinks into. Brand colours stay true with `create({toneMapping: 'neutral'})`. Type stays in the page's DOM over the canvas
 (crisp). Capture with Chrome's `--allow-file-access-from-files` (WebGL refuses `file://` images otherwise) or serve the
 folder over http. Measured on the first keyframes (2026-11-17): a hand-tuned frame went from "screens floating in a
 void" to cinematic only after three render-and-judge rounds — composition is the designer's work, not the kit's.

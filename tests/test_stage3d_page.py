@@ -65,6 +65,29 @@ def test_inflate_keeps_a_characters_shape_and_colours(tmp_path):
     assert blue, "the small blue part was snapped away"
 
 
+
+@pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")
+def test_inflate_rim_is_clean_when_turned(tmp_path):
+    # the real case: a small character cut out of a WHITE screenshot (soft near-white fringe), turned so its rim faces the
+    # camera. The rim must be body colour: no white fringe specks, no face texels stretched into streaks.
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "scripts"))
+    from cutout import cutout
+    from PIL import ImageDraw
+    big = Image.new("RGB", (440, 440), (255, 255, 255)); ImageDraw.Draw(big).ellipse((40, 40, 400, 400), fill=(220, 30, 50))
+    cutout(big.resize((110, 110), Image.LANCZOS)).save(tmp_path / "bot.png")
+    dom, shot = _shoot(tmp_path, """const st = Stage3D.create({canvas: document.getElementById('c'), background: '#05060a',
+      toneMapping: 'neutral'}); st.studio({env: 0.2}); st.inflate('bot.png', {width: 2, y: 0.2, rotY: -1.1, clearcoat: 0, roughness: 1});
+      await st.ready(); st.render({pos: [0, 1.2, 5], look: [0, 1.2, 0], fov: 40});""")
+    assert "<title>ok</title>" in dom, dom[:300]
+    import numpy as np
+    a = np.asarray(shot).astype(float)
+    m = (a[2:, :, 0] > 60) & (a[:-2, :, 0] > 60)                 # inside the red body, two px apart vertically
+    d = np.abs(a[2:] - a[:-2]).sum(2)[m]
+    assert m.sum() > 2000, "the body did not render"
+    # smooth shading changes slowly (p99 ~25); streaks/specks jump (p99 78-103 before the rim fix, 2026-11-18)
+    assert np.percentile(d, 99) < 50, "rim streaks: p99 vertical step %.0f" % np.percentile(d, 99)
+
 @pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")
 @pytest.mark.parametrize("case,expect", [("holes", "has transparent holes"), ("crescent", "not one star-shaped body")])
 def test_inflate_refuses_what_it_would_draw_wrong(tmp_path, case, expect):
@@ -99,3 +122,26 @@ def test_the_committed_bundle_matches_its_source(tmp_path):
                    check=True)
     assert out.read_bytes() == open(os.path.join(ROOT, "assets", "html", "stage3d.js"), "rb").read(), \
         "assets/html/stage3d.js is stale: run scripts/build_stage3d.sh"
+
+
+@pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")
+def test_carry_rides_on_the_posed_body(tmp_path):
+    # a carried card must sit on the body's top as posed THIS frame: above it at rest, higher mid-hop, never inside it
+    from PIL import ImageDraw
+    im = Image.new("RGBA", (200, 200), (0, 0, 0, 0)); ImageDraw.Draw(im).ellipse((20, 20, 180, 180), fill=(0, 184, 160, 255))
+    im.save(tmp_path / "bot.png")
+    dom, _ = _shoot(tmp_path, """const st = Stage3D.create({canvas: document.getElementById('c')});
+      let early = 'none'; const b0 = st.inflate('bot.png', {width: 1}); try { Stage3D.carry(new Stage3D.THREE.Object3D(), b0, {h: 0.5}); } catch (e) { early = 'threw'; }
+      await st.ready(); const card = new Stage3D.THREE.Object3D(), body = b0.userData.body, out = [];
+      for (const u of [0, 0.08, 0.5, 0.93]) { const h = Stage3D.hop(u, {height: 0.6}); body.position.y = h.y; body.scale.set(h.sx, h.sy, h.sx);
+        const top = Stage3D.carry(card, b0, {h: 0.5, gap: 0.05}); out.push([top, card.position.y - 0.25].map((v) => v.toFixed(3)).join(':')); }
+      document.body.setAttribute('data-res', early + ' ' + out.join(' '));""")
+    import re
+    m = re.search(r'data-res="(\S+) ([^"]*)"', dom)
+    assert m, dom[:300]
+    assert m.group(1) == "threw", "carry on a character that has not loaded must fail loudly"
+    pairs = [tuple(map(float, p.split(":"))) for p in m.group(2).split()]
+    for top, bottom in pairs:
+        assert abs(bottom - (top + 0.05)) < 1e-3, "the card is not resting on the body's top: %s" % pairs
+    rest, crouch, mid, land = [p[0] for p in pairs]
+    assert mid > rest + 0.4 and crouch < rest and land < rest, "the top did not follow the hop and squash: %s" % pairs

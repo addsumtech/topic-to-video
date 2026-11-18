@@ -85,7 +85,7 @@ three or more rounds per frame; your first render is a draft. Tile the final thr
 For the 3D stage: capture with Chrome's `--allow-file-access-from-files` (or serve the folder over http);
 `Stage3D.panel()` takes the CLEAN screens (crop out any documentation annotations first); `st.inflate()` takes a
 WHOLE character or mark on a transparent background: cut it out of a screenshot with `scripts/cutout.py` (never one
-cropped by a phone frame).
+cropped by a phone frame), every character from the one official image that pairs it with its role.
 
 ## 5. The treatment — `design/treatment.md` and a draft `shot_plan.json`
 Movement by movement: EVERY shot's picture in a line or two (what we see, what it says, why each element is there),

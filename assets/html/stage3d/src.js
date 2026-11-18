@@ -89,7 +89,7 @@ function create(o) {
       const key = new THREE.DirectionalLight(s.keyColor || '#fff4e6', s.key == null ? 2.2 : s.key);
       key.position.set(-6, 9, 7); key.castShadow = true;
       key.shadow.mapSize.set(2048, 2048); key.shadow.camera.left = -12; key.shadow.camera.right = 12;
-      key.shadow.camera.top = 12; key.shadow.camera.bottom = -12; key.shadow.radius = 6; key.shadow.bias = -0.0004;
+      key.shadow.camera.top = 12; key.shadow.camera.bottom = -12; key.shadow.radius = 6; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;   // no self-shadow acne (striped rims) on curved bodies
       const rim = new THREE.DirectionalLight(s.rimColor || '#cfe3ff', s.rim == null ? 1.4 : s.rim);
       rim.position.set(5, 4, -8);
       const fill = new THREE.HemisphereLight('#ffffff', '#20242b', s.fill == null ? 0.35 : s.fill);
@@ -175,13 +175,20 @@ function create(o) {
         if (!n) throw new Error('stage3d.inflate: ' + src + ' has no opaque pixels (it needs a transparent background)');
         const ccx = mx / n, ccy = my / n;
         // the outline as a radius per angle (px), marched out from the centre along the alpha edge
-        const NA = 160, rr = [];
+        const NA = 256, raw = [];
         for (let i = 0; i < NA; i++) { const a = i / NA * Math.PI * 2, dx = Math.cos(a), dy = -Math.sin(a); let r = 0;
           while (A(ccx + dx * r, ccy + dy * r) >= 0.5) { r += 0.25; const x = ccx + dx * r, y = ccy + dy * r;
             // the shape runs into the picture's edge: no outline to trace (an opaque tile, a cropped character)
             if (x < 0 || y < 0 || x > iw - 1 || y > ih - 1) throw new Error('stage3d.inflate: ' + src + ' touches the image edge; it needs '
               + 'the whole shape on a transparent background (cut it out, or pass a mark without its tile)'); }
-          rr.push(Math.max(1, r)); }
+          // the 0.5-alpha crossing between the last two steps (sub-pixel), not the step it was found on
+          if (r > 0) { const a0 = A(ccx + dx * (r - 0.25), ccy + dy * (r - 0.25)), a1 = A(ccx + dx * r, ccy + dy * r);
+            r = r - 0.25 + 0.25 * (a0 - 0.5) / Math.max(1e-6, a0 - a1); }
+          raw.push(Math.max(1, r)); }
+        // a traced outline carries pixel noise (+-0.5 px), which the steep rim of the dome turns into visible ridges on a
+        // small cut-out: smooth it around the circle (gaussian over ~3 degrees, a few px of arc) before building the body
+        const SIG = 2, KW = 6, rr = raw.map((_, i) => { let s = 0, w = 0;
+          for (let k = -KW; k <= KW; k++) { const g = Math.exp(-k * k / (2 * SIG * SIG)); s += g * raw[(i + k + NA) % NA]; w += g; } return s / w; });
         // the traced outline must BE the shape. Holes: transparent pixels the picture's edge cannot reach (a background
         // removed by colour punches out white eyes). Lost parts: solid pixels outside the traced outline (a crescent's
         // horns, a second piece, anything not star-shaped about the centre).
@@ -216,7 +223,14 @@ function create(o) {
         const S = p.faceRes || 1024, half = R * 1.04, fc = document.createElement('canvas'); fc.width = fc.height = S;
         const f2 = fc.getContext('2d', {willReadFrequently: true}); f2.imageSmoothingEnabled = true; f2.imageSmoothingQuality = 'high';
         f2.fillStyle = '#' + bodyCol.getHexString(THREE.SRGBColorSpace); f2.fillRect(0, 0, S, S);
-        f2.drawImage(img, (ccx - half) / (2 * half) * -S, (ccy - half) / (2 * half) * -S, iw / (2 * half) * S, ih / (2 * half) * S);
+        // the cut-out's soft fringe carries the old background's colour (near white): painted as body colour instead, or it
+        // snaps to the eye colour and rings the rim with white specks
+        const sc0 = document.createElement('canvas'); sc0.width = iw; sc0.height = ih; const s0 = sc0.getContext('2d'), sd = s0.createImageData(iw, ih);
+        const bs = new THREE.Color(bodyCol).convertLinearToSRGB();
+        for (let i = 0; i < px.length; i += 4) { const solid = px[i + 3] >= 230; sd.data[i] = solid ? px[i] : Math.round(bs.r * 255);
+          sd.data[i + 1] = solid ? px[i + 1] : Math.round(bs.g * 255); sd.data[i + 2] = solid ? px[i + 2] : Math.round(bs.b * 255); sd.data[i + 3] = 255; }
+        s0.putImageData(sd, 0, 0);
+        f2.drawImage(sc0, (ccx - half) / (2 * half) * -S, (ccy - half) / (2 * half) * -S, iw / (2 * half) * S, ih / (2 * half) * S);
         const fd = f2.getImageData(0, 0, S, S), d = fd.data;
         if (snap) for (let i = 0; i < d.length; i += 4) { let best = 0, bd = 1e9;
           for (let j = 0; j < merged.length; j++) { const m = merged[j], e = (d[i] - m[0]) ** 2 + (d[i + 1] - m[1]) ** 2 + (d[i + 2] - m[2]) ** 2; if (e < bd) { bd = e; best = j; } }
@@ -224,22 +238,26 @@ function create(o) {
         if (snap) f2.putImageData(fd, 0, 0);
         const tex = new THREE.CanvasTexture(fc); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
         // the inflated body (outline radius 1 = R px): front dome `front`, back dome `back`, rings centre -> rim
-        const front = p.front == null ? 0.42 : p.front, back = p.back == null ? 0.3 : p.back, N = 128, SR = 24;
+        const front = p.front == null ? 0.42 : p.front, back = p.back == null ? 0.3 : p.back, N = 192, SR = 40;
         const prof = (s) => Math.pow(Math.max(0, 1 - Math.pow(s, 4)), 0.4);
         const pos = [], uv = [], idx = [], k = R / half;
         const ring = (side) => { const base = pos.length / 3;
           pos.push(0, 0, side * (side > 0 ? front : back)); uv.push(0.5, 0.5);
-          for (let j = 1; j <= SR; j++) { const s = j / SR; for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2, r = rOf(a) * s;
+          for (let j = 1; j <= SR; j++) { const s = 1 - Math.pow(1 - j / SR, 2); for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2, r = rOf(a) * s;
             const x = Math.cos(a) * r, y = Math.sin(a) * r; pos.push(x, y, side * (side > 0 ? front : back) * prof(s)); uv.push(0.5 + x * k / 2, 0.5 + y * k / 2); } }
           const at = (j, i) => (j === 0 ? base : base + 1 + (j - 1) * N + (i % N)), start = idx.length;
           for (let i = 0; i < N; i++) side > 0 ? idx.push(at(0, 0), at(1, i), at(1, i + 1)) : idx.push(at(0, 0), at(1, i + 1), at(1, i));
-          for (let j = 1; j < SR; j++) for (let i = 0; i < N; i++) { const a = at(j, i), b = at(j, i + 1), c2 = at(j + 1, i), e = at(j + 1, i + 1);
-            side > 0 ? idx.push(a, c2, b, b, c2, e) : idx.push(a, b, c2, b, e, c2); }
-          return [start, idx.length - start]; };
+          let mid = null;
+          for (let j = 1; j < SR; j++) { if (mid == null && 1 - Math.pow(1 - j / SR, 2) >= 0.86) mid = idx.length;
+            for (let i = 0; i < N; i++) { const a = at(j, i), b = at(j, i + 1), c2 = at(j + 1, i), e = at(j + 1, i + 1);
+              side > 0 ? idx.push(a, c2, b, b, c2, e) : idx.push(a, b, c2, b, e, c2); } }
+          return [start, mid, idx.length]; };
         const gF = ring(1), gB = ring(-1);
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-        g.setIndex(idx); g.computeVertexNormals(); g.addGroup(gF[0], gF[1], 0); g.addGroup(gB[0], gB[1], 1);
+        g.setIndex(idx); g.computeVertexNormals(); // the face picture is projected straight on, so it covers the front of the dome only; on the steep rim it would
+        // stretch each edge texel into a streak, so the rim (s >= 0.86, outside every face feature) and the back are body colour
+        g.addGroup(gF[0], gF[1] - gF[0], 0); g.addGroup(gF[1], gF[2] - gF[1], 1); g.addGroup(gB[0], gB[2] - gB[0], 1);
         const mat = (map) => new THREE.MeshPhysicalMaterial({map, color: map ? 0xffffff : bodyCol, roughness: p.roughness == null ? 0.36 : p.roughness,
           metalness: 0, clearcoat: p.clearcoat == null ? 1 : p.clearcoat, clearcoatRoughness: 0.08});
         const mesh = new THREE.Mesh(g, [mat(tex), mat(null)]); mesh.castShadow = true; mesh.receiveShadow = true;
@@ -290,4 +308,19 @@ function hop(t01, o) {
   return {y, sx: 1 / Math.sqrt(sy), sy};
 }
 
-export {create, ease, easeOut, lerp, lerp3, clamp01, hop, THREE};
+// an object a character CARRIES rides on its real body: set every frame, after the character's pose, it sits on the top
+// of the body as it is posed right now (hop height, squash and all) plus a small gap, follows its x/z, turns half as far,
+// and tips with a squash. A carried card placed at a fixed height sinks into a hopping head (Grok Bot, 2026-11-18).
+//   Stage3D.carry(card, bot, {h: cardHeight, gap: 0.08, dx: 0, dz: 0.1, tilt: 0});
+// `character` is an inflate()'d group (its userData.size gives the body height); `h` is the object's own height at scale 1.
+function carry(obj, character, o) {
+  o = o || {}; const body = character.userData.body, size = character.userData.size;
+  if (!body || !size) throw new Error('Stage3D.carry: the character is not an inflate()d group, or it has not loaded (await st.ready())');
+  const top = character.position.y + character.scale.y * (body.position.y + size[1] * body.scale.y);
+  obj.position.set(character.position.x + (o.dx || 0), top + (o.gap == null ? 0.08 : o.gap) + (o.h || 1) / 2 * obj.scale.y,
+    character.position.z + (o.dz == null ? 0.1 : o.dz));
+  obj.rotation.set(0, character.rotation.y * 0.5, (o.tilt || 0) + body.rotation.z + 0.25 * (body.scale.x - 1));
+  return top;
+}
+
+export {create, ease, easeOut, lerp, lerp3, clamp01, hop, carry, THREE};

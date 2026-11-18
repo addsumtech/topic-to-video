@@ -207,7 +207,8 @@ stays readable. `assets/html/accents.js` gives them as pure functions of time, w
 **A launch or product film** usually works best with the real product as the hero at size (its real screens large,
 or a crop onto the component the voice names, where they READ at that size; where they do not, a phone screenshot or
 a small dialog on a big desktop, draw the UI simplified and honest: the real layout and colours, the sourced words,
-grey bars for text with no source), its own characters acting the steps out when it has any, one persistent hero object, short type beats between product beats,
+grey bars for text with no source; a device with no official screenshot (the desktop app) takes the layout of the
+closest one (the iPad app), never an invented one), its own characters acting the steps out when it has any, one persistent hero object, short type beats between product beats,
 the real logo early and a closing lockup, one small celebration, and a quick rhythm (the full grammar and its
 evidence in the toolbox). Before building one, write `<film_dir>/shot_plan.json` (features → shots, each shot's
 job, technique and seam, the motion voice, the signature idea; format in `scripts/shot_plan_qa.py`) and pass
