@@ -5,7 +5,8 @@ a cover image, and the copy to the user's Desktop.
     python3 scripts/film_deliver.py <film_dir> [--encode] [--frames work/frames] [--audio audio/mix.wav]
                                     [--grain 3] [--no-copy]
 
---encode   <frames>/f_%05d.jpg + the mix -> the plan's video (final.mp4): H.264 High, CRF 17, `aq-mode=3` (bits where a
+--encode   <frames>/f_%05d.jpg + the mix -> the plan's video (final.mp4): H.264 High, preset medium (2.5x faster
+           than slow and no worse: SSIM 0.992 vs 0.991 on the QR film, 2026-11-18), CRF 17, `aq-mode=3` (bits where a
            dark flat ground needs them), AAC 192k, faststart, and a fine temporal luma GRAIN (`--grain`, 0 = off).
            WHY THE GRAIN: an 8-bit dark gradient encodes as visible steps; the Grok Bot night sky measured CAMBI 8.0
            (visible past 5) on 9 of 26 shots; with grain 3 the worst was 4.1 and the median 0.13, UI text unchanged.
@@ -53,11 +54,19 @@ def encode(d, frames, audio, video, grain):
         cmd += ["-i", audio]
     if grain > 0:
         cmd += ["-vf", "noise=c0s=%d:c0f=t+u" % grain]
-    cmd += ["-c:v", "libx264", "-preset", "slow", "-crf", "17", "-x264-params", "aq-mode=3", "-pix_fmt", "yuv420p"]
+    cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "17", "-x264-params", "aq-mode=3", "-pix_fmt", "yuv420p"]
     if audio:
         cmd += ["-c:a", "aac", "-b:a", "192k", "-shortest"]
-    cmd += ["-movflags", "+faststart", video]
-    subprocess.run(cmd, check=True)
+    # written beside the video and moved into place when complete: a check reading the video while it was being
+    # re-encoded read a truncated file ("the video could not be read", 2026-11-18)
+    tmp = os.path.join(os.path.dirname(video), ".encoding." + os.path.basename(video))
+    cmd += ["-movflags", "+faststart", tmp]
+    try:
+        subprocess.run(cmd, check=True)
+        os.replace(tmp, video)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
 
 
 CAPTION_SELECTORS = "[data-caption], #cap, #caption, #captions, .caption, .captions, #subtitle, .subtitle"

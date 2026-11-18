@@ -27,23 +27,51 @@ _USAGE = "usage: pan_speed_qa.py <film_dir> [--limit 48] [--json]"
 
 
 def _frames(video, w, h):
-    p = subprocess.run(["ffmpeg", "-v", "error", "-i", video, "-vf", "scale=%d:%d" % (w, h), "-f", "rawvideo",
-                        "-pix_fmt", "gray", "-"], capture_output=True)
-    return np.frombuffer(p.stdout, np.uint8).reshape(-1, h, w).astype(np.float64)
+    """The video's frames, grey, at w x h, one at a time (the whole film held as float64 was ~4 GB at quarter size: with
+    the other checks running beside it the machine swapped and this check took 46 min instead of ~2)."""
+    p = subprocess.Popen(["ffmpeg", "-v", "error", "-i", video, "-vf", "scale=%d:%d" % (w, h), "-f", "rawvideo",
+                          "-pix_fmt", "gray", "-"], stdout=subprocess.PIPE)
+    n = w * h
+    try:
+        while True:
+            buf = p.stdout.read(n)
+            if len(buf) < n:
+                break
+            yield np.frombuffer(buf, np.uint8).reshape(h, w).astype(np.float32)
+    finally:
+        p.stdout.close()
+        p.wait()
+
+
+def _peak(r):
+    """The correlation peak's signed (dy, dx), refined to a fraction of a pixel by a parabola through its neighbours."""
+    h, w = r.shape
+    y, x = np.unravel_index(int(np.argmax(r)), r.shape)
+    out = []
+    for c, n, prev, nxt in ((y, h, r[(y - 1) % h, x], r[(y + 1) % h, x]), (x, w, r[y, (x - 1) % w], r[y, (x + 1) % w])):
+        den = prev - 2 * r[y, x] + nxt
+        f = c + (0.5 * (prev - nxt) / den if den < 0 else 0.0)
+        out.append(f - n if f > n / 2 else f)
+    return out
 
 
 def speeds(frames, scale):
-    """Per pair (i-1 -> i): the dominant shift magnitude, in px at full size. Phase correlation over the whole frame."""
-    from skimage.registration import phase_cross_correlation
-    win = np.outer(np.hanning(frames.shape[1]), np.hanning(frames.shape[2]))
-    out = [0.0]
-    for i in range(1, len(frames)):
-        a, b = frames[i - 1], frames[i]
-        if a.std() < 2 or b.std() < 2:              # a flat frame: nothing to track
+    """Per pair (i-1 -> i): the dominant shift magnitude, in px at full size. Cross-correlation over the whole
+    (windowed) frame, each frame's spectrum computed once."""
+    out, prev, win = [], None, None
+    for f in frames:
+        if win is None:
+            win = np.outer(np.hanning(f.shape[0]), np.hanning(f.shape[1])).astype(np.float32)
+        flat = f.std() < 2
+        spec = None if flat else np.fft.rfft2(f * win)
+        if not out:
             out.append(0.0)
-            continue
-        s, _, _ = phase_cross_correlation(a * win, b * win, upsample_factor=4, normalization=None)
-        out.append(float(np.hypot(*s)) * scale)
+        elif spec is None or prev is None:            # a flat frame: nothing to track
+            out.append(0.0)
+        else:
+            r = np.fft.irfft2(prev * np.conj(spec), s=f.shape)
+            out.append(float(np.hypot(*_peak(r))) * scale)
+        prev = spec
     return out
 
 

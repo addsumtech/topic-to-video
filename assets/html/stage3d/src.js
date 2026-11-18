@@ -23,6 +23,8 @@ import {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer.j
 import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js';
 import {BokehPass} from 'three/examples/jsm/postprocessing/BokehPass.js';
 import {OutputPass} from 'three/examples/jsm/postprocessing/OutputPass.js';
+import * as DEV from './devices.js';
+import * as SCR from './screens.js';
 
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const ease = (x) => { x = clamp01(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
@@ -87,6 +89,9 @@ function create(o) {
   const loadImage = (src) => (src instanceof HTMLImageElement && src.complete ? Promise.resolve(src) : new Promise((res, rej) => {
     const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('stage3d: cannot load ' + src)); im.src = src.src || src; }));
 
+  const place = (group, p, fallback) => {
+    p = p || {}; group.name = p.name || fallback; if (!group.userData.kind) group.userData.kind = 'panel'; solids.push(group);
+    group.position.set(p.x || 0, p.y || 0, p.z || 0); group.rotation.set(p.rotX || 0, p.rotY || 0, p.rotZ || 0); scene.add(group); return group; };
   const st = {
     THREE, scene, camera, renderer,
     // a three-point studio: warm key from the upper left, cool rim from behind, soft fill; plus a room environment
@@ -385,6 +390,50 @@ function create(o) {
       scene.add(group);
       return group;
     },
+    // devices at their real proportions (devices.js): the phone, tablet and laptop a product film shows. `screen` is a
+    // canvas at the device's display aspect (or fit: 'contain'); call obj.userData.refresh() after drawing on it.
+    phone(screen, p) { return place(DEV.handheld(st, 'phone', screen, p || {}), p, 'phone'); },
+    tablet(screen, p) { return place(DEV.handheld(st, 'tablet', screen, p || {}), p, 'tablet'); },
+    laptop(screen, p) { return place(DEV.laptop(st, screen, p || {}), p, 'laptop'); },
+    // a lit card (paper, a UI chip, a sticky note) whose rounded outline is the PICTURE's own: the corner radius is read
+    // from the picture's transparent corners (or p.radius), so no square backing shows past a rounded face (the Grok
+    // Bot chips, 2026-11-18). Body colour p.color (else the picture's centre-left colour); p.glow lifts it in a dark set.
+    card(src, p) {
+      p = p || {};
+      const group = new THREE.Group(), w = p.width || 1, depth = p.depth == null ? 0.006 : p.depth;
+      const job = texture(src).then((tex) => {
+        const img = tex.image, iw = img.width, ih = img.height, h = p.height || w * ih / iw;
+        let rpx = 0, col = p.color;
+        if (p.radius == null || !col) {
+          const c = document.createElement('canvas'); c.width = iw; c.height = ih; const g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(img, 0, 0);
+          const a = (x, y) => g.getImageData(x, y, 1, 1).data;
+          // a rounded corner of radius R meets the diagonal at R(1 - 1/sqrt 2) from the corner
+          let k = 0; while (k < Math.min(iw, ih) / 2 && a(k, k)[3] < 128) k++; rpx = k / (1 - Math.SQRT1_2);
+          if (!col) { const q = a(Math.round(iw * 0.03 + rpx * 0.3), Math.round(ih / 2)); col = 'rgb(' + q[0] + ',' + q[1] + ',' + q[2] + ')'; }
+        }
+        const r = Math.min(p.radius != null ? p.radius : rpx * w / iw, w / 2 - 1e-4, h / 2 - 1e-4);
+        const body = new THREE.Mesh(DEV.slab(w, h, depth, Math.max(r, 1e-4), Math.min(depth / 3, Math.max(r, 1e-4) / 2)), new THREE.MeshStandardMaterial({color: col, roughness: p.roughness == null ? 0.7 : p.roughness}));
+        body.castShadow = true; body.receiveShadow = true;
+        const glow = p.glow || 0;
+        const face = new THREE.Mesh(DEV.rrPlane(w, h, Math.max(r, 1e-4)), new THREE.MeshStandardMaterial({map: tex, transparent: true, roughness: p.roughness == null ? 0.7 : p.roughness,
+          emissive: glow ? '#ffffff' : '#000000', emissiveMap: glow ? tex : null, emissiveIntensity: glow}));
+        face.position.z = depth / 2 + 0.0005; group.add(body, face);
+        group.userData.size = [w, h]; group.userData.depth = depth; group.userData.radius = r; group.userData.tex = tex;
+      });
+      pending.push(job);
+      group.userData.kind = 'panel'; group.userData.refresh = () => { if (group.userData.tex) group.userData.tex.needsUpdate = true; };
+      return place(group, p, baseName(src, 'card' + solids.length));
+    },
+    // a point in the scene -> its [x, y] in the canvas's CSS pixels (W x H), for 2D marks drawn over the frame
+    project(v) { const q = (v.isVector3 ? v.clone() : new THREE.Vector3(...v)).project(camera); return [(q.x + 1) / 2 * W, (1 - q.y) / 2 * H]; },
+    // the four corners of a panel's, card's or device's front face (or of local points p.corners) on screen, in order
+    // round it: what a mark that frames the object follows (Stage3D.brackets), so it tilts and foreshortens WITH it
+    quad(obj, p) {
+      p = p || {}; obj.updateMatrixWorld(true); const s = p.size || obj.userData.display && [obj.userData.display.w, obj.userData.display.h] || obj.userData.size;
+      const z = p.z != null ? p.z : (obj.userData.faceZ || obj.userData.depth / 2 || 0), m = p.margin || 0;
+      const pts = p.corners || [[-s[0] / 2 - m, s[1] / 2 + m, z], [s[0] / 2 + m, s[1] / 2 + m, z], [s[0] / 2 + m, -s[1] / 2 - m, z], [-s[0] / 2 - m, -s[1] / 2 - m, z]];
+      return pts.map((q) => st.project(new THREE.Vector3(...q).applyMatrix4(obj.matrixWorld)));
+    },
     ready() { return Promise.all(pending); },
     // what is physically wrong in the current pose, as [{a, b, kind, share}]: 'penetrates' — points of a panel's face
     // or of a character's surface lie INSIDE a character's body (a card sunk into a head, a card swung through a Bot);
@@ -426,6 +475,27 @@ function create(o) {
             if (ov > 0.1) res.push({a: A.name, b: B.name, kind: 'stacked', share: +Math.min(1, ov).toFixed(3)});
           }
         } }
+      // a picture with transparent (rounded) corners on a face, and an opaque mesh beside it in the same object that fills
+      // those corners: the square backing shows past the rounded face as grey corners (hand-built cards; st.card avoids it)
+      const cornerless = new Map();
+      const roundCorners = (im) => { if (cornerless.has(im)) return cornerless.get(im); let v = false;
+        try { const c = document.createElement('canvas'); c.width = 4; c.height = 4; const g = c.getContext('2d'); g.drawImage(im, 0, 0, 1, 1, 0, 0, 4, 4); v = g.getImageData(1, 1, 1, 1).data[3] < 128; } catch (e) { v = false; }
+        cornerless.set(im, v); return v; };
+      scene.traverseVisible((M) => {
+        const im = M.material && M.material.map && M.material.map.image; if (!im || !M.parent || !shown(M) || !roundCorners(im)) return;
+        for (let e = M; e; e = e.parent) if (e.userData && e.userData.contactOk) return;
+        M.geometry.computeBoundingBox(); const bb = M.geometry.boundingBox, size = bb.max.x - bb.min.x, inset = 0.01 * size;
+        const corner = new THREE.Vector3(bb.min.x + inset, bb.max.y - inset, (bb.min.z + bb.max.z) / 2).applyMatrix4(M.matrixWorld);
+        const nrm = new THREE.Vector3(0, 0, 1).transformDirection(M.matrixWorld), sc = new THREE.Vector3().setFromMatrixScale(M.matrixWorld).x;
+        // a ray from in front of the face's corner, straight through it: does an opaque neighbour sit right behind it?
+        const ray = new THREE.Raycaster(corner.clone().addScaledVector(nrm, size * sc), nrm.clone().negate(), 0, size * sc + Math.max(0.02, 0.05 * size * sc));
+        for (const N of M.parent.children) {
+          if (N === M || !N.isMesh || !N.visible || (N.material && (N.material.transparent || N.material.colorWrite === false))) continue;
+          if (ray.intersectObject(N, false).length) {
+            const nm = (o) => o.name || (o.parent && o.parent.name) || 'mesh';
+            res.push({a: nm(M), b: nm(N), kind: 'corners', share: 1}); break; }
+        }
+      });
       return res;
     },
     // one frame: camera position, where it looks, its fov, and the focus distance for depth of field
@@ -496,4 +566,9 @@ function carry(obj, character, o) {
   return top;
 }
 
-export {create, stages, ease, easeOut, lerp, lerp3, clamp01, hop, carry, blink, look, THREE};
+// app screens laid out as HTML (screens.js); the lint and text look at every stage this page made
+const screen = SCR.screen, brackets = SCR.brackets;
+const lintScreens = () => SCR.lintScreens(stages), screenTexts = () => SCR.screenTexts(stages);
+const DEVICES = DEV.SPEC;
+
+export {screen, lintScreens, screenTexts, brackets, DEVICES, create, stages, ease, easeOut, lerp, lerp3, clamp01, hop, carry, blink, look, THREE};

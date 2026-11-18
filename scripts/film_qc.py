@@ -1,6 +1,10 @@
 """film_qc — the director path's picture checks in one command, quiet unless something is wrong.
 
-    python3 scripts/film_qc.py <film_dir>        # reads <film_dir>/final.mp4 and <film_dir>/_plan.json
+    python3 scripts/film_qc.py <film_dir> [--only glide,seams]     # reads <film_dir>/final.mp4 and <film_dir>/_plan.json
+
+The checks run SIDE BY SIDE, each with one maths thread (a check's BLAS starting a thread per core while twelve others
+did the same made a 2-minute film's checks take over an hour, 2026-11-18); a 2-minute film checks in a few minutes.
+--only re-runs just the named checks (after a fix, the ones that were red); the rest are not re-judged.
 
 Runs, in order: flash_qa (a frame unlike both neighbours), rewind_qa (the picture going back after a cut, read
 against the plan's cuts), picture_glide_qa (a picture stepping instead of gliding under a moving camera),
@@ -31,7 +35,7 @@ def checks(d, video, plan):
     base = [
         ("flash", [py, os.path.join(HERE, "flash_qa.py"), video]),
         ("rewind", [py, os.path.join(HERE, "rewind_qa.py"), video, "--plan", plan]),
-        ("glide", [py, os.path.join(HERE, "picture_glide_qa.py"), d, "--video=" + video]),
+        ("glide", [py, os.path.join(HERE, "picture_glide_qa.py"), d, "--video=" + video, "--jobs=%d" % max(2, (os.cpu_count() or 4) // 4)]),
         ("empty", [py, os.path.join(HERE, "empty_frame_qa.py"), video]),
         ("shake", [py, os.path.join(HERE, "shake_qa.py"), video]),
         ("captions", [py, os.path.join(HERE, "caption_size_qa.py"), video]),
@@ -58,6 +62,12 @@ def _uses_stage3d(d):
 
 
 def main(argv):
+    only = None
+    if any(a.startswith("--only") for a in argv):
+        k = next(i for i, a in enumerate(argv) if a.startswith("--only"))
+        val = argv[k].split("=", 1)[1] if "=" in argv[k] else (argv[k + 1] if k + 1 < len(argv) else "")
+        only = {x.strip() for x in val.split(",") if x.strip()}
+        argv = [a for i, a in enumerate(argv) if i != k and not (i == k + 1 and "=" not in argv[k])]
     if len(argv) != 1 or argv[0].startswith("-"):
         print(__doc__.strip().splitlines()[2].strip(), file=sys.stderr)
         return 2
@@ -70,9 +80,21 @@ def main(argv):
     if not os.path.isfile(video):
         print("film_qc: no video at %s" % video, file=sys.stderr)
         return 2
+    todo = checks(d, video, plan)
+    if only is not None:
+        unknown = only - {n for n, _ in todo}
+        if unknown:
+            print("film_qc: no check named %s (checks: %s)" % (", ".join(sorted(unknown)), ", ".join(n for n, _ in todo)),
+                  file=sys.stderr)
+            return 2
+        todo = [(n, c) for n, c in todo if n in only]
+    env = dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", VECLIB_MAXIMUM_THREADS="1")
+    from concurrent.futures import ThreadPoolExecutor
+    run = lambda cmd: subprocess.run(cmd, capture_output=True, text=True, env=env)   # noqa: E731
+    with ThreadPoolExecutor(max(2, (os.cpu_count() or 4) // 2)) as ex:
+        results = list(ex.map(lambda nc: (nc[0], run(nc[1])), todo))
     red = []
-    for name, cmd in checks(d, video, plan):
-        r = subprocess.run(cmd, capture_output=True, text=True)
+    for name, r in results:
         out = (r.stdout + r.stderr).strip()
         warns = [l.strip() for l in out.splitlines() if l.lstrip("[").split("]")[-1].strip().startswith("WARN")
                  or " WARN " in l]
@@ -85,7 +107,8 @@ def main(argv):
         else:
             red.append(name)
             print("RED  %s (exit %d)\n%s" % (name, r.returncode, "\n".join("     " + l for l in out.splitlines()[-25:])))
-    print("film_qc: %s" % ("CLEAN" if not red else "RED — " + ", ".join(red)))
+    print("film_qc: %s%s" % ("CLEAN" if not red else "RED — " + ", ".join(red),
+                             "" if only is None else "  (only: %s)" % ", ".join(n for n, _ in todo)))
     return 1 if red else 0
 
 

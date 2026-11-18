@@ -201,7 +201,11 @@ labels, tilts and filler creep in. **3D where physicality is the content**: the 
 soft lit bodies that ACT (`assets/html/stage3d.js`: `st.inflate` builds the body with its eyes as separate raised
 pieces; `Stage3D.hop` for an arc with anticipation and a volume-keeping squash, `Stage3D.carry` for what it holds,
 `Stage3D.blink` and `Stage3D.look` so it is alive between moves), a device, an object; a screen can be a lit panel
-there, and settles facing the viewer when it carries something to read. Create stages with `pixelRatio: 2`
+there, and settles facing the viewer when it carries something to read. **Devices come from the kit** (`st.phone`, `st.tablet`, `st.laptop`), never made of boxes or a 2D outline (they read as
+fake, Grok Bot 2026-11-18), each showing the layout made FOR it (another screen only whole, letterboxed, never cropped);
+**app screens are HTML** (`Stage3D.screen`: the browser lays them out and the checks look inside them); cards are
+`st.card`; a mark that frames an object follows its tilt (`st.quad` + `Stage3D.brackets`). All in the toolbox,
+"Devices, app screens, cards, marks". Create stages with `pixelRatio: 2`
 (supersampled; the default read as low resolution) and no `dof` near words or marks (its few-tap blur ghosts them).
 When the MATERIAL is the point of a hero (a product's shell, metal, glass), render that shot in Blender under
 `kit.studio.product_light` with a named finish per part (`scripts/blender_clip.py`; references/craft-study.md: lit
@@ -238,9 +242,12 @@ captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK c
 
 **A launch or product film** usually works best with the real product as the hero at size (its real screens large,
 or a crop onto the component the voice names, where they READ at that size; where they do not, a phone screenshot or
-a small dialog on a big desktop, draw the UI simplified and honest: the real layout and colours, the sourced words,
-grey bars for text with no source; a device with no official screenshot (the desktop app) takes the layout of the
-closest one (the iPad app), never an invented one), its own characters acting the steps out when it has any, one persistent hero object, short type beats between product beats,
+a small dialog on a big desktop, draw the UI simplified and honest: the real layout and colours, the product's own
+words verbatim from the sources; a device with no official screenshot (the desktop app) takes the layout of the
+closest one (the iPad app), never an invented one). The DEMO WORLD inside a screen (a fictional company's inbox, a slide
+title, a file name, a terminal command) is written as plausible, generic demo content — Acme-style names, never a
+statistic or a claim about the real product — and each string is declared in `copy_ok.json` with the reason `demo`;
+grey bars only for text too small to read (grey bars at a readable size look like a wireframe, not an app), its own characters acting the steps out when it has any, one persistent hero object, short type beats between product beats,
 the real logo early and a closing lockup, one small celebration, and a quick rhythm (the full grammar and its
 evidence in the toolbox). Before building one, write `<film_dir>/shot_plan.json` (features → shots, each shot's
 job, technique and seam, the motion voice, the signature idea; format in `scripts/shot_plan_qa.py`) and pass
@@ -271,7 +278,10 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
 1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame, shake, caption-size, pan-speed,
    (with a film page) word/control overlap and on-screen copy (every word sourced or declared in `copy_ok.json`),
    (on a stage3d page) 3D contact checks against
-   `final.mp4` and `_plan.json`, and exits 1 on any red. Fix the film, re-render, re-run until CLEAN.
+   `final.mp4` and `_plan.json`, and exits 1 on any red; the checks run side by side (a 2-minute film in a few
+   minutes). Fix, re-render only the frames that changed (`film_frames.py --from/--to`), encode once, and re-run just
+   the reds (`--only rewind,seams`) until CLEAN. ONE round of this, then step 2 and the user: the QR run spent two hours
+   re-checking an already-checked film (the user's review is the judge, not repeated self-review).
    A red you believe is wrong is never silenced and never "fixed" by cutting good content: PROVE it on the frames
    (measure the thing the check claims) and with a CONTROL (the same shot with the suspected cause removed), and
    record both in `NOTES.md` (the checks' known blind spots are in the toolbox).

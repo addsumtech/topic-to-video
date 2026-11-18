@@ -6,7 +6,9 @@
 For a film page built on assets/html/stage3d.js: steps window.seek(t) through the film and asks every visible stage
 (`Stage3D.stages`) for `contacts()` — a panel's face or a character's surface INSIDE a character's body (a carried card
 sunk into a head, a card swung through a Bot, two Bots merged), or two panels STACKED in one place and orientation
-(they flicker through each other). Exact bodies, not bounding boxes. A contact that lasts two samples or more is
+(they flicker through each other), a rounded picture on a SQUARE backing (CORNERS: grey corners past a rounded card), and
+inside every app screen shown (Stage3D.screen, laid out as HTML): ink overlapping ink (SCREEN-OVERLAP: a bar drawn over
+its legend), text cut off (SCREEN-CLIPPED) or past the screen's edge (SCREEN-OFF-SCREEN). Exact bodies, not bounding boxes. A contact that lasts two samples or more is
 reported with both objects' names (`name:` in panel()/inflate(), else the image's file name) and the time span.
 
 WHY. The Grok Bot film (2026-11-18): a relay card sank into a Bot, the approval card swung through the Bot and its
@@ -81,6 +83,10 @@ def main(argv):
                 if cs is None:
                     print("stage_contacts_qa: no stage3d stage on this page (Stage3D.stages is empty)", file=sys.stderr)
                     return 2
+                # inside the app screens shown right now (Stage3D.screen): ink overlapping ink, text cut off or off the screen
+                for r in p.ev("(window.Stage3D && Stage3D.lintScreens) ? Stage3D.lintScreens() : []", True) or []:
+                    for i in r["issues"]:
+                        cs.append({"kind": "screen-" + i["kind"], "a": "%s: %s" % (r["screen"], i["a"]), "b": i.get("b", ""), "share": 1})
                 samples.append((round(t, 4), cs))
                 k += 1
                 t = k * every
@@ -97,7 +103,7 @@ def main(argv):
                                        for k, a, b, s, e, sh in found]}))
     else:
         for k, a, b, s, e, sh in found:
-            what = "into" if k == "penetrates" else "stacked on"
+            what = {"penetrates": "into", "stacked": "stacked on", "corners": "shows its square backing", "screen-overlap": "overlaps"}.get(k, "")
             print("%-10s %6.2f-%6.2fs  %r %s %r  (%.0f%% of its points)" % (k.upper(), s, e, a, what, b, sh * 100))
         print("[stage_contacts_qa] %s  %d contact(s) over %.0f s sampled every %.3f s"
               % ("OK" if not found else "RED", len(found), n / 30.0, every))

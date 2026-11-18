@@ -161,6 +161,10 @@ def main(argv):
                 p.seek(t)
                 for s in p.ev(_DOM_TEXT) or []:
                     strings.setdefault(s, ("page", round(t, 2)))
+                # app screens laid out as HTML (Stage3D.screen) and shown right now: their words, as the viewer reads them
+                for r in p.ev("(window.Stage3D && Stage3D.screenTexts) ? Stage3D.screenTexts() : []", True) or []:
+                    for s in r["texts"]:
+                        strings.setdefault(s, ("screen " + r["screen"], round(t, 2)))
                 t += every
             for s in p.ev("[...(window.__canvasText || [])]") or []:
                 if s.strip():

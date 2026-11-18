@@ -158,13 +158,36 @@ first defaults the confetti stayed a puff on the card; drawn over the card it cr
 frames. Never `Math.random` in a film page; never grow past full size and shrink back (rewind_qa reads it as the
 picture going back, as on a Memphis film's label pops).
 
+## Devices, app screens, cards, marks (step 6; `assets/html/stage3d/devices.js`, `screens.js`)
+    const ph = st.phone(canvas, {width: 0.71, finish: 'black'});      // canvas at 1179x2556's aspect (official phone screenshots fit)
+    const tb = st.tablet(canvas, {width: 2.16});                      // 2064x2752 (the App Store's iPad Pro 13 screenshots)
+    const lp = st.laptop(canvas, {width: 3.13, open: 1.9});           // 3024x1964; lp.userData.setLid(a), 0 = shut
+    ph.userData.refresh();                                            // after drawing on the canvas, every frame it changes
+- A film's own `lib/stage3d.js` is a COPY: refresh it from `assets/html/stage3d.js` when you revise a film made with an
+  older kit (an old copy has no devices, cards or screens).
+- Real proportions in decimetres by default (a desk scene); `finish` natural | black | white | blue (phone),
+  silver | space-black (laptop); `off: true` = dark glass; `island: false` when the picture already has the Dynamic
+  Island; `glare` the glass's reflectivity (0.06; the glass takes no light highlights: a lit glass washed the display).
+- A picture of another aspect is REFUSED (`fit: 'contain'` letterboxes it whole). The phone shows the phone layout.
+- `await Stage3D.screen(canvas, markup, {size: [390, 844], css, fonts: {'Inter': 'fonts/Inter.woff2'}, name})`: the
+  markup laid out by the browser at `size` (CSS px: a phone's points, a 14" laptop's 1512x982) and drawn at the
+  canvas's pixels; images and fonts inlined; same markup = cached. `window.seek` may be async and await it.
+  `stage_contacts_qa` lints every shown screen (SCREEN-OVERLAP, SCREEN-CLIPPED, SCREEN-OFF-SCREEN; `data-overlap-ok`
+  on a deliberate badge) and `film_copy_qa` reads its words.
+- `st.card(src, {width, glow})`: paper, a chip, a note — rounded as its picture is; CORNERS in contacts() catches a
+  hand-built rounded face on a square backing.
+- `st.quad(obj)` -> the object's face corners on screen; `Stage3D.brackets(ctx2d, quad, {grow, arm, lineWidth})` draws a
+  scanner's corners along them (grow 1.2 -> 1 to close in).
+
 ## Launch and product films (step 6)
 A starting point measured on 20 official launch films (`references/craft-standard.md` "A product film",
 `references/launch-film-study.md`); the WorkBuddy blind rounds (2026-11-16/17) chose the film that followed it:
 - the real product is the hero, at size: its real screens fill most of the frame (about 55 % of the width or more), or
   a crop pushes onto the exact component the voice names, within the screenshot's pixel density, when the screen reads
   at that size; when it cannot (its pixels are too few), the UI is drawn simplified from it, honest: its layout, colours
-  and sourced words, grey bars for text with no source (the Grok Bot film that read best did this throughout);
+  and sourced words; the demo world inside it (another app's inbox, a slide, a file list) as plausible generic demo
+  content declared `demo` in copy_ok.json, grey bars only below reading size (at a readable size they read as a
+  wireframe: the user, 2026-11-18);
 - one hero object persists: the product's window stays, and the beats are its states, not new scenes;
 - type beats alternate with product beats: one short display line on the brand ground (the problem, the promise, the
   payoff), the key word in the brand accent;

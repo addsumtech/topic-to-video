@@ -75,7 +75,73 @@ def tiles_for(W, H, cols=None, rows=None, top=0.06, bottom=0.80):
     return [(int(x), int(y)) for y in ys for x in xs]
 
 
-def judge_span(video, a, b, W, H, fps):
+class _Film:
+    """The film decoded ONCE, in order, handing each span its frames: spans pulled one by one with `select` decoded the
+    film from its start up to every span (27 shots of a 2-minute film: ~50,000 decoded 1080p frames instead of 3,700,
+    an hour under load, 2026-11-18). Spans must be asked for in increasing order; frames between them are skipped."""
+    def __init__(self, video, W, H):
+        self.p = subprocess.Popen(["ffmpeg", "-v", "error", "-i", video, "-vsync", "0", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+                                  stdout=subprocess.PIPE)
+        self.n, self.W, self.H, self.at = W * H, W, H, 0
+
+    def span(self, a, b):
+        assert a >= self.at, "spans out of order (%d after %d)" % (a, self.at)
+        while self.at <= b:
+            buf = self.p.stdout.read(self.n)
+            if len(buf) < self.n:
+                return
+            i, self.at = self.at, self.at + 1
+            if i >= a:
+                yield np.frombuffer(buf, np.uint8).reshape(self.H, self.W).astype(np.float32)
+
+    def close(self):
+        self.p.stdout.close()
+        self.p.kill()
+        self.p.wait()
+
+
+def _jobs(argv, n):
+    from _common import argflag
+    j = argflag(argv, "jobs", None)
+    return max(1, min(n, int(j) if j else max(1, (os.cpu_count() or 2) // 2)))
+
+
+def _judge_group(job):
+    """One worker: its spans, in order, from one decode of the film (single-threaded maths: see _judge_parallel)."""
+    video, W, H, fps, group, ordered = job
+    film = _Film(video, W, H) if ordered else None
+    try:
+        return [(beat, judge_span(video, a, b, W, H, fps, film)) for beat, a, b in group]
+    finally:
+        if film is not None:
+            film.close()
+
+
+def _judge_parallel(video, W, H, fps, todo, ordered, jobs):
+    """The spans split into `jobs` contiguous groups of about equal frames, judged in separate processes, each with ONE
+    maths thread: a tile match is 3.5 ms alone but 64 ms when every process's BLAS starts a thread per core (13 checks
+    side by side, 2026-11-18: this check ran past an hour)."""
+    if not todo:
+        return {}
+    total, groups, acc = sum(b - a for _, a, b in todo), [[]], 0
+    for t in todo:
+        if acc >= total * len(groups) / jobs and groups[-1] and len(groups) < jobs:
+            groups.append([])
+        groups[-1].append(t)
+        acc += t[2] - t[1]
+    for k in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+        os.environ[k] = "1"
+    work = [(video, W, H, fps, g, ordered) for g in groups]
+    if len(work) == 1:
+        out = _judge_group(work[0])
+    else:
+        import multiprocessing as mp
+        with mp.get_context("spawn").Pool(len(work)) as pool:
+            out = [r for rs in pool.map(_judge_group, work) for r in rs]
+    return dict(out)
+
+
+def judge_span(video, a, b, W, H, fps, film=None):
     from skimage.registration import phase_cross_correlation
     from scipy.signal import savgol_filter
     tl = tiles_for(W, H)
@@ -84,7 +150,7 @@ def judge_span(video, a, b, W, H, fps):
     shifts = {t: [] for t in tl}
     sharp = {t: [] for t in tl}
     textured = {t: True for t in tl}
-    for k, fr in enumerate(frames(video, a, b, W, H, fps)):
+    for k, fr in enumerate(film.span(a, b) if film is not None else frames(video, a, b, W, H, fps)):
         for t in tl:
             x, y = t
             sharp[t].append(float(_ndi.laplace(fr[y:y + TILE, x:x + TILE]).var()))
@@ -305,6 +371,9 @@ def main(argv):
         return 2
     cams = camera_beats(out_dir) if "--clip" not in argv and not os.path.isfile(os.path.join(out_dir, "promo.json")) else None
     bad, judged, short = [], 0, []
+    ordered = spans == sorted(spans, key=lambda s: s[1]) and all(x[2] < y[1] for x, y in zip(spans, spans[1:]))
+    todo = [(beat, a, b) for beat, a, b in spans if not (cams is not None and beat not in cams) and b - a >= 14]
+    results = _judge_parallel(video, W, H, fps, todo, ordered, _jobs(argv, len(todo)))
     for beat, a, b in spans:
         if cams is not None and beat not in cams:
             print("  beat %2d  frames %d-%d  no camera move — what moves is the beat's own content (not judged)" % (beat, a, b))
@@ -312,7 +381,7 @@ def main(argv):
         if b - a < 14:
             short.append(beat)                  # counted and said below: a path needs 14 frames, a flash shot has fewer
             continue
-        r = judge_span(video, a, b, W, H, fps)
+        r = results[beat]
         if r is None:
             print("  beat %2d  frames %d-%d  nothing moving to judge" % (beat, a, b))
             continue

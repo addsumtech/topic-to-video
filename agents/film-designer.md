@@ -75,7 +75,11 @@ outweighs clarity. It must be FEASIBLE with this skill's engines (pages, the 3D 
 `st.inflate` for characters and marks, Blender via `scripts/blender_clip.py` — the route for a hero whose MATERIAL is
 the point, under `kit.studio.product_light` with a named finish per part (`references/craft-study.md`: lit surfaces
 were the measured gap) — the Remotion kit) and TRUE to the product (sourced claims; real screens where they read at
-size, the UI drawn simplified and honest where they do not: the real product's layout, its words or grey bars).
+size, the UI drawn simplified and honest where they do not: the real product's layout and its own words; the demo
+world inside a screen as plausible generic demo content, never a statistic; grey bars only below reading size).
+Devices are the kit's (`st.phone`, `st.tablet`, `st.laptop`), each showing the layout made for it; app screens are
+HTML (`Stage3D.screen`); marks follow the tilted object they frame (`st.quad` + `Stage3D.brackets`) — the toolbox,
+"Devices, app screens, cards, marks".
 Every drawn object is checked against its real reference before it is drawn (`references/object-authoring.md`).
 Say why, and what you take from the other two.
 

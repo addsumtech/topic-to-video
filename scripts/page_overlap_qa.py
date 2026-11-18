@@ -108,24 +108,29 @@ def main(argv):
         p = json.load(open(plan, encoding="utf-8"))
         dur = float(p.get("frames", 0)) / float(p.get("fps", 30)) or dur
     times = [round(i * every, 3) for i in range(int(dur / every))]
-    import _cdp
-    chrome = _c.find_chrome()
-    with _cdp.Chrome(chrome, 1920, 1080, timeout=120) as ch:
-        ch._cmd("Page.navigate", {"url": "file://" + page}, ch.sid)
-        for _ in range(2000):
-            r = ch._cmd("Runtime.evaluate", {"expression": "document.readyState", "returnByValue": True}, ch.sid)
-            if r.get("result", {}).get("result", {}).get("value") == "complete":
-                break
-        ch._cmd("Runtime.evaluate", {"expression": "document.fonts ? document.fonts.ready.then(()=>1) : 1",
-                                     "awaitPromise": True, "returnByValue": True}, ch.sid)
-        js = _JS.replace("%TIMES%", json.dumps(times)).replace("%SHARE%", str(SHARE))
-        res = ch._cmd("Runtime.evaluate", {"expression": js, "awaitPromise": True, "returnByValue": True,
-                                           "timeout": 600000}, ch.sid)
-    val = res.get("result", {}).get("result", {}).get("value") or {}
-    if val.get("error"):
-        print("page_overlap_qa: %s — the page must expose window.seek(t)" % val["error"], file=sys.stderr)
+    # served over http and loaded as film_frames loads it (fonts, window.filmReady): from file:// a page with absolute
+    # script paths never defined window.seek, and the check failed on both 2026-11-18 films instead of looking
+    import _filmpage as _fp
+    port, srv = _fp.serve(d)
+    hits = []
+    try:
+        pg = _fp.FilmPage(port, os.path.relpath(page, d))
+        try:
+            for k in range(0, len(times), 40):
+                js = _JS.replace("%TIMES%", json.dumps(times[k:k + 40])).replace("%SHARE%", str(SHARE))
+                val = pg.ev(js, True) or {}
+                if val.get("error"):
+                    print("page_overlap_qa: %s — the page must expose window.seek(t)" % val["error"], file=sys.stderr)
+                    return 2
+                hits += val.get("hits", [])
+        finally:
+            pg.close()
+    except _fp.PageError as e:
+        print("page_overlap_qa: %s" % e, file=sys.stderr)
         return 2
-    found = spans(val.get("hits", []), every)
+    finally:
+        srv.shutdown()
+    found = spans(hits, every)
     if "--json" in argv:
         print(json.dumps({"collisions": [{"a": a, "b": b, "start": s, "end": e} for a, b, s, e in found]},
                          ensure_ascii=False))
