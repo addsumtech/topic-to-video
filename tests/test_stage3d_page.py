@@ -145,3 +145,26 @@ def test_carry_rides_on_the_posed_body(tmp_path):
         assert abs(bottom - (top + 0.05)) < 1e-3, "the card is not resting on the body's top: %s" % pairs
     rest, crouch, mid, land = [p[0] for p in pairs]
     assert mid > rest + 0.4 and crouch < rest and land < rest, "the top did not follow the hop and squash: %s" % pairs
+
+
+@pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")
+def test_depth_of_field_keeps_antialiasing_and_pixel_ratio_keeps_page_size(tmp_path):
+    # the composer renders into its own target: without MSAA there, depth of field drops the antialiasing and every
+    # silhouette stairs (binary edge pixels). pixelRatio 2 draws at twice the size but keeps the canvas W x H on the page.
+    from PIL import ImageDraw
+    import numpy as np
+    im = Image.new("RGBA", (200, 200), (0, 0, 0, 0)); ImageDraw.Draw(im).ellipse((20, 20, 180, 180), fill=(255, 255, 255, 255))
+    im.save(tmp_path / "disc.png")
+    dom, shot = _shoot(tmp_path, """const c = document.getElementById('c');
+      const st = Stage3D.create({canvas: c, background: '#000000', toneMapping: 'neutral', dof: {aperture: 0.00001, maxblur: 0.001}, pixelRatio: 2});
+      st.studio({env: 1}); st.inflate('disc.png', {width: 2.4, y: -0.1, clearcoat: 0, roughness: 1}); await st.ready();
+      st.render({pos: [0, 1.1, 5], look: [0, 1.1, 0], fov: 40, focus: 5});
+      document.body.setAttribute('data-size', c.width + 'x' + c.height + ' ' + c.style.width + 'x' + c.style.height);""")
+    import re
+    m = re.search(r'data-size="([^"]*)"', dom)
+    assert m and m.group(1) == "1280x720 640pxx360px", (m.group(1) if m else dom[:300])
+    a = np.asarray(shot.convert("L")).astype(int)
+    edge = (a > 25) & (a < 200)                                  # partly covered pixels along the silhouette
+    inside = a >= 200
+    assert inside.sum() > 2000, "the disc did not render"
+    assert edge.sum() > 0.35 * np.sqrt(inside.sum()) * 3.5, "silhouette is stair-stepped (no antialiasing): %d edge px" % edge.sum()

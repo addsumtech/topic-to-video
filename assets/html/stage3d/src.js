@@ -35,8 +35,11 @@ function create(o) {
   const canvas = o.canvas;
   const W = o.width || canvas.width || 1920, H = o.height || canvas.height || 1080;
   const renderer = new THREE.WebGLRenderer({canvas, antialias: true, preserveDrawingBuffer: true, alpha: !!o.transparent});
-  renderer.setPixelRatio(1);
-  renderer.setSize(W, H, false);
+  // pixelRatio 2 renders the canvas at twice its size and the page shows it at W x H: supersampling, so small screen text
+  // and characters' edges stay crisp in the capture (the canvas's CSS size must be W x H)
+  const PR = o.pixelRatio || 1;
+  renderer.setPixelRatio(PR);
+  renderer.setSize(W, H, PR !== 1);   // at PR 2 the canvas keeps its W x H on the page (setSize writes its CSS size)
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   // ACES (default) is filmic and desaturates bright colours; 'neutral' keeps brand colours true (product films, a cast
   // of coloured characters, logos)
@@ -53,8 +56,10 @@ function create(o) {
 
   let composer = null, bokeh = null;
   if (o.dof) {
-    composer = new EffectComposer(renderer);
-    composer.setPixelRatio(1);
+    // the composer renders into its own target: give it 4x MSAA, or depth of field silently drops the renderer's
+    // antialiasing and every edge stairs (Grok Bot 2026-11-18: jagged, 'low resolution' Bots)
+    composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(W * PR, H * PR, {samples: 4, type: THREE.HalfFloatType}));
+    composer.setPixelRatio(PR);
     composer.setSize(W, H);
     composer.addPass(new RenderPass(scene, camera));
     bokeh = new BokehPass(scene, camera, {focus: 10, aperture: o.dof.aperture || 0.002, maxblur: o.dof.maxblur || 0.008});
@@ -214,7 +219,13 @@ function create(o) {
         // small parts keep their colour (a four-colour logo on a white tile): a bin counts from 0.3% of the body or 4
         // pixels; near-duplicates (anti-aliased blends) merge into the larger colour
         const pal = [...bins.values()].filter((b) => b[0] >= Math.max(4, tot * 0.003)).sort((a, b) => b[0] - a[0]).map((b) => [b[1] / b[0], b[2] / b[0], b[3] / b[0]]);
-        const merged = []; for (const q of pal) if (!merged.some((m) => Math.hypot(m[0] - q[0], m[1] - q[1], m[2] - q[2]) < 56)) merged.push(q);
+        const merged0 = []; for (const q of pal) if (!merged0.some((m) => Math.hypot(m[0] - q[0], m[1] - q[1], m[2] - q[2]) < 56)) merged0.push(q);
+        // an anti-aliased edge between two colours (an eye's rim on the body) is a BLEND: a colour lying on the segment
+        // between two larger ones is dropped, or it is kept as a colour of its own and rings every mark with a halo
+        const onSeg = (q, a, b) => { const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], aq = [q[0] - a[0], q[1] - a[1], q[2] - a[2]];
+          const L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2; if (L2 < 1) return false; const k = (aq[0] * ab[0] + aq[1] * ab[1] + aq[2] * ab[2]) / L2;
+          if (k < 0.12 || k > 0.88) return false; return Math.hypot(aq[0] - k * ab[0], aq[1] - k * ab[1], aq[2] - k * ab[2]) < 28; };
+        const merged = merged0.filter((q, i) => !merged0.slice(0, i).some((a, j) => merged0.slice(0, i).some((b, l) => l > j && onSeg(q, a, b))));
         if (!merged.length) throw new Error('stage3d.inflate: ' + src + ' has no solid colour (every pixel is semi-transparent)');
         // flat art (a few colours) is snapped crisp; shaded art (a gradient, a photo) keeps its smooth upscale instead of banding
         const snap = merged.length <= 12;
@@ -230,13 +241,27 @@ function create(o) {
         for (let i = 0; i < px.length; i += 4) { const solid = px[i + 3] >= 230; sd.data[i] = solid ? px[i] : Math.round(bs.r * 255);
           sd.data[i + 1] = solid ? px[i + 1] : Math.round(bs.g * 255); sd.data[i + 2] = solid ? px[i + 2] : Math.round(bs.b * 255); sd.data[i + 3] = 255; }
         s0.putImageData(sd, 0, 0);
+        // flat art enlarged many times (a 60 px cut-out onto a 1024 px face) is softened by about half a source pixel
+        // before the snap below, so the snapped edges follow smooth curves instead of the bilinear upscale's lumps
+        const up = S / (2 * half);
+        if (snap && up > 3) f2.filter = 'blur(' + (up * 0.45).toFixed(1) + 'px)';
         f2.drawImage(sc0, (ccx - half) / (2 * half) * -S, (ccy - half) / (2 * half) * -S, iw / (2 * half) * S, ih / (2 * half) * S);
+        f2.filter = 'none';
         const fd = f2.getImageData(0, 0, S, S), d = fd.data;
         if (snap) for (let i = 0; i < d.length; i += 4) { let best = 0, bd = 1e9;
           for (let j = 0; j < merged.length; j++) { const m = merged[j], e = (d[i] - m[0]) ** 2 + (d[i + 1] - m[1]) ** 2 + (d[i + 2] - m[2]) ** 2; if (e < bd) { bd = e; best = j; } }
           d[i] = merged[best][0]; d[i + 1] = merged[best][1]; d[i + 2] = merged[best][2]; d[i + 3] = 255; }
         if (snap) f2.putImageData(fd, 0, 0);
         const tex = new THREE.CanvasTexture(fc); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        // the face's marks (eyes, a logo's parts) stand slightly proud of the body: a soft relief map where the face is
+        // not the body colour, so they catch the light like the inset glossy eyes of the real icon (p.relief, 0 = flat)
+        let bump = null; const relief = p.relief == null ? 1 : p.relief;
+        if (snap && relief > 0) { const bc = document.createElement('canvas'); bc.width = bc.height = S; const b2 = bc.getContext('2d'), bd2 = b2.createImageData(S, S);
+          const fd2 = f2.getImageData(0, 0, S, S).data, b0 = merged[0];
+          for (let i = 0; i < fd2.length; i += 4) { const on = (fd2[i] - b0[0]) ** 2 + (fd2[i + 1] - b0[1]) ** 2 + (fd2[i + 2] - b0[2]) ** 2 > 400 ? 255 : 0;
+            bd2.data[i] = bd2.data[i + 1] = bd2.data[i + 2] = on; bd2.data[i + 3] = 255; }
+          b2.putImageData(bd2, 0, 0); const bc2 = document.createElement('canvas'); bc2.width = bc2.height = S; const b3 = bc2.getContext('2d');
+          b3.filter = 'blur(' + Math.max(2, S / 256).toFixed(1) + 'px)'; b3.drawImage(bc, 0, 0); bump = new THREE.CanvasTexture(bc2); }
         // the inflated body (outline radius 1 = R px): front dome `front`, back dome `back`, rings centre -> rim
         const front = p.front == null ? 0.42 : p.front, back = p.back == null ? 0.3 : p.back, N = 192, SR = 40;
         const prof = (s) => Math.pow(Math.max(0, 1 - Math.pow(s, 4)), 0.4);
@@ -259,7 +284,10 @@ function create(o) {
         // stretch each edge texel into a streak, so the rim (s >= 0.86, outside every face feature) and the back are body colour
         g.addGroup(gF[0], gF[1] - gF[0], 0); g.addGroup(gF[1], gF[2] - gF[1], 1); g.addGroup(gB[0], gB[2] - gB[0], 1);
         const mat = (map) => new THREE.MeshPhysicalMaterial({map, color: map ? 0xffffff : bodyCol, roughness: p.roughness == null ? 0.36 : p.roughness,
-          metalness: 0, clearcoat: p.clearcoat == null ? 1 : p.clearcoat, clearcoatRoughness: 0.08});
+          metalness: 0, clearcoat: p.clearcoat == null ? 1 : p.clearcoat, clearcoatRoughness: 0.08,
+          bumpMap: map ? bump : null, bumpScale: 3 * relief, envMapIntensity: p.env == null ? 1 : p.env,
+          // the marks keep their own brightness in any light (white eyes stay white in a night scene, as in the art)
+          emissive: map && bump ? 0xffffff : 0x000000, emissiveMap: map ? bump : null, emissiveIntensity: map && bump ? (p.markGlow == null ? 0.35 : p.markGlow) : 0});
         const mesh = new THREE.Mesh(g, [mat(tex), mat(null)]); mesh.castShadow = true; mesh.receiveShadow = true;
         // size: `width` is the outline's widest extent in scene units; the body sits ON y = 0 of the group (feet down)
         const xs = rr.map((r, i) => Math.cos(i / NA * Math.PI * 2) * r / R), ys = rr.map((r, i) => Math.sin(i / NA * Math.PI * 2) * r / R);

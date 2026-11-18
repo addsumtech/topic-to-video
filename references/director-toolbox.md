@@ -57,7 +57,11 @@ bundled from `remotion/node_modules` by `scripts/build_stage3d.sh`), so a film p
     window.seek = (t) => st.render({pos: [...], look: [...], fov: 30, focus: 7});           // pure function of t
 
 Screens EMIT their picture (unlit, exact colours, rounded) inside a lit slab body; `dim` darkens a background one.
-Use CLEAN screens (crop out any documentation annotations first).
+Use CLEAN screens (crop out any documentation annotations first). `create({pixelRatio: 2})` supersamples: small screen
+text and characters' edges stay crisp in the capture (the default 1 read as "low resolution", Grok Bot 2026-11-18).
+`dof` blurs with a few taps: anything far from the focus distance turns into offset ghost copies (icons, text), so
+keep it off when near objects carry marks or words, or set `focus` on them. Two objects never end in the same place
+(coplanar cards flicker through each other): send what has done its job out of frame and hide it.
 
 **Characters and marks as soft 3D bodies**: `st.inflate('bot.png', {width: 0.9, x, z, front: 0.42, back: 0.3})` turns a
 flat character or mark on a TRANSPARENT background into a glossy inflated body standing on its own y = 0, its artwork
