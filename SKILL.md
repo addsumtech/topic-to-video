@@ -213,7 +213,9 @@ the real logo early and a closing lockup, one small celebration, and a quick rhy
 evidence in the toolbox). Before building one, write `<film_dir>/shot_plan.json` (features → shots, each shot's
 job, technique and seam, the motion voice, the signature idea; format in `scripts/shot_plan_qa.py`) and pass
 `python3 scripts/shot_plan_qa.py <film_dir>`; `film_qc` then holds the film to it (`seam_qa`: a seam planned as hidden
-must not be a bare swap). An explainer may write one too, and gets the same checks. What lifts one from correct to
+must not be a bare swap; build the seam the plan names, never a generic cross-dissolve to pass it: a dissolve
+between two viewpoints of the same characters double-exposes them (Grok Bot 2026-11-18: two approval cards and two
+Bots at once). Where the same subject carries across, plan a `match` cut). An explainer may write one too, and gets the same checks. What lifts one from correct to
 crafted (`references/promo-shotcraft.md`, studied from a
 mature promo-film practice): the product's UI staged as **physical objects in a lit space** (thickness, contact
 shadows, one light, 3D angles), not flat screenshots on a gradient; the film's look grown from the **product's own
