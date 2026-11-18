@@ -161,8 +161,9 @@ itself; the world changes only at a seam. Within it, every shot has one focal po
 teaching, design, motion and sound principles) before building.
 
 **Engine.** Default: one HTML page for the whole film (`film.html`) in which **every frame is a pure function of
-time** (`window.seek(t)`: no CSS transitions, no timers, no randomness), captured frame by frame with headless
-Chrome at 1920x1080, 30 fps, encoded with ffmpeg. **The hero moments are built first**, from the designer's
+time** (`window.seek(t)`: no CSS transitions, no timers, no randomness; canvas text drawn only after its fonts load),
+captured frame by frame with `scripts/film_frames.py` (headless Chrome at 1920x1080, 30 fps; it refuses text drawn
+before its font and probes that a frame is the same in any page), encoded with ffmpeg. **The hero moments are built first**, from the designer's
 keyframes, and every other shot is built to its line in the treatment: the shots between the heroes are where
 labels, tilts and filler creep in. **3D where physicality is the content**: the product's characters or mascot as
 soft lit bodies that act (`st.inflate` + `Stage3D.hop` in `assets/html/stage3d.js`), a device, an object; a screen
@@ -239,8 +240,9 @@ switch shots**.
 
 ### 8. Check, fix, deliver
 
-1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame, shake, caption-size and (with a film page) word/control
-   overlap checks against
+1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame, shake, caption-size, pan-speed,
+   (with a film page) word/control overlap and on-screen copy (every word sourced or declared in `copy_ok.json`),
+   (on a stage3d page) 3D contact checks against
    `final.mp4` and `_plan.json`, and exits 1 on any red. Fix the film, re-render, re-run until CLEAN.
    A red you believe is wrong is never silenced and never "fixed" by cutting good content: PROVE it on the frames
    (measure the thing the check claims) and with a CONTROL (the same shot with the suspected cause removed), and

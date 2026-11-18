@@ -6,7 +6,8 @@ Runs, in order: flash_qa (a frame unlike both neighbours), rewind_qa (the pictur
 against the plan's cuts), picture_glide_qa (a picture stepping instead of gliding under a moving camera),
 empty_frame_qa (a blank hold of a second or more), shake_qa (the whole frame vibrating instead of travelling) and
 caption_size_qa (burned captions too small to read on a phone); with a film.html, page_overlap_qa (words or
-controls colliding on the page over time); with a shot_plan.json, also shot_plan_qa (the craft
+controls colliding on the page over time) and film_copy_qa (every word shown comes from the sources or is declared);
+with a stage3d page, stage_contacts_qa (nothing passes through anything); pan_speed_qa (no camera whip that strobes); with a shot_plan.json, also shot_plan_qa (the craft
 plan is sound) and seam_qa (every seam the plan says is hidden really is).
 Prints one line per check — OK, or the check's own findings — and exits 1 if any check is red, so "clean" is a
 fact the caller can test, not a reading of the log.
@@ -25,17 +26,31 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 def checks(d, video, plan):
     py = sys.executable
-    return [
+    base = [
         ("flash", [py, os.path.join(HERE, "flash_qa.py"), video]),
         ("rewind", [py, os.path.join(HERE, "rewind_qa.py"), video, "--plan", plan]),
         ("glide", [py, os.path.join(HERE, "picture_glide_qa.py"), d, "--video=" + video]),
         ("empty", [py, os.path.join(HERE, "empty_frame_qa.py"), video]),
         ("shake", [py, os.path.join(HERE, "shake_qa.py"), video]),
         ("captions", [py, os.path.join(HERE, "caption_size_qa.py"), video]),
-    ] + ([("overlaps", [py, os.path.join(HERE, "page_overlap_qa.py"), d])]
-         if os.path.isfile(os.path.join(d, "film.html")) else []) + ([("shot plan", [py, os.path.join(HERE, "shot_plan_qa.py"), d]),
-          ("seams", [py, os.path.join(HERE, "seam_qa.py"), d])]
-         if os.path.isfile(os.path.join(d, "shot_plan.json")) else [])
+    ]
+    page = os.path.isfile(os.path.join(d, "film.html"))
+    out = list(base)
+    if page:
+        out += [("overlaps", [py, os.path.join(HERE, "page_overlap_qa.py"), d]),
+                ("copy", [py, os.path.join(HERE, "film_copy_qa.py"), d])]
+    if _uses_stage3d(d):
+        out.append(("contacts", [py, os.path.join(HERE, "stage_contacts_qa.py"), d]))
+    out.append(("pan speed", [py, os.path.join(HERE, "pan_speed_qa.py"), d]))
+    if os.path.isfile(os.path.join(d, "shot_plan.json")):
+        out += [("shot plan", [py, os.path.join(HERE, "shot_plan_qa.py"), d]),
+                ("seams", [py, os.path.join(HERE, "seam_qa.py"), d])]
+    return out
+
+
+def _uses_stage3d(d):
+    page = os.path.join(d, "film.html")
+    return os.path.isfile(page) and "stage3d" in open(page, encoding="utf-8", errors="replace").read()
 
 
 def main(argv):

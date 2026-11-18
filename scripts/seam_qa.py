@@ -52,6 +52,39 @@ def measure(frames, cut):
     return {"share": round(share, 3), "spike": round(spike, 1), "bare": share >= BARE_SHARE and spike < SPIKE}
 
 
+DISSOLVE_RESID = 0.30     # a frame within the cut is a blend of the two ends when the fit leaves < 30 % of their difference
+FADE_OK = {"fade", "end"}   # seams where a cross-dissolve IS the planned seam
+
+
+def dissolve(frames, cut):
+    """Is the cut a plain cross-dissolve? For half-widths k = 2..WIN, take A (before the blend) and B (after it) and
+    fit each frame between as (1-w)A + wB. A dissolve: most frames fit with a small residual, w rising in between.
+    Returns {k, frames_fit} for the best k, or None. A push, a travel or a flash is not a blend of its two ends."""
+    best = None
+    for k in range(2, WIN + 1):
+        ia, ib = cut - k - 1, cut + k
+        if ia < 0 or ib >= len(frames):
+            continue
+        A, B = frames[ia].astype(np.float64), frames[ib].astype(np.float64)
+        D = B - A
+        dd = float((D * D).sum())
+        if dd < (4.0 ** 2) * D.size:          # the two ends barely differ: nothing to judge
+            continue
+        ws, fit = [], 0
+        for i in range(ia + 1, ib):
+            F = frames[i].astype(np.float64) - A
+            w = float((F * D).sum() / dd)
+            r = float(np.sqrt(((F - w * D) ** 2).sum() / dd))
+            ws.append(w)
+            if 0.08 < w < 0.92 and r < DISSOLVE_RESID:
+                fit += 1
+        rising = all(b >= a - 0.05 for a, b in zip(ws, ws[1:]))
+        if rising and fit >= max(2, k):
+            if best is None or fit > best["frames_fit"]:
+                best = {"k": k, "frames_fit": fit}
+    return best
+
+
 def judge(film_dir):
     plan = json.load(open(os.path.join(film_dir, "_plan.json"), encoding="utf-8"))
     fps = float(plan.get("fps", 30))
@@ -69,7 +102,9 @@ def judge(film_dir):
             t = c / fps
             near = [s for s in shots[:-1] if abs(float(s["end"]) - t) <= 0.2]
             seam = near[0].get("seam_out") if near else None
-        m.update(frame=int(c), seam=seam,
+        dv = dissolve(frames, int(c))
+        m.update(frame=int(c), seam=seam, dissolve=bool(dv),
+                 faked=bool(dv and seam is not None and seam not in FADE_OK and seam not in HARD_BY_DESIGN),
                  contradiction=bool(m["bare"] and seam is not None and seam not in HARD_BY_DESIGN))
         out.append(m)
     return out, shots is not None
@@ -86,11 +121,14 @@ def main(argv):
         print("seam_qa: %s has no _plan.json" % d, file=sys.stderr)
         return 2
     cuts, planned = judge(d)
-    bad = [c for c in cuts if c["contradiction"]]
+    bad = [c for c in cuts if c["contradiction"] or c.get("faked")]
     if "--json" in argv:
         print(json.dumps({"cuts": cuts, "planned": planned}))
     else:
-        for c in bad:
+        for c in [c for c in bad if c.get("faked")]:
+            print("DISSOLVE  cut at frame %d is a plain cross-dissolve but the plan says '%s': build that seam, or plan "
+                  "a 'fade' (a dissolve between two viewpoints double-exposes whatever is in both)" % (c["frame"], c["seam"]))
+        for c in [c for c in bad if c["contradiction"]]:
             print("BARE   cut at frame %d is a bare swap (%.0f%% of the change in one frame, no flash) but the plan "
                   "says '%s': hide it as planned, or plan it honestly" % (c["frame"], c["share"] * 100, c["seam"]))
         bare = [c for c in cuts if c["bare"]]

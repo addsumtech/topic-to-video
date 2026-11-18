@@ -30,8 +30,13 @@ const easeOut = (x) => 1 - Math.pow(1 - clamp01(x), 3);
 const lerp = (a, b, k) => a + (b - a) * k;
 const lerp3 = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
 
+// every stage a page creates, so a page-level check (scripts/stage_contacts_qa.py) can ask each for its contacts
+const stages = [];
+const baseName = (src, fallback) => (typeof src === 'string' ? src.split('/').pop().replace(/\.[a-z0-9]+$/i, '') : fallback);
+
 function create(o) {
   o = o || {};
+  const solids = [];   // panels and characters: what contacts() judges
   const canvas = o.canvas;
   const W = o.width || canvas.width || 1920, H = o.height || canvas.height || 1080;
   const renderer = new THREE.WebGLRenderer({canvas, antialias: true, preserveDrawingBuffer: true, alpha: !!o.transparent});
@@ -147,8 +152,9 @@ function create(o) {
                                                                      color: new THREE.Color(dim, dim, dim)}));
         face.position.z = depth / 2 + 0.002;
         group.add(slab, face);
-        group.userData.size = [w, h];
+        group.userData.size = [w, h]; group.userData.depth = depth;
       });
+      group.userData.kind = 'panel'; group.name = p.name || baseName(src, 'panel' + solids.length); solids.push(group);
       pending.push(job);
       group.position.set(p.x || 0, p.y == null ? 2 : p.y, p.z || 0);
       group.rotation.set(p.rotX || 0, p.rotY || 0, p.rotZ || 0);
@@ -294,14 +300,62 @@ function create(o) {
         const sc = (p.width || 1) / (Math.max(...xs) - Math.min(...xs));
         mesh.scale.setScalar(sc); mesh.position.set(-(Math.max(...xs) + Math.min(...xs)) / 2 * sc, -Math.min(...ys) * sc, 0);
         body.add(mesh); group.userData.size = [p.width || 1, (Math.max(...ys) - Math.min(...ys)) * sc]; group.userData.color = bodyCol;
+        // the body's exact volume, for contacts(): a point (mesh-local) is inside when it lies within the outline at
+        // its angle and between the back and front domes there
+        mesh.userData.inside = (x, y, z) => { const r = Math.hypot(x, y), a = Math.atan2(y, x), rr0 = rOf(a);
+          if (r >= rr0) return false; const ps = prof(r / rr0); return z < front * ps && z > -back * ps; };
+        group.userData.mesh = mesh;
       });
       pending.push(job);
       group.userData.body = body;
+      group.userData.kind = 'character'; group.name = p.name || baseName(src, 'character' + solids.length); solids.push(group);
       group.position.set(p.x || 0, p.y || 0, p.z || 0); group.rotation.set(p.rotX || 0, p.rotY || 0, p.rotZ || 0);
       scene.add(group);
       return group;
     },
     ready() { return Promise.all(pending); },
+    // what is physically wrong in the current pose, as [{a, b, kind, share}]: 'penetrates' — points of a panel's face
+    // or of a character's surface lie INSIDE a character's body (a card sunk into a head, a card swung through a Bot);
+    // 'stacked' — two panels in one place and orientation (they flicker through each other). Hidden objects, and any
+    // with userData.contactOk, are not judged. Exact bodies, not bounding boxes: a card floating in front of a Bot is fine.
+    contacts() {
+      scene.updateMatrixWorld(true);
+      const shown = (ob) => { for (let e = ob; e; e = e.parent) if (!e.visible) return false; return true; };
+      // only what the camera sees: a film parks unused objects out of view (often all at one spot), which is not a contact
+      camera.updateMatrixWorld(); const fr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+      const inView = (ob) => { const c = new THREE.Vector3().setFromMatrixPosition(ob.matrixWorld), sz = ob.userData.size;
+        const sc = new THREE.Vector3().setFromMatrixScale(ob.matrixWorld), r = 0.5 * Math.hypot(sz[0], sz[1]) * Math.max(sc.x, sc.y, sc.z);
+        return fr.intersectsSphere(new THREE.Sphere(c, r)); };
+      const live = solids.filter((ob) => shown(ob) && !ob.userData.contactOk && ob.userData.size && (ob.userData.kind !== 'character' || ob.userData.mesh) && inView(ob));
+      const V = new THREE.Vector3(), pts = new Map();
+      const points = (ob) => { if (pts.has(ob)) return pts.get(ob); const out = [];
+        if (ob.userData.kind === 'panel') { const [w, h] = ob.userData.size;
+          for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) out.push(new THREE.Vector3((i / 6 - 0.5) * w * 0.96, (j / 6 - 0.5) * h * 0.96, 0).applyMatrix4(ob.matrixWorld)); }
+        else { const m = ob.userData.mesh, pa = m.geometry.attributes.position, step = Math.max(1, Math.floor(pa.count / 400));
+          for (let i = 0; i < pa.count; i += step) out.push(new THREE.Vector3().fromBufferAttribute(pa, i).multiplyScalar(0.97).applyMatrix4(m.matrixWorld)); }
+        pts.set(ob, out); return out; };
+      const res = [];
+      for (let i = 0; i < live.length; i++) for (let j = 0; j < live.length; j++) { if (i === j) continue;
+        const A = live[i], B = live[j];
+        if (B.userData.kind === 'character' && (A.userData.kind === 'panel' || i < j)) {
+          const m = B.userData.mesh, inv = m.matrixWorld.clone().invert(); let n = 0; const P = points(A);
+          for (const q of P) { V.copy(q).applyMatrix4(inv); if (m.userData.inside(V.x, V.y, V.z)) n++; }
+          if (n >= 2) res.push({a: A.name, b: B.name, kind: 'penetrates', share: +(n / P.length).toFixed(3)});
+        } else if (A.userData.kind === 'panel' && B.userData.kind === 'panel' && i < j) {
+          const pa = new THREE.Vector3().setFromMatrixPosition(A.matrixWorld), pb = new THREE.Vector3().setFromMatrixPosition(B.matrixWorld);
+          const na = new THREE.Vector3(0, 0, 1).transformDirection(A.matrixWorld), nb = new THREE.Vector3(0, 0, 1).transformDirection(B.matrixWorld);
+          // same plane (parallel, no gap between them along the normal) and their faces overlap: the two fight for
+          // the same pixels and flicker (three cards parked at one end point)
+          if (Math.abs(na.dot(nb)) > 0.995 && Math.abs(new THREE.Vector3().subVectors(pb, pa).dot(na)) < 0.02) {
+            const sa = new THREE.Vector3().setFromMatrixScale(A.matrixWorld), sb = new THREE.Vector3().setFromMatrixScale(B.matrixWorld);
+            const [wa, ha] = A.userData.size.map((v, k) => v * (k ? sa.y : sa.x)), [wb, hb] = B.userData.size.map((v, k) => v * (k ? sb.y : sb.x));
+            const loc = pb.clone().applyMatrix4(A.matrixWorld.clone().invert()).multiply(sa);
+            const ov = Math.max(0, (wa + wb) / 2 - Math.abs(loc.x)) * Math.max(0, (ha + hb) / 2 - Math.abs(loc.y)) / Math.min(wa * ha, wb * hb);
+            if (ov > 0.1) res.push({a: A.name, b: B.name, kind: 'stacked', share: +Math.min(1, ov).toFixed(3)});
+          }
+        } }
+      return res;
+    },
     // one frame: camera position, where it looks, its fov, and the focus distance for depth of field
     render(c) {
       c = c || {};
@@ -318,6 +372,7 @@ function create(o) {
       }
     },
   };
+  stages.push(st);
   return st;
 }
 
@@ -351,4 +406,4 @@ function carry(obj, character, o) {
   return top;
 }
 
-export {create, ease, easeOut, lerp, lerp3, clamp01, hop, carry, THREE};
+export {create, stages, ease, easeOut, lerp, lerp3, clamp01, hop, carry, THREE};

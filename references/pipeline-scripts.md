@@ -1143,7 +1143,9 @@ agent on the beats it points at.
 
 ## Director path (SKILL.md, the default since 2026-11-16)
 - `scripts/film_qc.py <film_dir>` — the director path's picture checks in one command: flash_qa, rewind_qa (against
-  `_plan.json`'s cuts), picture_glide_qa (`--video=` the plan's video) and empty_frame_qa on `<film_dir>/final.mp4`.
+  `_plan.json`'s cuts), picture_glide_qa (`--video=` the plan's video) and empty_frame_qa on `<film_dir>/final.mp4`,
+  plus shake, captions, pan_speed; with a film.html page_overlap and film_copy; on a stage3d page stage_contacts; with
+  a shot plan shot_plan and seam (which also fails a plain cross-dissolve passed off as a planned travel/push/light).
   One line per check; exit 1 on any red, 2 when `_plan.json` or the video is missing.
 - `scripts/empty_frame_qa.py <film.mp4 | dir> [--json]` — a blank HOLD: the frame above the caption band under 3 %
   occupied for >= 1 s (the closing 2 s exempt). Occupied = differs from the frame's dominant colour or sits on an
@@ -1166,12 +1168,31 @@ agent on the beats it points at.
   exists.
 - `scripts/seam_qa.py <film_dir> [--json]` — each cut of `_plan.json` measured for a bare swap (≥85 % of the change
   within ±8 frames in one step, no flash spike; calibrated on synthetic hard cut 1.00 / flash 0.51 / cross-fade 0.58 /
-  push 0.28) and checked against the plan's seam: a seam planned as hidden that measures bare is an error. Without a
+  push 0.28) and checked against the plan's seam: a seam planned as hidden that measures bare is an error, and so is a
+  plain cross-dissolve (each frame a blend of the cut's two ends) where the plan names any seam but `fade`. Without a
   shot plan, bare cuts are only noted. Part of film_qc when the plan exists.
 - `scripts/page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--json]` — steps a film page's
   `window.seek(t)` in headless Chrome and reports visible words / controls whose boxes overlap (per line fragment, by
   more than a quarter of the smaller) for ≥0.5 s; `data-overlap-ok` exempts a deliberate stack. Found the Grok Bot
   film's "Send an email" pill over "Check a calendar" (2026-11-17); 0 on the WorkBuddy films. Part of film_qc when a
   `film.html` exists.
+- `scripts/film_frames.py <film_dir> [--page film.html] [--fps 30] [--from A] [--to B] [--workers 4] [--out work/frames]
+  [--probe 6]` — THE renderer for a director-path page: every frame `window.seek(t)` captured to `<out>/f_%05d.jpg`
+  (each frame written, never skipped; contiguous blocks per page). A page is ready only when `filmReady` is "ok", its
+  fonts loaded, and no canvas text was drawn before its font loaded (that text falls back per page and flickers).
+  The probe draws K moments in two fresh pages and fails on any difference (fonts, Math.random, timers). Shared page
+  driver: `scripts/_filmpage.py` (local http, GPU, backlog sized for parallel pages).
+- `scripts/film_copy_qa.py <film_dir> [--every 0.5] [--json]` — every word the page shows (DOM text and canvas
+  fillText) must occur in the sources (`input/sources/`, `sources/`, `script.json`, `brief.json`), as text or as an
+  in-order excerpt of one sentence; anything else is declared in `<film_dir>/copy_ok.json` WITH a reason, or fails.
+  Found "Weekly account research" (docs: "Weekly account health") and an invented email quote on the Grok Bot film.
+  Part of film_qc when a `film.html` exists.
+- `scripts/stage_contacts_qa.py <film_dir> [--every 0.0667] [--json]` — a stage3d page swept for physical contacts
+  (`st.contacts()`: a panel's face or a body INSIDE a character's exact volume; two panels in one plane overlapping),
+  objects in view only; `userData.contactOk` exempts a deliberate one. Found the Grok Bot film's sunk relay card, the
+  approval card swung through the Bot and three coplanar action cards. Part of film_qc on a stage3d page.
+- `scripts/pan_speed_qa.py <film_dir> [--limit 48] [--json]` — the whole frame's motion per frame (phase correlation
+  at quarter size, cuts excluded): a run of 6+ frames above 48 px/frame (at 1920 wide) is a whip that strobes. Found
+  the Grok Bot film's 94 px/frame follow-pan. Part of film_qc.
 - `scripts/build_stage3d.sh` — rebuilds `assets/html/stage3d.js` (the 3D stage, three.js bundled) from
   `assets/html/stage3d/src.js`; `tests/test_stage3d_page.py` fails when the committed bundle is stale.

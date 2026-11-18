@@ -19,7 +19,8 @@ def _make(d, kind):
     out = d / "final.mp4"
     graph = {"bare": "[0][1]concat=n=2:v=1[v]",
              "flash": "[0][1]xfade=transition=fadewhite:duration=0.3:offset=1.85[v]",
-             "push": "[0][1]xfade=transition=slideleft:duration=0.5:offset=1.75[v]"}[kind]
+             "push": "[0][1]xfade=transition=slideleft:duration=0.5:offset=1.75[v]",
+             "dissolve": "[0][1]xfade=transition=fade:duration=0.3:offset=1.85[v]"}[kind]
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(a), "-i", str(b), "-filter_complex", graph, "-map", "[v]",
                     str(out)], check=True)
     (d / "_plan.json").write_text(json.dumps({"video": "final.mp4", "fps": 30, "cuts": [60]}))
@@ -53,4 +54,21 @@ def test_a_hard_cut_planned_as_one_passes(tmp_path, seam):
 def test_a_hidden_seam_planned_as_hidden_passes(tmp_path):
     _make(tmp_path, "flash")
     _shot_plan(tmp_path, "flash")
+    assert seam_qa.main([str(tmp_path)]) == 0
+
+
+@pytest.mark.parametrize("kind,is_dissolve", [("dissolve", True), ("bare", False), ("flash", False), ("push", False)])
+def test_dissolve_is_told_from_a_push_a_flash_and_a_cut(tmp_path, kind, is_dissolve):
+    # a plain cross-dissolve is a blend of its two ends; a push, a flash or a hard cut is not
+    _make(tmp_path, kind)
+    cuts, _ = seam_qa.judge(str(tmp_path))
+    assert cuts[0]["dissolve"] is is_dissolve, cuts[0]
+
+
+def test_a_dissolve_passed_off_as_a_push_is_red_and_as_a_fade_passes(tmp_path):
+    # Grok Bot 2026-11-18: 9-frame dissolves stood in for planned travel/push/light seams and double-exposed the cast
+    _make(tmp_path, "dissolve")
+    _shot_plan(tmp_path, "push")
+    assert seam_qa.main([str(tmp_path)]) == 1
+    _shot_plan(tmp_path, "fade")
     assert seam_qa.main([str(tmp_path)]) == 0
