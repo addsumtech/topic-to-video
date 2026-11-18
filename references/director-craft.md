@@ -77,6 +77,17 @@ official product films, measured), `craft-standard.md` (the product-film grammar
 - **Camera:** a push-in to focus, a pull-out to give context, a pan to follow a process. One camera language per
   sequence.
 
+### Accents (moved here verbatim from SKILL.md, 2026-11-18)
+**Accents** — small motion effects that make a moment FELT, drawn as motion, not as emoji glyphs. Where they
+go is your judgement, not a mapping: find the moments the viewer should feel something — an answer landing, a
+reveal, a turn in the argument, a number that surprises, the product finishing the job, a joke, the payoff — and
+design the motion that fits that moment, subject and look: a burst of confetti with a ring and rays, a sparkle, a
+glow pulse, a shockwave, a stroke drawing itself, a number counting up, a short pop-up caption phrase popping in, or one built
+from the subject itself (a torn QR corner scattering as fragments). No effect belongs to a particular element.
+Under a second, trailing what it marks; sparing (roughly one per 15-30 s in an explainer, more in a playful or
+launch film, none on a somber subject); energy matched to the look; drawn BEHIND what it celebrates so its text
+stays readable. `assets/html/accents.js` gives them as pure functions of time, with no overshoot.
+
 ## 5. Sound
 - **Voice is king:** the mix serves intelligibility. Music sits ~18-24 dB under the voice and ducks while it speaks.
 - **Music follows purpose:** an explainer can do without; a launch or promo film is scored, and its hits land on

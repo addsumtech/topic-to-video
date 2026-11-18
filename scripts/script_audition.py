@@ -26,6 +26,7 @@ both the html tier and the remotion tier carry. Nothing here knows what a regist
 """
 import argparse
 import json
+import re
 import os
 import subprocess
 import sys
@@ -60,10 +61,13 @@ def pick(slides):
     take(next((s for s in spoken if s.get("climax")), None))                 # the payoff
     take(next((s for s in reversed(spoken) if s.get("hold")), None) or spoken[-1])   # the close
     # ...and fill from the middle, spread, because a rhythm shows across CONSECUTIVE beats. Adjacent
-    # pairs are deliberate: two beats in a row is what exposes a repeated opener.
+    # pairs are deliberate: two beats in a row is what exposes a repeated opener. The pair is taken from the
+    # CENTRE of the film: from the start it repeated the hook's neighbourhood (a director script auditioned lines
+    # 1-4 and nothing of its middle).
     mid = [s for s in spoken[1:-1] if id(s) not in seen]
     step = max(1, len(mid) // max(1, AUDITION_BEATS - len(want)))
-    for s in mid[::step]:
+    centre = max(0, len(mid) // 2 - 1)
+    for s in (mid[centre:] + mid[:centre])[::step]:
         if len(want) >= AUDITION_BEATS:
             break
         take(s)
@@ -95,7 +99,46 @@ def parse_beats(text):
     return [int(x) for x in str(text).replace(" ", "").split(",") if x != ""]
 
 
-def audition(out_dir, beats=None, out_name="audition.mp3", allow_paid=False):
+CLIMAX_WORDS = re.compile(r"\b(payoff|pay-off|climax)\b", re.I)   # a sequence NAME carrying it ("payoff · 同一件事")
+
+
+def load(out_dir):
+    """(meta, slides) for the film in out_dir, from EITHER flow: the classic `storyboard.json` (meta + slides), or the
+    director path's `script.json` ({voice, language?, sequences: [{name, lines: [{id, text}]}]}). A director line becomes
+    a slide numbered 1.. in script order, carrying its `id`; the first line of a sequence named payoff / climax / reveal
+    is the climax, the last line the close. Raises RuntimeError when the folder has neither."""
+    board = os.path.join(out_dir, "storyboard.json")
+    if os.path.isfile(board):
+        data = json.load(open(board, encoding="utf-8"))
+        return data.get("meta") or {}, data.get("slides") or []
+    sp = os.path.join(out_dir, "script.json")
+    if not os.path.isfile(sp):
+        raise RuntimeError("no storyboard.json or script.json in %s — there is no script to audition" % out_dir)
+    sc = json.load(open(sp, encoding="utf-8"))
+    slides, n, seqs = [], 0, []
+    for seq in sc.get("sequences") or []:
+        lines = [ln for ln in seq.get("lines") or [] if (ln.get("text") or "").strip()]
+        first = None
+        for k, ln in enumerate(lines):
+            n += 1
+            s = {"index": n, "id": ln.get("id") or "l%02d" % n, "narration": ln["text"]}
+            if k == 0:
+                first = s
+                if CLIMAX_WORDS.search(str(seq.get("name", ""))) and not any(x.get("climax") for x in slides):
+                    s["climax"] = True
+            slides.append(s)
+        if first is not None:
+            seqs.append((first, len(lines)))
+    if slides and not any(s.get("climax") for s in slides):      # no payoff named: the line ~70 % through
+        slides[min(len(slides) - 2, int(len(slides) * 0.7))]["climax"] = True
+    if seqs:   # the close: the final sequence's first line (its tagline), not a trailing disclaimer or credit
+        last_first, count = seqs[-1]
+        (last_first if count > 1 else slides[-1])["hold"] = True
+    meta = {"voice": sc.get("voice") or "auto", "language": sc.get("language") or "auto"}
+    return meta, slides
+
+
+def audition(out_dir, beats=None, out_name="audition.mp3", allow_paid=False, voice=None):
     """Synthesize the picked beats through the board's OWN voice and join them with its own pause.
 
     Returns (path, picked, voice). Raises RuntimeError when no engine can speak — never returns a silent
@@ -110,14 +153,14 @@ def audition(out_dir, beats=None, out_name="audition.mp3", allow_paid=False):
     A PAID engine (OpenAI, MiniMax) is spoken only with `allow_paid=True`: the voice is chosen at this
     checkpoint, and an audition on a key must follow that choice, not a board that merely carries one.
     """
-    board = os.path.join(out_dir, "storyboard.json")
-    data = json.load(open(board, encoding="utf-8"))
-    meta = data.get("meta") or {}
-    picked = named(data.get("slides") or [], beats) if beats else pick(data.get("slides") or [])
+    meta, slides = load(out_dir)
+    if voice:                                    # a candidate voice auditioned at the checkpoint, the script untouched
+        meta = dict(meta, voice=voice)
+    picked = named(slides, beats) if beats else pick(slides)
     if not beats and len(picked) < MIN_BEATS:
         raise RuntimeError("only %d beat(s) carry narration — there is nothing to audition yet" % len(picked))
 
-    prov, name, lang, _note = _tts.film_voice(meta, data.get("slides") or [])
+    prov, name, lang, _note = _tts.film_voice(meta, slides)
     voice = "%s:%s" % (prov, name)
     if prov in _tts.PAID_PROVIDERS and not allow_paid:
         raise RuntimeError(
@@ -171,18 +214,21 @@ def main():
                          "default: hook, climax, close and two from the middle")
     ap.add_argument("--allow-paid", action="store_true",
                     help="speak through a paid engine (OpenAI/MiniMax) — only once the user has chosen it")
+    ap.add_argument("--voice", default=None,
+                    help="audition THIS voice (edge:<id> | minimax:<id> | openai:<voice> | say:<name>) without changing "
+                         "the script: the candidates at the voice checkpoint")
     a = ap.parse_args()
     try:
-        path, picked, voice = audition(a.out_dir, beats=a.beats, out_name=a.name, allow_paid=a.allow_paid)
+        path, picked, voice = audition(a.out_dir, beats=a.beats, out_name=a.name, allow_paid=a.allow_paid, voice=a.voice)
     except Exception as exc:                                                 # noqa: BLE001 — report, never skip
         print("[audition] COULD NOT AUDITION — %s" % exc)
         print("[audition] Do not treat the script checkpoint as met: nobody has heard this script.")
         return 2
     print("[audition] %s  ·  %d beat(s) through %s, joined by the film's own %.2fs pause"
-          % (path, len(picked), voice, _tts._tail_pad(json.load(
-              open(os.path.join(a.out_dir, "storyboard.json"), encoding="utf-8")).get("meta") or {})))
+          % (path, len(picked), voice, _tts._tail_pad(load(a.out_dir)[0])))
+    ids = {s["index"]: s.get("id") for s in load(a.out_dir)[1]}
     for idx, text in picked:
-        print("   beat %-3s %s" % (idx, text[:54]))           # the board's OWN index: what --only takes
+        print("   beat %-3s %s%s" % (idx, "(%s) " % ids[idx] if ids.get(idx) else "", text[:54]))   # board index / line id
     print("[audition] LISTEN to it, in order, before the script checkpoint. The metrics in voice_qa "
           "measure distribution; they cannot hear that a script is dead.")
     return 0

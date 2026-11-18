@@ -168,3 +168,38 @@ def test_depth_of_field_keeps_antialiasing_and_pixel_ratio_keeps_page_size(tmp_p
     inside = a >= 200
     assert inside.sum() > 2000, "the disc did not render"
     assert edge.sum() > 0.35 * np.sqrt(inside.sum()) * 3.5, "silhouette is stair-stepped (no antialiasing): %d edge px" % edge.sum()
+
+
+@pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")
+def test_eyes_are_separate_blink_and_look_together_on_the_face(tmp_path):
+    # a character with two eye marks gets two raised eyes; a logo with five marks keeps its painted face (and says why)
+    from PIL import ImageDraw
+    im = Image.new("RGBA", (220, 220), (0, 0, 0, 0)); g = ImageDraw.Draw(im)
+    g.ellipse((10, 10, 210, 210), fill=(0, 184, 160, 255))
+    for x in (120, 150):
+        g.rounded_rectangle((x, 60, x + 14, 104), radius=7, fill=(255, 255, 255, 255))
+    im.save(tmp_path / "bot.png")
+    lg = Image.new("RGBA", (220, 220), (0, 0, 0, 0)); g = ImageDraw.Draw(lg)
+    g.ellipse((10, 10, 210, 210), fill=(200, 30, 50, 255))
+    for i in range(5):
+        g.rectangle((40 + i * 30, 95, 56 + i * 30, 125), fill=(255, 255, 255, 255))
+    lg.save(tmp_path / "logo.png")
+    dom, _ = _shoot(tmp_path, """const st = Stage3D.create({canvas: document.getElementById('c')});
+      const b = st.inflate('bot.png', {width: 1}), l = st.inflate('logo.png', {width: 1}), n = st.inflate('bot.png', {width: 1, eyes: false});
+      await st.ready();
+      const E = b.userData.eyes, sp0 = E[1].x0 - E[0].x0;
+      Stage3D.blink(b, 1); const lid = E[0].lid.scale.y; Stage3D.blink(b, 0);
+      Stage3D.look(b, 1, 0); const p0 = E[0].lid.parent.position, p1 = E[1].lid.parent.position;
+      const res = {eyes: E.length, reason: b.userData.eyeReason, lid: +lid.toFixed(3), spacing: +((p1.x - p0.x) / sp0).toFixed(3),
+        moved: +(p0.x - E[0].x0).toFixed(3), logo: (l.userData.eyes || []).length, logoReason: l.userData.eyeReason,
+        off: (n.userData.eyes || []).length, offReason: n.userData.eyeReason};
+      document.body.setAttribute('data-res', JSON.stringify(res));""")
+    import json as _json, re as _re, html as _html
+    m = _re.search(r'data-res="([^"]*)"', dom)
+    assert m, dom[:300]
+    r = _json.loads(_html.unescape(m.group(1)))
+    assert r["eyes"] == 2 and r["reason"] is None, r
+    assert r["lid"] < 0.15, "blink(1) shuts the eyes"
+    assert abs(r["spacing"] - 1) < 0.02 and r["moved"] > 0, "a look moves both eyes together (spacing kept)"
+    assert r["logo"] == 0 and "5 marks" in r["logoReason"], r
+    assert r["off"] == 0 and r["offReason"] == "p.eyes is false", r

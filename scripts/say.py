@@ -8,7 +8,8 @@
 The voice layer (scripts/tts.py `speak`): the engines (edge neural, free; `minimax:` and `openai:` with the user's key;
 macOS `say`), the pronunciation lexicon ({written: spoken}, applied for the voice only and mapped back, so the
 caption keeps the written word), Chinese-voice initialisms spelled out ("AI" as A-I), and, for edge, per-word
-timings in <clip>.words.json under the WRITTEN words — the timeline captions and cuts are built from. A transient
+timings in <clip>.words.json under the WRITTEN words — the timeline captions and cuts are built from (for minimax /
+openai / say, which report none, they are ALIGNED from edge saying the same words: scripts/word_align.py). A transient
 edge failure is retried; any other failure stops with its reason (never a silent fallback to a different voice).
 --lines voices one clip per non-empty line: l01.mp3, l02.mp3, …
 """
@@ -25,6 +26,13 @@ def voice_one(text, dest, voice, meta):
     prov, name = tts._provider(voice)
     os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
     tts.speak_retrying(text, dest, meta, prov, name)
+    if prov != "edge":
+        # the timeline is built from per-word timings; this engine reports none, so they are aligned from the edge
+        # voice saying the same words (scripts/word_align.py). No timings is an error here, never a guess.
+        try:
+            tts.align_words_from_edge(text, dest, meta)
+        except RuntimeError as e:
+            raise SystemExit("say: %s: %s" % (dest, e))
     return dest
 
 

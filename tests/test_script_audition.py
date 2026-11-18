@@ -252,3 +252,69 @@ def test_the_cli_takes_beats():
     assert sa.parse_beats("9, 13,24") == [9, 13, 24]
     with pytest.raises(ValueError):
         sa.parse_beats("9,x")
+
+
+# ── the director path's script.json is auditioned too (it used to be storyboard-only: the director path had no audition) ──
+def _script(tmp_path, voice="edge:en-US-AndrewMultilingualNeural"):
+    sc = {"voice": voice, "sequences": [
+        {"name": "hook", "lines": [{"id": "l01", "text": "What if the work came back finished?"}]},
+        {"name": "problem", "lines": [{"id": "l02", "text": "Today you carry it."}, {"id": "l03", "text": "Tool to tool."}]},
+        {"name": "build", "lines": [{"id": "l04", "text": "Meet the team."}, {"id": "l05", "text": "One job each."},
+                                    {"id": "l06", "text": "They pass it along."}]},
+        {"name": "payoff", "lines": [{"id": "l07", "text": "Morning. It is done."}, {"id": "l08", "text": "You approve."}]},
+        {"name": "close", "lines": [{"id": "l09", "text": "Hand it the work."}]}]}
+    (tmp_path / "script.json").write_text(json.dumps(sc), encoding="utf-8")
+
+
+def test_a_director_script_is_auditioned_hook_climax_close_and_a_middle_pair(tmp_path, monkeypatch):
+    _script(tmp_path)
+    heard = []
+    monkeypatch.setattr(_tts, "_have_edge", lambda: True)
+    monkeypatch.setattr(_tts, "_edge", lambda text, out, voice, rate="+0%": (heard.append((voice, text)), _tone(out)))
+    path, picked, voice = sa.audition(str(tmp_path))
+    texts = [t for _i, t in picked]
+    assert texts[0] == "What if the work came back finished?" and texts[-1] == "Hand it the work."
+    assert "Morning. It is done." in texts, "the payoff's first line is the climax"
+    idx = [i for i, _t in picked]
+    assert any(b - a == 1 for a, b in zip(idx, idx[1:]) if a not in (1,)), "two consecutive middle lines"
+    assert voice == "edge:en-US-AndrewMultilingualNeural" and all(v == "en-US-AndrewMultilingualNeural" for v, _ in heard)
+    assert os.path.getsize(path) > 0
+
+
+def test_a_candidate_paid_voice_needs_the_users_consent(tmp_path, monkeypatch):
+    _script(tmp_path)
+    calls = []
+    monkeypatch.setattr(_tts, "_minimax", lambda text, out, voice, meta: (calls.append(text), _tone(out)))
+    with pytest.raises(RuntimeError) as e:
+        sa.audition(str(tmp_path), voice="minimax:English_expressive_narrator")
+    assert "--allow-paid" in str(e.value) and not calls
+    _p, picked, voice = sa.audition(str(tmp_path), voice="minimax:English_expressive_narrator", allow_paid=True)
+    assert voice == "minimax:English_expressive_narrator" and len(calls) == len(picked)
+    assert json.load(open(tmp_path / "script.json"))["voice"].startswith("edge:"), "auditioning a voice must not change the script"
+
+
+def test_a_folder_with_no_script_is_refused(tmp_path):
+    with pytest.raises(RuntimeError) as e:
+        sa.audition(str(tmp_path))
+    assert "no storyboard.json or script.json" in str(e.value)
+
+
+def test_an_early_reveal_is_not_the_climax_and_the_close_is_the_tagline_not_the_disclaimer(tmp_path):
+    # the real Grok Bot script: hook, problem, REVEAL (early: "Meet Grok Bot."), team, control, payoff, close (tagline
+    # + disclaimer). The first picker auditioned lines 1-4 and the disclaimer: no middle, no payoff, no tagline.
+    seqs = [("hook", 1), ("problem", 2), ("reveal", 6), ("team", 5), ("control", 5), ("payoff · morning", 5), ("close", 2)]
+    n, sequences = 0, []
+    for name, k in seqs:
+        lines = []
+        for _ in range(k):
+            n += 1
+            lines.append({"id": "l%02d" % n, "text": "Line %d of %s." % (n, name)})
+        sequences.append({"name": name, "lines": lines})
+    (tmp_path / "script.json").write_text(json.dumps({"voice": "edge:x", "sequences": sequences}), encoding="utf-8")
+    meta, slides = sa.load(str(tmp_path))
+    picked = [i for i, _t in sa.pick(slides)]
+    assert 4 not in picked, "the reveal (line 4) is not the climax"
+    assert 20 in picked, "the payoff sequence's first line is the climax"
+    assert 25 in picked and 26 not in picked, "the close is the tagline (25), not the disclaimer (26)"
+    mids = [i for i in picked if 4 < i < 20]
+    assert any(b - a == 1 for a, b in zip(mids, mids[1:])) and min(mids) > 8, "a consecutive pair from the middle"

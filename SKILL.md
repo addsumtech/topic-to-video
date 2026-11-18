@@ -5,9 +5,10 @@ displayName: Topic to Video
 version: 2.0.0
 description: >-
   Turn ANY topic — or a slide deck — into a narrated explainer or launch short video,
-  automatically: researches the topic, writes and voices the script first, has the user
-  pick one look from named styles, builds the whole film in that look sequence by
-  sequence (with lighting, material and 3D where it fits), adds sound and captions, and
+  automatically: researches the topic, writes the script and lets the user HEAR it and
+  pick the voice, designs the film (concepts, hero keyframes, an animatic on the real
+  voice for the user to approve), builds it in one look sequence by sequence (with
+  lighting, material and 3D where it fits), adds sound, captions and subtitles, and
   checks the picture. Classic modes: voice a deck as-is, designed HTML pages, or the
   227-shot Remotion library. Any language; can voice a
   deck in a different language than its slides. Use whenever the user wants a short
@@ -56,8 +57,11 @@ verified in a director-path folder. Open it when you build.
 ## The director path
 
 Work in one folder per film, `<film_dir>` (ask nothing about it; make one next to the user's material or under
-the current directory). Steps 1-8 run to the finished film; the user is asked only at step 1 (if needed) and
-step 5.
+the current directory). Steps 1-8 run to the finished film. The user decides at FOUR moments and nowhere else:
+the intake (step 1), the script and voice they HEAR (step 4), the design (step 5) and the animatic (step 5b) — a
+small studio's sign-offs, each where the user can actually judge (the user, 2026-11-18: "there should be some info
+collection stages to let user decide"). Non-interactive: take the recommended option at each, record it in
+`NOTES.md`, and do the checkpoint's own check yourself (listen, look) before going on.
 
 **Design is judgement, not a menu** (the user, 2026-11-17: "design has to be flexible: components, vibe, all of it"). Only a few things
 in this file BIND every film: the facts are sourced, every drawn thing is correct, everything is readable and
@@ -81,12 +85,16 @@ good frames do, seen and judged) and give every frame its ten-second designer's 
 
 Use ONE `AskUserQuestion` call (options, the recommended one first; never a typed question in chat). Skip any
 question the request already answers; if it answers all, ask nothing.
-- **What is it for?** Explain/teach (popular science) · Launch/promote a product · Show how to do something · Other.
+- **What is it for, and who watches?** Explain/teach (popular science) · Launch/promote a product · Show how to do
+  something · Other (the audience and where it plays — a homepage, a keynote, a feed — go in Other or follow-up).
 - **Language** of voice and captions (default: the request's language).
-- **Length:** about 1 minute · 1-2 minutes (recommended for an explainer) · 2-3 minutes.
+- **Length and shape:** about 1 minute · 1-2 minutes (recommended for an explainer) · 2-3 minutes · a vertical
+  short (9:16, 30-60 s, for a feed).
 - **Material:** none (research it) · files or a folder (then ask the path) · a link.
 
-When nobody can answer (a non-interactive run), take the recommended options and record them in `NOTES.md`.
+A second screen only when it applies: **brand assets** (a product or company film: logo + colours · colours only ·
+none; then the path) and **music** (a launch or promo: a generated score, recommended · my own track (path) · none).
+The voice is NOT asked here: the user picks it at step 4, after hearing it.
 
 ### 2. Understand — the content (the skill's strength; never skip)
 
@@ -111,16 +119,28 @@ that SHOWS a tension; short sentences; numbers said the way people say them; eve
 filler, no AI voice tics. Fit the length with `scripts/pace.py --budget`; over length → cut lines, never speed the
 voice past natural.
 
-### 4. Voice first — then lock the cut
+### 4. Hear the script, choose the voice — then lock the cut
 
-Voice the lines with `scripts/say.py` (the skill's voice layer: word timings in the written words, a pronunciation
-lexicon for characters with more than one reading and for names, initialisms spelled for a Chinese voice; voices and flags in the toolbox). Fix a
-misreading in the lexicon, never in the caption. Trim silences, keep pauses inside a line short and give each
-sequence seam a breath. Write `<film_dir>/timeline.json` from the timings: every line's start/end, every word's
-time, the sequence seams. **This timeline is the film's clock: every picture is built to it.** Captions are chunked
-from it.
+**The script is approved by EAR, not by reading** (a script that passed every metric was called machine-written on
+its first listen). `python3 scripts/script_audition.py <film_dir>` speaks five lines (hook, a middle pair, the
+payoff, the close) in the film's voice into `audition.mp3`; `python3 scripts/voice_qa.py <film_dir>` marks places to
+listen for (advisory). Listen yourself, fix what sounds written, then **checkpoint 1**: show the script and the
+audition, and ask (`AskUserQuestion`): **keep this voice** (free, recommended for an explainer) · **MiniMax** (paid,
+the most natural, especially Chinese) · **OpenAI** (paid) · Other (an accent, a gender). A paid pick: say how many
+characters the full film sends, get the key out of band (never pasted into chat), then for MiniMax ask the gender
+and play `scripts/voice_sample.py` candidates; re-audition in the chosen voice with
+`script_audition.py <film_dir> --voice minimax:<id> --allow-paid`; the user signs off on the voice they will get.
+Never spend before that pick.
 
-### 5. Design — concepts, hero moments, keyframes (a dedicated designer; the one checkpoint)
+Then voice every line with `scripts/say.py` (the skill's voice layer: word timings in the written words, a
+pronunciation lexicon for characters with more than one reading and for names, initialisms spelled for a Chinese
+voice; a paid or `say` voice, which reports no timings, gets them ALIGNED from the free voice saying the same words —
+`scripts/word_align.py`, median error ~10-30 ms; voices and flags in the toolbox). Fix a misreading in the lexicon,
+never in the caption. Trim silences, keep pauses inside a line short and give each sequence seam a breath. Write
+`<film_dir>/timeline.json` from the timings: every line's start/end, every word's time, the sequence seams. **This
+timeline is the film's clock: every picture is built to it.** Captions are chunked from it.
+
+### 5. Design — concepts, hero moments, keyframes (a dedicated designer; checkpoint 2)
 
 **Understood first, then remembered.** A frame a first-time viewer cannot read in about a second fails however
 beautiful it is; a clear film nobody remembers fails too (the user, 2026-11-17: "we don't want mediocre one… avoid the
@@ -131,20 +151,32 @@ and forgettable.
 
 1. **Dispatch the designer**: `agents/film-designer.md` (`topic-to-video:film-designer` when the plugin registers it;
    otherwise a general-purpose agent given that file as its instructions), **with effort "high"** and a fresh
-   context. Give it the brief, `script.json`, `timeline.json`, the purpose and length, and the material in `input/`;
+   context. Give it the brief, `script.json`, `timeline.json`, the purpose and length, the material in `input/`, and
+   the user's taught taste (`python3 scripts/taste_ledger.py brief --stage design`, rules in the user's own words);
    nothing about gates. It writes `design/story.md` (the viewer's journey: for a product film, how the product WORKS,
    not only what it made), `design/concepts.md` (three concepts, the first always the product's OWN world, its
    characters, UI and marks, acting the journey out; and the choice), the three **hero moments** rendered as finished
    keyframes (`design/keyframes.jpg`, redesigned until each reads in a second and stays in the memory), a
    `design/treatment.md` with every shot's picture (not only the heroes'), and a draft `shot_plan.json`. If a film on
    this subject already exists, give the designer its path: the new one is judged side by side with it.
-2. **The checkpoint.** Show the user the three concepts (one line each) and `design/keyframes.jpg`, and ask
+2. **Checkpoint 2.** Show the user the three concepts (one line each) and `design/keyframes.jpg`, and ask
    (`AskUserQuestion`): go with this concept, take another of the three, or push it further. **Non-interactive:** one
    round of `agents/keyframe-review.md` (a fresh-eyed reviewer, effort "high") on the keyframes, given each frame's
    spoken line and the baseline film when one exists; the designer revises
    every frame it calls unclear or forgettable, then the build starts. One round, not a loop.
 3. **A style the user named** ("a Memphis style", "like a blueprint", "like a documentary") is a constraint on the
    designer's concepts, not a replacement for them. A brand's own colours and logo always apply.
+
+### 5b. The animatic — the film on its real clock, rough (checkpoint 3)
+
+Before the full build, block the WHOLE film in `film.html`: every shot placed on the timeline with its subject,
+framing and camera move, the heroes from the keyframes, the rest rough (grey boxes, plain colour) — no polish. Then
+`python3 scripts/animatic.py <film_dir> --page film.html` cuts it to the real voice in seconds (`design/animatic.mp4`,
+each shot at 20/50/85 %, the line under the picture; `design/boards/<shot>.png` overrides a shot). **Checkpoint 3:**
+the user watches it and approves the rhythm, the cuts and what is on screen under each line, or names the shots to
+change. Problems found here cost minutes; after the build, a re-render each (a 1.5 s pull from close to wide, a
+scribble standing in for an idea, two shots of one framing were all visible in a Grok Bot animatic).
+Non-interactive: watch it yourself shot by shot, fix what does not read, then build.
 
 The designer draws on `references/video-looks.md` (11 looks), `references/visual-styles.md` (palettes, type and their
 vetoes: no playful register on a somber subject, no busy ground under data), `references/taste-notes.md` and
@@ -166,8 +198,14 @@ captured frame by frame with `scripts/film_frames.py` (headless Chrome at 1920x1
 before its font and probes that a frame is the same in any page), encoded with ffmpeg. **The hero moments are built first**, from the designer's
 keyframes, and every other shot is built to its line in the treatment: the shots between the heroes are where
 labels, tilts and filler creep in. **3D where physicality is the content**: the product's characters or mascot as
-soft lit bodies that act (`st.inflate` + `Stage3D.hop` in `assets/html/stage3d.js`), a device, an object; a screen
-can be a lit panel there, and settles facing the viewer when it carries something to read. A film that stages every
+soft lit bodies that ACT (`assets/html/stage3d.js`: `st.inflate` builds the body with its eyes as separate raised
+pieces; `Stage3D.hop` for an arc with anticipation and a volume-keeping squash, `Stage3D.carry` for what it holds,
+`Stage3D.blink` and `Stage3D.look` so it is alive between moves), a device, an object; a screen can be a lit panel
+there, and settles facing the viewer when it carries something to read. Create stages with `pixelRatio: 2`
+(supersampled; the default read as low resolution) and no `dof` near words or marks (its few-tap blur ghosts them).
+When the MATERIAL is the point of a hero (a product's shell, metal, glass), render that shot in Blender under
+`kit.studio.product_light` with a named finish per part (`scripts/blender_clip.py`; references/craft-study.md: lit
+surfaces were the measured gap) and place it as frames. A film that stages every
 screen as a tilted panel on a dark floor turns into a visible device (rejected on Grok Bot twice, 2026-11-12 and
 -17); alternate grounds (light UI shots, dark 3D shots) for rhythm. Commands in the toolbox. Pieces made elsewhere (a
 Blender clip, a library shot rendered through the workshop) are placed as frames the page draws by frame number.
@@ -179,15 +217,8 @@ objects as parts inside a film's own workshop shot, rendered in the film's look 
 look, render one frame of it and read every word, since some library shots hard-code light ink); real images (`imagefetch`), page
 captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK caption breaks.
 
-**Accents** — small motion effects that make a moment FELT, drawn as motion, not as emoji glyphs. Where they
-go is your judgement, not a mapping: find the moments the viewer should feel something — an answer landing, a
-reveal, a turn in the argument, a number that surprises, the product finishing the job, a joke, the payoff — and
-design the motion that fits that moment, subject and look: a burst of confetti with a ring and rays, a sparkle, a
-glow pulse, a shockwave, a stroke drawing itself, a number counting up, a short pop-up caption phrase popping in, or one built
-from the subject itself (a torn QR corner scattering as fragments). No effect belongs to a particular element.
-Under a second, trailing what it marks; sparing (roughly one per 15-30 s in an explainer, more in a playful or
-launch film, none on a somber subject); energy matched to the look; drawn BEHIND what it celebrates so its text
-stays readable. `assets/html/accents.js` gives them as pure functions of time, with no overshoot.
+**Accents** (a moment made FELT in motion, never an emoji glyph; where, how and how often: `references/director-craft.md`
+§4, "Accents"; `assets/html/accents.js`).
 
 **Rules every frame obeys** (each one cost a real film a defect):
 - **Every drawn thing is correct.** A cat has four legs, a hand five fingers, a molecule its real bonds, a device its
@@ -216,18 +247,15 @@ job, technique and seam, the motion voice, the signature idea; format in `script
 `python3 scripts/shot_plan_qa.py <film_dir>`; `film_qc` then holds the film to it (`seam_qa`: a seam planned as hidden
 must not be a bare swap; build the seam the plan names, never a generic cross-dissolve to pass it: a dissolve
 between two viewpoints of the same characters double-exposes them (Grok Bot 2026-11-18: two approval cards and two
-Bots at once). Where the same subject carries across, plan a `match` cut). An explainer may write one too, and gets the same checks. What lifts one from correct to
-crafted (`references/promo-shotcraft.md`, studied from a
-mature promo-film practice): the product's UI staged as **physical objects in a lit space** (thickness, contact
-shadows, one light, 3D angles), not flat screenshots on a gradient; the film's look grown from the **product's own
-design system**; every feature mapped to one shot and **each technique the star only once**; a focused opening (one
-hero, a complete ≥3 s arc) climbing to the energy peak at the close; **designed holds** (key number or wordmark ≥1 s,
-0.5 s after a batch, interactions at human speed); speed from **acceleration**; **no bare cuts** between scenes; and
-feature demos as **causal chains** (cursor, press, state change, reward). Read it before building one.
+Bots at once). Where the same subject carries across, plan a `match` cut). An explainer may write one too, and gets the same checks. What lifts one from correct to crafted — the UI
+as physical objects in a lit space, the look grown from the product's own design system, each technique the star
+once, a focused opening climbing to the close, designed holds, no bare cuts, demos as causal chains — is
+`references/promo-shotcraft.md`; read it before building one.
 
-**Render** `<film_dir>/final.mp4`: 1920x1080 (or 1080x1920 when asked for vertical), 30 fps, H.264 + AAC. Write
-`<film_dir>/_plan.json` (format in the toolbox) with the cut frames computed by **the same rule the renderer uses to
-switch shots**.
+**Render** the frames with `python3 scripts/film_frames.py <film_dir>` (1920x1080, or 1080x1920 when vertical; 30
+fps) and write `<film_dir>/_plan.json` (format in the toolbox) with the cut frames computed by **the same rule the
+page uses to switch shots**; `python3 scripts/film_deliver.py <film_dir> --encode` makes `final.mp4` (H.264 + AAC
+with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding).
 
 ### 7. Sound
 
@@ -247,16 +275,23 @@ switch shots**.
    A red you believe is wrong is never silenced and never "fixed" by cutting good content: PROVE it on the frames
    (measure the thing the check claims) and with a CONTROL (the same shot with the suspected cause removed), and
    record both in `NOTES.md` (the checks' known blind spots are in the toolbox).
-2. **Look at the real film**: a contact sheet of every shot's settled frame (~90 % through the shot) on one image.
-   One layout repeated, a frame cut off, a caption over a picture, an empty hold, a sequence that drops the look:
-   fix before delivering. Then watch transitions at the seams.
+2. **Look at the real film the way the user will** — every shot at its settled frame (~90 %) on one sheet, AND the
+   middle frame of every cut, AND frame by frame through every moving object and camera move (a defect in motion is
+   between the settled frames: a card sunk into a head, two Bots double-exposed by a dissolve, an arrow that changed
+   shape between render pages were all invisible on a contact sheet). One layout repeated, a frame cut off, a
+   caption over a picture, an empty hold, a sequence that drops the look: fix before delivering.
 3. **Accuracy, of words AND pictures**: every number, name and quote on screen or in the voice traces to the
    brief's sources; and every drawn subject is checked on a close settled frame against its real reference: count
    its parts (legs, fingers, wheels, keys), check proportions, direction and labels. A wrong drawing is a factual
    error, fixed before delivery like a wrong number.
 4. Write `<film_dir>/NOTES.md`: what was made, the look and why, what the checks found and how it was fixed,
-   anything not done. Deliver `final.mp4` and say where it is, its length, and the one thing it says.
-   Offer: a vertical cut, a different look, a change to any line (re-voice that line, re-time, re-render).
+   anything not done. `python3 scripts/film_deliver.py <film_dir>` writes `final.srt` and the cover (the final
+   film's hero shot, captions hidden — mark the page's caption element `data-caption`) and copies them with the film
+   to the Desktop. Say where it is, its length, and the one thing it says. Offer: a vertical cut, a different look, a
+   change to any line (re-voice that line, re-time, re-render).
+5. **What the user teaches, the skill keeps**: each correction they give on the film goes into
+   `python3 scripts/taste_ledger.py add --said "<their words>" --rule "<the rule>" --stage design|build|render`, so
+   the next film's designer is briefed with it (step 5).
 
 ## Guardrails
 

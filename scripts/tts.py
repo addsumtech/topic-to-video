@@ -1177,6 +1177,40 @@ def speak(text, dest, meta, prov, name):
         raise ValueError("unknown voice provider %r (edge / say / openai / minimax)" % prov)
 
 
+def align_words_from_edge(text, dest, meta):
+    """Word timings for a clip from an engine that reports none (minimax / openai / say): the free edge voice speaks
+    the SAME words as a reference, and scripts/word_align.py carries its per-word starts across onto `dest` by aligning
+    the two recordings. Writes <dest>.words.json (edge's format, under the WRITTEN words) and returns its path.
+    Raises RuntimeError when it cannot (no edge-tts, no reference timings): the director path builds its clock from
+    these words, so a voice without them is an error to report, never a guess."""
+    import tempfile
+    import word_align
+    if not _have_edge():
+        raise RuntimeError("no word timings: this engine reports none, and edge-tts (the alignment reference) is "
+                           "not installed (python3 -m pip install edge-tts)")
+    lang = meta.get("language") or "auto"
+    if lang == "auto":
+        lang = _detect_language([{"narration": text}])
+    ref_voice = resolve_edge_voice(lang, gender="female") or "en-US-JennyNeural"
+    said, back = spoken_text(text, meta, "edge", ref_voice)
+    with tempfile.TemporaryDirectory(prefix="align_") as td:
+        ref = os.path.join(td, "ref.mp3")
+        _edge(said, ref, ref_voice, _edge_rate(meta))
+        rwj = os.path.join(td, "ref.words.json")
+        if not os.path.exists(rwj):
+            raise RuntimeError("the edge reference returned no word timings: nothing to align")
+        with open(rwj) as fh:
+            ref_words = json.load(fh)
+        try:
+            words = word_align.align(ref, ref_words, dest)
+        except ValueError as e:
+            raise RuntimeError("word alignment failed: %s" % e) from e
+    out = os.path.splitext(dest)[0] + ".words.json"
+    with open(out, "w") as fh:
+        json.dump(written_words(words, back), fh)
+    return out
+
+
 def synthesize(out_dir, only=None):
     path = os.path.join(out_dir, "storyboard.json")
     data = sb.load(path)

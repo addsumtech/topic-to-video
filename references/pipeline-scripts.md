@@ -1182,6 +1182,18 @@ agent on the beats it points at.
   fonts loaded, and no canvas text was drawn before its font loaded (that text falls back per page and flickers).
   The probe draws K moments in two fresh pages and fails on any difference (fonts, Math.random, timers). Shared page
   driver: `scripts/_filmpage.py` (local http, GPU, backlog sized for parallel pages).
+- `scripts/animatic.py <film_dir> [--page film.html] [--width 1280] [--fps 12]` — the film's boards cut to its real
+  voice (checkpoint 3): own boards, hero keyframes, or (`--page`) the blocking page at 20/50/85 % of each shot; a grey
+  BOARD MISSING card from the treatment otherwise; the shot id and line in a strip under the picture.
+- `scripts/film_deliver.py <film_dir> [--encode] [--grain 3] [--no-copy]` — the final encode (CRF 17, aq-mode 3, a
+  fine temporal grain against banding: the Grok Bot night sky CAMBI 8.0 -> 4.1), `final.srt` from the timeline's
+  words (the classic chunker), `out.cover.png` (the final film's hero shot, `data-caption` hidden), the Desktop copy.
+- `scripts/word_align.py --ref ref.mp3 --ref-words ref.words.json --target paid.mp3 --out paid.words.json` — word
+  starts carried from a timed edge recording onto an untimed one of the same words (DTW over log-mel; median 0-18 ms
+  on real voices); `say.py` calls it for minimax / openai / say voices; refuses silence and unrelated recordings.
+- `scripts/script_audition.py` and `scripts/voice_qa.py` also read a director film's `script.json` (the audition picks
+  hook, the payoff sequence's first line, the close sequence's first line and a middle pair; `--voice` auditions a
+  candidate voice without changing the script).
 - `scripts/film_copy_qa.py <film_dir> [--every 0.5] [--json]` — every word the page shows (DOM text and canvas
   fillText) must occur in the sources (`input/sources/`, `sources/`, `script.json`, `brief.json`), as text or as an
   in-order excerpt of one sentence; anything else is declared in `<film_dir>/copy_ok.json` WITH a reason, or fails.

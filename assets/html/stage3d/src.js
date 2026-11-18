@@ -257,6 +257,46 @@ function create(o) {
         if (snap) for (let i = 0; i < d.length; i += 4) { let best = 0, bd = 1e9;
           for (let j = 0; j < merged.length; j++) { const m = merged[j], e = (d[i] - m[0]) ** 2 + (d[i + 1] - m[1]) ** 2 + (d[i + 2] - m[2]) ** 2; if (e < bd) { bd = e; best = j; } }
           d[i] = merged[best][0]; d[i + 1] = merged[best][1]; d[i + 2] = merged[best][2]; d[i + 3] = 255; }
+        // EYES: a character's face with 1-3 compact marks (its eyes) gets them as separate raised 3D eyes that can
+        // blink and look (Stage3D.blink / Stage3D.look); the painted marks are lifted off the face (body colour under
+        // them). A face with more marks (a logo's letters) keeps them painted. p.eyes = false keeps them painted too.
+        let marks = [];
+        const eyesFound = []; let eyeReason = p.eyes === false ? 'p.eyes is false' : !snap ? 'shaded art' : null;
+        if (snap && p.eyes !== false) {
+          const b0 = merged[0], lab = new Int32Array(S * S).fill(-1), comps = [];
+          const isMark = (i) => (d[i * 4] - b0[0]) ** 2 + (d[i * 4 + 1] - b0[1]) ** 2 + (d[i * 4 + 2] - b0[2]) ** 2 > 400;
+          for (let i0 = 0; i0 < S * S && comps.length < 12; i0++) { if (lab[i0] >= 0 || !isMark(i0)) continue;
+            const c = {n: 0, sx: 0, sy: 0, sxx: 0, syy: 0, sxy: 0, r: 0, g: 0, b: 0, x0: S, x1: 0, y0: S, y1: 0, px: []}, st = [i0];
+            lab[i0] = comps.length;
+            while (st.length) { const i = st.pop(), x = i % S, y = (i - x) / S;
+              c.n++; c.sx += x; c.sy += y; c.sxx += x * x; c.syy += y * y; c.sxy += x * y; c.r += d[i * 4]; c.g += d[i * 4 + 1]; c.b += d[i * 4 + 2];
+              c.x0 = Math.min(c.x0, x); c.x1 = Math.max(c.x1, x); c.y0 = Math.min(c.y0, y); c.y1 = Math.max(c.y1, y); c.px.push(i);
+              for (const j of [i - 1, i + 1, i - S, i + S]) if (j >= 0 && j < S * S && lab[j] < 0 && Math.abs((j % S) - x) <= 1 && isMark(j)) { lab[j] = comps.length; st.push(j); } }
+            comps.push(c); }
+          // specks (an anti-aliased crumb, a highlight pixel left by the snap) are not marks: left painted, not counted
+          // and eyes are alike in size: a mark under a quarter of the largest is a speck too, whatever its own size
+          // and a mark out at the outline is the cut-out's edge fringe (beyond 82 % of the radius there; that rim shows the
+          // body colour anyway, not the face), never an eye
+          const kk = R / half, rimOf = (c) => { const x = (c.sx / c.n / S - 0.5) * 2 / kk, y = (0.5 - c.sy / c.n / S) * 2 / kk;
+            return Math.hypot(x, y) / Math.max(1e-6, rOf(Math.atan2(y, x))); };
+          comps.splice(0, comps.length, ...comps.filter((c) => rimOf(c) <= 0.82));
+          const A = S * S, big = Math.max(0, ...comps.map((c) => c.n));
+          comps.splice(0, comps.length, ...comps.filter((c) => c.n >= A * 0.0004 && c.n >= 0.25 * big));
+          const eyeLike = (c) => c.n > A * 0.0008 && c.n < A * 0.06 && c.n / ((c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1)) > 0.45;
+          marks = comps.map((c) => ({share: +(c.n / A).toFixed(4), fill: +(c.n / ((c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1))).toFixed(2),
+                                     at: [Math.round(c.sx / c.n), Math.round(c.sy / c.n)], rgb: [c.r, c.g, c.b].map((v) => Math.round(v / c.n))}));
+          // why no separate eyes, when there are none (group.userData.eyeReason): a film can say it, a reviewer read it
+          eyeReason = !comps.length ? 'no marks on the face' : comps.length > 3 ? comps.length + ' marks (a logo, not eyes)'
+            : comps.filter((c) => !eyeLike(c)).map((c) => 'a mark of ' + (100 * c.n / A).toFixed(2) + '% of the face, fill '
+              + (c.n / ((c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1))).toFixed(2)).join('; ') || null;
+          if (comps.length >= 1 && comps.length <= 3 && comps.every(eyeLike)) for (const c of comps) {
+            const mx = c.sx / c.n, my = c.sy / c.n, vxx = c.sxx / c.n - mx * mx, vyy = c.syy / c.n - my * my, vxy = c.sxy / c.n - mx * my;
+            const tr = vxx + vyy, det = vxx * vyy - vxy * vxy, l1 = tr / 2 + Math.sqrt(Math.max(0, tr * tr / 4 - det)), l2 = Math.max(1e-6, tr - l1);
+            eyesFound.push({cx: mx, cy: my, a: 2 * Math.sqrt(l1), b: 2 * Math.sqrt(l2), ang: 0.5 * Math.atan2(2 * vxy, vxx - vyy),
+                            col: [c.r / c.n, c.g / c.n, c.b / c.n]});
+            for (const i of c.px) { d[i * 4] = b0[0]; d[i * 4 + 1] = b0[1]; d[i * 4 + 2] = b0[2]; }   // lifted off the face
+          }
+        }
         if (snap) f2.putImageData(fd, 0, 0);
         const tex = new THREE.CanvasTexture(fc); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
         // the face's marks (eyes, a logo's parts) stand slightly proud of the body: a soft relief map where the face is
@@ -305,6 +345,38 @@ function create(o) {
         mesh.userData.inside = (x, y, z) => { const r = Math.hypot(x, y), a = Math.atan2(y, x), rr0 = rOf(a);
           if (r >= rr0) return false; const ps = prof(r / rr0); return z < front * ps && z > -back * ps; };
         group.userData.mesh = mesh;
+        // the eyes: a pill (superellipse) pillow per mark, on the dome, tilted to its surface; a lid container that
+        // squashes for a blink; placed again (x, y offset) for a look
+        const zf = (x, y) => { const r = Math.hypot(x, y), r0 = rOf(Math.atan2(y, x)); return front * prof(Math.min(0.98, r / Math.max(1e-6, r0))); };
+        const eyes = eyesFound.map((e) => {
+          const u = 2 / (k * S), a = e.a * u, b = e.b * u, x0 = (e.cx / S - 0.5) * 2 / k, y0 = (0.5 - e.cy / S) * 2 / k;
+          const rf = (t) => Math.pow(Math.pow(Math.abs(Math.cos(t) / a), 2.6) + Math.pow(Math.abs(Math.sin(t) / b), 2.6), -1 / 2.6);
+          const NE = 64, SE = 10, P = [], I = [], fz = 0.35 * b, bz = 0.05 * b;
+          const pr = (side) => { const base = P.length / 3; P.push(0, 0, side > 0 ? fz : -bz);
+            for (let j = 1; j <= SE; j++) { const sj = 1 - Math.pow(1 - j / SE, 2); for (let i = 0; i < NE; i++) { const t = i / NE * Math.PI * 2, r = rf(t) * sj;
+              P.push(Math.cos(t) * r, Math.sin(t) * r, (side > 0 ? fz : -bz) * prof(sj)); } }
+            const at = (j, i) => (j === 0 ? base : base + 1 + (j - 1) * NE + (i % NE));
+            for (let i = 0; i < NE; i++) side > 0 ? I.push(at(0, 0), at(1, i), at(1, i + 1)) : I.push(at(0, 0), at(1, i + 1), at(1, i));
+            for (let j = 1; j < SE; j++) for (let i = 0; i < NE; i++) { const q = at(j, i), w = at(j, i + 1), c2 = at(j + 1, i), z2 = at(j + 1, i + 1);
+              side > 0 ? I.push(q, c2, w, w, c2, z2) : I.push(q, w, c2, w, z2, c2); } };
+          pr(1); pr(-1);
+          const eg = new THREE.BufferGeometry(); eg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); eg.setIndex(I); eg.computeVertexNormals();
+          const ec = new THREE.Color().setRGB(e.col[0] / 255, e.col[1] / 255, e.col[2] / 255, THREE.SRGBColorSpace);
+          const em = new THREE.Mesh(eg, new THREE.MeshPhysicalMaterial({color: ec, roughness: 0.25, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05,
+            emissive: ec, emissiveIntensity: p.markGlow == null ? 0.35 : p.markGlow, envMapIntensity: p.env == null ? 1 : p.env}));
+          em.rotation.z = -e.ang; em.castShadow = true;
+          const lid = new THREE.Group(); lid.add(em);
+          const holder = new THREE.Group(); holder.add(lid); mesh.add(holder);
+          const place = (x, y) => { const r = Math.hypot(x, y), lim = 0.8 * rOf(Math.atan2(y, x));
+            if (r > lim) { x *= lim / r; y *= lim / r; }                 // a look keeps the eye on the face, inside its rim
+            const h = 0.01, z = zf(x, y);
+            const nrm = new THREE.Vector3(-(zf(x + h, y) - zf(x - h, y)) / (2 * h), -(zf(x, y + h) - zf(x, y - h)) / (2 * h), 1).normalize();
+            holder.position.set(x, y, z - 0.25 * bz); holder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm); };
+          place(x0, y0);
+          const fits = (x, y) => Math.hypot(x, y) <= 0.8 * rOf(Math.atan2(y, x));
+          return {lid, mesh: em, x0, y0, place, fits};
+        });
+        group.userData.eyes = eyes; group.userData.eyeReason = eyes.length ? null : eyeReason; group.userData.marks = marks;
       });
       pending.push(job);
       group.userData.body = body;
@@ -391,6 +463,24 @@ function hop(t01, o) {
   return {y, sx: 1 / Math.sqrt(sy), sy};
 }
 
+// a character's eyes (inflate() found 1-3 eye marks on its face): blink(group, 0..1) closes them like a lid (1 = shut);
+// look(group, dx, dy) slides them across the face, -1..1 of the way to a side, staying on the surface. Both are pure
+// functions of their arguments (call them every frame from seek(t)); a character without separate eyes is left as is.
+function blink(group, amount) {
+  for (const e of (group.userData.eyes || [])) e.lid.scale.y = 1 - 0.92 * clamp01(amount);
+}
+function look(group, dx, dy) {
+  // the eyes move TOGETHER: the shift is the largest every eye can take and stay on the face (one eye stopping at the
+  // rim while the other moves on bunched them together)
+  const eyes = group.userData.eyes || [], ox = 0.16 * (dx || 0), oy = 0.12 * (dy || 0);
+  let lo = 0, hi = 1;
+  if (!eyes.every((e) => e.fits(e.x0 + ox, e.y0 + oy))) {
+    for (let it = 0; it < 18; it++) { const m = (lo + hi) / 2; if (eyes.every((e) => e.fits(e.x0 + ox * m, e.y0 + oy * m))) lo = m; else hi = m; }
+    hi = lo;
+  }
+  for (const e of eyes) e.place(e.x0 + ox * hi, e.y0 + oy * hi);
+}
+
 // an object a character CARRIES rides on its real body: set every frame, after the character's pose, it sits on the top
 // of the body as it is posed right now (hop height, squash and all) plus a small gap, follows its x/z, turns half as far,
 // and tips with a squash. A carried card placed at a fixed height sinks into a hopping head (Grok Bot, 2026-11-18).
@@ -406,4 +496,4 @@ function carry(obj, character, o) {
   return top;
 }
 
-export {create, stages, ease, easeOut, lerp, lerp3, clamp01, hop, carry, THREE};
+export {create, stages, ease, easeOut, lerp, lerp3, clamp01, hop, carry, blink, look, THREE};

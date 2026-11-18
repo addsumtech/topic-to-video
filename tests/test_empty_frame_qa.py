@@ -96,7 +96,7 @@ def test_film_qc_refuses_a_dir_without_a_plan(tmp_path, capsys):
 def test_film_qc_runs_every_check_on_the_plan_video(blank_hold_film):
     d, _ = blank_hold_film
     names = [n for n, _c in film_qc.checks(str(d), str(d / "final.mp4"), str(d / "_plan.json"))]
-    assert names == ["flash", "rewind", "glide", "empty", "shake", "captions", "pan speed"]
+    assert names == ["flash", "rewind", "glide", "empty", "shake", "captions", "pan speed", "repetition", "banding"]
     glide = dict(film_qc.checks(str(d), str(d / "final.mp4"), str(d / "_plan.json")))["glide"]
     assert "--video=" + str(d / "final.mp4") in glide   # picture_glide_qa otherwise reads <dir>/out.mp4
 

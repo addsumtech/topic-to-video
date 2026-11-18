@@ -72,8 +72,16 @@ def main(argv):
         segs = [(int(a), int(b)) for a, b, *_ in json.load(open(os.path.join(out_dir, ".render_record.json"),
                                                                  encoding="utf-8"))["segments"]]
     except (ImportError, OSError, ValueError, KeyError):
-        print("[repetition] UNMEASURED — needs numpy and the render record of a remotion film")
-        return 0
+        segs = None
+    if segs is None:   # a director-path film: its shots are _plan.json's segments, its film the plan's video
+        try:
+            plan = json.load(open(os.path.join(out_dir, "_plan.json"), encoding="utf-8"))
+            segs = [(int(s["start"]), int(s["end"])) for s in plan["segments"]]
+            if not argflag(argv, "video", None):
+                video = os.path.join(out_dir, plan.get("video", "final.mp4"))
+        except (OSError, ValueError, KeyError):
+            print("[repetition] UNMEASURED — needs the render record of a remotion film or a director film's _plan.json")
+            return 0
     if not os.path.isfile(video):
         print("[repetition] UNMEASURED — no film at %s" % video)
         return 0

@@ -618,11 +618,15 @@ def main(argv):
         return 2
     out_dir = argv[0]
     board = os.path.join(out_dir, "storyboard.json")
-    if not os.path.exists(board):
-        print("[voice_qa] no storyboard.json in %s" % out_dir)
+    if os.path.exists(board):
+        data = json.load(open(board, encoding="utf-8"))
+        slides = data.get("slides") or []
+    elif os.path.exists(os.path.join(out_dir, "script.json")):
+        import script_audition      # a director-path script: its lines read as beats, the same way the audition does
+        slides = script_audition.load(out_dir)[1]
+    else:
+        print("[voice_qa] no storyboard.json or script.json in %s" % out_dir)
         return 2
-    data = json.load(open(board, encoding="utf-8"))
-    slides = data.get("slides") or []
     if not isinstance(slides, list):
         print("[voice_qa] storyboard.json has no usable `slides` list")
         return 2

@@ -14,7 +14,9 @@ clarity is not boldness: an abstract night tower with tilted screens lost to an 
 own characters acted out each step.
 
 You are given: the brief (thesis, the one thing, audience), `script.json` + `timeline.json` (the voice's clock), the
-material in `input/` (real screens, logos, data, footage), the purpose and length. Read
+material in `input/` (real screens, logos, data, footage), the purpose and length, and the user's TAUGHT TASTE
+(`taste_ledger.py brief --stage design`: rules in the user's own words; every one applies, and a concept that breaks
+one is out). Read
 `references/taste-notes.md`, `references/video-looks.md` and, for a product film, `references/promo-shotcraft.md` —
 as a technique stack, not as a menu.
 
@@ -36,7 +38,8 @@ is a gallery, not a launch. Write the journey as 4-7 movements, each with the li
 **Start from what the product already has that is alive.** Its characters, mascot, signature object, the motion its
 own UI makes: that is the protagonist, and it should ACT (enter, carry the work, wait at the gate, hand it back) with a
 character's motion (anticipation, arc, squash that keeps volume, follow-through: `Stage3D.hop` on a page,
-`remotion/src/runtime/character.ts` in Remotion).
+`remotion/src/runtime/character.ts` in Remotion), and stay ALIVE between moves: it blinks now and then, looks at what
+it is about to act on, and what it holds rides on it (`Stage3D.blink`, `Stage3D.look`, `Stage3D.carry`).
 A concept whose metaphor pushes the product's own protagonist to the margins (a crop on a sill, a row of stickers) is
 the wrong concept, however bold (Grok Bot, 2026-11-17: an abstract tower beat the Bots' own 3D characters to the lead,
 and the user preferred the older film where the characters acted: "那些小人的动态很不错，但是你却没有想到").
@@ -69,8 +72,11 @@ before/after as the whole idea. If a concept could be described as one of these,
 ## 3. Choose — at the end of `design/concepts.md`
 Pick the concept a first-time viewer would understand best AND remember longest; boldness breaks a tie, it never
 outweighs clarity. It must be FEASIBLE with this skill's engines (pages, the 3D stage `assets/html/stage3d.js` with
-`st.inflate` for characters and marks, Blender via `scripts/blender_clip.py`, the Remotion kit) and TRUE to the
-product (sourced claims; real screens where they read at size, the UI drawn simplified and honest where they do not).
+`st.inflate` for characters and marks, Blender via `scripts/blender_clip.py` — the route for a hero whose MATERIAL is
+the point, under `kit.studio.product_light` with a named finish per part (`references/craft-study.md`: lit surfaces
+were the measured gap) — the Remotion kit) and TRUE to the product (sourced claims; real screens where they read at
+size, the UI drawn simplified and honest where they do not: the real product's layout, its words or grey bars).
+Every drawn object is checked against its real reference before it is drawn (`references/object-authoring.md`).
 Say why, and what you take from the other two.
 
 ## 4. Hero keyframes — `design/keyframes/*.png` + `design/keyframes.jpg`
@@ -90,7 +96,10 @@ cropped by a phone frame), every character from the one official image that pair
 ## 5. The treatment — `design/treatment.md` and a draft `shot_plan.json`
 Movement by movement: EVERY shot's picture in a line or two (what we see, what it says, why each element is there),
 its technique and seam, the camera, the light, the motion voice; where the three hero moments sit; the signature
-idea. The shots between the heroes are designed here too: left to the build, they fill with labels and tilts. Draft `shot_plan.json` in the format
+idea. The shots between the heroes are designed here too: left to the build, they fill with labels and tilts. The
+build blocks every shot from this treatment and the user approves the cut as an ANIMATIC on the real voice
+(`scripts/animatic.py`) before anything is polished: write each shot so its blocking reads; a rough board of your
+own for any shot (`design/boards/<shot id>.png`) is used in place of the blocking frame. Draft `shot_plan.json` in the format
 of `scripts/shot_plan_qa.py` (with `signature`, and the hero moments marked `hero: true`) and make it pass.
 
 Return a short summary: the chosen concept in one sentence, the three hero moments, the path to `keyframes.jpg`, and

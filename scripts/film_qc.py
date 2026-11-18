@@ -7,7 +7,9 @@ against the plan's cuts), picture_glide_qa (a picture stepping instead of glidin
 empty_frame_qa (a blank hold of a second or more), shake_qa (the whole frame vibrating instead of travelling) and
 caption_size_qa (burned captions too small to read on a phone); with a film.html, page_overlap_qa (words or
 controls colliding on the page over time) and film_copy_qa (every word shown comes from the sources or is declared);
-with a stage3d page, stage_contacts_qa (nothing passes through anything); pan_speed_qa (no camera whip that strobes); with a shot_plan.json, also shot_plan_qa (the craft
+with a stage3d page, stage_contacts_qa (nothing passes through anything); pan_speed_qa (no camera whip that strobes);
+repetition_qa (advisory: one staging repeated as the film's device); banding_qa (dark gradients stepping after the
+encode; scripts/film_deliver.py --encode adds the grain finish that fixes it); with a shot_plan.json, also shot_plan_qa (the craft
 plan is sound) and seam_qa (every seam the plan says is hidden really is).
 Prints one line per check — OK, or the check's own findings — and exits 1 if any check is red, so "clean" is a
 fact the caller can test, not a reading of the log.
@@ -42,6 +44,8 @@ def checks(d, video, plan):
     if _uses_stage3d(d):
         out.append(("contacts", [py, os.path.join(HERE, "stage_contacts_qa.py"), d]))
     out.append(("pan speed", [py, os.path.join(HERE, "pan_speed_qa.py"), d]))
+    out.append(("repetition", [py, os.path.join(HERE, "repetition_qa.py"), d, "--video=" + video]))   # advisory
+    out.append(("banding", [py, os.path.join(HERE, "banding_qa.py"), d, "--video", video]))
     if os.path.isfile(os.path.join(d, "shot_plan.json")):
         out += [("shot plan", [py, os.path.join(HERE, "shot_plan_qa.py"), d]),
                 ("seams", [py, os.path.join(HERE, "seam_qa.py"), d])]
@@ -70,7 +74,13 @@ def main(argv):
     for name, cmd in checks(d, video, plan):
         r = subprocess.run(cmd, capture_output=True, text=True)
         out = (r.stdout + r.stderr).strip()
-        if r.returncode == 0:
+        warns = [l.strip() for l in out.splitlines() if l.lstrip("[").split("]")[-1].strip().startswith("WARN")
+                 or " WARN " in l]
+        if r.returncode == 2 and "NOT MEASURED" in out:   # this machine cannot measure it: said, never passed off as OK
+            print("WARN %s (not measured)\n%s" % (name, "\n".join("     " + l for l in out.splitlines()[-3:])))
+        elif r.returncode == 0 and warns:      # an ADVISORY finding: shown, never hidden behind an OK
+            print("WARN %s\n%s" % (name, "\n".join("     " + l for l in warns[:6])))
+        elif r.returncode == 0:
             print("OK   %s" % name)
         else:
             red.append(name)

@@ -61,11 +61,17 @@ def _fps(mp4):
 
 
 def scene_spans(out_dir):
-    """[(label, start, end)] from the storyboard's durations; [] when there is none to read."""
+    """[(label, start, end)] from the storyboard's durations, or a director film's _plan.json shots; [] when neither."""
     try:
         board = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8"))
     except (OSError, ValueError):
-        return []
+        try:
+            plan = json.load(open(os.path.join(out_dir, "_plan.json"), encoding="utf-8"))
+            fps = float(plan.get("fps", 30))
+            return [(s.get("id") or "shot %02d" % (k + 1), s["start"] / fps, s["end"] / fps)
+                    for k, s in enumerate(plan.get("segments") or [])]
+        except (OSError, ValueError, KeyError):
+            return []
     spans, t = [], 0.0
     for i, s in enumerate(board.get("slides") or []):
         d = float(s.get("duration") or 0)
@@ -75,6 +81,8 @@ def scene_spans(out_dir):
 
 
 def check(out_dir, every=1.0, mp4=None):
+    if not mp4 and not os.path.isfile(os.path.join(out_dir, "out.mp4")) and os.path.isfile(os.path.join(out_dir, "_plan.json")):
+        mp4 = os.path.join(out_dir, json.load(open(os.path.join(out_dir, "_plan.json"), encoding="utf-8")).get("video", "final.mp4"))
     mp4 = mp4 or os.path.join(out_dir, "out.mp4")
     if not os.path.isfile(mp4):
         return {"measured": False, "why": "no %s" % os.path.basename(mp4), "findings": [], "samples": []}
@@ -102,9 +110,10 @@ def main(argv):
     ap.add_argument("out_dir")
     ap.add_argument("--every", type=float, default=1.0, help="seconds between sampled frames (default 1)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--video", default=None, help="the film to measure (default out.mp4, or a director film's plan video)")
     a = ap.parse_args(argv)
     every = a.every
-    r = check(os.path.abspath(a.out_dir), every)
+    r = check(os.path.abspath(a.out_dir), every, a.video)
     if a.json:
         print(json.dumps(r, ensure_ascii=False))
     elif not r["measured"]:

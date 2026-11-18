@@ -28,12 +28,27 @@ vocabulary SKILL.md's "Design is judgement" refers to. The classic version's oth
 - engines: `edge:<id>` (free), `minimax:<id>` / `openai:<id>` only with the user's own key, `say:<name>` offline;
 - a transient edge failure retried; any other failure stops with its reason (never a silent different voice).
 
+**The audition and the voice pick (checkpoint 1).** `python3 scripts/script_audition.py <film_dir> [--voice <spec>]
+[--allow-paid]` reads `script.json` (hook, the payoff sequence's first line, the close = the last sequence's first
+line, a middle pair) and speaks them in the script's voice or `--voice` into `audition.mp3` (a paid voice only with
+`--allow-paid`, i.e. after the user picked it); `python3 scripts/voice_qa.py <film_dir>` marks where it sounds written
+(advisory). MiniMax candidates: `MINIMAX_API_KEY=… python3 scripts/voice_sample.py <film_dir> --gender female|male
+--lang <code> --text "<the hook line>"` -> `voice_samples/` (the key out of band, never in chat or a file). A paid or
+`say` voice reports no word timings: `say.py` aligns them from the free edge voice speaking the same words
+(`scripts/word_align.py`; measured median 0-18 ms, p90 <= 60 ms, worst ~0.2 s at a line's last word), and stops with
+the reason if it cannot (no edge-tts): the timeline is never guessed.
+
 Voices: zh `zh-CN-YunxiNeural` / `zh-CN-XiaoxiaoNeural`; en `en-US-AndrewMultilingualNeural` /
 `en-US-AvaMultilingualNeural` (`references/tts-voices.md`). A misreading is fixed in the lexicon, never in the caption.
 Editing the clips: trim leading/trailing silence, cap pauses inside a line (~0.25 s), a longer breath (0.4-0.6 s) at
 each sequence seam; no clipping, even loudness across lines.
 
-## Look (step 5)
+## Look (step 5) and the animatic (step 5b)
+- The designer's brief includes the user's taught taste: `python3 scripts/taste_ledger.py brief --stage design`.
+- `python3 scripts/animatic.py <film_dir> [--page film.html] [--width 1280]` -> `design/animatic.mp4`: each shot's
+  board (`design/boards/<shot>.png`, else the hero keyframes in hero order, else — with `--page` — the page itself at
+  20/50/85 % of the shot, else a grey card from the treatment marked BOARD MISSING), the shot id and line in a strip
+  under the picture, the voice on the timeline. Seconds to make; the user approves it before the full build.
 - `references/video-looks.md` (11 looks, a vocabulary) and `references/visual-styles.md` (palette and type
   sub-registers, with the vetoes).
 - `python3 scripts/theme.py <film_dir> --style <key>` writes `theme.css`: the style's contrast-safe palette and type as
@@ -42,7 +57,8 @@ each sequence seam; no clipping, even loudness across lines.
 ## Building (step 6)
 **Pages.** One `film.html`, every frame a pure function of time (`window.seek(t)`), captured with headless Chrome.
 Icons: `references/icons.md` (one inline-SVG line family, Lucide). Captions: `python3 scripts/caption_words.py "…"`
-shows where a CJK caption may break.
+shows where a CJK caption may break; placement and line rules (on the frame's own ground, no strip, nothing else in
+the band) are `references/captions.md`.
 
 **The 3D stage** — `assets/html/stage3d.js`, one classic script (three.js 0.169
 bundled from `remotion/node_modules` by `scripts/build_stage3d.sh`), so a film page loads it with a plain `<script>`:
@@ -77,7 +93,11 @@ from it. Act with
 `const h = Stage3D.hop(u, {height: 0.4}); g.userData.body.position.y = h.y; g.userData.body.scale.set(h.sx, h.sy, h.sx)`
 (anticipation, arc, a volume-keeping landing squash). Whatever a character carries rides on it:
 `Stage3D.carry(card, bot, {h: cardHeight})` every frame after the pose puts it on the top of the body as posed now
-(it rises with the hop, dips with the squash); never a fixed height, which a hopping head sinks into. Brand colours stay true with `create({toneMapping: 'neutral'})`. Type stays in the page's DOM over the canvas
+(it rises with the hop, dips with the squash); never a fixed height, which a hopping head sinks into. A face with 1-3
+compact marks gets them as separate raised EYES (`g.userData.eyes`; `eyes: false` keeps them painted; a face with
+more marks, a logo, keeps them painted and says why in `g.userData.eyeReason`): `Stage3D.blink(g, 0..1)` shuts them
+like a lid, `Stage3D.look(g, dx, dy)` moves both together, kept on the face — a character blinks now and then and
+looks at what it is about to act on. `create({pixelRatio: 2})` for every stage that carries characters or words. Brand colours stay true with `create({toneMapping: 'neutral'})`. Type stays in the page's DOM over the canvas
 (crisp). Capture with Chrome's `--allow-file-access-from-files` (WebGL refuses `file://` images otherwise) or serve the
 folder over http. Measured on the first keyframes (2026-11-17): a hand-tuned frame went from "screens floating in a
 void" to cinematic only after three render-and-judge rounds — composition is the designer's work, not the kit's.
@@ -160,8 +180,18 @@ A starting point measured on 20 official launch films (`references/craft-standar
 - Mix: music well under the voice and ducked while it speaks; SFX short and high-passed; master to about -14 LUFS
   integrated with true peak at or under -2 dBTP: ffmpeg `loudnorm=I=-14:TP=-2:LRA=11`.
 
+## Rendering and delivery (steps 6 and 8)
+- Frames: `python3 scripts/film_frames.py <film_dir> [--from A --to B] [--workers 4] [--probe 6]` -> `work/frames/`
+  (every frame written; refuses canvas text drawn before its font loaded; the probe compares K moments in two fresh
+  pages). A film page MUST draw canvas text only after `await document.fonts.load(...)` (in `filmReady`), and mark its
+  caption element `data-caption` (the cover hides it).
+- `python3 scripts/film_deliver.py <film_dir> --encode [--grain 3]`: the frames + `audio/mix.wav` -> `final.mp4`
+  (CRF 17, aq-mode 3, a fine temporal luma grain against banding), `final.srt` (the classic caption chunker on the
+  timeline's words, 0.1 s lead), `out.cover.png` (the final film's first hero shot, captions hidden), and the copy to
+  the Desktop (`--no-copy` to skip).
+
 ## Checks (step 8)
-`python3 scripts/film_qc.py <film_dir>`: flash, rewind (against `_plan.json`'s cuts), picture glide, empty frames,
+`python3 scripts/film_qc.py <film_dir>` (each check's own doc in `references/pipeline-scripts.md`): flash, rewind (against `_plan.json`'s cuts), picture glide, empty frames,
 shake, overlaps (`page_overlap_qa`: words or controls colliding on `film.html` over time, judged per line
 fragment; mark a deliberate stack `data-overlap-ok`) and caption size (`caption_size_qa`: the burned caption line ≥ 4.6 % of the frame height in glyph ink, i.e. a
 ~54-56 px font at 1080p) on `final.mp4`; exit 1 on any red. `_plan.json`:
@@ -173,6 +203,11 @@ captions changing inside a shot under a slow push read as extra motion (the diam
 captions, 0.080 without). A turning object that repeats by design is a `kind: "loop"` segment in `_plan.json`, with
 the seam proved (the wrap frame differs no more than consecutive frames).
 picture_glide_qa is slow when several films render at once; on a busy machine run it per shot (`--clip --from --to`).
+Also in film_qc: copy (every word shown sourced or in `copy_ok.json` with a reason), contacts (stage3d: nothing inside
+anything, no coplanar stacks), pan speed (no whip over 48 px/frame), repetition (advisory: one staging as the film's
+device), banding (CAMBI > 5 on a shot: encode with the grain finish), shot plan and seams (a plain cross-dissolve
+passed off as a planned seam fails). An advisory finding prints as WARN; a check this machine cannot run prints
+WARN (not measured), never OK.
 
 ## Why these rules (the incidents behind SKILL.md)
 - Style frames must differ as looks: the first end-to-end run (2026-11-16) offered one picture with three borders.
