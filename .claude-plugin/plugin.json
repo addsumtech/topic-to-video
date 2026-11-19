@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "topic-to-video",
   "displayName": "Topic to Video",
-  "description": "Make a short narrated video, with captions, from a topic or a slide deck. It researches the subject, writes and voices the script, designs and renders each scene (Remotion or HTML), checks the result and copies the MP4 to your Desktop. Works in English and Chinese; free by default with edge-tts and ffmpeg.",
-  "version": "2.0.0",
+  "description": "Make a finished short film from a topic, a product or a slide deck: explainers and launch films. It researches and sources every fact, lets you hear the script and pick the voice, designs the film (concepts, hero keyframes, an animatic), builds it in code with real 3D where it fits (Three.js, Blender), adds sound and captions, and checks every rendered frame before copying the MP4 and SRT to your Desktop. Any language; free voice by default.",
+  "version": "3.0.0",
   "author": {
     "name": "Addsum",
     "url": "https://github.com/addsumtech"
@@ -14,9 +14,13 @@
   "keywords": [
     "agent-skill",
     "explainer-video",
+    "launch-video",
+    "video-generation",
     "narration",
     "voiceover",
     "subtitles",
+    "blender",
+    "threejs",
     "remotion",
     "edge-tts",
     "ffmpeg",

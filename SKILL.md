@@ -2,7 +2,7 @@
 name: topic-to-video
 slug: topic-to-video
 displayName: Topic to Video
-version: 2.0.0
+version: 3.0.0
 description: >-
   Turn ANY topic — or a slide deck — into a narrated explainer or launch short video,
   automatically: researches the topic, writes the script and lets the user HEAR it and
