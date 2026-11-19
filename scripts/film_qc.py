@@ -27,6 +27,8 @@ import os
 import subprocess
 import sys
 
+import _common as _c
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -62,12 +64,15 @@ def _uses_stage3d(d):
 
 
 def main(argv):
-    only = None
-    if any(a.startswith("--only") for a in argv):
-        k = next(i for i, a in enumerate(argv) if a.startswith("--only"))
-        val = argv[k].split("=", 1)[1] if "=" in argv[k] else (argv[k + 1] if k + 1 < len(argv) else "")
-        only = {x.strip() for x in val.split(",") if x.strip()}
-        argv = [a for i, a in enumerate(argv) if i != k and not (i == k + 1 and "=" not in argv[k])]
+    _c.refuse_unknown(argv, valued=("only",), usage=__doc__.strip().splitlines()[2].strip())
+    only = _c.argflag_list(argv, "only")
+    if any(a.split("=", 1)[0] == "--only" for a in argv) and not only:
+        print("[film_qc] --only needs check names, e.g. --only glide,seams", file=sys.stderr)
+        return 2
+    only = None if only is None else set(only)
+    flag = [i for i, a in enumerate(argv) if a.split("=", 1)[0] == "--only"]
+    taken = set(flag) | {i + 1 for i in flag if "=" not in argv[i]}
+    argv = [a for i, a in enumerate(argv) if i not in taken]
     if len(argv) != 1 or argv[0].startswith("-"):
         print(__doc__.strip().splitlines()[2].strip(), file=sys.stderr)
         return 2

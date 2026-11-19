@@ -452,13 +452,16 @@ function create(o) {
       const points = (ob) => { if (pts.has(ob)) return pts.get(ob); const out = [];
         if (ob.userData.kind === 'panel') { const [w, h] = ob.userData.size;
           for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) out.push(new THREE.Vector3((i / 6 - 0.5) * w * 0.96, (j / 6 - 0.5) * h * 0.96, 0).applyMatrix4(ob.matrixWorld)); }
+        // a kit laptop: a grid through the middle of its base, so a character standing on it is fine and one sunk into it is not
+        else if (ob.userData.kind === 'laptop') { const [w, d] = ob.userData.size, y = ob.userData.baseTop / 2;
+          for (let i = 0; i <= 16; i++) for (let j = 0; j <= 16; j++) out.push(new THREE.Vector3((i / 16 - 0.5) * w * 0.96, y, (j / 16 - 0.5) * d * 0.96).applyMatrix4(ob.matrixWorld)); }
         else { const m = ob.userData.mesh, pa = m.geometry.attributes.position, step = Math.max(1, Math.floor(pa.count / 400));
           for (let i = 0; i < pa.count; i += step) out.push(new THREE.Vector3().fromBufferAttribute(pa, i).multiplyScalar(0.97).applyMatrix4(m.matrixWorld)); }
         pts.set(ob, out); return out; };
       const res = [];
       for (let i = 0; i < live.length; i++) for (let j = 0; j < live.length; j++) { if (i === j) continue;
         const A = live[i], B = live[j];
-        if (B.userData.kind === 'character' && (A.userData.kind === 'panel' || i < j)) {
+        if (B.userData.kind === 'character' && (A.userData.kind !== 'character' || i < j)) {
           const m = B.userData.mesh, inv = m.matrixWorld.clone().invert(); let n = 0; const P = points(A);
           for (const q of P) { V.copy(q).applyMatrix4(inv); if (m.userData.inside(V.x, V.y, V.z)) n++; }
           if (n >= 2) res.push({a: A.name, b: B.name, kind: 'penetrates', share: +(n / P.length).toFixed(3)});
@@ -479,7 +482,9 @@ function create(o) {
       // those corners: the square backing shows past the rounded face as grey corners (hand-built cards; st.card avoids it)
       const cornerless = new Map();
       const roundCorners = (im) => { if (cornerless.has(im)) return cornerless.get(im); let v = false;
-        try { const c = document.createElement('canvas'); c.width = 4; c.height = 4; const g = c.getContext('2d'); g.drawImage(im, 0, 0, 1, 1, 0, 0, 4, 4); v = g.getImageData(1, 1, 1, 1).data[3] < 128; } catch (e) { v = false; }
+        try { const c = document.createElement('canvas'); c.width = 4; c.height = 4; const g = c.getContext('2d'); g.drawImage(im, 0, 0, 1, 1, 0, 0, 4, 4); v = g.getImageData(1, 1, 1, 1).data[3] < 128;
+          // and opaque in its middle: a card, not a see-through pattern (a speaker grille's holes on a clear sheet)
+          g.clearRect(0, 0, 4, 4); g.drawImage(im, 0, 0, 4, 4); v = v && g.getImageData(1, 1, 2, 2).data.every((x, i) => i % 4 !== 3 || x > 200); } catch (e) { v = false; }
         cornerless.set(im, v); return v; };
       scene.traverseVisible((M) => {
         const im = M.material && M.material.map && M.material.map.image; if (!im || !M.parent || !shown(M) || !roundCorners(im)) return;

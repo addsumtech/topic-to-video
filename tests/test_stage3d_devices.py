@@ -131,3 +131,21 @@ def test_brackets_follow_a_tilted_object(tmp_path):
     ang = math.degrees(math.atan2(-(y1 - y0), x1 - x0))
     assert 22 < ang < 35, "the quad's top edge is tilted with the card (rotZ 0.5 rad ~ 29 deg): %.1f" % ang
     assert abs(math.hypot(x1 - x0, y1 - y0) - math.hypot(x2 - x1, y2 - y1)) < 8, "a square card stays square on screen"
+
+
+def test_a_character_and_a_kit_laptop_are_judged_together(tmp_path):
+    im = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+    ImageDraw.Draw(im).ellipse((20, 20, 180, 180), fill=(0, 198, 106, 255))
+    im.save(tmp_path / "bot.png")
+    res = _run(tmp_path, """
+      const st = Stage3D.create({canvas: document.getElementById('c')}); st.studio();
+      const sc = document.createElement('canvas'); sc.width = 3024; sc.height = 1964; sc.getContext('2d').fillRect(0, 0, 3024, 1964);
+      const lap = st.laptop(sc, {width: 3, name: 'mac'}); const top = lap.userData.baseTop;
+      const on = st.inflate('bot.png', {width: 0.5, name: 'on', x: -0.8, y: top + 0.01});
+      const sunk = st.inflate('bot.png', {width: 0.5, name: 'sunk', x: 0.8, y: -0.1});
+      await st.ready(); st.render({pos: [0, 1.5, 4], look: [0, 0.3, 0], fov: 45});
+      return st.contacts();""")
+    pairs = {(c["kind"], frozenset((c["a"], c["b"]))) for c in res}
+    assert ("penetrates", frozenset(("mac", "sunk"))) in pairs, res
+    assert not any("on" in p for _, p in pairs), res
+    assert not any(k == "corners" for k, _ in pairs), "the kit laptop's own layers are not a square backing: %s" % res
