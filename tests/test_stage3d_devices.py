@@ -238,3 +238,36 @@ def test_a_terminal_drawn_by_hand_is_told_from_a_captured_one(tmp_path):
     by = {r["screen"]: [i["kind"] for i in r["issues"]] for r in res}
     assert "imitated-terminal" in by.get("hand", []), by
     assert "imitated-terminal" not in by.get("captured", []) and "imitated-terminal" not in by.get("web", []), by
+
+
+def test_a_terminals_block_characters_join_without_seams(tmp_path):
+    # the Claude Code mascot is block characters; drawn cell by cell, then drawn into a sharper canvas (a non-whole
+    # scale, as a film's screens are), two cells meeting inside a pixel each blended it with the ground and a dark line
+    # ran between them (topic-to-video launch film, 2026-11-19)
+    full = {"fg": "ffffff", "bg": "default"}
+    frame = {"t": 0, "cursor": [0, 0, 0], "rows": [[["\u2588" * 12, full]], [["\u2588" * 12, full]], [["\u259b\u259c" * 6, full]]]}
+    k = 2.37
+    _run(tmp_path, """
+      const t = Stage3D.terminal(%s, {px: 15, title: null, pad: 0, radius: 0, theme: {bg: '#000000'}});
+      const c = document.getElementById('c'); c.width = Math.round(t.size[0] * %s); c.height = Math.round(t.size[1] * %s);
+      await Stage3D.screen(c, t.html, {size: t.size, css: t.css + ' .tw{box-shadow:none}', name: 'blocks'});
+      return t.size;""" % (json.dumps(frame), k, k), shot="s.png")
+    im = Image.open(tmp_path / "s.png").convert("L")
+    cw, rh = 15 * 0.6021 * k, 19 * k
+    solid = [im.getpixel((x, y)) for y in range(2, int(2 * rh) - 2) for x in range(2, int(12 * cw) - 2)]
+    assert min(solid) >= 235, "a seam between full blocks: darkest %d" % min(solid)
+    top = [im.getpixel((x, y)) for y in range(int(2 * rh) + 2, int(2.5 * rh) - 2) for x in range(2, int(12 * cw) - 2)]
+    assert min(top) >= 235, "a seam between quadrants: darkest %d" % min(top)
+
+
+def test_a_terminals_cursor_is_found_before_its_block_art(tmp_path):
+    # the launch film found its cursor as the terminal's first [data-overlap-ok]; when the mascot's drawing came first
+    # it blinked the mascot black instead (2026-11-19). The cursor is named ([data-cursor]) and comes first.
+    st = {"fg": "d77757", "bg": "default"}
+    frame = {"t": 0, "cursor": [3, 1, 1], "rows": [[["▛█▜", st]], [["❯ ", {"fg": "default", "bg": "default"}]]]}
+    res = _run(tmp_path, """
+      const t = Stage3D.terminal(%s, {px: 15, title: null});
+      const d = document.createElement('div'); d.innerHTML = t.html; document.body.appendChild(d);
+      const first = d.querySelector('[data-overlap-ok]'), cur = d.querySelector('[data-cursor]'), art = d.querySelector('[data-term-art]');
+      return {first: first === cur, art: !!art, curZ: +getComputedStyle(cur).zIndex, artZ: +getComputedStyle(art).zIndex};""" % json.dumps(frame))
+    assert res == {"first": True, "art": True, "curZ": 1, "artZ": 0}, res

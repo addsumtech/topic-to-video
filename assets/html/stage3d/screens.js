@@ -211,8 +211,13 @@ function terminal(frame, o) {
   const cols = frame.rows.length ? frame.rows[0].reduce((n, r) => n + (r[1].w ? 2 : r[0].length), 0) : 80;
   const W = Math.round(cols * cw + 2 * pad), bar = o.title === null ? 0 : 30, H = bar + frame.rows.length * rh + 2 * pad;
   let rows = '';
-  for (const runs of frame.rows) {
+  // block characters: every quadrant of one colour goes into ONE path over the whole grid. Drawn cell by cell, two
+  // rectangles meeting inside a pixel each blend that pixel with the ground, and a dark seam ran through the Claude Code
+  // mascot between its cells, plain once the camera pushed in (topic-to-video launch film, 2026-11-19)
+  const blocks = {};
+  frame.rows.forEach((runs, ry) => {
     rows += '<div class="tr">';
+    let cx = 0;
     for (const [text, st] of runs) {
       let fg = col(st.fg, th.fg), bg = col(st.bg, 'transparent');
       if (st.r) { const f = fg; fg = bg === 'transparent' ? th.bg : bg; bg = f; }
@@ -222,23 +227,33 @@ function terminal(frame, o) {
       if (!st.w && /[\u2580-\u259f]/.test(text)) {
         for (const ch of text) {
           const q = QUAD[ch];
-          if (!q) { rows += '<span style="width:' + cw.toFixed(3) + 'px;' + look + '">' + esc(ch) + '</span>'; continue; }
-          rows += '<span style="width:' + cw.toFixed(3) + 'px;position:relative;background:' + bg + '">' + q.map(([x, y, w, h]) =>
-            '<i style="position:absolute;left:' + x * 50 + '%;top:' + y * 50 + '%;width:' + w * 50 + '%;height:' + h * 50 + '%;background:' + fg + '"></i>').join('') + '</span>';
+          if (!q) rows += '<span style="width:' + cw.toFixed(3) + 'px;' + look + '">' + esc(ch) + '</span>';
+          else {
+            rows += '<span style="width:' + cw.toFixed(3) + 'px;background:' + bg + '"> </span>';
+            for (const [x, y, w, h] of q) (blocks[fg] = blocks[fg] || []).push('M' + ((cx + x / 2) * cw).toFixed(3) + ' ' + (ry + y / 2) * rh
+              + 'h' + (w / 2 * cw).toFixed(3) + 'v' + h / 2 * rh + 'h-' + (w / 2 * cw).toFixed(3) + 'z');
+          }
+          cx += 1;
         }
         continue;
       }
+      cx += st.w ? 2 : text.length;
       // a terminal fits every glyph into its cells: a symbol from a fallback face (⎿, ⏺) is cut to them, on purpose
       rows += '<span' + (st.a ? ' data-a="' + esc(st.a) + '"' : '') + (/[^\u0000-\u1fff]/.test(text) ? ' data-clip-ok' : '') + ' style="width:' + ((st.w ? 2 : text.length) * cw).toFixed(3) + 'px;' + look + '">' + esc(text) + '</span>';
     }
     rows += '</div>';
-  }
+  });
+  const gw = cols * cw, gh = frame.rows.length * rh, fills = Object.keys(blocks);
+  // drawn after the cursor in the markup, under it by z-index: a film that finds the cursor as the terminal's first
+  // [data-overlap-ok] (the launch film did) must not get the mascot instead and blink it black; [data-cursor] names it
+  const art = fills.length ? '<svg data-overlap-ok data-term-art style="position:absolute;z-index:0;left:' + pad + 'px;top:' + (bar + pad) + 'px" width="' + gw.toFixed(3)
+    + '" height="' + gh + '" viewBox="0 0 ' + gw.toFixed(3) + ' ' + gh + '">' + fills.map((f) => '<path fill="' + f + '" d="' + blocks[f].join('') + '"/>').join('') + '</svg>' : '';
   // the terminal's own cursor where the program left it (a steady block, macOS Terminal's default; o.cursor false hides it)
   let cur = '';
   if (o.cursor !== false && frame.cursor && frame.cursor[2] && frame.cursor[1] < frame.rows.length) {
     const [cx, cy] = frame.cursor; let x = 0, under = '';
     for (const [text, st] of frame.rows[cy]) { const n = st.w ? 2 : text.length; if (cx >= x && cx < x + n) { under = st.w ? text : text[cx - x]; break; } x += n; }
-    cur = '<div data-overlap-ok style="position:absolute;left:' + (pad + cx * cw).toFixed(2) + 'px;top:' + (bar + pad + cy * rh) + 'px;width:' + cw.toFixed(2) + 'px;height:' + rh
+    cur = '<div data-overlap-ok data-cursor style="position:absolute;z-index:1;left:' + (pad + cx * cw).toFixed(2) + 'px;top:' + (bar + pad + cy * rh) + 'px;width:' + cw.toFixed(2) + 'px;height:' + rh
       + 'px;background:' + (o.cursorColor || th.fg) + ';color:' + th.bg + ';text-align:center;font:' + px + 'px/' + rh + 'px ' + (o.font || 'Menlo') + ',monospace">'
       + esc((under || ' ').trim()) + '</div>';
   }
@@ -251,7 +266,7 @@ function terminal(frame, o) {
     + ' .tg{padding:' + pad + 'px;font:' + px + 'px/' + rh + 'px ' + (o.font || 'Menlo') + ',"PingFang SC",monospace}'
     + ' .tr{height:' + rh + 'px;white-space:pre;display:flex}'
     + ' .tr span{display:inline-block;height:' + rh + 'px;overflow:hidden;text-align:center;flex:none}';
-  return {html: '<div class="tw" data-term>' + title + '<div class="tg">' + rows + '</div>' + cur + '</div>', css, size: [W, H]};
+  return {html: '<div class="tw" data-term>' + title + '<div class="tg">' + rows + '</div>' + cur + art + '</div>', css, size: [W, H]};
 }
 
 async function lintScreens(stages) {
