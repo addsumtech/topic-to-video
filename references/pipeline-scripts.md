@@ -1146,7 +1146,9 @@ agent on the beats it points at.
   `_plan.json`'s cuts), picture_glide_qa (`--video=` the plan's video) and empty_frame_qa on `<film_dir>/final.mp4`,
   plus shake, captions, pan_speed; with a film.html page_overlap and film_copy; on a stage3d page stage_contacts; with
   a shot plan shot_plan and seam (which also fails a plain cross-dissolve passed off as a planned travel/push/light).
-  One line per check; exit 1 on any red, 2 when `_plan.json` or the video is missing.
+  One line per check; exit 1 on any red, 2 when `_plan.json` or the video is missing. `--frames A-B`: a builder's
+  own stretch before the film exists (frames A..B-1 of work/frames, encoded as the film will be into work/qc_A-B/;
+  the film-wide repetition, mix and shot-plan checks wait for the whole film); 2 on frames not yet rendered.
 - `scripts/empty_frame_qa.py <film.mp4 | dir> [--json]` — a blank HOLD: the frame above the caption band under 3 %
   occupied for >= 1 s (the closing 2 s exempt). Occupied = differs from the frame's dominant colour or sits on an
   edge, closed outlines filled, so a light card on light paper and a big solid fill both count. Calibrated on six

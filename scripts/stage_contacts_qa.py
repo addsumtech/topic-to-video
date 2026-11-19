@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """stage_contacts_qa — does anything in a film's 3D stage pass through anything else? Read from the stage, over time.
 
-    python3 scripts/stage_contacts_qa.py <film_dir> [--page film.html] [--every 0.0667] [--json]
+    python3 scripts/stage_contacts_qa.py <film_dir> [--page film.html] [--every 0.0667] [--frames A-B] [--json]
 
 For a film page built on assets/html/stage3d.js: steps window.seek(t) through the film and asks every visible stage
 (`Stage3D.stages`) for `contacts()` — a panel's face or a character's surface INSIDE a character's body (a carried card
@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _common as _c  # noqa: E402
 import _filmpage as _fp  # noqa: E402
 
-_USAGE = "usage: stage_contacts_qa.py <film_dir> [--page film.html] [--every 0.0667] [--json]"
+_USAGE = "usage: stage_contacts_qa.py <film_dir> [--page film.html] [--every 0.0667] [--frames A-B] [--json]"
 
 _PROBE = r"""
 (() => { const S = (window.Stage3D && window.Stage3D.stages) || []; if (!S.length) return null; const out = [];
@@ -102,8 +102,9 @@ def jitters(lines, every, tol=0.25, flips=2):
 
 
 def main(argv):
-    _c.refuse_unknown(argv, valued=("page", "every"), switches=("json",), usage=_USAGE)
-    vals = {k: _c.argflag(argv, k, None) for k in ("page", "every")}
+    _c.refuse_unknown(argv, valued=("page", "every", "frames"), switches=("json",), usage=_USAGE)
+    span = _c.frame_span(argv)
+    vals = {k: _c.argflag(argv, k, None) for k in ("page", "every", "frames")}
     args = [a for a in argv if not a.startswith("--") and a not in vals.values()]
     if len(args) != 1 or not os.path.isdir(args[0]):
         print(_USAGE, file=sys.stderr)
@@ -123,8 +124,9 @@ def main(argv):
     try:
         p = _fp.FilmPage(port, page)
         try:
-            t, k = 0.0, 0
-            while t < n / 30.0:
+            t0, t_end = (span[0] / 30.0, min(n, span[1]) / 30.0) if span else (0.0, n / 30.0)
+            t, k = t0, 0
+            while t < t_end:
                 p.seek(t)
                 cs = p.ev(_PROBE)
                 if cs is None:
@@ -142,7 +144,7 @@ def main(argv):
                 samples.append((round(t, 4), cs))
                 lines.append((round(t, 4), where))
                 k += 1
-                t = k * every
+                t = t0 + k * every
         finally:
             p.close()
     except _fp.PageError as e:

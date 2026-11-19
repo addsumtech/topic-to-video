@@ -242,7 +242,14 @@ captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK c
 - **Text is either read or texture.** Words meant to be read are big enough on a phone: captions ≥ ~56 px at 1080p
   (about 5 % of the frame height; `caption_size_qa` measures it), labels ≥ ~32 px, counted on the rendered frame
   with every scale applied. Small text not meant to be read is visibly softened or dimmed; nothing in between.
-- Build each sequence, export its settled frames, look at them, fix, then move on.
+- Build each sequence, export its settled frames, look at them, fix, then move on. Before a sequence is handed on
+  (each builder's shots, when the build is split), run the checks on its own rendered frames:
+  `python3 scripts/film_qc.py <film_dir> --frames A-B` (the same checks on that stretch, about 30 s per 6 s of film).
+  A red found there costs one shot; found on the assembled film it costs a re-render, re-encode and re-check of all
+  (MRI 2026-11-19: seven checks red across four builders' shots, an hour).
+- A Blender shot is settled (framing, move, easing, look) on `--still` frames and a small fast clip
+  (`--size 960x540 --samples 8`) before its ONE full render: a full 1080p clip costs minutes per second of film (MRI:
+  one 2.8 s shot, 34 min to re-render in a fix round).
 
 **A launch or product film** usually works best with the real product as the hero at size (its real screens large,
 or a crop onto the component the voice names, where they READ at that size; where they do not, a phone screenshot or

@@ -111,7 +111,8 @@ API"), using the kit: `studio.world` (the HDRI), `studio.softboxes(<position>)`,
 `materials`. Look at one frame first, then render the clip:
 
     python3 scripts/blender_clip.py <film_dir> scene.py --seconds S --still F            # one frame to look at
-    python3 scripts/blender_clip.py <film_dir> scene.py --seconds S --engine cycles      # alpha PNGs + preview mp4
+    python3 scripts/blender_clip.py <film_dir> scene.py --seconds S --size 960x540 --samples 8 --name N_draft   # the move, fast
+    python3 scripts/blender_clip.py <film_dir> scene.py --seconds S --engine cycles      # alpha PNGs + preview mp4, once
 
 Output: `<film_dir>/clips/<name>/rgba/NNNN.png` (alpha, or opaque with `--env`) and `<name>.mp4`. Glass, gems, water
 and metal show only what they refract or mirror: render them in Cycles with the kit's HDRI and soft boxes. In EEVEE
@@ -248,6 +249,11 @@ captions changing inside a shot under a slow push read as extra motion (the diam
 captions, 0.080 without). A turning object that repeats by design is a `kind: "loop"` segment in `_plan.json`, with
 the seam proved (the wrap frame differs no more than consecutive frames).
 picture_glide_qa is slow when several films render at once; on a busy machine run it per shot (`--clip --from --to`).
+**Before the film is assembled**, a builder checks its own shots: `film_qc.py <film_dir> --frames A-B` encodes frames
+A..B-1 of `work/frames` as the film will be (into `work/qc_A-B/`, the plan and shot plan cut to that stretch) and runs
+every check that can judge a stretch; the page checks step through those seconds only (`--frames` on
+page_overlap_qa, film_copy_qa, stage_contacts_qa). Repetition, mix and the shot plan wait for the whole film, which
+is still checked once at the end (a stretch is encoded on its own, so a borderline glide reading can differ a little).
 Also in film_qc: copy (every word shown sourced or in `copy_ok.json` with a reason), contacts (stage3d: nothing inside
 anything, no coplanar stacks), pan speed (no whip over 48 px/frame), repetition (advisory: one staging as the film's
 device), banding (CAMBI > 5 on a shot: encode with the grain finish), shot plan and seams (a plain cross-dissolve

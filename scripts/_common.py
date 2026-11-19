@@ -170,6 +170,22 @@ def argflag_list(argv, name, default=None):
     return items or default
 
 
+def frame_span(argv):
+    """`--frames A-B` (film frames A to B-1, a builder's own stretch of the film) as (A, B), or None; a malformed span
+    exits 2 (a check quietly judging the whole film, or nothing, in its place is the silent change of scope above)."""
+    raw = argflag(argv, "frames")
+    if raw is None:
+        return None
+    try:
+        a, b = (int(x) for x in raw.split("-"))
+    except ValueError:
+        a = b = -1
+    if a < 0 or b <= a:
+        print("[%s] --frames takes A-B, film frames with A < B (got %r)" % (os.path.basename(sys.argv[0]), raw))
+        raise SystemExit(2)
+    return a, b
+
+
 def refuse_unknown(argv, valued=(), switches=(), usage=""):
     """Exit non-zero naming any argument the caller did not claim, instead of ignoring it.
 

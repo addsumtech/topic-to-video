@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """film_copy_qa — every word a director-path film SHOWS must come from its sources, or be declared as illustration.
 
-    python3 scripts/film_copy_qa.py <film_dir> [--page film.html] [--every 0.5] [--json]
+    python3 scripts/film_copy_qa.py <film_dir> [--page film.html] [--every 0.5] [--frames A-B] [--json]
 
 Loads film.html (scripts/_filmpage.py), records every string the page draws on a canvas (fillText / strokeText,
 from the first script on), and steps window.seek(t) through the film collecting the VISIBLE text of the page. Each
@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _common as _c  # noqa: E402
 import _filmpage as _fp  # noqa: E402
 
-_USAGE = "usage: film_copy_qa.py <film_dir> [--page film.html] [--every 0.5] [--json]"
+_USAGE = "usage: film_copy_qa.py <film_dir> [--page film.html] [--every 0.5] [--frames A-B] [--json]"
 
 CANVAS_HOOK = r"""
 (() => { const seen = window.__canvasText = new Set();
@@ -132,8 +132,9 @@ def judge(strings, corp, ok):
 
 
 def main(argv):
-    _c.refuse_unknown(argv, valued=("page", "every"), switches=("json",), usage=_USAGE)
-    vals = {k: _c.argflag(argv, k, None) for k in ("page", "every")}
+    _c.refuse_unknown(argv, valued=("page", "every", "frames"), switches=("json",), usage=_USAGE)
+    span = _c.frame_span(argv)
+    vals = {k: _c.argflag(argv, k, None) for k in ("page", "every", "frames")}
     args = [a for a in argv if not a.startswith("--") and a not in vals.values()]
     if len(args) != 1 or not os.path.isdir(args[0]):
         print(_USAGE, file=sys.stderr)
@@ -156,8 +157,8 @@ def main(argv):
     try:
         p = _fp.FilmPage(port, page, init_script=CANVAS_HOOK)
         try:
-            t = 0.0
-            while t < n / 30.0:
+            t, t_end = (span[0] / 30.0, min(n, span[1]) / 30.0) if span else (0.0, n / 30.0)
+            while t < t_end:
                 p.seek(t)
                 for s in p.ev(_DOM_TEXT) or []:
                     strings.setdefault(s, ("page", round(t, 2)))

@@ -107,3 +107,58 @@ def test_film_qc_adds_the_plan_and_seam_checks_with_a_shot_plan(tmp_path):
     (tmp_path / "shot_plan.json").write_text("{}")
     names = [n for n, _c in film_qc.checks(str(tmp_path), str(tmp_path / "final.mp4"), str(tmp_path / "_plan.json"))]
     assert names[-2:] == ["shot plan", "seams"]
+
+
+def _rendered_film(tmp_path, n=60):
+    """A film whose frames are rendered (work/frames, film_frames.py's names) but not yet assembled: no final.mp4."""
+    from PIL import Image
+    fr = tmp_path / "work" / "frames"
+    fr.mkdir(parents=True)
+    for k in range(n):
+        f = np.zeros((180, 320, 3), np.uint8)
+        f[:] = (40, 60, 80)
+        f[60:120, 20 + k:80 + k] = (230, 200, 120)          # a card travelling right, a pixel a frame
+        Image.fromarray(f).save(fr / ("f_%05d.jpg" % k), quality=95)
+    plan = {"video": "final.mp4", "fps": 30, "frames": n, "cuts": [30],
+            "segments": [{"start": 0, "end": 30, "kind": "shot", "id": "a"}, {"start": 30, "end": n, "kind": "shot", "id": "b"}]}
+    (tmp_path / "_plan.json").write_text(__import__("json").dumps(plan))
+    (tmp_path / "shot_plan.json").write_text(__import__("json").dumps(
+        {"shots": [{"id": "a", "start": 0.0, "end": 1.0, "seam_out": "match"}, {"id": "b", "start": 1.0, "end": 2.0}]}))
+    return tmp_path
+
+
+def test_film_qc_checks_one_builders_frames_before_the_film_exists(tmp_path):
+    import json
+    d = _rendered_film(tmp_path)
+    assert film_qc.main([str(d), "--frames", "20-50", "--only", "flash,empty"]) == 0
+    q = d / "work" / "qc_20-50"
+    plan = json.loads((q / "_plan.json").read_text())
+    assert plan["frames"] == 30 and plan["cuts"] == [10], plan
+    assert [(g["id"], g["start"], g["end"]) for g in plan["segments"]] == [("a", 0, 10), ("b", 10, 30)]
+    shots = json.loads((q / "shot_plan.json").read_text())["shots"]
+    assert [(s["id"], round(s["start"], 3), round(s["end"], 3)) for s in shots] == [("a", 0.0, 0.333), ("b", 0.333, 1.0)]
+    out = subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries",
+                          "stream=nb_read_frames", "-of", "csv=p=0", str(q / "final.mp4")], capture_output=True, text=True).stdout
+    assert int(out) == 30, "the stretch is encoded, the frames A..B-1 only"
+    assert not (d / "final.mp4").exists()
+
+
+def test_film_qc_on_a_stretch_leaves_the_film_wide_checks_for_the_whole_film(tmp_path):
+    d = _rendered_film(tmp_path)
+    (d / "film.html").write_text("<script src='stage3d.js'></script>")
+    todo = dict(film_qc.checks(str(d / "q"), "v.mp4", "p.json", (20, 50), page_dir=str(d)))
+    assert not {"repetition", "mix", "shot plan"} & set(todo), todo
+    for name in ("overlaps", "copy", "contacts"):
+        assert todo[name][-3:] == [str(d), "--frames", "20-50"], "page checks step through the stretch on the film's page"
+
+
+def test_film_qc_refuses_a_stretch_it_cannot_judge(tmp_path, capsys):
+    d = _rendered_film(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        film_qc.main([str(d), "--frames", "40-20"])
+    assert e.value.code == 2
+    assert film_qc.main([str(d), "--frames", "20-90"]) == 2 and "past the film" in capsys.readouterr().err
+    (d / "work" / "frames" / "f_00025.jpg").unlink()
+    with pytest.raises(SystemExit) as e:
+        film_qc.main([str(d), "--frames", "20-50"])
+    assert e.value.code == 2 and "not rendered" in capsys.readouterr().err

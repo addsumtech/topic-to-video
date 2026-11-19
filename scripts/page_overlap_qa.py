@@ -1,6 +1,6 @@
 """page_overlap_qa — do words or controls collide on a film page? Read from the page itself, over time.
 
-    python3 scripts/page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--json]
+    python3 scripts/page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--frames A-B] [--json]
 
 A director-path film is one page whose every frame is `window.seek(t)` (SKILL.md step 6). This loads that page in
 headless Chrome, steps t through the film (`_plan.json` frames / fps), and at each step collects the VISIBLE text and
@@ -24,7 +24,7 @@ import _common as _c  # noqa: E402
 
 MIN_S = 0.5
 SHARE = 0.25
-_USAGE = "usage: page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--json]"
+_USAGE = "usage: page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--frames A-B] [--json]"
 
 _JS = r"""
 (async (times) => {
@@ -91,8 +91,10 @@ def spans(hits, every, min_s=MIN_S):
 
 
 def main(argv):
-    _c.refuse_unknown(argv, valued=("page", "every"), switches=("json",), usage=_USAGE)
-    args = [a for a in argv if not a.startswith("--") and a not in (_c.argflag(argv, "page", None), _c.argflag(argv, "every", None))]
+    _c.refuse_unknown(argv, valued=("page", "every", "frames"), switches=("json",), usage=_USAGE)
+    span = _c.frame_span(argv)
+    args = [a for a in argv if not a.startswith("--") and a not in (_c.argflag(argv, "page", None), _c.argflag(argv, "every", None),
+                                                                        _c.argflag(argv, "frames", None))]
     if len(args) != 1:
         print(_USAGE, file=sys.stderr)
         return 2
@@ -108,6 +110,8 @@ def main(argv):
         p = json.load(open(plan, encoding="utf-8"))
         dur = float(p.get("frames", 0)) / float(p.get("fps", 30)) or dur
     times = [round(i * every, 3) for i in range(int(dur / every))]
+    if span:                                     # one builder's stretch only (film_qc --frames)
+        times = [t for t in times if span[0] / 30.0 <= t < span[1] / 30.0]
     # served over http and loaded as film_frames loads it (fonts, window.filmReady): from file:// a page with absolute
     # script paths never defined window.seek, and the check failed on both 2026-11-18 films instead of looking
     import _filmpage as _fp

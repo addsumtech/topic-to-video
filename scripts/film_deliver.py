@@ -48,8 +48,11 @@ def srt(timeline):
     return "\n".join(out)
 
 
-def encode(d, frames, audio, video, grain):
-    cmd = ["ffmpeg", "-v", "error", "-y", "-framerate", "30", "-i", os.path.join(frames, "f_%05d.jpg")]
+def encode(d, frames, audio, video, grain, start=0, count=None):
+    """`start` / `count`: a stretch of the frames only (film_qc --frames encodes a builder's shots the way the film is)."""
+    cmd = ["ffmpeg", "-v", "error", "-y", "-framerate", "30", "-start_number", str(start), "-i", os.path.join(frames, "f_%05d.jpg")]
+    if count:
+        cmd += ["-frames:v", str(count)]
     if audio:
         cmd += ["-i", audio]
     if grain > 0:
