@@ -173,8 +173,25 @@ picture going back, as on a Memphis film's label pops).
   markup laid out by the browser at `size` (CSS px: a phone's points, a 14" laptop's 1512x982) and drawn at the
   canvas's pixels; images and fonts inlined; same markup = cached. `window.seek` may be async and await it.
   `stage_contacts_qa` lints every shown screen (SCREEN-OVERLAP, SCREEN-CLIPPED, SCREEN-OFF-SCREEN; `data-overlap-ok`
-  on a deliberate badge) and `film_copy_qa` reads its words.
-- `st.card(src, {width, glow})`: paper, a chip, a note — rounded as its picture is; CORNERS in contacts() catches a
+  on a deliberate badge; `data-clip-ok` on a deliberate crop; SCREEN-JITTER: a line that keeps its words and jumps
+  back and forth between frames; SCREEN-IMITATED-TERMINAL: a terminal program drawn by hand) and `film_copy_qa` reads
+  its words. The page's own words over the stage are followed too (PAGE-JITTER; `data-motion-ok` on a deliberate
+  wobble).
+- A real reference for every app screen, in the film folder: the official screenshot (measure its sizes, colours and
+  type off it) or, for a web page anyone can open, a headless capture of it. The demo world inside is `demo` content.
+- A terminal program (Claude Code, Codex, a shell) is captured, not imitated:
+      python3 scripts/term_capture.py --out work/cc.json --cols 84 --rows 14 --cwd <a demo folder> --wait 6 \
+        --type "the request" --type-at 5 --type-every 0.08 --replace "<path it shows>=>~/job-search" -- claude
+  one frame per typed character (Enter is never pressed); answer a first-run question with `--keys '[[5, "3"]]'` (a
+  menu number is safer than arrow keys, whose timing can land on another option); it refuses a capture that still
+  shows your home path or login name. Crop a frame's rows to what the shot needs (an account's own notices, a tip);
+  never add text it did not show. Draw it: `const t = Stage3D.terminal(frame, {px: 16, title: 'job-search — claude —
+  84×14'})` -> `{html, css, size}` for `Stage3D.screen` (a canvas of `size`'s aspect); typing = the frames in turn.
+- `Stage3D.caret(on, {color, block})` in any screen markup: a caret that cannot move its line (zero-height anchor,
+  blinked by opacity, always in the markup). A caret laid out inside the line box, or added and removed as it blinks,
+  shifts the line 2-3 px per blink.
+- `st.card(src, {width, glow})`: paper, a chip, a note — its outline is its picture's (leave `radius` out; one that
+  disagrees with the picture's corners is refused: the slab showed past them); CORNERS in contacts() catches a
   hand-built rounded face on a square backing.
 - `st.quad(obj)` -> the object's face corners on screen; `Stage3D.brackets(ctx2d, quad, {grow, arm, lineWidth})` draws a
   scanner's corners along them (grow 1.2 -> 1 to close in).
@@ -200,8 +217,13 @@ A starting point measured on 20 official launch films (`references/craft-standar
   from 15 synthesised, deterministic sounds (`sfx.py --list`: click, key, tick, focus, whoosh, pop, riser, impact,
   sparkle, strike, chime, swell, settle, reveal); recorded takes in `assets/sfx/kenney/` (click, select, drop, glass:
   UI-game timbres; a product film prefers real-world foley, `promo-shotcraft.md` §4).
-- Mix: music well under the voice and ducked while it speaks; SFX short and high-passed; master to about -14 LUFS
-  integrated with true peak at or under -2 dBTP: ffmpeg `loudnorm=I=-14:TP=-2:LRA=11`.
+- Mix: `python3 scripts/mix.py --voice audio/voice.wav --music audio/score.wav --sfx audio/sfx.wav --out audio/mix.wav`.
+  The music follows the voice: 20 dB under it while it speaks (`--under`; WCAG 1.4.7's floor, mixers use 18-24),
+  8 dB up between lines (`--lift`, never above 6 dB under the voice), down before each line starts; SFX high-passed;
+  mastered in two passes to -14 LUFS, true peak <= -2 dBTP. It prints the separation it reached and exits 1 when a
+  tenth of the speech has less than 17 dB. Never a fixed music gain under a sidechain: one sat the score 2 dB under
+  the words. film_qc's `mix` check holds a film with a music stem in `audio/` (score*, music*, bgm*, bed*) to the mix
+  this script made and measured (`audio/mix.mix.json`).
 
 ## Rendering and delivery (steps 6 and 8)
 - Frames: `python3 scripts/film_frames.py <film_dir> [--from A --to B] [--workers 4] [--probe 6]` -> `work/frames/`

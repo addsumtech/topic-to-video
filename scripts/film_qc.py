@@ -13,7 +13,8 @@ caption_size_qa (burned captions too small to read on a phone); with a film.html
 controls colliding on the page over time) and film_copy_qa (every word shown comes from the sources or is declared);
 with a stage3d page, stage_contacts_qa (nothing passes through anything); pan_speed_qa (no camera whip that strobes);
 repetition_qa (advisory: one staging repeated as the film's device); banding_qa (dark gradients stepping after the
-encode; scripts/film_deliver.py --encode adds the grain finish that fixes it); with a shot_plan.json, also shot_plan_qa (the craft
+encode; scripts/film_deliver.py --encode adds the grain finish that fixes it); mix (a film with music in audio/ ships
+the mix scripts/mix.py made and measured, the music held under the voice); with a shot_plan.json, also shot_plan_qa (the craft
 plan is sound) and seam_qa (every seam the plan says is hidden really is).
 Prints one line per check — OK, or the check's own findings — and exits 1 if any check is red, so "clean" is a
 fact the caller can test, not a reading of the log.
@@ -52,6 +53,7 @@ def checks(d, video, plan):
     out.append(("pan speed", [py, os.path.join(HERE, "pan_speed_qa.py"), d]))
     out.append(("repetition", [py, os.path.join(HERE, "repetition_qa.py"), d, "--video=" + video]))   # advisory
     out.append(("banding", [py, os.path.join(HERE, "banding_qa.py"), d, "--video", video]))
+    out.append(("mix", [py, os.path.join(HERE, "mix.py"), "--check", d]))
     if os.path.isfile(os.path.join(d, "shot_plan.json")):
         out += [("shot plan", [py, os.path.join(HERE, "shot_plan_qa.py"), d]),
                 ("seams", [py, os.path.join(HERE, "seam_qa.py"), d])]

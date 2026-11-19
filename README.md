@@ -72,7 +72,7 @@ git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.claude/s
 # Codex
 git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.agents/skills/topic-to-video
 
-python3 -m pip install pillow pymupdf python-pptx edge-tts
+python3 -m pip install pillow pymupdf python-pptx edge-tts pyte
 cd ~/.claude/skills/topic-to-video/remotion && npm install   # cinematic renderer, once
 ```
 

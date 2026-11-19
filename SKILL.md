@@ -203,8 +203,12 @@ pieces; `Stage3D.hop` for an arc with anticipation and a volume-keeping squash, 
 `Stage3D.blink` and `Stage3D.look` so it is alive between moves), a device, an object; a screen can be a lit panel
 there, and settles facing the viewer when it carries something to read. **Devices come from the kit** (`st.phone`, `st.tablet`, `st.laptop`), never made of boxes or a 2D outline (they read as
 fake, Grok Bot 2026-11-18), each showing the layout made FOR it (another screen only whole, letterboxed, never cropped);
-**app screens are HTML** (`Stage3D.screen`: the browser lays them out and the checks look inside them); cards are
-`st.card`; a mark that frames an object follows its tilt (`st.quad` + `Stage3D.brackets`). All in the toolbox,
+**app screens are HTML** (`Stage3D.screen`: the browser lays them out and the checks look inside them), each built
+from a real reference in the film folder (an official screenshot, measured), never from memory; a terminal program
+is CAPTURED (`scripts/term_capture.py`, drawn by `Stage3D.terminal`: an imitated Claude Code read as fake, job-hunt
+2026-11-19); a caret is `Stage3D.caret` (one inside the line box made lines jump at each blink); a row of
+categories, roles or steps carries one icon each, of one family (`references/icons.md`, Lucide); cards are
+`st.card` with the picture's own corners; a mark that frames an object follows its tilt (`st.quad` + `Stage3D.brackets`). All in the toolbox,
 "Devices, app screens, cards, marks". Create stages with `pixelRatio: 2`
 (supersampled; the default read as low resolution) and no `dof` near words or marks (its few-tap blur ghosts them).
 When the MATERIAL is the point of a hero (a product's shell, metal, glass), render that shot in Blender under
@@ -267,8 +271,9 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
 ### 7. Sound
 
 - **Voice** on the timeline, levelled; master the mix to about -14 LUFS with true peak at or under -2 dBTP.
-- **Music follows purpose:** an explainer can do without; a launch or promo is scored (`scripts/score.py`, or the
-  user's own track), well under the voice and ducked while it speaks.
+- **Music follows purpose:** an explainer has none (music under narration costs recall); a launch or promo is scored (`scripts/score.py`, or the
+  user's own track), mixed by `scripts/mix.py`: about 20 dB under the voice while it speaks, by measurement (a film's
+  own hand-set mix left its score 2 dB under the words, job-hunt 2026-11-19).
 - **SFX** on a few real events, short and high-passed (`scripts/sfx.py --cues`: 15 synthesised sounds). Not every cut
   gets a sound. A product film speaks the film vocabulary (whoosh, impact, riser, sparkle) with real foley for
   visible actions, never game-feedback tones (`references/promo-shotcraft.md` §4).

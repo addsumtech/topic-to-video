@@ -404,14 +404,21 @@ function create(o) {
       const job = texture(src).then((tex) => {
         const img = tex.image, iw = img.width, ih = img.height, h = p.height || w * ih / iw;
         let rpx = 0, col = p.color;
-        if (p.radius == null || !col) {
+        {
           const c = document.createElement('canvas'); c.width = iw; c.height = ih; const g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(img, 0, 0);
           const a = (x, y) => g.getImageData(x, y, 1, 1).data;
           // a rounded corner of radius R meets the diagonal at R(1 - 1/sqrt 2) from the corner
-          let k = 0; while (k < Math.min(iw, ih) / 2 && a(k, k)[3] < 128) k++; rpx = k / (1 - Math.SQRT1_2);
+          let k = 0; while (k < Math.min(iw, ih) / 2 && a(k, k)[3] < 128) k++;
+          rpx = k >= Math.min(iw, ih) / 2 ? 0 : k / (1 - Math.SQRT1_2);   // a blank picture (nothing drawn yet) has no corners
           if (!col) { const q = a(Math.round(iw * 0.03 + rpx * 0.3), Math.round(ih / 2)); col = 'rgb(' + q[0] + ',' + q[1] + ',' + q[2] + ')'; }
         }
-        const r = Math.min(p.radius != null ? p.radius : rpx * w / iw, w / 2 - 1e-4, h / 2 - 1e-4);
+        // the card's outline IS its picture's: a radius that disagrees with the picture's own rounded corners leaves the
+        // slab showing past them (grey corners: the job-hunt film's pill chip on radius 0.02, its Word window on 0.06)
+        const rPic = rpx * w / iw;
+        if (p.radius != null && rpx > 0 && Math.abs(p.radius - rPic) > Math.max(0.15 * rPic, 1.5 * w / iw))
+          throw new Error('stage3d.card ' + (p.name || '') + ': radius ' + p.radius.toFixed(4) + ' disagrees with the picture\'s own corners ('
+            + rPic.toFixed(4) + ', ' + rpx.toFixed(1) + ' px of ' + iw + '); leave radius out and the card takes the picture\'s');
+        const r = Math.min(p.radius != null ? p.radius : rPic, w / 2 - 1e-4, h / 2 - 1e-4);
         const body = new THREE.Mesh(DEV.slab(w, h, depth, Math.max(r, 1e-4), Math.min(depth / 3, Math.max(r, 1e-4) / 2)), new THREE.MeshStandardMaterial({color: col, roughness: p.roughness == null ? 0.7 : p.roughness}));
         body.castShadow = true; body.receiveShadow = true;
         const glow = p.glow || 0;
@@ -480,16 +487,23 @@ function create(o) {
         } }
       // a picture with transparent (rounded) corners on a face, and an opaque mesh beside it in the same object that fills
       // those corners: the square backing shows past the rounded face as grey corners (hand-built cards; st.card avoids it)
+      // the corner's clear run along the diagonal, in the picture's own pixels (0 = a square corner): the test point is
+      // the middle of that run, where the picture is surely see-through. A fixed 1 % inset landed INSIDE the picture on a
+      // wide card with a small radius and flagged good cards (a 1000 x 170 terminal with 16 px corners).
       const cornerless = new Map();
-      const roundCorners = (im) => { if (cornerless.has(im)) return cornerless.get(im); let v = false;
-        try { const c = document.createElement('canvas'); c.width = 4; c.height = 4; const g = c.getContext('2d'); g.drawImage(im, 0, 0, 1, 1, 0, 0, 4, 4); v = g.getImageData(1, 1, 1, 1).data[3] < 128;
+      const roundCorners = (im) => { if (cornerless.has(im)) return cornerless.get(im); let v = 0;
+        try { const iw = im.width, ih = im.height, n = Math.max(1, Math.floor(Math.min(iw, ih) / 2));
+          const c = document.createElement('canvas'); c.width = n; c.height = n; const g = c.getContext('2d', {willReadFrequently: true});
+          g.drawImage(im, 0, 0, n, n, 0, 0, n, n); const d = g.getImageData(0, 0, n, n).data; let k = 0; while (k < n && d[(k * n + k) * 4 + 3] < 128) k++;
           // and opaque in its middle: a card, not a see-through pattern (a speaker grille's holes on a clear sheet)
-          g.clearRect(0, 0, 4, 4); g.drawImage(im, 0, 0, 4, 4); v = v && g.getImageData(1, 1, 2, 2).data.every((x, i) => i % 4 !== 3 || x > 200); } catch (e) { v = false; }
+          const m = document.createElement('canvas'); m.width = 4; m.height = 4; const gm = m.getContext('2d'); gm.drawImage(im, 0, 0, 4, 4);
+          v = k > 0 && k < n && gm.getImageData(1, 1, 2, 2).data.every((x, i) => i % 4 !== 3 || x > 200) ? k / iw : 0; } catch (e) { v = 0; }
         cornerless.set(im, v); return v; };
       scene.traverseVisible((M) => {
-        const im = M.material && M.material.map && M.material.map.image; if (!im || !M.parent || !shown(M) || !roundCorners(im)) return;
+        const im = M.material && M.material.map && M.material.map.image; const run = im && M.parent && shown(M) ? roundCorners(im) : 0; if (!run) return;
         for (let e = M; e; e = e.parent) if (e.userData && e.userData.contactOk) return;
-        M.geometry.computeBoundingBox(); const bb = M.geometry.boundingBox, size = bb.max.x - bb.min.x, inset = 0.01 * size;
+        // the picture fills the face, so its pixels are square on it: the run in face units is the same along x and y
+        M.geometry.computeBoundingBox(); const bb = M.geometry.boundingBox, size = bb.max.x - bb.min.x, inset = run / 2 * size;
         const corner = new THREE.Vector3(bb.min.x + inset, bb.max.y - inset, (bb.min.z + bb.max.z) / 2).applyMatrix4(M.matrixWorld);
         const nrm = new THREE.Vector3(0, 0, 1).transformDirection(M.matrixWorld), sc = new THREE.Vector3().setFromMatrixScale(M.matrixWorld).x;
         // a ray from in front of the face's corner, straight through it: does an opaque neighbour sit right behind it?
@@ -572,8 +586,8 @@ function carry(obj, character, o) {
 }
 
 // app screens laid out as HTML (screens.js); the lint and text look at every stage this page made
-const screen = SCR.screen, brackets = SCR.brackets;
+const screen = SCR.screen, brackets = SCR.brackets, caret = SCR.caret, terminal = SCR.terminal;
 const lintScreens = () => SCR.lintScreens(stages), screenTexts = () => SCR.screenTexts(stages);
 const DEVICES = DEV.SPEC;
 
-export {screen, lintScreens, screenTexts, brackets, DEVICES, create, stages, ease, easeOut, lerp, lerp3, clamp01, hop, carry, blink, look, THREE};
+export {screen, lintScreens, screenTexts, brackets, caret, terminal, DEVICES, create, stages, ease, easeOut, lerp, lerp3, clamp01, hop, carry, blink, look, THREE};

@@ -149,3 +149,92 @@ def test_a_character_and_a_kit_laptop_are_judged_together(tmp_path):
     assert ("penetrates", frozenset(("mac", "sunk"))) in pairs, res
     assert not any("on" in p for _, p in pairs), res
     assert not any(k == "corners" for k, _ in pairs), "the kit laptop's own layers are not a square backing: %s" % res
+
+
+def test_a_wide_card_with_small_corners_is_not_taken_for_a_square_backing(tmp_path):
+    im = Image.new("RGBA", (2000, 340), (0, 0, 0, 0))
+    ImageDraw.Draw(im).rounded_rectangle((0, 0, 1999, 339), radius=32, fill=(30, 32, 32, 255))
+    im.save(tmp_path / "term.png")
+    res = _run(tmp_path, """
+      const st = Stage3D.create({canvas: document.getElementById('c'), background: '#000000'}); st.studio();
+      const T = Stage3D.THREE;
+      st.card('term.png', {width: 3, depth: 0.05, y: 0.8, name: 'good'});
+      const tex = await new Promise((r) => new T.TextureLoader().load('term.png', r)); const g = new T.Group(); g.name = 'bad';
+      const back = new T.Mesh(new T.BoxGeometry(3, 3 * 340 / 2000, 0.006), new T.MeshStandardMaterial({color: '#888888'}));
+      const face = new T.Mesh(new T.PlaneGeometry(3, 3 * 340 / 2000), new T.MeshStandardMaterial({map: tex, transparent: true}));
+      face.position.z = 0.0035; g.add(back, face); g.position.set(0, 0.1, 0); st.scene.add(g);
+      await st.ready(); st.render({pos: [0, 0.45, 4], look: [0, 0.45, 0], fov: 50});
+      return st.contacts();""")
+    kinds = [(c["kind"], c["a"]) for c in res]
+    assert ("corners", "bad") in kinds, kinds
+    assert not any(a == "good" for _, a in kinds), "a wide st.card with 16 px corners was flagged: %s" % kinds
+
+
+def test_the_kit_caret_never_moves_its_line(tmp_path):
+    res = _run(tmp_path, """
+      const c = document.createElement('canvas'); c.width = 1600; c.height = 400;
+      const css = '.d{font:24px/1.3 "PingFang SC",Helvetica;padding:20px} .t{font:30px/1.5 Menlo,"PingFang SC",monospace;padding:20px}';
+      const lay = async (on, block) => { await Stage3D.screen(c, '<div class="d">定义事实准确性' + Stage3D.caret(on) + '、来源可靠性</div>'
+        + '<div class="t">&gt; 帮我配置 job-hunt' + Stage3D.caret(on, {block: true}) + '</div>', {size: [800, 200], css, name: 'k' + on});
+        const [r] = (await Stage3D.lintScreens()).filter((x) => x.screen === 'k' + on); return r ? r.lines : null; };
+      const st = Stage3D.create({canvas: document.getElementById('c')}); st.studio(); const card = st.card(c, {width: 2, radius: 0}); await st.ready();
+      st.render({pos: [0, 0, 3], look: [0, 0, 0], fov: 50});
+      const on = await lay(true); card.userData.refresh(); st.render({pos: [0, 0, 3], look: [0, 0, 0], fov: 50}); const off = await lay(false);
+      return {on, off};""")
+    assert res["on"] and res["on"] == res["off"], res
+
+
+def test_a_card_refuses_a_radius_that_disagrees_with_its_pictures_corners(tmp_path):
+    im = Image.new("RGBA", (600, 120), (0, 0, 0, 0))
+    ImageDraw.Draw(im).rounded_rectangle((0, 0, 599, 119), radius=60, fill=(37, 41, 42, 255))   # a pill chip
+    im.save(tmp_path / "pill.png")
+    res = _run(tmp_path, """
+      const st = Stage3D.create({canvas: document.getElementById('c')}); st.studio();
+      st.card('pill.png', {width: 2, radius: 0.02, name: 'chip'}); let err = '';
+      try { await st.ready(); } catch (e) { err = e.message; }
+      const st2 = Stage3D.create({canvas: document.getElementById('c')}); st2.studio();
+      const ok = st2.card('pill.png', {width: 2, radius: 0.2}); await st2.ready();
+      return {err, r: ok.userData.radius};""")
+    assert "disagrees with the picture" in res["err"] and "chip" in res["err"], res
+    assert abs(res["r"] - 0.2) < 1e-3, "a radius that matches the picture (60 px of 600 on 2 units) is kept"
+
+
+def test_ink_cut_away_by_a_clipping_box_is_not_an_overlap(tmp_path):
+    res = _run(tmp_path, """
+      const c = document.createElement('canvas'); c.width = 1080; c.height = 1280;
+      const css = '.card{position:absolute;inset:0;background:#222} .hd{position:relative;z-index:1;height:100px;background:#333;color:#fff;font:30px Helvetica;padding:20px}'
+        + ' .win{position:absolute;left:20px;right:20px;top:140px;bottom:0;overflow:hidden;background:#fff}'
+        + ' .pg{position:absolute;left:0;top:-200px;font:24px/1.4 Helvetica;color:#111} .over{position:absolute;left:30px;top:40px;font:24px Helvetica;color:#f00}';
+      await Stage3D.screen(c, '<div class="card"><div class="hd">Recruiter</div><div class="win" data-clip-ok><div class="pg">'
+        + Array.from({length: 30}, (_, i) => '<div>Line ' + i + ' of the page</div>').join('') + '</div></div></div>', {size: [540, 640], css, name: 'crop'});
+      const d = document.createElement('canvas'); d.width = 1080; d.height = 1280;
+      await Stage3D.screen(d, '<div class="card"><div class="hd">Recruiter</div><div class="over">Overlapping words</div></div>', {size: [540, 640], css, name: 'bad'});
+      const st = Stage3D.create({canvas: document.getElementById('c')}); st.studio();
+      st.card(c, {width: 1, radius: 0, x: -0.7}); st.card(d, {width: 1, radius: 0, x: 0.7}); await st.ready();
+      st.render({pos: [0, 0, 3], look: [0, 0, 0], fov: 50});
+      return await Stage3D.lintScreens();""")
+    by = {r["screen"]: r["issues"] for r in res}
+    assert by["crop"] == [], "the page's lines cut away under the header are not ink: %s" % by["crop"]
+    assert any(i["kind"] == "overlap" for i in by["bad"]), by["bad"]
+
+
+def test_a_terminal_drawn_by_hand_is_told_from_a_captured_one(tmp_path):
+    frame = {"t": 0, "cursor": [2, 1, 1], "rows": [[[" Claude Code v2.1", {"fg": "default", "bg": "default"}]],
+                                                    [["❯ ", {"fg": "default", "bg": "default"}], ["hello", {"fg": "default", "bg": "default"}]]]}
+    res = _run(tmp_path, """
+      const frame = %s;
+      const mk = () => { const c = document.createElement('canvas'); c.width = 800; c.height = 400; return c; };
+      const css = '.tw{position:absolute;inset:0;background:#1b1d1d;font-family:Menlo,monospace;color:#eee;padding:20px}'
+        + ' .web{font:20px Helvetica;padding:20px}';
+      const a = mk(), b = document.createElement('canvas'), w = mk();
+      await Stage3D.screen(a, '<div class="tw"><div class="wel">\\u273b Welcome to Claude Code!</div><div>&gt; hi</div></div>', {size: [400, 200], css, name: 'hand'});
+      const t = Stage3D.terminal(frame, {px: 14, title: null}); b.width = t.size[0]; b.height = t.size[1];
+      await Stage3D.screen(b, t.html, {size: t.size, css: t.css, name: 'captured'});
+      await Stage3D.screen(w, '<div class="web">Works in Claude Code and Codex. Run ~ %% npx skills add it</div>', {size: [400, 200], css, name: 'web'});
+      const st = Stage3D.create({canvas: document.getElementById('c')}); st.studio();
+      [a, b, w].forEach((cv, i) => st.card(cv, {width: 0.8, x: -1 + i}));
+      await st.ready(); st.render({pos: [0, 0, 3], look: [0, 0, 0], fov: 60});
+      return await Stage3D.lintScreens();""" % json.dumps(frame))
+    by = {r["screen"]: [i["kind"] for i in r["issues"]] for r in res}
+    assert "imitated-terminal" in by.get("hand", []), by
+    assert "imitated-terminal" not in by.get("captured", []) and "imitated-terminal" not in by.get("web", []), by
