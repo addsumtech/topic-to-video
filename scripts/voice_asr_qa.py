@@ -33,6 +33,7 @@ import _common as _c  # noqa: E402
 
 DRIFT = 0.35        # s; a caption this far off its word is seen (a recogniser's word times are good to ~0.1-0.2 s)
 RUN = 3             # words in a row: a dropped or extra phrase, not a misheard word
+HEARD_V = 4         # what a cached result was heard with: a change to how the voice is heard invalidates it
 _USAGE = "usage: voice_asr_qa.py <film_dir> [--model small] [--json]"
 _CJK = re.compile(r"[㐀-鿿豈-﫿]")
 _EN_NUM = set(("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
@@ -47,9 +48,10 @@ def tokens(text, zh):
     text = text.replace("百分之", " ").replace("%", " " if zh else " percent ")   # 百分之六十 = 60% = sixty percent
     for wi, w in enumerate(text.split()):
         parts = re.findall(r"[㐀-鿿豈-﫿]|[0-9][0-9.,]*|[a-zA-Z]+(?:'[a-z]+)?", w.lower().replace("-", " "))
-        for p in parts:
+        sound = _sounds(parts) if zh else parts
+        for p, snd in zip(parts, sound):
             num = p[0].isdigit() or p in _EN_NUM or (zh and p in _ZH_NUM)
-            tok = "#" if num else (p[:-1] if not zh and len(p) > 3 and p.endswith("s") and not p.endswith("ss") else p)
+            tok = "#" if num else (p[:-1] if not zh and len(p) > 3 and p.endswith("s") and not p.endswith("ss") else snd)
             if tok == "#" and out and out[-1][0] == "#":
                 continue                                    # "sixty four million" / 六十四 / 64,000: one number
             # "a hundred and twenty" = 120: the article before a number word and the "and" inside one belong to it
@@ -60,6 +62,70 @@ def tokens(text, zh):
                 continue
             out.append((tok, wi))
     return out
+
+
+def _sounds(parts):
+    """Chinese compared by what is SAID: each character as its toneless pinyin, read in its phrase (多音字 by context).
+    A recogniser writes a homophone as often as the script's character (河/和, 蛇/舌, 代/带: 24 false "misheard" words
+    on the Shenzhen film), while a real misreading changes the sound (银行 read as 银星). Without pypinyin: the
+    characters themselves."""
+    try:
+        from pypinyin import lazy_pinyin
+    except ImportError:
+        return parts
+    out, run = list(parts), []
+    for i, p in enumerate(parts + [""]):
+        if p and _CJK.match(p):
+            run.append(i)
+            continue
+        if run:
+            for j, py in zip(run, lazy_pinyin("".join(parts[k] for k in run))):
+                out[j] = py
+            run = []
+    return out
+
+
+_LATIN = re.compile(r"^[a-z]+$")
+
+
+def _join_latin(toks, times):
+    """In a Chinese line, English heard in fragments ("sk" "ill", "c" "ode" "x") joined into one word, as the script's
+    letters are: the recogniser splits a word it hears inside Chinese speech. Pinyin syllables are never joined (a
+    character's sound is one token only on the script side)."""
+    out, ot = [], []
+    for t, tm in zip(toks, times):
+        if out and _LATIN.match(t) and _LATIN.match(out[-1]) and not _is_syllable(t) and not _is_syllable(out[-1]):
+            out[-1] += t
+            continue
+        out.append(t)
+        ot.append(tm)
+    return out, ot
+
+
+def _join_latin_tokens(st):
+    out = []
+    for tok, wi in st:
+        if out and _LATIN.match(tok) and _LATIN.match(out[-1][0]) and not _is_syllable(tok) and not _is_syllable(out[-1][0]):
+            out[-1] = (out[-1][0] + tok, out[-1][1])
+            continue
+        out.append((tok, wi))
+    return out
+
+
+_PINYIN = None
+
+
+def _is_syllable(t):
+    """A toneless pinyin syllable (the sound of one Chinese character), as _sounds writes them."""
+    global _PINYIN
+    if _PINYIN is None:
+        try:
+            from pypinyin.constants import PINYIN_DICT
+            from pypinyin import lazy_pinyin
+            _PINYIN = {lazy_pinyin(chr(c))[0] for c in list(PINYIN_DICT)[:30000]}
+        except Exception:
+            _PINYIN = set()
+    return t in _PINYIN
 
 
 def _decode(path):
@@ -78,8 +144,11 @@ def hear(audio, zh, model="small", offset=0.0):
     from faster_whisper import WhisperModel
     if model not in _MODELS:
         _MODELS[model] = WhisperModel(model, device="cpu", compute_type="int8", cpu_threads=max(2, (os.cpu_count() or 4) // 2))
+    # a Chinese voice is written down in traditional characters as often as not (這裡 for 这里, 萬 for 万: every one a
+    # false "misheard" on the Shenzhen film); a simplified sentence as the prompt keeps it in the script's own script
     segs, _ = _MODELS[model].transcribe(audio, language="zh" if zh else "en", word_timestamps=True, beam_size=5,
-                                        condition_on_previous_text=False)
+                                        condition_on_previous_text=False,
+                                        initial_prompt="以下是普通话的句子，使用简体中文。" if zh else None)
     return [(w.word.strip(), float(w.start) + offset) for s in segs for w in (s.words or []) if w.word.strip()]
 
 
@@ -102,9 +171,13 @@ def judge_line(line, heard, zh, lexicon):
             if not (tok == "#" and htoks and htoks[-1] == "#"):
                 htoks.append(tok)
                 htimes.append(t)
+    if zh:
+        htoks, htimes = _join_latin(htoks, htimes)
     best = None
     for vi, text in enumerate(variants):
         st = tokens(text, zh)
+        if zh:
+            st = _join_latin_tokens(st)
         sm = difflib.SequenceMatcher(None, [x[0] for x in st], htoks, autojunk=False)
         if best is None or sm.ratio() > best[1].ratio():
             best = (st, sm, vi)
@@ -169,7 +242,7 @@ def main(argv):
         lexicon = lexicon["words"]
     # heard once per voice: the voice is checked at step 4 and rarely changes after, so film_qc's run reads that
     # result instead of transcribing again (the recogniser took half the cores beside picture_glide_qa: +69 s)
-    key = [_stamp(src), _stamp(tp), _stamp(lp), model]
+    key = [_stamp(src), _stamp(tp), _stamp(lp), model, HEARD_V]
     cp = os.path.join(d, "_voice_qc.json")
     cached = None
     if os.path.isfile(cp):

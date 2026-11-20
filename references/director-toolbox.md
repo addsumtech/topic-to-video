@@ -267,7 +267,11 @@ the seam proved (the wrap frame differs no more than consecutive frames).
 Content moving over much of the frame under a camera move (tops spinning, films playing in windows, a line being typed)
 reads as stepping: MRI s13 0.126 px, topic-to-video s04 0.134 and s08 0.400 (2026-11-19); the two topic-to-video
 shots passed with their content frozen (0.059 / 0.094), MRI s13 split into its stretches (0.101). A field fitted more robustly did not separate them (s13 rose to 0.285), so prove such a red the
-documented way: the same move with the content held, recorded in `NOTES.md`.
+documented way: the same move with the content held, recorded in `NOTES.md`. The delivery grain lifts the reading too
+(the same frames encoded without grain: Shenzhen s04 0.140 -> 0.073, MRI s13 0.126 -> 0.107, topic-to-video s04 0.134
+-> 0.105), and so does a 3D stage's own per-frame noise (dither, particles); reading the raw frames instead was mixed
+across six films (some reds gone, one new), so it was not kept. A glide control is therefore encoded WITHOUT grain.
+Re-calibrating this check on a labelled corpus of stepping and gliding shots is open work.
 picture_glide_qa is slow when several films render at once; on a busy machine run it per shot (`--clip --from --to`).
 **Before the film is assembled**, a builder checks its own shots: `film_qc.py <film_dir> --frames A-B` encodes frames
 A..B-1 of `work/frames` as the film will be (into `work/qc_A-B/`, the plan and shot plan cut to that stretch) and runs

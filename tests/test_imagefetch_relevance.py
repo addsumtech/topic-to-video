@@ -216,3 +216,14 @@ def test_every_picture_the_page_names_needs_a_record_and_a_crop_inherits_its_cre
     assert len(bad) == 2 and any("missing.jpg, which is not there" in b for b in bad) and any("BY-NC" in b for b in bad), bad
     lines = F.credit_lines(str(d))
     assert len(lines) == 1 and "A. Radiologist" in lines[0] and "CC BY-SA 4.0" in lines[0], lines
+
+
+def test_pictures_named_in_a_film_js_beside_the_page_are_found(tmp_path):
+    # the Shenzhen film kept all its code in film.js beside film.html: the check read none of it and passed
+    d = tmp_path / "film"
+    (d / "img").mkdir(parents=True)
+    (d / "film.html").write_text("<script src='lib/stage3d.js'></script><script src='film.js'></script>")
+    (d / "film.js").write_text("load('img/guomao.jpg');")
+    (d / "img" / "guomao.jpg").write_bytes(b"x")
+    assert F.film_pictures(str(d)) == ["img/guomao.jpg"]
+    assert F.check_film(str(d)) and "has no record" in F.check_film(str(d))[0]

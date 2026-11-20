@@ -621,22 +621,38 @@ def candidate_sheet(keep, path):
 # whether each picture was free to use (2026-11-20).
 _OWN_DIRS = ("input/", "clips/", "work/", "design/")
 _PIC_REF = re.compile(r"""['"`]([A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|gif|tiff?))['"`]""", re.I)
-_PAGE_SRC = ("film.html", "shots", "lib")
+
+
+def _page_sources(film_dir):
+    """Every file the page's code lives in: film.html, the local scripts and styles it loads (a film may keep all its
+    code in one film.js beside the page: the Shenzhen film did, and a check that read only shots/ and lib/ passed it
+    without reading a line), every .js / .css at the film's top, and shots/ and lib/."""
+    files = set()
+    page = os.path.join(film_dir, "film.html")
+    if os.path.isfile(page):
+        files.add(page)
+        for ref in re.findall(r"""(?:src|href)=["']([^"':]+\.(?:js|css))["']""", open(page, encoding="utf-8", errors="replace").read()):
+            files.add(os.path.normpath(os.path.join(film_dir, ref)))
+    for f in os.listdir(film_dir):
+        if f.endswith((".js", ".css")):
+            files.add(os.path.join(film_dir, f))
+    for top in ("shots", "lib"):
+        p = os.path.join(film_dir, top)
+        if os.path.isdir(p):
+            files.update(os.path.join(r, f) for r, _d, fs in os.walk(p) for f in fs)
+    return sorted(f for f in files if os.path.isfile(f))
 
 
 def film_pictures(film_dir):
-    """The picture files a film page names by path (film.html, shots/, lib/), as paths relative to the film."""
+    """The picture files a film page names by path (in the code _page_sources finds), as paths relative to the film."""
     found = set()
-    for top in _PAGE_SRC:
-        p = os.path.join(film_dir, top)
-        files = [p] if os.path.isfile(p) else [os.path.join(r, f) for r, _d, fs in os.walk(p) for f in fs] if os.path.isdir(p) else []
-        for f in files:
-            if not f.endswith((".html", ".js", ".css", ".json")) or os.path.basename(f) == "stage3d.js":
-                continue
-            for m in _PIC_REF.finditer(open(f, encoding="utf-8", errors="replace").read()):
-                rel = os.path.normpath(m.group(1).lstrip("./"))
-                if os.path.isfile(os.path.join(film_dir, rel)):
-                    found.add(rel)
+    for f in _page_sources(film_dir):
+        if not f.endswith((".html", ".js", ".css", ".json")) or os.path.basename(f) in ("stage3d.js", "geo.js"):
+            continue
+        for m in _PIC_REF.finditer(open(f, encoding="utf-8", errors="replace").read()):
+            rel = os.path.normpath(m.group(1).lstrip("./"))
+            if os.path.isfile(os.path.join(film_dir, rel)):
+                found.add(rel)
     return sorted(found)
 
 

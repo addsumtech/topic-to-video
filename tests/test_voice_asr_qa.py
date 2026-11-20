@@ -83,3 +83,14 @@ def test_an_unchanged_voice_is_not_heard_twice(tmp_path, monkeypatch, capsys):
     (tmp_path / "timeline.json").write_text(json.dumps({"lines": [_line("hello there my good friend")]}))
     os.utime(tmp_path / "timeline.json", (1e9, 2e9))
     assert v.main([str(tmp_path)]) == 0 and len(calls) == 2, "an edited timeline is heard again"
+
+
+def test_chinese_is_compared_by_sound_and_english_inside_it_whole():
+    pytest = __import__("pytest")
+    pytest.importorskip("pypinyin")
+    ln = _line("隔着一条深圳河 就是香港 用 Skill 和 Codex")
+    heard = _heard("隔着一条深圳和 就是香港 用 Sk ill 河 C ode x", step=0.3 * 6 / 10)   # homophones, split English, in the line's time
+    r = v.judge_line(ln, heard, True, {})
+    assert not r["dropped"] and not r["listen"], r
+    r = v.judge_line(ln, _heard("隔着一条深圳河 就是香港 用 Speal 和 Codex"), True, {})
+    assert r["listen"] and r["listen"][0]["heard"] == "speal", r      # a real misreading still heard

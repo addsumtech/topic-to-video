@@ -162,3 +162,11 @@ def test_film_qc_refuses_a_stretch_it_cannot_judge(tmp_path, capsys):
     with pytest.raises(SystemExit) as e:
         film_qc.main([str(d), "--frames", "20-50"])
     assert e.value.code == 2 and "not rendered" in capsys.readouterr().err
+
+
+def test_a_red_check_shows_every_finding_not_its_last_lines():
+    # the MRI film's glide: beats 1, 5, 7, 8 and 13 stepped; the last 25 lines showed only 13
+    out = "\n".join(["  beat %2d  frames 1-2  0.2 px RMS   <- STEPS" % k if k in (1, 5, 7, 8) else "  beat %2d  fine" % k
+                     for k in range(1, 40)] + ["[picture_glide] FAIL — stepping: [1, 5, 7, 8]"])
+    shown = film_qc._findings(out)
+    assert sum("<- STEPS" in l for l in shown) == 4 and any("FAIL" in l for l in shown) and len(shown) < 10, shown

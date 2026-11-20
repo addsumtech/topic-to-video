@@ -35,6 +35,7 @@ _plan.json (written by the film's own renderer):
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -112,6 +113,22 @@ def stretch(d, span):
         os.remove(os.path.join(out, "shot_plan.json"))
     film_deliver.encode(out, src, None, os.path.join(out, "final.mp4"), 3, start=a, count=b - a)
     return out
+
+
+_FINDING = re.compile(r"<-|\bERROR\b|\bFAIL\b|\bRED\b|^[A-Z][A-Z-]{3,}\s")
+
+
+def _findings(out, cap=80):
+    """What a red check found: every finding line (a marked beat, an ERROR, a named defect), then its last lines (the
+    verdict). The last 25 lines alone hid a check's first findings: the MRI film's glide reds on beats 1, 5, 7 and 8
+    were cut off, and only beat 13 was seen (2026-11-20)."""
+    lines = [l for l in out.splitlines() if l.strip() and not re.search(r"Broken pipe|Last message repeated|Error (muxing|submitting)|Task finished|Terminating", l)]
+    hits = [l for l in lines if _FINDING.search(l.strip())]
+    tail = [l for l in lines[-3:] if l not in hits]
+    shown = hits + tail
+    if len(shown) > cap:
+        shown = shown[:cap - 1] + ["… %d more finding line(s): run the check alone for all of them" % (len(shown) - cap + 1)]
+    return shown
 
 
 def record(d, video, red, only):
@@ -196,7 +213,7 @@ def main(argv):
             print("OK   %s" % name)
         else:
             red.append(name)
-            print("RED  %s (exit %d)\n%s" % (name, r.returncode, "\n".join("     " + l for l in out.splitlines()[-25:])))
+            print("RED  %s (exit %d)\n%s" % (name, r.returncode, "\n".join("     " + l for l in _findings(out))))
     if not span:
         record(d, video, red, None if only is None else [n for n, _ in todo])
     print("film_qc: %s%s%s" % ("CLEAN" if not red else "RED — " + ", ".join(red),
