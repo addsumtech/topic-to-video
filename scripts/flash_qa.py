@@ -141,12 +141,12 @@ def main(argv):
               "a picture of %.0f — a flash at its %s; the intro/outro veil should be the edge beat's own ground (or black)"
               % ("enters" if w["edge"] == "in" else "leaves", w["peak"], w["t"], w["frame"], w["picture"],
                  "start" if w["edge"] == "in" else "end"))
-    found = found + washes
-    for f in found:
+    for f in found:          # the washes were printed above in their own words (they carry no run length)
         where = _beat_of(out_dir, f["frame"]) if out_dir else None
         print("[flash] ERROR %s%s frame(s) at %.2fs (frame %d) unlike both neighbours (%.1f / %.1f grey levels; the "
               "neighbours differ by %.1f) — a layer that drops out or re-sorts for a frame"
               % ((where + ": ") if where else "", f["frames"], f["t"], f["frame"], f["before"], f["after"], f["across"]))
+    found = found + washes
     print("[flash] %s  %d flash(es) in %s" % ("FAIL" if found else "OK", len(found), os.path.basename(path)))
     return 1 if found else 0
 

@@ -73,3 +73,16 @@ def test_a_dark_film_that_enters_or_leaves_through_white_is_a_flash():
     assert fq.edge_washes(fr=_edge_film(0, 30, 0)) == []
     assert fq.edge_washes(fr=_edge_film(235, 225, 235)) == [], "a light film fading on its own light ground is no flash"
     assert fq.edge_washes(fr=_edge_film(0, 225, 0)) == [], "a light film fading from and to black is no flash"
+
+
+def test_a_wash_is_reported_without_crashing_the_report(tmp_path, monkeypatch, capsys):
+    # the Shenzhen film (2026-11-20): a wash at a stretch's edge crashed the printer (KeyError 'frames'), the
+    # washes being printed again in the flash format they do not have
+    import flash_qa as fq
+    v = tmp_path / "f.mp4"
+    v.write_bytes(b"x")
+    monkeypatch.setattr(fq, "flashes", lambda p: [])
+    monkeypatch.setattr(fq, "edge_washes", lambda p=None, fr=None: [{"edge": "in", "frame": 3, "t": 0.1, "peak": 240, "picture": 30}])
+    assert fq.main([str(v)]) == 1
+    out = capsys.readouterr().out
+    assert "enters through a ground brighter" in out and "1 flash(es)" in out
