@@ -152,3 +152,67 @@ def test_a_download_that_is_not_an_image_is_never_handed_on(tmp_path, monkeypatc
     why = []
     assert F.fetch("lever escapement", str(tmp_path / "e.jpg"), why=why) is None
     assert not (tmp_path / "e.jpg").exists() and any("not a readable image" in w for w in why), why
+
+
+# ── the candidate list, NASA, and a film's pictures on record (2026-11-20) ───────────────────────────────────────
+def test_pick_fetches_the_kth_relevant_candidate_and_refuses_one_past_the_list(tmp_path, monkeypatch):
+    _serve(monkeypatch, LEVER)
+    _req, keep, _ref, _near = F.ranked("lever escapement")
+    assert len(keep) == 2
+    meta = F.fetch("lever escapement", str(tmp_path / "e.jpg"), pick=1)
+    assert meta["title"] == keep[1][0]["title"] and meta["provider"] == "Wikimedia Commons"
+    with pytest.raises(ValueError):
+        F.fetch("lever escapement", str(tmp_path / "f.jpg"), pick=5)
+
+
+NASA = {"collection": {"items": [{"href": "https://images-assets.example/PIA1/collection.json",
+                                  "data": [{"title": "Earth at night over Shenzhen", "nasa_id": "PIA1", "center": "JSC",
+                                            "description": "City lights of Shenzhen and Hong Kong", "keywords": ["Earth", "Shenzhen"]}],
+                                  "links": [{"rel": "preview", "href": "https://images-assets.example/PIA1/thumb.jpg"}]}]}}
+
+
+def test_a_nasa_picture_is_found_fetched_at_its_largest_and_credited_to_nasa(tmp_path, monkeypatch):
+    image = _jpeg(2000, 1200)
+    seen = []
+
+    def urlopen(req, timeout=None):
+        seen.append(req.full_url)
+        if "images-api.nasa.gov" in req.full_url:
+            return io.BytesIO(json.dumps(NASA).encode())
+        if req.full_url.endswith("collection.json"):
+            return io.BytesIO(json.dumps(["https://x/PIA1~thumb.jpg", "https://x/PIA1~large.jpg", "https://x/PIA1~orig.jpg"]).encode())
+        return io.BytesIO(image)
+    monkeypatch.setattr(F.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(F, "_sleep", lambda s: None)
+    meta = F.fetch("Shenzhen", str(tmp_path / "n.jpg"), source="nasa")
+    assert meta and "~orig" in seen[-1] and meta["license"] == "Public domain (NASA)"
+    assert F.attribution_line(meta).endswith("NASA Image and Video Library") and "NASA/JSC" in F.attribution_line(meta)
+
+
+def _film(tmp_path, refs):
+    d = tmp_path / "film"
+    (d / "shots").mkdir(parents=True)
+    (d / "film.html").write_text("<script src='lib/stage3d.js'></script>")
+    (d / "shots" / "s01.js").write_text("\n".join("load('%s');" % r for r in refs))
+    for r in refs:
+        (d / r).parent.mkdir(parents=True, exist_ok=True)
+        (d / r).write_bytes(b"x")
+    return d
+
+
+def test_every_picture_the_page_names_needs_a_record_and_a_crop_inherits_its_credit(tmp_path):
+    d = _film(tmp_path, ["img/brain.png", "img/xray.jpg", "img/computed.png", "img/bad.jpg", "clips/s07/0001.png",
+                         "input/brand/logo.png", "design/refs/brain_axial.jpg"])
+    rec = {"title": "File:Brain MRI axial.jpg", "license": "CC BY-SA 4.0", "artist": "A. Radiologist",
+           "source": "https://commons.example/brain", "provider": "Wikimedia Commons"}
+    (d / "design/refs/brain_axial.jpg.json").write_text(json.dumps(rec))
+    (d / "img/bad.jpg.json").write_text(json.dumps(dict(rec, license="CC BY-NC 4.0", source="https://commons.example/bad")))
+    bad = F.check_film(str(d))
+    assert len(bad) == 4 and any("brain.png has no record" in b for b in bad) and any("BY-NC" in b for b in bad), bad
+    (d / "images_ok.json").write_text(json.dumps({"img/brain.png": {"from": "design/refs/brain_axial.jpg"},
+                                                  "img/xray.jpg": {"from": "design/refs/missing.jpg"},
+                                                  "img/computed.png": {"own": "k-space reconstruction computed for the film"}}))
+    bad = F.check_film(str(d))
+    assert len(bad) == 2 and any("missing.jpg, which is not there" in b for b in bad) and any("BY-NC" in b for b in bad), bad
+    lines = F.credit_lines(str(d))
+    assert len(lines) == 1 and "A. Radiologist" in lines[0] and "CC BY-SA 4.0" in lines[0], lines

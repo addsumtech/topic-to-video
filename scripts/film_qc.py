@@ -18,7 +18,8 @@ against the plan's cuts), picture_glide_qa (a picture stepping instead of glidin
 empty_frame_qa (a blank hold of a second or more), shake_qa (the whole frame vibrating instead of travelling) and
 caption_size_qa (burned captions too small to read on a phone); with a film.html, page_overlap_qa (words or
 controls colliding on the page over time, or a readable line cut by the frame's edge), film_copy_qa (every word shown
-comes from the sources or is declared) and picture_legibility_qa (a picture on screen that shows almost nothing);
+comes from the sources or is declared), picture_legibility_qa (a picture on screen that shows almost nothing) and
+imagefetch --check (every picture the page names says where it came from, under a licence a film may carry);
 with a stage3d page, stage_contacts_qa (nothing passes through anything); pan_speed_qa (no camera whip that strobes);
 repetition_qa (advisory: one staging repeated as the film's device); banding_qa (dark gradients stepping after the
 encode; scripts/film_deliver.py --encode adds the grain finish that fixes it); mix (a film with music in audio/ ships
@@ -43,7 +44,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 # judged on the whole film only: one staging repeated across the film, the music under the voice, the plan itself
-FILM_WIDE = ("repetition", "mix", "shot plan", "voice")
+FILM_WIDE = ("repetition", "mix", "shot plan", "voice", "images")
 
 
 def checks(d, video, plan, span=None, page_dir=None):
@@ -65,7 +66,8 @@ def checks(d, video, plan, span=None, page_dir=None):
     if page:
         out += [("overlaps", [py, os.path.join(HERE, "page_overlap_qa.py"), page_dir] + pspan),
                 ("copy", [py, os.path.join(HERE, "film_copy_qa.py"), page_dir] + pspan),
-                ("pictures", [py, os.path.join(HERE, "picture_legibility_qa.py"), page_dir] + pspan)]
+                ("pictures", [py, os.path.join(HERE, "picture_legibility_qa.py"), page_dir] + pspan),
+                ("images", [py, os.path.join(HERE, "imagefetch.py"), "--check", page_dir])]
     if _uses_stage3d(page_dir):
         out.append(("contacts", [py, os.path.join(HERE, "stage_contacts_qa.py"), page_dir] + pspan))
     out.append(("pan speed", [py, os.path.join(HERE, "pan_speed_qa.py"), d]))

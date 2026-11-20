@@ -11,8 +11,13 @@ vocabulary SKILL.md's "Design is judgement" refers to. The classic version's oth
   Its figures and screenshots can appear in the film.
 - **A real product page:** `python3 scripts/promo_capture.py <film_dir> <url> --name=<n>` and
   `python3 scripts/capture_page.py <page.html|url> --name <n>` capture at 2x.
-- **A real, licensed image of a named subject:** `python3 scripts/imagefetch.py "<query>" out.jpg` (Wikimedia Commons,
-  with its credit).
+- **A real, licensed image of a named subject:** `python3 scripts/imagefetch.py "<query>" img/<name>.jpg` (Wikimedia
+  Commons, or `--source nasa`; the record beside it, `<file>.json`, carries the credit). For a real person, place or
+  event, look first: `--candidates 12` lists the relevant ones and draws them on `img/<name>.candidates.jpg`; then
+  `--pick K`. A crop or treatment of a fetched picture is declared in `<film_dir>/images_ok.json`
+  (`{"img/x.png": {"from": "design/refs/x.jpg"}}`; `{"own": why}` for a picture the film computed, `{"generated":
+  why}` for atmosphere); `film_qc` ("images") holds every picture the page names to a record, and `film_deliver`
+  writes the credits beside the film.
 
 ## Writing (step 3)
 - `agents/scriptwriter.md` can draft the narration from the plan; one round of `agents/critic-narrative.md` on the draft

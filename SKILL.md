@@ -227,7 +227,9 @@ Blender clip, a library shot rendered through the workshop) are placed as frames
 real 3D from Blender (`scripts/blender_clip.py`) for what 3D physicality IS the content of — a real object, a
 material, optics, physics, a device (the product's real screen on a lit MacBook); the library's 227 shots and its
 objects as parts inside a film's own workshop shot, rendered in the film's look (a FULL palette file; on a light
-look, render one frame of it and read every word, since some library shots hard-code light ink); real images (`imagefetch`), page
+look, render one frame of it and read every word, since some library shots hard-code light ink); real images (`imagefetch`:
+Commons or NASA, `--candidates` to look before `--pick`; a crop of one is declared in `images_ok.json` so its credit
+carries over, and `film_qc` holds every picture the page names to a record), page
 captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK caption breaks.
 
 **Accents** (a moment made FELT in motion, never an emoji glyph; where, how and how often: `references/director-craft.md`
@@ -327,7 +329,9 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
   Unsure → say it as reported, keep it qualitative, or cut it. A demo value printed on screen is a claim.
 - **Real brand assets only.** A product film uses the product's real logo, colours and screens; never redraw a
   logo, never invent UI. Render a logo and look at it before deriving colours from it.
-- **Imagery is faithful:** a generated image never stands in for a real object, place, person or data.
+- **Imagery is faithful:** a generated image never stands in for a real object, place, person or data. A real one
+  is shown with its real picture, from the user's material or an open source with its licence on record
+  (`imagefetch.py`); the film's credits are written from those records.
 - **A somber subject gets a sober look** (the style vetoes in `visual-styles.md`).
 - **Ask before spending money** (cloud TTS, paid image generation).
 - **Report honestly:** if a check is red and cannot be fixed, say so with its output.

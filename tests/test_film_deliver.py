@@ -94,14 +94,14 @@ def test_a_share_copy_is_made_beside_the_master_and_capped(tmp_path):
     assert os.path.getsize(out) < os.path.getsize(d / "final.mp4") * 4      # it ran the capped encode and finished
 
 
-def test_deliver_hands_over_the_share_copy_when_the_film_has_one(tmp_path):
+def test_deliver_hands_over_the_share_copy_and_the_credits_when_the_film_has_them(tmp_path):
     import deliver
     d = tmp_path / "film"
     d.mkdir()
     (d / "_plan.json").write_text(json.dumps({"video": "final.mp4", "fps": 30, "frames": 3}))
-    for f in ("final.mp4", "final.share.mp4"):
+    for f in ("final.mp4", "final.share.mp4", "final.credits.txt"):
         (d / f).write_bytes(b"x")
     to = tmp_path / "desk"
     to.mkdir()
     got = [os.path.basename(p) for p in deliver.deliver(str(d), to=str(to))]
-    assert any(p.endswith(" - share.mp4") for p in got), got
+    assert any(p.endswith(" - share.mp4") for p in got) and any(p.endswith(" - credits.txt") for p in got), got

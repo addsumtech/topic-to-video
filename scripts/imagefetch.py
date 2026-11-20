@@ -383,6 +383,36 @@ def search(query, limit=10, width=1600, depicts=None):
     return out
 
 
+_NASA = "https://images-api.nasa.gov/search"
+
+
+def search_nasa(query, limit=10):
+    """NASA Image and Video Library candidates in search()'s shape. NASA's own media are generally not under copyright
+    (NASA asks for a credit); the asset's size is known only from its file, so `width` is None until it is fetched."""
+    d = json.loads(_get(_NASA + "?" + urllib.parse.urlencode({"q": query, "media_type": "image"}), 30, "the NASA search"))
+    out = []
+    for k, it in enumerate(((d.get("collection") or {}).get("items") or [])[:limit]):
+        meta = (it.get("data") or [{}])[0]
+        prev = next((l.get("href") for l in it.get("links") or [] if l.get("rel") == "preview"), None)
+        if not prev:
+            continue
+        out.append({"title": meta.get("title", ""), "url": prev, "collection": it.get("href"), "mime": "image/jpeg",
+                    "license": "Public domain (NASA)", "artist": "NASA" + ("/" + meta["center"] if meta.get("center") else ""),
+                    "credit": "NASA", "object_name": meta.get("title", ""), "description": meta.get("description", ""),
+                    "categories": " | ".join(meta.get("keywords") or []), "rank": k,
+                    "source": "https://images.nasa.gov/details/" + meta.get("nasa_id", ""), "width": None, "height": None,
+                    "provider": "NASA Image and Video Library"})
+    return out
+
+
+def _nasa_asset(collection):
+    """The largest still of a NASA item that is a web image (its ~orig, else ~large)."""
+    files = [u for u in json.loads(_get(collection, 30, "the NASA asset list")) if re.search(r"\.(jpe?g|png)$", u, re.I)]
+    if not files:
+        raise ValueError("no web image among the NASA assets")
+    return next((u for u in files if "~orig" in u), None) or next((u for u in files if "~large" in u), files[0])
+
+
 def _download(url, out_path, timeout=60):
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     data = _get(url, timeout, "downloading %s" % url)
@@ -403,8 +433,43 @@ def _pixel_width(path):
         return None
 
 
+def ranked(query, width=1600, prefer=None, min_width=800, require_license=True, require=None, source="commons"):
+    """(required terms, [(candidate, relevance)] in the order fetch() tries them, [(candidate, why refused)], near
+    misses) — the licence, width and relevance filters shared by fetch() and the candidate list."""
+    q_req, fmt = key_terms(query)
+    req = [t for t in _TOKEN.findall(_fold(" ".join(require))) if t not in _STOPWORDS] if require else q_req
+    if not req:
+        raise ValueError("require=%r names no term" % (require,))
+    try:
+        cands = search_nasa(query, limit=12) if source == "nasa" else search(query, limit=12, width=width)
+    except FetchError:
+        raise
+    except Exception as e:                           # noqa: BLE001 — a refusal or an unreadable answer
+        raise _failure("the %s search for %r" % ("NASA" if source == "nasa" else "Commons", query), e) from e
+    refused, keep, near = [], [], []
+    for c in cands:
+        if require_license and not _license_ok(c["license"]):
+            refused.append((c, "licence %r is not free/attributable" % c["license"]))
+            continue
+        # a NASA asset's size is known only from its file: judged after the download, like every file
+        if c.get("width") is not None and c["width"] < min_width:
+            refused.append((c, "%s px wide at most, under min_width %d" % (c.get("width"), min_width)))
+            continue
+        r = relevance(c, req, fmt)
+        if not r["ok"]:
+            refused.append((c, "off-subject: " + r["why"]))
+            near.append((len(r["missing"]), c.get("rank") or 0, r))
+            continue
+        keep.append((c, r))
+    pref = (prefer or "").lower()
+    keep.sort(key=lambda cr: (0 if pref and pref in (cr[0]["title"] or "").lower() else 1, cr[1]["tier"],
+                              -cr[1]["format_hits"],
+                              cr[0].get("rank") if cr[0].get("rank") is not None else 1 << 30))
+    return req, keep, refused, near
+
+
 def fetch(query, out_path, width=1600, prefer=None, min_width=800, require_license=True, require=None,
-          why=None):
+          why=None, source="commons", pick=None):
     """Search + download the best license-clean image OF `query`'s subject → out_path, and write a sidecar
     `out_path + '.json'` with {title, license, artist, source, query, relevance} (the ATTRIBUTION — a documentary
     image must carry it — and which field named each term).
@@ -419,39 +484,16 @@ def fetch(query, out_path, width=1600, prefer=None, min_width=800, require_licen
     and appended to `why` (a list) when one is passed — a refusal says which term was missing where, so the next
     query can be better than a guess. Raises FetchError when Commons could not be asked (a rate limit, a server
     error, the network), which is never the same thing as "nothing exists"."""
-    q_req, fmt = key_terms(query)
-    req = [t for t in _TOKEN.findall(_fold(" ".join(require))) if t not in _STOPWORDS] if require else q_req
-    if not req:
-        raise ValueError("require=%r names no term" % (require,))
-    try:
-        cands = search(query, limit=12, width=width)
-    except FetchError:
-        raise
-    except Exception as e:                           # noqa: BLE001 — a refusal or an unreadable answer
-        raise _failure("the Commons search for %r" % query, e) from e
-    refused, keep, near = [], [], []
-    for c in cands:
-        if require_license and not _license_ok(c["license"]):
-            refused.append((c, "licence %r is not free/attributable" % c["license"]))
-            continue
-        if (c.get("width") or 0) < min_width:
-            refused.append((c, "%s px wide at most, under min_width %d" % (c.get("width"), min_width)))
-            continue
-        r = relevance(c, req, fmt)
-        if not r["ok"]:
-            refused.append((c, "off-subject: " + r["why"]))
-            near.append((len(r["missing"]), c.get("rank") or 0, r))
-            continue
-        keep.append((c, r))
-    pref = (prefer or "").lower()
-    keep.sort(key=lambda cr: (0 if pref and pref in (cr[0]["title"] or "").lower() else 1, cr[1]["tier"],
-                              -cr[1]["format_hits"],
-                              cr[0].get("rank") if cr[0].get("rank") is not None else 1 << 30))
+    req, keep, refused, near = ranked(query, width, prefer, min_width, require_license, require, source)
+    if pick is not None:
+        if not 0 <= pick < len(keep):
+            raise ValueError("--pick %d: %d relevant candidate(s) for %r (list them with --candidates)" % (pick, len(keep), query))
+        keep = [keep[pick]]
     for c, r in keep:
         if not c.get("url"):
             continue
         try:
-            _download(c["url"], out_path)
+            _download(_nasa_asset(c["collection"]) if c.get("collection") else c["url"], out_path)
         except FetchError:
             raise          # the service, not this file — every other candidate would wait out the same failure
         except Exception as e:  # noqa: BLE001 — this one file is unusable (gone, too small): try the next one
@@ -470,6 +512,7 @@ def fetch(query, out_path, width=1600, prefer=None, min_width=800, require_licen
             continue
         meta = {"title": c["title"], "license": c["license"], "artist": c["artist"],
                 "credit": c["credit"], "source": c["source"], "query": query,
+                "provider": c.get("provider", "Wikimedia Commons"),
                 "relevance": {"terms": req, "where": r["where"], "tier": r["tier"]},
                 "pixel_width": px}
         with open(out_path + ".json", "w") as f:
@@ -501,10 +544,11 @@ def attribution_line(meta):
     """A compact on-screen/credits attribution string from a fetch() meta dict (or its .json path)."""
     if isinstance(meta, str):
         meta = json.load(open(meta))
-    who = meta.get("artist") or meta.get("credit") or "Wikimedia Commons"
+    prov = meta.get("provider") or "Wikimedia Commons"
+    who = meta.get("artist") or meta.get("credit") or prov
     lic = meta.get("license") or ""
     who = re.sub(r"\s+", " ", who)[:80]
-    return f"{who} · {lic} · Wikimedia Commons".strip(" ·")
+    return f"{who} · {lic} · {prov}".strip(" ·")
 
 
 def duotone(in_path, out_path, shadow=(22, 20, 18), highlight=(245, 242, 234), mid=None):
@@ -538,7 +582,136 @@ def _hex_rgb(h):
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
+def candidate_sheet(keep, path):
+    """The relevant candidates numbered on one sheet, each with its licence, provider and size, to LOOK at before
+    picking (`--pick K`): for a real person, place or event the first hit is not always the right picture."""
+    from io import BytesIO
+    from PIL import Image, ImageDraw, ImageFont
+    tw, th, cols = 320, 220, 4
+    rows = max(1, (len(keep) + cols - 1) // cols)
+    im = Image.new("RGB", (cols * tw, rows * (th + 44)), "white")
+    dr = ImageDraw.Draw(im)
+    try:
+        f = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 15)
+    except OSError:
+        f = ImageFont.load_default()
+    for k, (c, _r) in enumerate(keep):
+        x, y = (k % cols) * tw, (k // cols) * (th + 44)
+        try:
+            t = Image.open(BytesIO(_get(c["url"], 20, "a preview"))).convert("RGB")
+            t.thumbnail((tw - 8, th - 8))
+            im.paste(t, (x + (tw - t.width) // 2, y + (th - t.height) // 2))
+        except Exception:                           # noqa: BLE001 — a preview that will not load is said, not fatal
+            dr.text((x + 10, y + th // 2), "(no preview)", fill="grey", font=f)
+        size = "%sx%s" % (c["width"], c["height"]) if c.get("width") else "size on fetch"
+        dr.text((x + 6, y + th + 2), "%d  %s  %s" % (k, (c.get("license") or "")[:22], size), fill="black", font=f)
+        dr.text((x + 6, y + th + 22), (c.get("provider") or "Wikimedia Commons")[:40], fill="grey", font=f)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    im.save(path, quality=85)
+
+
+# ── a film's pictures on record ───────────────────────────────────────────────────────────────────────────────
+# Every picture a film page names must say where it came from: its own sidecar (written by fetch()), or an entry in
+# <film_dir>/images_ok.json — {"<file>": {"from": "<a file with a sidecar>"}} for a crop or treatment of a sourced
+# picture (its credit carries over), {"own": "<why>"} for a picture the film made (a render, a computed image),
+# {"generated": "<why>"} for generated atmosphere (never a real subject). The user's material (input/) and the film's
+# own renders (clips/, work/, design/) need nothing.
+# WHY: the MRI film showed a chest X-ray, knee and spine scans and a brain slice cropped from licensed originals in
+# design/refs/; the crops in img/ carried no record, so the film's credits could not be written and nothing could say
+# whether each picture was free to use (2026-11-20).
+_OWN_DIRS = ("input/", "clips/", "work/", "design/")
+_PIC_REF = re.compile(r"""['"`]([A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|gif|tiff?))['"`]""", re.I)
+_PAGE_SRC = ("film.html", "shots", "lib")
+
+
+def film_pictures(film_dir):
+    """The picture files a film page names by path (film.html, shots/, lib/), as paths relative to the film."""
+    found = set()
+    for top in _PAGE_SRC:
+        p = os.path.join(film_dir, top)
+        files = [p] if os.path.isfile(p) else [os.path.join(r, f) for r, _d, fs in os.walk(p) for f in fs] if os.path.isdir(p) else []
+        for f in files:
+            if not f.endswith((".html", ".js", ".css", ".json")) or os.path.basename(f) == "stage3d.js":
+                continue
+            for m in _PIC_REF.finditer(open(f, encoding="utf-8", errors="replace").read()):
+                rel = os.path.normpath(m.group(1).lstrip("./"))
+                if os.path.isfile(os.path.join(film_dir, rel)):
+                    found.add(rel)
+    return sorted(found)
+
+
+def provenance(film_dir, rel, decl=None, seen=None):
+    """(kind, sidecar meta or None, problem or None) for one picture: sourced / derived / own / generated / input."""
+    decl = decl if decl is not None else _declared(film_dir)
+    seen = seen or set()
+    if rel in seen:
+        return "derived", None, "%s: its 'from' chain loops" % rel
+    seen.add(rel)
+    side = os.path.join(film_dir, rel + ".json")
+    if os.path.isfile(side):
+        try:
+            meta = json.load(open(side, encoding="utf-8"))
+        except ValueError:
+            return "sourced", None, "%s: its record %s.json is not readable JSON" % (rel, rel)
+        if not _license_ok(meta.get("license")):
+            return "sourced", meta, "%s is under %r, which a film may not carry (public domain, CC0, CC BY, CC BY-SA)" % (rel, meta.get("license"))
+        if not (meta.get("source") or meta.get("credit")):
+            return "sourced", meta, "%s: its record has no source link for the credit" % rel
+        return "sourced", meta, None
+    d = decl.get(rel)
+    if isinstance(d, dict) and d.get("from"):
+        src = os.path.normpath(d["from"])
+        if not os.path.isfile(os.path.join(film_dir, src)):
+            return "derived", None, "%s is declared from %s, which is not there" % (rel, src)
+        kind, meta, prob = provenance(film_dir, src, decl, seen)
+        if kind in ("own", "generated") and not prob:
+            return kind, None, None
+        return "derived", meta, prob and ("%s (from %s): %s" % (rel, src, prob))
+    if isinstance(d, dict) and (d.get("own") or d.get("generated")):
+        return ("own" if d.get("own") else "generated"), None, None
+    if rel.replace(os.sep, "/").startswith(_OWN_DIRS):
+        return "input" if rel.startswith("input") else "own", None, None
+    return None, None, ("%s has no record: fetch it with imagefetch.py (a sidecar is written), or declare it in "
+                        "images_ok.json ({\"from\": <sourced file>} | {\"own\": why} | {\"generated\": why})" % rel)
+
+
+def _declared(film_dir):
+    p = os.path.join(film_dir, "images_ok.json")
+    return json.load(open(p, encoding="utf-8")) if os.path.isfile(p) else {}
+
+
+def check_film(film_dir):
+    """[problem] for every picture the film page names."""
+    decl = _declared(film_dir)
+    return [prob for rel in film_pictures(film_dir) for _k, _m, prob in [provenance(film_dir, rel, decl)] if prob]
+
+
+def credit_lines(film_dir):
+    """One attribution line per sourced picture the film shows (a crop's credit is its original's), each once."""
+    decl, out, seen = _declared(film_dir), [], set()
+    for rel in film_pictures(film_dir):
+        _k, meta, prob = provenance(film_dir, rel, decl)
+        if meta and not prob and meta.get("source") not in seen:
+            seen.add(meta.get("source"))
+            title = re.sub(r"(?i)^file:", "", meta.get("title") or "")
+            out.append(meta.get("credit_line") or "%s — %s. %s" % (title, attribution_line(meta), meta.get("source") or ""))
+    return out
+
+
 def main():
+    if len(sys.argv) == 3 and sys.argv[1] in ("--check", "--credits"):
+        d = os.path.abspath(sys.argv[2])
+        if not os.path.isdir(d):
+            print("imagefetch: %s is not a folder" % d, file=sys.stderr)
+            raise SystemExit(2)
+        if sys.argv[1] == "--credits":
+            print("\n".join(credit_lines(d)))
+            return
+        bad, n = check_film(d), len(film_pictures(d))
+        for b in bad:
+            print("PICTURE  " + b)
+        print("[imagefetch] %s  %d picture(s) the page names, %d without a usable record" % ("OK" if not bad else "RED", n, len(bad)))
+        raise SystemExit(1 if bad else 0)
     import argparse
     ap = argparse.ArgumentParser(description="Fetch a real license-clean Commons image (documentary tier).")
     ap.add_argument("query")
@@ -552,12 +725,34 @@ def main():
                          "for a query whose qualifiers a picture's record need not repeat")
     ap.add_argument("--duotone", nargs=2, metavar=("SHADOW", "HIGHLIGHT"), default=None,
                     help="hex shadow + highlight, e.g. --duotone '#161412' '#f5f2ea'")
+    ap.add_argument("--source", choices=("commons", "nasa"), default="commons",
+                    help="Wikimedia Commons (default) or the NASA Image and Video Library")
+    ap.add_argument("--candidates", type=int, default=None, metavar="N",
+                    help="list up to N relevant candidates and draw them on <out>.candidates.jpg; fetch nothing")
+    ap.add_argument("--pick", type=int, default=None, metavar="K",
+                    help="fetch the K-th relevant candidate of that list instead of the first")
     a = ap.parse_args()
+    if a.candidates:
+        try:
+            _req, keep, refused, _near = ranked(a.query, a.width, a.prefer, a.min_width, True, a.require, a.source)
+        except FetchError as e:
+            print(f"[imagefetch] FAILED, no answer ({e.kind}) for: {a.query}\n             {e}", file=sys.stderr)
+            raise SystemExit(2)
+        keep = keep[:a.candidates]
+        for k, (c, r) in enumerate(keep):
+            print("%3d  %-24s %s — %s  [%s]" % (k, (c.get("license") or "")[:24], re.sub(r"(?i)^file:", "", c["title"] or "")[:60],
+                                                (c.get("artist") or "")[:30], r["why"][:60]))
+        if keep:
+            sheet = os.path.splitext(a.out)[0] + ".candidates.jpg"
+            candidate_sheet(keep, sheet)
+            print(f"[imagefetch] {len(keep)} relevant candidate(s), {len(refused)} refused; look at {sheet}, then: --pick K")
+        raise SystemExit(0 if keep else 1)
     try:
-        meta = fetch(a.query, a.out, width=a.width, prefer=a.prefer, min_width=a.min_width, require=a.require)
+        meta = fetch(a.query, a.out, width=a.width, prefer=a.prefer, min_width=a.min_width, require=a.require,
+                     source=a.source, pick=a.pick)
     except FetchError as e:
         # exit 2, not 1: the search never ran to an answer, so nothing may be concluded about the subject
-        print(f"[imagefetch] FAILED, no answer from Commons ({e.kind}) for: {a.query}\n             {e}",
+        print(f"[imagefetch] FAILED, no answer from {a.source} ({e.kind}) for: {a.query}\n             {e}",
               file=sys.stderr)
         raise SystemExit(2)
     if not meta:

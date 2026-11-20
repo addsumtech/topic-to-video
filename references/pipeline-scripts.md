@@ -172,14 +172,20 @@ finding it prints that you do not understand.
   never a standalone slideshow of generated stills (data stays in real HTML/charts — the "AI =
   background, code = data" split). `validate.py` enforces the three bright lines on such a background
   (backplane-only, no text/data, never a stand-in for a real named subject → that's `documentary`).
-- `scripts/imagefetch.py <query> <out_path> [--prefer W] [--min-width PX] [--require TERM...] [--duotone SHADOW HIGHLIGHT]` — the
+- `scripts/imagefetch.py <query> <out_path> [--source commons|nasa] [--candidates N | --pick K] [--prefer W] [--min-width PX]
+  [--require TERM...] [--duotone SHADOW HIGHLIGHT]`, and `imagefetch.py --check <film_dir>` / `--credits <film_dir>` — the
   **`documentary` (REAL-image) tier**, FREE + no key: search **Wikimedia Commons** for a
   license-clean (CC / Public-Domain) real photo/map/diagram of the ACTUAL named subject, download it,
   and write a sidecar `<out_path>.json` with the license + attribution. Unlike `imagegen` (generic
   atmosphere), this DEPICTS the real thing, so it can demonstrate the point directly (a real
   rail-network map, a real cityscape) — a FAITHFUL class (real + sourced + credited). API helpers:
   `search(query)`, `fetch(query,out,prefer=)` → attribution dict (or None if nothing license-clean),
-  `attribution_line(meta)` for the on-screen `.credit`, and `duotone(in,out,shadow,highlight,mid=)`
+  `attribution_line(meta)` for the on-screen `.credit`, and `duotone(in,out,shadow,highlight,mid=)`.
+  `--source nasa` searches the NASA Image and Video Library (public domain, credit NASA). `--candidates N` lists the
+  relevant candidates and draws them numbered on `<out>.candidates.jpg` (look, then `--pick K`). `--check` holds every
+  picture a film page names (film.html, shots/, lib/) to a record — its sidecar, or `images_ok.json` (`from` a sourced
+  file, `own`, `generated`); input/, clips/, work/ and design/ need none — under a licence a film may carry (film_qc
+  "images"); `--credits` prints one credit per sourced picture, which film_deliver writes to `<stem>.credits.txt`.
   to tone a real image into the deck's palette ("treated to match" a styled deck). The design-director
   picks `media.treatment: none|atmosphere|documentary` per beat (see its agent + the Imagery
   faithfulness section); reach for `documentary` on CONCRETE topics (a city, place, real system).
