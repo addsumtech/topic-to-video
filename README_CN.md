@@ -94,7 +94,7 @@ git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.claude/s
 # Codex
 git clone --depth 1 https://github.com/addsumtech/topic-to-video.git ~/.agents/skills/topic-to-video
 
-python3 -m pip install pillow pymupdf python-pptx edge-tts pyte
+python3 -m pip install pillow pymupdf python-pptx edge-tts pyte faster-whisper
 cd ~/.claude/skills/topic-to-video/remotion && npm install   # 经典模式的 Remotion 渲染，只需一次
 ```
 

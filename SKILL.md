@@ -138,8 +138,10 @@ Never spend before that pick.
 Then voice every line with `scripts/say.py` (the skill's voice layer: word timings in the written words, a
 pronunciation lexicon for characters with more than one reading and for names, initialisms spelled for a Chinese
 voice; a paid or `say` voice, which reports no timings, gets them ALIGNED from the free voice saying the same words —
-`scripts/word_align.py`, median error ~10-30 ms; voices and flags in the toolbox). Fix a misreading in the lexicon,
-never in the caption. Trim silences, keep pauses inside a line short and give each sequence seam a breath. Write
+`scripts/word_align.py`, median error ~10-30 ms; voices and flags in the toolbox). Then hear it back:
+`python3 scripts/voice_asr_qa.py <film_dir>` transcribes the voice (faster-whisper, ~30 s for 2 minutes) and holds
+every line against the script and its caption times — a dropped or doubled phrase or drifting captions are red, a
+single misheard word is a place to listen. Fix a misreading in the lexicon, never in the caption. Trim silences, keep pauses inside a line short and give each sequence seam a breath. Write
 `<film_dir>/timeline.json` from the timings: every line's start/end, every word's time, the sequence seams. **This
 timeline is the film's clock: every picture is built to it.** Captions are chunked from it.
 

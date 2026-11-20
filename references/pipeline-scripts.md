@@ -1182,6 +1182,12 @@ agent on the beats it points at.
   frame-sized clip box counts as the frame); `data-bleed-ok` exempts deliberate bleed type. Found the topic-to-video
   film's prompt line running off the right edge (34.5-36.75 s) and nothing on four other films. Part of film_qc when a
   `film.html` exists.
+- `scripts/voice_asr_qa.py <film_dir> [--model small] [--json]` — the voice heard back: audio/voice.wav (else the
+  film's audio) transcribed once by faster-whisper with word times on the film's clock, each timeline line held
+  against what was heard in its span (numbers as numbers, plurals folded, a lexicon respelling accepted): 3+ script
+  words not heard = DROPPED, 3+ heard not in the line = EXTRA, median word offset over 0.35 s = DRIFT (all red); a
+  single word = WARN listen. Needs `pip install faster-whisper` (model downloads once; audio decoded by ffmpeg),
+  else NOT MEASURED (exit 2). ~30 s for a 2-minute film. Part of film_qc ("voice") when timeline.json exists.
 - `scripts/film_status.py <film_dir> [--json]` — where a director-path film stands, read off its folder: each step
   done / stale / skipped / to do (the script after the voice, page code after the frames, frames or mix after the
   encode, the encode after the last `film_qc` run recorded in `_qc.json`), NEXT with its command, the measured time of

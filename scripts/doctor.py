@@ -65,6 +65,7 @@ CHECKS = [
     ("python-pptx", False, _has_module("pptx"),   "pptx speaker notes (ingest)",     "pip install python-pptx"),
     ("edge-tts",    False, _has_module("edge_tts"), "neural voice + per-word timings", "pip install edge-tts (else falls back to macOS 'say')"),
     ("pyte",        False, _has_module("pyte"), "real terminal screens for a film (scripts/term_capture.py)", "pip install pyte (else a terminal window is drawn without a real capture)"),
+    ("faster-whisper", False, _has_module("faster_whisper"), "the voice heard back against the script (scripts/voice_asr_qa.py)", "pip install faster-whisper (else the voice check says NOT MEASURED; the model downloads once)"),
     ("soffice",     False, _has_soffice,          "pptx -> pdf (ingest)",            "install LibreOffice (or export the deck to PDF yourself)"),
     ("Google Chrome", False, _has_chrome,         "html-pages tier (render_html + keyframe_qa)", "install Google Chrome (or use the programmatic scene tiers)"),
     ("bundled font", False, _has_bundled_font,    "default Latin captions",          "restore assets/fonts/DejaVuSans.ttf"),
