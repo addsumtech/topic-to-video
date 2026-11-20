@@ -57,7 +57,10 @@ verified in a director-path folder. Open it when you build.
 ## The director path
 
 Work in one folder per film, `<film_dir>` (ask nothing about it; make one next to the user's material or under
-the current directory). Steps 1-8 run to the finished film. The user decides at FOUR moments and nowhere else:
+the current directory). Steps 1-8 run to the finished film. **A film whose folder already has work in it (a run
+stopped at a usage limit or a crash) is resumed, never started over:** `python3 scripts/film_status.py <film_dir>`
+reads what is done, what is stale (code edited after its frames, frames after the encode, the encode after the check)
+and what comes next, with the command for it. The user decides at FOUR moments and nowhere else:
 the intake (step 1), the script and voice they HEAR (step 4), the design (step 5) and the animatic (step 5b) — a
 small studio's sign-offs, each where the user can actually judge (the user, 2026-11-18: "there should be some info
 collection stages to let user decide"). Non-interactive: take the recommended option at each, record it in

@@ -1146,7 +1146,8 @@ agent on the beats it points at.
   `_plan.json`'s cuts), picture_glide_qa (`--video=` the plan's video) and empty_frame_qa on `<film_dir>/final.mp4`,
   plus shake, captions, pan_speed; with a film.html page_overlap and film_copy; on a stage3d page stage_contacts; with
   a shot plan shot_plan and seam (which also fails a plain cross-dissolve passed off as a planned travel/push/light).
-  One line per check; exit 1 on any red, 2 when `_plan.json` or the video is missing. `--frames A-B`: a builder's
+  One line per check; exit 1 on any red, 2 when `_plan.json` or the video is missing. A whole-film run writes
+  `<film_dir>/_qc.json` (the reds against the video's mtime; an `--only` run re-judges on top of it) for film_status. `--frames A-B`: a builder's
   own stretch before the film exists (frames A..B-1 of work/frames, encoded as the film will be into work/qc_A-B/;
   the film-wide repetition, mix and shot-plan checks wait for the whole film); 2 on frames not yet rendered.
 - `scripts/empty_frame_qa.py <film.mp4 | dir> [--json]` — a blank HOLD: the frame above the caption band under 3 %
@@ -1181,6 +1182,10 @@ agent on the beats it points at.
   frame-sized clip box counts as the frame); `data-bleed-ok` exempts deliberate bleed type. Found the topic-to-video
   film's prompt line running off the right edge (34.5-36.75 s) and nothing on four other films. Part of film_qc when a
   `film.html` exists.
+- `scripts/film_status.py <film_dir> [--json]` — where a director-path film stands, read off its folder: each step
+  done / stale / skipped / to do (the script after the voice, page code after the frames, frames or mix after the
+  encode, the encode after the last `film_qc` run recorded in `_qc.json`), NEXT with its command, the measured time of
+  the mechanical steps left (frames, encode, check) and the film's own clock. The resume entry for a stopped run.
 - `scripts/picture_legibility_qa.py <film_dir> [--page film.html] [--every 0.5] [--frames A-B] [--json]` — every
   picture on screen (page img / canvas / video of 160x90 px or more and under 60 % of the frame, and each stage3d panel
   via `st.pictures()`) cropped off the rendered frame: blurred-luma std under 4 and 1-99 % spread under 16 levels for

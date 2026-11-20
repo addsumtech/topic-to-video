@@ -109,6 +109,26 @@ def stretch(d, span):
     return out
 
 
+def record(d, video, red, only):
+    """<film_dir>/_qc.json: the last whole-film result, against the video's mtime (scripts/film_status.py reads it to
+    tell whether the film was checked after its last encode). An --only run re-judges just its checks on top of the
+    last full record: reds it ran drop out or stay by their new result, the others' results carry over."""
+    p = os.path.join(d, "_qc.json")
+    old = {}
+    if only is not None and os.path.isfile(p):
+        try:
+            old = json.load(open(p, encoding="utf-8"))
+        except ValueError:
+            old = {}
+    full = only is None or (old and not old.get("only"))
+    reds = sorted(set(red) | (set(old.get("red", [])) - set(only or [])) if only is not None else set(red))
+    rec = {"video": os.path.relpath(video, d), "video_mtime": os.path.getmtime(video), "red": reds,
+           "only": None if full else only}
+    with open(p + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(rec, f, indent=1)
+    os.replace(p + ".tmp", p)
+
+
 def _uses_stage3d(d):
     page = os.path.join(d, "film.html")
     return os.path.isfile(page) and "stage3d" in open(page, encoding="utf-8", errors="replace").read()
@@ -172,6 +192,8 @@ def main(argv):
         else:
             red.append(name)
             print("RED  %s (exit %d)\n%s" % (name, r.returncode, "\n".join("     " + l for l in out.splitlines()[-25:])))
+    if not span:
+        record(d, video, red, None if only is None else [n for n, _ in todo])
     print("film_qc: %s%s%s" % ("CLEAN" if not red else "RED — " + ", ".join(red),
                                "" if only is None else "  (only: %s)" % ", ".join(n for n, _ in todo),
                                "" if not span else "  (frames %d-%d only; the whole film is checked once assembled)" % span))
