@@ -17,7 +17,7 @@ reported with both objects' names (`name:` in panel()/inflate(), else the image'
 WHY. The Grok Bot film (2026-11-18): a relay card sank into a Bot, the approval card swung through the Bot and its
 email, three action cards parked in one place; the user saw each, no check did (page_overlap_qa sees only the DOM).
 EXEMPT: an object with userData.contactOk = true (a deliberate hug, a card held against a body).
-Exit 0 clean, 1 contacts found, 2 usage error, the page failed to load, or no stage3d stage on it.
+Exit 0 clean, 1 contacts found, 2 usage error or the page failed to load (a page with no stage3d stage is checked for its page text only).
 """
 import json
 import os
@@ -120,7 +120,7 @@ def main(argv):
         print("stage_contacts_qa: no _plan.json \"frames\" or timeline.json \"duration\"", file=sys.stderr)
         return 2
     port, srv = _fp.serve(d)
-    samples, lines = [], []
+    samples, lines, staged = [], [], False
     try:
         p = _fp.FilmPage(port, page)
         try:
@@ -128,10 +128,9 @@ def main(argv):
             t, k = t0, 0
             while t < t_end:
                 p.seek(t)
-                cs = p.ev(_PROBE)
-                if cs is None:
-                    print("stage_contacts_qa: no stage3d stage on this page (Stage3D.stages is empty)", file=sys.stderr)
-                    return 2
+                cs = p.ev(_PROBE)   # None: no stage at this moment (a stage can come later, or never: page lines are still checked)
+                staged = staged or cs is not None
+                cs = cs or []
                 # inside the app screens shown right now (Stage3D.screen): ink overlapping ink, text cut off or off the screen
                 where = {}
                 for r in p.ev("(window.Stage3D && Stage3D.lintScreens) ? Stage3D.lintScreens() : []", True) or []:
@@ -161,8 +160,8 @@ def main(argv):
             what = {"penetrates": "into", "stacked": "stacked on", "corners": "shows its square backing", "screen-overlap": "overlaps",
                     "screen-jitter": "moves back and forth", "page-jitter": "moves back and forth", "screen-imitated-terminal": "is a terminal drawn by hand (capture it: scripts/term_capture.py)"}.get(k, "")
             print("%-10s %6.2f-%6.2fs  %r %s %r  (%.0f%% of its points)" % (k.upper(), s, e, a, what, b, sh * 100))
-        print("[stage_contacts_qa] %s  %d contact(s) over %.0f s sampled every %.3f s"
-              % ("OK" if not found else "RED", len(found), n / 30.0, every))
+        print("[stage_contacts_qa] %s  %d contact(s) over %.0f s sampled every %.3f s%s"
+              % ("OK" if not found else "RED", len(found), n / 30.0, every, "" if staged else " (no stage3d stage at any moment: page text only)"))
     return 1 if found else 0
 
 

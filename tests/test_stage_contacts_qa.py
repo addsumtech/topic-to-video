@@ -136,3 +136,17 @@ def test_a_page_label_that_jumps_with_its_caret_is_jitter(tmp_path, attr, jitter
     assert r.returncode in (0, 1), r.stdout + r.stderr
     kinds = [c["kind"] for c in json.loads(r.stdout)["contacts"]]
     assert ("page-jitter" in kinds) is jitters, r.stdout
+
+
+@pytest.mark.skipif(not CHROME, reason="Chrome not installed")
+def test_a_page_that_loads_stage3d_but_builds_no_stage_is_checked_for_page_text_only(tmp_path):
+    # a documentary film (maps and photographs) loaded the kit and never made a stage: that is no error (the Shenzhen
+    # remake went red on it), and its page text is still checked for jumping
+    shutil.copy(os.path.join(ROOT, "assets", "html", "stage3d.js"), tmp_path)
+    (tmp_path / "film.html").write_text("""<!doctype html><html><body style="margin:0;width:960px;height:540px">
+<p style="font:40px sans-serif">深圳河</p><script src="stage3d.js"></script><script>
+window.filmReady = Promise.resolve('ok'); window.seek = () => {};</script></body></html>""")
+    (tmp_path / "timeline.json").write_text('{"duration": 0.5}')
+    r = subprocess.run([sys.executable, SCRIPT, str(tmp_path)], capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "no stage3d stage at any moment" in r.stdout, r.stdout
