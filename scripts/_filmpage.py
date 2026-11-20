@@ -47,7 +47,21 @@ def serve(root):
 
     s = TS(("127.0.0.1", 0), H)
     threading.Thread(target=s.serve_forever, daemon=True).start()
+    # port -> the folder it serves, so FilmPage can read the page's declared size; in the environment, because render
+    # workers are spawned processes that inherit it (a module dict was empty there)
+    os.environ["TTV_FILMPAGE_ROOT_%d" % s.server_address[1]] = os.path.abspath(root)
     return s.server_address[1], s
+
+
+def page_size(path):
+    """(W, H) a film page declares with <meta name="film-size" content="1080x1920">; (1920, 1080) when it declares none.
+    WHY: every frame tool opened a 1920x1080 window, so a vertical (9:16) page was captured cropped to its top half."""
+    try:
+        head = open(path, encoding="utf-8", errors="replace").read(20000)
+    except OSError:
+        return 1920, 1080
+    m = re.search(r'<meta\s+name=["\']film-size["\']\s+content=["\'](\d+)x(\d+)["\']', head)
+    return (int(m.group(1)), int(m.group(2))) if m else (1920, 1080)
 
 
 # Installed before the page's own scripts: records canvas text drawn while its font was not loaded yet. Such text is
@@ -65,7 +79,10 @@ EARLY_TEXT_HOOK = r"""
 class FilmPage:
     """One headless Chrome page on the film. `init_script` runs before any of the page's own scripts."""
 
-    def __init__(self, port, page="film.html", W=1920, H=1080, init_script=None, timeout=300):
+    def __init__(self, port, page="film.html", W=None, H=None, init_script=None, timeout=300):
+        if W is None or H is None:
+            root = os.environ.get("TTV_FILMPAGE_ROOT_%d" % port)
+            W, H = page_size(os.path.join(root, page)) if root else (1920, 1080)
         self.prof = tempfile.mkdtemp(prefix="filmpage_")
         self.n = 0
         self.proc = subprocess.Popen(

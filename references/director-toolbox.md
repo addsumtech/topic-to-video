@@ -230,7 +230,9 @@ A starting point measured on 20 official launch films (`references/craft-standar
 - Frames: `python3 scripts/film_frames.py <film_dir> [--from A --to B] [--workers 4] [--probe 6]` -> `work/frames/`
   (every frame written; refuses canvas text drawn before its font loaded; the probe compares K moments in two fresh
   pages). A film page MUST draw canvas text only after `await document.fonts.load(...)` (in `filmReady`), and mark its
-  caption element `data-caption` (the cover hides it).
+  caption element `data-caption` (the cover hides it). A vertical page declares its size in its `<head>`:
+  `<meta name="film-size" content="1080x1920">`; without it the page is opened at 1920x1080 and a 9:16 film is
+  captured as its top half.
 - `python3 scripts/film_deliver.py <film_dir> --encode [--grain 3]`: the frames + `audio/mix.wav` -> `final.mp4`
   (CRF 17, aq-mode 3, a fine temporal luma grain against banding), `final.srt` (the classic caption chunker on the
   timeline's words, 0.1 s lead), `out.cover.png` (the final film's first hero shot, captions hidden), and the copy to

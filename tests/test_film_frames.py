@@ -103,3 +103,27 @@ def test_canvas_text_drawn_before_its_font_loaded_is_refused(tmp_path, when, ok)
         assert r.returncode == 0, r.stdout + r.stderr
     else:
         assert r.returncode == 2 and "before its font loaded" in r.stderr and "Pipeline" in r.stderr, r.stdout + r.stderr
+
+
+@pytest.mark.skipif(not CHROME, reason="Chrome not installed")
+def test_a_vertical_page_renders_at_its_declared_size(tmp_path):
+    # every frame tool opened 1920x1080, so a 9:16 page was captured as its top half (webb-little-red-dots, 2026-11-19)
+    page = ('<!doctype html><html><head><meta name="film-size" content="1080x1920"></head>'
+            '<body style="margin:0;background:#000"><div id="b" style="position:absolute;left:0;top:1800px;'
+            'width:1080px;height:120px;background:#ff8800"></div><script>window.seek = (t) => {};</script></body></html>')
+    (tmp_path / "film.html").write_text(page)
+    (tmp_path / "timeline.json").write_text('{"duration": 0.04}')
+    r = _run(tmp_path, "--probe", "0")
+    assert r.returncode == 0, r.stdout + r.stderr
+    im = Image.open(tmp_path / "work" / "frames" / "f_00000.jpg").convert("RGB")
+    assert im.size == (1080, 1920)
+    assert im.getpixel((540, 1860))[0] > 200, "the bottom of the vertical page is in the frame"
+
+
+def test_page_size_defaults_to_landscape(tmp_path):
+    import _filmpage as fp
+    (tmp_path / "a.html").write_text("<html><body></body></html>")
+    (tmp_path / "b.html").write_text('<html><head><meta name="film-size" content="1080x1920"></head></html>')
+    assert fp.page_size(str(tmp_path / "a.html")) == (1920, 1080)
+    assert fp.page_size(str(tmp_path / "b.html")) == (1080, 1920)
+    assert fp.page_size(str(tmp_path / "missing.html")) == (1920, 1080)
