@@ -9,6 +9,15 @@ vocabulary SKILL.md's "Design is judgement" refers to. The classic version's oth
 - **A deck, PDF or image folder as source material:** `python3 scripts/ingest.py <deck> <film_dir>/deck` renders every
   page to `deck/frames/` and pulls its text and speaker notes into `deck/storyboard.json` (reading material only).
   Its figures and screenshots can appear in the film.
+- **Real geography (a place, a route, a city growing):** `python3 scripts/geo.py place "Shenzhen"` (lat, lon, box);
+  `geo.py ne <film_dir> admin_1_states_provinces --scale 10m --bbox W,S,E,N` (Natural Earth, public domain: countries,
+  provinces, coastline, rivers_lake_centerlines, populated_places; a 10m layer downloads once per machine, minutes);
+  `geo.py osm <film_dir> coast --what coast|roads|water|rail|admin|parks --bbox W,S,E,N` (OpenStreetMap through
+  Overpass, several servers with backoff, ~1 min; roads within 0.6 degrees a side). Each writes `geo/<name>.geojson`
+  and its record. Draw with `assets/html/geo.js` (copy it beside the page): `P = Geo.fit([W,S,E,N], 1920, 1080)`,
+  `Geo.svg([{data, cls}], P)` (Web Mercator SVG paths, sharp under any zoom, `pathLength=1` so a line draws on with
+  stroke-dashoffset), `P.xy([lon, lat])` to place a marker or a label. The credits (© OpenStreetMap contributors,
+  ODbL; Natural Earth) go into `<stem>.credits.txt` through film_deliver.
 - **A real product page:** `python3 scripts/promo_capture.py <film_dir> <url> --name=<n>` and
   `python3 scripts/capture_page.py <page.html|url> --name <n>` capture at 2x.
 - **A real, licensed image of a named subject:** `python3 scripts/imagefetch.py "<query>" img/<name>.jpg` (Wikimedia

@@ -12,7 +12,7 @@ a cover image, and the copy to the user's Desktop.
            (visible past 5) on 9 of 26 shots; with grain 3 the worst was 4.1 and the median 0.13, UI text unchanged.
 Always:    `<video stem>.share.mp4`, the film small enough to send or host (CRF 23, under 95 MB; `share()`), delivered
            beside the master as "<name> - share.mp4"; `<video stem>.credits.txt`, the credit every sourced picture the
-           page shows is owed (imagefetch.credit_lines), delivered beside it.
+           page shows and its map data are owed (imagefetch.credit_lines, geo.credit_lines), delivered beside it.
 Always:    `final.srt` beside the video, from timeline.json (each line chunked by the classic renderer's caption rule,
            every chunk starting on its first word); `out.cover.png`, the film's cover — the final film's first hero shot at its
            settled moment, drawn by film.html with its captions hidden (`data-caption`); then
@@ -178,12 +178,13 @@ def main(argv):
         sh = share(video)
         print("[film_deliver] %s  %.1f MB (to send or host; the master is %.1f MB)"
               % (os.path.relpath(sh, d), os.path.getsize(sh) / 1e6, os.path.getsize(video) / 1e6))
+        import geo
         import imagefetch
-        credits = imagefetch.credit_lines(d)
-        if credits:
+        pics, maps = imagefetch.credit_lines(d), geo.credit_lines(d)
+        if pics or maps:
             cp = os.path.splitext(video)[0] + ".credits.txt"
-            open(cp, "w", encoding="utf-8").write("Pictures\n" + "\n".join(credits) + "\n")
-            print("[film_deliver] %s  %d picture credit(s)" % (os.path.relpath(cp, d), len(credits)))
+            open(cp, "w", encoding="utf-8").write("".join("%s\n%s\n" % (h, "\n".join(x)) for h, x in (("Pictures", pics), ("Maps", maps)) if x))
+            print("[film_deliver] %s  %d picture and %d map-data credit(s)" % (os.path.relpath(cp, d), len(pics), len(maps)))
         s = srt(json.load(open(tp, encoding="utf-8")))
         sp = os.path.splitext(video)[0] + ".srt"
         open(sp, "w", encoding="utf-8").write(s)

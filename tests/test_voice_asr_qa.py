@@ -68,3 +68,18 @@ def test_without_the_recogniser_it_says_not_measured(tmp_path, monkeypatch, caps
     monkeypatch.setitem(sys.modules, "faster_whisper", None)
     assert v.main([str(tmp_path)]) == 2
     assert "NOT MEASURED" in capsys.readouterr().out
+
+
+def test_an_unchanged_voice_is_not_heard_twice(tmp_path, monkeypatch, capsys):
+    (tmp_path / "timeline.json").write_text(json.dumps({"lines": [_line("hello there my friend")]}))
+    (tmp_path / "audio").mkdir()
+    (tmp_path / "audio" / "voice.wav").write_bytes(b"RIFF")
+    monkeypatch.setitem(sys.modules, "faster_whisper", object())
+    calls = []
+    monkeypatch.setattr(v, "_judge_all", lambda *a: calls.append(1) or [v.judge_line(_line("hello there my friend"),
+                                                                                        _heard("hello there my friend"), False, {})])
+    assert v.main([str(tmp_path)]) == 0 and v.main([str(tmp_path)]) == 0
+    assert len(calls) == 1 and "unchanged since it was heard" in capsys.readouterr().out
+    (tmp_path / "timeline.json").write_text(json.dumps({"lines": [_line("hello there my good friend")]}))
+    os.utime(tmp_path / "timeline.json", (1e9, 2e9))
+    assert v.main([str(tmp_path)]) == 0 and len(calls) == 2, "an edited timeline is heard again"

@@ -229,7 +229,8 @@ material, optics, physics, a device (the product's real screen on a lit MacBook)
 objects as parts inside a film's own workshop shot, rendered in the film's look (a FULL palette file; on a light
 look, render one frame of it and read every word, since some library shots hard-code light ink); real images (`imagefetch`:
 Commons or NASA, `--candidates` to look before `--pick`; a crop of one is declared in `images_ok.json` so its credit
-carries over, and `film_qc` holds every picture the page names to a record), page
+carries over, and `film_qc` holds every picture the page names to a record); real geography (`scripts/geo.py`:
+places, Natural Earth borders and coasts, OpenStreetMap streets and water, drawn with `assets/html/geo.js`, credited), page
 captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK caption breaks.
 
 **Accents** (a moment made FELT in motion, never an emoji glyph; where, how and how often: `references/director-craft.md`

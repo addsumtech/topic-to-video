@@ -167,6 +167,30 @@ def main(argv):
     lexicon = json.load(open(lp, encoding="utf-8")) if os.path.isfile(lp) else {}
     if isinstance(lexicon, dict) and "words" in lexicon and isinstance(lexicon["words"], dict):
         lexicon = lexicon["words"]
+    # heard once per voice: the voice is checked at step 4 and rarely changes after, so film_qc's run reads that
+    # result instead of transcribing again (the recogniser took half the cores beside picture_glide_qa: +69 s)
+    key = [_stamp(src), _stamp(tp), _stamp(lp), model]
+    cp = os.path.join(d, "_voice_qc.json")
+    cached = None
+    if os.path.isfile(cp):
+        try:
+            c = json.load(open(cp, encoding="utf-8"))
+            cached = c["rows"] if c.get("key") == key else None
+        except (ValueError, KeyError):
+            cached = None
+    rows = cached if cached is not None else _judge_all(d, src, tl, zh, lexicon, model)
+    if cached is None:
+        with open(cp + ".tmp", "w", encoding="utf-8") as f:
+            json.dump({"key": key, "rows": rows}, f, ensure_ascii=False)
+        os.replace(cp + ".tmp", cp)
+    return _report(rows, argv, cached is not None)
+
+
+def _stamp(p):
+    return [os.path.getmtime(p), os.path.getsize(p)] if os.path.isfile(p) else None
+
+
+def _judge_all(d, src, tl, zh, lexicon, model):
     audio = _decode(src)
     heard = hear(audio, zh, model)
     lex = lexicon if isinstance(lexicon, dict) else {}
@@ -183,6 +207,10 @@ def main(argv):
             if len(r2["dropped"]) + len(r2["extra"]) < len(r["dropped"]) + len(r["extra"]):
                 r = r2
         rows.append(r)
+    return rows
+
+
+def _report(rows, argv, cached):
     red = [r for r in rows if r["dropped"] or r["extra"] or (r["drift"] is not None and abs(r["drift"]) > DRIFT)]
     if "--json" in argv:
         print(json.dumps({"lines": rows, "red": [r["line"] for r in red]}, ensure_ascii=False))
@@ -198,9 +226,9 @@ def main(argv):
             print("WARN listen %-5s said %r, heard %r (a recogniser mishears single words: listen before changing)"
                   % (r["line"], x["said"], x["heard"] or "nothing"))
     drifts = [r["drift"] for r in rows if r["drift"] is not None]
-    print("[voice_asr_qa] %s  %d line(s), %d red; median match %.2f; caption offset median %+.2f s"
+    print("[voice_asr_qa] %s  %d line(s), %d red; median match %.2f; caption offset median %+.2f s%s"
           % ("OK" if not red else "RED", len(rows), len(red), float(np.median([r["ratio"] for r in rows])) if rows else 0,
-             float(np.median(drifts)) if drifts else 0.0))
+             float(np.median(drifts)) if drifts else 0.0, " (the voice, timeline and lexicon unchanged since it was heard)" if cached else ""))
     return 1 if red else 0
 
 

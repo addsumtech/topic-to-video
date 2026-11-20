@@ -1194,6 +1194,13 @@ agent on the beats it points at.
   words not heard = DROPPED, 3+ heard not in the line = EXTRA, median word offset over 0.35 s = DRIFT (all red); a
   single word = WARN listen. Needs `pip install faster-whisper` (model downloads once; audio decoded by ffmpeg),
   else NOT MEASURED (exit 2). ~30 s for a 2-minute film. Part of film_qc ("voice") when timeline.json exists.
+- `scripts/geo.py place "<name>"` · `geo.py ne <film_dir> <layer> [--scale 10m|50m|110m] [--bbox W,S,E,N]` ·
+  `geo.py osm <film_dir> <name> --what coast|roads|water|rail|admin|parks --bbox W,S,E,N` · `geo.py credits <film_dir>` —
+  real geography as GeoJSON with its record (`geo/<name>.geojson.json`: source, licence, credit): Nominatim (one
+  request a second), Natural Earth (public domain; cached per machine under ~/.cache/topic-to-video/natural-earth),
+  OpenStreetMap via Overpass (ODbL; three public servers with backoff; a failure is said, never "nothing there").
+  Drawn by `assets/html/geo.js` (Geo.fit / Geo.svg / P.xy). Measured on Shenzhen (2026-11-20): place 1 s; admin_1 at
+  10m 7 min on its first download (41 MB), then cached; the coast at OSM detail 1039 ways in ~60 s.
 - `scripts/film_status.py <film_dir> [--json]` — where a director-path film stands, read off its folder: each step
   done / stale / skipped / to do (the script after the voice, page code after the frames, frames or mix after the
   encode, the encode after the last `film_qc` run recorded in `_qc.json`), NEXT with its command, the measured time of
