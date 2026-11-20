@@ -171,6 +171,10 @@ and forgettable.
    every frame it calls unclear or forgettable, then the build starts. One round, not a loop.
 3. **A style the user named** ("a Memphis style", "like a blueprint", "like a documentary") is a constraint on the
    designer's concepts, not a replacement for them. A brand's own colours and logo always apply.
+4. **The register comes before the concept** (the designer's section 1b): where the film's truth lives decides its
+   style. A real place, person or history is told through its real photographs, maps and records, staged boldly; an
+   invisible mechanism is designed and simulated; a product acts through its own world. A real city's forty years
+   told as a clay diorama of pawns read as a toy (Shenzhen, 2026-11-20): pick the register well, then be novel in it.
 
 ### 5b. The animatic — the film on its real clock, rough (checkpoint 3)
 
@@ -238,7 +242,8 @@ captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK c
 
 **Rules every frame obeys** (each one cost a real film a defect):
 - **Every drawn thing is correct.** A cat has four legs, a hand five fingers, a molecule its real bonds, a device its
-  real ports; a simplified model is drawn as a simplification OF the real thing, never as a new creature. Before
+  real ports, and a thing stands where it belongs: a house or a factory on land, never over the river or the sea
+  (a map's land is `Geo.inside`-tested before anything is placed on it); a simplified model is drawn as a simplification OF the real thing, never as a new creature. Before
   building, look at a real reference (a photo, the source's figure) for each recurring drawn subject; label a
   schematic as one, in the film's language.
 - Nothing cut off, overlapping or unreadable; nothing in the caption band but the caption.

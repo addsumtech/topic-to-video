@@ -20,6 +20,12 @@ its line. For EACH frame, give a verdict and evidence:
   away while it should be read, a borrowed template (floating cards on a gradient, a feature grid, a pill timeline, a
   centred headline + subtitle, a logo wall).
 
+Before the frames one by one, judge the film's STYLE against its subject: does its register fit what the film is
+about (a real place, person or history told through its real photographs, maps and records; an invisible mechanism
+designed and simulated; a product through its own screens and characters)? A real city's history as a toy diorama,
+or a mechanism as stock photographs, is the first thing to name, with the register that would fit: no frame-level fix
+repairs a style that does not belong to its subject (the Shenzhen film, 2026-11-20).
+
 For every frame that is not clear and memorable, name the ONE change that would lift it most (bolder scale, a different camera, a
 real light, a crop, a transformation, removing something), concretely enough to act on. Also say whether the three
 frames feel like ONE film, whether the product's own protagonist (its characters, mascot, signature object) leads,

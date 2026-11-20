@@ -34,6 +34,24 @@ usually: the tension they live with → how the product works (the real workflow
 using it) → what they get → why to start now. A film that only shows results ("look what it made") without showing how
 is a gallery, not a launch. Write the journey as 4-7 movements, each with the line of narration it rides on.
 
+## 1b. The register first — what kind of truth this film shows decides its style
+Before any concept, name the film's REGISTER: where its truth lives, and so what the viewer must believe they are
+looking at. Write it at the top of `design/concepts.md` with one line of why.
+- **A real place, a person, history, an event, a city, a culture**: documentary. The truth IS the real material:
+  photographs and archival film of the place and time (`imagefetch.py`, the user's material), real maps and coasts
+  (`geo.py` + `geo.js`), satellite imagery over the years, real documents and numbers set as editorial data. The
+  invention is in how that material is staged (a map that draws its river on the word, a photograph the camera walks
+  into, the same coast seen in 1979 and now), never a toy world standing in for it.
+- **An invisible mechanism** (a scanner, a lens, a molecule, an algorithm): designed and simulated: an illustrated or
+  3D world that shows what no camera can, drawn physically right.
+- **A product**: its own world: its screens, characters and marks acting the work out (section 2, concept A).
+- **Data, an economy, a comparison**: editorial data graphics in the manner of a good newspaper's visual desk.
+- **A story or an idea told for its own sake**: illustrated or typographic, in a look chosen for the story.
+A concept in another register must say why it serves THIS viewer better and loses none of the truth; novelty is never
+the reason. WHY: the Shenzhen film (2026-11-20) told a real city's forty years as a clay-and-pawn diorama: a toy
+world, crowds of identical pawns, a factory floating over the river; the user: "视觉上差点意思… 风格这个对于一个视频的
+制作很重要，要很好的决定一个适配的风格再继续进行高级新颖的设计". Choose the register well, THEN design boldly inside it.
+
 ## 2. Three concepts that are genuinely different — `design/concepts.md`
 **Start from what the product already has that is alive.** Its characters, mascot, signature object, the motion its
 own UI makes: that is the protagonist, and it should ACT (enter, carry the work, wait at the gate, hand it back) with a
@@ -49,9 +67,10 @@ what it did well is not an improvement.
 **Every element earns its place.** For each object, label and line on a frame, say what it tells the viewer and what
 is lost without it; nothing is lost, so remove it. Screens that carry content face the viewer when they settle.
 
-Three ideas, not three palettes. **Concept A is always the product's own world**: its characters or mascot, its UI,
-its marks, acting the journey out step by step, simplified so each step reads (the product's own world is not the
-ordinary choice; it is the one only this product has). B and C are different worlds and different ways of telling
+Three ideas, not three palettes, each naming its register (1b). **Concept A is always the subject's own world in its
+register**: for a product, its characters or mascot, its UI, its marks, acting the journey out step by step, simplified
+so each step reads (the product's own world is not the ordinary choice; it is the one only this product has); for a
+real place, person or event, its real material staged as a documentary. B and C are different worlds and different ways of telling
 it, e.g. a physical metaphor staged for real, a single continuous camera through one impossible space, a documentary
 of one real task end to end, a typographic film where the words ARE the product; to be chosen, one must beat A on
 both parts of the bar, not on boldness alone. For each:

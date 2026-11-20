@@ -8,6 +8,8 @@
 // feature with class, data-name (its name, name:en or name:zh) and pathLength="1", so a line draws on with
 // stroke-dasharray: 1; stroke-dashoffset: 1 -> 0. Style it in CSS (a coast, a road, a border are a film's own look).
 // Each feature's own name stays in its properties: label what the voice names, at a readable size.
+// Geo.inside([lon, lat], landOrDistricts) says which polygon a place is in (null: water, or outside the layer): test
+// every place before an object stands on it.
 // Credit: the data's record (geo/<file>.geojson.json) goes into the film's credits through scripts/geo.py credits.
 window.Geo = (() => {
   const R = Math.PI / 180;
@@ -52,6 +54,27 @@ window.Geo = (() => {
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '">' + body + '</svg>';
   }
 
+  // the polygon feature of `fc` that contains the point [lon, lat], or null: test a place before putting anything on
+  // it (a land or district layer: a house on land, never over the river; the Shenzhen film floated a factory on it)
+  function inPoly(pt, rings) {
+    let inside = false;
+    for (const ring of rings) {
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j];
+        if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi) inside = !inside;
+      }
+    }
+    return inside;
+  }
+  function inside(pt, fc) {
+    for (const f of (fc && fc.features) || []) {
+      const g = f.geometry || {};
+      if (g.type === 'Polygon' && inPoly(pt, g.coordinates)) return f;
+      if (g.type === 'MultiPolygon' && g.coordinates.some((poly) => inPoly(pt, poly))) return f;
+    }
+    return null;
+  }
+
   async function load(url) { const r = await fetch(url); if (!r.ok) throw new Error('Geo.load: ' + url + ' ' + r.status); return r.json(); }
-  return {fit, d, svg, load, merc, nameOf};
+  return {fit, d, svg, load, merc, nameOf, inside};
 })();

@@ -88,7 +88,9 @@ window.filmReady = (async () => { const fc = %s; const P = Geo.fit([113.9, 22.5,
   document.body.innerHTML = Geo.svg([{data: fc, cls: 'x'}], P);
   const [x0, y0] = P.xy([113.9, 22.5]), [x1, y1] = P.xy([114.1, 22.61]);
   window.__r = {n: document.querySelectorAll('path.x[pathLength="1"]').length, names: [...document.querySelectorAll('path')].map((p) => p.dataset.name),
-    corners: [x0, y0, x1, y1].map(Math.round)}; return 'ok'; })();
+    corners: [x0, y0, x1, y1].map(Math.round),
+    inLake: (Geo.inside([114.005, 22.605], fc) || {properties: {}}).properties.name, onWater: Geo.inside([114.05, 22.58], fc)};
+  return 'ok'; })();
 window.seek = () => {};</script></body></html>""" % json.dumps(fc))
     port, srv = fp.serve(str(tmp_path))
     try:
@@ -100,6 +102,7 @@ window.seek = () => {};</script></body></html>""" % json.dumps(fc))
     finally:
         srv.shutdown()
     assert r["n"] == 4 and "Shennan Blvd" in r["names"], r
+    assert r["inLake"] == "Lake" and r["onWater"] is None, r
     x0, y0, x1, y1 = r["corners"]
     assert y0 > y1, "north is up"
     assert (x0 == 40 or y1 == 40) and abs((x0 + x1) / 2 - 960) <= 1 and abs((y0 + y1) / 2 - 540) <= 1, r

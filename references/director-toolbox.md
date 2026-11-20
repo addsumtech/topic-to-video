@@ -16,7 +16,8 @@ vocabulary SKILL.md's "Design is judgement" refers to. The classic version's oth
   Overpass, several servers with backoff, ~1 min; roads within 0.6 degrees a side). Each writes `geo/<name>.geojson`
   and its record. Draw with `assets/html/geo.js` (copy it beside the page): `P = Geo.fit([W,S,E,N], 1920, 1080)`,
   `Geo.svg([{data, cls}], P)` (Web Mercator SVG paths, sharp under any zoom, `pathLength=1` so a line draws on with
-  stroke-dashoffset), `P.xy([lon, lat])` to place a marker or a label. The credits (© OpenStreetMap contributors,
+  stroke-dashoffset), `P.xy([lon, lat])` to place a marker or a label, `Geo.inside([lon, lat], land)` before anything
+  stands on a place (a land, district or coast-closed layer; null = water or outside it). The credits (© OpenStreetMap contributors,
   ODbL; Natural Earth) go into `<stem>.credits.txt` through film_deliver.
 - **A real product page:** `python3 scripts/promo_capture.py <film_dir> <url> --name=<n>` and
   `python3 scripts/capture_page.py <page.html|url> --name <n>` capture at 2x.
