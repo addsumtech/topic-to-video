@@ -106,3 +106,16 @@ window.seek = () => {};</script></body></html>""" % json.dumps(fc))
     x0, y0, x1, y1 = r["corners"]
     assert y0 > y1, "north is up"
     assert (x0 == 40 or y1 == 40) and abs((x0 + x1) / 2 - 960) <= 1 and abs((y0 + y1) / 2 - 540) <= 1, r
+
+
+def test_a_data_record_under_geo_is_credited_and_a_pictures_record_is_left_to_imagefetch(tmp_path):
+    # the Shenzhen relief was shaped by Copernicus DEM (geo/sat/dem.json beside dem.npy): credited only by hand
+    sat = tmp_path / "geo" / "sat"
+    sat.mkdir(parents=True)
+    (sat / "dem.npy").write_bytes(b"x")
+    (sat / "dem.json").write_text(json.dumps({"title": "Copernicus DEM GLO-30", "credit": "© DLR e.V., © Airbus", "licence": "Copernicus DEM licence"}))
+    (sat / "l9.png").write_bytes(b"x")
+    (sat / "l9.json").write_text(json.dumps({"credit": "NASA/USGS", "licence": "Public domain", "source": "https://landsat"}))
+    (sat / "l8.png.json").write_text(json.dumps({"credit": "NASA/USGS", "licence": "Public domain", "source": "https://landsat8"}))
+    (sat / "grid.json").write_text(json.dumps({"w": 10}))
+    assert geo.credit_lines(str(tmp_path)) == ["Data: Copernicus DEM GLO-30 — © DLR e.V., © Airbus, Copernicus DEM licence"]

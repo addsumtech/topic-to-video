@@ -227,3 +227,21 @@ def test_pictures_named_in_a_film_js_beside_the_page_are_found(tmp_path):
     (d / "img" / "guomao.jpg").write_bytes(b"x")
     assert F.film_pictures(str(d)) == ["img/guomao.jpg"]
     assert F.check_film(str(d)) and "has no record" in F.check_film(str(d))[0]
+
+
+def test_a_folder_the_code_builds_names_in_counts_with_every_picture_in_it(tmp_path):
+    # the Shenzhen film loaded 'geo/years/' + y + '.png' for six Landsat years: its credits named one of them
+    d = tmp_path / "film"
+    (d / "geo" / "years").mkdir(parents=True)
+    (d / "film.html").write_text("<script src='film.js'></script>")
+    (d / "film.js").write_text("for (const y of YEARS) img.src = 'geo/years/' + y + '.png'; const up = '../';")
+    for y in ("mss1979", "l9_2025"):
+        (d / "geo" / "years" / (y + ".png")).write_bytes(b"x")
+    (d / "geo" / "years" / "notes.txt").write_text("not a picture")
+    (d / "geo" / "years" / "mss1979.png.json").write_text(json.dumps({"license": "Public domain", "source": "https://landsat"}))
+    # a film's own rendered frames in a folder the code also builds names in: not sourced pictures, not counted
+    (d / "media" / "s07").mkdir(parents=True)
+    (d / "media" / "s07" / "0001.jpg").write_bytes(b"x")
+    (d / "film.js").write_text((d / "film.js").read_text() + " frame.src = 'media/s07/' + pad(n) + '.jpg';")
+    assert F.film_pictures(str(d)) == ["geo/years/l9_2025.png", "geo/years/mss1979.png"]
+    assert [p.split(" ")[0] for p in F.check_film(str(d))] == ["geo/years/l9_2025.png"], "the one without a record is said"

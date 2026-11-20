@@ -620,7 +620,12 @@ def candidate_sheet(keep, path):
 # design/refs/; the crops in img/ carried no record, so the film's credits could not be written and nothing could say
 # whether each picture was free to use (2026-11-20).
 _OWN_DIRS = ("input/", "clips/", "work/", "design/")
+_PIC_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".tif", ".tiff")
 _PIC_REF = re.compile(r"""['"`]([A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|gif|tiff?))['"`]""", re.I)
+# a folder of sourced pictures the code builds names in ('geo/years/' + y + '.png'): every picture in it counts (the
+# Shenzhen film showed six Landsat years this way and its credits named one). Only a folder holding at least one
+# picture's record: a film's own rendered frame sequences (media/<shot>/0001.jpg ...) are not sourced pictures.
+_DIR_REF = re.compile(r"""['"`]([A-Za-z0-9_.-][A-Za-z0-9_./-]*/)['"`]""")
 
 
 def _page_sources(film_dir):
@@ -644,15 +649,25 @@ def _page_sources(film_dir):
 
 
 def film_pictures(film_dir):
-    """The picture files a film page names by path (in the code _page_sources finds), as paths relative to the film."""
+    """The picture files a film page names by path (in the code _page_sources finds), as paths relative to the film;
+    a folder of sourced pictures it names ('geo/years/') counts with every picture in it."""
     found = set()
     for f in _page_sources(film_dir):
         if not f.endswith((".html", ".js", ".css", ".json")) or os.path.basename(f) in ("stage3d.js", "geo.js"):
             continue
-        for m in _PIC_REF.finditer(open(f, encoding="utf-8", errors="replace").read()):
+        text = open(f, encoding="utf-8", errors="replace").read()
+        for m in _PIC_REF.finditer(text):
             rel = os.path.normpath(m.group(1).lstrip("./"))
             if os.path.isfile(os.path.join(film_dir, rel)):
                 found.add(rel)
+        for m in _DIR_REF.finditer(text):
+            rel = os.path.normpath(m.group(1).lstrip("./"))
+            folder = os.path.join(film_dir, rel)
+            if rel == "." or rel.startswith("..") or not os.path.isdir(folder):
+                continue
+            pics = [n for n in os.listdir(folder) if n.lower().endswith(_PIC_EXT) and os.path.isfile(os.path.join(folder, n))]
+            if any(os.path.isfile(os.path.join(folder, n + ".json")) for n in pics):
+                found.update(os.path.join(rel, n) for n in pics)
     return sorted(found)
 
 

@@ -185,18 +185,40 @@ def osm(film_dir, name, what, bbox, servers=OVERPASS, tries=3):
     raise SystemExit("geo: no Overpass server answered (%s); this is not 'nothing there' — try again later" % last)
 
 
+_PICTURE = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".tif", ".tiff")
+
+
 def credit_lines(film_dir):
-    """The credits a film's map data is owed, each source once."""
+    """The credits a film's map data is owed, each source once: the layers geo.py wrote (geo/*.geojson.json), and any
+    other data record under geo/ with a credit and a licence (an elevation grid that shapes a relief: the Shenzhen film's
+    Copernicus DEM was credited only by hand). A picture's record (x.png.json, or x.json beside x.png) is left to
+    imagefetch.py --credits, which credits the pictures a film shows."""
     out, seen = [], set()
     folder = os.path.join(film_dir, "geo")
-    for f in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
-        if not f.endswith(".geojson.json"):
-            continue
-        r = json.load(open(os.path.join(folder, f), encoding="utf-8"))
-        if r.get("source") in seen:
-            continue
-        seen.add(r.get("source"))
-        out.append("Map data: %s, %s (%s)" % (r.get("credit"), r.get("licence"), r.get("licence_url")))
+    for root, dirs, files in os.walk(folder):
+        dirs.sort()
+        for f in sorted(files):
+            if not f.endswith(".json"):
+                continue
+            stem = f[:-5]
+            layer = f.endswith(".geojson.json")
+            if not layer and (stem.lower().endswith(_PICTURE) or any(os.path.isfile(os.path.join(root, stem + e)) for e in _PICTURE)):
+                continue
+            try:
+                r = json.load(open(os.path.join(root, f), encoding="utf-8"))
+            except ValueError:
+                continue
+            if not isinstance(r, dict) or not (layer or (r.get("credit") and r.get("licence"))):
+                continue
+            key = r.get("source") or r.get("credit")
+            if key in seen:
+                continue
+            seen.add(key)
+            if layer:
+                out.append("Map data: %s, %s (%s)" % (r.get("credit"), r.get("licence"), r.get("licence_url")))
+            else:
+                out.append("Data: %s%s, %s%s" % (r["title"] + " — " if r.get("title") else "", r["credit"], r["licence"],
+                                                 " (%s)" % r["source"] if r.get("source") else ""))
     return out
 
 
