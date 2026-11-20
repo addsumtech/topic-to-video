@@ -10,6 +10,8 @@ a cover image, and the copy to the user's Desktop.
            dark flat ground needs them), AAC 192k, faststart, and a fine temporal luma GRAIN (`--grain`, 0 = off).
            WHY THE GRAIN: an 8-bit dark gradient encodes as visible steps; the Grok Bot night sky measured CAMBI 8.0
            (visible past 5) on 9 of 26 shots; with grain 3 the worst was 4.1 and the median 0.13, UI text unchanged.
+Always:    `<video stem>.share.mp4`, the film small enough to send or host (CRF 23, under 95 MB; `share()`), delivered
+           beside the master as "<name> - share.mp4".
 Always:    `final.srt` beside the video, from timeline.json (each line chunked by the classic renderer's caption rule,
            every chunk starting on its first word); `out.cover.png`, the film's cover — the final film's first hero shot at its
            settled moment, drawn by film.html with its captions hidden (`data-caption`); then
@@ -115,6 +117,36 @@ def cover(d, video, plan, out, page="film.html"):
     return "the video's frame at %.2fs — WITH its caption (mark the page's caption element data-caption)" % t
 
 
+SHARE_CRF = 23
+SHARE_CAP_MB = 95      # under GitHub's 100 MB file limit and most chat apps' video limits
+
+
+def share(video, cap_mb=SHARE_CAP_MB):
+    """`<video stem>.share.mp4`: the same film small enough to send or host (CRF 23, AAC 128k, faststart), re-encoded
+    to a bitrate under `cap_mb` when CRF 23 is still larger. Kept while it is newer than the film. Returns its path.
+    WHY: the MRI film's master (CRF 17 + grain) was 145 MB, over GitHub's 100 MB limit, and was re-encoded by hand for
+    the showcase site (23 MB at CRF 23); every delivered film needs that copy."""
+    out = os.path.splitext(video)[0] + ".share.mp4"
+    if os.path.isfile(out) and os.path.getmtime(out) >= os.path.getmtime(video):
+        return out
+    tmp = os.path.join(os.path.dirname(out), ".encoding." + os.path.basename(out))
+    base = ["ffmpeg", "-v", "error", "-y", "-i", video, "-c:v", "libx264", "-preset", "medium", "-pix_fmt", "yuv420p",
+            "-profile:v", "high", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"]
+    try:
+        subprocess.run(base[:8] + ["-crf", str(SHARE_CRF)] + base[8:] + [tmp], check=True)
+        if os.path.getsize(tmp) > cap_mb * 1e6:
+            dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", video],
+                                       capture_output=True, text=True).stdout.strip())
+            kbps = max(300, int(cap_mb * 8e3 * 0.95 / dur) - 128)
+            subprocess.run(base[:8] + ["-b:v", "%dk" % kbps, "-maxrate", "%dk" % kbps, "-bufsize", "%dk" % (2 * kbps)] + base[8:] + [tmp],
+                           check=True)
+        os.replace(tmp, out)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+    return out
+
+
 def main(argv):
     _c.refuse_unknown(argv, valued=("frames", "audio", "grain"), switches=("encode", "no-copy"), usage=_USAGE)
     vals = {k: _c.argflag(argv, k, None) for k in ("frames", "audio", "grain")}
@@ -142,6 +174,9 @@ def main(argv):
         if not os.path.isfile(video):
             print("film_deliver: no video at %s (pass --encode)" % video, file=sys.stderr)
             return 2
+        sh = share(video)
+        print("[film_deliver] %s  %.1f MB (to send or host; the master is %.1f MB)"
+              % (os.path.relpath(sh, d), os.path.getsize(sh) / 1e6, os.path.getsize(video) / 1e6))
         s = srt(json.load(open(tp, encoding="utf-8")))
         sp = os.path.splitext(video)[0] + ".srt"
         open(sp, "w", encoding="utf-8").write(s)

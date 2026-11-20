@@ -288,7 +288,8 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
 ### 8. Check, fix, deliver
 
 1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame, shake, caption-size, pan-speed,
-   (with a film page) word/control overlap and on-screen copy (every word sourced or declared in `copy_ok.json`),
+   (with a film page) word/control overlap, a line cut by the frame's edge, a picture that shows almost nothing, and
+   on-screen copy (every word sourced or declared in `copy_ok.json`),
    (on a stage3d page) 3D contact checks against
    `final.mp4` and `_plan.json`, and exits 1 on any red; the checks run side by side (a 2-minute film in a few
    minutes). Fix, re-render only the frames that changed (`film_frames.py --from/--to`), encode once, and re-run just

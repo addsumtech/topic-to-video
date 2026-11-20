@@ -441,6 +441,18 @@ function create(o) {
       const pts = p.corners || [[-s[0] / 2 - m, s[1] / 2 + m, z], [s[0] / 2 + m, s[1] / 2 + m, z], [s[0] / 2 + m, -s[1] / 2 - m, z], [-s[0] / 2 - m, -s[1] / 2 - m, z]];
       return pts.map((q) => st.project(new THREE.Vector3(...q).applyMatrix4(obj.matrixWorld)));
     },
+    // the panels and cards the camera shows now, each as its front face's corners in PAGE pixels: what
+    // picture_legibility_qa crops off the rendered frame to ask whether the picture on it can be seen at all
+    // (userData.blankOk: a face meant to be empty)
+    pictures() {
+      scene.updateMatrixWorld(true); camera.updateMatrixWorld();
+      const fr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+      const shown = (ob) => { for (let e = ob; e; e = e.parent) if (!e.visible) return false; return true; };
+      const rc = renderer.domElement.getBoundingClientRect();
+      return solids.filter((ob) => ob.userData.kind === 'panel' && ob.userData.size && !ob.userData.blankOk && shown(ob)
+        && fr.containsPoint(new THREE.Vector3().setFromMatrixPosition(ob.matrixWorld)))
+        .map((ob) => ({name: ob.name, quad: st.quad(ob).map(([x, y]) => [rc.left + x * rc.width / W, rc.top + y * rc.height / H])}));
+    },
     ready() { return Promise.all(pending); },
     // what is physically wrong in the current pose, as [{a, b, kind, share}]: 'penetrates' — points of a panel's face
     // or of a character's surface lie INSIDE a character's body (a card sunk into a head, a card swung through a Bot);

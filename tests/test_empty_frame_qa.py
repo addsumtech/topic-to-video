@@ -148,7 +148,7 @@ def test_film_qc_on_a_stretch_leaves_the_film_wide_checks_for_the_whole_film(tmp
     (d / "film.html").write_text("<script src='stage3d.js'></script>")
     todo = dict(film_qc.checks(str(d / "q"), "v.mp4", "p.json", (20, 50), page_dir=str(d)))
     assert not {"repetition", "mix", "shot plan"} & set(todo), todo
-    for name in ("overlaps", "copy", "contacts"):
+    for name in ("overlaps", "copy", "pictures", "contacts"):
         assert todo[name][-3:] == [str(d), "--frames", "20-50"], "page checks step through the stretch on the film's page"
 
 

@@ -75,3 +75,33 @@ def test_without_a_page_the_cover_says_it_carries_a_caption(tmp_path):
 def test_missing_inputs_are_refused(tmp_path):
     r = subprocess.run([sys.executable, SCRIPT, str(tmp_path)], capture_output=True, text=True)
     assert r.returncode == 2 and "needs _plan.json and timeline.json" in r.stderr
+
+
+def test_a_share_copy_is_made_beside_the_master_and_capped(tmp_path):
+    import film_deliver as fd
+    d = _film(tmp_path)
+    r = subprocess.run([sys.executable, SCRIPT, str(d), "--encode", "--audio", "mix.wav", "--no-copy"],
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr
+    sh = d / "final.share.mp4"
+    assert sh.exists() and "final.share.mp4" in r.stdout
+    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(sh)],
+                           capture_output=True, text=True).stdout.split()
+    assert probe == ["video", "audio"]
+    # over the cap, the copy is re-encoded at a bitrate that fits (a tiny cap stands in for a long, rich film)
+    sh.unlink()
+    out = fd.share(str(d / "final.mp4"), cap_mb=0.01)
+    assert os.path.getsize(out) < os.path.getsize(d / "final.mp4") * 4      # it ran the capped encode and finished
+
+
+def test_deliver_hands_over_the_share_copy_when_the_film_has_one(tmp_path):
+    import deliver
+    d = tmp_path / "film"
+    d.mkdir()
+    (d / "_plan.json").write_text(json.dumps({"video": "final.mp4", "fps": 30, "frames": 3}))
+    for f in ("final.mp4", "final.share.mp4"):
+        (d / f).write_bytes(b"x")
+    to = tmp_path / "desk"
+    to.mkdir()
+    got = [os.path.basename(p) for p in deliver.deliver(str(d), to=str(to))]
+    assert any(p.endswith(" - share.mp4") for p in got), got

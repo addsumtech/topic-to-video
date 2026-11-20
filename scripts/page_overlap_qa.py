@@ -8,6 +8,11 @@ controls — elements with their own text, buttons, inputs, [role=button] — wi
 COLLIDE when neither contains the other and their boxes overlap by more than a quarter of the smaller one. A
 collision that lasts at least MIN_S is reported with both elements' text and the time span.
 
+Also WORDS CUT BY THE FRAME'S EDGE (EDGE-CUT): a line of readable text (20 px or taller, at 60 % strength or more)
+whose glyphs, cut to every clipping ancestor, cross the picture's edge for EDGE_MIN_S or more. A camera following
+typing left "…for topic-to-video itself, th" running off the right edge for over a second (topic-to-video launch
+film, 2026-11-19; no check saw it). A deliberate bleed (giant type running off the frame) is marked `data-bleed-ok`.
+
 WHY. A Grok Bot film (2026-11-17) laid buttons over one another; the user saw it and no check had. Pixels cannot tell
 an overlap from a design, the page can: it knows which boxes are words and controls.
 EXEMPT: anything inside an element marked `data-overlap-ok` (a deliberate stack, a pile of cards). Images and canvases
@@ -23,6 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _common as _c  # noqa: E402
 
 MIN_S = 0.5
+EDGE_MIN_S = 0.75     # a line passing the edge in a push or a slide is gone sooner; one held there is cut
 SHARE = 0.25
 _USAGE = "usage: page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--frames A-B] [--json]"
 
@@ -39,7 +45,7 @@ _JS = r"""
   };
   const ownText = (el) => Array.from(el.childNodes).some(n => n.nodeType === 3 && n.textContent.trim().length > 0);
   const isCtl = (el) => /^(BUTTON|INPUT|SELECT|TEXTAREA)$/.test(el.tagName) || el.getAttribute('role') === 'button';
-  const out = [];
+  const out = [], edges = [];
   for (const t of times) {
     const r = window.seek(t); if (r && r.then) await r;
     const items = [];
@@ -53,6 +59,38 @@ _JS = r"""
       if (!frags.length) continue;
       items.push({el, frags, label: (el.innerText || el.value || el.tagName).trim().slice(0, 40)});
     }
+    // words cut by the FRAME's edge: a text line whose glyphs (trailing spaces left out), cut to every clipping
+    // ancestor, still cross the edge of the picture, read at a readable size and strength
+    for (const el of document.body.querySelectorAll('*')) {
+      const tn = Array.from(el.childNodes).filter(n => n.nodeType === 3 && n.textContent.trim());
+      if (!tn.length || !vis(el) || el.closest('[data-bleed-ok]')) continue;
+      if (!tn.some(n => /[\p{L}\p{N}]/u.test(n.textContent))) continue;   // words, not a rule of box-drawing marks
+      let op = 1; for (let e = el; e && e.nodeType === 1; e = e.parentElement) op *= parseFloat(getComputedStyle(e).opacity);
+      if (op < 0.6) continue;
+      let clip = {left: -1e9, top: -1e9, right: 1e9, bottom: 1e9};
+      for (let e = el.parentElement; e && e !== document.body; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.overflow !== 'visible' || cs.overflowX !== 'visible' || cs.overflowY !== 'visible' || cs.clipPath !== 'none') {
+          const r = e.getBoundingClientRect();
+          clip = {left: Math.max(clip.left, r.left), top: Math.max(clip.top, r.top), right: Math.min(clip.right, r.right), bottom: Math.min(clip.bottom, r.bottom)};
+        }
+      }
+      for (const n of tn) {
+        const txt = n.textContent, a = txt.search(/\S/), b = txt.length - (txt.length - txt.trimEnd().length);
+        const rg = document.createRange(); rg.setStart(n, a); rg.setEnd(n, b);
+        for (const q of rg.getClientRects()) {
+          if (q.height < 20) continue;
+          // what shows: the glyphs cut to the clipping ancestors and the picture. They are cut BY THE FRAME where a
+          // side of what shows lies on the picture's edge (a shot's own frame-sized clip box counts as the frame)
+          const v = {left: Math.max(q.left, clip.left, 0), top: Math.max(q.top, clip.top, 0),
+                     right: Math.min(q.right, clip.right, innerWidth), bottom: Math.min(q.bottom, clip.bottom, innerHeight)};
+          if (v.right - v.left < 4 || v.bottom - v.top < 4) continue;
+          const cut = (q.left < v.left - 2 && v.left <= 2) || (q.right > v.right + 2 && v.right >= innerWidth - 2)
+                   || (q.top < v.top - 2 && v.top <= 2) || (q.bottom > v.bottom + 2 && v.bottom >= innerHeight - 2);
+          if (cut) { edges.push({t, a: txt.trim().slice(0, 40)}); break; }
+        }
+      }
+    }
     for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
       const A = items[i], B = items[j];
       if (A.el.contains(B.el) || B.el.contains(A.el)) continue;
@@ -65,7 +103,7 @@ _JS = r"""
       if (hit) out.push({t, a: A.label, b: B.label});
     }
   }
-  return {hits: out};
+  return {hits: out, edges};
 })(%TIMES%)
 """
 
@@ -116,7 +154,7 @@ def main(argv):
     # script paths never defined window.seek, and the check failed on both 2026-11-18 films instead of looking
     import _filmpage as _fp
     port, srv = _fp.serve(d)
-    hits = []
+    hits, edge_hits = [], []
     try:
         pg = _fp.FilmPage(port, os.path.relpath(page, d))
         try:
@@ -127,6 +165,7 @@ def main(argv):
                     print("page_overlap_qa: %s — the page must expose window.seek(t)" % val["error"], file=sys.stderr)
                     return 2
                 hits += val.get("hits", [])
+                edge_hits += [dict(h, b="the frame's edge") for h in val.get("edges", [])]
         finally:
             pg.close()
     except _fp.PageError as e:
@@ -135,15 +174,18 @@ def main(argv):
     finally:
         srv.shutdown()
     found = spans(hits, every)
+    cut = spans(edge_hits, every, EDGE_MIN_S)
     if "--json" in argv:
-        print(json.dumps({"collisions": [{"a": a, "b": b, "start": s, "end": e} for a, b, s, e in found]},
-                         ensure_ascii=False))
+        print(json.dumps({"collisions": [{"a": a, "b": b, "start": s, "end": e} for a, b, s, e in found],
+                          "cut_by_edge": [{"a": a, "start": s, "end": e} for a, _b, s, e in cut]}, ensure_ascii=False))
     else:
         for a, b, s, e in found:
             print("COLLIDE  %.2f-%.2fs  %r over %r" % (s, e, a, b))
-        print("[page_overlap_qa] %s  %d collision(s) over %.0f s sampled every %.2f s"
-              % ("OK" if not found else "RED", len(found), dur, every))
-    return 1 if found else 0
+        for a, _b, s, e in cut:
+            print("EDGE-CUT %.2f-%.2fs  %r runs off the frame's edge (reframe, wrap, or mark a deliberate bleed data-bleed-ok)" % (s, e, a))
+        print("[page_overlap_qa] %s  %d collision(s), %d line(s) cut by the frame's edge over %.0f s sampled every %.2f s"
+              % ("OK" if not (found or cut) else "RED", len(found), len(cut), dur, every))
+    return 1 if (found or cut) else 0
 
 
 if __name__ == "__main__":

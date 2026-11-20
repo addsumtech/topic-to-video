@@ -250,13 +250,19 @@ with nothing moving, and a fast move over a near-textureless gradient (proved on
 captions changing inside a shot under a slow push read as extra motion (the diamond film, 2026-11-17: 0.128 px with
 captions, 0.080 without). A turning object that repeats by design is a `kind: "loop"` segment in `_plan.json`, with
 the seam proved (the wrap frame differs no more than consecutive frames).
+Content moving over much of the frame under a camera move (tops spinning, films playing in windows, a line being typed)
+reads as stepping: MRI s13 0.126 px, topic-to-video s04 0.134 and s08 0.400 (2026-11-19); the two topic-to-video
+shots passed with their content frozen (0.059 / 0.094), MRI s13 split into its stretches (0.101). A field fitted more robustly did not separate them (s13 rose to 0.285), so prove such a red the
+documented way: the same move with the content held, recorded in `NOTES.md`.
 picture_glide_qa is slow when several films render at once; on a busy machine run it per shot (`--clip --from --to`).
 **Before the film is assembled**, a builder checks its own shots: `film_qc.py <film_dir> --frames A-B` encodes frames
 A..B-1 of `work/frames` as the film will be (into `work/qc_A-B/`, the plan and shot plan cut to that stretch) and runs
 every check that can judge a stretch; the page checks step through those seconds only (`--frames` on
 page_overlap_qa, film_copy_qa, stage_contacts_qa). Repetition, mix and the shot plan wait for the whole film, which
 is still checked once at the end (a stretch is encoded on its own, so a borderline glide reading can differ a little).
-Also in film_qc: copy (every word shown sourced or in `copy_ok.json` with a reason), contacts (stage3d: nothing inside
+Also in film_qc: edge cuts in `overlaps` (a readable line held across the frame's edge; `data-bleed-ok` for deliberate
+bleed type), pictures (`picture_legibility_qa`: a picture or stage panel on screen that shows almost nothing, a black or
+white block; `data-blank-ok` / `userData.blankOk` for an intended blank), copy (every word shown sourced or in `copy_ok.json` with a reason), contacts (stage3d: nothing inside
 anything, no coplanar stacks), pan speed (no whip over 48 px/frame), repetition (advisory: one staging as the film's
 device), banding (CAMBI > 5 on a shot: encode with the grain finish), shot plan and seams (a plain cross-dissolve
 passed off as a planned seam fails). An advisory finding prints as WARN; a check this machine cannot run prints

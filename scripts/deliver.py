@@ -118,6 +118,12 @@ def deliver(out_dir, to=None, home=None, what="out", tag=""):
         captions = os.path.splitext(video)[0] + ".srt"
         shutil.copy2(srt, captions)
         delivered.append(captions)
+    # the film small enough to send or host (film_deliver.share), when the film has one
+    small = os.path.splitext(src)[0] + ".share.mp4"
+    if what == "out" and os.path.isfile(small):
+        copy = _free(os.path.splitext(video)[0] + " - share.mp4")
+        shutil.copy2(small, copy)
+        delivered.append(copy)
     # a portrait film's 3:4 feed card (scripts/cover.py), beside the film under the same name
     cover = os.path.join(out_dir, "out.cover.png")
     if what == "out" and os.path.isfile(cover):

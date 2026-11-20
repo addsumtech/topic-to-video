@@ -1173,11 +1173,20 @@ agent on the beats it points at.
   push 0.28) and checked against the plan's seam: a seam planned as hidden that measures bare is an error, and so is a
   plain cross-dissolve (each frame a blend of the cut's two ends) where the plan names any seam but `fade`. Without a
   shot plan, bare cuts are only noted. Part of film_qc when the plan exists.
-- `scripts/page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--json]` — steps a film page's
+- `scripts/page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--frames A-B] [--json]` — steps a film page's
   `window.seek(t)` in headless Chrome and reports visible words / controls whose boxes overlap (per line fragment, by
   more than a quarter of the smaller) for ≥0.5 s; `data-overlap-ok` exempts a deliberate stack. Found the Grok Bot
-  film's "Send an email" pill over "Check a calendar" (2026-11-17); 0 on the WorkBuddy films. Part of film_qc when a
+  film's "Send an email" pill over "Check a calendar" (2026-11-17); 0 on the WorkBuddy films. Also EDGE-CUT: a
+  readable line (≥20 px, ≥60 % strength, letters or digits) whose glyphs cross the frame's edge for ≥0.75 s (a shot's
+  frame-sized clip box counts as the frame); `data-bleed-ok` exempts deliberate bleed type. Found the topic-to-video
+  film's prompt line running off the right edge (34.5-36.75 s) and nothing on four other films. Part of film_qc when a
   `film.html` exists.
+- `scripts/picture_legibility_qa.py <film_dir> [--page film.html] [--every 0.5] [--frames A-B] [--json]` — every
+  picture on screen (page img / canvas / video of 160x90 px or more and under 60 % of the frame, and each stage3d panel
+  via `st.pictures()`) cropped off the rendered frame: blurred-luma std under 4 and 1-99 % spread under 16 levels for
+  ≥1 s = a picture that shows almost nothing. A frame that is itself flat (a dip to black) is skipped; `data-blank-ok`
+  (or a panel's `userData.blankOk`) exempts an intended blank. Found the MRI recap's black lightbox (std 2.9); real
+  pictures read 27-44; nothing on five delivered films. Part of film_qc ("pictures") when a `film.html` exists.
 - `scripts/film_frames.py <film_dir> [--page film.html] [--fps 30] [--from A] [--to B] [--workers 4] [--out work/frames]
   [--probe 6]` — THE renderer for a director-path page: every frame `window.seek(t)` captured to `<out>/f_%05d.jpg`
   (each frame written, never skipped; contiguous blocks per page). A page is ready only when `filmReady` is "ok", its
