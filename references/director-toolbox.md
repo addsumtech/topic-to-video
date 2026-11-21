@@ -227,6 +227,18 @@ survivors travel on one curve, changed text is struck and replaced, newcomers po
 (NOTICE); judge them on this film's frames.
 
 ## The short promo, told in type and music (steps 3-7)
+**Type and finish that read as a company launch** (measured on the film that won the 2026-11-21 blind round, the
+user: "字体大小的设置和排布就很好…有公司发布的感觉"; 1080p, rendered px):
+- headline 104-124 px, weight ~740, tracking about -0.04 em, line-height ~0.94; never past ~130 px in a 16:9 product
+  film (168 px headlines on a full-bleed colour read as a poster, not a launch);
+- the line under it 46 px / 600, or body 32 px / 450: a strong HEAVY-LIGHT contrast, not two weights in the middle;
+- an eyebrow above, 26 px / 700, uppercase, tracked +0.03 em, in the brand's deep colour or a muted ink;
+- section titles 60-64 px; brand lines 34-40 px; machine labels in mono 22-28 px;
+- the eyebrow, headline and deck sit as ONE left-aligned block (left margin ~120 px), or as a column beside the
+  product (left picture, right type), with a lot of space around it; never centred stacks on every beat;
+- the stage is the product's own ground (an app's paper white -> a slightly darker tint, top to bottom) with one soft
+  key light and soft, colour-tinted shadows under the UI; film grain (film_deliver adds it) and a faint vignette; the
+  brand colour as a signal, a few % of the frame.
 `script.json` lines are what the viewer READS (type beats) and `{"id", "text": "", "show": s}` picture beats. Then
 `python3 scripts/type_clock.py <film_dir> --seconds 30 --bpm 112` writes `timeline.json` with `"clock": "type"`
 (every line long enough to read, every cut on a whole beat; an over-long script is refused with how much to cut);
@@ -244,8 +256,9 @@ A starting point measured on 20 official launch films (`references/craft-standar
   content declared `demo` in copy_ok.json, grey bars only below reading size (at a readable size they read as a
   wireframe: the user, 2026-11-18);
 - one hero object persists: the product's window stays, and the beats are its states, not new scenes;
-- type beats alternate with product beats: one short display line on the brand ground (the problem, the promise, the
-  payoff), the key word in the brand accent;
+- type rides with the product: one short display line beside or over the real screen, on the product's own ground
+  (the problem, the promise, the payoff), the key word in the brand accent; a type card that leaves the product for a
+  flat brand-colour fill lost the 2026-11-21 blind round to a film that stayed in the real UI;
 - the brand early (the real logo within ~10 s) and a closing lockup (mark + line);
 - one small celebration (a task completing) and a quick rhythm: few shots hold still past 1 s.
 

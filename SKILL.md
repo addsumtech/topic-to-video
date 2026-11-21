@@ -115,12 +115,18 @@ none; then the path) and **music** (a launch or promo: a generated score, recomm
 The voice is NOT asked here: the user picks it at step 4, after hearing it.
 
 **The short promo (no voice).** Same steps, a different clock: the content is understood as for any film (step 2),
-the script (step 3) is what the viewer READS — a few short type lines (the promise, the proof, the payoff; one idea
-each, the product's real feature names) between picture beats where the product acts — and step 4 is replaced by
-`scripts/type_clock.py` (every line long enough to read, every cut on the music's beat, the length met) and the score
-on the same grid. The type IS the shot: set large in the product's own type, each line entering with a designed move
-(`slot`, `lead`, `perform`, `blurSlide`), never a subtitle strip. Picture beats are the product at size, its clever
-moments acting (one per beat), the logo early and a lockup that holds >= 1 s. Commands: toolbox, "The short promo".
+the script (step 3) is what the viewer READS — a few short lines (the promise, the proof, the payoff; one idea each,
+the product's real feature names) — and step 4 is replaced by `scripts/type_clock.py` (every line long enough to read,
+every cut on the music's beat, the length met) and the score on the same grid. **The product stays on screen**: the
+film is one world, the product's own (its real screens, its app background and chrome, its type), lit softly, the
+camera moving THROUGH the real screens (pull back to reveal, push onto the component, parallax layers, a scan that
+reads it); the lines ride ON that stage (beside or over the product, in its own type, entering with a designed move:
+`slot`, `lead`, `perform`, `blurSlide`), never on a separate card that leaves the product, and never a subtitle strip.
+The brand colour is a SIGNAL (the scan line, a bracket, a ring, the mark: a few % of the frame), not a ground to fill
+the frame with. A blind round (2026-11-21) settled it: a cut that alternated flat brand-green type cards with redrawn UI
+lost to one that never left the real product ("stays in the real UI", "overall look"). The clever moments act on the
+real UI, the logo comes early and the lockup holds >= 1 s. Type sizes, layout and finish that read as a company launch (headline ~104-124 px, a
+heavy/light pair, an eyebrow, one left-aligned block) and the commands: toolbox, "The short promo".
 
 ### 2. Understand — the content (the skill's strength; never skip)
 
@@ -235,8 +241,15 @@ pieces; `Stage3D.hop` for an arc with anticipation and a volume-keeping squash, 
 `Stage3D.blink` and `Stage3D.look` so it is alive between moves), a device, an object; a screen can be a lit panel
 there, and settles facing the viewer when it carries something to read. **Devices come from the kit** (`st.phone`, `st.tablet`, `st.laptop`), never made of boxes or a 2D outline (they read as
 fake, Grok Bot 2026-11-18), each showing the layout made FOR it (another screen only whole, letterboxed, never cropped);
-**app screens are HTML** (`Stage3D.screen`: the browser lays them out and the checks look inside them), each built
-from a real reference in the film folder (an official screenshot, measured), never from memory; a terminal program
+**a product's own screens are the REAL screens** when the film has them (a 2x capture, the user's screenshots): placed
+as pictures and made readable by the CAMERA (push in, crop onto the component, within the picture's pixels), never
+redrawn; an app screen is rebuilt as HTML (`Stage3D.screen`: the browser lays it out and the checks look inside it)
+only where its elements must MOVE (a morph, a press, rows landing) or no screenshot exists, built from a real reference
+in the film folder (an official screenshot, measured), never from memory, and **at the real screen's proportions**:
+every text and box keeps its measured ratio to the rest of that screen, and the whole screen is scaled as ONE object.
+Never enlarge one element's text to make it readable (a WorkBuddy promo, 2026-11-21: the typed prompt set at 92 px in an
+input box whose placeholder was 34 px read as fake at once: "输入的字体很大"; the shotcraft film beside it kept the real
+screen and moved the camera in, and won); a terminal program
 is CAPTURED (`scripts/term_capture.py`, drawn by `Stage3D.terminal`: an imitated Claude Code read as fake, job-hunt
 2026-11-19); a caret is `Stage3D.caret` (one inside the line box made lines jump at each blink); a row of
 categories, roles or steps carries one icon each, of one family (`references/icons.md`, Lucide); cards are
@@ -278,6 +291,8 @@ captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK c
 - **Text is either read or texture.** Words meant to be read are big enough on a phone: captions ≥ ~56 px at 1080p
   (about 5 % of the frame height; `caption_size_qa` measures it), labels ≥ ~32 px, counted on the rendered frame
   with every scale applied. Small text not meant to be read is visibly softened or dimmed; nothing in between.
+  Inside a product's screen the floor is met by FRAMING (the camera closer on the whole screen), never by resizing
+  one piece of its text: the screen's proportions are part of its truth.
 - Build each sequence, export its settled frames, look at them, fix, then move on. Before a sequence is handed on
   (each builder's shots, when the build is split), run the checks on its own rendered frames:
   `python3 scripts/film_qc.py <film_dir> --frames A-B` (the same checks on that stretch, about 30 s per 6 s of film).

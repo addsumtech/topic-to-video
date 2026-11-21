@@ -81,7 +81,8 @@ a designed poster; play it and the rhythm has weight.
    for the whole film.
 2. **A hero object that persists**: the product's window stays, and the beats are its states, not new scenes
    (Loom keeps one card for 20 s).
-3. **Type beats alternate with UI beats**. A type beat is display type on the brand ground, word by word, the key
+3. **Type beats alternate with UI beats** (measured on these films; since the 2026-11-21 blind round the skill keeps the
+   line ON the product's stage instead of a separate brand-ground card — SKILL.md "The short promo"). A type beat is display type on the brand ground, word by word, the key
    word in the accent, the tail ghosted (`TextReveal`). A UI beat is a short kicker above and the product below at
    about 55 % of the frame width, or a crop onto the component the voice names, oversized, with a cursor doing it.
 4. **One small celebration moment** (a toast, a burst) and **a closing lockup** (mark + line).

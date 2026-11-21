@@ -113,8 +113,10 @@ the point, under `kit.studio.product_light` with a named finish per part (`refer
 were the measured gap) — the Remotion kit) and TRUE to the product (sourced claims; real screens where they read at
 size, the UI drawn simplified and honest where they do not: the real product's layout and its own words; the demo
 world inside a screen as plausible generic demo content, never a statistic; grey bars only below reading size).
-Devices are the kit's (`st.phone`, `st.tablet`, `st.laptop`), each showing the layout made for it; app screens are
-HTML (`Stage3D.screen`); marks follow the tilted object they frame (`st.quad` + `Stage3D.brackets`) — the toolbox,
+Devices are the kit's (`st.phone`, `st.tablet`, `st.laptop`), each showing the layout made for it; the product's own
+screens are its REAL screens made readable by the camera, rebuilt as HTML (`Stage3D.screen`) only where elements must
+move, and then at the real screen's proportions, scaled as one object (never one element's text enlarged: SKILL.md
+step 6); marks follow the tilted object they frame (`st.quad` + `Stage3D.brackets`) — the toolbox,
 "Devices, app screens, cards, marks".
 Every drawn object is checked against its real reference before it is drawn (`references/object-authoring.md`).
 Say why, and what you take from the other two.
