@@ -128,4 +128,5 @@ It asks a few questions, lets you hear the script, shows you the design and an a
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Some motion timings in `assets/html/moments.js` are adapted from
+[video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) (Apache-2.0); see [NOTICE](NOTICE).

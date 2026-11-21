@@ -2,7 +2,10 @@
 
 Studied 2026-11-17 from video-shotcraft (github.com/Vincentwei1021/video-shotcraft, Apache-2.0: 124 shot recipes, 150
 motion samples, aesthetic rules each backed by a user's ruling). Restated here in this skill's words and adapted to its
-engine and checks; no code is copied. Use it for launch, promo and product-explainer films (SKILL.md step 6). It is a
+engine and checks; no code is copied. Since 2026-11-21 the moves this file describes that matter most (the press, the
+in-place dim, become, demote, change, slot/reel, lead word, marker, scan, brackets, lift, type/retype, list, strip,
+line carry) are CODE in `assets/html/moments.js` with their tuned starting values (adapted with attribution, NOTICE);
+build with those rather than from these descriptions. Use it for launch, promo and product-explainer films (SKILL.md step 6). It is a
 vocabulary for judgement (SKILL.md "Design is judgement"): pick what serves the moment, skip the rest.
 It is a technique stack, not a taste: knowing these moves lets you execute any idea; which idea the film should be
 is yours to find (SKILL.md "You are the film's designer"). The best moments in this skill's films came from no

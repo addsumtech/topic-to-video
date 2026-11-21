@@ -84,6 +84,18 @@ building, name it in the plan (`signature`) and in `NOTES.md`, and give it the f
 technique is the start: bend it, combine it, invent past it. Train the eye with `references/taste-notes.md` (what
 good frames do, seen and judged) and give every frame its ten-second designer's pass.
 
+**Clever moments, in every film** (narrated explainer or short promo). Novelty is not only the big concept; what
+viewers call 精巧 lives in the small exact moments where ONE thing keeps its identity while it changes what it means:
+a typed tag becomes a pill and takes its slot in the post; the chosen option stays while the rest fall away and the
+price is struck and replaced; a title steps down into the label of the section it opened; the torn QR corner scatters
+into its codewords; the progress line runs on and draws the next scene's frame; the number counts up while it is
+spoken. Name **3-5 per film** in the plan (`moments`: which thing, from which state to which, and why that change IS
+the content), build them FIRST, and judge each over at least three render-and-look rounds before the film around them
+is joined (the 2026-11-17 keyframes only became good on the third round). Seams carry a thing across where one
+carries; a cut is for a change of world. `assets/html/moments.js` holds the tuned moves and two of this skill's own —
+the **real-state morph** (the product's own two states, the diff choreographed) and the **keyword that performs** on
+the voice's word clock; the subject's own moment, found by looking at it, beats any of them.
+
 ### 1. Ask — once, plainly, with options
 
 Use ONE `AskUserQuestion` call (options, the recommended one first; never a typed question in chat). Skip any
@@ -95,9 +107,20 @@ question the request already answers; if it answers all, ask nothing.
   short (9:16, 30-60 s, for a feed).
 - **Material:** none (research it) · files or a folder (then ask the path) · a link.
 
-A second screen only when it applies: **brand assets** (a product or company film: logo + colours · colours only ·
+A second screen only when it applies: **the form** of a launch or promo whose request names no length or form — a
+**short promo** told in type and music, no voice (15 · 30 · 45 s: a homepage hero, a feed, a launch teaser) · a
+**narrated product film** (1-2 min: how it works, step by step) — the user's call every time (2026-11-21); with no one
+to ask, the short promo; **brand assets** (a product or company film: logo + colours · colours only ·
 none; then the path) and **music** (a launch or promo: a generated score, recommended · my own track (path) · none).
 The voice is NOT asked here: the user picks it at step 4, after hearing it.
+
+**The short promo (no voice).** Same steps, a different clock: the content is understood as for any film (step 2),
+the script (step 3) is what the viewer READS — a few short type lines (the promise, the proof, the payoff; one idea
+each, the product's real feature names) between picture beats where the product acts — and step 4 is replaced by
+`scripts/type_clock.py` (every line long enough to read, every cut on the music's beat, the length met) and the score
+on the same grid. The type IS the shot: set large in the product's own type, each line entering with a designed move
+(`slot`, `lead`, `perform`, `blurSlide`), never a subtitle strip. Picture beats are the product at size, its clever
+moments acting (one per beat), the logo early and a lockup that holds >= 1 s. Commands: toolbox, "The short promo".
 
 ### 2. Understand — the content (the skill's strength; never skip)
 
@@ -281,7 +304,9 @@ between two viewpoints of the same characters double-exposes them (Grok Bot 2026
 Bots at once). Where the same subject carries across, plan a `match` cut). An explainer may write one too, and gets the same checks. What lifts one from correct to crafted — the UI
 as physical objects in a lit space, the look grown from the product's own design system, each technique the star
 once, a focused opening climbing to the close, designed holds, no bare cuts, demos as causal chains — is
-`references/promo-shotcraft.md`; read it before building one.
+`references/promo-shotcraft.md`; read it before building one. Its moves are CODE in `assets/html/moments.js`
+(tuned values, tested; toolbox "Moments"): use them instead of re-improvising a press, a slot or a morph per film —
+a move rewritten from its description loses the tuning that made it read.
 
 **Render** the frames with `python3 scripts/film_frames.py <film_dir>` (1920x1080, or 1080x1920 when vertical; 30
 fps) and write `<film_dir>/_plan.json` (format in the toolbox) with the cut frames computed by **the same rule the

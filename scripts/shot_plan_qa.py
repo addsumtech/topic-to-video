@@ -8,6 +8,8 @@ The plan is the director's commitment to HOW each moment is made (references/pro
   "motion_voice": {"preset": "trusted|refined|bold|playful|calm|friendly|<own>", "main_frames": 21,
                    "easing": "cubic-bezier(0,0,0.2,1)", "overshoot": 1.0},
   "signature": {"idea": "the one visual idea only this subject could have", "shot": "s05"},
+  "moments": [{"thing": "the #research tag", "from": "typed text", "to": "a pill in the post's tag slot",
+               "why": "a tag IS what a typed word becomes", "shot": "s03"}, ...],   # 3-5 clever moments
   "features": ["One-sentence tasks", "Plans the steps", ...],          # product films: every feature to show
   "shots": [{"id": "s01", "start": 0.0, "end": 3.6, "job": "open|line|show|demo|camera|data|emphasis|rhythm|close",
              "technique": "spotlight-hero", "hero": true, "features": ["One-sentence tasks"],
@@ -24,6 +26,8 @@ ERRORS (the plan breaks the method):
     percussion exception);
   - no motion voice, or shots that overlap / leave gaps in time;
   - no signature idea, or one placed in a shot the plan does not have (SKILL.md "You are the film's designer").
+  - fewer than 3 clever moments, or one missing its thing / from / to / why, or placed in a shot the plan does not
+    have (SKILL.md "Clever moments": ONE thing keeping its identity while it changes what it means).
 WARNINGS: two adjacent shots with the same job and technique (sameness); more than 3 "beat-cut"/whole-frame hits.
 Exit 0 clean (warnings allowed), 1 on any error, 2 on a usage error or a missing / unreadable plan.
 """
@@ -51,6 +55,17 @@ def evaluate(plan):
         err.append("no signature idea: name the one visual idea only this subject could have, and the shot it owns")
     elif sig.get("shot") not in {s.get("id") for s in shots}:
         err.append("the signature idea is placed in shot %r, which the plan does not have" % sig.get("shot"))
+    ids = {s.get("id") for s in shots}
+    moments = plan.get("moments") or []
+    if len(moments) < 3:
+        err.append("%d clever moment(s): name 3-5 (`moments`: thing, from, to, why, shot), each ONE thing keeping its "
+                   "identity while it changes what it means" % len(moments))
+    for i, m in enumerate(moments):
+        missing = [k for k in ("thing", "from", "to", "why") if not str(m.get(k, "")).strip()]
+        if missing:
+            err.append("moment %d: no %s" % (i + 1, ", ".join(missing)))
+        if m.get("shot") not in ids:
+            err.append("moment %d is placed in shot %r, which the plan does not have" % (i + 1, m.get("shot")))
     for s in shots:
         if s.get("job") not in JOBS:
             err.append("%s: job %r is not one of %s" % (s.get("id"), s.get("job"), sorted(JOBS)))

@@ -1,0 +1,15 @@
+topic-to-video
+Copyright (c) addsumtech. Licensed under the MIT License (see LICENSE).
+
+This product includes motion timing values adapted from video-shotcraft
+(https://github.com/Vincentwei1021/video-shotcraft), Copyright 2026 Wei Yihao,
+licensed under the Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+Adapted: starting values (frame counts, easing curves, floors) for the motions in
+assets/html/moments.js — the one-frame press and the solid flip, the floor for unchosen
+options, the one-frame "become" cut and its travel curve, the title demotion, the slot
+and reel beats, the lead word, the marker stroke, the scan lag, the bracket bite, the
+contact shadow, the list drift and the strip-away. The code, its API and the two
+techniques built on the film's own material (the real-state morph and the keyword
+that performs on the voice's word clock) are this project's own. No video-shotcraft
+source file, template, recipe card or text is included.

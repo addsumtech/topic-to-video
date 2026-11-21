@@ -1,0 +1,239 @@
+<!doctype html>
+<!-- moments.html — every motion in assets/html/moments.js on one page, on its own clock: the regression reel for the
+     library (tests/test_moments_js.py renders frames of it) and a working example to copy from. Demo content only. -->
+<html><head><meta charset="utf-8"><title>moments reel</title>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #f4f2ee; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #15171c; -webkit-font-smoothing: antialiased; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .k { position: absolute; }
+  .eyebrow { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font: 600 26px/1 Menlo, monospace;
+             letter-spacing: .22em; color: #8a8f99; }
+  .chip { position: absolute; height: 96px; border-radius: 48px; background: #fff; border: 2px solid #d9dce2;
+          font-size: 36px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+  .chip .press { position: absolute; inset: 0; border-radius: 48px; background: rgba(120,128,146,.5); display: none; }
+  .price { position: absolute; font-weight: 700; }
+  .pill { position: absolute; background: #e8ebe7; border-radius: 999px; display: flex; align-items: center;
+          gap: 18px; padding: 0 56px; height: 200px; font-size: 96px; font-weight: 600; white-space: nowrap; }
+  .card { position: absolute; background: #fff; border-radius: 28px; box-shadow: 0 20px 60px rgba(20,24,32,.10); }
+  .big { font-size: 120px; font-weight: 700; letter-spacing: -.03em; white-space: nowrap; }
+  .stem { position: absolute; font-size: 96px; font-weight: 700; letter-spacing: -.02em; white-space: nowrap; }
+  .slotword { position: absolute; left: 0; top: 0; white-space: nowrap; color: #1f6feb; }
+  .bracket { position: absolute; width: 36px; height: 36px; border: 0 solid #1f6feb; }
+  .row { position: absolute; left: 0; right: 0; height: 84px; border-radius: 18px; background: #fff;
+         display: flex; align-items: center; padding: 0 32px; font-size: 32px; box-sizing: border-box; gap: 20px; }
+  .state { position: absolute; left: 560px; top: 250px; width: 800px; height: 600px; visibility: hidden; }
+  .tag { display: inline-flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 24px; font-size: 26px;
+         background: #eef1f6; margin-right: 12px; }
+  .status { font: 600 26px/1 Menlo, monospace; color: #8a8f99; margin-left: auto; }
+  .caption { position: absolute; left: 0; right: 0; bottom: 120px; text-align: center; font-size: 60px; font-weight: 600; }
+  .w { display: inline-block; position: relative; margin: 0 .12em; }
+  .strike-line { position: absolute; left: -4%; width: 108%; top: 52%; height: 6px; background: #d33; transform-origin: 0 50%; }
+  .mark-line { position: absolute; left: 0; width: 100%; bottom: -.12em; height: .14em; background: #1f6feb; opacity: .85;
+               transform-origin: 0 50%; border-radius: .07em; }
+</style></head>
+<body>
+<script src="../moments.js"></script>
+
+<!-- 1 choose + change -->
+<div class="scene" id="s1">
+  <div class="eyebrow">CHOOSE A PLAN</div>
+  <div id="chips"></div>
+  <div class="price" id="old" style="left:760px;top:760px;font-size:96px;color:#15171c">$42.00</div>
+  <div class="price" id="new" style="left:1010px;top:760px;font-size:96px;color:#1f6feb">$34.44</div>
+</div>
+<!-- 2 become -->
+<div class="scene" id="s2">
+  <div id="typed" style="position:absolute;left:0;right:0;top:440px;text-align:center;font-size:96px;font-weight:600"></div>
+  <div class="card" id="post" style="left:420px;top:300px;width:1080px;height:480px;display:none">
+    <div style="position:absolute;left:64px;top:60px;font-size:64px;font-weight:700">Weekly market brief</div>
+    <div style="position:absolute;left:64px;top:270px;width:900px;font-size:34px;line-height:1.5;color:#4a4f59">
+      Five sources read, the numbers checked, one page you can forward.</div>
+  </div>
+  <div class="pill" id="pill"><span style="font-size:80px">&#9673;</span>research</div>
+</div>
+<!-- 3 demote -->
+<div class="scene" id="s3">
+  <div class="big" id="title" style="position:absolute;transform-origin:0 0">Automations</div>
+  <div class="card" id="c3a" style="left:150px;top:300px;width:760px;height:220px"></div>
+  <div class="card" id="c3b" style="left:150px;top:560px;width:760px;height:220px"></div>
+  <div class="card" id="c3c" style="left:960px;top:300px;width:800px;height:480px"></div>
+</div>
+<!-- 4 slot -->
+<div class="scene" id="s4">
+  <div class="stem" id="stem" style="left:300px;top:470px">One sentence to</div>
+  <div id="slotbox" style="position:absolute;left:1065px;top:470px;height:130px;width:900px;overflow:hidden"></div>
+</div>
+<!-- 5 lead + underline -->
+<div class="scene" id="s5">
+  <div id="line5" style="position:absolute;top:470px;left:0;right:0;text-align:center;font-size:96px;font-weight:600;letter-spacing:-.03em;white-space:nowrap">
+    <span class="w" id="lw">Finished</span><span class="w f">work,</span><span class="w f">not</span><span class="w f">a</span><span class="w f"><i>reply</i><span class="mark-line" id="ul"></span></span>
+  </div>
+</div>
+<!-- 6 scan + lock -->
+<div class="scene" id="s6" style="background:#0f1115">
+  <div class="card" style="left:460px;top:160px;width:1000px;height:760px;background:#191c22;box-shadow:none"></div>
+  <div id="regions"></div>
+  <div id="scanline" style="position:absolute;left:440px;width:1040px;height:3px;background:#7aa7ff;box-shadow:0 0 24px #7aa7ff"></div>
+</div>
+<!-- 7 morph: a real-state change -->
+<div class="scene" id="s7">
+  <div class="state" id="stA">
+    <div style="position:absolute;left:0;top:0;width:800px">
+      <div data-k="f1" class="tag" style="position:absolute;left:0;top:0">All</div>
+      <div data-k="f2" class="tag" style="position:absolute;left:110px;top:0">Running</div>
+      <div data-k="r1" class="row" style="top:90px">Market research package<span data-k="s1" class="status">RUNNING</span></div>
+      <div data-k="r2" class="row" style="top:190px">Daily AI news briefing<span data-k="s2" class="status">SCHEDULED</span></div>
+      <div data-k="r3" class="row" style="top:290px">Competitor pricing sheet<span data-k="s3" class="status">QUEUED</span></div>
+    </div>
+  </div>
+  <div class="state" id="stB">
+    <div style="position:absolute;left:0;top:0;width:800px">
+      <div data-k="f1" class="tag" style="position:absolute;left:0;top:0">All</div>
+      <div data-k="r1" class="row" style="top:90px;height:300px;align-items:flex-start;padding-top:24px">Market research package<span data-k="s1" class="status" style="color:#1a8f5a">DONE</span></div>
+      <div data-k="a1" class="tag" style="position:absolute;left:32px;top:200px">report.docx</div>
+      <div data-k="a2" class="tag" style="position:absolute;left:260px;top:200px">data.xlsx</div>
+      <div data-k="a3" class="tag" style="position:absolute;left:450px;top:200px">dashboard</div>
+      <div data-k="r2" class="row" style="top:410px">Daily AI news briefing<span data-k="s2" class="status">SCHEDULED</span></div>
+      <div data-k="r3" class="row" style="top:510px">Competitor pricing sheet<span data-k="s3" class="status">RUNNING</span></div>
+    </div>
+  </div>
+  <div id="stage7" style="position:absolute;left:560px;top:250px;width:800px;height:600px"></div>
+</div>
+<!-- 8 perform: the keyword performs on the voice's clock -->
+<div class="scene" id="s8">
+  <div class="caption" id="cap8" style="bottom:auto;top:430px;font-size:84px">
+    <span class="w">It</span><span class="w">read</span><span class="w" id="n8">0</span><span class="w">sources</span><span class="w">and</span><span class="w" id="nv">never<span class="strike-line" id="sl"></span></span><span class="w">guessed</span><span class="w" id="ch">a</span><span class="w" id="nb">number.</span>
+  </div>
+</div>
+<!-- 9 strip -> brand -->
+<div class="scene" id="s9" style="background:#0f1115">
+  <div id="layers"></div>
+  <div id="btn" style="position:absolute;left:880px;top:500px;width:160px;height:64px;border-radius:32px;background:#1f6feb;color:#fff;font-size:28px;font-weight:600;display:flex;align-items:center;justify-content:center">Send</div>
+  <div id="brand" style="position:absolute;left:0;right:0;top:470px;text-align:center;color:#fff;font-size:120px;font-weight:700;letter-spacing:-.03em;opacity:0">Acme</div>
+</div>
+
+<script>
+const M = Moments, F = M.F;
+const SC = [['s1', 0, 6], ['s2', 6, 11], ['s3', 11, 16], ['s4', 16, 21], ['s5', 21, 25.5], ['s6', 25.5, 31],
+            ['s7', 31, 36.5], ['s8', 36.5, 41.5], ['s9', 41.5, 46]];
+window.filmDuration = 46;
+const $ = id => document.getElementById(id);
+
+// 1 chips: 3 + 2, centred, fixed widths (measured once, never re-flowed)
+const OPTS = ['Monthly', 'Annual billing', 'Two-year commitment', 'Team', 'Nonprofit rate'], WID = [300, 380, 500, 220, 360];
+const chipEls = OPTS.map((s, i) => { const c = document.createElement('div'); c.className = 'chip';
+  const row = i < 3 ? 0 : 1, rowItems = row ? [3, 4] : [0, 1, 2];
+  const tot = rowItems.reduce((a, j) => a + WID[j], 0) + 22 * (rowItems.length - 1);
+  let x = 960 - tot / 2; for (const j of rowItems) { if (j === i) break; x += WID[j] + 22; }
+  c.style.left = x + 'px'; c.style.top = (380 + row * 118) + 'px'; c.style.width = WID[i] + 'px';
+  c.innerHTML = '<span>' + s + '</span><div class="press"></div>'; $('chips').appendChild(c); return c; });
+
+// 6 scan regions
+const REG = [{x: 520, y: 220, w: 420, h: 70, n: 'LOGO'}, {x: 520, y: 340, w: 880, h: 200, n: 'HEADLINE'},
+             {x: 520, y: 590, w: 420, h: 260, n: 'CHART'}, {x: 980, y: 590, w: 420, h: 260, n: 'TABLE'}];
+const regEls = REG.map(r => { const g = document.createElement('div'); g.style.cssText = 'position:absolute';
+  g.innerHTML = '<div style="position:absolute;inset:0;background:#262a33;border-radius:12px"></div>' +
+    ['tl','tr','bl','br'].map(c => '<div class="bracket ' + c + '"></div>').join('') +
+    '<div class="lab" style="position:absolute;left:0;top:-40px;font:600 26px Menlo,monospace;color:#7aa7ff"></div>';
+  Object.assign(g.style, {left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px'});
+  $('regions').appendChild(g); return g; });
+
+// 9 layers of a UI to strip
+const LAY = [[140, 110, 1640, 860], [260, 190, 1400, 700], [380, 270, 1160, 540], [520, 350, 880, 380], [660, 420, 600, 240]];
+const layEls = LAY.map((l, i) => { const d = document.createElement('div');
+  d.style.cssText = `position:absolute;left:${l[0]}px;top:${l[1]}px;width:${l[2]}px;height:${l[3]}px;border-radius:24px;` +
+    `background:${i % 2 ? '#1b1f27' : '#232833'};border:1px solid #2e3440`; $('layers').appendChild(d); return d; });
+$('layers').appendChild($('btn'));
+
+let plan7 = null;
+window.filmReady = (async () => {
+  await document.fonts.ready;
+  for (const s of document.querySelectorAll('.scene')) s.style.display = 'block';   // lay out every state to measure
+  plan7 = M.morph.stage($('stage7'), M.morph.plan(M.morph.snapshot($('stA')), M.morph.snapshot($('stB')), {at: 33.2}));
+  for (const s of document.querySelectorAll('.scene')) s.style.display = 'none';
+  return 'ok';
+})();
+
+function show(t) { for (const [id, a, b] of SC) $(id).style.display = t >= a && t < b ? 'block' : 'none'; }
+
+window.seek = function (t) {
+  show(t);
+  // 1 choose (press at 2.0) then the price changes (4.0)
+  const ch = M.choose(t, {at: 2.0, n: 5, chosen: 1, floor: 0.18});
+  chipEls.forEach((c, i) => { const s = ch[i]; c.style.opacity = s.opacity * M.seg(t, 0.27 + i * 0.1, 0.8 + i * 0.1);
+    c.style.transform = 'scale(' + s.scale + ')'; c.querySelector('.press').style.display = s.pressed ? 'block' : 'none';
+    c.style.background = s.solid > 0.5 ? '#0b1020' : '#fff'; c.style.color = s.solid > 0.5 ? '#fff' : '#15171c';
+    c.style.borderColor = s.solid > 0.5 ? '#0b1020' : '#d9dce2'; });
+  const pc = M.change(t, {at: 4.0});
+  $('old').style.opacity = M.seg(t, 3.2, 3.4); $('old').style.transformOrigin = '0 50%';
+  $('old').style.transform = 'scale(' + pc.old.scale + ')'; $('old').style.color = pc.old.grey > .5 ? '#9aa0aa' : '#15171c';
+  $('old').style.textDecoration = pc.old.strike > .5 ? 'line-through' : 'none';
+  $('new').style.opacity = t < 4.0 ? 0 : pc.next.opacity; $('new').style.transformOrigin = '0 50%';
+  $('new').style.transform = 'translateY(' + pc.next.y + 'em) scale(' + pc.next.scale + ')';
+
+  // 2 become: "#research" typed, becomes a pill on one frame, holds, travels into the card
+  const ty = M.type(t, {at: 6.3, text: '#research', step: 5 * F, seed: 3});
+  const bc = M.become(t, {at: ty.end + 6 * F, hold: 0.6, from: {x: 640, y: 400, w: 640}, to: {x: 484, y: 470, w: 352}});
+  $('typed').innerHTML = bc.phase === 'before' ? ty.shown + '<span style="display:inline-block;width:6px;height:.9em;background:#d33;vertical-align:-.1em;margin-left:4px"></span>' : '';
+  $('pill').style.display = bc.phase === 'after' ? 'flex' : 'none';
+  $('pill').style.left = bc.x + 'px'; $('pill').style.top = bc.y + 'px'; $('pill').style.width = '528px';
+  $('pill').style.transformOrigin = '0 0'; $('pill').style.transform = 'scale(' + bc.scale + ')';
+  $('post').style.display = t >= ty.end + 6 * F + 0.6 + 17 * F ? 'block' : 'none';
+
+  // 3 demote: the title stands, then steps down into the section's label; cards grow from 12 f into the move
+  const dm = M.demote(t, {at: 12.4, from: {x: 960 - 380, y: 460, size: 120}, to: {x: 150, y: 170, size: 48}});
+  $('title').style.left = dm.x + 'px'; $('title').style.top = dm.y + 'px'; $('title').style.transform = 'scale(' + dm.scale + ')';
+  $('title').style.opacity = M.seg(t, 11.1, 11.5);
+  ['c3a', 'c3b', 'c3c'].forEach((id, i) => { const p = M.seg(t, dm.grow + i * 6 * F, dm.grow + i * 6 * F + 20 * F, M.E.outCubic);
+    $(id).style.opacity = p; $(id).style.transform = 'translateY(' + 30 * (1 - p) + 'px)'; });
+
+  // 4 slot: the stem never moves
+  const WORDS = ['plan the steps.', 'run them.', 'hand back the files.'];
+  const box = $('slotbox'); if (!box.children.length) WORDS.forEach(w => { const s = document.createElement('div'); s.className = 'slotword stem'; s.textContent = w; box.appendChild(s); });
+  M.slot(t, {times: [16.9, 17.9, 18.9]}).forEach((s, i) => M.apply(box.children[i], s));
+  $('stem').style.opacity = M.seg(t, 16.1, 16.4);
+
+  // 5 lead word + the words that follow, then the marker under the key word
+  const ld = M.lead(t, {at: 21.2, dx: 300});
+  $('lw').style.transformOrigin = '50% 80%'; $('lw').style.transform = 'scale(' + ld.scale + ')';
+  $('line5').style.transform = 'translateX(' + ld.x + 'px)';
+  document.querySelectorAll('#line5 .f').forEach((w, i) => { const f = M.follow(t, {at: 21.2, i: i + 1});
+    w.style.transform = 'translateX(' + f.x + 'em)'; w.style.opacity = f.opacity; });
+  $('ul').style.transform = 'scaleX(' + M.underline(t, {at: 23.0}) + ') rotate(-1.2deg)';
+
+  // 6 scan: constant speed; bracketed and named only after the line passes
+  const sc = M.scan(t, {t0: 26.2, t1: 26.2 + 74 * F, y0: 200, y1: 880, regions: REG});
+  $('scanline').style.top = sc.y + 'px'; $('scanline').style.opacity = t < 26.2 || t > 26.2 + 74 * F + 0.2 ? 0 : 1;
+  regEls.forEach((g, i) => { const r = sc.regions[i], o = r.outset;
+    g.querySelectorAll('.bracket').forEach(b => { b.style.display = r.fired ? 'block' : 'none';
+      const c = b.classList; const L = c.contains('tl') || c.contains('bl'), T = c.contains('tl') || c.contains('tr');
+      b.style.left = L ? (-o - 6) + 'px' : ''; b.style.right = L ? '' : (-o - 6) + 'px';
+      b.style.top = T ? (-o - 6) + 'px' : ''; b.style.bottom = T ? '' : (-o - 6) + 'px';
+      b.style.borderLeftWidth = L ? '4px' : '0'; b.style.borderRightWidth = L ? '0' : '4px';
+      b.style.borderTopWidth = T ? '4px' : '0'; b.style.borderBottomWidth = T ? '0' : '4px'; });
+    g.querySelector('.lab').textContent = REG[i].n.slice(0, r.labelChars); });
+
+  // 7 morph between the two real states of the task list
+  if (plan7) M.morph.draw(t, plan7);
+
+  // 8 the keyword performs (a stand-in clock; in a film these come from Moments.wordTime(timeline, word))
+  const n = M.perform(t, {at: 37.4, end: 38.0, act: 'count', value: 42});
+  $('n8').textContent = t < 37.4 ? '0' : n.text;
+  const sk = M.perform(t, {at: 38.6, end: 38.9, act: 'strike'});
+  $('sl').style.transform = 'scaleX(' + sk.strike + ')'; $('nv').style.opacity = sk.opacity;
+  const ri = M.perform(t, {at: 39.3, end: 39.6, act: 'rise'});
+  document.querySelectorAll('#cap8 .w').forEach((w, i) => { if (i < 7) { w.style.opacity = M.seg(t, 36.6 + i * 0.12, 36.9 + i * 0.12); } });
+  [$('ch'), $('nb')].forEach(w => { w.style.opacity = ri.opacity; w.style.transform = 'translateY(' + ri.y + 'em)'; w.style.filter = 'blur(' + ri.blur + 'px)'; });
+
+  // 9 strip: from the edges inward, then the button travels to the centre and hands off to the mark
+  layEls.forEach((d, i) => { const s = M.strip(t, {at: 42.4, layer: i}); d.style.opacity = s.opacity;
+    const cx = LAY[i][0] + LAY[i][2] / 2 - 960, cy = LAY[i][1] + LAY[i][3] / 2 - 540, k = Math.hypot(cx, cy) || 1;
+    d.style.transform = 'translate(' + (cx / k * 90 * s.push) + 'px,' + (cy / k * 90 * s.push + 60 * s.push) + 'px)'; });
+  const bt = M.seg(t, 42.4 + 5 * 4 * F, 42.4 + 5 * 4 * F + 18 * F, M.E.swift);
+  $('btn').style.transform = 'scale(' + (1 + 0.5 * bt) + ')';
+  $('btn').style.opacity = 1 - M.seg(t, 43.9, 44.2);
+  $('brand').style.opacity = M.seg(t, 44.3, 44.7);
+};
+</script>
+</body></html>

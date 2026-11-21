@@ -128,4 +128,5 @@ Make a 2-minute video explaining how an espresso machine pulls a shot.
 
 ## 许可证
 
-[MIT](LICENSE)
+[MIT](LICENSE)。`assets/html/moments.js` 中部分动效时值改编自
+[video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft)（Apache-2.0），详见 [NOTICE](NOTICE)。

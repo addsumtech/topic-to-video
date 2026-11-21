@@ -23,7 +23,7 @@ imagefetch --check (every picture the page names says where it came from, under 
 with a stage3d page, stage_contacts_qa (nothing passes through anything); pan_speed_qa (no camera whip that strobes);
 repetition_qa (advisory: one staging repeated as the film's device); banding_qa (dark gradients stepping after the
 encode; scripts/film_deliver.py --encode adds the grain finish that fixes it); mix (a film with music in audio/ ships
-the mix scripts/mix.py made and measured, the music held under the voice); with a timeline.json, voice_asr_qa (the voice heard
+the mix scripts/mix.py made and measured, the music held under the voice); with a voiced timeline.json, voice_asr_qa (the voice heard
 back by a recogniser: a dropped or doubled phrase, captions off the voice); with a shot_plan.json, also shot_plan_qa (the craft
 plan is sound) and seam_qa (every seam the plan says is hidden really is).
 Prints one line per check — OK, or the check's own findings — and exits 1 if any check is red, so "clean" is a
@@ -46,6 +46,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # judged on the whole film only: one staging repeated across the film, the music under the voice, the plan itself
 FILM_WIDE = ("repetition", "mix", "shot plan", "voice", "images")
+
+
+def _type_clock(d):
+    """True when the film's clock is its on-screen type (scripts/type_clock.py: a short promo with no voice), so there
+    is no voice to hear back."""
+    try:
+        return json.load(open(os.path.join(d, "timeline.json"), encoding="utf-8")).get("clock") == "type"
+    except (OSError, ValueError):
+        return False
 
 
 def checks(d, video, plan, span=None, page_dir=None):
@@ -75,7 +84,7 @@ def checks(d, video, plan, span=None, page_dir=None):
     out.append(("repetition", [py, os.path.join(HERE, "repetition_qa.py"), d, "--video=" + video]))   # advisory
     out.append(("banding", [py, os.path.join(HERE, "banding_qa.py"), d, "--video", video]))
     out.append(("mix", [py, os.path.join(HERE, "mix.py"), "--check", d]))
-    if os.path.isfile(os.path.join(page_dir, "timeline.json")):
+    if os.path.isfile(os.path.join(page_dir, "timeline.json")) and not _type_clock(page_dir):
         out.append(("voice", [py, os.path.join(HERE, "voice_asr_qa.py"), page_dir]))
     if os.path.isfile(os.path.join(d, "shot_plan.json")):
         out += [("shot plan", [py, os.path.join(HERE, "shot_plan_qa.py"), d]),

@@ -13,6 +13,10 @@ GOOD = {
     "motion_voice": {"preset": "trusted", "main_frames": 21, "easing": "cubic-bezier(0,0,0.2,1)", "overshoot": 1.0},
     "features": ["One sentence in", "Finished files out"],
     "signature": {"idea": "the prompt line deals out the finished files", "shot": "s02"},
+    "moments": [
+        {"thing": "the prompt line", "from": "a typed sentence", "to": "the task's title", "why": "the sentence IS the task", "shot": "s01"},
+        {"thing": "the task row", "from": "running", "to": "done, its files dealt out", "why": "done means files", "shot": "s02"},
+        {"thing": "the send button", "from": "a control", "to": "the logo's mark", "why": "what you used is the brand", "shot": "s03"}],
     "shots": [
         {"id": "s01", "start": 0, "end": 4.0, "job": "open", "technique": "spotlight-hero", "hero": True,
          "features": ["One sentence in"], "seam_out": "travel"},
@@ -92,3 +96,13 @@ def test_cli(tmp_path):
     (tmp_path / "shot_plan.json").write_text(json.dumps(GOOD))
     assert sq.main([str(tmp_path)]) == 0
     assert sq.main([str(tmp_path / "missing")]) == 2
+
+
+def test_clever_moments_are_required_and_placed():
+    err, _ = sq.evaluate(_with(moments=GOOD["moments"][:2]))
+    assert any("2 clever moment(s)" in e for e in err)
+    bad = copy.deepcopy(GOOD["moments"])
+    bad[0]["why"] = ""
+    bad[1]["shot"] = "s09"
+    err, _ = sq.evaluate(_with(moments=bad))
+    assert any("moment 1: no why" in e for e in err) and any("moment 2 is placed in shot 's09'" in e for e in err)

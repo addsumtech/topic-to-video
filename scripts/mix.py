@@ -3,6 +3,7 @@
 
     python3 scripts/mix.py --voice audio/voice.wav [--music audio/score.wav] [--sfx audio/sfx.wav] --out audio/mix.wav
         [--under 20] [--lift 8] [--sfx-gain 0.8] [--lufs -14] [--tp -2]
+    python3 scripts/mix.py --music audio/score.wav [--sfx audio/sfx.wav] --out audio/mix.wav   # a film with NO voice
     python3 scripts/mix.py --check <film_dir>        # film_qc "mix": the shipped mix is this script's, as measured
 
 While the voice speaks, the music sits `--under` dB below it (measured RMS over the speech, 20 by default: WCAG 1.4.7
@@ -115,11 +116,18 @@ def separation(voice, music, mask, hop=2400, win=10):
 
 
 def mix(voice_p, music_p, sfx_p, out_p, under=20.0, lift=8.0, sfx_gain=0.8, lufs=-14.0, tp=-2.0):
-    voice = load(voice_p)
-    n = len(voice)
-    mask, vdb = speech_mask(voice)
-    total = voice.copy()
-    report = {"under": under}
+    if not voice_p:                           # a music-led film (a short promo told in type): the music IS the track
+        assert music_p, "mix: a film with no voice needs --music"
+        total = load(music_p)
+        n = len(total)
+        report = {"under": under, "voice": False}
+        music_p = None
+    else:
+        voice = load(voice_p)
+        n = len(voice)
+        mask, vdb = speech_mask(voice)
+        total = voice.copy()
+        report = {"under": under}
     if music_p:
         music = load(music_p, n)
         mdb = _rms_db(music, 2400)
@@ -189,6 +197,9 @@ def check(film_dir):
     if not os.path.isfile(mixp) or rep.get("sha1") != _sha1(mixp):
         print("[mix] RED  audio/mix.wav changed after scripts/mix.py measured it: mix again")
         return 1
+    if rep.get("voice") is False:
+        print("[mix] OK  a film with no voice: the music is the track, mastered to %s LUFS" % rep.get("lufs"))
+        return 0
     if rep.get("separation_p10") is None or rep["separation_p10"] < rep.get("under", 20) - 3:
         print("[mix] RED  the music competes with the voice: separation p10 %s dB (needs >= %s)" % (rep.get("separation_p10"), rep.get("under", 20) - 3))
         return 1
@@ -214,7 +225,7 @@ def main(argv):
         return check(argv[1])
     _c.refuse_unknown(argv, valued=("voice", "music", "sfx", "out", "under", "lift", "sfx-gain", "lufs", "tp"), usage=_USAGE)
     v, out = _c.argflag(argv, "voice"), _c.argflag(argv, "out")
-    if not v or not out:
+    if not out or not (v or _c.argflag(argv, "music")):
         print(_USAGE, file=sys.stderr)
         return 2
     for p in (v, _c.argflag(argv, "music"), _c.argflag(argv, "sfx")):

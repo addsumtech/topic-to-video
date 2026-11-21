@@ -212,6 +212,28 @@ picture going back, as on a Memphis film's label pops).
 - `st.quad(obj)` -> the object's face corners on screen; `Stage3D.brackets(ctx2d, quad, {grow, arm, lineWidth})` draws a
   scanner's corners along them (grow 1.2 -> 1 to close in).
 
+**Moments.** `assets/html/moments.js` (`examples/moments.html` runs every one), each a pure function of the film's t:
+the small exact motions where ONE element keeps its identity while it changes what it means. `choose` (one-frame
+press, solid flip, the rest dim to 18 % IN PLACE), `become` (a thing turns into another on one hard frame, holds,
+travels to its slot), `demote` (a title steps down into its section's label), `change` (old value held, struck, the new
+one in), `slot`/`reel` (the sentence still, the word in its slot cycling), `lead`/`follow` (one word first, the line
+forms around it; `x` goes on the whole line), `underline`, `scan` (a constant-speed read; bracketed and named only
+after the line passes), `lock`, `lift`/`land`, `type`/`retype`, `list`, `strip`, `carry`. And two built from the
+film's own material: **`morph`** — write the product's screen in two states as HTML with `data-k` keys; `snapshot`
+both in `filmReady`, `plan(A, B, {at})`, `stage(el, plan)`, then `draw(t, plan)` in seek: leavers dim in place,
+survivors travel on one curve, changed text is struck and replaced, newcomers pop (small) or rise (large) — and
+**`perform`** — a key word on screen does what it says while it is spoken (`count`, `split`, `join`, `strike`,
+`mark`, `rise`, `weigh`), timed by `Moments.wordTime(timeline, word)`. Starting values adapted from video-shotcraft
+(NOTICE); judge them on this film's frames.
+
+## The short promo, told in type and music (steps 3-7)
+`script.json` lines are what the viewer READS (type beats) and `{"id", "text": "", "show": s}` picture beats. Then
+`python3 scripts/type_clock.py <film_dir> --seconds 30 --bpm 112` writes `timeline.json` with `"clock": "type"`
+(every line long enough to read, every cut on a whole beat; an over-long script is refused with how much to cut);
+`python3 scripts/score.py --bpm 112 --seconds <duration> audio/score.wav` scores it on the same grid;
+`python3 scripts/mix.py --music audio/score.wav [--sfx audio/sfx.wav] --out audio/mix.wav` masters it with no voice.
+film_qc skips the voice check on a type clock.
+
 ## Launch and product films (step 6)
 A starting point measured on 20 official launch films (`references/craft-standard.md` "A product film",
 `references/launch-film-study.md`); the WorkBuddy blind rounds (2026-11-16/17) chose the film that followed it:

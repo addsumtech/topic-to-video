@@ -86,7 +86,24 @@ may appear as small supporting beats). Showing the product's own UI simply to ex
 its buttons, a skill card, drawn clean and large) is NOT on this list: it is often the clearest frame a film has. The catalogue: floating cards on a gradient; a grid of feature cards; a horizontal timeline
 with pills or nodes; a centred headline with a subtitle under it; a checklist with ticks; a wall of logos; the
 product's screenshot sliding in from the side; running corner labels (a section name, a brand tag, a page count) over the film; a terminal/prompt line typing as the whole idea; a split screen
-before/after as the whole idea. If a concept could be described as one of these, replace it.
+before/after as the whole idea. If a concept could be described as one of these, replace it. What makes these layouts mediocre is a static or generic
+entrance, not the layout: big type centred on a clean ground, entering by a designed move (a slot cycling, a lead word,
+a word performing on its line), is often the strongest frame a short promo has.
+
+## 2b. The clever moments — `design/moments.md`
+The concept is the big idea; what a viewer calls 精巧 (delicately clever) is in the small exact moments where ONE thing
+keeps its identity while it changes what it means. For the chosen concept, find **3-5** by looking at the subject's own
+behaviour: what does the product (or the mechanism) DO to one of its own elements? A typed tag becomes a pill and takes
+its slot in the post; the chosen option stays while the others fall away and the price is struck and replaced; a title
+steps down into the label of the section it opened; a running task turns done and deals out its files (its real two
+states, morphed: `Moments.morph`); the number counts up while the voice says it (`Moments.perform`); the progress line
+runs on and draws the next scene's frame. For each: the thing, its state before and after, why that change IS the
+content (not decoration), the line it lands on, and the move (`assets/html/moments.js` has the tuned ones; invent
+where the subject asks for something none of them is). Render the best one as a short moving test before the
+keyframes are final (a few seconds of frames through `scripts/film_frames.py`, looked at as a strip): a moment is
+judged in motion, never on a still. The same thing should carry across seams wherever one can.
+**The test:** describe the film to a friend in two sentences: the concept is the first; one of these moments is the
+second. If no moment would be the second sentence, they are not clever yet.
 
 ## 3. Choose — at the end of `design/concepts.md`
 Pick the concept a first-time viewer would understand best AND remember longest; boldness breaks a tie, it never
@@ -123,7 +140,8 @@ idea. The shots between the heroes are designed here too: left to the build, the
 build blocks every shot from this treatment and the user approves the cut as an ANIMATIC on the real voice
 (`scripts/animatic.py`) before anything is polished: write each shot so its blocking reads; a rough board of your
 own for any shot (`design/boards/<shot id>.png`) is used in place of the blocking frame. Draft `shot_plan.json` in the format
-of `scripts/shot_plan_qa.py` (with `signature`, and the hero moments marked `hero: true`) and make it pass.
+of `scripts/shot_plan_qa.py` (with `signature`, the clever `moments` from 2b, and the hero moments marked `hero: true`)
+and make it pass.
 
-Return a short summary: the chosen concept in one sentence, the three hero moments, the path to `keyframes.jpg`, and
-anything the builder must not lose.
+Return a short summary: the chosen concept in one sentence, the three hero moments, the clever moments (one line each),
+the path to `keyframes.jpg`, and anything the builder must not lose.
