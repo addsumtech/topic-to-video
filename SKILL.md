@@ -227,8 +227,7 @@ the logo's cursor that types the task) — the thing that, more than anything el
 
 **The unit is the sequence.** Each sequence is one world (subject, ground, camera language) and flows inside
 itself; the world changes only at a seam. Within it, every shot has one focal point, appears with its words
-(the cut lands ~0.1-0.2 s before the word), and moves with intent. Read `references/director-craft.md` (editing,
-teaching, design, motion and sound principles) before building.
+(the cut lands ~0.1-0.2 s before the word), and moves with intent. Read `references/director-craft.md` (editing, teaching, design, motion and sound principles) and `references/shot-language.md` (compact shot/coverage vocabulary) before building. Use the latter selectively—not as a shot checklist.
 
 **Engine.** Default: one HTML page for the whole film (`film.html`) in which **every frame is a pure function of
 time** (`window.seek(t)`: no CSS transitions, no timers, no randomness; canvas text drawn only after its fonts load),
