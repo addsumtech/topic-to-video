@@ -103,3 +103,7 @@ stays readable. `assets/html/accents.js` gives them as pure functions of time, w
 - **Arc:** hook, setup, build (each step earns the next), payoff (the climax ~75-80 % through), a short ending
   that restates the one thing in new words, or for a launch, a call to action and the brand.
 - **Concrete stakes:** why the viewer should care, said early and paid off at the end.
+
+
+## 7. Coverage and shot vocabulary
+Before planning coverage or building multi-shot sequences, use `references/shot-language.md` as a compact vocabulary for A-roll/B-roll, cutaways, inserts, reaction and establishing shots, shot sizes, camera moves, editing terms and continuity. Treat it as a toolkit—not a mandatory checklist—and select shots for narrative purpose rather than coverage for coverage's sake. A-roll/B-roll are functional roles; narration may be the A-roll, and diagrams, real footage, UI captures, typography or animation may all serve as B-roll.
