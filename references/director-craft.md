@@ -61,7 +61,10 @@ coverage inside a sequence).
 - **Show the thing itself:** the product's real screens, the real object, the mechanism drawn correctly. Never
   draw a raster beyond its native pixels; a real screenshot is cropped and pushed within its density.
 - **Light, material and depth** belong to the look, not to one shot: if the film is lit, every shot shares one
-  light direction and one material language (the kit: section 6 of SKILL.md).
+  light direction and one material language (the kit: section 6 of SKILL.md). A sequence also keeps one light
+  COLOUR: a straight cut from a cool-lit shot to a warm one inside a sequence jars (the user, 2026-11-24, on MRI,
+  job-hunt and QR cuts); change the temperature at a seam, or when the story asks for it (noon to sunset).
+  `light_match_qa` (advisory, in `film_qc`) lists the flips.
 
 ## 4. Motion — physics the eye believes
 - **Easing:** nothing starts or stops at full speed. Entrances decelerate (ease-out), exits accelerate (ease-in),

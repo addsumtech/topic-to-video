@@ -56,10 +56,10 @@ A move has a job: reveal, follow, connect, or shift emphasis; one camera languag
 - **Match cut**: a shape, position or motion carried across (`"seam_out": "match"`, between sequences too).
 
 ## Continuity across a straight cut
-Keep identity, prop and UI state, screen direction, eyeline, action phase, geography, light direction and timing,
-unless the change itself says something. Time runs one way: a state reached in the wide is still reached in the
-close (`rewind_qa`). Cut on the action or on the voice (~0.1-0.2 s before the word), and keep the eye where the last
-shot left it.
+Keep identity, prop and UI state, screen direction, eyeline, action phase, geography, light direction and colour
+(warm or cool: `light_match_qa`), and timing, unless the change itself says something. Time runs one way: a state
+reached in the wide is still reached in the close (`rewind_qa`). Cut on the action or on the voice (~0.1-0.2 s
+before the word), and keep the eye where the last shot left it.
 
 ## In the plan
 Each shot of `shot_plan.json` may carry `sequence` (one id per world) and `framing`; a straight cut is

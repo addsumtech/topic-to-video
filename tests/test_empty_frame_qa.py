@@ -101,6 +101,16 @@ def test_film_qc_runs_every_check_on_the_plan_video(blank_hold_film):
     assert "--video=" + str(d / "final.mp4") in glide   # picture_glide_qa otherwise reads <dir>/out.mp4
 
 
+def test_film_qc_adds_the_light_match_check_with_a_timeline(tmp_path):
+    names = [n for n, _c in film_qc.checks(str(tmp_path), str(tmp_path / "final.mp4"), str(tmp_path / "_plan.json"))]
+    assert "light" not in names
+    (tmp_path / "timeline.json").write_text('{"seams": [], "lines": []}')
+    names = [n for n, _c in film_qc.checks(str(tmp_path), str(tmp_path / "final.mp4"), str(tmp_path / "_plan.json"))]
+    assert names[names.index("repetition") + 1] == "light"
+    todo = [n for n, _c in film_qc.checks(str(tmp_path), "v.mp4", "p.json", (20, 50), page_dir=str(tmp_path))]
+    assert "light" not in todo, "a stretch has no sequence context: judged on the whole film"
+
+
 def test_film_qc_adds_the_plan_and_seam_checks_with_a_shot_plan(tmp_path):
     names = [n for n, _c in film_qc.checks(str(tmp_path), str(tmp_path / "final.mp4"), str(tmp_path / "_plan.json"))]
     assert "shot plan" not in names and "seams" not in names

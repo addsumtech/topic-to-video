@@ -357,7 +357,8 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
    middle frame of every cut, AND frame by frame through every moving object and camera move (a defect in motion is
    between the settled frames: a card sunk into a head, two Bots double-exposed by a dissolve, an arrow that changed
    shape between render pages were all invisible on a contact sheet). One layout repeated, a frame cut off, a
-   caption over a picture, an empty hold, a sequence that drops the look: fix before delivering.
+   caption over a picture, an empty hold, a sequence that drops the look or flips its light warm/cool (`light`
+   in film_qc lists those cuts): fix before delivering.
 3. **Accuracy, of words AND pictures**: every number, name and quote on screen or in the voice traces to the
    brief's sources; and every drawn subject is checked on a close settled frame against its real reference: count
    its parts (legs, fingers, wheels, keys), check proportions, direction and labels. A wrong drawing is a factual

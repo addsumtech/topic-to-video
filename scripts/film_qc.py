@@ -21,7 +21,8 @@ controls colliding on the page over time, or a readable line cut by the frame's 
 comes from the sources or is declared), picture_legibility_qa (a picture on screen that shows almost nothing) and
 imagefetch --check (every picture the page names says where it came from, under a licence a film may carry);
 with a stage3d page, stage_contacts_qa (nothing passes through anything); pan_speed_qa (no camera whip that strobes);
-repetition_qa (advisory: one staging repeated as the film's device); banding_qa (dark gradients stepping after the
+repetition_qa (advisory: one staging repeated as the film's device); with a timeline.json, light_match_qa (advisory:
+a straight cut inside one sequence that flips the light warm <-> cool); banding_qa (dark gradients stepping after the
 encode; scripts/film_deliver.py --encode adds the grain finish that fixes it); mix (a film with music in audio/ ships
 the mix scripts/mix.py made and measured, the music held under the voice); with a voiced timeline.json, voice_asr_qa (the voice heard
 back by a recogniser: a dropped or doubled phrase, captions off the voice); with a shot_plan.json, also shot_plan_qa (the craft
@@ -45,7 +46,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 # judged on the whole film only: one staging repeated across the film, the music under the voice, the plan itself
-FILM_WIDE = ("repetition", "mix", "shot plan", "voice", "images")
+FILM_WIDE = ("repetition", "light", "mix", "shot plan", "voice", "images")
 
 
 def _type_clock(d):
@@ -82,6 +83,8 @@ def checks(d, video, plan, span=None, page_dir=None):
         out.append(("contacts", [py, os.path.join(HERE, "stage_contacts_qa.py"), page_dir] + pspan))
     out.append(("pan speed", [py, os.path.join(HERE, "pan_speed_qa.py"), d]))
     out.append(("repetition", [py, os.path.join(HERE, "repetition_qa.py"), d, "--video=" + video]))   # advisory
+    if os.path.isfile(os.path.join(d, "timeline.json")):
+        out.append(("light", [py, os.path.join(HERE, "light_match_qa.py"), d, "--video=" + video]))   # advisory
     out.append(("banding", [py, os.path.join(HERE, "banding_qa.py"), d, "--video", video]))
     out.append(("mix", [py, os.path.join(HERE, "mix.py"), "--check", d]))
     if os.path.isfile(os.path.join(page_dir, "timeline.json")) and not _type_clock(page_dir):
