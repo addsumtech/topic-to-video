@@ -294,7 +294,8 @@ captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK c
   with every scale applied. Small text not meant to be read is visibly softened or dimmed; nothing in between.
   Inside a product's screen the floor is met by FRAMING (the camera closer on the whole screen), never by resizing
   one piece of its text: the screen's proportions are part of its truth.
-- Build each sequence, export its settled frames, look at them, fix, then move on. Before a sequence is handed on
+- Build each sequence, export its settled frames, look at them on one tiled sheet (a single frame at full size only
+  to read text or check a collision or fine detail), fix, then move on. Before a sequence is handed on
   (each builder's shots, when the build is split), run the checks on its own rendered frames:
   `python3 scripts/film_qc.py <film_dir> --frames A-B` (the same checks on that stretch, about 30 s per 6 s of film).
   A red found there costs one shot; found on the assembled film it costs a re-render, re-encode and re-check of all

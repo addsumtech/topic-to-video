@@ -128,8 +128,11 @@ the same engine the film will use — not sketches, not mood boards. Then judge 
 - Would a viewer remember it? Is there ONE big thing, with depth and placed light?
 - Is anything in it on the mediocre catalogue? Does any element collide with another or with the type?
 - Run the ten-second designer's pass (`references/taste-notes.md`).
-Redesign any frame that does not clear the bar — composition, camera, scale, light, crop — and render again. Expect
-three or more rounds per frame; your first render is a draft. Tile the final three into `design/keyframes.jpg`.
+Redesign any frame that does not clear the bar — composition, camera, scale, light, crop — and render again, as many
+rounds as it takes; your first render is a draft. Judge each round on ONE tiled sheet of the three frames
+(`design/keyframes.jpg`): composition, scale, light, sameness. Open a single frame at full size only for what a sheet
+cell cannot show (whether every word reads, a collision, fine detail): every image you open stays in your context
+for the rest of the run.
 For the 3D stage: capture with Chrome's `--allow-file-access-from-files` (or serve the folder over http);
 `Stage3D.panel()` takes the CLEAN screens (crop out any documentation annotations first); `st.inflate()` takes a
 WHOLE character or mark on a transparent background: cut it out of a screenshot with `scripts/cutout.py` (never one
