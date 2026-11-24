@@ -1,5 +1,5 @@
 """seam_qa: a cut the shot plan says is hidden must not be a bare swap in the pixels; a hard cut planned as one
-(beat-cut / match / state) is what the plan said; without a plan, bare cuts are only noted."""
+(beat-cut / match / state / a straight cut inside one sequence) is what the plan said; without a plan, bare cuts are only noted."""
 import json
 import os
 import subprocess
@@ -44,7 +44,7 @@ def test_a_bare_cut_planned_as_hidden_is_a_contradiction(tmp_path):
     assert seam_qa.main([str(tmp_path)]) == 1
 
 
-@pytest.mark.parametrize("seam", ["beat-cut", "match", "state"])
+@pytest.mark.parametrize("seam", ["beat-cut", "match", "state", "cut"])
 def test_a_hard_cut_planned_as_one_passes(tmp_path, seam):
     _make(tmp_path, "bare")
     _shot_plan(tmp_path, seam)

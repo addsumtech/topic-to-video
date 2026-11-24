@@ -218,16 +218,18 @@ Non-interactive: watch it yourself shot by shot, fix what does not read, then bu
 
 The designer draws on `references/video-looks.md` (11 looks), `references/visual-styles.md` (palettes, type and their
 vetoes: no playful register on a somber subject, no busy ground under data), `references/taste-notes.md` and
-`references/promo-shotcraft.md` as a technique stack. Whatever it chooses is **held for the whole film**: one world,
-one light, one **motion voice** (timings and easing from the brand's energy and tone; two voices read as a
-patchwork), one **recurring subject** that transforms from first frame to last (the code torn, scanned and repaired;
+`references/promo-shotcraft.md` as a technique stack, and `references/shot-language.md` to plan each sequence's
+coverage. Whatever it chooses is **held for the whole film**: one world, one light, one **motion voice** (timings and
+easing from the brand's energy and tone; two voices read as a patchwork), one **recurring subject** that transforms from first frame to last (the code torn, scanned and repaired;
 the logo's cursor that types the task) — the thing that, more than anything else, makes a film feel like one film.
 
 ### 6. Build — sequence by sequence
 
 **The unit is the sequence.** Each sequence is one world (subject, ground, camera language) and flows inside
 itself; the world changes only at a seam. Within it, every shot has one focal point, appears with its words
-(the cut lands ~0.1-0.2 s before the word), and moves with intent. Read `references/director-craft.md` (editing, teaching, design, motion and sound principles) and `references/shot-language.md` (compact shot/coverage vocabulary) before building. Use the latter selectively—not as a shot checklist.
+(the cut lands ~0.1-0.2 s before the word), and moves with intent; inside it, cut between framings of that world on
+the voice (wide, close, the insert on what is named: `references/shot-language.md`). Read
+`references/director-craft.md` (editing, teaching, design, motion and sound principles) before building.
 
 **Engine.** Default: one HTML page for the whole film (`film.html`) in which **every frame is a pure function of
 time** (`window.seek(t)`: no CSS transitions, no timers, no randomness; canvas text drawn only after its fonts load),
@@ -315,7 +317,8 @@ job, technique and seam, the motion voice, the signature idea; format in `script
 `python3 scripts/shot_plan_qa.py <film_dir>`; `film_qc` then holds the film to it (`seam_qa`: a seam planned as hidden
 must not be a bare swap; build the seam the plan names, never a generic cross-dissolve to pass it: a dissolve
 between two viewpoints of the same characters double-exposes them (Grok Bot 2026-11-18: two approval cards and two
-Bots at once). Where the same subject carries across, plan a `match` cut). An explainer may write one too, and gets the same checks. What lifts one from correct to crafted — the UI
+Bots at once). Where the same subject carries across, plan a `match` cut; between two framings of one world, a
+straight `cut` inside one `sequence`). An explainer may write one too, and gets the same checks. What lifts one from correct to crafted — the UI
 as physical objects in a lit space, the look grown from the product's own design system, each technique the star
 once, a focused opening climbing to the close, designed holds, no bare cuts, demos as causal chains — is
 `references/promo-shotcraft.md`; read it before building one. Its moves are CODE in `assets/html/moments.js`

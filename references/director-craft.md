@@ -6,7 +6,8 @@ design and motion. Each principle says what usually works and why; they are defa
 Where this skill measured something itself, it says so.
 Deeper skill-specific studies: `motion-grammar.md` (camera and transition grammar), `launch-film-study.md` (20
 official product films, measured), `craft-standard.md` (the product-film grammar), `narration-writing.md` and
-`anti-ai-voice.md` (the spoken script), `visual-styles.md` (the named looks).
+`anti-ai-voice.md` (the spoken script), `visual-styles.md` (the named looks), `shot-language.md` (framing and
+coverage inside a sequence).
 
 ## 1. Editing — the cut serves the viewer's mind
 - **Priority when rules conflict** (Walter Murch, *In the Blink of an Eye*, "rule of six"): emotion first, then story,
@@ -20,7 +21,7 @@ official product films, measured), `craft-standard.md` (the product-film grammar
   or a montage; a long hold (5-8 s) lets a key image land. The climax gets the longest hold of the act.
 - **Sequences, not slides.** Group 3-6 shots into a sequence that keeps ONE world: the same subject, the same
   camera language, the same ground. Change the world only at a section seam, and make that change felt (a
-  colour shift, a pull-back, a beat of silence).
+  colour shift, a pull-back, a beat of silence). Inside it, cut between framings of that world (`shot-language.md`).
 - **Match the cut.** Carry a shape, position or motion across a cut (the QR code shrinks into the next shot's
   corner; the file card the voice names is the card that fills). Continuity of the SUBJECT is what makes a film
   feel like one thing; this is the single largest difference the 2026-11-16 blind tests showed.
@@ -103,7 +104,3 @@ stays readable. `assets/html/accents.js` gives them as pure functions of time, w
 - **Arc:** hook, setup, build (each step earns the next), payoff (the climax ~75-80 % through), a short ending
   that restates the one thing in new words, or for a launch, a call to action and the brand.
 - **Concrete stakes:** why the viewer should care, said early and paid off at the end.
-
-
-## 7. Coverage and shot vocabulary
-Before planning coverage or building multi-shot sequences, use `references/shot-language.md` as a compact vocabulary for A-roll/B-roll, cutaways, inserts, reaction and establishing shots, shot sizes, camera moves, editing terms and continuity. Treat it as a toolkit—not a mandatory checklist—and select shots for narrative purpose rather than coverage for coverage's sake. A-roll/B-roll are functional roles; narration may be the A-roll, and diagrams, real footage, UI captures, typography or animation may all serve as B-roll.

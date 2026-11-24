@@ -175,8 +175,8 @@ Each: what it says → its critical point. Durations at 30 fps.
 - The opening is one hero with a complete arc (≥3 s); the close is the energy peak and the brand holds ≥1 s still.
 - Each technique stars once; the motion voice is one voice (three words for the motion match three for the brand).
 - Pause on any frame of a feature shot: is the UI an object in a lit space, or a flat screenshot on a gradient?
-- Every scene change is carried or hidden (`seam_qa` agrees with the plan); hard cuts are beat-cuts, match cuts or UI
-  states by design.
+- Every scene change is carried or hidden (`seam_qa` agrees with the plan); hard cuts are beat-cuts, match cuts, UI
+  states, or a change of framing inside one sequence (`shot-language.md`), each by design.
 - Holds: the key number, the claim and the wordmark each sit still long enough to read twice; batches rest at the end.
 - Text: captions pass `caption_size_qa`; every word meant to be read reads at phone size; texture text is softened.
 - Light: at most one sheen or glint per shot, on the hero, clipped to its corners.

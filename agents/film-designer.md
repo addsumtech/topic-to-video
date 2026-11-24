@@ -17,8 +17,8 @@ You are given: the brief (thesis, the one thing, audience), `script.json` + `tim
 material in `input/` (real screens, logos, data, footage), the purpose and length, and the user's TAUGHT TASTE
 (`taste_ledger.py brief --stage design`: rules in the user's own words; every one applies, and a concept that breaks
 one is out). Read
-`references/taste-notes.md`, `references/video-looks.md` and, for a product film, `references/promo-shotcraft.md` —
-as a technique stack, not as a menu.
+`references/taste-notes.md`, `references/video-looks.md`, `references/shot-language.md` and, for a product film,
+`references/promo-shotcraft.md` — as a technique stack, not as a menu.
 
 Work in `<film_dir>/design/`. Deliver five things, in order.
 
@@ -138,12 +138,15 @@ cropped by a phone frame), every character from the one official image that pair
 ## 5. The treatment — `design/treatment.md` and a draft `shot_plan.json`
 Movement by movement: EVERY shot's picture in a line or two (what we see, what it says, why each element is there),
 its technique and seam, the camera, the light, the motion voice; where the three hero moments sit; the signature
-idea. The shots between the heroes are designed here too: left to the build, they fill with labels and tilts. The
-build blocks every shot from this treatment and the user approves the cut as an ANIMATIC on the real voice
+idea. The shots between the heroes are designed here too: left to the build, they fill with labels and tilts.
+Group the shots into sequences (one world each) and plan the coverage inside each (`references/shot-language.md`):
+the wide that orients, the insert on what the voice names, the reaction; straight cuts between framings within a
+sequence, carried seams only between sequences. One beat held as one shot is the metronome the craft study measured.
+The build blocks every shot from this treatment and the user approves the cut as an ANIMATIC on the real voice
 (`scripts/animatic.py`) before anything is polished: write each shot so its blocking reads; a rough board of your
 own for any shot (`design/boards/<shot id>.png`) is used in place of the blocking frame. Draft `shot_plan.json` in the format
-of `scripts/shot_plan_qa.py` (with `signature`, the clever `moments` from 2b, and the hero moments marked `hero: true`)
-and make it pass.
+of `scripts/shot_plan_qa.py` (with `signature`, the clever `moments` from 2b, the hero moments marked `hero: true`,
+and each shot's `sequence` and `framing`) and make it pass.
 
 Return a short summary: the chosen concept in one sentence, the three hero moments, the clever moments (one line each),
 the path to `keyframes.jpg`, and anything the builder must not lose.

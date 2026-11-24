@@ -106,3 +106,47 @@ def test_clever_moments_are_required_and_placed():
     bad[1]["shot"] = "s09"
     err, _ = sq.evaluate(_with(moments=bad))
     assert any("moment 1: no why" in e for e in err) and any("moment 2 is placed in shot 's09'" in e for e in err)
+
+
+def _covered(framings=("wide", "close"), seqs=("a", "a")):
+    """GOOD with s01 split into two framings of one sequence joined by a straight cut (references/shot-language.md)."""
+    p = copy.deepcopy(GOOD)
+    s01 = p["shots"][0]
+    p["shots"][0:1] = [dict(s01, id="s01", end=2.4, seam_out="cut", framing=framings[0], sequence=seqs[0]),
+                       dict(s01, id="s01b", start=2.4, hero=False, framing=framings[1], sequence=seqs[1])]
+    return p
+
+
+def test_a_straight_cut_inside_one_sequence_is_coverage_not_a_bare_cut():
+    err, warn = sq.evaluate(_covered())
+    assert err == [] and warn == [], (err, warn)
+
+
+def test_a_straight_cut_between_sequences_or_unsequenced_is_still_bare():
+    err, _ = sq.evaluate(_covered(seqs=("a", "b")))
+    assert any("bare" in e for e in err)
+    err, _ = sq.evaluate(_covered(seqs=("", "")))
+    assert any("bare" in e for e in err)
+
+
+def test_the_opening_arc_is_its_whole_first_sequence():
+    # 2.4 s + 1.6 s of one opening sequence is a 4 s arc; an unsequenced 2.4 s opener is still too short
+    err, _ = sq.evaluate(_covered())
+    assert not any("at least 3 s" in e for e in err)
+    p = copy.deepcopy(GOOD)
+    p["shots"][0]["end"], p["shots"][1]["start"] = 2.4, 2.4
+    err, _ = sq.evaluate(p)
+    assert any("at least 3 s" in e for e in err)
+
+
+def test_framing_is_checked_and_a_same_size_straight_cut_warns_as_a_jump_cut():
+    err, _ = sq.evaluate(_covered(framings=("wide", "extreme")))
+    assert any("framing" in e and "extreme" in e for e in err)
+    err, warn = sq.evaluate(_covered(framings=("close", "close")))
+    assert err == [] and any("jump cut" in w for w in warn)
+
+
+def test_coverage_of_one_technique_at_two_framings_is_not_sameness():
+    # s01 and s01b share job and technique on purpose; the framing change is what makes them two shots
+    _, warn = sq.evaluate(_covered())
+    assert not any("same job and technique" in w for w in warn)

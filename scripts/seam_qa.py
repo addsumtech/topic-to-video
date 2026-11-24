@@ -13,7 +13,8 @@ a push 0.28. On the WorkBuddy launch film (round 3) every cut but one swapped a 
 Cross-checked against shot_plan.json (scripts/shot_plan_qa.py): a cut at a shot boundary whose planned seam_out claims
 to hide or carry the change (travel, flash, whip, occlusion, light, line-carry, push, fade) but measures bare is an
 ERROR: the plan says one thing and the film shows another. A bare cut planned as `beat-cut` (percussion), `match`
-(a match cut is a hard cut by design) or `state` (a UI state change in one window) is what the plan said. Without a
+(a match cut is a hard cut by design), `state` (a UI state change in one window) or `cut` (a change of framing inside
+one sequence; shot_plan_qa allows it only there) is what the plan said. Without a
 shot plan, bare cuts are listed as a note and nothing fails (an explainer may cut plainly).
 Exit 0 clean, 1 on a contradiction, 2 on a usage error or a missing video / plan.
 """
@@ -30,7 +31,7 @@ W, H = 320, 180
 WIN = 8
 BARE_SHARE = 0.85
 SPIKE = 20.0
-HARD_BY_DESIGN = {"beat-cut", "match", "state"}
+HARD_BY_DESIGN = {"beat-cut", "match", "state", "cut"}
 _USAGE = "usage: seam_qa.py <film_dir> [--json]"
 
 
