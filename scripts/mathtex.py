@@ -3,6 +3,8 @@
 
     python3 scripts/mathtex.py <out_dir>            # every `tex` in the storyboard's shot_props -> <out_dir>/_math/
     python3 scripts/mathtex.py --check '<tex>'      # typeset one, print what it drew, write nothing
+    python3 scripts/mathtex.py <film_dir>           # a director-path film: every TeX in <film_dir>/math.json ->
+                                                    # <film_dir>/_math/ + _math/equations.js (window.MATH_EQ)
 
 A register that draws maths (EquationMorph, and anything built on runtime/mathMorph.tsx) never typesets at render
 time: the bundle reads glyph outlines that scripts/tex_glyphs.mjs (MathJax 3.2.2) wrote once, so a render is
@@ -81,6 +83,49 @@ def ensure(out_dir, data=None):
     return typeset(items, out_dir=out_dir)
 
 
+def ensure_film(film_dir):
+    """A director-path film (SKILL.md step 6): typeset every TeX its math.json lists, then write _math/equations.js,
+    which the page loads with a plain <script> before assets/html/math.js reads it (file:// pages cannot fetch).
+
+    math.json: {"equations": ["x^2 + 6x + 5 = 0", {"tex": "a", "display": false}, ...]}. The files are picked by the
+    TeX and display mode written inside each (never a second copy of the key hash)."""
+    with open(os.path.join(film_dir, "math.json"), encoding="utf-8") as fh:
+        spec = json.load(fh)
+    items = []
+    for e in spec.get("equations") or []:
+        tex, disp = (e, True) if isinstance(e, str) else (e.get("tex"), e.get("display", True) is not False)
+        if not isinstance(tex, str) or not tex.strip():
+            raise ValueError("math.json: every equation is a TeX string or {\"tex\": ...}, got %r" % (e,))
+        if (tex.strip(), disp) not in items:
+            items.append((tex.strip(), disp))
+    if not items:
+        raise ValueError("math.json lists no equations")
+    rep = typeset(items, out_dir=film_dir)
+    d = os.path.join(film_dir, MATH_DIR)
+    want, eqs = set(items), {}
+    for name in sorted(os.listdir(d)):
+        if name.endswith(".json"):
+            with open(os.path.join(d, name), encoding="utf-8") as fh:
+                e = json.load(fh)
+            if (e.get("tex"), e.get("display", True) is not False) in want:
+                eqs[e["key"]] = e
+    missing = want - {(e["tex"], e.get("display", True) is not False) for e in eqs.values()}
+    if missing:
+        raise RuntimeError("typeset but not found in %s: %s" % (d, sorted(missing)))
+    # equations math.json no longer lists: _math is this script's own output, so a stale file is removed, not kept
+    # beside the current ones (a proof film's folder held 27 files for 17 equations after edits)
+    pruned = 0
+    for name in os.listdir(d):
+        if name.endswith(".json") and name[:-5] not in eqs:
+            os.remove(os.path.join(d, name))
+            pruned += 1
+    rep["pruned"] = pruned
+    with open(os.path.join(d, "equations.js"), "w", encoding="utf-8") as fh:
+        fh.write("// written by scripts/mathtex.py from math.json; do not edit\n")
+        fh.write("window.MATH_EQ = Object.assign(window.MATH_EQ || {}, %s);\n" % json.dumps(eqs, ensure_ascii=False))
+    return rep
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__.strip())
@@ -88,12 +133,16 @@ def main(argv):
     try:
         if argv[0] == "--check":
             rep = typeset([(argv[1], "--inline" not in argv)], check=True)
+        elif os.path.isfile(os.path.join(argv[0], "math.json")) and not os.path.isfile(
+                os.path.join(argv[0], "storyboard.json")):
+            rep = ensure_film(argv[0])
         else:
             rep = ensure(argv[0])
-    except (RuntimeError, ValueError) as e:
+    except (RuntimeError, ValueError, OSError) as e:
         print("[mathtex] %s" % e)
         return 2
-    print("[mathtex] %d typeset, %d already current" % (len(rep.get("written", [])), len(rep.get("cached", []))))
+    print("[mathtex] %d typeset, %d already current%s" % (len(rep.get("written", [])), len(rep.get("cached", [])),
+                                                         ", %d stale removed" % rep["pruned"] if rep.get("pruned") else ""))
     if argv[0] == "--check":
         print(json.dumps(rep.get("written"), ensure_ascii=False))
     return 0

@@ -226,6 +226,40 @@ survivors travel on one curve, changed text is struck and replaced, newcomers po
 `mark`, `rise`, `weigh`), timed by `Moments.wordTime(timeline, word)`. Starting values adapted from video-shotcraft
 (NOTICE); judge them on this film's frames.
 
+## Maths that moves (step 6; `assets/html/math.js`)
+A derivation is shown as typeset maths that MOVES, never as an image of an equation or Unicode text: the Remotion
+tier's MathJax glyph outlines and its tuned moves (`remotion/src/runtime/mathCore.ts`: Write, TransformMatchingTex,
+Indicate, the live number), bundled for the page.
+1. List every equation in `<film_dir>/math.json`: `{"equations": ["x^2 + 6x + 5 = 0", {"tex": "x", "display": false}]}`.
+2. `python3 scripts/mathtex.py <film_dir>` typesets them (offline, deterministic) into `_math/` + `_math/equations.js`
+   and removes what the list no longer names; a TeX error stops here with MathJax's own message.
+3. In `film.html`: `<script src="_math/equations.js"></script><script src="<skill>/assets/html/math.js"></script>`, then
+   ```js
+   const D = MathFilm.derivation({forms: [...the TeX...], box: {x, y, w, h}, em: 120,   // frame px
+     write: [t0, t1],                                      // seconds: Moments.wordTime(timeline, word)
+     steps: [[a1, b1], {at: [a2, b2], match: 'fade'}],     // one per later form
+     highlight: {term: 'root', at: [a, b]},                // '*' = the whole last form; swell, pad (em) optional
+     live: {term: 'live', from: '0', to: '9.81', at: [a, b]}});
+   const L = MathFilm.label('\\frac{b}{2a}', {x, y, em: 56, anchor: 'center'});  // inline TeX at a point (baseline)
+   // in window.seek(t), one target (<svg> or <g>) per equation:
+   MathFilm.render(svgA, D.at(t), {ink: '#1d1f24', accent: '#d9480f'}); MathFilm.render(gLabel, L.at(t), {...});
+   ```
+**What travels.** `\class{name}{…}` in two forms is the same term: it travels to its new place even when it changes
+order, and when it changes sides of the `=` it lifts over it as one piece. Any other shared mark travels only if it
+keeps its reading order; a mark that would pass through others fades out and in. Name every term that should be
+seen to move; names nest, the innermost one matches, so `\class{root}{x = \class{half}{-b}…}` lets `half` travel and
+`root` be highlighted. `match: 'all'` (every shared mark travels) and `'fade'` (nothing does) per step.
+**Layout.** One scale for all forms of a derivation (the widest decides it) and one baseline; `align` 'equals' (the
+`=` signs on one vertical when the box allows), 'center' or 'left'. A step whose layout must differ starts a new
+derivation (`D.pl[i]` and `D.eqs[i]` are the placements and typeset forms, for a hand-off). `\color{…}` in the TeX
+keeps its colour; `accent` is what the timeline picks out.
+**State.** `D.at(t)` returns `{draws, frame, tex, emPx}`; `MathFilm.core` has the raw moves (`writeState`,
+`transformState`, `indicate`, `placeAll`, `matchGlyphs`, …) for a film that composes its own. The settled frame
+between steps is exactly the typeset form, and every frame is a pure function of t.
+Time each step to the word that names it, hold each settled form long enough to read twice, and keep about four forms
+per derivation. The glyphs sit in a `<g data-math="<tex>">`, so `page_overlap_qa` reads an equation as a line and
+reports a label laid over it.
+
 ## The short promo, told in type and music (steps 3-7)
 **Type and finish that read as a company launch** (measured on the film that won the 2026-11-21 blind round, the
 user: "字体大小的设置和排布就很好…有公司发布的感觉"; 1080p, rendered px):

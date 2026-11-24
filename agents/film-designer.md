@@ -46,6 +46,9 @@ looking at. Write it at the top of `design/concepts.md` with one line of why.
   3D world that shows what no camera can, drawn physically right.
 - **A product**: its own world: its screens, characters and marks acting the work out (section 2, concept A).
 - **Data, an economy, a comparison**: editorial data graphics in the manner of a good newspaper's visual desk.
+- **A derivation, a proof, a formula worked out**: the maths itself, typeset and moving (`assets/html/math.js`, the
+  toolbox's "Maths that moves"): each form carried into the next on the word that names the step, the term that
+  matters picked out, and beside it, where one exists, a picture of what the symbols mean (the square being completed).
 - **A story or an idea told for its own sake**: illustrated or typographic, in a look chosen for the story.
 A concept in another register must say why it serves THIS viewer better and loses none of the truth; novelty is never
 the reason. WHY: the Shenzhen film (2026-11-20) told a real city's forty years as a clay-and-pawn diorama: a toy

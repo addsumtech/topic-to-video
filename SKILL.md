@@ -272,7 +272,8 @@ look, render one frame of it and read every word, since some library shots hard-
 Commons or NASA, `--candidates` to look before `--pick`; a crop of one is declared in `images_ok.json` so its credit
 carries over, and `film_qc` holds every picture the page names to a record); real geography (`scripts/geo.py`:
 places, Natural Earth borders and coasts, OpenStreetMap streets and water, drawn with `assets/html/geo.js`, credited), page
-captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK caption breaks.
+captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK caption breaks; typeset maths that
+moves (`assets/html/math.js`: a derivation written on and carried form to form, toolbox "Maths that moves").
 
 **Accents** (a moment made FELT in motion, never an emoji glyph; where, how and how often: `references/director-craft.md`
 §4, "Accents"; `assets/html/accents.js`).

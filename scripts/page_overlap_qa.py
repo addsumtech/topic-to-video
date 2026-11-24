@@ -4,9 +4,9 @@
 
 A director-path film is one page whose every frame is `window.seek(t)` (SKILL.md step 6). This loads that page in
 headless Chrome, steps t through the film (`_plan.json` frames / fps), and at each step collects the VISIBLE text and
-controls — elements with their own text, buttons, inputs, [role=button] — with their on-screen boxes. Two of them
-COLLIDE when neither contains the other and their boxes overlap by more than a quarter of the smaller one. A
-collision that lasts at least MIN_S is reported with both elements' text and the time span.
+controls — elements with their own text, buttons, inputs, [role=button], typeset equations ([data-math]) — with their
+on-screen boxes. Two of them COLLIDE when neither contains the other and their boxes overlap by more than a quarter
+of the smaller one. A collision that lasts at least MIN_S is reported with both elements' text and the time span.
 
 Also WORDS CUT BY THE FRAME'S EDGE (EDGE-CUT): a line of readable text (20 px or taller, at 60 % strength or more)
 whose glyphs, cut to every clipping ancestor, cross the picture's edge for EDGE_MIN_S or more. A camera following
@@ -50,14 +50,15 @@ _JS = r"""
     const r = window.seek(t); if (r && r.then) await r;
     const items = [];
     for (const el of document.body.querySelectorAll('*')) {
-      if (!(ownText(el) || isCtl(el))) continue;
+      const math = el.getAttribute('data-math');    // a typeset equation (assets/html/math.js): glyph paths, no text
+      if (!(ownText(el) || isCtl(el) || math)) continue;
       if (!vis(el)) continue;
       // per LINE fragment: a highlight that wraps has one box per line; its overall box would span both lines
       // and "overlap" its neighbour on the next line (a false collision measured on a real film)
       const frags = Array.from(el.getClientRects()).filter(b => b.width * b.height >= 40 && b.right > 0 && b.bottom > 0
                                                              && b.left < innerWidth && b.top < innerHeight);
       if (!frags.length) continue;
-      items.push({el, frags, label: (el.innerText || el.value || el.tagName).trim().slice(0, 40)});
+      items.push({el, frags, label: (math || el.innerText || el.value || el.tagName).trim().slice(0, 40)});
     }
     // words cut by the FRAME's edge: a text line whose glyphs (trailing spaces left out), cut to every clipping
     // ancestor, still cross the edge of the picture, read at a readable size and strength
