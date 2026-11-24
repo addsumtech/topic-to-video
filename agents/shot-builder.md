@@ -5,7 +5,7 @@ description: "Builds an assigned set of a Remotion film's own shots, in parallel
 
 # Shot Builder (parallel design pass)
 
-> **When this runs.** Only inside a PARALLEL design pass (SKILL.md 3.6 ②, "Parallel build"; shot-director "Parallel
+> **When this runs.** Only inside a PARALLEL design pass (classic step 3.6 ② in `references/classic-pipeline.md`, "Parallel build"; shot-director "Parallel
 > build — the lead's part"). The lead has already written every beat's ideal picture, form and composition, the film's
 > DNA, the shared KIT, and which built shots each builder owns. You build YOUR shots. Other builders are building
 > theirs at the same moment, in the same workshop.
@@ -62,7 +62,7 @@ report partial frames as findings.
 Build every shot from the craft kit (`runtime/craftStage`, `craftType`, `craftMotion`, `craftUi`), open each file with
 its DESIGN NOTE (look · subject and its size · composition · timing table · curves · content), set type from
 `TYPE_LADDER` (headline ≥ 120 px at 1080, read-it text ≥ 32 px), keep every hold alive (`holdPush`), and run the loop:
-render at 30/60/90 %, name the three weakest things, fix them, at least twice. A shot that is correct but looks like a
+render at 30/60/90 %, name the three weakest things, fix them, and repeat until none is weak. A shot that is correct but looks like a
 template is not done.
 
 ## How to check your own work (renders are queued, not raced)
@@ -77,8 +77,8 @@ waits for a machine-wide render lock, so builders take turns rendering while the
 - Type: labels ≥ 30 px at 1920×1080 (24 px is the error floor), everything inside action-safe (6.5% margins), nothing
   in the bottom caption band.
 - Every word on screen comes from a prop; a word that is part of the form is declared `// @fixed-text: <why>`.
-- Motion keeps living after the reveal (an idle, a sway, a light that moves) — a shot that settles and stops reads as
-  a slide.
+- A hold stays alive without moving the UI: a slow camera push (`holdPush`), a light that moves, or a character's
+  idle. A shot that settles and stops reads as a slide; a sway or bob on cards, panels or type fails SWAY.
 - `python3 scripts/workshop.py <out_dir> check` must be clean for your shots.
 - **A real thing is TRUE to the thing** (references/object-authoring.md rule 7). Anything you draw that depicts a
   real thing (a satellite, a gear, a watch, an organ) is drawn FROM references you collected first — a real photo

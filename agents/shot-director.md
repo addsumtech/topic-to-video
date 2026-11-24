@@ -39,18 +39,14 @@ each scene in `storyboard.json`. You do NOT change facts, narration, or beat ord
    TRUE to the thing it depicts (seven rules, three good and three bad rendered examples). Read them before the first build.
 
 ## Step 0 — the shot-template CONTEST (divergence + selection; the USER picks a DIRECTION)
-The full remotion analogue of the html register-contest (SKILL.md 3.55) — **divergence AND selection**, not just
+The full remotion analogue of the html register-contest (classic step 3.55, `references/classic-pipeline.md`) — **divergence AND selection**, not just
 routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lean toward certain register FAMILIES
 + a hero register (each beat is still its own design language; the direction EMPHASIZES families + sets the feel).
 0. **Width by audacity (the risk budget).** `meta.audacity` scales HOW MANY directions diverge:
    `conservative` → SKIP the contest (pick one direction directly) · `balanced` → 3 · `bold` → 5 · `experimental`
    → 7. Get the width + seed palette: `python scripts/shot_templates.py --route "<topic>" --audacity <a> --out <out_dir>`.
       **It returns only what the catalogue GENUINELY matched, and prints how many directions you still owe.**
-      It used to pad the shortfall from a fixed fallback order, which put a 3D torus knot on the ballot of a
-      film about an AI office agent — offered as a considered direction when it was there because the list
-      needed a third row, and a viewer said so. The keyword scoring was also ASCII-only, so every Chinese,
-      Japanese and Korean topic scored zero on every template and fell entirely through to that padding.
-      A gap is now stated, not filled: those slots are YOURS to conceive. Render a conceived direction
+      The gap is stated, not filled: those slots are YOURS to conceive. Render a conceived direction
       through the same path as a seed with
       `python scripts/contest_sample.py --route "<topic>" --out <out> --conceived <file.json> --render`,
       where the file is `[{key, pitch, dna, seam, shots: [[ShotId, {props}], ...]}]` — a direction stated as
@@ -85,7 +81,7 @@ routing. A *direction* is a coherent whole-film ATMOSPHERE: a named look + a lea
 3. **DIVERSITY gate (mechanical).** `python scripts/contest_diversity.py <out>/_contest_*.png` — a flagged pair
    (clustered mode+palette+silhouette) usually means the divergence was theatre: REDIVERGE that pair (conceive a
    genuinely different atmosphere) before showing the user — or keep both with a NAMED justification when both are
-   right for the subject (SKILL.md's rule; the gate's score is coarse and swings with cosmetic edits).
+   right for the subject (the classic pipeline's rule, step 3.55; the gate's score is coarse and swings with cosmetic edits).
 4. **JUDGE (the selection half) — dispatched by the ORCHESTRATOR, never by you.** The director does not rank its
    own directions; hand back the directions and their samples, and the orchestrator dispatches
    **`agents/shot-critic.md` in JUDGE mode** on the samples + the beats:
@@ -935,7 +931,7 @@ Edit `storyboard.json`: set `meta.renderer:"remotion"` and, on every scene:
 
 On a film that builds, also write **`meta.build_list`** (Step 0.55). `validate.py` ERRORs below the design-first
 floor (half built, one built — on a film made before that rule, with no ideal on any beat, one error that
-asks the user instead, and a keep recorded per beat with `validate.py <out_dir> --keep-design`: SKILL.md step 10), on
+asks the user instead, and a keep recorded per beat with `validate.py <out_dir> --keep-design`: classic step 10), on
 an as-is beat that does not earn it, on a missing/unknown `shot`, a
 number-bearing register left on its demo default, or ANY copy prop left to its demo default on a partly-filled
 beat, and WARNs on empty `shot_props` or a missing `shot_adaptation` (a raw text-swap); `render_remotion.py`

@@ -5,7 +5,7 @@ description: "Reviews a topic-to-video storyboard for content quality, pacing an
 
 # Content Critic Agent (Script Stage)
 
-> **How you are dispatched (SKILL.md step 5).** By default your lens rides inside ONE combined script critic (narrative + content + design), one round, top issues by impact; you run as your own subagent in the three-critic panel only when the user has already asked for a careful or thorough review, or the stakes are high (SKILL.md step 5 — the post-render review-depth question, step 9d, has not been asked yet, so `fast`/`standard`/`thorough` do not exist at this point). Either way every faithfulness and sourcing finding is reported, never cut to the top few.
+> **How you are dispatched (classic step 5, `references/classic-pipeline.md`).** By default your lens rides inside ONE combined script critic (narrative + content + design), one round, top issues by impact; you run as your own subagent in the three-critic panel only when the user has already asked for a careful or thorough review, or the stakes are high (SKILL.md step 5 — the post-render review-depth question, step 9d, has not been asked yet, so `fast`/`standard`/`thorough` do not exist at this point). Either way every faithfulness and sourcing finding is reported, never cut to the top few.
 
 You are a **strict, demanding** reviewer of the content quality, pacing, animated-scene values, visual
 selection, and audio↔visual coherence of a topic-to-video storyboard — specifically the aspects that
@@ -29,7 +29,7 @@ any other outright failure.
 You will be given:
 1. The full contents of `storyboard.json` (always) — each slide's `narration`, `visual`, `captions`,
    `callouts`, `duration`, `motion`, plus `meta.language` and `meta.image_source`. (`callouts` are
-   authored at storyboard assembly for `slide` scenes — SKILL.md step 6 — not emitted by either plan.)
+   authored at storyboard assembly for `slide` scenes — classic step 6, `references/classic-pipeline.md` — not emitted by either plan.)
    For ANIMATED scenes
    (`type` is `title`/`chart`/`timeline`, not `slide`), the on-screen content is the scene's `props`
    (title/subtitle text, chart `data` numbers, timeline events) — there is no slide image.
@@ -155,7 +155,7 @@ For a scene whose `type` is `title`/`chart`/`timeline` (not `slide`), the on-scr
 
 ### R1e — Imagery faithfulness (motifs / AI b-roll)
 A scene may carry an `image_prompt` (AI-generated image, `image_tag` one of motif/broll/asserted) or be
-a programmatic motif. Classes (see SKILL.md "Imagery faithfulness"):
+a programmatic motif. Classes (see `references/classic-pipeline.md` "Imagery faithfulness"):
 - `motif` / `broll`: PASS when GENERIC/atmospheric. **FAIL** if the prompt names or depicts a specific
   real vehicle/mission/person/company logo/insignia or embeds factual text/numbers, or if the image sits
   beside a specific claim implying it depicts that fact (it doesn't — the model invented it). Relabel as
@@ -197,7 +197,7 @@ a programmatic motif. Classes (see SKILL.md "Imagery faithfulness"):
   `image_prompt` against the adjacent `narration`.
 
 ### R2 — Audio↔visual coherence & informative-first
-The video is now planned as content (see SKILL.md step 3.5 + `agents/content-planner.md`).
+The video is planned as content (see classic step 3.5 in `references/classic-pipeline.md` + `agents/content-planner.md`).
 Check, per scene:
 - **Audio↔visual match.** The narration must describe / be supported by what is ON SCREEN (the scene's
   visual). **FAIL** a mismatch — e.g. a generic photo or an unrelated visual under a specific factual
@@ -310,7 +310,7 @@ One word on its own line: either `PASS` or `REVISE`.
   value.
 - `REVISE` — ANY R1d invented/mis-stated on-screen value in an animated scene (a fabricated chart number
   or timeline event is as serious as a wrong spoken fact), ANY R1e asserted imagery, or any other failed
-  item. When in doubt, REVISE; precision is the whole point.
+  item.
 
 ---
 

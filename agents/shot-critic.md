@@ -10,7 +10,7 @@ description: "Reviews a rendered Remotion-tier topic-to-video film shot by shot.
 > copy) against the rendered evidence, and you gate delivery. If the deck is HTML/local, use `design-critic`'s
 > delivery section ("Rendered review — the delivery ledger", the H-dimensions) instead; this file does not apply —
 > the same `critic_ledger.py` gate holds that review to its H-rows.
-> **How hard is the user's choice** (`meta.review.tier`, asked after the first clean render — SKILL.md step 9):
+> **How hard is the user's choice** (`meta.review.tier`, asked after the first clean render — classic step 9, `references/classic-pipeline.md`):
 > `fast` = you alone, ONE round, carrying `critic-av`'s A/V lens too; fill EVERY ledger row (a PASS row is one
 > line: its verdict and the frame it rests on, `_contact_sheet.png` for a whole-film dimension), and make only your
 > TOP issues by impact FAIL rows, each with a FIX — an observation below the top goes in that dimension's `note`

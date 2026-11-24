@@ -11,7 +11,7 @@ description: "Reviews a topic-to-video storyboard's visual design at the script 
 > file, whose H-dimensions `scripts/critic_ledger.py` requires one ledger row each. (A remotion film's delivery
 > review is `agents/shot-critic.md`'s.)
 >
-> **How you are dispatched (SKILL.md step 5).** By default your lens rides inside ONE combined script critic (narrative + content + design), one round, top issues by impact; you run as your own subagent in the three-critic panel only when the user has already asked for a careful or thorough review, or the stakes are high (SKILL.md step 5 — the post-render review-depth question, step 9d, has not been asked yet, so `fast`/`standard`/`thorough` do not exist at this point). Either way every faithfulness and sourcing finding is reported, never cut to the top few.
+> **How you are dispatched (classic step 5, `references/classic-pipeline.md`).** By default your lens rides inside ONE combined script critic (narrative + content + design), one round, top issues by impact; you run as your own subagent in the three-critic panel only when the user has already asked for a careful or thorough review, or the stakes are high (SKILL.md step 5 — the post-render review-depth question, step 9d, has not been asked yet, so `fast`/`standard`/`thorough` do not exist at this point). Either way every faithfulness and sourcing finding is reported, never cut to the top few.
 
 You are a **strict, demanding** reviewer of the VISUAL DESIGN of a topic-to-video storyboard — the
 aspects that govern *how each beat looks and moves*: form fit, layout diversity, the concept motif,
@@ -103,7 +103,7 @@ OR a non-card form that fits in the wrong direction (D1 bidirectional), player-c
 - **REVISE** if >2 consecutive PROGRAMMATIC beats share a `visual.type` (`title`/`chart`/`keypoints`/
   `compare`/`timeline`). `html` beats are EXEMPT (judged by form family above).
 - **Deliverability:** **REVISE** a `form`/`props` that promises a render with NO WAY TO LAND it. A form has one
-  when it is a stock class, a workshop component the plan BUILDS (SKILL.md: a Sankey, tree or morph with no stock
+  when it is a stock class, a workshop component the plan BUILDS (classic step 3.6: a Sankey, tree or morph with no stock
   class is built as inline SVG or a component), or a Remotion register (remotion/LIBRARY.md has FlowSankey and tree
   registers). A form with none of the three gets the honest substitute from `references/design-intelligence-addendum.md`
   §4 (e.g. risk → `.quadrant` matrix, not a heatmap with nothing to draw it).
@@ -349,15 +349,15 @@ compositional pass — focal dominance + repeated-layout across the deck. Flag a
 fires; don't double-count the same page.)*
 
 ### D12 — Remotion tier → use the shot-critic
-The Remotion tier is now the **remotion bespoke-shot library**; a `meta.renderer:"remotion"` film is reviewed by **`agents/shot-critic.md`** (register fit / family variety / faithful copy / decodability from the per-scene `_keyframes/` + `check_av`), NOT by this file. The legacy generic-scene cinematic dimension (depth planes / atmospheres / archetypes / shot_qa) was removed in the phase-3 cutover.
+The Remotion tier is the **remotion bespoke-shot library**; a `meta.renderer:"remotion"` film is reviewed by **`agents/shot-critic.md`** (register fit / family variety / faithful copy / decodability from the per-scene `_keyframes/` + `check_av`), NOT by this file.
 
 ---
 
 ## Rendered review — the delivery ledger (HTML tier)
 
 > **When this runs.** After the FIRST clean full render of an HTML-tier film (`meta.renderer` is not `remotion` and
-> at least one beat is a `type:"html"` page), at the depth the user chose at the review-depth question (SKILL.md
-> step 9d): `fast` = you alone, ONE round, carrying `agents/critic-av.md`'s lens too (H7) — fill EVERY ledger row
+> at least one beat is a `type:"html"` page), at the depth the user chose at the review-depth question (classic
+> step 9d, `references/classic-pipeline.md`): `fast` = you alone, ONE round, carrying `agents/critic-av.md`'s lens too (H7) — fill EVERY ledger row
 > (a PASS row is one line: its verdict and the frame it rests on, `_contact_sheet.png` for a whole-film dimension),
 > and make only your TOP issues by impact FAIL rows, each with a FIX; an observation below the top goes in that
 > dimension's `note` on a pass row, never as a FAIL · `standard` = you, with `critic-av` beside you, up to two rounds
@@ -531,7 +531,7 @@ EDITS
 ### VERDICT
 One word on its own line: either `PASS` or `REVISE`.
 - `PASS` — all rubric items pass (only minor warns allowed).
-- `REVISE` — a name-swappable design (D2), a one-form-dominated deck or a block-list-that-should-be-a-diagram (D1), stacked/GIF/player-chrome motion (D9), a decorating icon (D4), or any other failed item. When in doubt, REVISE.
+- `REVISE` — a name-swappable design (D2), a one-form-dominated deck or a block-list-that-should-be-a-diagram (D1), stacked/GIF/player-chrome motion (D9), a decorating icon (D4), or any other failed item.
 
 ---
 

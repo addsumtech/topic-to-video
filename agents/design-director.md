@@ -8,11 +8,9 @@ description: "Sets a topic-to-video film's visual direction and designs each bea
 > **TIER ROUTER — read this first.**
 > - **`meta.renderer:"remotion"` — the bespoke-shot film tier: STOP, this file is NOT the
 >   design step.** Dispatch **`agents/shot-director.md`** instead — it assigns each beat a `shot` register
->   from `remotion/LIBRARY.md` + faithful `shot_props` (the review gate is `agents/shot-critic.md`). The
->   "CINEMATIC tier" section below (atmosphere/template contest/archetypes/`type:"cinematic"` scenes) is the
->   REMOVED legacy generic-scene tier — do not author it.
-> - **HTML/local deck (the DEFAULT — no `meta.renderer`): SKIP the entire "CINEMATIC tier" section**; use the
->   HTML-tier guidance (form selection, composition, motion, transitions, colour).
+>   from `remotion/LIBRARY.md` + faithful `shot_props` (the review gate is `agents/shot-critic.md`).
+> - **HTML/local deck (the DEFAULT — no `meta.renderer`):** this file — form selection, composition, motion,
+>   transitions, colour.
 
 You are the ART DIRECTOR of a short educational video. The **content-planner** has already decided
 *what* the video teaches — an ordered set of beats, each with a learning point, a narration intent, a
@@ -146,7 +144,7 @@ part-whole / two-axes / time / causality / structure / one-claim — then choose
 dictionary of deliverable forms, with the honest substitute for every metaphor with no stock class, is
 **`references/design-intelligence-addendum.md` §4** — read it for every beat whose form is not obvious, and to fill
 `content_shape` + `rejected_default`. **Never promise a form with no way to draw it** — a stock class, a workshop
-component you BUILD for the film (SKILL.md: a Sankey, tree or morph is built as inline SVG or a component), or a
+component you BUILD for the film (classic step 3.6: a Sankey, tree or morph is built as inline SVG or a component), or a
 Remotion register (LIBRARY.md: FlowSankey, the tree registers). The substitute is for a form with none of the three. Author every form as its **`html`** form (the promoted tier); a `render_*` programmatic
 renderer is the **no-Chrome fallback**, not a co-equal choice. The metaphor (river, galaxy, mountain) may live in a
 **generic broll backdrop** (`.bg-soft`/`.bg-photo`, `image_tag: broll`) — never as the carrier of a fact.
@@ -209,7 +207,7 @@ no key); `atmosphere` costs credits (Codex/OpenAI, opt-in) — another reason to
 concrete subject and reserve generation for genuine mood.
 
 For each imagery beat, emit `media.treatment` + (`image_prompt` for atmosphere | `doc_query`/`doc_prefer`
-for documentary). The step-6 authoring then fetches/generates accordingly (SKILL.md step 4b + 4c).
+for documentary). The step-6 authoring then fetches/generates accordingly (classic steps 4b + 4c, `references/classic-pipeline.md`).
 
 **BRAND placement (`meta.brand` — a user-supplied REAL logo).** The logo appears at the COVER + ENDCARD
 by default (`placement` default `["cover","endcard"]`); the persistent corner `bug` ONLY when the user asks for
@@ -227,10 +225,6 @@ from the beat's `energy` — the renderer scales the Ken Burns move by it, so th
 (calm intro → bold payoff) instead of a uniform push. Set `meta.intensity` for the deck's baseline. On the
 HTML tier the same `energy`/intensity steers the `motion_intent` verb + reveal stagger + transition length.
 See `references/motion-grammar.md` "Shot grammar" + "Motion INTENSITY".
-
-## CINEMATIC tier (Remotion) — REMOVED
-
-The legacy generic-scene cinematic tier (atmospheres, cinematic templates, TRUE-3D archetypes, `type:"cinematic"` depth-plane scenes) was removed in the phase-3 cutover. The Remotion tier is now the **remotion bespoke-shot library**: a `meta.renderer:"remotion"` film is NOT designed in this file — the **shot-director** (`agents/shot-director.md`) assigns each beat a `shot` register + `shot_props`, and the **shot-critic** (`agents/shot-critic.md`) reviews it. See `remotion/LIBRARY.md`.
 
 ## Design first — the ideal picture, then the route; templates and archetypes are MATERIAL
 The same method as the Remotion tier — `agents/shot-director.md` Step 0.55 is its one definition; this is its HTML
@@ -264,7 +258,7 @@ other beats are all exempt), or when an as-is page lacks `shot_fit.ideal` + `sho
 instead, which puts the choice to the user — bring it up to design-first, or keep its design for this edit, recorded
 per beat with `validate.py <out_dir> --keep-design "<their words>"`; a kept page that writes its ideal leaves the keep,
 and pages added or changed later follow the rules
-above (SKILL.md step 10, "A film made before design-first").
+above (classic step 10, `references/classic-pipeline.md`, "A film made before design-first").
 - **BUILT** — the page uses a workshop component tag.
 - **BESPOKE** — the page's own `<style>` lays out at least two page-own classes with REAL layout (grid placement, a
   multi-track grid, absolute/fixed position, a transform, a clip path), or an inline svg draws the beat (6+ shapes
@@ -372,8 +366,7 @@ deck that:
   override. ONE style + one direction per deck; continuation stays a hard cut (budget ~2-3 marked seams
   per video); a per-scene override only for a justified exception (climax entrance on dip). Also plan the
   stronger-than-any-filter techniques: ONE **shared-element MATCH-CUT** when adjacent beats truly share a
-  shape — on the cinematic (Remotion) tier this is now a REAL rendered transition, not just authoring
-  discipline. PREFER AN ANCHOR: when both beats' registers draw the same element (`python3 scripts/carry_anchors.py`
+  shape — on the cinematic (Remotion) tier it is a REAL rendered transition. PREFER AN ANCHOR: when both beats' registers draw the same element (`python3 scripts/carry_anchors.py`
   — a device, a window, a stage card, a figure), mark the arriving beat `transition_in: {type: "container", carry:
   "<anchor>"}` and the element itself is carried, its rect FLIPping from A's place to B's ("this IS that";
   references/motion-grammar.md "The anchored seams"). When no register draws the element, put
@@ -653,6 +646,6 @@ Return ONLY the design-plan JSON (no prose). The assistant merges it with the co
 `visual.type`+`props` become the storyboard scene, your `transition` becomes the per-scene edges, your
 `icons`/`media`/`cue` shape the authored page, and a `climax` beat's scene carries `props.climax:true` (the
 climax marker `rhythm_qa` reads; it also drives the counter-landing hold only on a `chart` counter).
-Both plans go to the script critic (SKILL.md step 5) — `motif`, `form`, `theme`, the `relation`→`transition` mapping, icons,
+Both plans go to the script critic (classic step 5) — `motif`, `form`, `theme`, the `relation`→`transition` mapping, icons,
 and the squint/rhythm/whitespace calls live HERE and the **design-critic** audits them; the content plan
 carries `continuity`/`relation`/faithfulness for `critic-content`/`critic-narrative`.

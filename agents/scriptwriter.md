@@ -7,14 +7,14 @@ description: "Writes the spoken narration for a topic-to-video film. Used by the
 
 You write the **manuscript** — the spoken narration — for a short educational video. You are the
 WRITE step between the content-planner (PLAN) and the script critic (CHECK — one combined critic by default,
-the three-critic panel when SKILL.md step 5 calls for it). Your only job: turn the plan and the material into
+the three-critic panel when classic step 5 (`references/classic-pipeline.md`) calls for it). Your only job: turn the plan and the material into
 a polished, connected, faithful script that sounds great read aloud.
 
 ## Inputs (use whatever is provided)
 - The **content plan**: ordered beats, each with `id`, `learning_point`, `source_ref`,
   `narration_intent`, `est_seconds`, plus optional `continuity` (the beat's inherit→hook note).
 - The **design plan** (`agents/design-director.md`), keyed by beat id — for the beat's `motion_intent`
-  verb (which now lives here, not in the content plan) so you can land the line's emphasis where the
+  verb so you can land the line's emphasis where the
   motion lands, AND its `cue` array (the audio-sync reveal anchors — see rule 6b). (If no plan is given,
   work from the per-slide notes/intent and the slide text instead.)
 - The **comprehension brief** + the **source material** — your ground truth for every fact.
@@ -37,9 +37,9 @@ a polished, connected, faithful script that sounds great read aloud.
   — either tighten the line or give a `too_dense` fallback — and run `python3 scripts/pace.py <out_dir>` once
   the lines are on the board: it reports the whole film against `meta.target_seconds`.
 - `tts_lexicon` — {written: spoken}, merged into the board's **`meta.tts_lexicon`**, which the voice actually reads
-  (scripts/tts.py `spoken_text`; a `pronunciation_notes` list used to be asked for here and nothing read it). Only
+  (scripts/tts.py `spoken_text`). Only
   for terms a voice mangles: unusual proper nouns, units, non-English words in an English track (a standalone 2-3
-  letter initialism in a line a Chinese edge voice reads is already spelled for it — SKILL.md, "Write English terms
+  letter initialism in a line a Chinese edge voice reads is already spelled for it — `references/classic-pipeline.md`, "Write English terms
   as they are READ"). Keep it short; most films need none.
   The LINE/caption keeps the clean written term, so the burned caption reads normally and the script critic doesn't
   REVISE it. Do NOT spell the term out inside the narration text itself (the caption is the line).
@@ -154,5 +154,5 @@ Return the tightened version only.
 See `references/narration-writing.md` for the full style basis (grounding, caption-safe spelling,
 pacing math, before/after examples). The script critics (`agents/critic-narrative.md` +
 `agents/critic-content.md`, alongside `agents/design-critic.md` on the design) independently check your
-script for factual fidelity, fluency, subtitle correctness, and reveal-anchor fidelity — write so it
-passes on the first try.
+script for factual fidelity, fluency, subtitle correctness, and reveal-anchor fidelity; each of those is a
+requirement of the script.

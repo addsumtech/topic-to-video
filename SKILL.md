@@ -90,7 +90,7 @@ a typed tag becomes a pill and takes its slot in the post; the chosen option sta
 price is struck and replaced; a title steps down into the label of the section it opened; the torn QR corner scatters
 into its codewords; the progress line runs on and draws the next scene's frame; the number counts up while it is
 spoken. Name **3-5 per film** in the plan (`moments`: which thing, from which state to which, and why that change IS
-the content), build them FIRST, and judge each over at least three render-and-look rounds before the film around them
+the content), build them FIRST, and judge each in render-and-look rounds until it reads, before the film around them
 is joined (the 2026-11-17 keyframes only became good on the third round). Seams carry a thing across where one
 carries; a cut is for a change of world. `assets/html/moments.js` holds the tuned moves and two of this skill's own —
 the **real-state morph** (the product's own two states, the diff choreographed) and the **keyword that performs** on
@@ -387,7 +387,7 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
 
 ## Classic mode and its references
 
-`references/classic-pipeline.md` holds the full classic workflow, moved there verbatim on 2026-11-16: the deck
+`references/classic-pipeline.md` holds the full classic workflow: the deck
 tiers (voice-as-is / designed HTML / cinematic Remotion), the storyboard, the interview, the critics, every gate and
 its order, the shot library, promotion, and troubleshooting. Follow it whole when the classic mode is chosen.
 Other references: `director-toolbox.md` (the director path's commands), `promo-shotcraft.md` (product-film technique), `pipeline-scripts.md` (every script),
