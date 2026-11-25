@@ -70,3 +70,17 @@ def test_excerpt_is_in_order_within_one_sentence_not_a_paraphrase():
     assert not fcq.excerpt(fcq.norm("review-ready outreach owns"), sents)          # order matters
     assert not fcq.excerpt(fcq.norm("Deny review-ready outreach"), sents)          # words from two sentences
     assert fcq.norm("Pipeline → drafts") == fcq.norm("pipeline drafts")
+
+
+@pytest.mark.skipif(not CHROME, reason="Chrome not installed")
+def test_text_typed_a_letter_per_element_is_judged_as_its_line(tmp_path):
+    # the Airbnb film typed its query a <span> per letter: every node had one letter and nothing was judged (2026-11-25)
+    page = """<!doctype html><html><body style="margin:0;background:#fff"><div id="q" style="font:40px sans-serif"></div>
+<script>window.seek = (t) => { const s = t < 0.4 ? 'Allow o' : 'Allow twice, said nobody';
+  document.getElementById('q').innerHTML = [...s].map(c => '<span>' + (c === ' ' ? '&nbsp;' : c) + '</span>').join(''); };
+</script></body></html>"""
+    d = _film(tmp_path)
+    (d / "film.html").write_text(page)
+    r, j = _run(d)
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert [u["text"] for u in j["unsourced"]] == ["Allow twice, said nobody"], j   # its partial "Allow o" is not judged

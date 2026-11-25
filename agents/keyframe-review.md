@@ -27,7 +27,10 @@ or a mechanism as stock photographs, is the first thing to name, with the regist
 repairs a style that does not belong to its subject (the Shenzhen film, 2026-11-20).
 
 For every frame that is not clear and memorable, name the ONE change that would lift it most (bolder scale, a different camera, a
-real light, a crop, a transformation, removing something), concretely enough to act on. Also say whether the three
+real light, a crop, a transformation, removing something), concretely enough to act on. A change never alters the facts:
+a product's own words, screens and numbers, a source's quote or record stay exactly as sourced (the Airbnb review asked
+to rewrite the typed query in Airbnb's own press image to fit the story, 2026-11-25); lift the frame by how it is
+staged, not by what it claims. Also say whether the three
 frames feel like ONE film, whether the product's own protagonist (its characters, mascot, signature object) leads,
 and, when a baseline film exists, whether each frame beats the baseline's frame for the same moment. Be specific and brief; no praise without a reason, no general advice. One round only: your
 verdicts go back to the designer, who revises and decides.

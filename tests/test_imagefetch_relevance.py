@@ -218,6 +218,20 @@ def test_every_picture_the_page_names_needs_a_record_and_a_crop_inherits_its_cre
     assert len(lines) == 1 and "A. Radiologist" in lines[0] and "CC BY-SA 4.0" in lines[0], lines
 
 
+def test_a_brand_mark_brand_mark_has_read_needs_no_licence_but_a_licence_record_still_does(tmp_path):
+    # the Airbnb film's own logo: brand_mark.py wrote its sidecar (what the mark spells), and this check read that
+    # record as a licence "under None" (2026-11-25)
+    d = _film(tmp_path, ["assets/brand/logo.png", "assets/brand/other.png", "img/photo.jpg"])
+    ident = {"identity": {"sha256": "x", "name": "Airbnb", "reads": ["airbnb"], "verdict": "match"}}
+    (d / "assets/brand/logo.png.json").write_text(json.dumps(ident))
+    (d / "assets/brand/other.png.json").write_text(json.dumps({"use": "brand mark"}))      # never read: no free pass
+    (d / "img/photo.jpg.json").write_text(json.dumps(dict(ident, license="CC BY-NC 4.0", source="https://x")))
+    bad = F.check_film(str(d))
+    assert len(bad) == 2 and any("other.png" in b for b in bad) and any("BY-NC" in b for b in bad), bad
+    assert F.provenance(str(d), "assets/brand/logo.png")[0] == "mark"
+    assert F.credit_lines(str(d)) == []
+
+
 def test_pictures_named_in_a_film_js_beside_the_page_are_found(tmp_path):
     # the Shenzhen film kept all its code in film.js beside film.html: the check read none of it and passed
     d = tmp_path / "film"

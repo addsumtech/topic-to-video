@@ -184,7 +184,8 @@ finding it prints that you do not understand.
   `--source nasa` searches the NASA Image and Video Library (public domain, credit NASA). `--candidates N` lists the
   relevant candidates and draws them numbered on `<out>.candidates.jpg` (look, then `--pick K`). `--check` holds every
   picture a film page names (film.html, shots/, lib/) to a record — its sidecar, or `images_ok.json` (`from` a sourced
-  file, `own`, `generated`); input/, clips/, work/ and design/ need none — under a licence a film may carry (film_qc
+  file, `own`, `generated`); input/, clips/, work/ and design/ need none, nor does a brand mark `brand_mark.py` has read
+  (its sidecar's `identity`; that check governs it) — under a licence a film may carry (film_qc
   "images"); `--credits` prints one credit per sourced picture, which film_deliver writes to `<stem>.credits.txt`.
   to tone a real image into the deck's palette ("treated to match" a styled deck). The design-director
   picks `media.treatment: none|atmosphere|documentary` per beat (see its agent + the Imagery

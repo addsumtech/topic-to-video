@@ -180,3 +180,10 @@ def test_a_red_check_shows_every_finding_not_its_last_lines():
                      for k in range(1, 40)] + ["[picture_glide] FAIL — stepping: [1, 5, 7, 8]"])
     shown = film_qc._findings(out)
     assert sum("<- STEPS" in l for l in shown) == 4 and any("FAIL" in l for l in shown) and len(shown) < 10, shown
+
+
+def test_film_qc_only_takes_a_hyphen_for_a_name_with_a_space(tmp_path, capsys):
+    d = _rendered_film(tmp_path)
+    assert film_qc.main([str(d), "--frames", "20-50", "--only", "pan-speed"]) in (0, 1)
+    assert "no check named" not in capsys.readouterr().err
+    assert film_qc.main([str(d), "--frames", "20-50", "--only", "pan-sped"]) == 2

@@ -42,3 +42,17 @@ def test_it_is_an_advisory_delivery_gate_on_both_tiers():
     for tier in ("remotion", "html"):
         rows = [g for g in cl.DELIVERY_GATES[tier] if g[1] == "review_sheet.py"]
         assert len(rows) == 1 and rows[0][4] is False, tier
+
+
+def test_a_director_film_gets_a_row_per_shot_with_its_opening(tmp_path):
+    """The Airbnb film opened a phone out of focus for 1.2 s; a sheet of settled frames never showed it (2026-11-25)."""
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=320x180:rate=30:duration=4",
+                    "-pix_fmt", "yuv420p", str(tmp_path / "final.mp4")], check=True)
+    (tmp_path / "shot_plan.json").write_text(json.dumps({"shots": [
+        {"id": "s01", "start": 0.0, "end": 3.0, "sequence": "hook", "framing": "wide"},
+        {"id": "s02", "start": 3.0, "end": 3.8, "sequence": "hook", "framing": "close"}]}))
+    idx = rs.build(str(tmp_path))
+    assert idx["video"].endswith("final.mp4")
+    assert [r["seconds"] for r in idx["rows"]] == [[0.3, 1.5, 2.7], [3.2, 3.4, 3.7]]   # a short shot opens at 25 %
+    assert "s01" in idx["rows"][0]["label"] and "hook · wide" in idx["rows"][0]["label"]
+    assert rs.main([str(tmp_path)]) == 0

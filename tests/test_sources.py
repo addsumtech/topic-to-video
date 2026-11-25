@@ -16,3 +16,12 @@ def test_a_range_is_given_by_both_its_ends():
     assert s.supports_number(s._norm("Above 1 or 2 kHz, every headset"), "1-2")
     assert not s.supports_number(s._norm("Above 1 kHz"), "1-2")
     assert s.number_groups("售价 3.5 元，2–3 天，28,800 拍") == ["3.5", "2-3", "28800"]
+
+
+def test_a_source_that_spells_a_number_supports_the_digits():
+    # the Airbnb brief: "1 billion reviews" against a source's "more than one billion reviews" (2026-11-25)
+    import sources as s
+    p = s._norm(s.spell_digits("AI review highlights over more than one billion reviews, in twenty-one languages"))
+    assert s.supports_number(p, "1") and s.supports_number(p, "21")
+    assert not s.supports_number(p, "2")
+    assert s.spell_digits("someone, oneself, alone") == "someone, oneself, alone"

@@ -5,7 +5,8 @@
 
 The checks run SIDE BY SIDE, each with one maths thread (a check's BLAS starting a thread per core while twelve others
 did the same made a 2-minute film's checks take over an hour, 2026-11-18); a 2-minute film checks in a few minutes.
---only re-runs just the named checks (after a fix, the ones that were red); the rest are not re-judged.
+--only re-runs just the named checks (after a fix, the ones that were red); the rest are not re-judged. A name with a
+space takes a hyphen: --only pan-speed,shot-plan.
 --frames A-B judges film frames A..B-1 from work/frames (film_frames.py's output) BEFORE the film exists: they are
 encoded as the film will be (film_deliver's encode, grain and all) into work/qc_A-B/ with the plan cut to that stretch,
 and the page checks step through only those seconds. The film-wide checks (repetition, mix, shot plan) wait for the
@@ -21,7 +22,7 @@ controls colliding on the page over time, or a readable line cut by the frame's 
 comes from the sources or is declared), picture_legibility_qa (a picture on screen that shows almost nothing) and
 imagefetch --check (every picture the page names says where it came from, under a licence a film may carry);
 with a stage3d page, stage_contacts_qa (nothing passes through anything); pan_speed_qa (no camera whip that strobes);
-repetition_qa (advisory: one staging repeated as the film's device); with a timeline.json, light_match_qa (advisory:
+repetition_qa (advisory: one staging repeated as the film's device); with a shot_plan.json or timeline.json, light_match_qa (advisory:
 a straight cut inside one sequence that flips the light warm <-> cool); banding_qa (dark gradients stepping after the
 encode; scripts/film_deliver.py --encode adds the grain finish that fixes it); mix (a film with music in audio/ ships
 the mix scripts/mix.py made and measured, the music held under the voice); with a voiced timeline.json, voice_asr_qa (the voice heard
@@ -83,7 +84,7 @@ def checks(d, video, plan, span=None, page_dir=None):
         out.append(("contacts", [py, os.path.join(HERE, "stage_contacts_qa.py"), page_dir] + pspan))
     out.append(("pan speed", [py, os.path.join(HERE, "pan_speed_qa.py"), d]))
     out.append(("repetition", [py, os.path.join(HERE, "repetition_qa.py"), d, "--video=" + video]))   # advisory
-    if os.path.isfile(os.path.join(d, "timeline.json")):
+    if any(os.path.isfile(os.path.join(d, f)) for f in ("shot_plan.json", "timeline.json")):
         out.append(("light", [py, os.path.join(HERE, "light_match_qa.py"), d, "--video=" + video]))   # advisory
     out.append(("banding", [py, os.path.join(HERE, "banding_qa.py"), d, "--video", video]))
     out.append(("mix", [py, os.path.join(HERE, "mix.py"), "--check", d]))
@@ -175,7 +176,7 @@ def main(argv):
     if any(a.split("=", 1)[0] == "--only" for a in argv) and not only:
         print("[film_qc] --only needs check names, e.g. --only glide,seams", file=sys.stderr)
         return 2
-    only = None if only is None else set(only)
+    only = None if only is None else {o.replace("-", " ").replace("_", " ") for o in only}   # --only pan-speed
     flag = [i for i, a in enumerate(argv) if a.split("=", 1)[0] in ("--only", "--frames")]
     taken = set(flag) | {i + 1 for i in flag if "=" not in argv[i]}
     argv = [a for i, a in enumerate(argv) if i not in taken]

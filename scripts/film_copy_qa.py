@@ -13,7 +13,8 @@ corpus. Anything else is UNSOURCED, unless `<film_dir>/copy_ok.json` lists it wi
 
 WHY. brief_qa checks the SPOKEN claims; nothing checked the words drawn on screen. A Grok Bot film showed "To: 5 account
 contacts", "1 of 5" and invented terminal commands on its product UI; every gate was green (2026-11-18).
-Strings of fewer than two letters (a "$" prompt, a digit) are not judged.
+Strings of fewer than two letters (a "$" prompt, a digit) are not judged; a letter in its own inline element (a query
+typed a <span> per letter, the Airbnb film 2026-11-25) is judged as the line it belongs to.
 Exit 0 every shown string sourced or declared, 1 unsourced strings, 2 usage error or the page failed to load.
 """
 import glob
@@ -37,13 +38,17 @@ CANVAS_HOOK = r"""
 """
 
 _DOM_TEXT = r"""
-(() => { const out = [];
+(() => { const out = [], lines = new Set();
   const vis = (el) => { for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const cs = getComputedStyle(e);
       if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.05) return false; } return true; };
   const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let n = w.nextNode(); n; n = w.nextNode()) { const s = n.textContent.trim(); if (!s) continue;
     const el = n.parentElement; if (!el || /^(SCRIPT|STYLE|NOSCRIPT)$/.test(el.tagName) || !vis(el)) continue;
     const r = el.getBoundingClientRect(); if (r.width < 1 || r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) continue;
+    if ((s.match(/\p{L}/gu) || []).length < 2) {        // typed a letter per element: judge the line it belongs to
+      let b = el; while (b.parentElement && getComputedStyle(b).display === 'inline') b = b.parentElement;
+      if (b !== el && !lines.has(b)) { lines.add(b); const t = b.innerText.replace(/\u00a0/g, ' ').trim(); if (t) out.push(t); }
+      continue; }
     out.push(el.innerText && el.childNodes.length === 1 ? el.innerText.trim() : s); }
   return out; })()
 """

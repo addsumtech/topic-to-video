@@ -62,6 +62,22 @@ def test_on_a_rendered_film(tmp_path, capsys):
     assert "0 warm/cool flip" in capsys.readouterr().out
 
 
+def test_the_shot_plan_names_the_sequences(tmp_path, capsys):
+    # the Airbnb film hand-wrote timeline "seams" for this check though its shot plan named every shot's sequence
+    _film(tmp_path, COOL, [])
+    shots = lambda a, b: [{"id": "s1", "start": 0.0, "end": 2.0, "sequence": a},    # noqa: E731
+                          {"id": "s2", "start": 2.0, "end": 4.0, "sequence": b}]
+    (tmp_path / "shot_plan.json").write_text(json.dumps({"shots": shots("hook", "proof")}))
+    assert lm.sequence_seams(str(tmp_path)) == [2.0]
+    lm.main([str(tmp_path)])
+    assert "0 warm/cool flip" in capsys.readouterr().out    # the plan's seam, though the timeline names none
+    (tmp_path / "shot_plan.json").write_text(json.dumps({"shots": shots("hook", "hook")}))
+    lm.main([str(tmp_path)])
+    assert "flips warm to cool" in capsys.readouterr().out
+    (tmp_path / "timeline.json").unlink()
+    assert lm.main([str(tmp_path)]) == 0                     # a plan alone is enough
+
+
 def test_missing_inputs_are_a_usage_error(tmp_path):
     assert lm.main([str(tmp_path)]) == 2
     _film(tmp_path, COOL, ["soon"])

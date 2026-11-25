@@ -122,7 +122,7 @@ def evaluate(data, out_dir=None):
             # step 8 — the matcher used to drop the decimal point and let it through)
             anchors = [str(r).partition("#")[2] for r in refs if "#" in str(r)]
             if anchors:
-                na = [_src._norm(x) for x in anchors]
+                na = [_src._norm(_src.spell_digits(x)) for x in anchors]
                 missing = [g for g in _src.number_groups(ev.get("claim") or "")
                            if not any(_src.supports_number(x, g) for x in na)]
                 if missing:

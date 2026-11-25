@@ -672,7 +672,7 @@ def film_pictures(film_dir):
 
 
 def provenance(film_dir, rel, decl=None, seen=None):
-    """(kind, sidecar meta or None, problem or None) for one picture: sourced / derived / own / generated / input."""
+    """(kind, sidecar meta or None, problem or None) for one picture: sourced / derived / own / generated / input / mark."""
     decl = decl if decl is not None else _declared(film_dir)
     seen = seen or set()
     if rel in seen:
@@ -684,6 +684,11 @@ def provenance(film_dir, rel, decl=None, seen=None):
             meta = json.load(open(side, encoding="utf-8"))
         except ValueError:
             return "sourced", None, "%s: its record %s.json is not readable JSON" % (rel, rel)
+        if isinstance(meta.get("identity"), dict) and not meta.get("license"):
+            # a brand mark brand_mark.py has read (its sidecar holds what the mark spells, no licence): the product's
+            # own logo shown because the film is about it, which brand_mark's own check governs. The Airbnb film's
+            # official logo went red here "under None" and was hidden in input/ to pass (2026-11-25).
+            return "mark", None, None
         if not _license_ok(meta.get("license")):
             return "sourced", meta, "%s is under %r, which a film may not carry (public domain, CC0, CC BY, CC BY-SA)" % (rel, meta.get("license"))
         if not (meta.get("source") or meta.get("credit")):

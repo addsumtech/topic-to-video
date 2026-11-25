@@ -171,7 +171,8 @@ voice; a paid or `say` voice, which reports no timings, gets them ALIGNED from t
 `python3 scripts/voice_asr_qa.py <film_dir>` transcribes the voice (faster-whisper, ~30 s for 2 minutes) and holds
 every line against the script and its caption times — a dropped or doubled phrase or drifting captions are red, a
 single misheard word is a place to listen. Fix a misreading in the lexicon, never in the caption. Trim silences, keep pauses inside a line short and give each sequence seam a breath. Write
-`<film_dir>/timeline.json` from the timings: every line's start/end, every word's time, the sequence seams. **This
+`<film_dir>/timeline.json` from the timings — `{fps, duration, lines: [{id, text, start, end, words: [{w, t}]}],
+seams: [seconds a sequence starts]}`, the shape `type_clock.py` writes for a film with no voice. **This
 timeline is the film's clock: every picture is built to it.** Captions are chunked from it.
 
 ### 5. Design — concepts, hero moments, keyframes (a dedicated designer; checkpoint 2)
@@ -289,6 +290,10 @@ moves (`assets/html/math.js`: a derivation written on and carried form to form, 
 - Time runs one way: a state reached stays reached; nothing replays after a cut; nothing overshoots and shrinks back.
 - No slow constant creep on fine detail (hard edges shimmer); a camera move has a job and an end.
 - No blank holds: every shot puts its subject on screen from its first frame (lead the cut by ~0.1 s).
+- Real pictures are shown sharp. A product screen or photo blurred for depth or a focus pull reads as a soft, bad
+  image, not as depth (Airbnb 2026-11-25: two phones in a row of five blurred "for depth", a phone opening out of focus
+  for 1.2 s; the user: "some pictures are very blurry at first"). Push one back by size, dimming or overlap; blur only
+  as motion inside a whip (a few frames) or on texture behind words (below).
 - Text on screen is labels, keywords and numbers, never the narration as body text.
 - **Text is either read or texture.** Words meant to be read are big enough on a phone: captions ≥ ~56 px at 1080p
   (about 5 % of the frame height; `caption_size_qa` measures it), labels ≥ ~32 px, counted on the rendered frame
@@ -355,7 +360,9 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
    A red you believe is wrong is never silenced and never "fixed" by cutting good content: PROVE it on the frames
    (measure the thing the check claims) and with a CONTROL (the same shot with the suspected cause removed), and
    record both in `NOTES.md` (the checks' known blind spots are in the toolbox).
-2. **Look at the real film the way the user will** — every shot at its settled frame (~90 %) on one sheet, AND the
+2. **Look at the real film the way the user will** — every shot at its opening, middle and settled frame on one sheet
+   (`python3 scripts/review_sheet.py <film_dir>` writes it to `_review/`; a shot that opens soft or empty shows only
+   there; `--video=design/animatic.mp4` sheets the animatic the same way), AND the
    middle frame of every cut, AND frame by frame through every moving object and camera move (a defect in motion is
    between the settled frames: a card sunk into a head, two Bots double-exposed by a dissolve, an arrow that changed
    shape between render pages were all invisible on a contact sheet). One layout repeated, a frame cut off, a

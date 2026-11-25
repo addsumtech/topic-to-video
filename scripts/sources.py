@@ -149,6 +149,26 @@ def number_groups(text):
     return re.findall(r"\d+(?:[.,\-]\d+)*", _norm(text))
 
 
+# A source spells small numbers out ("more than one billion reviews") where a claim writes digits ("1 billion"): the
+# Airbnb brief's claim was refused until it was reworded to match (2026-11-25). Only a SOURCE is spelled to digits
+# (spell_digits before _norm): a claim's "one of the best" is not a number it states.
+_UNITS = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen " \
+         "eighteen nineteen".split()
+_TENS = {w: 10 * (i + 2) for i, w in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split())}
+_WORDS = dict({w: i for i, w in enumerate(_UNITS)}, **_TENS)
+_SPELLED = re.compile(r"\b(%s)(?:[-\s](%s))?\b" % ("|".join(_WORDS), "|".join(_UNITS[1:10])), re.I)
+
+
+def spell_digits(text):
+    """'one billion' -> '1 billion', 'twenty-one' -> '21' (zero to ninety-nine)."""
+    def num(m):
+        a, b = m.group(1).lower(), (m.group(2) or "").lower()
+        if b and a in _TENS:
+            return str(_TENS[a] + _WORDS[b])
+        return str(_WORDS[a]) + (m.group(0)[len(m.group(1)):-len(b)] + str(_WORDS[b]) if b else "")
+    return _SPELLED.sub(num, text or "")
+
+
 def supports_number(passage_norm, group):
     """Does a (_norm'ed) passage give this number? A range '1-2' is given by '1-2' or by both its ends ('1 or 2')."""
     if _contains(passage_norm, group):

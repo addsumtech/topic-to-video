@@ -88,7 +88,8 @@ plan. You do not write final narration; you design content beats.
    after it included** — about 1.2 s of every beat is that pause, so a 4 s beat holds only ~12 Chinese characters
    (`python3 scripts/pace.py --budget 4 --lang zh` prints it for any length and language). The sum of
    `est_seconds` must be `target_seconds`: the GPS test film's plan summed to 69 s of beats that each needed
-   ~6 s, and the film came out ~100 s. Target beat count ≈ `target_seconds / 4`. Vary
+   ~6 s, and the film came out ~100 s. Target beat count ≈ `target_seconds / 4` for an explainer; a launch or promo
+   cuts faster (short build beats, below), so it has more. Vary
    `est_seconds` to match your `rhythm` (quick build beats 3–4s, a longer climax 6–8s, a sparse hold) —
    a flat row of equal 5-second beats is the clearest "auto-generated" tell.
 4. **Earn its place.** Every beat must teach something. Cut filler, throat-clearing, and restatement.

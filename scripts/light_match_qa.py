@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """light_match_qa — a straight cut INSIDE one sequence that flips the light from warm to cool (advisory).
 
-    python3 scripts/light_match_qa.py <film_dir> [--video=PATH] [--json]     # reads _plan.json and timeline.json
+    python3 scripts/light_match_qa.py <film_dir> [--video=PATH] [--json]     # reads _plan.json and shot_plan.json
 
 WHY (2026-11-24). A sequence keeps one light colour as it keeps one light direction (references/director-craft.md §3);
 a change of temperature belongs at a seam. Measured on 28 delivered films (352 neighbouring shots inside a sequence):
@@ -13,11 +13,11 @@ warm amber brain, job-hunt's sepia CV into the same CV under grey light, QR's bl
 Each shot (between the plan's cuts, 0.4 s or longer) is read at its settled frame (90 % of its span), the caption band
 (bottom 20 %) left out. Its KEY is the median CIELAB b* (blue -, yellow +) of its near-neutral pixels (chroma < 12):
 the colour the light gives to what has no colour of its own. A shot with under 5 % neutral pixels gives no reading.
-Two neighbours inside one sequence (no timeline seam between them) FLIP when one key is >= +KEY_T and the other
-<= -KEY_T. Measured: the three cuts above at -4.4/+5.5, +6.9/-2.3, -4.9/+4.1; deliberate pairs mostly stay on one
+Two neighbours inside one sequence (shot_plan.json's `sequence`, else timeline.json "seams") FLIP when one key is
+>= +KEY_T and the other <= -KEY_T. Measured: the three cuts above at -4.4/+5.5, +6.9/-2.3, -4.9/+4.1; deliberate pairs mostly stay on one
 side (a cream UI at +0.8 beside a warmer one at +9.8). A flip the story asks for (sunset after noon) is fine: the
 warning says the flip is there, not that it is wrong. ADVISORY: exit 0 with WARN lines; 2 on a usage error or a missing
-plan, timeline or video.
+plan, sequences or video.
 """
 import io
 import json
@@ -61,6 +61,24 @@ def flips(shots, seams):
     return out
 
 
+def sequence_seams(d):
+    """Seconds where a new sequence starts: shot_plan.json's shots, where `sequence` changes (the plan the film was built
+    to), else timeline.json "seams" (seconds or {"t": s}). The Airbnb film (2026-11-25) had to hand-write "seams" into
+    its timeline for this check, though its shot plan already named every shot's sequence."""
+    sp = os.path.join(d, "shot_plan.json")
+    if os.path.isfile(sp):
+        shots = json.load(open(sp, encoding="utf-8")).get("shots") or []
+        if shots and all(isinstance(x.get("start"), (int, float)) and x.get("sequence") for x in shots):
+            return [b["start"] for a, b in zip(shots, shots[1:]) if b["sequence"] != a["sequence"]]
+    tp = os.path.join(d, "timeline.json")
+    if not os.path.isfile(tp):
+        raise ValueError("no sequences: shot_plan.json shots with start and sequence, or timeline.json seams")
+    seams = [s["t"] if isinstance(s, dict) and "t" in s else s for s in json.load(open(tp, encoding="utf-8")).get("seams") or []]
+    if not all(isinstance(s, (int, float)) for s in seams):
+        raise ValueError("timeline.json seams must be seconds or {\"t\": seconds}, got %r" % seams[:3])
+    return seams
+
+
 def _frame(video, t):
     from PIL import Image
     p = subprocess.run(["ffmpeg", "-v", "error", "-ss", "%.3f" % t, "-i", video, "-frames:v", "1", "-vf", "scale=480:-2",
@@ -70,10 +88,7 @@ def _frame(video, t):
 
 def judge(d, video=None):
     plan = json.load(open(os.path.join(d, "_plan.json"), encoding="utf-8"))
-    tl = json.load(open(os.path.join(d, "timeline.json"), encoding="utf-8"))
-    seams = [s["t"] if isinstance(s, dict) and "t" in s else s for s in tl.get("seams") or []]   # seconds or {"t": s}
-    if not all(isinstance(s, (int, float)) for s in seams):
-        raise ValueError("timeline.json seams must be seconds or {\"t\": seconds}, got %r" % seams[:3])
+    seams = sequence_seams(d)
     fps = float(plan.get("fps", 30))
     video = video or os.path.join(d, plan.get("video", "final.mp4"))
     if not os.path.isfile(video):
