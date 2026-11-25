@@ -127,3 +127,30 @@ def test_page_size_defaults_to_landscape(tmp_path):
     assert fp.page_size(str(tmp_path / "a.html")) == (1920, 1080)
     assert fp.page_size(str(tmp_path / "b.html")) == (1080, 1920)
     assert fp.page_size(str(tmp_path / "missing.html")) == (1920, 1080)
+
+
+def test_a_face_first_used_mid_film_is_loaded_before_the_first_frame(tmp_path):
+    """document.fonts.ready resolves with a face that no element uses yet still 'unloaded' (it loads only when its
+    element appears, differently in each render page); the ready gate loads every declared face first."""
+    import shutil
+    import _filmpage as _fp
+    try:
+        _c.find_chrome()
+    except Exception:
+        pytest.skip("Chrome not installed")
+    shutil.copy(os.path.join(ROOT, "assets", "fonts", "PlayfairDisplay-VF.ttf"), tmp_path / "late.ttf")
+    (tmp_path / "film.html").write_text("""<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face { font-family: Late; src: url(late.ttf); }
+#later { font-family: Late; display: none; font-size: 60px; }
+</style></head><body><div id="later">Appears at t = 2</div>
+<script>window.seek = (t) => { document.getElementById('later').style.display = t >= 2 ? 'block' : 'none'; };</script>
+</body></html>""")
+    port, srv = _fp.serve(str(tmp_path))
+    try:
+        p = _fp.FilmPage(port, "film.html", 640, 360)
+        try:
+            assert p.ev("[...document.fonts].map(f => f.status).join(',')") == "loaded"
+        finally:
+            p.close()
+    finally:
+        srv.shutdown()

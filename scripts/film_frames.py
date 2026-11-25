@@ -16,6 +16,16 @@ font loaded (a fallback in one page, the real font in another), Math.random, tim
 `--probe 0` skips it (a draft render).
 
 Encode afterwards with scripts/film_deliver.py (it converts to limited-range BT.709 and tags it: _common.BT709_VF).
+
+MEASURED CAPTURE DECISIONS (2026-11-25, film_work/html_bench; keep them unless a new bench says otherwise):
+- JPEG q95 frames, not PNG. Chrome's JPEG is always 4:2:0, but so is the delivered H.264: saturated 24-56 px text on
+  light and dark grounds, encoded by film_deliver, gained only 0.3-1.3 dB PSNR from lossless PNG frames and looked the
+  same at 3x zoom; PNG (optimizeForSpeed) costs 122 vs 82 ms a frame and 7x the disk (738 vs 107 KB).
+- The two animation frames after each seek stay: dropping them saves ~18 s on a 2,300-frame film across 4 workers,
+  not worth a frame captured before it is presented.
+- Chrome runs with --force-color-profile=srgb (no pixel changed on this Mac; frames stay sRGB on a P3-profiled one),
+  and the ready gate loads every declared font face (one first used mid-film was still 'unloaded' after
+  document.fonts.ready).
 Exit 0 rendered (and probe clean), 1 the probe found a page-dependent frame, 2 usage error or the page failed to load.
 """
 import os

@@ -87,7 +87,7 @@ class FilmPage:
         self.n = 0
         self.proc = subprocess.Popen(
             [_c.find_chrome(), "--headless=new", "--hide-scrollbars", "--no-sandbox", "--use-angle=metal",
-             "--ignore-gpu-blocklist", "--remote-debugging-port=0", "--user-data-dir=" + self.prof,
+             "--ignore-gpu-blocklist", "--force-color-profile=srgb", "--remote-debugging-port=0", "--user-data-dir=" + self.prof,
              "--window-size=%d,%d" % (W, H), "--force-device-scale-factor=1", "about:blank"],
             stderr=subprocess.PIPE, stdout=subprocess.DEVNULL)
         try:
@@ -126,7 +126,10 @@ class FilmPage:
                     " catch (e) { return 'ERR ' + (e && e.stack || e); } })()", True)
         if v != "ok" and not (isinstance(v, str) and not v.startswith("ERR") and v.strip()):
             raise PageError("window.filmReady failed: %s" % v)
-        bad = self.ev("(async () => { await document.fonts.ready;"
+        # every DECLARED face is loaded now, not only those the first frame uses: a face first used mid-film stayed
+        # 'unloaded' after document.fonts.ready and loaded only when its element appeared — a race in each render page
+        bad = self.ev("(async () => { await Promise.all([...document.fonts].map(f => f.status === 'unloaded' ? f.load().catch(() => null) : null));"
+                      " await document.fonts.ready;"
                       " return [...document.fonts].filter(f => f.status === 'error').map(f => f.family + ' ' + f.weight); })()", True)
         if bad:
             raise PageError("font(s) failed to load: %s (canvas/DOM text would fall back per page)" % ", ".join(bad))
