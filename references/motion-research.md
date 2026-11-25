@@ -41,7 +41,13 @@ never reached.
   longer a dead spec — it is the container by declared rects; and the hard `cut` (the picture changes on the seam's
   middle frame), which `seam_plan.py` plans on unmarked seams by the film's tempo (kinetic / scored / calm). `seam_plan`
   proposes the anchored seams too. `@remotion/transitions` 4.0.486 also ships iris, flip and 11 shader presentations
-  (HtmlInCanvas — measured non-deterministic here), unused. **Still open:** a content match-cut between two
+  (HtmlInCanvas — measured non-deterministic here), unused. **Upgrade trial to 4.0.547 (2026-11-26), not adopted:**
+  its new presentations rendered at concurrency 1 vs 3: `blurSlide` identical (a directional smear that leaves text
+  unreadable mid-seam: a type-only seam at most, never over a real screen), `cube` within 1/255 (its middle frame is
+  solid black without a ground behind it), `pushCut` up to 145/255 apart (its canvas path: refused; the library's own
+  `punch` seam is that look); a 180-frame classic render was not faster (16 s vs 13 s) and changed 179 of 180 frames
+  (max 70/255) — every baseline and cached segment would move. Revisit for a capability the library lacks, with a
+  determinism and baseline pass. **Still open:** a content match-cut between two
   photographs that share no anchor
   (bench-aurora), and the 6 still frames after a cut (`useT` holds `ENTRY_T` through the seam — a `runtime/motion.ts`
   change).
