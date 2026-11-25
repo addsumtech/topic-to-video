@@ -57,6 +57,20 @@ def _generate_codex(prompt, out_path, size="1536x1024", quality="medium"):
     from PIL import Image
     Image.open(out_path).verify()             # raises if the file is not a valid image
 
+def _pixels(path, label="image", frame_w=1920):
+    """[w, h] of the image as delivered, and a note when it is narrower than the frame. The size ASKED for is not the
+    size received: Codex's image tool takes no size (it reads the prompt's words) and returns ~1.57 MP — of 416 images
+    on this machine the commonest was 1672 x 941, so a full-bleed 1080p plate is magnified 1.15x before any camera
+    move (the resolution gate warns past 1.08). Plan the move from these pixels."""
+    from PIL import Image
+    with Image.open(path) as im:
+        w, h = im.size
+    if w < frame_w:
+        print(f"[imagegen] NOTE {label}: {w}x{h} px — full-bleed at {frame_w} px wide it is magnified "
+              f"{frame_w / w:.2f}x before any push; frame it smaller or plan no push (media_res_qa judges it)")
+    return [w, h]
+
+
 # ── A GENERATED MEDIUM for a film's drawing style (meta.style.surface.source: "generated") ─────────────────────────
 # The style engine's surface is procedural noise unless the spec asks for a generated one: a real paper's fibres, a
 # canvas weave, a brush's drag. Generation goes through the Codex subscription ONLY — the metered API is never called
@@ -246,8 +260,9 @@ def synthesize_images(out_dir, key=None, date=""):
                 _generate_codex(prompt, cp, size, quality)
             else:
                 generate(prompt, cp, key, size, quality, DEFAULT_MODEL)
+            px = _pixels(cp, label)
             with open(cp[:-4] + ".json", "w") as f:
-                json.dump({"prompt": prompt, "provider": provider, "model": model, "size": size,
+                json.dump({"prompt": prompt, "provider": provider, "model": model, "size": size, "pixels": px,
                            "quality": quality, "tag": tag,
                            "visual_style": meta.get("visual_style"), "date": date},
                           f, indent=2)

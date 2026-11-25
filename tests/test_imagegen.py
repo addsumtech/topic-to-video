@@ -68,7 +68,9 @@ def test_synthesize_noop_when_free(tmp_path, monkeypatch):
 def test_synthesize_generates_and_fills_image(tmp_path, monkeypatch):
     out = _board(tmp_path, source="openai", provider="openai")
     def fake_gen(prompt, path, key, size, quality, model):
-        os.makedirs(os.path.dirname(path), exist_ok=True); open(path, "wb").write(b"\x89PNG")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        from PIL import Image
+        Image.new("RGB", (64, 36), (40, 40, 40)).save(path)       # a real (small) PNG: its pixels are read now
     monkeypatch.setattr(imagegen, "generate", fake_gen)
     d = imagegen.synthesize_images(out, key="sk-x", date="2026-06-19")
     s = d["slides"][0]
@@ -91,7 +93,9 @@ def test_image_size_defaults_from_aspect(tmp_path, monkeypatch):
     seen = {}
     def fake_gen(prompt, path, key, size, quality, model):
         seen["size"] = size
-        os.makedirs(os.path.dirname(path), exist_ok=True); open(path, "wb").write(b"\x89PNG")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        from PIL import Image
+        Image.new("RGB", (64, 36), (40, 40, 40)).save(path)       # a real (small) PNG: its pixels are read now
     monkeypatch.setattr(imagegen, "generate", fake_gen)
     imagegen.synthesize_images(_board_aspect(tmp_path, "9:16"), key="sk-x")   # no explicit size
     assert seen["size"] == "1024x1536"                                        # -> portrait default
@@ -102,7 +106,9 @@ def test_image_size_explicit_overrides_aspect(tmp_path, monkeypatch):
     seen = {}
     def fake_gen(prompt, path, key, size, quality, model):
         seen["size"] = size
-        os.makedirs(os.path.dirname(path), exist_ok=True); open(path, "wb").write(b"\x89PNG")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        from PIL import Image
+        Image.new("RGB", (64, 36), (40, 40, 40)).save(path)       # a real (small) PNG: its pixels are read now
     monkeypatch.setattr(imagegen, "generate", fake_gen)
     imagegen.synthesize_images(_board_aspect(tmp_path, "9:16", image_size="1024x1024"), key="sk-x")
     assert seen["size"] == "1024x1024"                                        # explicit wins over aspect
@@ -122,7 +128,9 @@ def test_soft_textures_populate_meta_and_cache(tmp_path, monkeypatch):
     calls = {"n": 0}
     def fake_gen(prompt, path, key, size, quality, model):
         calls["n"] += 1
-        os.makedirs(os.path.dirname(path), exist_ok=True); open(path, "wb").write(b"\x89PNG")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        from PIL import Image
+        Image.new("RGB", (64, 36), (40, 40, 40)).save(path)       # a real (small) PNG: its pixels are read now
     monkeypatch.setattr(imagegen, "generate", fake_gen)
     out = _soft_board(tmp_path, prompts=["a foggy skyline", "frost on glass"])
     d = imagegen.synthesize_images(out, key="sk-x")
@@ -243,3 +251,18 @@ def test_an_image_made_before_the_tail_is_kept_not_redrawn(tmp_path):
     assert (prompt, cp) == (raw, old)
     fresh, cp2 = imagegen._styled_cached(str(tmp_path), "a quiet harbour at dawn", {}, "codex", "1536x1024", "high")
     assert "no text" in fresh and cp2 != old
+
+
+def test_the_record_holds_the_pixels_received_and_says_when_they_are_short(tmp_path, monkeypatch, capsys):
+    """Codex ignores the size asked (1672 x 941 is its commonest answer): the record keeps the real pixels and a plate
+    narrower than the frame is said, so the move is planned from what exists."""
+    out = _board(tmp_path, source="openai", provider="openai")
+    def fake_gen(prompt, path, key, size, quality, model):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        from PIL import Image
+        Image.new("RGB", (1672, 941), (40, 40, 40)).save(path)
+    monkeypatch.setattr(imagegen, "generate", fake_gen)
+    d = imagegen.synthesize_images(out, key="sk-x", date="2026-06-19")
+    rec = json.load(open(os.path.join(out, d["slides"][0]["image"])[:-4] + ".json"))
+    assert rec["pixels"] == [1672, 941]
+    assert "magnified 1.15x" in capsys.readouterr().out

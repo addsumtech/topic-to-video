@@ -16,6 +16,11 @@ import urllib.error, urllib.request, urllib.parse
 
 _API = "https://commons.wikimedia.org/w/api.php"
 # a descriptive UA is required by the Wikimedia API etiquette
+# THE WIDTH ASKED FOR. Commons serves only standard widths (..., 960, 1280, 1920, 3840) and rounds a request up: at
+# 1600 a 4861 px Golden Gate original arrived as 1920 x 1200 — the frame's own width, no room for any push (a 1.2x
+# push magnifies it past the 1.08 the resolution gate allows). At 3840 it arrives 3840 x 2400 (2026-11-25); a smaller
+# original arrives whole, never enlarged.
+DEFAULT_WIDTH = 3840
 _UA = "topic-to-video-skill/1.0 (github.com/addsumtech/topic-to-video; documentary image tier)"
 # licenses we accept: public-domain or FREE/attributable Creative-Commons. Reject non-free / fair-use
 # AND the non-free CC variants: NonCommercial (-nc) and NoDerivatives (-nd) — a deck reuses + often
@@ -331,7 +336,7 @@ def resolve_concept(term, timeout=12):
     return {"qid": h.get("id"), "label": h.get("label"), "description": h.get("description")}
 
 
-def search(query, limit=10, width=1600, depicts=None):
+def search(query, limit=10, width=None, depicts=None):
     """Search Commons files (namespace 6) for `query`; return candidate dicts with a renderable URL
     (SVG is auto-rendered to a PNG thumb by Commons), mime, license and attribution.
 
@@ -339,6 +344,7 @@ def search(query, limit=10, width=1600, depicts=None):
     (`haswbstatement:P180=<qid>`), which is a statement about the picture rather than about the words on its
     file page — the difference between a photograph of the subject and a document that mentions it.
     """
+    width = width or DEFAULT_WIDTH
     term = ("haswbstatement:P180=%s " % depicts + query) if depicts else query
     d = _http_json({
         "action": "query", "format": "json", "generator": "search", "gsrnamespace": 6,
@@ -368,6 +374,11 @@ def search(query, limit=10, width=1600, depicts=None):
             "url": ii.get("thumburl") or ii.get("url"),
             "mime": mime,
             "license": _strip_html(_em(em, "LicenseShortName")),
+            # what a credit needs besides the name (CC best practice: title, author, source, licence WITH its link)
+            # and what the licence does not clear (personality rights, trademarks): kept, not dropped
+            "license_url": _strip_html(_em(em, "LicenseUrl")),
+            "attribution_required": _strip_html(_em(em, "AttributionRequired")),
+            "restrictions": _strip_html(_em(em, "Restrictions")),
             "artist": _artist(_em(em, "Artist")),
             "credit": _strip_html(_em(em, "Credit")),
             "object_name": _strip_html(_em(em, "ObjectName", every=True)),
@@ -396,13 +407,28 @@ def search_nasa(query, limit=10):
         prev = next((l.get("href") for l in it.get("links") or [] if l.get("rel") == "preview"), None)
         if not prev:
             continue
+        # NASA's library holds third-party pictures too, marked with their owner's name, and those are NOT public
+        # domain (nasa.gov media guidelines): a description crediting someone other than NASA is not cleared here
+        third = _third_party_credit(meta.get("description", "") + "\n" + meta.get("secondary_creator", ""))
         out.append({"title": meta.get("title", ""), "url": prev, "collection": it.get("href"), "mime": "image/jpeg",
-                    "license": "Public domain (NASA)", "artist": "NASA" + ("/" + meta["center"] if meta.get("center") else ""),
-                    "credit": "NASA", "object_name": meta.get("title", ""), "description": meta.get("description", ""),
+                    "license": ("Not NASA's: credited to %s (needs its owner's permission)" % third) if third
+                    else "Public domain (NASA)",
+                    "artist": third or ("NASA" + ("/" + meta["center"] if meta.get("center") else "")),
+                    "credit": third or "NASA", "object_name": meta.get("title", ""), "description": meta.get("description", ""),
                     "categories": " | ".join(meta.get("keywords") or []), "rank": k,
                     "source": "https://images.nasa.gov/details/" + meta.get("nasa_id", ""), "width": None, "height": None,
                     "provider": "NASA Image and Video Library"})
     return out
+
+
+def _third_party_credit(text):
+    """The rights holder a NASA description credits when it is not NASA ("Image credit: ESO/M. Kornmesser"), else
+    None. A joint credit that names NASA ("NASA, ESA, CSA, STScI") stays NASA's."""
+    m = re.search(r"(?i)\b(?:image|photo|photograph)?\s*credits?\s*:\s*([^\n]{2,120})", text or "")
+    if not m:
+        return None
+    who = m.group(1).strip().rstrip(".")
+    return None if re.search(r"(?i)\bnasa\b", who) else who
 
 
 def _nasa_asset(collection):
@@ -433,7 +459,7 @@ def _pixel_width(path):
         return None
 
 
-def ranked(query, width=1600, prefer=None, min_width=800, require_license=True, require=None, source="commons"):
+def ranked(query, width=None, prefer=None, min_width=800, require_license=True, require=None, source="commons"):
     """(required terms, [(candidate, relevance)] in the order fetch() tries them, [(candidate, why refused)], near
     misses) — the licence, width and relevance filters shared by fetch() and the candidate list."""
     q_req, fmt = key_terms(query)
@@ -468,7 +494,7 @@ def ranked(query, width=1600, prefer=None, min_width=800, require_license=True, 
     return req, keep, refused, near
 
 
-def fetch(query, out_path, width=1600, prefer=None, min_width=800, require_license=True, require=None,
+def fetch(query, out_path, width=None, prefer=None, min_width=800, require_license=True, require=None,
           why=None, source="commons", pick=None):
     """Search + download the best license-clean image OF `query`'s subject → out_path, and write a sidecar
     `out_path + '.json'` with {title, license, artist, source, query, relevance} (the ATTRIBUTION — a documentary
@@ -512,6 +538,8 @@ def fetch(query, out_path, width=1600, prefer=None, min_width=800, require_licen
             continue
         meta = {"title": c["title"], "license": c["license"], "artist": c["artist"],
                 "credit": c["credit"], "source": c["source"], "query": query,
+                "license_url": c.get("license_url") or "", "attribution_required": c.get("attribution_required") or "",
+                "restrictions": c.get("restrictions") or "",
                 "provider": c.get("provider", "Wikimedia Commons"),
                 "relevance": {"terms": req, "where": r["where"], "tier": r["tier"]},
                 "pixel_width": px}
@@ -730,7 +758,10 @@ def credit_lines(film_dir):
         if meta and not prob and meta.get("source") not in seen:
             seen.add(meta.get("source"))
             title = re.sub(r"(?i)^file:", "", meta.get("title") or "")
-            out.append(meta.get("credit_line") or "%s — %s. %s" % (title, attribution_line(meta), meta.get("source") or ""))
+            line = meta.get("credit_line") or "%s — %s. %s" % (title, attribution_line(meta), meta.get("source") or "")
+            if meta.get("license_url") and meta["license_url"] not in line:
+                line += " Licence: %s" % meta["license_url"]
+            out.append(line)
     return out
 
 
@@ -752,7 +783,7 @@ def main():
     ap = argparse.ArgumentParser(description="Fetch a real license-clean Commons image (documentary tier).")
     ap.add_argument("query")
     ap.add_argument("out")
-    ap.add_argument("--width", type=int, default=1600)
+    ap.add_argument("--width", type=int, default=None, help="the width to ask Commons for (default %d)" % DEFAULT_WIDTH)
     ap.add_argument("--prefer", default=None, help="rank candidates whose title contains this first (e.g. map)")
     ap.add_argument("--min-width", type=int, default=800,
                     help="refuse a raster narrower than this at its ORIGINAL resolution (default 800)")
@@ -800,6 +831,9 @@ def main():
     print(f"[imagefetch] {a.out}  <-  {meta['title']}  [{meta['license']}]")
     print(f"             {attribution_line(meta)}")
     print("             relevance: " + ", ".join("%s<-%s" % kv for kv in meta["relevance"]["where"].items()))
+    if meta.get("restrictions"):
+        print("  NOTE      the file page restricts its use: %s (personality rights / trademarks are not cleared by the "
+              "licence — check before showing it)" % meta["restrictions"])
 
 
 if __name__ == "__main__":

@@ -28,6 +28,12 @@ vocabulary SKILL.md's "Design is judgement" refers to. The classic version's oth
   (`{"img/x.png": {"from": "design/refs/x.jpg"}}`; `{"own": why}` for a picture the film computed, `{"generated":
   why}` for atmosphere); `film_qc` ("images") holds every picture the page names to a record, and `film_deliver`
   writes the credits beside the film.
+  Pixels: Commons is asked for 3840 px (its largest standard width; at the old 1600 a 4861 px original arrived 1920
+  wide, no room for a push), so a full-bleed 1080p picture can push to ~2x. A generated plate is whatever Codex
+  returns (~1672 x 941, whatever size was asked): imagegen records the real pixels and says when a plate is narrower
+  than the frame — frame it smaller or move it less. Licence: the record keeps the licence URL and Commons'
+  `Restrictions` (personality rights, trademarks: printed as a NOTE, not cleared by the licence); a NASA item whose
+  description credits someone else (ESO, a photographer) is refused, since only NASA's own media are public domain.
 
 ## Writing (step 3)
 - `agents/scriptwriter.md` can draft the narration from the plan; one round of `agents/critic-narrative.md` on the draft
