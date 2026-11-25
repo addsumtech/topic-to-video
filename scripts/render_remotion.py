@@ -13,6 +13,7 @@ Requires the Node toolchain + `cd remotion && npm install` once (doctor.py repor
 """
 import argparse, json, os, shutil, subprocess
 import re
+import _common
 import storyboard as sb
 
 _REMOTION2_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remotion")
@@ -1283,7 +1284,9 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
     out_mp4 = os.path.abspath(os.path.join(out_dir, out_name))
     import remotion_segments as _rs
     gl = _rs.default_gl()
-    run_flags = ["--gl=" + gl, "--log=" + log,
+    # --color-space=bt709: Remotion converts (since 4.0.83) and tags limited-range BT.709; its default left the films
+    # yuvj420p / pc / bt470bg, green dE 11.8 off in a player that assumes BT.709 for HD (_common.BT709_VF)
+    run_flags = ["--gl=" + gl, "--log=" + log, "--color-space=bt709",
                  "--timeout=" + str(int(os.environ.get("REMOTION_TIMEOUT_MS", "120000") or "120000"))]
     # CONCURRENCY. Remotion opens one browser tab per worker and EACH loads the film's fonts; on a loaded
     # machine a starved tab can blow past its delayRender and kill a long render outright. REMOTION_CONCURRENCY
@@ -1348,6 +1351,8 @@ def _render_remotion(out_dir, data, sample=None, log="error", reduced_motion=Fal
         except Exception as e:                       # noqa: BLE001 - said; the film is rendered, only its keys are not
             print("[render_remotion] NOTE: the per-beat keys of this whole render were not recorded (%s: %s) — "
                   "picture gates will report it as of unknown currency" % (type(e).__name__, e))
+    if os.path.isfile(out_mp4):
+        _common.tag_bt709(out_mp4)                     # primaries + transfer too (Remotion writes range + matrix)
     if sample is None:
         _rs.write_record(out_dir, record)
         if record.get("gl_fallback_from"):

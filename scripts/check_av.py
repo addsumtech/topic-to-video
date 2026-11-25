@@ -122,6 +122,27 @@ def delivery_audio(mp4):
     return rate, integ, tp
 
 
+def colour_tags(mp4):
+    """(color_range, color_space, color_primaries, color_transfer) of the video stream, as ffprobe reads them."""
+    out = _ffprobe(["-select_streams", "v:0", "-show_entries", "stream=color_range,color_space,color_primaries,color_transfer",
+                    "-of", "default=nw=1", mp4])
+    d = dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
+    return tuple(d.get(k, "unknown") for k in ("color_range", "color_space", "color_primaries", "color_transfer"))
+
+
+def colour_issue(mp4):
+    """None when the delivered video is limited-range BT.709 tagged all four ways (_common.BT709_TAGS), else why not.
+    WHY: untagged full-range BT.601 (what -pix_fmt yuv420p left from Chrome's JPEGs) shows green dE 11.8 off in a
+    player or platform that assumes BT.709 for HD."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import _common
+    got = colour_tags(mp4)
+    if got == _common.BT709_TAGS:
+        return None
+    return ("%s is %s (range, matrix, primaries, transfer), not limited-range BT.709 tagged: a player that assumes "
+            "BT.709 for HD shifts its colours (re-encode through _common.BT709_VF)" % (os.path.basename(mp4), "/".join(got)))
+
+
 def check(out_dir):
     v, a = probe_durations(os.path.join(out_dir, "out.mp4"))
     rates, unreadable, clips_present = clip_probe(os.path.join(out_dir, ".clips"))
@@ -144,6 +165,11 @@ def check(out_dir):
               "rates": sorted(set(rates)), "cues": n_cues, "scenes": n_scenes})
     # THE DELIVERED AUDIO ITSELF: its rate is a format defect (refused), its loudness a convention (warned)
     mp4 = os.path.join(out_dir, "out.mp4")
+    if os.path.exists(mp4) and v > 0:
+        why = colour_issue(mp4)
+        if why:
+            r["issues"].append(why)
+            r["ok"] = False
     if os.path.exists(mp4) and a > 0:
         rate, integ, tp = delivery_audio(mp4)
         r.update({"delivery_rate": rate, "integrated_lufs": integ, "true_peak_dbtp": tp})
@@ -167,6 +193,13 @@ def check(out_dir):
     return r
 
 def main():
+    if sys.argv[1:2] == ["--colour"]:            # film_qc "colour": a director film's final.mp4
+        if len(sys.argv) != 3 or not os.path.isfile(sys.argv[2]):
+            print("usage: check_av.py --colour <video.mp4>", file=sys.stderr)
+            sys.exit(2)
+        why = colour_issue(sys.argv[2])
+        print("[colour] RED  " + why if why else "[colour] OK  limited-range BT.709, tagged")
+        sys.exit(1 if why else 0)
     out_dir = sys.argv[1] if len(sys.argv) > 1 else "."
     r = check(out_dir)
     state = "OK" if r["ok"] else "FAIL"

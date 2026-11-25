@@ -762,3 +762,37 @@ def watched_run(cmd, idle_s=None, retries=1, fatal=None, cap_s=None, **kw):
     if check and rc:
         raise subprocess.CalledProcessError(rc, cmd, out, err)
     return subprocess.CompletedProcess(cmd, rc, out, err)
+
+
+# EVERY DELIVERED VIDEO: limited-range BT.709, CONVERTED (not relabelled) and tagged all four ways. Chrome's JPEG frames
+# are full-range BT.601 and `-pix_fmt yuv420p` passes that through: the films shipped yuvj420p / pc / bt470bg with no
+# primaries or transfer — right in a player that honours the tags, but a player or platform that assumes BT.709 for
+# HD (YouTube documents it does for untagged video) shifted green by dE 11.8 and red by 7 (bench 2026-11-25,
+# film_work/ffmpeg_bench). Converted and tagged: dE 0.7 either way. ffmpeg 8 silently drops output-side
+# -color_primaries / -color_trc, so the tags are written by setparams inside the filtergraph.
+BT709_VF = ("format=gbrp,scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,"
+            "setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv")
+BT709_TAGS = ("tv", "bt709", "bt709", "bt709")   # color_range, color_space, color_primaries, color_transfer
+
+
+def tag_bt709(path):
+    """Complete the colour tags of an H.264 file that is ALREADY limited-range BT.709 in its pixels (Remotion's
+    --color-space=bt709 converts and tags range + matrix, leaves primaries and transfer unknown): rewrites the SPS
+    in place, no re-encode. Refuses a file whose pixels are not BT.709 limited — relabelling is not converting."""
+    import json as _json
+    import subprocess as _sp
+    probe = _sp.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                     "stream=codec_name,color_range,color_space", "-of", "json", path], capture_output=True, text=True)
+    st = (_json.loads(probe.stdout or "{}").get("streams") or [{}])[0]
+    if st.get("codec_name") != "h264" or st.get("color_range") != "tv" or st.get("color_space") != "bt709":
+        raise RuntimeError("tag_bt709: %s is %s / %s / %s — only an h264 file already converted to limited-range BT.709 "
+                           "is tagged here" % (path, st.get("codec_name"), st.get("color_range"), st.get("color_space")))
+    tmp = os.path.join(os.path.dirname(os.path.abspath(path)), ".tagging." + os.path.basename(path))
+    try:
+        _sp.run(["ffmpeg", "-v", "error", "-y", "-i", path, "-map", "0", "-c", "copy", "-bsf:v",
+                 "h264_metadata=video_full_range_flag=0:colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1",
+                 "-movflags", "+faststart", tmp], check=True)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)

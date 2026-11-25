@@ -1918,7 +1918,9 @@ def _limited_range(parts, vlabel):
     while programmatic and image clips are limited; the `-c copy` concat carries the FIRST clip's tag, so after an html
     opener every later scene decoded in the wrong range. Measured on a delivered html -> keypoints -> image-slide film:
     the keypoints ground 18 levels off its --bg (224,221,214 for 242,239,232) and a flat (200,60,40) slide 10 off."""
-    parts.append(f"[{vlabel}]scale=out_range=tv,format=yuv420p[vrange]")
+    # converted to BT.709 and tagged too (_common.BT709_VF): the range alone left the bt470bg matrix, dE ~10 in a player
+    # that assumes BT.709 for HD
+    parts.append(f"[{vlabel}]{_common.BT709_VF}[vrange]")
     return "vrange"
 
 

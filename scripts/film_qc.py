@@ -72,6 +72,7 @@ def checks(d, video, plan, span=None, page_dir=None):
         ("empty", [py, os.path.join(HERE, "empty_frame_qa.py"), video]),
         ("shake", [py, os.path.join(HERE, "shake_qa.py"), video]),
         ("captions", [py, os.path.join(HERE, "caption_size_qa.py"), video]),
+        ("colour", [py, os.path.join(HERE, "check_av.py"), "--colour", video]),
     ]
     page = os.path.isfile(os.path.join(page_dir, "film.html"))
     out = list(base)

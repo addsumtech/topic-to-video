@@ -33,7 +33,7 @@ rawvideo:
 python … | ffmpeg -y \
   -f rawvideo -pix_fmt rgb24 -s 1920x1080 -framerate 30 -i pipe:0 \
   -i audio/01.mp3 [-i co_01.png -i cap_01_00.png …] \
-  -filter_complex "[0:v]null[v0];[v0][2:v]overlay=0:0[v2];…;[vN]scale=out_range=tv,format=yuv420p[vrange]" \
+  -filter_complex "[0:v]null[v0];[v0][2:v]overlay=0:0[v2];…;[vN]<_common.BT709_VF>[vrange]" \
   -map "[vrange]" -map 1:a -t 10.0 -r 30 -pix_fmt yuv420p \
   -c:v libx264 -crf 18 -tune grain -x264-params chroma-qp-offset=2 \
   -c:a aac -ar 48000 -ac 1 -shortest clip_01.mp4
@@ -160,3 +160,19 @@ Play a clip:
 ```bash
 ffplay clip_01.mp4
 ```
+
+
+## Colour: every delivered video is limited-range BT.709, converted and tagged
+
+`_common.BT709_VF` (`format=gbrp,scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,
+format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv`) ends every delivery
+encode (film_deliver master and share, classic clips, the animatic); Remotion renders with `--color-space=bt709` and
+`_common.tag_bt709` completes its primaries/transfer without re-encoding. `check_av.py --colour <video>` (film_qc
+`colour`; check_av on `out.mp4`) refuses anything else.
+WHY (bench 2026-11-25, film_work/ffmpeg_bench): Chrome's JPEG frames are full-range BT.601 and `-pix_fmt yuv420p`
+passed that through — every film shipped `yuvj420p, pc, bt470bg`, primaries and transfer unknown. Right in a player
+that honours the tags (dE 0.7), but YouTube documents assuming BT.709 for untagged HD: green came out dE 11.8 off,
+red ~7. Converted and tagged: dE 0.7 either way. Pitfalls: ffmpeg 8 silently drops output-side `-color_primaries` /
+`-color_trc` (write them with `setparams` or `-x264-params`); `-colorspace` etc. only RELABEL — the matrix and range
+must be converted by `scale`; limited range cost nothing measurable in banding (CAMBI 21.9 -> 20.6 undithered,
+11.2 -> 12.5 dithered).

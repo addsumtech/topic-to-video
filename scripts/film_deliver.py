@@ -59,8 +59,7 @@ def encode(d, frames, audio, video, grain, start=0, count=None):
         cmd += ["-frames:v", str(count)]
     if audio:
         cmd += ["-i", audio]
-    if grain > 0:
-        cmd += ["-vf", "noise=c0s=%d:c0f=t+u" % grain]
+    cmd += ["-vf", _c.BT709_VF + (",noise=c0s=%d:c0f=t+u" % grain if grain > 0 else "")]
     cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "17", "-x264-params", "aq-mode=3", "-pix_fmt", "yuv420p"]
     if audio:
         cmd += ["-c:a", "aac", "-b:a", "192k", "-shortest"]
@@ -133,7 +132,7 @@ def share(video, cap_mb=SHARE_CAP_MB):
         return out
     tmp = os.path.join(os.path.dirname(out), ".encoding." + os.path.basename(out))
     base = ["ffmpeg", "-v", "error", "-y", "-i", video, "-c:v", "libx264", "-preset", "medium", "-pix_fmt", "yuv420p",
-            "-profile:v", "high", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"]
+            "-profile:v", "high", "-vf", _c.BT709_VF, "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"]
     try:
         subprocess.run(base[:8] + ["-crf", str(SHARE_CRF)] + base[8:] + [tmp], check=True)
         if os.path.getsize(tmp) > cap_mb * 1e6:

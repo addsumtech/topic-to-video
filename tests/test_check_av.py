@@ -33,13 +33,13 @@ def test_check_integration_aligned_then_drift(tmp_path):
     out = str(tmp_path)
     aligned = os.path.join(out, "out.mp4")
     subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=duration=3:size=320x240:rate=30",
-                    "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac",
+                    "-f", "lavfi", "-i", "sine=duration=3", "-vf", _common.BT709_VF, "-c:v", "libx264", "-c:a", "aac",
                     "-shortest", aligned], capture_output=True)
     r = check_av.check(out)
     assert r["ok"] is True and r["drift"] < 0.3
     # now a mismatched render: 5s video, 3s audio (no -shortest)
     subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=duration=5:size=320x240:rate=30",
-                    "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac",
+                    "-f", "lavfi", "-i", "sine=duration=3", "-vf", _common.BT709_VF, "-c:v", "libx264", "-c:a", "aac",
                     aligned], capture_output=True)
     r2 = check_av.check(out)
     assert r2["ok"] is False and r2["drift"] > 1.5
@@ -52,10 +52,10 @@ def test_check_av_main_exit_code(tmp_path):
     script = check_av.__file__
     out = str(tmp_path)
     subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=duration=3:size=320x240:rate=30",
-                    "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac",
+                    "-f", "lavfi", "-i", "sine=duration=3", "-vf", _common.BT709_VF, "-c:v", "libx264", "-c:a", "aac",
                     "-shortest", os.path.join(out, "out.mp4")], capture_output=True)
     assert subprocess.run([sys.executable, script, out], capture_output=True).returncode == 0
     subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=duration=5:size=320x240:rate=30",
-                    "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac",
+                    "-f", "lavfi", "-i", "sine=duration=3", "-vf", _common.BT709_VF, "-c:v", "libx264", "-c:a", "aac",
                     os.path.join(out, "out.mp4")], capture_output=True)
     assert subprocess.run([sys.executable, script, out], capture_output=True).returncode == 1

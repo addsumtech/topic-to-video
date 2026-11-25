@@ -15,7 +15,7 @@ are kept in <out>/_probe/. It catches what alternating render pages turn into fl
 font loaded (a fallback in one page, the real font in another), Math.random, timers, a texture still loading.
 `--probe 0` skips it (a draft render).
 
-Encode afterwards:  ffmpeg -framerate 30 -i <out>/f_%05d.jpg -i audio/mix.wav -c:v libx264 -crf 17 -pix_fmt yuv420p ...
+Encode afterwards with scripts/film_deliver.py (it converts to limited-range BT.709 and tags it: _common.BT709_VF).
 Exit 0 rendered (and probe clean), 1 the probe found a page-dependent frame, 2 usage error or the page failed to load.
 """
 import os

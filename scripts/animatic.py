@@ -242,7 +242,7 @@ def main(argv):
         cmd = ["ffmpeg", "-v", "error", "-y", "-framerate", str(fps), "-i", os.path.join(td, "f_%05d.jpg")]
         if voice:
             cmd += ["-i", voice, "-shortest"]
-        cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "23", "-movflags", "+faststart", out]
+        cmd += ["-vf", _c.BT709_VF, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "23", "-movflags", "+faststart", out]
         subprocess.run(cmd, check=True)
     missing = [s["id"] for s in shots if not bd[s["id"]] and not steps.get(s["id"])]
     print("[animatic] %s  %.1f s, %d shots (%d with a board, %d BOARD MISSING%s)%s" % (
