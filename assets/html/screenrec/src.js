@@ -10,14 +10,19 @@
 //   CAMERA a close-up that follows the action: remotion/src/runtime/focusTrack.ts (the Remotion tier's tuned track:
 //          eased between keys, at a fixed magnification, refused when it would whip), never past the recording's
 //          own pixels;
-//   RINGS  a ring where each anchored click lands, so the eye finds it.
+//   RINGS  a ring where each anchored click lands, so the eye finds it;
+//   KEYS   a keycap for a held modifier or a pressed key (E.keys(t)), which a screen recording cannot show;
+//   CURSOR the pointer's place at any moment (E.cursor(t), from rec.path), for a halo the eye can follow.
 // The cursor is the recording's own (app_record moves the real one at a human pace); nothing is drawn in its place.
 import {checkFocusTrack, focusAt} from '../../../remotion/src/runtime/focusTrack.ts';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smoothstep = (u) => { const x = clamp(u, 0, 1); return x * x * (3 - 2 * x); };
 const SETTLE = 1.0;    // seconds an action's result plays at real speed before a hold
-const LEAD = 0.1;      // the recording a hold leaves before the next anchored action (its own approach)
+const LEAD = 0.35;     // the recording a hold leaves before the next anchored action: its approach, and room for the
+                       // log running behind the picture (a Return logged 0.13 s after it showed: with 0.1 s the hold
+                       // froze the table edited and the chart not yet, the Numbers film, 2026-11-25)
+const KEYCAP_HOLD = 0.9;   // seconds a keycap stays after its key
 
 /**
  * rec: the parsed rec.json. opts:
@@ -105,8 +110,51 @@ export function edit(rec, opts) {
   track.forEach((k, i) => { if (i && k.t <= track[i - 1].t) k.t = track[i - 1].t + 1e-3; });
   if (track.length && zMax > 1) checkFocusTrack(track, {w: 1 / zMax}, fps);
 
+  /** The first film second at which the recording reaches recording second r (recAt is monotonic). */
+  const filmTime = (r) => {
+    let lo = start - 30, hi = end;
+    if (recAt(hi) < r) return null;
+    for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (recAt(m) >= r) hi = m; else lo = m; }
+    return hi;
+  };
+
+  // the cursor between logged points: rec.path [{t0, t1, x0, y0, x1, y1}] (recording s, px), eased as app_drive glides
+  const path = Array.isArray(rec.path) ? rec.path : [];
+  const easeIO = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+  const cursorAt = (r) => {
+    let last = null;
+    for (const s of path) {
+      if (r < s.t0) break;
+      if (r <= s.t1) { const u = easeIO((r - s.t0) / Math.max(1e-6, s.t1 - s.t0)); return [s.x0 + (s.x1 - s.x0) * u, s.y0 + (s.y1 - s.y0) * u]; }
+      last = [s.x1, s.y1];
+    }
+    return last;
+  };
+
+  // keycaps: a held modifier on a click, a pressed key — what a viewer cannot see on a screen recording
+  const KEYNAME = {shift: '⇧ Shift', cmd: '⌘', alt: '⌥', option: '⌥', ctrl: '⌃', return: 'Return ↩', enter: 'Enter ↩',
+    escape: 'Esc', tab: 'Tab ⇥', delete: 'Delete ⌫', space: 'Space'};
+  const capLabel = (a) => {
+    const name = (k) => KEYNAME[k] || k.toUpperCase();
+    if (a.kind === 'key') {
+      const combo = String(a.key || a.label || '').toLowerCase();       // rec.json "key"; an old log has only its label
+      return /^[a-z0-9+]+$/.test(combo) ? combo.split('+').map(name).join(' ') : null;
+    }
+    if (a.mods) return a.mods.split('+').map(name).join(' ') + ' + click';
+    return null;
+  };
+  const caps = rec.actions.map((a) => ({a, label: capLabel(a)})).filter((c) => c.label)
+    .map((c) => ({...c, at: filmTime(c.a.t)})).filter((c) => c.at != null);
+
   return {
-    box: B, recAt,
+    box: B, recAt, filmTime,
+    /** The cursor's place (recording px) at film second t, from rec.path; null without a path. */
+    cursor(t) { return cursorAt(recAt(t)); },
+    /** Keycaps up at film second t: [{label, x, y (recording px, or null for a key), p (0..1 through its hold)}]. */
+    keys(t) {
+      return caps.map((c) => ({label: c.label, x: c.a.x, y: c.a.y, p: (t - c.at + 0.25) / (KEYCAP_HOLD + 0.25)}))
+        .filter((k) => k.p >= 0 && k.p <= 1);
+    },
     at(t) {
       const r = recAt(t);
       const frame = clamp(Math.round(r * fps) + 1, 1, rec.n);

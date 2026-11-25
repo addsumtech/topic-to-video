@@ -311,6 +311,22 @@ Check the click rings against the frames once (the log is aligned to the video b
    film>` puts a click on every click and a key on every keystroke at the second the edit plays it, then
    `sfx.py --cues audio/cues.json --seconds <duration> --out audio/sfx.wav` and `mix.py --voice … --sfx …`.
 
+Set the take up so the film can teach from it (a fresh review of the first Numbers cut, 2026-11-25, found each of
+these missing):
+- A window tall enough that nothing the steps create makes the app scroll by itself (a chart inserted under a table
+  scrolled the sheet; its sticky header then hid a row for half the film, and later points in window coordinates
+  missed). Start the sheet at its top.
+- Start from the state the viewer is in: a sidebar or panel the film teaches opening starts closed (Format), and every
+  control the voice names is clicked on screen, never already open or already selected (a click on the active 2D tab
+  showed nothing).
+- Type what the viewer must read slowly (`"cps": 4` for a value) and wait about 0.6 s after a double-click before
+  typing and before a Return, so the ring, the keycap and the result each have their moment.
+- End on a clean state: deselect, so the last frames (and an end card made from them) show the result, not a
+  stray selection and a parked cursor.
+- Say every step the picture shows (a drag of the new chart played in silence and read as a mistake).
+- Show what a recording cannot: `E.keys(t)` keycaps (a held Shift, Return) and a halo on `E.cursor(t)` (the real
+  pointer is small at film scale); a tutorial ends on a card with the result and its numbered, labelled steps.
+
 What the first real tutorial (Numbers 14.5, 2026-11-25) taught:
 - Rehearse first, in the real app, step by step with a capture after each (`screencapture -l<window id>` sees a window
   on another Space without switching to it); then reset the document by script and record the whole take.

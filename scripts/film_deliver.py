@@ -16,7 +16,8 @@ Always:    `<video stem>.share.mp4`, the film small enough to send or host (CRF 
 Always:    `final.srt` beside the video, from timeline.json (each line chunked by the classic renderer's caption rule,
            every chunk starting on its first word); `out.cover.png`, the film's cover — the final film's first hero shot at its
            settled moment, drawn by film.html with its captions hidden (`data-caption`); then
-           scripts/deliver.py copies the film, its .srt and the cover to the Desktop (never overwriting).
+           scripts/deliver.py copies the film, its .srt and the cover to the Desktop (a re-delivery takes the clean
+           name and moves the film's own earlier copy into work/superseded; a file the user made is never touched).
 Exit 0 done, 1 a step failed (named), 2 usage error / missing inputs.
 """
 import glob

@@ -74,11 +74,23 @@ def test_the_skill_folder_and_dot_claude_are_never_destinations(tmp_path):
 
 
 def test_a_second_delivery_never_overwrites_the_first(tmp_path):
+    """A re-delivery takes the clean name and MOVES the film's own earlier copy into work/superseded (kept), so the
+    Desktop does not fill with "City (2)", "City (3)"…; a file there that the film did not put (or that changed since)
+    is never touched."""
     out = _film(tmp_path, title="City")
     home = _home(tmp_path)
     first = dv.deliver(out, home=home)[0]
+    old = open(first, "rb").read()
+    open(os.path.join(out, "out.mp4"), "ab").write(b"re-encoded")
     second = dv.deliver(out, home=home)[0]
-    assert first != second and second.endswith("City (2).mp4") and os.path.isfile(first)
+    assert second == first and open(second, "rb").read().endswith(b"re-encoded")
+    kept = os.path.join(out, "work", "superseded", "City.mp4")
+    assert open(kept, "rb").read() == old
+    assert not [n for n in os.listdir(os.path.join(home, "Desktop")) if "(2)" in n]
+    # the user's own edit of the delivered file is theirs: the next delivery goes beside it
+    open(second, "ab").write(b"user note")
+    third = dv.deliver(out, home=home)[0]
+    assert third.endswith("City (2).mp4") and open(second, "rb").read().endswith(b"user note")
 
 
 def test_the_out_dir_name_is_used_without_a_title_and_a_missing_video_is_refused(tmp_path):

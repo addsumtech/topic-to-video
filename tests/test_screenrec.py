@@ -117,10 +117,10 @@ def test_each_action_lands_on_its_word_with_holds_between(tmp_path):
     _film(tmp_path, """const E = ScreenRec.edit(REC, {base: 'clips/rec/frames/', box: {x: 100, y: 100, w: 600},
   start: 0, end: 9, anchors: [{action: 0, at: 2.0}, {action: 1, at: 5.0}, {action: 2, at: 6.0}]});
 document.title = JSON.stringify([1.5, 2.0, 2.5, 3.5, 4.9, 5.0, 5.5, 6.0, 8.9].map((t) => +E.recAt(t).toFixed(3)));""")
-    # 1.5 s before the first click: 1 s of it, held at the start before that; then the result plays (2.0-2.9 ->
-    # 0.5-1.4) and holds 0.1 s of recording BEFORE the next click (the click itself plays on its word, 5.0), never on
-    # it; past the last action it plays on and holds on the last frame
-    assert _title(tmp_path) == [0.0, 0.5, 1.0, 1.4, 1.4, 1.5, 2.0, 2.5, 2.967]
+    # 1.5 s before the first click: 1 s of it, held at the start before that; then the result plays (2.0-2.65 ->
+    # 0.5-1.15) and holds 0.35 s of recording BEFORE the next click, whose approach then plays into it on its word
+    # (5.0), never on it; past the last action it plays on and holds on the last frame
+    assert _title(tmp_path) == [0.0, 0.5, 1.0, 1.15, 1.4, 1.5, 2.0, 2.5, 2.967]
 
 
 @needs_chrome
@@ -193,6 +193,28 @@ def test_a_drag_plays_through_before_the_hold(tmp_path):
     _film(tmp_path, """const E = ScreenRec.edit(REC, {base: 'clips/rec/frames/', box: {x: 0, y: 0, w: 600},
   start: 0, end: 9, anchors: [{action: 0, at: 1.0}, {action: 1, at: 6.0}]});
 document.title = JSON.stringify([2.0, 2.5, 2.8, 4.0, 5.5].map((t) => +E.recAt(t).toFixed(3)));""", acts)
-    # 1.0 -> 0.5: real speed through the drag's end (+0.3 s), so 1.8 s of recording by film 2.8; held, then the last
-    # 0.3 s of recording runs into the click at 6.0
-    assert _title(tmp_path) == [1.5, 2.0, 2.3, 2.3, 2.3]
+    # 1.0 -> 0.5: real speed through the drag's end (2.0), held 0.35 s of recording before the click (2.25), whose
+    # approach runs into it at 6.0
+    assert _title(tmp_path) == [1.5, 2.0, 2.25, 2.25, 2.25]
+
+
+@needs_chrome
+def test_keycaps_cursor_and_film_time(tmp_path):
+    """What a screen recording cannot show: the held Shift on a click and the Return key get keycaps on the film
+    seconds they play; the pointer's place comes from the logged glides (a halo can follow it)."""
+    acts = [{"i": 0, "kind": "click", "label": "A1", "t": 0.5, "t_end": 0.5, "x": 100, "y": 100},
+            {"i": 1, "kind": "click", "label": "C7", "t": 1.5, "t_end": 1.5, "x": 700, "y": 400, "mods": "shift"},
+            {"i": 2, "kind": "key", "label": "Return", "key": "return", "t": 2.5, "t_end": 2.5, "x": None, "y": None}]
+    rec_path = [{"t0": 0.0, "t1": 0.5, "x0": 0, "y0": 0, "x1": 100, "y1": 100},
+                {"t0": 1.0, "t1": 1.5, "x0": 100, "y0": 100, "x1": 700, "y1": 400}]
+    _film(tmp_path, """REC.path = %s;
+const E = ScreenRec.edit(REC, {base: 'clips/rec/frames/', box: {x: 0, y: 0, w: 600}, start: 0, end: 9,
+  anchors: [{action: 0, at: 1.0}, {action: 1, at: 3.0}, {action: 2, at: 5.0}]});
+const k = (t) => E.keys(t).map((c) => c.label);
+document.title = JSON.stringify({shift: k(3.1), ret: k(5.2), none: k(4.2), film: +E.filmTime(1.5).toFixed(2),
+  cur0: E.cursor(1.0), curMid: E.cursor(2.85).map(Math.round), curEnd: E.cursor(3.5)});""" % json.dumps(rec_path), acts)
+    got = _title(tmp_path)
+    assert got["shift"] == ["⇧ Shift + click"] and got["ret"] == ["Return ↩"] and got["none"] == [], got
+    assert abs(got["film"] - 3.0) < 0.02, got
+    assert got["cur0"] == [100, 100] and got["curEnd"] == [700, 400], got
+    assert 100 < got["curMid"][0] < 700, got          # mid-glide toward C7, eased

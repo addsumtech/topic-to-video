@@ -28,6 +28,8 @@ crossed the next title and opened THAT menu); an item its menu does not show is 
 With a menu step the window is placed under the menu bar at the screen's left and the recording grows to the screen's
 top, so the menus are in the picture; action places are then in that region, not the window.
 
+The cursor's every glide is logged too (rec.json "path"), so the edit can follow the pointer (a halo, E.cursor(t)).
+
 OUTPUT <film_dir>/clips/<name>/: rec.mp4 (H.264, the window — or the region above — at its own pixels), frames/00001.jpg… (30 fps, for the
 page: assets/html/screenrec.js) and rec.json — {fps, n, width, height (px), scale (px per point), window, app,
 actions: [{i, kind, label, t, t_end, x, y, text (typed), clicks}] (seconds into rec.mp4, recording px), sync: {offset, confidence: the
@@ -127,16 +129,21 @@ def align_offset(energy, fps, times, window=0.2, search=2.0):
     return best, float(agree)
 
 
-def record_json(app, window, scale, size, n, actions, offset, confidence):
+def record_json(app, window, scale, size, n, actions, offset, confidence, path=()):
     acts = []
     for i, a in enumerate(actions):
         acts.append({"i": i, "kind": a["kind"], "label": a.get("label", ""),
                      "t": round(a["t"] + offset, 3), "t_end": round(a["t_end"] + offset, 3),
                      "x": None if a.get("x") is None else round(a["x"] * scale, 1),
                      "y": None if a.get("y") is None else round(a["y"] * scale, 1)})
-        acts[-1].update({k: a[k] for k in ("text", "clicks") if k in a})   # what a sound track needs (screenrec_cues)
-    return {"fps": FPS, "n": n, "width": size[0], "height": size[1], "scale": round(scale, 4), "window": window,
-            "app": app, "actions": acts, "sync": {"offset": round(offset, 3), "confidence": round(confidence, 2)}}
+        acts[-1].update({k: a[k] for k in ("text", "clicks", "mods", "key") if k in a})   # sound, keycaps
+    out = {"fps": FPS, "n": n, "width": size[0], "height": size[1], "scale": round(scale, 4), "window": window,
+           "app": app, "actions": acts, "sync": {"offset": round(offset, 3), "confidence": round(confidence, 2)}}
+    if path:        # (t0, t1, x0, y0, x1, y1) in region points -> recording seconds and px
+        out["path"] = [{"t0": round(p[0] + offset, 3), "t1": round(p[1] + offset, 3),
+                        "x0": round(p[2] * scale, 1), "y0": round(p[3] * scale, 1),
+                        "x1": round(p[4] * scale, 1), "y1": round(p[5] * scale, 1)} for p in path]
+    return out
 
 
 # ── the machine ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -255,10 +262,23 @@ def run(film_dir, spec, name="rec"):
     clock = lambda: time.monotonic() - t0   # noqa: E731
     time.sleep(spec.get("lead", 1.0))
 
+    path, cur = [], None          # the cursor's glides (global points), for a halo that follows it (screenrec.js)
+
     def drive(*args):
+        nonlocal cur
+        ts = clock()
+        if cur is None and args[0] != "pos":
+            cur = [float(v) for v in drive("pos")]
         r = subprocess.run([drv] + [str(a) for a in args], capture_output=True, text=True)
         if r.returncode != 0 or not r.stdout.startswith("ok"):
             raise RecordError("the cursor driver failed on %s: %s" % (args, (r.stderr or r.stdout).strip()))
+        if args[0] in ("move", "click"):
+            path.append((ts, ts + float(args[3]) / 1000.0, cur[0], cur[1], float(args[1]), float(args[2])))
+        elif args[0] == "drag":       # app_drive: 500 ms to the start, press, 120 ms, then the drag itself
+            x1, y1, x2, y2, ms = (float(v) for v in args[1:6])
+            path.append((ts, ts + 0.5, cur[0], cur[1], x1, y1))
+            path.append((ts + 0.62, ts + 0.62 + ms / 1000.0, x1, y1, x2, y2))
+        cur = [float(v) for v in r.stdout.split()[1:3]]
         return r.stdout.split()[1:]
 
     def at(p):
@@ -278,7 +298,7 @@ def run(film_dir, spec, name="rec"):
             if abs(int(got[0]) - round(gx)) > 2 or abs(int(got[1]) - round(gy)) > 2:
                 raise RecordError("the cursor did not arrive (Accessibility off for this terminal?)")
             acts.append({"kind": "click" if "click" in s else "move", "label": label, "t": clock(), "t_end": clock(),
-                         "clicks": s.get("clicks", 1),
+                         "clicks": s.get("clicks", 1), **({"mods": s["mods"]} if s.get("mods") else {}),
                          "x": gx - reg[0], "y": gy - reg[1]})
         elif "click_text" in s:
             import screen_text
@@ -317,15 +337,17 @@ def run(film_dir, spec, name="rec"):
             acts.append({"kind": "scroll", "label": label, "t": a0, "t_end": clock(), "x": None, "y": None})
         elif "key" in s:
             drive("key", s["key"])
-            acts.append({"kind": "key", "label": label or s["key"], "t": clock(), "t_end": clock(), "x": None, "y": None})
+            acts.append({"kind": "key", "label": label or s["key"], "key": s["key"], "t": clock(), "t_end": clock(),
+                         "x": None, "y": None})
     end = clock() + spec.get("tail", 1.5)
     cap.wait()
     if not os.path.isfile(mov) or os.path.getsize(mov) == 0:
         raise RecordError("screencapture wrote no video: %s" % cap.stderr.read().decode(errors="replace")[-300:])
-    return _finish(out, mov, app, reg, acts, end)
+    rel = [(a, b, x0 - reg[0], y0 - reg[1], x1 - reg[0], y1 - reg[1]) for a, b, x0, y0, x1, y1 in path]
+    return _finish(out, mov, app, reg, acts, end, rel)
 
 
-def _finish(out, mov, app, win, acts, end):
+def _finish(out, mov, app, win, acts, end, path=()):
     import numpy as np
     mp4 = os.path.join(out, "rec.mp4")
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mov, "-t", "%.3f" % end, "-r", str(FPS), "-c:v", "libx264",
@@ -348,7 +370,7 @@ def _finish(out, mov, app, win, acts, end):
     if conf < 0.6:
         print("[app_record] WARN only %d%% of the actions line up with the video's own changes; check the click "
               "rings against the frames before building on them" % round(conf * 100), file=sys.stderr)
-    rec = record_json(app, win, w / float(win[2]), (w, h), n, acts, off, conf)
+    rec = record_json(app, win, w / float(win[2]), (w, h), n, acts, off, conf, path)
     with open(os.path.join(out, "rec.json"), "w", encoding="utf-8") as fh:
         json.dump(rec, fh, indent=1)
     return rec

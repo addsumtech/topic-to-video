@@ -93,6 +93,28 @@ def _free(path):
     return path
 
 
+def _sha(path):
+    import hashlib
+    h = hashlib.sha1()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _target(path, owned, out_dir):
+    """Where a delivered file goes: its own name. When the file there is still exactly what THIS film delivered last
+    time, that earlier copy is MOVED into the film's work/superseded/ (kept, never deleted) and the new one takes the
+    name; a file the user made or changed is never touched (the next free name instead). Each re-encode of the
+    Numbers film had left "numbers_chart (2)…(5)" on the Desktop (2026-11-25)."""
+    if os.path.exists(path) and owned.get(path) == _sha(path):
+        keep = os.path.join(out_dir, "work", "superseded")
+        os.makedirs(keep, exist_ok=True)
+        shutil.move(path, _free(os.path.join(keep, os.path.basename(path))))
+        return path
+    return _free(path)
+
+
 WHAT = ("out", "sample", "preview")
 
 
@@ -110,27 +132,34 @@ def deliver(out_dir, to=None, home=None, what="out", tag=""):
         raise SystemExit("deliver: %s has no %s.mp4 — %s" % (out_dir, what, hint))
     folder = destination(to, home)
     name = film_name(out_dir) + ("" if what == "out" else " - " + what) + tag
-    video = _free(os.path.join(folder, name + ".mp4"))
+    record = os.path.join(out_dir, ".delivered.json")      # what this film put where, last time: {path: sha1}
+    try:
+        owned = json.load(open(record, encoding="utf-8"))
+    except (OSError, ValueError):
+        owned = {}
+    video = _target(os.path.join(folder, name + ".mp4"), owned, out_dir)
     shutil.copy2(src, video)
     delivered = [video]
     srt = os.path.splitext(src)[0] + ".srt"
     if os.path.isfile(srt):
-        captions = os.path.splitext(video)[0] + ".srt"
+        captions = _target(os.path.splitext(video)[0] + ".srt", owned, out_dir)
         shutil.copy2(srt, captions)
         delivered.append(captions)
     # the film small enough to send or host (film_deliver.share) and the credits its pictures are owed, when it has them
     for ext, label in ((".share.mp4", " - share.mp4"), (".credits.txt", " - credits.txt")):
         extra = os.path.splitext(src)[0] + ext
         if what == "out" and os.path.isfile(extra):
-            copy = _free(os.path.splitext(video)[0] + label)
+            copy = _target(os.path.splitext(video)[0] + label, owned, out_dir)
             shutil.copy2(extra, copy)
             delivered.append(copy)
     # a portrait film's 3:4 feed card (scripts/cover.py), beside the film under the same name
     cover = os.path.join(out_dir, "out.cover.png")
     if what == "out" and os.path.isfile(cover):
-        card = os.path.splitext(video)[0] + " - cover.png"
+        card = _target(os.path.splitext(video)[0] + " - cover.png", owned, out_dir)
         shutil.copy2(cover, card)
         delivered.append(card)
+    owned.update({p: _sha(p) for p in delivered})
+    json.dump(owned, open(record, "w", encoding="utf-8"), indent=0)
     return delivered
 
 

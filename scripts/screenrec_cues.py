@@ -56,7 +56,7 @@ def events(rec, until=None, skip=()):
             for i, ch in enumerate(text):
                 out.append((a["t"] + i * dt, "key", GAIN["space" if ch == " " else "key"], "type %r" % ch))
         elif k == "key":
-            loud = a.get("label", "").lower() in ("return", "enter")
+            loud = (a.get("key") or a.get("label", "")).lower() in ("return", "enter")
             out.append((a["t"] - 0.05, "key", GAIN["enter" if loud else "key"], a.get("label", "")))
     return sorted(out)
 
