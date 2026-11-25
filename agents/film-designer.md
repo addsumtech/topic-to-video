@@ -45,6 +45,9 @@ looking at. Write it at the top of `design/concepts.md` with one line of why.
 - **An invisible mechanism** (a scanner, a lens, a molecule, an algorithm): designed and simulated: an illustrated or
   3D world that shows what no camera can, drawn physically right.
 - **A product**: its own world: its screens, characters and marks acting the work out (section 2, concept A).
+- **How to operate an app** (a tutorial: steps the viewer will repeat): the app's real window, recorded
+  (`scripts/app_record.py`); the design is in the edit — what the camera follows, where it holds, what each click
+  ring marks — and in the frames around it, never in a redrawn UI.
 - **Data, an economy, a comparison**: editorial data graphics in the manner of a good newspaper's visual desk.
 - **A derivation, a proof, a formula worked out**: the maths itself, typeset and moving (`assets/html/math.js`, the
   toolbox's "Maths that moves"): each form carried into the next on the word that names the step, the term that

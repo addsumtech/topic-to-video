@@ -253,7 +253,10 @@ Never enlarge one element's text to make it readable (a WorkBuddy promo, 2026-11
 input box whose placeholder was 34 px read as fake at once: "输入的字体很大"; the shotcraft film beside it kept the real
 screen and moved the camera in, and won); a terminal program
 is CAPTURED (`scripts/term_capture.py`, drawn by `Stage3D.terminal`: an imitated Claude Code read as fake, job-hunt
-2026-11-19); a caret is `Stage3D.caret` (one inside the line box made lines jump at each blink); a row of
+2026-11-19); a desktop app's OPERATING STEPS (a tutorial: the
+clicks, menus and typing a viewer will repeat) are RECORDED from the real app (`scripts/app_record.py` + the page's
+`assets/html/screenrec.js`, toolbox "Operating steps"), never rebuilt, and only then: what a product looks like or
+made stays its screenshots (the user, 2026-11-24); a caret is `Stage3D.caret` (one inside the line box made lines jump at each blink); a row of
 categories, roles or steps carries one icon each, of one family (`references/icons.md`, Lucide); cards are
 `st.card` with the picture's own corners; a mark that frames an object follows its tilt (`st.quad` + `Stage3D.brackets`). All in the toolbox,
 "Devices, app screens, cards, marks". Create stages with `pixelRatio: 2`

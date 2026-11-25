@@ -280,6 +280,30 @@ user: "字体大小的设置和排布就很好…有公司发布的感觉"; 1080
 `python3 scripts/mix.py --music audio/score.wav [--sfx audio/sfx.wav] --out audio/mix.wav` masters it with no voice.
 film_qc skips the voice check on a type clock.
 
+## Operating steps: a real recording (step 6; `scripts/app_record.py`, `assets/html/screenrec.js`)
+Only for a film that TEACHES operating a desktop app (the steps a viewer will repeat). A film that shows a product
+uses its screenshots and captures; a terminal program is `term_capture.py`; a web page in motion is `promo_record.py`.
+1. Write the steps (`steps.json`, format in `app_record.py`'s header): the app, its window size, then `click` (window
+   points) / `click_text` (the words on screen) / `menu` (a path, clicked item by item) / `type` / `key` / `drag` /
+   `wait`, each with an optional `label` (what the narration calls it). Prepare the app's document first (demo
+   content only, declared in `copy_ok.json` as `demo`), and close anything private on screen.
+2. `python3 scripts/app_record.py <film_dir> steps.json --name rec`, outside Claude Code's command sandbox (inside it
+   the app's windows are invisible to Accessibility). It needs macOS Screen Recording and Accessibility for the terminal, and stops with where to turn them on if either is missing (ask the user; never imitate the app
+   instead). The real cursor is moved at a human pace by `app_drive.swift`; the window is recorded at its own pixels
+   into `clips/rec/` (rec.mp4, frames/, rec.json with every action's time and place).
+3. In `film.html`: `<div id="rec"><img><svg></svg></div>` and `<script src="<skill>/assets/html/screenrec.js">`, then
+   ```js
+   const E = ScreenRec.edit(REC /* clips/rec/rec.json */, {base: 'clips/rec/frames/', box: {x, y, w},  // frame px
+     start, end, anchors: [{action: 2, at: Moments.wordTime(timeline, '图表')}, ...],
+     zoom: [{at: 3, z: 1}, {at: 5, z: 1.6}], maxSpeed: 3});
+   // in window.seek(t): return ScreenRec.draw(document.getElementById('rec'), E.at(t), {accent});
+   ```
+   Each anchored action lands on its word: the recording plays its result at real speed, then holds until the voice
+   reaches the next action, or runs up to `maxSpeed` when the voice is quicker (beyond that it is refused, with the
+   time it would need). The close-up follows the anchored actions (the Remotion tier's `focusTrack`, refused when it
+   would whip) and is refused past the recording's own pixels; a ring marks each anchored click.
+Check the click rings against the frames once (the log is aligned to the video by the picture's own changes).
+
 ## Launch and product films (step 6)
 A starting point measured on 20 official launch films (`references/craft-standard.md` "A product film",
 `references/launch-film-study.md`); the WorkBuddy blind rounds (2026-11-16/17) chose the film that followed it:
