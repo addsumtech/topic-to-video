@@ -122,6 +122,7 @@ export function edit(rec, opts) {
   const path = Array.isArray(rec.path) ? rec.path : [];
   const easeIO = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
   const cursorAt = (r) => {
+    if (path.length && r < path[0].t0) return [path[0].x0, path[0].y0];     // where it rests before the first move
     let last = null;
     for (const s of path) {
       if (r < s.t0) break;
@@ -201,3 +202,4 @@ export function draw(el, state, {accent = '#2f80ed', radius = 26} = {}) {
   if (img.getAttribute('src') !== state.src) img.setAttribute('src', state.src);
   return img.decode ? img.decode().catch(() => { throw new Error(`ScreenRec: cannot load ${state.src}`); }) : Promise.resolve();
 }
+

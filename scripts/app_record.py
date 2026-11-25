@@ -11,6 +11,8 @@ steps: the viewer has to see what they will really see.
 
 steps.json:
   {"app": "Numbers", "window": [1440, 900],          # the app's front window is set to this size (points)
+   "capture": "avfoundation",                         # optional: a steady 30 fps (ffmpeg); the default screencapture
+                                                      # writes frames only on redraws (a pointer over a popover froze)
    "lead": 1.0, "tail": 1.5,                          # seconds held before the first and after the last step
    "steps": [{"click": [x, y]},                       # window points from its top-left
              {"click_text": "Chart", "nth": 1},       # the words on screen (OCR of the window, scripts/screen_text)
@@ -256,8 +258,21 @@ def run(film_dir, spec, name="rec"):
     mov = os.path.join(out, "raw.mov")
     est = spec.get("lead", 1.0) + spec.get("tail", 1.5) + 4.0 + sum(
         s.get("wait", 0) + (len(s.get("type", "")) / s.get("cps", 9)) + 1.2 * len(s.get("menu", [None])) for s in spec["steps"])
-    cap = subprocess.Popen(["screencapture", "-v", "-x", "-C", "-V%d" % int(est + 1), "-R%d,%d,%d,%d" % tuple(reg), mov],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    # "capture": "avfoundation" records the whole screen at a steady 30 fps (ffmpeg) and crops the region afterwards.
+    # screencapture writes a frame only when something redraws: while an open popover held the window still, the
+    # recorded pointer froze on the button that opened it and the click on the popover showed with no pointer at it
+    # (the Numbers film, 2026-11-25). Use it for tutorials; screencapture stays the default.
+    steady = spec.get("capture") == "avfoundation"
+    if steady:
+        cap = subprocess.Popen(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "avfoundation",
+                                "-pixel_format", "bgr0", "-framerate", str(FPS), "-capture_cursor", "1",
+                                "-i", "%s:none" % _screen_device(), "-c:v", "libx264", "-preset", "ultrafast",
+                                "-qp", "0", mov], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.PIPE)
+        time.sleep(1.0)                   # the capture session starts; the log is aligned to the picture anyway
+    else:
+        cap = subprocess.Popen(["screencapture", "-v", "-x", "-C", "-V%d" % int(est + 1),
+                                "-R%d,%d,%d,%d" % tuple(reg), mov], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     t0 = time.monotonic()
     clock = lambda: time.monotonic() - t0   # noqa: E731
     time.sleep(spec.get("lead", 1.0))
@@ -340,18 +355,46 @@ def run(film_dir, spec, name="rec"):
             acts.append({"kind": "key", "label": label or s["key"], "key": s["key"], "t": clock(), "t_end": clock(),
                          "x": None, "y": None})
     end = clock() + spec.get("tail", 1.5)
-    cap.wait()
+    crop = None
+    if steady:
+        time.sleep(spec.get("tail", 1.5) + 0.3)
+        cap.communicate(b"q", timeout=60)
+        crop = _region_px(mov, reg)
+    else:
+        cap.wait()
     if not os.path.isfile(mov) or os.path.getsize(mov) == 0:
-        raise RecordError("screencapture wrote no video: %s" % cap.stderr.read().decode(errors="replace")[-300:])
+        raise RecordError("the capture wrote no video: %s" % (cap.stderr.read().decode(errors="replace")[-300:]
+                                                               if cap.stderr and not cap.stderr.closed else ""))
     rel = [(a, b, x0 - reg[0], y0 - reg[1], x1 - reg[0], y1 - reg[1]) for a, b, x0, y0, x1, y1 in path]
-    return _finish(out, mov, app, reg, acts, end, rel)
+    return _finish(out, mov, app, reg, acts, end, rel, crop)
 
 
-def _finish(out, mov, app, win, acts, end, path=()):
+def _screen_device():
+    """ffmpeg's avfoundation index of the main screen ("[N] Capture screen 0")."""
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""],
+                       capture_output=True, text=True)
+    import re
+    m = re.search(r"\[(\d+)\] Capture screen 0", r.stderr)
+    if not m:
+        raise RecordError("ffmpeg's avfoundation lists no screen to capture (is this macOS, with Screen Recording on?)")
+    return m.group(1)
+
+
+def _region_px(mov, reg):
+    """The recorded region in the full-screen video's pixels: its points times the screen's pixels per point."""
+    w = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width",
+                            "-of", "csv=p=0", mov], capture_output=True, text=True).stdout.strip().split(",")[0])
+    pts = float(_osa('tell application "Finder" to get bounds of window of desktop').replace(" ", "").split(",")[2])
+    k = w / pts
+    return [int(round(v * k)) for v in reg]
+
+
+def _finish(out, mov, app, win, acts, end, path=(), crop=None):
     import numpy as np
     mp4 = os.path.join(out, "rec.mp4")
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mov, "-t", "%.3f" % end, "-r", str(FPS), "-c:v", "libx264",
-                    "-crf", "12", "-pix_fmt", "yuv420p", mp4], check=True)
+    vf = ["-vf", "crop=%d:%d:%d:%d" % (crop[2], crop[3], crop[0], crop[1])] if crop else []
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mov, "-t", "%.3f" % end] + vf + ["-r", str(FPS),
+                    "-c:v", "libx264", "-crf", "12", "-pix_fmt", "yuv420p", mp4], check=True)
     os.remove(mov)
     w, h = [int(v) for v in subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
                                              "stream=width,height", "-of", "csv=p=0", mp4], capture_output=True,

@@ -33,7 +33,7 @@ import _common as _c  # noqa: E402
 _USAGE = ("usage: screenrec_cues.py <film_dir> [--rec clips/rec/rec.json] [--page film.html] [--edit E] [--until S] "
           "[--skip i,j] [--out audio/cues.json]")
 STEP = 1 / 120.0
-GAIN = {"click": 0.55, "release": 0.35, "key": 0.32, "space": 0.22, "enter": 0.5}
+GAIN = {"click": 0.95, "release": 0.6, "key": 0.45, "space": 0.3, "enter": 0.7}   # clicks under the voice were inaudible at 0.55
 
 
 def events(rec, until=None, skip=()):

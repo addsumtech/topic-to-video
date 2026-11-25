@@ -328,6 +328,10 @@ these missing):
   pointer is small at film scale); a tutorial ends on a card with the result and its numbered, labelled steps.
 
 What the first real tutorial (Numbers 14.5, 2026-11-25) taught:
+- Record a tutorial with `"capture": "avfoundation"` (ffmpeg, a steady 30 fps, the region cropped after): the default
+  screencapture writes a frame only when something redraws, so the pointer froze on the Chart button while the open
+  popover held the window still, and the click on the popover showed with no pointer at it. screencapture also always
+  draws the pointer (-C or not).
 - Rehearse first, in the real app, step by step with a capture after each (`screencapture -l<window id>` sees a window
   on another Space without switching to it); then reset the document by script and record the whole take.
 - Run outside Claude Code's command sandbox, and only while the user is away (the system idle time, `ioreg -c
