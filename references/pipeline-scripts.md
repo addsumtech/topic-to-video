@@ -1230,6 +1230,12 @@ agent on the beats it points at.
 - `scripts/script_audition.py` and `scripts/voice_qa.py` also read a director film's `script.json` (the audition picks
   hook, the payoff sequence's first line, the close sequence's first line and a middle pair; `--voice` auditions a
   candidate voice without changing the script).
+- `scripts/blur_qa.py <film_dir> [--frames A-B] [--json]` — a REAL PICTURE HELD OUT OF FOCUS: steps the page every 0.1 s and
+  finds each visible <img>, <video>, svg <image> or background-image under a CSS blur of 1 px or more (its own and its
+  ancestors'); one held longer than 0.5 s is RED (a whip's motion blur passes; a <canvas> is not judged). A blur that
+  is the point says so on the element or an ancestor, `data-blur-ok="<why>"` (listed, never red; no reason is red).
+  Part of film_qc ("blur"). Why: the Airbnb film's depth and focus blurs read to the user as blurry originals
+  (2026-11-25); on that film's page it found all seven and passed its two whips.
 - `scripts/film_copy_qa.py <film_dir> [--every 0.5] [--json]` — every word the page shows (DOM text and canvas
   fillText) must occur in the sources (`input/sources/`, `sources/`, `script.json`, `brief.json`), as text or as an
   in-order excerpt of one sentence; anything else is declared in `<film_dir>/copy_ok.json` WITH a reason, or fails.

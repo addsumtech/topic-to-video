@@ -19,8 +19,8 @@ against the plan's cuts), picture_glide_qa (a picture stepping instead of glidin
 empty_frame_qa (a blank hold of a second or more), shake_qa (the whole frame vibrating instead of travelling) and
 caption_size_qa (burned captions too small to read on a phone); with a film.html, page_overlap_qa (words or
 controls colliding on the page over time, or a readable line cut by the frame's edge), film_copy_qa (every word shown
-comes from the sources or is declared), picture_legibility_qa (a picture on screen that shows almost nothing) and
-imagefetch --check (every picture the page names says where it came from, under a licence a film may carry);
+comes from the sources or is declared), picture_legibility_qa (a picture on screen that shows almost nothing), blur_qa (a real picture
+held out of focus) and imagefetch --check (every picture the page names says where it came from, under a licence a film may carry);
 with a stage3d page, stage_contacts_qa (nothing passes through anything); pan_speed_qa (no camera whip that strobes);
 repetition_qa (advisory: one staging repeated as the film's device); with a shot_plan.json or timeline.json, light_match_qa (advisory:
 a straight cut inside one sequence that flips the light warm <-> cool); banding_qa (dark gradients stepping after the
@@ -79,6 +79,7 @@ def checks(d, video, plan, span=None, page_dir=None):
         out += [("overlaps", [py, os.path.join(HERE, "page_overlap_qa.py"), page_dir] + pspan),
                 ("copy", [py, os.path.join(HERE, "film_copy_qa.py"), page_dir] + pspan),
                 ("pictures", [py, os.path.join(HERE, "picture_legibility_qa.py"), page_dir] + pspan),
+                ("blur", [py, os.path.join(HERE, "blur_qa.py"), page_dir] + pspan),
                 ("images", [py, os.path.join(HERE, "imagefetch.py"), "--check", page_dir])]
     if _uses_stage3d(page_dir):
         out.append(("contacts", [py, os.path.join(HERE, "stage_contacts_qa.py"), page_dir] + pspan))

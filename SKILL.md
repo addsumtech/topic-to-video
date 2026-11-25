@@ -290,14 +290,15 @@ moves (`assets/html/math.js`: a derivation written on and carried form to form, 
 - Time runs one way: a state reached stays reached; nothing replays after a cut; nothing overshoots and shrinks back.
 - No slow constant creep on fine detail (hard edges shimmer); a camera move has a job and an end.
 - No blank holds: every shot puts its subject on screen from its first frame (lead the cut by ~0.1 s).
-- Real pictures are shown sharp. A product screen or photo blurred for depth or a focus pull reads as a soft, bad
-  image, not as depth (Airbnb 2026-11-25: two phones in a row of five blurred "for depth", a phone opening out of focus
-  for 1.2 s; the user: "some pictures are very blurry at first"). Push one back by size, dimming or overlap; blur only
-  as motion inside a whip (a few frames) or on texture behind words (below).
+- Real pictures are shown sharp. A product screen or photo blurred for depth, a focus pull or a texture reads as a
+  blurry original, not as an effect (Airbnb 2026-11-25; the user: "不知道的以为是原始图片太糊了"). Push one back by size,
+  dimming or overlap; blur only as motion inside a whip (under 0.5 s). `blur` in film_qc (`blur_qa.py`) is red on a
+  picture held out of focus; a blur that IS the point says why in `data-blur-ok="<why>"`.
 - Text on screen is labels, keywords and numbers, never the narration as body text.
 - **Text is either read or texture.** Words meant to be read are big enough on a phone: captions ≥ ~56 px at 1080p
   (about 5 % of the frame height; `caption_size_qa` measures it), labels ≥ ~32 px, counted on the rendered frame
-  with every scale applied. Small text not meant to be read is visibly softened or dimmed; nothing in between.
+  with every scale applied. Small text not meant to be read is visibly dimmed (softened only when it is not
+  a real picture); nothing in between.
   Inside a product's screen the floor is met by FRAMING (the camera closer on the whole screen), never by resizing
   one piece of its text: the screen's proportions are part of its truth.
 - Build each sequence, export its settled frames, look at them on one tiled sheet (a single frame at full size only
