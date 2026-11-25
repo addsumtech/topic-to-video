@@ -76,6 +76,8 @@ def _args(argv):
     ap.add_argument("--no-reuse", dest="reuse", action="store_false", help="render every frame whole")
     ap.add_argument("--screen", default="", help="a folder of pictures a device's screen plays, one per beat frame")
     ap.add_argument("--params", default="{}", help="slide.blender.params as JSON")
+    ap.add_argument("--glb", default="", help="export the built objects (posed at t=0) to this .glb instead of rendering")
+    ap.add_argument("--ao", type=int, default=0, help="with --glb: bake Cycles AO into a second UV set at this size")
     a = ap.parse_args(argv)
     a.cues = json.loads(a.cues)
     a.params = json.loads(a.params)
@@ -150,6 +152,13 @@ def main(argv):
             mag.update(max=round(m, 3), frame=f)
 
     os.makedirs(a.out, exist_ok=True)
+    if a.glb:
+        from blender.kit import glb as _glb
+        mod.pose(k, 0.0)
+        bpy.context.view_layer.update()
+        res = _glb.export(list(objects.values()), a.glb, ao=a.ao)
+        print("RUNNER-DONE " + json.dumps(dict(res, seconds=round(time.time() - t0, 1))))
+        return
     if a.still:
         sc.frame_set(a.still)
         mod.pose(k, (a.still - 1) / a.fps)

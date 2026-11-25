@@ -98,6 +98,25 @@ text and characters' edges stay crisp in the capture (the default 1 read as "low
 keep it off when near objects carry marks or words, or set `focus` on them. Two objects never end in the same place
 (coplanar cards flicker through each other): send what has done its job out of frame and hide it.
 
+**An object at the stage's ceiling** (a product, a device, a scanner; the boundary with Cycles:
+`references/3d-engines.md`). Model it in Blender (a scene script, finishes from `blender/kit/materials.py`), export it,
+copy the kit's HDRI next to the page, and render with passes:
+
+    python3 scripts/blender_clip.py <film_dir> scene.py --glb --ao 2048     # -> models/<name>.glb + <name>_ao.png
+    cp blender/kit/hdri/studio_small_09_1k.hdr <film_dir>/
+
+    const st = Stage3D.create({canvas, background: '#d7dadb', toneMapping: 'agx', pixelRatio: 2, passes: 64});
+    st.hdri('studio_small_09_1k.hdr', {intensity: 0.5});                       // light + what gloss reflects
+    st.areaLight({pos: [-3.2, 4.2, 3.6], aim: [0, 1, 0], size: 3.5, power: 520});   // soft boxes, Blender watts
+    st.areaLight({pos: [2.5, 3.6, -2.8], aim: [0, 1, 0], size: 2, power: 380});
+    const m = await st.glb('models/scanner.glb', {ao: 'models/scanner_ao.png'});
+    await st.ready();
+    window.seek = (t) => st.render({pos: [...], look: [...], fov: 28, lens: 0.015, focus: 6});  // lens: true DOF
+
+`passes` renders each frame K times (area lights over their squares, sub-pixel camera, the lens) and averages:
+penumbras, clean edges, depth of field without ghosts — 0.3 s a frame for 64 passes on the bench. `lens` needs
+passes; `dof` cannot be mixed with them. No whole-frame bloom (it lifted every dark part beside a white shell).
+
 **Characters and marks as soft 3D bodies**: `st.inflate('bot.png', {width: 0.9, x, z, front: 0.42, back: 0.3})` turns a
 flat character or mark on a TRANSPARENT background into a glossy inflated body standing on its own y = 0, its artwork
 redrawn crisp on the face (its own colours), its main colour on the back. Cut the shape out of a screenshot with

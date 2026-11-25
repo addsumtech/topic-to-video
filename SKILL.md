@@ -261,9 +261,12 @@ categories, roles or steps carries one icon each, of one family (`references/ico
 `st.card` with the picture's own corners; a mark that frames an object follows its tilt (`st.quad` + `Stage3D.brackets`). All in the toolbox,
 "Devices, app screens, cards, marks". Create stages with `pixelRatio: 2`
 (supersampled; the default read as low resolution) and no `dof` near words or marks (its few-tap blur ghosts them).
-When the MATERIAL is the point of a hero (a product's shell, metal, glass), render that shot in Blender under
-`kit.studio.product_light` with a named finish per part (`scripts/blender_clip.py`; references/craft-study.md: lit
-surfaces were the measured gap) and place it as frames. A film that stages every
+**Which 3D engine is decided per shot** (`references/3d-engines.md`: the boundary, measured on one scanner rendered
+every way). An object or device is modelled in Blender with a named finish per part; an opaque one that moves with
+the voice or carries words is rendered on the page's stage at its ceiling — `hdri()`, `areaLight()`, `passes: 64`,
+AgX, the model by `blender_clip.py --glb --ao` (within ~10 % of Cycles at ~1/100 of the time); a hero whose look IS
+light transport (glass through glass, caustics, subsurface, volumes, simulation) is a Cycles clip under
+`kit.studio.product_light` placed as frames. Both lit by the same HDRI. A film that stages every
 screen as a tilted panel on a dark floor turns into a visible device (rejected on Grok Bot twice, 2026-11-12 and
 -17); alternate grounds (light UI shots, dark 3D shots) for rhythm. Commands in the toolbox. Pieces made elsewhere (a
 Blender clip, a library shot rendered through the workshop) are placed as frames the page draws by frame number.

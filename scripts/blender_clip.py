@@ -3,6 +3,7 @@
 
     python3 scripts/blender_clip.py <film_dir> <scene.py> --seconds S [--name N] [--fps 30] [--size 1920x1080]
                                     [--engine eevee|cycles] [--samples 64] [--env] [--params '{...}'] [--still F]
+    python3 scripts/blender_clip.py <film_dir> <scene.py> --glb [--ao 2048] [--name N]   # a model for Stage3D.glb
 
 The scene script uses the plate scene API (references/blender-plates.md "The scene-script API"): `build(k)` returns
 {"objects": {...}, "anchors": {...}} and `pose(k, t)` sets the scene at t seconds; it may import the kit
@@ -10,6 +11,10 @@ The scene script uses the plate scene API (references/blender-plates.md "The sce
 frame whole, into <film_dir>/clips/<name>/rgba/NNNN.png (with alpha unless --env), and writes a viewable
 <film_dir>/clips/<name>.mp4. A page places the clip by drawing frame N at its time, so the film stays a pure
 function of time. --still F renders one frame to <film_dir>/clips/<name>/still_NNNN.png to look at first.
+--glb exports the built objects (posed at t=0) to <film_dir>/models/<name>.glb for the page's three.js stage instead
+of rendering (blender/kit/glb.py: sheen kept right; --ao R bakes Cycles ambient occlusion into a second UV set,
+<name>_ao.png, which Stage3D.glb applies). Use it when the camera or the story must move in the page around an object
+Blender models best (references/3d-engines.md).
 
 WHY. blender_plate.py builds plates from a classic storyboard's slide.blender; a film the director builds as one
 page has no storyboard. This is the same runner and kit through a door that needs none.
@@ -27,7 +32,7 @@ sys.path.insert(0, HERE)
 RUNNER = os.path.join(os.path.dirname(HERE), "blender", "runner.py")
 
 
-def command(blender, scene, out, frames, fps, w, h, engine, samples, env, params, still=None, screen=None):
+def command(blender, scene, out, frames, fps, w, h, engine, samples, env, params, still=None, screen=None, glb=None, ao=0):
     cmd = [blender, "-b", "--factory-startup", "--python-exit-code", "1", "--python", RUNNER, "--",
            "--scene", os.path.abspath(scene), "--out", out, "--frames", str(frames), "--fps", str(fps),
            "--w", str(w), "--h", str(h), "--engine", engine, "--samples", str(samples),
@@ -36,6 +41,8 @@ def command(blender, scene, out, frames, fps, w, h, engine, samples, env, params
         cmd += ["--still", str(still)]
     if screen:
         cmd += ["--screen", os.path.abspath(screen)]   # a device scene's screen: one picture per frame
+    if glb:
+        cmd += ["--glb", glb, "--ao", str(int(ao))]
     return cmd
 
 
@@ -43,7 +50,9 @@ def main(argv):
     ap = argparse.ArgumentParser(description="render a Blender scene as a clip for a director-path film")
     ap.add_argument("film_dir")
     ap.add_argument("scene")
-    ap.add_argument("--seconds", type=float, required=True)
+    ap.add_argument("--seconds", type=float)
+    ap.add_argument("--glb", action="store_true", help="export a .glb for Stage3D.glb instead of rendering")
+    ap.add_argument("--ao", type=int, default=0, help="with --glb: bake AO at this size (2048 or 4096)")
     ap.add_argument("--name")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--size", default="1920x1080")
@@ -54,6 +63,13 @@ def main(argv):
     ap.add_argument("--still", type=int)
     ap.add_argument("--screen", help="a folder of pictures a device's screen plays (blender/kit/scenes/laptop_screen.py)")
     a = ap.parse_args(argv)
+    if a.seconds is None and not a.glb:
+        ap.print_usage(sys.stderr)
+        print("blender_clip: --seconds is required (or --glb)", file=sys.stderr)
+        return 2
+    if a.ao and not a.glb:
+        print("blender_clip: --ao goes with --glb", file=sys.stderr)
+        return 2
     import blender_plate
     blender = blender_plate.blender_bin()
     if not blender:
@@ -69,6 +85,18 @@ def main(argv):
         print("blender_clip: bad --size or --params: %s" % e, file=sys.stderr)
         return 2
     name = a.name or os.path.splitext(os.path.basename(a.scene))[0]
+    if a.glb:
+        glb = os.path.join(os.path.abspath(a.film_dir), "models", name + ".glb")
+        os.makedirs(os.path.dirname(glb), exist_ok=True)
+        cmd = command(blender, a.scene, os.path.dirname(glb), 1, a.fps, 64, 64, "eevee", 1, False, a.params,
+                      glb=glb, ao=a.ao)
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0 or "RUNNER-DONE" not in r.stdout or not os.path.isfile(glb):
+            print("blender_clip: Blender failed (exit %d)\n%s" % (r.returncode, "\n".join((r.stdout + r.stderr).splitlines()[-30:])),
+                  file=sys.stderr)
+            return 1
+        print("[blender_clip] model -> %s%s" % (glb, " (+ %s_ao.png)" % glb[:-4] if a.ao else ""))
+        return 0
     out = os.path.join(os.path.abspath(a.film_dir), "clips", name)
     os.makedirs(out, exist_ok=True)
     frames = max(1, int(round(a.seconds * a.fps)))

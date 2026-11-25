@@ -114,9 +114,10 @@ second. If no moment would be the second sentence, they are not clever yet.
 ## 3. Choose — at the end of `design/concepts.md`
 Pick the concept a first-time viewer would understand best AND remember longest; boldness breaks a tie, it never
 outweighs clarity. It must be FEASIBLE with this skill's engines (pages, the 3D stage `assets/html/stage3d.js` with
-`st.inflate` for characters and marks, Blender via `scripts/blender_clip.py` — the route for a hero whose MATERIAL is
-the point, under `kit.studio.product_light` with a named finish per part (`references/craft-study.md`: lit surfaces
-were the measured gap) — the Remotion kit) and TRUE to the product (sourced claims; real screens where they read at
+`st.inflate` for characters and marks, a Blender-modelled object rendered on the stage at its ceiling (HDRI, area
+lights, accumulated passes, baked AO), Blender via `scripts/blender_clip.py` — the route for a hero whose look IS
+light transport (glass through glass, caustics, subsurface, volumes), under `kit.studio.product_light` with a named
+finish per part; which engine per shot: `references/3d-engines.md` — the Remotion kit) and TRUE to the product (sourced claims; real screens where they read at
 size, the UI drawn simplified and honest where they do not: the real product's layout and its own words; the demo
 world inside a screen as plausible generic demo content, never a statistic; grey bars only below reading size).
 Devices are the kit's (`st.phone`, `st.tablet`, `st.laptop`), each showing the layout made for it; the product's own

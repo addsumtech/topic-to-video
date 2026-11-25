@@ -23,6 +23,9 @@ import {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer.j
 import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js';
 import {BokehPass} from 'three/examples/jsm/postprocessing/BokehPass.js';
 import {OutputPass} from 'three/examples/jsm/postprocessing/OutputPass.js';
+import {TexturePass} from 'three/examples/jsm/postprocessing/TexturePass.js';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {RGBELoader} from 'three/examples/jsm/loaders/RGBELoader.js';
 import * as DEV from './devices.js';
 import * as SCR from './screens.js';
 
@@ -50,7 +53,10 @@ function create(o) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   // ACES (default) is filmic and desaturates bright colours; 'neutral' keeps brand colours true (product films, a cast
   // of coloured characters, logos)
-  renderer.toneMapping = o.toneMapping === 'neutral' ? THREE.NeutralToneMapping : THREE.ACESFilmicToneMapping;
+  // 'agx' matches a Blender (AgX) reference and keeps highlights from clipping on white products (measured on an MRI
+  // scanner against Cycles, references/3d-engines.md)
+  renderer.toneMapping = o.toneMapping === 'neutral' ? THREE.NeutralToneMapping
+    : o.toneMapping === 'agx' ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = o.exposure == null ? 1.0 : o.exposure;
   renderer.shadowMap.enabled = o.shadows !== false;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -74,6 +80,33 @@ function create(o) {
     composer.addPass(new OutputPass());
   }
 
+  // OFFLINE ACCUMULATION (passes > 1): every frame is rendered `passes` times and averaged in a half-float buffer, each
+  // pass with the area lights moved over their surfaces, the camera moved by a sub-pixel and (render({lens})) over its
+  // lens. Soft area shadows, supersampled edges and true depth of field, at K x the raster cost: a film is captured
+  // offline, so a frame may take a second (64 passes of the scanner bench: 0.3 s against Cycles' ~45 s).
+  const K = o.passes || 1;
+  if (K > 1 && o.dof) throw new Error('Stage3D.create: passes and dof together — under accumulation depth of field is the lens: render({lens: 0.02, focus})');
+  const areas = [];
+  let acc = null;
+  if (K > 1) {
+    const RW = Math.round(W * PR), RH = Math.round(H * PR);
+    const one = new THREE.WebGLRenderTarget(RW, RH, {type: THREE.HalfFloatType});
+    const sum = new THREE.WebGLRenderTarget(RW, RH, {type: THREE.HalfFloatType});
+    // add each pass at weight 1/K: one + one blending (three's AdditiveBlending multiplies by alpha: 1/K squared)
+    const qm = new THREE.ShaderMaterial({uniforms: {t: {value: one.texture}, w: {value: 1 / K}},
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: 'uniform sampler2D t; uniform float w; varying vec2 vUv; void main() { gl_FragColor = texture2D(t, vUv) * w; }',
+      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+      blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor, depthTest: false, depthWrite: false, transparent: true});
+    const qs = new THREE.Scene(); qs.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), qm));
+    const out = new EffectComposer(renderer, new THREE.WebGLRenderTarget(RW, RH, {type: THREE.HalfFloatType}));
+    out.setPixelRatio(PR); out.setSize(W, H);
+    out.addPass(new TexturePass(sum.texture));
+    out.addPass(new OutputPass());          // tone mapping + sRGB, once, at the end
+    acc = {one, sum, qs, qc: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), out, RW, RH};
+  }
+  const halton = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
+
   const pending = [];
   const loader = new THREE.TextureLoader();
   const texture = (src) => {
@@ -96,6 +129,73 @@ function create(o) {
     THREE, scene, camera, renderer,
     // a three-point studio: warm key from the upper left, cool rim from behind, soft fill; plus a room environment
     // so glossy edges and glass catch real reflections. Strengths scale the whole rig.
+    // a real HDRI (a photographed studio or place) as the light and what every glossy surface reflects: the single
+    // biggest step from 'CG' to 'photographed' (RoomEnvironment is a stand-in). The skill ships a CC0 studio:
+    // blender/kit/hdri/studio_small_09_1k.hdr (copy it next to the page). rotation (radians about up) turns the
+    // reflections; background: true shows it (blurred) behind the scene.
+    hdri(url, h) {
+      h = h || {};
+      const p = new RGBELoader().loadAsync(url).then((tex) => {
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        const pm = new THREE.PMREMGenerator(renderer);
+        scene.environment = pm.fromEquirectangular(tex).texture;
+        pm.dispose();
+        scene.environmentIntensity = h.intensity == null ? 0.5 : h.intensity;
+        scene.environmentRotation.set(0, h.rotation || 0, 0);
+        if (h.background) {
+          scene.background = tex; scene.backgroundBlurriness = h.blur == null ? 0.25 : h.blur;
+          scene.backgroundIntensity = scene.environmentIntensity; scene.backgroundRotation.set(0, h.rotation || 0, 0);
+        } else tex.dispose();
+      }, () => { throw new Error('stage3d.hdri: cannot load ' + url); });
+      pending.push(p); return p;
+    },
+    // a soft box: `power` in watts like a Blender area light (the scanner bench matched Cycles at the same watts under
+    // AgX with hdri intensity 0.5), `size` its side in metres. With passes > 1 its shadow is a real penumbra (the
+    // light moves over its square pass by pass); with one pass it is a soft spot at its centre.
+    areaLight(a) {
+      a = a || {};
+      if (!a.pos) throw new Error('Stage3D.areaLight: give pos [x, y, z] (and aim, the point it faces)');
+      const pos = new THREE.Vector3(...a.pos), aim = new THREE.Vector3(...(a.aim || [0, 1, 0]));
+      const L = new THREE.SpotLight(a.color || '#ffffff', (a.power == null ? 300 : a.power) / Math.PI, 0, a.angle || 1.2, 1, 2);
+      L.position.copy(pos); L.target.position.copy(aim);
+      L.castShadow = a.shadows !== false;
+      L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0002; L.shadow.normalBias = 0.01; L.shadow.radius = 2;
+      L.shadow.camera.near = 0.1; L.shadow.camera.far = pos.distanceTo(aim) * 4;
+      scene.add(L, L.target);
+      const fwd = aim.clone().sub(pos).normalize();
+      const ref = Math.abs(fwd.y) > 0.99 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+      const u = new THREE.Vector3().crossVectors(fwd, ref).normalize(), v = new THREE.Vector3().crossVectors(u, fwd).normalize();
+      areas.push({L, pos, u, v, size: a.size == null ? 1 : a.size});
+      return L;
+    },
+    // a model made in Blender (scripts/blender_clip.py --glb [--ao 2048]): its own materials (glTF PBR: clearcoat,
+    // sheen, transmission, emissive strength), casting and taking shadows. ao: the Cycles-baked occlusion atlas
+    // (<name>_ao.png, on the second UV set) — contact darkening a raster stage cannot compute; it darkens the
+    // environment light, so light the model with hdri(). Resolves to the model's group, placed like a panel.
+    glb(url, g) {
+      g = g || {};
+      const p = new GLTFLoader().loadAsync(url).catch(() => { throw new Error('stage3d.glb: cannot load ' + url); }).then(async (gl) => {
+        const root = gl.scene;
+        let ao = null;
+        if (g.ao) {
+          ao = await new THREE.TextureLoader().loadAsync(g.ao).catch(() => { throw new Error('stage3d.glb: cannot load ' + g.ao); });
+          ao.flipY = false; ao.channel = 1; ao.colorSpace = THREE.NoColorSpace;
+        }
+        let withAtlas = 0;
+        root.traverse((m) => {
+          if (!m.isMesh) return;
+          m.castShadow = m.receiveShadow = g.shadows !== false;
+          if (ao && m.geometry.attributes.uv1) { m.material.aoMap = ao; m.material.aoMapIntensity = g.aoIntensity == null ? 1 : g.aoIntensity; withAtlas++; }
+        });
+        if (ao && !withAtlas) throw new Error('stage3d.glb: ' + g.ao + ' given but ' + url + ' has no second UV set (export it with blender_clip.py --glb --ao 2048)');
+        root.name = g.name || 'model'; root.userData.kind = 'model';
+        root.position.set(g.x || 0, g.y || 0, g.z || 0); root.rotation.set(g.rotX || 0, g.rotY || 0, g.rotZ || 0);
+        if (g.scale) root.scale.setScalar(g.scale);
+        scene.add(root);
+        return root;
+      });
+      pending.push(p); return p;
+    },
     studio(s) {
       s = s || {};
       const pm = new THREE.PMREMGenerator(renderer);
@@ -535,7 +635,39 @@ function create(o) {
       if (c.pos) camera.position.set(...c.pos);
       camera.lookAt(...(c.look || [0, 2, 0]));
       if (c.fov) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
-      if (bokeh) {
+      if (c.lens && !acc) throw new Error('Stage3D.render: lens (depth of field by the lens) needs Stage3D.create({passes: 32 or more})');
+      if (acc) {
+        // K passes, averaged. Pass k (Halton, so any K covers the square, the pixel and the lens evenly): the area
+        // lights at a point of their squares, the camera a sub-pixel off, and with `lens` (aperture radius, metres)
+        // at a point of the lens still aimed at the focus plane — so what is at `focus` stays sharp.
+        const base = camera.position.clone(), q = camera.quaternion.clone();
+        const look = new THREE.Vector3(...(c.look || [0, 2, 0]));
+        const fd = c.focus == null ? base.distanceTo(look) : c.focus;
+        const fp = base.clone().addScaledVector(look.clone().sub(base).normalize(), fd);
+        camera.updateMatrixWorld();
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+        const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+        const clear = renderer.getClearColor(new THREE.Color()), clearA = renderer.getClearAlpha();
+        renderer.setRenderTarget(acc.sum); renderer.setClearColor(0x000000, 0); renderer.clear();
+        for (let k = 1; k <= K; k++) {
+          const a = halton(k, 2) - 0.5, b = halton(k, 3) - 0.5;
+          for (const r of areas) r.L.position.copy(r.pos).addScaledVector(r.u, a * r.size).addScaledVector(r.v, b * r.size);
+          camera.setViewOffset(acc.RW, acc.RH, halton(k, 5) - 0.5, halton(k, 7) - 0.5, acc.RW, acc.RH);
+          if (c.lens) {
+            const rr = Math.sqrt(halton(k, 11)) * c.lens, th = 2 * Math.PI * halton(k, 13);
+            camera.position.copy(base).addScaledVector(right, rr * Math.cos(th)).addScaledVector(up, rr * Math.sin(th));
+            camera.lookAt(fp);
+          }
+          renderer.setRenderTarget(acc.one); renderer.setClearColor(clear, clearA); renderer.clear();
+          renderer.render(scene, camera);
+          renderer.setRenderTarget(acc.sum);
+          const ac = renderer.autoClear; renderer.autoClear = false; renderer.render(acc.qs, acc.qc); renderer.autoClear = ac;
+        }
+        for (const r of areas) r.L.position.copy(r.pos);
+        camera.clearViewOffset(); camera.position.copy(base); camera.quaternion.copy(q);
+        renderer.setRenderTarget(null); renderer.setClearColor(clear, clearA);
+        acc.out.render();
+      } else if (bokeh) {
         const look = new THREE.Vector3(...(c.look || [0, 2, 0]));
         bokeh.uniforms.focus.value = c.focus == null ? camera.position.distanceTo(look) : c.focus;
         if (c.aperture != null) bokeh.uniforms.aperture.value = c.aperture;
