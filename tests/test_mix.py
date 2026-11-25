@@ -83,3 +83,48 @@ def test_film_qc_mix_wants_the_measured_mix_when_there_is_music(tmp_path):
         f.write(b"\0\0\0\0")
     r = run()
     assert r.returncode == 1 and "changed after" in r.stdout, r.stdout
+
+
+def _bandnoise(rng, n, lo, hi):
+    from scipy.signal import butter, sosfiltfilt
+    return sosfiltfilt(butter(4, [lo, hi], btype="band", fs=mix.SR, output="sos"), rng.standard_normal(n))
+
+
+def test_the_music_is_held_under_the_voice_in_the_consonant_band_too(tmp_path):
+    """A score loud in 1-4 kHz: broadband it sits under the voice, in the band it would not; the band duck lowers that
+    band alone while the voice speaks (2026-11-25 bench: 14.3 -> 19.7 dB p10, the music overall -0.2 dB)."""
+    sr, rng = mix.SR, np.random.default_rng(3)
+    n = 10 * sr
+    voice = np.zeros(n)
+    for a, b in [(0.5, 4.0), (5.0, 9.0)]:
+        i, j = int(a * sr), int(b * sr)
+        voice[i:j] = 0.25 * _bandnoise(rng, j - i, 150, 600) + 0.03 * _bandnoise(rng, j - i, 1000, 4000)
+    music = 0.2 * _bandnoise(rng, n, 60, 400) + 0.08 * _bandnoise(rng, n, 1000, 4000)
+    _wav(tmp_path / "v.wav", voice); _wav(tmp_path / "m.wav", music)
+    flat = mix.mix(str(tmp_path / "v.wav"), str(tmp_path / "m.wav"), None, str(tmp_path / "a.wav"), band_deep=0)
+    duck = mix.mix(str(tmp_path / "v.wav"), str(tmp_path / "m.wav"), None, str(tmp_path / "b.wav"))
+    assert flat["band_separation_p10"] < 15, flat
+    assert duck["band_separation_p10"] >= 15, duck
+    assert duck["band_separation_p10"] - flat["band_separation_p10"] >= 4, (flat, duck)
+    # only the band moves: what the duck takes away has (almost) nothing below 500 Hz
+    from scipy.signal import butter, sosfiltfilt
+    v2, m2 = np.stack([voice, voice], 1), np.stack([music, music], 1)
+    mask, _ = mix.speech_mask(v2)
+    taken = m2 - mix.band_duck(v2, m2, mask, 20.0, 9.0)
+    low = sosfiltfilt(butter(4, 500, btype="low", fs=sr, output="sos"), taken, axis=0)
+    assert np.mean(taken ** 2) > 0 and np.mean(low ** 2) < 0.02 * np.mean(taken ** 2)
+
+
+def test_the_master_lands_on_target_with_true_peak_held_on_a_peaky_mix(tmp_path):
+    """loudnorm's linear second pass falls back to dynamic gain when the loudness target and the true-peak ceiling
+    conflict (a ZH bench mix landed at -15.1 against -14); gain + an oversampled limiter lands on target."""
+    sr, rng = mix.SR, np.random.default_rng(5)
+    n = 8 * sr
+    voice = 0.02 * rng.standard_normal(n)
+    for k in range(1, 8):                                   # sharp hits near full scale over a quiet bed
+        i = k * sr
+        voice[i:i + 200] += 0.95 * np.hanning(200)
+    _wav(tmp_path / "v.wav", voice)
+    rep = mix.mix(str(tmp_path / "v.wav"), None, None, str(tmp_path / "o.wav"), lufs=-14.0, tp=-2.0)
+    assert abs(rep["lufs"] + 14.0) <= 0.3, rep
+    assert rep["true_peak"] <= -1.9, rep

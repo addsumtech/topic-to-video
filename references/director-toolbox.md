@@ -390,8 +390,12 @@ A starting point measured on 20 official launch films (`references/craft-standar
 - Mix: `python3 scripts/mix.py --voice audio/voice.wav --music audio/score.wav --sfx audio/sfx.wav --out audio/mix.wav`.
   The music follows the voice: 20 dB under it while it speaks (`--under`; WCAG 1.4.7's floor, mixers use 18-24),
   8 dB up between lines (`--lift`, never above 6 dB under the voice), down before each line starts; SFX high-passed;
-  mastered in two passes to -14 LUFS, true peak <= -2 dBTP. It prints the separation it reached and exits 1 when a
-  tenth of the speech has less than 17 dB. Never a fixed music gain under a sidechain: one sat the score 2 dB under
+  the music's 1-4 kHz band (where consonants live) is ducked further while the voice speaks, until it too sits 20 dB
+  under the voice's (`--band-deep 9`: broadband 20 dB had left only 14 dB there; the duck lifted it to 19 with the
+  music overall 0.2 dB lower); mastered by a linear gain and a 4x-oversampled true-peak limiter to -14 LUFS, true
+  peak <= -2 dBTP (loudnorm's second pass fell back to dynamic gain and landed a ZH mix at -15.1). It prints the
+  separations it reached and exits 1 when a tenth of the speech has less than 17 dB broadband or 15 dB in 1-4 kHz; a
+  max short-term loudness over the programme + 5 LU (EBU R128 s1: a hit that jumps out) is noted. Never a fixed music gain under a sidechain: one sat the score 2 dB under
   the words. film_qc's `mix` check holds a film with a music stem in `audio/` (score*, music*, bgm*, bed*) to the mix
   this script made and measured (`audio/mix.mix.json`).
 
