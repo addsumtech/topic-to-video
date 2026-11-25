@@ -15,8 +15,11 @@ Config.setJpegQuality(95);
 // gradient 18 against 12.5 (2026-11-26, film_work/remotion_bench). scripts/remotion_segments.pixel_flags keys the
 // segment cache on it.
 Config.setCrf(17);
-Config.overrideFfmpegCommand(({type, args}) => {
-  if (type !== 'stitcher' || !args.includes('libx264') || args.includes('-x264-params')) {
+// x264 runs in the 'stitcher' when encoding waits for every frame, and in the 'pre-stitcher' when Remotion encodes in
+// parallel with the render (it decides by free memory): the parameter goes wherever libx264 is — the first version
+// keyed on 'stitcher' only and a render with parallel encoding came out aq=1.
+Config.overrideFfmpegCommand(({args}) => {
+  if (!args.includes('libx264') || args.includes('-x264-params')) {
     return args;
   }
   const out = args.slice(0, -1);       // the output path is last
