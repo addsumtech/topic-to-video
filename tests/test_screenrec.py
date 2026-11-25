@@ -79,7 +79,7 @@ ACTIONS = [{"i": 0, "kind": "click", "label": "File", "t": 0.5, "t_end": 0.5, "x
            {"i": 2, "kind": "key", "label": "cmd+s", "t": 2.5, "t_end": 2.5, "x": None, "y": None}]
 
 
-def _film(d, script):
+def _film(d, script, actions=ACTIONS):
     fr = d / "clips" / "rec" / "frames"
     fr.mkdir(parents=True)
     for i in range(N):
@@ -87,7 +87,7 @@ def _film(d, script):
         ImageDraw.Draw(im).rectangle((i * 8, 200, i * 8 + 40, 240), fill=(int(i * 2.8), 60, 200))
         im.save(fr / ("%05d.jpg" % (i + 1)), quality=95)
     rec = {"fps": 30, "n": N, "width": W, "height": H, "scale": 1, "window": [0, 0, W, H], "app": "Synth",
-           "actions": ACTIONS, "sync": {"offset": 0, "confidence": 5}}
+           "actions": actions, "sync": {"offset": 0, "confidence": 5}}
     shutil.copy(os.path.join(ROOT, "assets", "html", "screenrec.js"), d)
     (d / "film.html").write_text("""<!doctype html><html><head><meta charset='utf-8'></head>
 <body style='margin:0;width:1920px;height:1080px;background:#111'><div id="r"><img><svg></svg></div>
@@ -117,10 +117,10 @@ def test_each_action_lands_on_its_word_with_holds_between(tmp_path):
     _film(tmp_path, """const E = ScreenRec.edit(REC, {base: 'clips/rec/frames/', box: {x: 100, y: 100, w: 600},
   start: 0, end: 9, anchors: [{action: 0, at: 2.0}, {action: 1, at: 5.0}, {action: 2, at: 6.0}]});
 document.title = JSON.stringify([1.5, 2.0, 2.5, 3.5, 4.9, 5.0, 5.5, 6.0, 8.9].map((t) => +E.recAt(t).toFixed(3)));""")
-    # 1.5 s before the first click: 1 s of it, held at the start before that; then the result plays a second (2.0-3.0
-    # -> 0.5-1.5) and holds until the voice reaches the next click; a quicker voice speeds the recording up (1 s of
-    # recording in 1 s of film here: 1x); past the last action it plays on and holds on the last frame
-    assert _title(tmp_path) == [0.0, 0.5, 1.0, 1.5, 1.5, 1.5, 2.0, 2.5, 2.967]
+    # 1.5 s before the first click: 1 s of it, held at the start before that; then the result plays (2.0-2.9 ->
+    # 0.5-1.4) and holds 0.1 s of recording BEFORE the next click (the click itself plays on its word, 5.0), never on
+    # it; past the last action it plays on and holds on the last frame
+    assert _title(tmp_path) == [0.0, 0.5, 1.0, 1.4, 1.4, 1.5, 2.0, 2.5, 2.967]
 
 
 @needs_chrome
@@ -163,3 +163,36 @@ def test_a_menu_item_its_menu_does_not_show_is_refused():
     assert not ar.menu_item_follows(font, (-80, 1047, 160, 22), 2)    # the shut submenu's stale place
     assert not ar.menu_item_follows(title, (600, 30, 120, 22), 1)     # another title's menu
     assert not ar.menu_item_follows(font, (436, 30, 0, 0), 2)         # no size: not on screen
+
+
+def test_a_double_click_is_a_click_with_clicks_2():
+    ok = {"app": "Numbers", "steps": [{"click": [10, 10], "clicks": 2}, {"click_text": "Title", "clicks": 2}]}
+    assert ar.check_steps(ok) == []
+    bad = {"app": "Numbers", "steps": [{"type": "x", "clicks": 2}, {"click": [1, 1], "clicks": 5}]}
+    errs = ar.check_steps(bad)
+    assert len(errs) == 2 and all('"clicks"' in e for e in errs), errs
+
+
+def test_a_shift_click_carries_its_modifier():
+    assert ar.check_steps({"app": "Numbers", "steps": [{"click": [1, 1], "mods": "shift"}]}) == []
+    errs = ar.check_steps({"app": "Numbers", "steps": [{"click": [1, 1], "mods": "hyper"}, {"key": "a", "mods": "shift"}]})
+    assert len(errs) == 2 and all('"mods"' in e for e in errs), errs
+
+
+def test_a_scroll_is_whole_wheel_lines():
+    assert ar.check_steps({"app": "Numbers", "steps": [{"scroll": 10}, {"scroll": -3}]}) == []
+    assert len(ar.check_steps({"app": "Numbers", "steps": [{"scroll": 0}, {"scroll": 1.5}, {"scroll": True}]})) == 3
+
+
+@needs_chrome
+def test_a_drag_plays_through_before_the_hold(tmp_path):
+    """A 1.5 s drag anchored on its word plays to its end at real speed; the hold comes after it (a 1 s settle froze
+    the Numbers chart halfway across, 2026-11-25)."""
+    acts = [{"i": 0, "kind": "drag", "label": "move", "t": 0.5, "t_end": 2.0, "x": 300, "y": 300},
+            {"i": 1, "kind": "click", "label": "Chart", "t": 2.6, "t_end": 2.6, "x": 700, "y": 400}]
+    _film(tmp_path, """const E = ScreenRec.edit(REC, {base: 'clips/rec/frames/', box: {x: 0, y: 0, w: 600},
+  start: 0, end: 9, anchors: [{action: 0, at: 1.0}, {action: 1, at: 6.0}]});
+document.title = JSON.stringify([2.0, 2.5, 2.8, 4.0, 5.5].map((t) => +E.recAt(t).toFixed(3)));""", acts)
+    # 1.0 -> 0.5: real speed through the drag's end (+0.3 s), so 1.8 s of recording by film 2.8; held, then the last
+    # 0.3 s of recording runs into the click at 6.0
+    assert _title(tmp_path) == [1.5, 2.0, 2.3, 2.3, 2.3]

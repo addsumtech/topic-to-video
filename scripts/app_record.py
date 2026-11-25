@@ -16,8 +16,12 @@ steps.json:
              {"click_text": "Chart", "nth": 1},       # the words on screen (OCR of the window, scripts/screen_text)
              {"menu": ["Insert", "Chart"]},           # a menu path, clicked item by item as a person would
              {"type": "Revenue", "cps": 9}, {"key": "cmd+a"},
-             {"drag": [[x1, y1], [x2, y2]]}, {"move": [x, y]}, {"wait": 1.2}]}
-  Any step may carry "label" (what the narration calls it) and "ms" (the glide's length, default 650).
+             {"drag": [[x1, y1], [x2, y2]]}, {"move": [x, y]}, {"wait": 1.2},
+             {"scroll": 10}]}                         # wheel lines under the cursor, positive toward the top (an
+                                                      # app may scroll on its own: the Numbers chart insert did)
+  Any step may carry "label" (what the narration calls it) and "ms" (the glide's length, default 650); a click or
+  click_text step may carry "clicks": 2 (a double-click, e.g. into a chart's title) or 3, and "mods": "shift" (held
+  through the click: shift-click extends a selection; Numbers ignores a synthetic drag-select, 2026-11-25).
 
 A "menu" step is clicked as a person moves: down from the title, then across into each submenu (a straight glide
 crossed the next title and opened THAT menu); an item its menu does not show is refused before anything is clicked.
@@ -26,7 +30,7 @@ top, so the menus are in the picture; action places are then in that region, not
 
 OUTPUT <film_dir>/clips/<name>/: rec.mp4 (H.264, the window — or the region above — at its own pixels), frames/00001.jpg… (30 fps, for the
 page: assets/html/screenrec.js) and rec.json — {fps, n, width, height (px), scale (px per point), window, app,
-actions: [{i, kind, label, t, t_end, x, y}] (seconds into rec.mp4, recording px), sync: {offset, confidence: the
+actions: [{i, kind, label, t, t_end, x, y, text (typed), clicks}] (seconds into rec.mp4, recording px), sync: {offset, confidence: the
 share of actions that agree with it}}.
 
 TIME. Each action is logged against the clock that started the recording; screencapture starts writing a little
@@ -52,7 +56,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _SWIFT = os.path.join(_HERE, "app_drive.swift")
 _BIN_DIR = os.path.join(os.path.expanduser("~"), ".cache", "slides-to-video")
 FPS = 30
-KINDS = ("click", "click_text", "menu", "type", "key", "drag", "move", "wait")
+KINDS = ("click", "click_text", "menu", "type", "key", "drag", "move", "scroll", "wait")
 _USAGE = "usage: app_record.py <film_dir> <steps.json> [--name rec]"
 
 PERMISSION_HELP = ("macOS has not given this terminal Screen Recording, so nothing can be recorded. Turn it on in "
@@ -88,9 +92,15 @@ def check_steps(spec):
         ok = {"click": pt(v), "move": pt(v), "drag": isinstance(v, list) and len(v) == 2 and all(pt(p) for p in v),
               "click_text": isinstance(v, str) and v.strip(), "type": isinstance(v, str) and v,
               "key": isinstance(v, str) and v.strip(), "wait": isinstance(v, (int, float)) and 0 < v <= 30,
+              "scroll": isinstance(v, int) and not isinstance(v, bool) and v != 0 and abs(v) <= 60,
               "menu": isinstance(v, list) and len(v) >= 2 and all(isinstance(x, str) and x for x in v)}[k]
         if not ok:
             errs.append("step %d: %s has the wrong shape (%r)" % (i, k, v))
+        if "clicks" in s and (k not in ("click", "click_text") or s["clicks"] not in (1, 2, 3)):
+            errs.append("step %d: \"clicks\" is 1, 2 or 3, on a click or click_text step" % i)
+        if "mods" in s and (k not in ("click", "click_text") or not isinstance(s["mods"], str) or not all(
+                m in ("shift", "cmd", "alt", "option", "ctrl") for m in s["mods"].lower().split("+"))):
+            errs.append("step %d: \"mods\" is e.g. \"shift\" or \"cmd+shift\", on a click or click_text step" % i)
     return errs
 
 
@@ -124,6 +134,7 @@ def record_json(app, window, scale, size, n, actions, offset, confidence):
                      "t": round(a["t"] + offset, 3), "t_end": round(a["t_end"] + offset, 3),
                      "x": None if a.get("x") is None else round(a["x"] * scale, 1),
                      "y": None if a.get("y") is None else round(a["y"] * scale, 1)})
+        acts[-1].update({k: a[k] for k in ("text", "clicks") if k in a})   # what a sound track needs (screenrec_cues)
     return {"fps": FPS, "n": n, "width": size[0], "height": size[1], "scale": round(scale, 4), "window": window,
             "app": app, "actions": acts, "sync": {"offset": round(offset, 3), "confidence": round(confidence, 2)}}
 
@@ -262,10 +273,12 @@ def run(film_dir, spec, name="rec"):
             continue
         if "click" in s or "move" in s:
             gx, gy = at(s.get("click") or s.get("move"))
-            got = drive("click" if "click" in s else "move", gx, gy, ms)
+            got = drive(*(("click", gx, gy, ms, s.get("clicks", 1), s.get("mods", "")) if "click" in s
+                          else ("move", gx, gy, ms)))
             if abs(int(got[0]) - round(gx)) > 2 or abs(int(got[1]) - round(gy)) > 2:
                 raise RecordError("the cursor did not arrive (Accessibility off for this terminal?)")
             acts.append({"kind": "click" if "click" in s else "move", "label": label, "t": clock(), "t_end": clock(),
+                         "clicks": s.get("clicks", 1),
                          "x": gx - reg[0], "y": gy - reg[1]})
         elif "click_text" in s:
             import screen_text
@@ -275,8 +288,9 @@ def run(film_dir, spec, name="rec"):
             hit = screen_text.find_text(screen_text.recognize(png), s["click_text"], s.get("nth"))
             os.remove(png)
             px, py = hit["x"] * win[2], hit["y"] * win[3]
-            drive("click", *at([px, py]), ms)
+            drive("click", *at([px, py]), ms, s.get("clicks", 1), s.get("mods", ""))
             acts.append({"kind": "click", "label": label or s["click_text"], "t": clock(), "t_end": clock(),
+                         "clicks": s.get("clicks", 1),
                          "x": px + win[0] - reg[0], "y": py + win[1] - reg[1]})
         elif "menu" in s:
             last = len(s["menu"]) - 1
@@ -296,7 +310,11 @@ def run(film_dir, spec, name="rec"):
             acts.append({"kind": "drag", "label": label, "t": a0, "t_end": clock(), "x": x2 - reg[0], "y": y2 - reg[1]})
         elif "type" in s:
             drive("type", s["type"], s.get("cps", 9))
-            acts.append({"kind": "type", "label": label or s["type"], "t": a0, "t_end": clock(), "x": None, "y": None})
+            acts.append({"kind": "type", "label": label or s["type"], "text": s["type"], "t": a0, "t_end": clock(),
+                         "x": None, "y": None})
+        elif "scroll" in s:
+            drive("scroll", s["scroll"])
+            acts.append({"kind": "scroll", "label": label, "t": a0, "t_end": clock(), "x": None, "y": None})
         elif "key" in s:
             drive("key", s["key"])
             acts.append({"kind": "key", "label": label or s["key"], "t": clock(), "t_end": clock(), "x": None, "y": None})

@@ -73,7 +73,11 @@ each sequence seam; no clipping, even loudness across lines.
 **Pages.** One `film.html`, every frame a pure function of time (`window.seek(t)`), captured with headless Chrome.
 Icons: `references/icons.md` (one inline-SVG line family, Lucide). Captions: `python3 scripts/caption_words.py "…"`
 shows where a CJK caption may break; placement and line rules (on the frame's own ground, no strip, nothing else in
-the band) are `references/captions.md`.
+the band) are `references/captions.md`. On a director-path page whose picture fills and moves across the frame, the
+caption's place is measured: render once with captions hidden (the page's own switch), write `[[t0, t1, text], ...]`,
+then `python3 scripts/caption_spots.py <film_dir> --caps caps.json` gives each caption a spot on uniform ground for
+its whole time and its ink (`"light"` ground → dark text); the page draws each at its spot (the Numbers film's
+`tools/build_page.py` is a worked example).
 
 **The 3D stage** — `assets/html/stage3d.js`, one classic script (three.js 0.169
 bundled from `remotion/node_modules` by `scripts/build_stage3d.sh`), so a film page loads it with a plain `<script>`:
@@ -303,6 +307,24 @@ uses its screenshots and captures; a terminal program is `term_capture.py`; a we
    time it would need). The close-up follows the anchored actions (the Remotion tier's `focusTrack`, refused when it
    would whip) and is refused past the recording's own pixels; a ring marks each anchored click.
 Check the click rings against the frames once (the log is aligned to the video by the picture's own changes).
+4. Sound: `python3 scripts/screenrec_cues.py <film_dir> --until <the take's usable end> --skip <actions before the
+   film>` puts a click on every click and a key on every keystroke at the second the edit plays it, then
+   `sfx.py --cues audio/cues.json --seconds <duration> --out audio/sfx.wav` and `mix.py --voice … --sfx …`.
+
+What the first real tutorial (Numbers 14.5, 2026-11-25) taught:
+- Rehearse first, in the real app, step by step with a capture after each (`screencapture -l<window id>` sees a window
+  on another Space without switching to it); then reset the document by script and record the whole take.
+- Run outside Claude Code's command sandbox, and only while the user is away (the system idle time, `ioreg -c
+  IOHIDSystem` HIDIdleTime): the recording drives the real mouse and keyboard.
+- Numbers ignores a synthetic drag-SELECT (a drag over cells selects only the last one), while dragging an object
+  works: select a range with a click and `"mods": "shift"` on the last cell, and say Shift-click in the voice (the
+  viewer cannot see a held key). A click on an already-selected cell then a drag MOVES its contents.
+- An app may scroll by itself (inserting a chart scrolled the sheet 40 pt): later points in window coordinates then
+  miss. `{"scroll": 10}` brings the view back before them.
+- The automatic sync can be wrong on a take full of cursor motion (+1.10 s at 12 % agreement): measure two or three
+  unmistakable events on the frames (a popover appearing, a bar changing) and set the offset by hand.
+- screencapture can stop writing frames after a still stretch and only add the last one at the end (the Numbers take
+  froze from its 4.5 s wait to the end): end the edit at the last good frame (`rec.n`), and keep waits short.
 
 ## Launch and product films (step 6)
 A starting point measured on 20 official launch films (`references/craft-standard.md` "A product film",

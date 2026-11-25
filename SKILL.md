@@ -67,8 +67,8 @@ collection stages to let user decide"). Non-interactive: take the recommended op
 `NOTES.md`, and do the checkpoint's own check yourself (listen, look) before going on.
 
 **Design is judgement, not a menu** (the user, 2026-11-17: "design has to be flexible: components, vibe, all of it"). Only a few things
-in this file BIND every film: the facts are sourced, every drawn thing is correct, everything is readable and
-nothing sits in the caption band, rasters stay within their pixels, real brands stay real, and `film_qc` is clean
+in this file BIND every film: the facts are sourced, every drawn thing is correct, everything is readable,
+captions sit on the picture's own ground and cover nothing, rasters stay within their pixels, real brands stay real, and `film_qc` is clean
 (or a red is proved wrong). Everything else (the looks and their palettes, components and kit pieces, accents, the
 launch grammar, sequence counts, the craft principles, every example here) is a VOCABULARY: use it, combine it,
 bend it, or leave it, by what this subject, this audience and this moment need, and invent what the vocabulary
@@ -288,7 +288,12 @@ moves (`assets/html/math.js`: a derivation written on and carried form to form, 
   (a map's land is `Geo.inside`-tested before anything is placed on it); a simplified model is drawn as a simplification OF the real thing, never as a new creature. Before
   building, look at a real reference (a photo, the source's figure) for each recurring drawn subject; label a
   schematic as one, in the film's language.
-- Nothing cut off, overlapping or unreadable; nothing in the caption band but the caption.
+- Nothing cut off, overlapping or unreadable.
+- **Captions sit ON the picture's own ground**, never on a band, strip or scrim added under the film, and cover nothing:
+  the picture fills the frame, each framing keeps empty ground where its captions go, and each caption is placed
+  where the frames under it are that empty ground for its whole time — measured by `scripts/caption_spots.py` on a
+  caption-free render, which also picks the ink for the ground (a Numbers tutorial, 2026-11-25; the user: "底下那个黑色块
+  …你可以让subtitle很好的融入背景且不影响内容吗"). No clean spot → change the edit, never the caption.
 - **Never draw a raster beyond its native pixels**; a real screenshot is cropped and pushed within its density.
 - Time runs one way: a state reached stays reached; nothing replays after a cut; nothing overshoots and shrinks back.
 - No slow constant creep on fine detail (hard edges shimmer); a camera move has a job and an end.
@@ -347,6 +352,9 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
 - **Music follows purpose:** an explainer has none (music under narration costs recall); a launch or promo is scored (`scripts/score.py`, or the
   user's own track), mixed by `scripts/mix.py`: about 20 dB under the voice while it speaks, by measurement (a film's
   own hand-set mix left its score 2 dB under the words, job-hunt 2026-11-19).
+- **An operating-steps film** (a recorded tutorial) sounds its real actions: a soft click on every recorded click and a
+  key on every keystroke, placed on the second the edit plays them (`scripts/screenrec_cues.py`, then `sfx.py` and
+  `mix.py --sfx`; the user, 2026-11-25: "可以适当加一些点击或者打字的声音特效对于这种类似情景").
 - **SFX** on a few real events, short and high-passed (`scripts/sfx.py --cues`: 15 synthesised sounds). Not every cut
   gets a sound. A product film speaks the film vocabulary (whoosh, impact, riser, sparkle) with real foley for
   visible actions, never game-feedback tones (`references/promo-shotcraft.md` §4).

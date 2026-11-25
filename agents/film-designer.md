@@ -125,6 +125,10 @@ move, and then at the real screen's proportions, scaled as one object (never one
 step 6); marks follow the tilted object they frame (`st.quad` + `Stage3D.brackets`) — the toolbox,
 "Devices, app screens, cards, marks".
 Every drawn object is checked against its real reference before it is drawn (`references/object-authoring.md`).
+The picture fills the frame: no caption band or strip under it. Captions sit on the picture's own empty ground, so
+every framing you plan leaves ground clear where its captions go, and a moment that sweeps the whole frame (a drag,
+a long pan) gets a pause in the voice (SKILL.md step 6, `scripts/caption_spots.py`; a black band read as a block to
+the user, 2026-11-25).
 Say why, and what you take from the other two.
 
 ## 4. Hero keyframes — `design/keyframes/*.png` + `design/keyframes.jpg`

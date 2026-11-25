@@ -1236,6 +1236,18 @@ agent on the beats it points at.
   is the point says so on the element or an ancestor, `data-blur-ok="<why>"` (listed, never red; no reason is red).
   Part of film_qc ("blur"). Why: the Airbnb film's depth and focus blurs read to the user as blurry originals
   (2026-11-25); on that film's page it found all seven and passed its two whips.
+- `scripts/caption_spots.py <film_dir> --caps caps.json [--frames work/frames] [--size 56] [--x …] [--y …] [--out …]` —
+  where each caption sits ON the picture's own ground: on a caption-free render, the first candidate centre (the
+  previous caption's spot first) whose box (text width at --size + 24 px) is one uniform ground on every frame the
+  caption is up; its tone picks the ink. Writes `{index: [cx, cy, "light"|"dark"]}`; exit 1 names a caption with no
+  clean spot (change the edit, never add a strip). Why: a black caption band under the Numbers tutorial (the user,
+  2026-11-25); on that film it placed all 29 captions clear of a dragged chart, a popover and the card's ground.
+- `scripts/screenrec_cues.py <film_dir> [--rec clips/rec/rec.json] [--page film.html] [--edit E] [--until S] [--skip i,j]`
+  — the click and keystroke foley of a recorded tutorial: every logged click (two for `"clicks": 2`), a drag's press
+  and release, each typed character (rec.json's `"text"`), each key, placed on the first film second whose
+  `<edit>.recAt(t)` reaches it (sampled at 1/120 s on the page: a hold stays silent, a sped-up stretch stays in
+  sync) -> `audio/cues.json` for `sfx.py`. Why: the user asked for click and typing sounds on the Numbers tutorial
+  (2026-11-25); it reproduced that film's hand-placed 35 cues to the sample.
 - `scripts/film_copy_qa.py <film_dir> [--every 0.5] [--json]` — every word the page shows (DOM text and canvas
   fillText) must occur in the sources (`input/sources/`, `sources/`, `script.json`, `brief.json`), as text or as an
   in-order excerpt of one sentence; anything else is declared in `<film_dir>/copy_ok.json` WITH a reason, or fails.

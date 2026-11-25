@@ -5,7 +5,7 @@
 // action logged (clips/<name>/rec.json + frames/NNNNN.jpg). This file is the edit a tutorial gets, as pure functions
 // of the film's time:
 //   TIME   each anchored action lands on the film second the narration names it; the stretch before it plays at real
-//          speed after the last action settles, then HOLDS while the voice catches up, or is SPED UP (to `maxSpeed`)
+//          speed after the last action settles (1 s, or to the end of an action that starts in it: a drag, typing), then HOLDS while the voice catches up, or is SPED UP (to `maxSpeed`)
 //          when the voice is quicker than the hand — never faster, which is refused with the time it would need;
 //   CAMERA a close-up that follows the action: remotion/src/runtime/focusTrack.ts (the Remotion tier's tuned track:
 //          eased between keys, at a fixed magnification, refused when it would whip), never past the recording's
@@ -17,6 +17,7 @@ import {checkFocusTrack, focusAt} from '../../../remotion/src/runtime/focusTrack
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smoothstep = (u) => { const x = clamp(u, 0, 1); return x * x * (3 - 2 * x); };
 const SETTLE = 1.0;    // seconds an action's result plays at real speed before a hold
+const LEAD = 0.1;      // the recording a hold leaves before the next anchored action (its own approach)
 
 /**
  * rec: the parsed rec.json. opts:
@@ -51,6 +52,18 @@ export function edit(rec, opts) {
     if (!act) throw new Error(`ScreenRec.edit: there is no action ${a.action} in rec.json`);
     return {...a, r: act.t, act};
   }).sort((p, q) => p.at - q.at);
+  // how long each anchor's result plays at real speed before a hold: SETTLE, stretched to the end of every action
+  // that starts inside it (a drag, the typing after a double-click: a hold must never freeze an action halfway), and
+  // always ending LEAD before the next anchored action, so that action plays on its word, not early (a Return 0.6 s
+  // after its cell's click landed 1.7 s before "Watch the chart", the Numbers film, 2026-11-25)
+  A.forEach((a, k) => {
+    const nextR = k + 1 < A.length ? A[k + 1].r : Infinity;
+    let s = SETTLE;
+    for (const b of rec.actions) {
+      if (b.t >= a.r && b.t <= a.r + s && b.t < nextR && b.t_end != null) s = Math.max(s, b.t_end - a.r + 0.3);
+    }
+    a.settle = Math.max(0, Math.min(s, nextR - a.r - LEAD));
+  });
   A.forEach((a, k) => {
     if (k && !(a.r > A[k - 1].r)) throw new Error('ScreenRec.edit: anchors must follow the recording\'s own order');
     if (k) {
@@ -72,7 +85,7 @@ export function edit(rec, opts) {
       const k = A.findIndex((a) => a.at > t), p = A[k - 1], q = A[k];
       const F = q.at - p.at, R = q.r - p.r, df = t - p.at;
       if (F >= R) {
-        const s = Math.min(R, SETTLE), holdEnd = F - (R - s);
+        const s = p.settle, holdEnd = F - (R - s);
         r = df < s ? p.r + df : df < holdEnd ? p.r + s : p.r + s + (df - holdEnd);
       } else r = p.r + df * (R / F);
     }
@@ -125,8 +138,11 @@ export function draw(el, state, {accent = '#2f80ed', radius = 26} = {}) {
   const B = state.box, [vx, vy, vw] = state.view, k = B.w / vw;      // frame px per recording px
   Object.assign(el.style, {position: 'absolute', left: `${B.x}px`, top: `${B.y}px`, width: `${B.w}px`,
     height: `${B.h}px`, overflow: 'hidden', display: state.visible ? 'block' : 'none'});
-  Object.assign(img.style, {position: 'absolute', left: `${-vx * k}px`, top: `${-vy * k}px`,
-    width: `${state.rec[0] * k}px`, height: `${state.rec[1] * k}px`, maxWidth: 'none'});
+  // laid out ONCE at the recording's own size; the camera is a transform (sub-pixel, no re-layout): per-frame
+  // left/top/width in whole px made a 0.9 s push STEP (picture_glide red, the Numbers film, 2026-11-25)
+  Object.assign(img.style, {position: 'absolute', left: '0px', top: '0px', width: `${state.rec[0]}px`,
+    height: `${state.rec[1]}px`, maxWidth: 'none', transformOrigin: '0 0', willChange: 'transform',
+    transform: `translate(${(-vx * k).toFixed(3)}px, ${(-vy * k).toFixed(3)}px) scale(${k.toFixed(6)})`});
   svg.setAttribute('width', B.w); svg.setAttribute('height', B.h);
   Object.assign(svg.style, {position: 'absolute', left: '0px', top: '0px', overflow: 'visible'});
   svg.innerHTML = state.rings.map((g) => {
