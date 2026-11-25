@@ -73,7 +73,9 @@ def default_gl():
 def pixel_flags(gl):
     """What reaches the pixels besides the props and the code. `--log`, `--timeout` and `--concurrency` do
     not, so they are not in the key."""
-    return {"gl": gl, "codec": "h264", "audio": "pcm-16"}
+    # colour and encode reach the pixels too: a segment cached before --color-space=bt709 was BT.601 full range, and
+    # joined with new ones the film failed _common.tag_bt709 (or would have mixed two encodes)
+    return {"gl": gl, "codec": "h264", "audio": "pcm-16", "color": "bt709", "x264": "crf17-aq3"}
 
 
 # ── ONE BACKEND PER FILM ────────────────────────────────────────────────────────────────────────────────

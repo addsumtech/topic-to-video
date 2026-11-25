@@ -8,7 +8,7 @@
     python3 scripts/workshop.py <out_dir> still <Name> [--props p.json] [--host ObjectStage] [--frame N] [--aspect 9:16]
     python3 scripts/workshop.py <out_dir> fidelity <Name> [--props p.json] [--host ObjectStage]  # vs its references
     python3 scripts/workshop.py <out_dir> motion <Name> [--props p.json]  # does it keep moving? (the film gate's floor)
-    python3 scripts/workshop.py <out_dir> clip <Name> [--props p.json] [--aspect 9:16] [--frames 0-89]  # -> clips/<Name>.mp4
+    python3 scripts/workshop.py <out_dir> clip <Name> [--props p.json] [--aspect 9:16] [--frames 0-89]  # -> clips/<Name>/NNNN.png + .mp4
     python3 scripts/workshop.py <out_dir> media add <file> [--name n] [--at s] [--replace]   # a picture, a clip, a frame of one
     python3 scripts/workshop.py <out_dir> new-component <Name> --means "<what the viewer must see>"   # HTML tier
     python3 scripts/workshop.py <out_dir> still <Component> [--attrs a.json] [--p 0.9] [--aspect 16:9|9:16]
@@ -2135,23 +2135,43 @@ def measure_motion(out_dir, name, props=None, aspect=None, dna=None):
 
 
 def render_clip(out_dir, name, props=None, aspect=None, dna=None, frames=None):
-    """<out_dir>/clips/<name>.mp4 — a built shot or object rendered at full size, silent, for a film that is NOT
-    assembled by the storyboard renderer: the director path builds its film as one page and places the kit's lit,
-    material and 3D work into it as clips (SKILL.md step 6). Same composition and props `still` and `motion` use."""
+    """<out_dir>/clips/<name>/NNNN.png + <out_dir>/clips/<name>.mp4 — a built shot or object rendered at full size,
+    silent, for a film that is NOT assembled by the storyboard renderer: the director path builds its film as one page
+    and places the kit's lit, material and 3D work into it as clips (SKILL.md step 6). Same composition and props
+    `still` and `motion` use.
+
+    The page draws frame N at its time, so the clip IS its PNG frames, rendered straight from Remotion: the old mp4
+    had to be extracted by hand (no script did it) and added an H.264 4:2:0 generation and BT.601 tags on the way
+    (end to end through the page and film_deliver it cost 0.5 dB, 2026-11-26). The mp4 beside them is a preview,
+    encoded from the same PNGs as every delivered video is (_common.BT709_VF)."""
     comp, payload, _dur = still_plan(out_dir, name, props, aspect=aspect, dna=dna)
     outd = os.path.join(os.path.abspath(out_dir), "clips")
+    seq = os.path.join(outd, name)
     os.makedirs(outd, exist_ok=True)
+    if os.path.isdir(seq):
+        shutil.rmtree(seq)                       # a re-render replaces every frame: no stale frame survives a shorter one
+    os.makedirs(seq)
     pf, mp4 = os.path.join(outd, name + ".props.json"), os.path.join(outd, name + ".mp4")
     with open(pf, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False)
-    cmd = ["npx", "remotion", "render", "src/index.ts", comp, mp4, "--gl=angle", "--log=error", "--muted",
-           "--props=" + pf, "--public-dir=" + os.path.abspath(out_dir)]
+    timeout = str(int(os.environ.get("REMOTION_TIMEOUT_MS", "120000") or "120000"))
+    cmd = ["npx", "remotion", "render", "src/index.ts", comp, seq, "--sequence", "--image-format=png", "--gl=angle",
+           "--log=error", "--muted", "--timeout=" + timeout, "--props=" + pf, "--public-dir=" + os.path.abspath(out_dir)]
     if frames:
         cmd.append("--frames=" + frames)
     r = _c.run_render(subprocess.run, cmd, cwd=REMOTION, capture_output=True, text=True, **run_kwargs(out_dir))
-    if r.returncode != 0 or not os.path.exists(mp4):
+    pngs = sorted(f for f in os.listdir(seq) if f.endswith(".png"))
+    if r.returncode != 0 or not pngs:
         import cjk_type_qa
         raise WorkshopError(["the clip render of %s failed: %s" % (name, cjk_type_qa._why_it_refused(r.stdout + r.stderr))])
+    # Remotion names them element-<frame>.png with a width that depends on the range: renamed to NNNN.png, 0-based in
+    # the clip's own order, so the page's `clips/<name>/${String(i).padStart(4,'0')}.png` never depends on --frames
+    for i, f in enumerate(pngs):
+        os.replace(os.path.join(seq, f), os.path.join(seq, "%04d.png" % i))
+    fps = str(int(payload.get("fps") or 30)) if isinstance(payload, dict) else "30"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-framerate", fps, "-i", os.path.join(seq, "%04d.png"),
+                    "-vf", _c.BT709_VF, "-c:v", "libx264", "-crf", "17", "-x264-params", "aq-mode=3", "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart", mp4], check=True)
     return mp4
 
 
@@ -2332,7 +2352,8 @@ def main(argv=None):
             props = json.loads(_read(a.props)) if a.props else None
             mp4 = render_clip(a.out_dir, a.name, props, aspect=a.aspect, dna=direction_dna(a.dna) if a.dna else None,
                               frames=a.frames)
-            print("[workshop] %s -> %s" % (a.name, mp4))
+            print("[workshop] %s -> %s/NNNN.png (what the page draws, frame N at its time) + %s (preview)"
+                  % (a.name, os.path.splitext(mp4)[0], mp4))
             return 0
         if a.cmd == "media":
             if a.action == "list":

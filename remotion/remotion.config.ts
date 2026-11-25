@@ -9,6 +9,20 @@ Config.setOverwriteOutput(true);
 // 8.5 at 95 and 8.7 as PNG. The rest of the banding is the film's dither (src/runtime/dither.tsx).
 Config.setJpegQuality(95);
 
+// THE ENCODE, as the director path's (film_deliver: CRF 17 + x264 aq-mode=3) — Remotion's default (CRF 18, x264's
+// default adaptive quantisation) smoothed away the film's own dither on a dark ground: the grokbot opening measured
+// CAMBI 7.1 on its first frame (visible rings past ~5) against 1.7 this way, at +39% size; a dithered synthetic
+// gradient 18 against 12.5 (2026-11-26, film_work/remotion_bench). scripts/remotion_segments.pixel_flags keys the
+// segment cache on it.
+Config.setCrf(17);
+Config.overrideFfmpegCommand(({type, args}) => {
+  if (type !== 'stitcher' || !args.includes('libx264') || args.includes('-x264-params')) {
+    return args;
+  }
+  const out = args.slice(0, -1);       // the output path is last
+  return [...out, '-x264-params', 'aq-mode=3', args[args.length - 1]];
+});
+
 // A FILM'S WORKSHOP — the objects and shots one film builds for itself (scripts/workshop.py) — enters the
 // bundle through ONE alias, and nothing else about the library changes. `SLIDES_WORKSHOP` is set only by
 // scripts/workshop.py, for a render scoped to one film; unset, `@workshop` is the tracked empty stub and the

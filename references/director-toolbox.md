@@ -189,8 +189,11 @@ Write a film's own shot or object in its workshop and let it wrap any library sh
   whose ink is mostly near-white, but NOT a few labels beside large coloured shapes: ChartRace passed it while its
   labels vanished on paper (fixed 2026-11-17: it now takes the film's `fg`/`dim`). A part whose words do not read is
   restyled in the workshop or swapped.
-- **Placing a clip:** extract it to PNGs and let the page draw frame N at its time, so the page stays a pure function
-  of time. Rendering: ChartRace with real rows took 45 s for 4 s.
+- **Placing a clip:** `clip` writes the frames the page draws, `clips/<Name>/0000.png …` straight from Remotion (no
+  H.264 generation, exact sRGB), plus a BT.709 `clips/<Name>.mp4` preview; the page draws frame N at its time, so it
+  stays a pure function of time. Rendering: ChartRace with real rows took 45 s for 4 s. Every Remotion encode is
+  CRF 17 + aq-mode=3 (remotion.config.ts), like film_deliver: the default smoothed away the film's dither (CAMBI
+  7.1 -> 1.7 on a dark opening).
 
 **Generated imagery** (atmosphere only, never a fact): `python3 scripts/imagegen.py --prompt "…" --out bg.png` draws
 through the Codex subscription with the no-text/no-invented-facts tail added; `--key` (the paid API) only after the
