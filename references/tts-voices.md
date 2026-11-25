@@ -100,11 +100,11 @@ Set a voice by accent + gender; the id goes in `meta.voice` as `edge:<id>`:
 
 | Lang | Accent | Female | Male |
 |---|---|---|---|
-| en | US | en-US-AriaNeural | en-US-GuyNeural |
+| en | US | en-US-EmmaNeural | en-US-AndrewNeural |
 | en | UK | en-GB-SoniaNeural | en-GB-RyanNeural |
 | en | AU | en-AU-NatashaNeural | en-AU-WilliamNeural |
 | en | IN | en-IN-NeerjaNeural | en-IN-PrabhatNeural |
-| zh | Mainland | zh-CN-XiaoxiaoNeural | zh-CN-YunxiNeural |
+| zh | Mainland | zh-CN-XiaoxiaoNeural | zh-CN-YunyangNeural |
 | zh | HK | zh-HK-HiuMaanNeural | zh-HK-WanLungNeural |
 | zh | TW | zh-TW-HsiaoChenNeural | zh-TW-YunJheNeural |
 | ja | — | ja-JP-NanamiNeural | ja-JP-KeitaNeural |

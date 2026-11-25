@@ -983,3 +983,28 @@ def test_the_installed_voices_are_read_from_say():
                "Tingting (Chinese (China mainland)) zh_CN    # 你好！我叫婷婷。\n")
     v = tts._parse_say_voices(listing)
     assert v["samantha"] == ("Samantha", "en_US") and v["tingting"] == ("Tingting", "zh_CN") and "albert" in v
+
+
+def test_a_voice_without_timings_gets_them_aligned_not_dropped(tmp_path, monkeypatch):
+    """Classic synthesis with an engine that reports no word timings (say / openai / minimax) aligns them from the
+    edge voice, as say.py does for the director path; it used to delete them, leaving reveals on text positions."""
+    out = tmp_path / "proj"; os.makedirs(out, exist_ok=True)
+    data = sb.new_storyboard()
+    data["meta"]["voice"] = "say:Samantha"
+    data["slides"] = [sb.new_slide(1, "frames/01.png", "Hello there.")]
+    sb.save(data, os.path.join(out, "storyboard.json"))
+    def fake_say(text, dest, voice, rate=175):
+        with open(dest, "wb") as f:
+            f.write(b"\x00")
+    aligned = []
+    def fake_align(text, dest, meta):
+        aligned.append((text, dest))
+        p = os.path.splitext(dest)[0] + ".words.json"
+        json.dump([{"w": "Hello", "t": 0.1}, {"w": "there.", "t": 0.4}], open(p, "w"))
+        return p
+    monkeypatch.setattr(tts, "_say", fake_say)
+    monkeypatch.setattr(tts, "align_words_from_edge", fake_align)
+    monkeypatch.setattr(tts._common, "audio_duration", lambda p: 1.0)
+    tts.synthesize(str(out))
+    assert aligned and aligned[0][0] == "Hello there."
+    assert os.path.exists(os.path.splitext(aligned[0][1])[0] + ".words.json")

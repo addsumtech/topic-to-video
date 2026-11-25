@@ -94,3 +94,16 @@ def test_chinese_is_compared_by_sound_and_english_inside_it_whole():
     assert not r["dropped"] and not r["listen"], r
     r = v.judge_line(ln, _heard("隔着一条深圳河 就是香港 用 Speal 和 Codex"), True, {})
     assert r["listen"] and r["listen"][0]["heard"] == "speal", r      # a real misreading still heard
+
+
+def test_a_chinese_line_has_its_caption_drift_measured():
+    """A Chinese line is one 'word' to split(): its tokens were never given the timed words' times, so caption drift
+    was never measured on a Chinese film (a caption track 0.4 s late passed, 2026-11-25 bench)."""
+    import voice_asr_qa as V
+    words = [{"w": "它", "t": 1.0}, {"w": "发出", "t": 1.2}, {"w": "一", "t": 1.5}, {"w": "小", "t": 1.6},
+             {"w": "段", "t": 1.8}, {"w": "信号", "t": 2.0}]
+    line = {"id": "l01", "text": "它发出一小段信号。", "start": 1.0, "end": 2.6, "words": words}
+    # heard 0.4 s EARLIER than the captions say (the captions run late), one character per token as whisper writes it
+    heard = [(c, t - 0.4) for w in words for c, t in [(ch, w["t"]) for ch in w["w"]]]
+    r = V.judge_line(line, heard, True, {})
+    assert not r.get("untimed") and r["drift"] is not None and abs(r["drift"] + 0.4) < 0.05, r

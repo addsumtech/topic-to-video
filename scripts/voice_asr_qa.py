@@ -16,6 +16,10 @@ lexicon.json respelling ({written: spoken}) is accepted as well as its written f
 WHY. No agent can listen: a misread word, a skipped clause or captions drifting from the voice reached the user
 unheard (every film's NOTES: "I could not listen to the audio myself"). The recogniser is an ear that writes down what
 it heard. Measured on the MRI film (2026-11-20): 127 s of voice transcribed in about 40 s on a laptop CPU.
+THE MODEL (bench 2026-11-25, film_work/voice_bench: EN + ZH films with a dropped 3-word phrase, a doubled one, and
+captions 0.2 / 0.4 s off): `small` and `large-v3-turbo` caught the same defects with no false red on the clean films,
+turbo 1.2-2x slower — `small` stays. The bench found Chinese caption drift was never measured (fixed: a Chinese line
+is one word to split(), so its characters now take the times of the timed words they are in).
 Needs faster-whisper (`pip install faster-whisper`; the model downloads once). Without it: NOT MEASURED, exit 2, never
 a silent pass. Exit 0 clean (listen-warnings printed), 1 red, 2 usage error / not measured.
 """
@@ -33,7 +37,7 @@ import _common as _c  # noqa: E402
 
 DRIFT = 0.35        # s; a caption this far off its word is seen (a recogniser's word times are good to ~0.1-0.2 s)
 RUN = 3             # words in a row: a dropped or extra phrase, not a misheard word
-HEARD_V = 4         # what a cached result was heard with: a change to how the voice is heard invalidates it
+HEARD_V = 5         # what a cached result was heard AND judged with: a change to either invalidates it (5: Chinese drift)
 _USAGE = "usage: voice_asr_qa.py <film_dir> [--model small] [--json]"
 _CJK = re.compile(r"[㐀-鿿豈-﫿]")
 _EN_NUM = set(("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
@@ -185,8 +189,19 @@ def judge_line(line, heard, zh, lexicon):
     wtime = [w["t"] for w in script_words]
     # word times line up with the written words only (a respelling changes the count)
     timed = vi == 0 and line.get("words") is not None and len(line["text"].split()) == len(wtime)
+    if zh and vi == 0 and line.get("words") and not timed:
+        # Chinese has no spaces: the line is ONE "word" to split(), so its tokens could never be given the timed words'
+        # times and drift was never measured on a Chinese film (a caption track 0.4 s late passed, 2026-11-25). The
+        # timed words tokenised the same way give each character the time of the word it is in.
+        wst = tokens(" ".join(w["w"] for w in script_words), zh)
+        wst = _join_latin_tokens(wst)
+        if len(wst) == len(st):
+            st = [(tok, wi) for (tok, _), (_, wi) in zip(st, wst)]
+            timed = True
     res = {"line": line.get("id", ""), "text": line["text"], "ratio": round(sm.ratio(), 3), "dropped": [], "extra": [],
            "listen": [], "drift": None}
+    if line.get("words") and vi == 0 and not timed:
+        res["untimed"] = True                    # said, never a silent pass: this line's drift could not be measured
     ops = sm.get_opcodes()
     offs = []
     for k, (op, i1, i2, j1, j2) in enumerate(ops):
@@ -295,6 +310,8 @@ def _report(rows, argv, cached):
             print("EXTRA    %-5s heard %r, not in the line" % (r["line"], x))
         if r["drift"] is not None and abs(r["drift"]) > DRIFT:
             print("DRIFT    %-5s the voice is %+.2f s off its captions" % (r["line"], r["drift"]))
+        if r.get("untimed"):
+            print("NOTE     %-5s caption drift NOT measured: its timed words do not line up with its text" % r["line"])
         for x in r["listen"]:
             print("WARN listen %-5s said %r, heard %r (a recogniser mishears single words: listen before changing)"
                   % (r["line"], x["said"], x["heard"] or "nothing"))

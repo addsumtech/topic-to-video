@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """say — voice ONE line (or a file of lines) with the skill's voice layer, for a film with no storyboard.
 
-    python3 scripts/say.py "一句台词" --out voice/l01.mp3 [--voice edge:zh-CN-YunxiNeural] [--speed 1.08]
+    python3 scripts/say.py "一句台词" --out voice/l01.mp3 [--voice edge:zh-CN-YunyangNeural] [--speed 1.08]
                            [--lexicon lexicon.json]
     python3 scripts/say.py --lines script.txt --out-dir voice/ [--voice …] [--speed …] [--lexicon …]
 
@@ -42,7 +42,7 @@ def main(argv):
     ap.add_argument("--out")
     ap.add_argument("--lines", help="a text file: one clip per non-empty line")
     ap.add_argument("--out-dir")
-    ap.add_argument("--voice", default="edge:zh-CN-YunxiNeural", help="edge:<id> | minimax:<id> | openai:<id> | say:<name>")
+    ap.add_argument("--voice", default="edge:zh-CN-YunyangNeural", help="edge:<id> | minimax:<id> | openai:<id> | say:<name>")
     ap.add_argument("--speed", type=float, default=1.0, help="1.0 natural; edge handles about 0.7-1.3")
     ap.add_argument("--lexicon", help="JSON file {written: spoken}")
     a = ap.parse_args(argv)

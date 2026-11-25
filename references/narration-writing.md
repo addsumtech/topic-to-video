@@ -166,3 +166,24 @@ Concrete benefit, second person, one sentence per idea. ~28 words ≈ ~9.5 s wit
 - [ ] Word (Latin) / character (CJK) count matches target duration ±15%
 - [ ] Acronyms expanded on first use across the full storyboard (not just per slide)
 - [ ] Critic (step 5) returned PASS before TTS
+
+
+## Punctuation is the pause control (the free voice takes no SSML)
+
+edge-tts takes plain text only, so where the voice breathes is set by the marks. Measured acoustically (silence
+between the two halves, two sentences per mark, 2026-11-25):
+
+| mark | Emma (en) | Andrew (en) | Xiaoxiao (zh) | Yunyang (zh) |
+|---|---|---|---|---|
+| comma , ， | 0.17 s | 0.33 s | 0.29 s | 0.23 s |
+| dash — —— | 0.37 s | 0.40 s | 0.29 s | 0.23 s |
+| semicolon ; ； | 0.34 s | 0.44 s | 0.33 s | 0.30 s |
+| colon : ： | 0.50 s | 0.46 s | 0.30 s | 0.18 s |
+| ellipsis ... …… | 0.47 s | 0.39 s | 0.26 s | 0.25 s |
+| full stop . 。 | 0.44 s | 0.42 s | 0.63 s | 0.71 s |
+
+- English: a comma is a breath, not a beat (Emma barely pauses at all). For a beat before the reveal, write a dash, a
+  colon or a new sentence.
+- Chinese: comma, dash, colon and ellipsis all give the same short pause; only 。 gives a real beat (~0.7 s). A
+  ——or …… written for drama changes nothing — end the sentence instead.
+- A longer pause than the voice gives is made in the timeline (the gap between two clips), never by stacking marks.

@@ -35,7 +35,7 @@ vocabulary SKILL.md's "Design is judgement" refers to. The classic version's oth
 - `python3 scripts/pace.py --budget <seconds> --lang <lang>`: how much narration a span holds.
 
 ## Voice (step 4)
-`python3 scripts/say.py --lines script.txt --out-dir <film_dir>/voice --voice edge:zh-CN-YunxiNeural [--speed 1.08]
+`python3 scripts/say.py --lines script.txt --out-dir <film_dir>/voice --voice edge:zh-CN-YunyangNeural [--speed 1.08]
 [--lexicon lexicon.json]` (one line: `say.py "…" --out l01.mp3`). It runs the skill's voice layer (`tts.speak`):
 - per-word timings in `<clip>.words.json`, in the WRITTEN words (the caption's spelling);
 - a pronunciation lexicon `{written: spoken}` applied for the voice only (多音字, brand names, a misread term);
@@ -53,8 +53,9 @@ line, a middle pair) and speaks them in the script's voice or `--voice` into `au
 (`scripts/word_align.py`; measured median 0-18 ms, p90 <= 60 ms, worst ~0.2 s at a line's last word), and stops with
 the reason if it cannot (no edge-tts): the timeline is never guessed.
 
-Voices: zh `zh-CN-YunxiNeural` / `zh-CN-XiaoxiaoNeural`; en `en-US-AndrewMultilingualNeural` /
-`en-US-AvaMultilingualNeural` (`references/tts-voices.md`). A misreading is fixed in the lexicon, never in the caption.
+Voices (tts.py EDGE_VOICE_CATALOG, chosen by measured pitch movement): zh `zh-CN-YunyangNeural` /
+`zh-CN-XiaoxiaoNeural`; en `en-US-AndrewNeural` / `en-US-EmmaNeural` (their `…MultilingualNeural` twins also read the English
+inside a Chinese line; `references/tts-voices.md`). A misreading is fixed in the lexicon, never in the caption.
 Editing the clips: trim leading/trailing silence, cap pauses inside a line (~0.25 s), a longer breath (0.4-0.6 s) at
 each sequence seam; no clipping, even loudness across lines.
 

@@ -1272,12 +1272,18 @@ def synthesize(out_dir, only=None):
         s["audio"] = rel
         pending.append((s, dest))   # mastered below, once the film's own sentence pause is known
         # Only edge-tts emits per-word timings. For any other provider (say/openai/minimax) drop a
-        # leftover words.json from a PRIOR edge run — otherwise render_html would cue reveals off
-        # stale timings that don't match this audio. (The fallback branch above also handles it.)
+        # leftover words.json from a PRIOR edge run (stale timings would mis-cue render_html), then ALIGN this clip's
+        # own from the edge voice saying the same words, as say.py does for the director path: deleting them left a
+        # paid voice's reveals and captions on text-position estimates. Alignment needs edge-tts; without it the
+        # clip keeps no timings and that is said, not hidden.
         if rel.endswith(("." + SAY_EXT, ".aiff")) or prov != "edge":
             wj = os.path.join(audio_dir, f"{s['index']:02d}.words.json")
             if os.path.exists(wj):
                 os.remove(wj)
+            try:
+                align_words_from_edge(text, dest, data["meta"])
+            except RuntimeError as e:
+                print(f"[tts] scene {s['index']}: no word timings ({e}); reveals follow text positions")
 
     # MASTER LAST. Level + tail-trim must happen before we measure a duration (pacing must see speech,
     # not dead air), but the tail PAD is derived from the whole film's sentence pause — so the clips wait
