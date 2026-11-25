@@ -106,12 +106,17 @@ def tune_cycles(samples=24):
     sc.cycles.adaptive_threshold = 0.04
     sc.cycles.use_denoising = True
     sc.cycles.denoiser = "OPENIMAGEDENOISE"
+    # OIDN on the GPU (Metal on Apple Silicon): 25.6 -> 19.8 s a 1080p frame of the scanner bench at 24 spp, the
+    # picture unchanged (2026-11-25). Keep the light tree on: off, the same frame took 46.7 s.
+    if hasattr(sc.cycles, "denoising_use_gpu"):
+        sc.cycles.denoising_use_gpu = True
+    sc.cycles.use_light_tree = True
     sc.cycles.max_bounces, sc.cycles.glossy_bounces, sc.cycles.diffuse_bounces = 6, 4, 3
     sc.cycles.caustics_reflective = sc.cycles.caustics_refractive = False
     sc.render.use_persistent_data = True
 
 
-def product_light(objs, cam, strength=1.7, hdri_strength=0.7, key_side=-1, rim_strength=1.0):
+def product_light(objs, cam, strength=1.7, hdri_strength=0.7, key_side=-1, rim_strength=1.0, view="agx"):
     """The product studio of the craft study's films, around the objects `objs`, placed from the CAMERA:
       * the studio HDRI as what gloss and metal mirror (the WorkBuddy spike: soft boxes alone left metal EMPTY);
       * a broad soft KEY high on `key_side` (-1 = the lens' left) — the ramp across every large surface;
@@ -121,7 +126,11 @@ def product_light(objs, cam, strength=1.7, hdri_strength=0.7, key_side=-1, rim_s
       * a weak FILL low on the other side so the shadow side keeps its form.
     Measured why (2026-11-11): under a flat-colour world with one key and one rim the ANC earbud rendered as a clay
     model (craft-study surface measure: 0 % modelled frames). Sizes and energies scale with the objects' extent,
-    so the balance holds at any scene scale. `strength` scales every light alike. Returns the light objects."""
+    so the balance holds at any scene scale. `strength` scales every light alike. Returns the light objects.
+    `view`: "agx" (white, light and glossy products: AgX keeps the highlight that draws an edge) or "neutral" (a
+    product in a brand colour: Khronos PBR Neutral, made for product photography, kept a #e4572e shell at saturation
+    0.72 where AgX gave 0.61, the target 0.80; on a white shell it went creamy and flattened the edge highlight —
+    the scanner bench, 2026-11-25)."""
     import math
     objs = [o for o in objs if o.type == "MESH"]
     if not objs:
@@ -133,11 +142,18 @@ def product_light(objs, cam, strength=1.7, hdri_strength=0.7, key_side=-1, rim_s
     centre, size = (lo + hi) / 2, max((hi - lo).length, 1e-3)
     world(strength=hdri_strength)
     sc = bpy.context.scene
+    if view not in ("agx", "neutral"):
+        raise ValueError('studio.product_light: view is "agx" or "neutral", not %r' % (view,))
     try:
-        sc.view_settings.view_transform = "AgX"
-        sc.view_settings.look = "AgX - Medium High Contrast"
+        if view == "neutral":
+            sc.view_settings.view_transform = "Khronos PBR Neutral"
+            sc.view_settings.look = "None"
+        else:
+            sc.view_settings.view_transform = "AgX"
+            sc.view_settings.look = "AgX - Medium High Contrast"
     except TypeError:
-        pass
+        if view == "neutral":
+            raise RuntimeError("studio.product_light: this Blender has no Khronos PBR Neutral view (Blender 4.2+)")
     f = cam.matrix_world.translation - centre
     f = f.normalized() if f.length > 1e-6 else Vector((0, -1, 0))
     up = Vector((0, 0, 1))

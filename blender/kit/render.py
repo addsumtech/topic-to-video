@@ -29,6 +29,8 @@ def configure(sc, engine, mode, w, h, samples=64):
         sc.cycles.device = "GPU"
         sc.cycles.samples = int(samples)
         sc.cycles.use_denoising = True
+        if hasattr(sc.cycles, "denoising_use_gpu"):
+            sc.cycles.denoising_use_gpu = True   # OIDN on the GPU: ~23 % off a frame, same picture (studio.tune_cycles)
     else:
         sc.render.engine = "BLENDER_EEVEE"
         if hasattr(sc.eevee, "taa_render_samples"):

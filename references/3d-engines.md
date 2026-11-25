@@ -66,15 +66,52 @@ and headless Chrome WebGPU capture is proven on this machine).
 
 ## Blender at its ceiling (blender/kit; references/blender-plates.md for the scene API)
 
-- **Light is the HDRI plus soft boxes** (`studio.world`, `studio.product_light`): three soft boxes alone left metal
-  clean but empty (WorkBuddy 2026-11-07); a single-colour world drew a horizon line, the cyclorama (`studio.sweep`)
-  removes it.
-- **Every part a named manufactured finish** (`materials.finish`: gloss_plastic, anodized_alu, glass, fabric…) and a
-  chamfer on hard edges (`materials.chamfer`) so edges catch a highlight; a part with one flat grey reads as clay.
-- **Cycles on the GPU only** (`render.configure`: CPU+GPU was 4x slower). Settle framing and the move on `--still`
-  frames and a small EEVEE draft, render Cycles once.
-- **Model for three.js with `--glb`**: modifiers applied, sheen fixed, AO atlas optional; build the object at real
-  scale in metres (glTF is metres, Y-up; the exporter converts Blender's Z-up).
+Measured on the same scanner through the kit's own product path (`studio.product_light` + `sweep` +
+`tune_cycles`, 1080p, M-series GPU, 2026-11-25):
+
+| Setting | Frame time | Picture |
+|---|---|---|
+| 24 spp, OIDN on the CPU (the kit before) | 25.6 s | the reference look |
+| 24 spp, **OIDN on the GPU** (the kit now: `render.configure`, `tune_cycles`) | 19.8 s | same (mean diff 0.33/255 vs 128 spp, as before) |
+| 16 spp, OIDN on the GPU | 10-13 s | same on a still (0.39/255); between two noise seeds 0.9 % of pixels move > 3 levels, so it does not boil on clean studio surfaces |
+| light tree off | 46.7 s | — keep it on (the kit asserts it) |
+| first frame of a process | +30 s | Metal kernels compile once: render a clip's frames in ONE process (the runner does) |
+
+What lifts the picture, in order (each judged on the bench or in the craft study):
+
+- **Light is the HDRI plus shaped soft boxes** (`studio.product_light`: a broad key, two tall rim strips, a top strip,
+  a weak fill, sized from the object; `turn_light` swings the studio so a highlight travels). Light linking
+  (`stage.product_rig`) gives a rim to one part only. Three soft boxes alone left metal clean but empty (WorkBuddy
+  2026-11-07); a single-colour world drew a horizon line, the cyclorama (`studio.sweep`) removes it.
+- **The view transform follows the product's colour** (`product_light(view=)`): AgX for white, light and glossy
+  products (it keeps the highlight that draws an edge; Neutral turned the white shell creamy and flat); **Khronos PBR
+  Neutral for a brand colour** (a #e4572e shell: saturation 0.72 under Neutral, 0.61 under AgX and Standard, target
+  0.80). The page's stage has the same pair: `toneMapping: 'agx' | 'neutral'`.
+- **Every part a named manufactured finish** (`materials.finish`) and a chamfer on hard edges (`materials.chamfer`):
+  one flat grey per part reads as clay. `materials.micro(m)` varies a gloss or satin finish's roughness so a large face
+  mirrors the studio unevenly, like a moulded part (subtle at 1080p; leave a hero polished metal or glass clean).
+- **Cycles where the look is light transport, EEVEE where it is not.** EEVEE has no anisotropy, a crude sheen, one
+  refraction event, no Bevel node, no area-light spread, screen-space reflections only: brushed metal, fabric and glass
+  go to Cycles; matte and satin plastics and fast motion-design moves can stay EEVEE.
+- **Camera like a product photographer**: 36 mm sensor; 70-120 mm for a hero close-up (no distortion), wider for a
+  dynamic move; depth of field (`cam.data.dof`, a focus EMPTY that can travel for a rack focus, f/2.8-f/8 at product
+  scale) shows only on a long lens close in — at 40 mm and 6 m it changed nothing visible; true motion blur
+  (`render.use_motion_blur`, shutter 0.5) for parts that move fast.
+- **Over the page, not baked on a backdrop**: a clip placed over the film's own ground renders `rgba` with a shadow
+  catcher floor (`obj.is_shadow_catcher = True`, the laptop scene does) so its contact shadow lands on any ground.
+- **The compositor sparingly.** Blender 5's Glare node takes its type as an INPUT (`gl.inputs["Type"].default_value =
+  "Fog Glow"`; the old `glare_type` property is gone, and the default is Streaks). Fog glow above the white shell's
+  level left every dark part unchanged and added little; grain and vignette belong to the film's own finish, once,
+  not to each render.
+- **Simulation is Blender's alone** (cloth, rigid body, fluid, Geometry Nodes simulation zones): bake it to disk before
+  frames are rendered in chunks; a Geometry Nodes modifier's inputs live at `modifier.properties.inputs` in 5.2.
+- **Model for three.js with `--glb`**: modifiers applied, sheen fixed, AO atlas optional; build at real scale in
+  metres (glTF is metres, Y-up; the exporter converts Blender's Z-up).
+
+Blender 5 API traps met or documented: the compositor is `scene.compositing_node_group` (a `CompositorNodeTree` with a
+Group Output, `scene.node_tree` is gone); EEVEE's id is `BLENDER_EEVEE`; a UV-layer reference dangles after
+`uv_layers.new()`; with `--factory-startup` no GPU is enabled unless set (the kit's `render.configure` enables it and
+refuses to fall back to the CPU).
 
 ## Pitfalls found on the bench (each cost a wrong picture first)
 
@@ -100,4 +137,5 @@ blurriness); three.js forum: "photorealistic render comparison — why does thre
 overview" (Don McCurdy), lightmaps from Blender in glTF; pmndrs postprocessing README, drei AccumulativeShadows /
 MeshTransmissionMaterial / Caustics docs; three-gpu-pathtracer README, API.md, releases and `example/renderVideo.js`;
 Codrops case studies (Windland, Forged.build: baked lighting from Blender); Blender manual (Cycles light paths, MNEE
-caustics limits); Poly Haven licence (CC0 HDRIs); Khronos glTF-Sample-Assets (per-model licences).
+caustics limits, GPU rendering, EEVEE limitations, light linking, shadow catcher, Bevel node); Blender release notes
+4.0-5.3 (light linking, Khronos PBR Neutral, OIDN on Apple GPUs, the 5.0 compositor and Python API changes); Poly Haven licence (CC0 HDRIs); Khronos glTF-Sample-Assets (per-model licences).

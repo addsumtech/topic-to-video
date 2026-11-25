@@ -116,3 +116,40 @@ def chamfer(ob, width, segments=3):
     if hasattr(bev, "harden_normals"):
         bev.harden_normals = True
     return bev
+
+
+def micro(m, low=0.7, high=1.6, scale=3.0):
+    """Micro-surface: a broad smudge noise (object space) varies the finish's roughness and coat roughness over a narrow
+    band (x `low` .. x `high` of their values), so a large gloss face reflects the studio unevenly, as a moulded or
+    painted part does, instead of a perfect CG mirror. Opt-in: on the scanner bench (2026-11-25) it softened the
+    strip reflection along a gloss edge, subtle at 1080p; keep it off a hero polished metal or glass (a clean finish
+    reads as polish). Returns the material."""
+    if not (m and m.use_nodes):
+        raise ValueError("materials.micro: a node material from finish() is needed")
+    nt = m.node_tree
+    p = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if p is None:
+        raise ValueError("materials.micro: %s has no Principled BSDF" % m.name)
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    nz = nt.nodes.new("ShaderNodeTexNoise")
+    nz.inputs["Scale"].default_value = scale
+    nz.inputs["Detail"].default_value = 8.0
+    nt.links.new(tc.outputs["Object"], nz.inputs["Vector"])
+    linked = 0
+    for sock in ("Roughness", "Coat Roughness"):
+        if sock not in p.inputs or p.inputs[sock].is_linked:
+            continue
+        if sock == "Coat Roughness" and p.inputs["Coat Weight"].default_value <= 0:
+            continue                       # no coat: its roughness shows nothing
+        base = p.inputs[sock].default_value
+        if base <= 0:
+            continue
+        mr = nt.nodes.new("ShaderNodeMapRange")
+        mr.inputs["To Min"].default_value = base * low
+        mr.inputs["To Max"].default_value = min(1.0, base * high)
+        nt.links.new(nz.outputs["Fac"], mr.inputs["Value"])
+        nt.links.new(mr.outputs["Result"], p.inputs[sock])
+        linked += 1
+    if not linked:
+        raise ValueError("materials.micro: %s has no roughness above 0 to vary" % m.name)
+    return m
