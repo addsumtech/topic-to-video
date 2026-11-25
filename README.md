@@ -39,6 +39,9 @@ Every film below began as one request in a chat. Click one to watch it on **[vid
     <td width="33%"><a href="https://video.addsum.top/#camera-lens"><img src="docs/assets/films/camera-lens.jpg" alt="How a lens makes a sharp image"></a><br/><sub><strong>How a lens makes a sharp image</strong> · English · 2:01<br/>From one point of light to a cone of rays meeting again</sub></td>
     <td width="33%"><a href="https://video.addsum.top/#workbuddy-promo"><img src="docs/assets/films/workbuddy-promo.jpg" alt="WorkBuddy launch film"></a><br/><sub><strong>WorkBuddy launch film</strong> · English · 1:02<br/>The wordmark's underscore becomes the film's cursor</sub></td>
   </tr>
+  <tr>
+    <td width="33%"><a href="https://video.addsum.top/#numbers-chart-tutorial"><img src="docs/assets/films/numbers-chart-tutorial.jpg" alt="Make a chart in Numbers"></a><br/><sub><strong>Make a chart in Numbers</strong> · English · 1:04<br/>A software tutorial: every click recorded from the real app</sub></td>
+  </tr>
 </table>
 
 ## How it works
