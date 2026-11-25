@@ -40,7 +40,7 @@
     <td width="33%"><a href="https://video.addsum.top/cn/#workbuddy-promo"><img src="docs/assets/films/workbuddy-promo.jpg" alt="WorkBuddy 发布短片"></a><br/><sub><strong>WorkBuddy 发布短片</strong> · 英文 · 1:02<br/>字标末尾的下划线变成全片的光标</sub></td>
   </tr>
   <tr>
-    <td width="33%"><a href="https://video.addsum.top/cn/#numbers-chart-tutorial"><img src="docs/assets/films/numbers-chart-tutorial.jpg" alt="在 Numbers 里做一张图表"></a><br/><sub><strong>在 Numbers 里做一张图表</strong> · 英文 · 1:04<br/>软件操作教程：每一次点击都录自真实软件</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#numbers-chart-tutorial"><img src="docs/assets/films/numbers-chart-tutorial.jpg" alt="在 Numbers 里做一张图表"></a><br/><sub><strong>在 Numbers 里做一张图表</strong> · 英文 · 1:16<br/>软件操作教程：每一次点击都录自真实软件</sub></td>
   </tr>
 </table>
 
