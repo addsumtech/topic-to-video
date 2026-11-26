@@ -329,7 +329,8 @@ words verbatim from the sources; a device with no official screenshot (the deskt
 closest one (the iPad app), never an invented one). The DEMO WORLD inside a screen (a fictional company's inbox, a slide
 title, a file name, a terminal command) is written as plausible, generic demo content — Acme-style names, never a
 statistic or a claim about the real product — and each string is declared in `copy_ok.json` with the reason `demo`;
-grey bars only for text too small to read (grey bars at a readable size look like a wireframe, not an app), its own characters acting the steps out when it has any, one persistent hero object, short type beats between product beats,
+every screen with real content, never grey bars or empty blocks standing in for it at any size (they read as a
+wireframe or an empty screen; text too small to read is still drawn as text; `placeholders` in film_qc), its own characters acting the steps out when it has any, one persistent hero object, short type beats between product beats,
 the real logo early and a closing lockup, one small celebration, and a quick rhythm (the full grammar and its
 evidence in the toolbox). Before building one, write `<film_dir>/shot_plan.json` (features → shots, each shot's
 job, technique and seam, the motion voice, the signature idea; format in `scripts/shot_plan_qa.py`) and pass
@@ -365,7 +366,8 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
 ### 8. Check, fix, deliver
 
 1. `python3 scripts/film_qc.py <film_dir>` runs flash, rewind, picture-glide, empty-frame, shake, caption-size, pan-speed,
-   (with a film page) word/control overlap, a line cut by the frame's edge, a picture that shows almost nothing, and
+   (with a film page) word/control overlap, a line cut by the frame's edge, a picture that shows almost nothing, a screen of empty
+   placeholder bars or blocks, and
    on-screen copy (every word sourced or declared in `copy_ok.json`),
    (on a stage3d page) 3D contact checks against
    `final.mp4` and `_plan.json`, and exits 1 on any red; the checks run side by side (a 2-minute film in a few

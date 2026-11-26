@@ -1236,6 +1236,14 @@ agent on the beats it points at.
   is the point says so on the element or an ancestor, `data-blur-ok="<why>"` (listed, never red; no reason is red).
   Part of film_qc ("blur"). Why: the Airbnb film's depth and focus blurs read to the user as blurry originals
   (2026-11-25); on that film's page it found all seven and passed its two whips.
+- `scripts/placeholder_qa.py <film_dir> [--every 0.5] [--frames A-B] [--json]` — A SCREEN OF PLACEHOLDERS: hooks every 2D
+  canvas's paint (filled shapes, and the text and images in them) and lays each HTML screen (Stage3D.screen) out again,
+  then steps the page and judges every screen shown: three or more empty text-line bars (>= 3x as wide as tall, no text
+  or picture on them), or three or more empty blocks of one colour not on one baseline (a bar chart's bars are), is
+  RED. A screen meant to look so says why: `data-placeholder-ok="<why>"` on its canvas or markup (listed; no reason
+  is red). Part of film_qc ("placeholders"). Why: a Grok Bot promo's Bot screens were grey bars and blank calendar
+  blocks, and the user saw screens with nothing on them (2026-11-26): every screen shows real or declared demo
+  content, and text too small to read is still drawn as text.
 - `scripts/caption_spots.py <film_dir> --caps caps.json [--frames work/frames] [--size 56] [--x …] [--y …] [--out …]` —
   where each caption sits ON the picture's own ground: on a caption-free render, the first candidate centre (the
   previous caption's spot first) whose box (text width at --size + 24 px) is one uniform ground on every frame the

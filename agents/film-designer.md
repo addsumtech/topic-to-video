@@ -119,7 +119,8 @@ lights, accumulated passes, baked AO), Blender via `scripts/blender_clip.py` —
 light transport (glass through glass, caustics, subsurface, volumes), under `kit.studio.product_light` with a named
 finish per part; which engine per shot: `references/3d-engines.md` — the Remotion kit) and TRUE to the product (sourced claims; real screens where they read at
 size, the UI drawn simplified and honest where they do not: the real product's layout and its own words; the demo
-world inside a screen as plausible generic demo content, never a statistic; grey bars only below reading size).
+world inside a screen as plausible generic demo content, never a statistic; every screen shows that content, never
+grey bars or empty blocks standing in for it, at any size: text too small to read is still text, and reads as texture).
 Devices are the kit's (`st.phone`, `st.tablet`, `st.laptop`), each showing the layout made for it; the product's own
 screens are its REAL screens made readable by the camera, rebuilt as HTML (`Stage3D.screen`) only where elements must
 move, and then at the real screen's proportions, scaled as one object (never one element's text enlarged: SKILL.md

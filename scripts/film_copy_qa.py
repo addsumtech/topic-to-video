@@ -193,7 +193,7 @@ def main(argv):
             print("NO REASON  copy_ok.json lists %r without a reason" % k)
         print("[film_copy_qa] %s  %d shown string(s), %d unsourced%s" % (
             "OK" if not bad and not bad_ok else "RED", len(strings), len(bad),
-            "" if not bad else " (source them, grey them out, or declare them in copy_ok.json with a reason)"))
+            "" if not bad else " (source them, or declare them in copy_ok.json with a reason — `demo` for a screen's demo world; never replace them with grey bars)"))
     return 1 if bad or bad_ok else 0
 
 

@@ -382,8 +382,10 @@ A starting point measured on 20 official launch films (`references/craft-standar
   a crop pushes onto the exact component the voice names, within the screenshot's pixel density, when the screen reads
   at that size; when it cannot (its pixels are too few), the UI is drawn simplified from it, honest: its layout, colours
   and sourced words; the demo world inside it (another app's inbox, a slide, a file list) as plausible generic demo
-  content declared `demo` in copy_ok.json, grey bars only below reading size (at a readable size they read as a
-  wireframe: the user, 2026-11-18);
+  content declared `demo` in copy_ok.json, on every screen and at every size: never grey bars or empty blocks standing
+  in for it (they read as a wireframe, the user 2026-11-18, and as a screen with nothing on it, 2026-11-26); text too
+  small to read is still drawn as text, which reads as texture. `placeholders` in film_qc (`placeholder_qa.py`) is red
+  on a screen of empty bars or blocks;
 - one hero object persists: the product's window stays, and the beats are its states, not new scenes;
 - type rides with the product: one short display line beside or over the real screen, on the product's own ground
   (the problem, the promise, the payoff), the key word in the brand accent; a type card that leaves the product for a
