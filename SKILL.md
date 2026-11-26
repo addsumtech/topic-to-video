@@ -270,6 +270,7 @@ light transport (glass through glass, caustics, subsurface, volumes, simulation)
 screen as a tilted panel on a dark floor turns into a visible device (rejected on Grok Bot twice, 2026-11-12 and
 -17); alternate grounds (light UI shots, dark 3D shots) for rhythm. Commands in the toolbox. Pieces made elsewhere (a
 Blender clip, a library shot rendered through the workshop) are placed as frames the page draws by frame number.
+Lit displays and night scenes can take the stage's lens finish (`st.finish`: bloom only from emitters, never over a picture or text; one grade per film), and a real place or object a legal scan exists for can be a Gaussian splat (`st.splat`).
 
 **The kit, where the look calls for it** (commands in the toolbox): light and material from the Remotion runtime;
 real 3D from Blender (`scripts/blender_clip.py`) for what 3D physicality IS the content of — a real object, a

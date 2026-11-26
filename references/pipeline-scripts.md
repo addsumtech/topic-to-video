@@ -1268,5 +1268,9 @@ agent on the beats it points at.
 - `scripts/pan_speed_qa.py <film_dir> [--limit 48] [--json]` — the whole frame's motion per frame (phase correlation
   at quarter size, cuts excluded): a run of 6+ frames above 48 px/frame (at 1920 wide) is a whip that strobes. Found
   the Grok Bot film's 94 px/frame follow-pan. Part of film_qc.
-- `scripts/build_stage3d.sh` — rebuilds `assets/html/stage3d.js` (the 3D stage, three.js bundled) from
-  `assets/html/stage3d/src.js`; `tests/test_stage3d_page.py` fails when the committed bundle is stale.
+- `scripts/build_stage3d.sh [out_dir]` — rebuilds `assets/html/stage3d.js` (the 3D stage, three.js bundled) from
+  `assets/html/stage3d/src.js`, and `assets/html/stage3d_splat.js` (Spark, the Gaussian-splat add-on, on the core
+  bundle's THREE). It bundles from the stage's OWN pinned toolchain (`assets/html/stage3d/package.json`: three 0.180.0,
+  @sparkjsdev/spark 2.4.0, esbuild 0.28.1; install once with `cd assets/html/stage3d && npm ci`), not from
+  `remotion/`'s three, which Remotion pins. `tests/test_stage3d_finish_splat.py` fails when a committed bundle is stale
+  and when the stage renders an r169-era film differently (a golden frame from the old bundle).

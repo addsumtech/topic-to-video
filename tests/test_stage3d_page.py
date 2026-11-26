@@ -1,5 +1,6 @@
 """assets/html/stage3d.js renders a lit 3D stage with a real screen as a panel, from file://, in headless Chrome:
-the canvas is not blank, the screen's own colours survive (it emits its picture), and the build is the committed one."""
+the canvas is not blank and the screen's own colours survive (it emits its picture). That the committed build matches its
+source is checked in test_stage3d_finish_splat.py (both bundles, built from the stage's own toolchain)."""
 import os
 import shutil
 import subprocess
@@ -110,18 +111,6 @@ def test_inflate_refuses_a_shape_that_touches_the_edge(tmp_path):
     dom, _ = _shoot(tmp_path, """const st = Stage3D.create({canvas: document.getElementById('c')});
       st.inflate('tile.png', {width: 1}); await st.ready();""")
     assert "ERR stage3d.inflate" in dom and "touches the image edge" in dom, dom[:300]
-
-
-def test_the_committed_bundle_matches_its_source(tmp_path):
-    out = tmp_path / "stage3d.js"
-    subprocess.run([os.path.join(ROOT, "remotion", "node_modules", ".bin", "esbuild"),
-                    os.path.join(ROOT, "assets", "html", "stage3d", "src.js"), "--bundle", "--minify", "--format=iife",
-                    "--global-name=Stage3D", "--log-level=warning", "--outfile=%s" % out,
-                    "--alias:three=%s" % os.path.join(ROOT, "remotion", "node_modules", "three", "build", "three.module.js"),
-                    "--alias:three/examples=%s" % os.path.join(ROOT, "remotion", "node_modules", "three", "examples")],
-                   check=True)
-    assert out.read_bytes() == open(os.path.join(ROOT, "assets", "html", "stage3d.js"), "rb").read(), \
-        "assets/html/stage3d.js is stale: run scripts/build_stage3d.sh"
 
 
 @pytest.mark.skipif(not os.path.exists(CHROME), reason="Chrome not installed")

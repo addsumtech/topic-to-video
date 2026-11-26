@@ -1,0 +1,11 @@
+{
+  "name": "topic-to-video-stage3d",
+  "private": true,
+  "description": "The 3D stage's own pinned toolchain (three.js, Spark, esbuild), apart from remotion/'s three, which Remotion pins. Install once with `npm ci` here; scripts/build_stage3d.sh bundles from it.",
+  "license": "MIT",
+  "dependencies": {
+    "@sparkjsdev/spark": "2.4.0",
+    "esbuild": "0.28.1",
+    "three": "0.180.0"
+  }
+}

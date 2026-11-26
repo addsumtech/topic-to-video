@@ -86,8 +86,8 @@ then `python3 scripts/caption_spots.py <film_dir> --caps caps.json` gives each c
 its whole time and its ink (`"light"` ground → dark text); the page draws each at its spot (the Numbers film's
 `tools/build_page.py` is a worked example).
 
-**The 3D stage** — `assets/html/stage3d.js`, one classic script (three.js 0.169
-bundled from `remotion/node_modules` by `scripts/build_stage3d.sh`), so a film page loads it with a plain `<script>`:
+**The 3D stage** — `assets/html/stage3d.js`, one classic script (three.js 0.180 from the stage's own pinned toolchain,
+`assets/html/stage3d/package.json`, bundled by `scripts/build_stage3d.sh`), so a film page loads it with a plain `<script>`:
 
     const st = Stage3D.create({canvas, background: '#06070a', fog: {near: 9, far: 22}, dof: {aperture: 0.0016}});
     st.studio();                                   // key + rim + fill + a room environment for reflections
@@ -122,7 +122,51 @@ copy the kit's HDRI next to the page, and render with passes:
 
 `passes` renders each frame K times (area lights over their squares, sub-pixel camera, the lens) and averages:
 penumbras, clean edges, depth of field without ghosts — 0.3 s a frame for 64 passes on the bench. `lens` needs
-passes; `dof` cannot be mixed with them. No whole-frame bloom (it lifted every dark part beside a white shell).
+passes; `dof` cannot be mixed with them. No whole-frame bloom (it lifted every dark part beside a white shell): the
+stage's own bloom (below) glows only from what emits.
+
+**Lens and finish** (`st.finish`, opt in, any stage and renderer; a pure function of t, call it again from `seek` to
+change it per shot, `st.finish(null)` turns it off):
+
+    st.finish({bloom: {strength: 0.6, threshold: 1, knee: 0.5, radius: 0.5},           // glow from emitters past white
+               rays: {at: [x, y, z], strength: 0.5, decay: 0.965, length: 0.75, radius: 0.3},  // shafts from one light
+               grade: {lift: [0.004, 0.004, 0.012], gamma: 1, gain: [1.03, 1, 0.96], saturation: 1.05}});
+
+- **Bloom for lit displays, lamps and night scenes**: only EMITTERS feed it (an emissive material, an unlit one such as
+  a lamp bulb `MeshBasicMaterial({color: new THREE.Color(6, 5, 3.5)})`), never a real picture or a metal highlight, and
+  it never lands on a face that carries a texture (a screenshot, a device display, a card, a drawn instrument's
+  window, a label): the glow falls on what is around a lit thing — its bezel, the console, the air — and every picture
+  and small text stays exactly as it was (measured: 0.0 % change in edge strength on a screenshot's 16 px text and on
+  a lit display's labels; without that protection the labels lost 12 %). `userData.crisp = false` on a drawn display
+  with big digits and no small text lets its glow over its own face; `userData.crisp = true` keeps an untextured
+  surface clear. A day-lit product shot has nothing to bloom: leave it off.
+- **Rays** need a visible bright emitter near `at` (a lamp, a window, the sun as a disc) and something dark in front
+  of it to cut the shafts; the march starts at `at`'s point on screen and fades past `radius` (frame heights).
+- **Grade = the film's ONE light**: one setting for the whole film (warm highlights, cool shadows, a little less
+  saturation), on the tone-mapped picture; it shifts screens and photos with everything else, as a camera's grade
+  does. At zero strength the finish is the stage without one (only 1-px edges between tone-mapped and unlit surfaces
+  move). Cost: one extra flat render (the protect mask) and a few small passes a frame.
+
+**A 3D scan of a real place or object** (a Gaussian splat: `.spz`, `.ply`, `.splat`, `.ksplat`, `.sog`) through Spark
+(@sparkjsdev/spark 2.4.0, MIT, World Labs), only where a scan you may use exists (CC0 / CC BY / CC BY-SA with its
+credit carried into the film's credits; never a scan whose licence is unstated). Load the add-on after the stage:
+
+    <script src="stage3d.js"></script><script src="stage3d_splat.js"></script>
+    const st = Stage3D.create({canvas, toneMapping: 'neutral', pixelRatio: 1});    // neutral: a scan keeps its colours
+    await st.splat('scans/fountain.spz', {rotX: Math.PI, scale: 1});               // placed like glb(); meshes beside it
+    await st.ready();
+    window.seek = (t) => st.render({pos: [...], look: [...], fov: 50});           // RETURN it: a promise with splats
+
+A scan is depth-sorted with the stage's meshes (a box in front hides it, it hides a box behind). With a splat on the
+stage `render()` sorts for exactly this frame's camera and returns a promise: return it from `seek` so the capture
+waits (film_frames does). Level of detail is off (it streams over time, which would make a frame depend on the ones
+before it). 3DGS `.ply` files are usually y-down (`rotX: Math.PI`) and in no particular unit: measure something of
+known size in the scan and set `scale` (the demo fountain's scan ran at about two units a metre). A splat is soft by
+nature; frame it as a place, not as a surface to read, and keep the camera inside what was scanned (no flight past its
+edge into the void, nor through a bush: test the path against the splat positions). Start a move already moving and
+land it decisively: a long ease-in-out tail creeps under a pixel a frame and the scan's fine detail shimmers after
+the encode (picture_glide_qa red at 20 % on the fountain demo; a 0.9 s landing passed). Keep the file small: crop to
+the place the film shows and drop near-transparent splats (the 744 MB fountain `.ply` became a 73 MB `.splat`).
 
 **Characters and marks as soft 3D bodies**: `st.inflate('bot.png', {width: 0.9, x, z, front: 0.42, back: 0.3})` turns a
 flat character or mark on a TRANSPARENT background into a glossy inflated body standing on its own y = 0, its artwork

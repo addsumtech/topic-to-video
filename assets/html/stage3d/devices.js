@@ -18,6 +18,7 @@
 // Island). Registered for contacts() as a panel (its front face).
 import * as THREE from 'three';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import {ExtrudeGeometry} from './extrude_r169.js';
 import {RoomEnvironment} from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 // real dimensions in millimetres (iPhone 15 Pro class, iPad Pro 13 class — the App Store's 2064 x 2752 iPad screenshots —,
@@ -49,7 +50,7 @@ function rrPlane(w, h, r) {
 // a rounded slab w x h, thickness d, its edge rounded by bevel b, centred on the origin, faces along z
 function slab(w, h, d, r, b) {
   b = Math.min(b, d / 2 - 1e-6);
-  const g = new THREE.ExtrudeGeometry(rrShape(w - 2 * b, h - 2 * b, Math.max(1e-4, r - b)),
+  const g = new ExtrudeGeometry(rrShape(w - 2 * b, h - 2 * b, Math.max(1e-4, r - b)),
     {depth: Math.max(1e-6, d - 2 * b), bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 6, curveSegments: 32});
   g.translate(0, 0, -(d - 2 * b) / 2); g.computeVertexNormals(); return g;
 }
