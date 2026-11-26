@@ -277,7 +277,8 @@ material, optics, physics, a device (the product's real screen on a lit MacBook)
 objects as parts inside a film's own workshop shot, rendered in the film's look (a FULL palette file; on a light
 look, render one frame of it and read every word, since some library shots hard-code light ink); real images (`imagefetch`:
 Commons or NASA, `--candidates` to look before `--pick`; a crop of one is declared in `images_ok.json` so its credit
-carries over, and `film_qc` holds every picture the page names to a record); real geography (`scripts/geo.py`:
+carries over, and `film_qc` holds every picture the page names to a record); a real photo moved in 3D by its own
+depth, sharp, refused past its pixels or a smeared edge (`photo_depth.py` + `assets/html/depthphoto.js`); real geography (`scripts/geo.py`:
 places, Natural Earth borders and coasts, OpenStreetMap streets and water, drawn with `assets/html/geo.js`, credited), page
 captures, generated atmosphere (`imagegen --prompt`, never a fact); icons; CJK caption breaks; typeset maths that
 moves (`assets/html/math.js`: a derivation written on and carried form to form, toolbox "Maths that moves").

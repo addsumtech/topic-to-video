@@ -199,6 +199,27 @@ Write a film's own shot or object in its workshop and let it wrap any library sh
 through the Codex subscription with the no-text/no-invented-facts tail added; `--key` (the paid API) only after the
 user agreed to pay.
 
+**A real photograph that moves in 3D** (the documentary 2.5D look: history, place, people, a mission's own photos).
+`python3 scripts/photo_depth.py img/x.jpg` writes `img/x.depth.png` (16-bit, white = near; Depth Anything V2 Small,
+Apache-2.0, run locally with onnxruntime, 99 MB fetched once to `~/.topic-to-video/models/`; ~10 s a photo); declare
+it in `images_ok.json` as `{"own": "depth map of img/x.jpg"}`. Copy `assets/html/depthphoto.js` beside the page:
+
+    const dp = DepthPhoto.create({canvas});                      // one WebGL2 context for every photo of the film
+    const lm = await dp.photo('img/x.jpg', 'img/x.depth.png', {center: [0.5, 0.45], focus: 0.35, dolly: 0.5,
+      from: {zoom: 1, x: 0}, to: {zoom: 1.05, x: -16}, start: 0, dur: 1.0});        // in filmReady
+    window.seek = (t) => dp.draw(lm, t - shotStart);
+
+`x`/`y` = px of parallax between the nearest and farthest plane, `focus` = the depth (0..1, read off the depth map)
+that stays put (the subject: an orbit; 0: a drift), `dolly` = how much faster near things grow than the focus plane in
+the push. A ~1 s ease from the cut, then hold: on grainy scans a 1.6 s ease shimmered in its slow landing (glide red,
+10-25 %; an ideal Lanczos push of the same photo too), 1.0 s passed. `photo()` REFUSES (the page then fails to load) a move past the photo's native
+pixels, one that shows its edge, and a stretch over `DepthPhoto.MAX_STRETCH` (12 px) at a textured depth edge: the
+mesh has nothing behind a foreground edge, so it stretches background there (the depth is dilated toward the near side
+first, so the foreground's edge never smears); `shot.report` gives the numbers. Measured on three Apollo photos
+(2026-11-26): 33 px at a thin near panel read as a smear, 9-14 px over a lunar leg/ground edge did not. It fails on
+what the depth model misses (a thin dark object in front of a dark ground, glass, a reflection: it moves with what is
+behind it), and on a fine-detailed picture under a slow constant move (shimmer; film_qc glide).
+
 **Accents.** `assets/html/accents.js`, each a pure function of (t, seed):
 `burst` (confetti), `ring` (an expanding shockwave), `rays` (short radiating lines), `sparkle`, `pop` (arrival, no
 overshoot), `drawOn` (a stroke drawing itself), `countUp`, and `drawParticles` for a canvas. A celebration is `burst` +
