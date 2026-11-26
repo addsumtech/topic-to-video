@@ -95,6 +95,7 @@ is joined (the 2026-11-17 keyframes only became good on the third round). Seams 
 carries; a cut is for a change of world. `assets/html/moments.js` holds the tuned moves and two of this skill's own —
 the **real-state morph** (the product's own two states, the diff choreographed) and the **keyword that performs** on
 the voice's word clock; the subject's own moment, found by looking at it, beats any of them.
+Kinetic type and SVG draw-on/morph moves use GSAP through `assets/html/gsapseek.js`, driven by seek (toolbox "Moments").
 
 ### 1. Ask — once, plainly, with options
 
