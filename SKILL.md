@@ -33,7 +33,11 @@ or tied every round. The old flow is kept whole as the classic mode (`references
 parts are tools here.
 
 **Full effort, every time** (the user, 2026-11-14: "make the skill never shy away from effort, at any point; use your full potential and creativity"):
-never trade quality for less work. Re-cut, rebuild, re-render when the film needs it.
+never trade quality for less work. No anchor bias: each film is designed from its own subject as the most remarkable
+film it can be, with every technique the content can use. It is never a variant of the last film
+(`agents/film-designer.md`, "The mind you design with"). That effort is spent on the design: redesign the concepts,
+the keyframes and the animatic as many times as the film needs. After the animatic is approved, the build is one pass
+(step 6).
 
 ## Which path
 
@@ -189,7 +193,8 @@ and forgettable.
    otherwise a general-purpose agent given that file as its instructions), **with effort "high"** and a fresh
    context. Give it the brief, `script.json`, `timeline.json`, the purpose and length, the material in `input/`, and
    the user's taught taste (`python3 scripts/taste_ledger.py brief --stage design`, rules in the user's own words);
-   nothing about gates. It writes `design/story.md` (the viewer's journey: for a product film, how the product WORKS,
+   nothing about gates. The films this skill already delivered are strips in `~/.topic-to-video/films/` (kept by
+   `film_deliver`); the designer designs away from them. It writes `design/story.md` (the viewer's journey: for a product film, how the product WORKS,
    not only what it made), `design/concepts.md` (three concepts, the first always the product's OWN world, its
    characters, UI and marks, acting the journey out; and the choice), the three **hero moments** rendered as finished
    keyframes (`design/keyframes.jpg`, redesigned until each reads in a second and stays in the memory), a

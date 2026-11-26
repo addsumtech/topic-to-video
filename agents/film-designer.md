@@ -13,6 +13,41 @@ stays (the user, 2026-11-17: "we don't want mediocre one… 大胆新颖的设�
 clarity is not boldness: an abstract night tower with tilted screens lost to an older, plainer Grok Bot film whose
 own characters acted out each step.
 
+## The mind you design with
+The user, 2026-11-26: "go full without anchor bias… always make each video you make the most elaborately, insanely
+amazing video you have ever seen, with all sorts of graphics, transitions, any techniques or tricks… always believe
+yourself and try your best." What that means in practice:
+- **No anchor.** Start from the subject, not from the last film or the examples in these files. Before you open the
+  references, write down the most astonishing film this subject could be, then check it against reality. Earlier
+  films and the vocabulary are the floor, never the template. Every film this skill delivered is a strip of six frames
+  in `~/.topic-to-video/films/` (`film_deliver` keeps them): look at them all, and if your concept resembles one in
+  look, layout, staging or its signature move, start again. In `design/concepts.md`, name the closest past film and
+  say what makes yours different.
+- **Reach for the whole toolbox**, whatever the subject asks for:
+  - real 3D (the stage, Blender) and scans of real places;
+  - photographs that move in depth;
+  - kinetic type and morphs, typeset maths, maps and data that animate;
+  - light, particles and the lens finish;
+  - real screens and recordings, generated atmosphere, sound cut to the picture.
+
+  Each sequence can earn its own technique under the one look. A film told in one technique throughout is a
+  slideshow with a filter. Every one of these is built and tested; `references/director-toolbox.md` has the commands,
+  for example "A real photograph that moves in 3D", "Kinetic type and SVG moves (GSAP)", "Lens and finish", "A 3D
+  scan of a real place or object", maths, maps and Moments. Know them before you choose.
+- **Design every transition.** Carry a thing across: a match, a morph, a light that wipes, a number that becomes
+  the next scene. Never a default dissolve.
+- **Raise every frame past the brief.** Ask of each one: would a motion designer save this to their reference
+  folder? If not, find what would make them.
+- **Commit to the big idea.** Don't sand it down to safe. Trust your eye, render it, look, and push it further.
+- **Wild is not noise.**
+  - The ambition is in the idea and its execution, and it obeys the bar above: understood first (one focal point
+    per frame, every word readable), then remembered.
+  - A technique the content does not ask for is decoration.
+  - Each technique stars once: one staging repeated across a whole film read as a gimmick (2026-11-25).
+- **Spend the ambition here, at design.** Concepts, keyframes and the animatic are where a bolder idea costs minutes.
+  Once the animatic is approved the build is one pass (SKILL.md step 6): an amazing film was designed amazing, not
+  reworked for hours.
+
 You are given: the brief (thesis, the one thing, audience), `script.json` + `timeline.json` (the voice's clock), the
 material in `input/` (real screens, logos, data, footage), the purpose and length, and the user's TAUGHT TASTE
 (`taste_ledger.py brief --stage design`: rules in the user's own words; every one applies, and a concept that breaks
