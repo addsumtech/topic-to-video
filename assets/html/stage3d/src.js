@@ -25,9 +25,35 @@ import {BokehPass} from 'three/examples/jsm/postprocessing/BokehPass.js';
 import {OutputPass} from 'three/examples/jsm/postprocessing/OutputPass.js';
 import {TexturePass} from 'three/examples/jsm/postprocessing/TexturePass.js';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
-import {RGBELoader} from 'three/examples/jsm/loaders/RGBELoader.js';
+import {HDRLoader} from 'three/examples/jsm/loaders/HDRLoader.js';
+import {ExtrudeGeometry} from './extrude_r169.js';
+import {makeFinish} from './finish.js';
 import * as DEV from './devices.js';
 import * as SCR from './screens.js';
+
+// the three a page sees (Stage3D.THREE): the stage's own, with r169's ExtrudeGeometry (extrude_r169.js), so a film's
+// extruded shapes keep their look on the newer three
+const THREE_PAGE = {...THREE, ExtrudeGeometry};
+
+// three r178 rewrote its blending equations (#31246): a non-premultiplied AdditiveBlending now adds alpha at full weight,
+// premultiplied MultiplyBlending takes a new formula, and non-premultiplied Multiply / Subtractive are refused. An MRI
+// film's additive glow over a transparent stage moved by up to 6/255. Before each frame the stage gives such materials
+// r169's equations as custom blending, so films made on r169 look the same.
+const F = THREE;
+function keepR169Blending(scene) {
+  scene.traverse((o) => {
+    if (!o.material) return;
+    for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+      const b = m.blending, pm = !!m.premultipliedAlpha;
+      const f = b === F.AdditiveBlending && !pm ? [F.SrcAlphaFactor, F.OneFactor, F.SrcAlphaFactor, F.OneFactor]
+        : b === F.MultiplyBlending ? (pm ? [F.ZeroFactor, F.SrcColorFactor, F.ZeroFactor, F.SrcAlphaFactor] : [F.ZeroFactor, F.SrcColorFactor, F.ZeroFactor, F.SrcColorFactor])
+          : b === F.SubtractiveBlending && !pm ? [F.ZeroFactor, F.OneMinusSrcColorFactor, F.ZeroFactor, F.OneFactor] : null;
+      if (!f) continue;
+      m.blending = F.CustomBlending; m.blendEquation = m.blendEquationAlpha = F.AddEquation;
+      [m.blendSrc, m.blendDst, m.blendSrcAlpha, m.blendDstAlpha] = f;
+    }
+  });
+}
 
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const ease = (x) => { x = clamp01(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
@@ -67,7 +93,7 @@ function create(o) {
   const camera = new THREE.PerspectiveCamera(o.fov || 35, W / H, 0.05, 200);
   camera.position.set(0, 2, 10);
 
-  let composer = null, bokeh = null;
+  let composer = null, bokeh = null, dofOut = null, fin = null, spark = null;
   if (o.dof) {
     // the composer renders into its own target: give it 4x MSAA, or depth of field silently drops the renderer's
     // antialiasing and every edge stairs (Grok Bot 2026-11-18: jagged, 'low resolution' Bots)
@@ -77,7 +103,7 @@ function create(o) {
     composer.addPass(new RenderPass(scene, camera));
     bokeh = new BokehPass(scene, camera, {focus: 10, aperture: o.dof.aperture || 0.002, maxblur: o.dof.maxblur || 0.008});
     composer.addPass(bokeh);
-    composer.addPass(new OutputPass());
+    composer.addPass(dofOut = new OutputPass());
   }
 
   // OFFLINE ACCUMULATION (passes > 1): every frame is rendered `passes` times and averaged in a half-float buffer, each
@@ -126,7 +152,7 @@ function create(o) {
     p = p || {}; group.name = p.name || fallback; if (!group.userData.kind) group.userData.kind = 'panel'; solids.push(group);
     group.position.set(p.x || 0, p.y || 0, p.z || 0); group.rotation.set(p.rotX || 0, p.rotY || 0, p.rotZ || 0); scene.add(group); return group; };
   const st = {
-    THREE, scene, camera, renderer,
+    THREE: THREE_PAGE, scene, camera, renderer,
     // a three-point studio: warm key from the upper left, cool rim from behind, soft fill; plus a room environment
     // so glossy edges and glass catch real reflections. Strengths scale the whole rig.
     // a real HDRI (a photographed studio or place) as the light and what every glossy surface reflects: the single
@@ -135,7 +161,7 @@ function create(o) {
     // reflections; background: true shows it (blurred) behind the scene.
     hdri(url, h) {
       h = h || {};
-      const p = new RGBELoader().loadAsync(url).then((tex) => {
+      const p = new HDRLoader().loadAsync(url).then((tex) => {
         tex.mapping = THREE.EquirectangularReflectionMapping;
         const pm = new THREE.PMREMGenerator(renderer);
         scene.environment = pm.fromEquirectangular(tex).texture;
@@ -629,6 +655,43 @@ function create(o) {
       });
       return res;
     },
+    // LENS AND FINISH, opt in (finish.js): bloom from what emits past white (a lit display, a lamp), which never lands
+    // on a face that carries a texture (a screenshot, a device display, a card, a drawn window's text: they stay
+    // exactly as they were), light shafts from one strong light (`at`, its point in the scene), and one colour grade
+    // on the picture (lift / gamma / gain, saturation).
+    //   st.finish({bloom: {strength: 0.6, threshold: 1, knee: 0.5, radius: 0.5},
+    //              rays: {at: [x, y, z], strength: 0.5, decay: 0.965, length: 0.75, radius: 0.3},
+    //              grade: {lift: [0.01, 0.0, -0.01], gamma: 1, gain: [1.02, 1, 0.97], saturation: 0.95}})
+    // Call it once, or again from seek(t) to change it per shot (pure function of t); st.finish(null) turns it off.
+    finish(f) {
+      if (f != null && !fin) fin = makeFinish(renderer, scene, camera, W, H, PR);
+      if (fin) fin.set(f);
+      return st;
+    },
+    // a 3D SCAN of a real place or object (a Gaussian splat: .spz, .ply, .splat, .ksplat, .sog) through Spark; load
+    // assets/html/stage3d_splat.js after stage3d.js. Placed like glb() (x, y, z, rotX/Y/Z, scale); depth-sorted with the
+    // meshes. A scan's own colours are a photograph's: create the stage with toneMapping: 'neutral' (ACES greys them).
+    // With a splat on the stage render() returns a promise (the sort for this camera, then the frame): return it from
+    // seek, `window.seek = (t) => st.render({...})`. Resolves to the SplatMesh.
+    splat(url, s) {
+      s = s || {};
+      const S = typeof window !== 'undefined' && window.Stage3DSplat;
+      if (!S) throw new Error('Stage3D.splat: load stage3d_splat.js after stage3d.js (the splat add-on)');
+      if (!spark) {
+        // sorted on request, for exactly the camera of the frame (render() awaits it); no level of detail, which
+        // streams by time and would make a frame depend on the frames before it
+        spark = new S.SparkRenderer({renderer, autoUpdate: false, preUpdate: false, enableLod: false, minSortIntervalMs: 0});
+        scene.add(spark);
+      }
+      const m = new S.SplatMesh({url});
+      m.name = s.name || baseName(url, 'splat'); m.userData.kind = 'splat';
+      m.position.set(s.x || 0, s.y || 0, s.z || 0); m.rotation.set(s.rotX || 0, s.rotY || 0, s.rotZ || 0);
+      if (s.scale) m.scale.setScalar(s.scale);
+      scene.add(m);
+      const p = m.initialized.then(() => { if (!m.packedSplats || !m.packedSplats.numSplats) throw new Error('stage3d.splat: ' + url + ' has no splats'); return m; },
+        (e) => { throw new Error('stage3d.splat: cannot load ' + url + ' (' + (e && e.message || e) + ')'); });
+      pending.push(p); return p;
+    },
     // one frame: camera position, where it looks, its fov, and the focus distance for depth of field
     render(c) {
       c = c || {};
@@ -636,6 +699,13 @@ function create(o) {
       camera.lookAt(...(c.look || [0, 2, 0]));
       if (c.fov) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
       if (c.lens && !acc) throw new Error('Stage3D.render: lens (depth of field by the lens) needs Stage3D.create({passes: 32 or more})');
+      keepR169Blending(scene);
+      if (!spark) return draw(c);
+      camera.updateMatrixWorld();
+      return spark.update({scene, camera}).then(() => draw(c));
+    },
+  };
+  const draw = (c) => {
       if (acc) {
         // K passes, averaged. Pass k (Halton, so any K covers the square, the pixel and the lens evenly): the area
         // lights at a point of their squares, the camera a sub-pixel off, and with `lens` (aperture radius, metres)
@@ -666,16 +736,22 @@ function create(o) {
         for (const r of areas) r.L.position.copy(r.pos);
         camera.clearViewOffset(); camera.position.copy(base); camera.quaternion.copy(q);
         renderer.setRenderTarget(null); renderer.setClearColor(clear, clearA);
-        acc.out.render();
+        if (fin && fin.on) fin.run(acc.sum.texture, false); else acc.out.render();
       } else if (bokeh) {
         const look = new THREE.Vector3(...(c.look || [0, 2, 0]));
         bokeh.uniforms.focus.value = c.focus == null ? camera.position.distanceTo(look) : c.focus;
         if (c.aperture != null) bokeh.uniforms.aperture.value = c.aperture;
+        // with a finish the composer stops before its output pass and hands the finish its frame in linear light
+        const on = !!(fin && fin.on);
+        dofOut.enabled = !on; composer.renderToScreen = !on;
         composer.render();
+        if (on) fin.run(composer.readBuffer.texture, false);
+      } else if (fin && fin.on) {
+        renderer.setRenderTarget(fin.hdr); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null);
+        fin.run(fin.hdr.texture, true);
       } else {
         renderer.render(scene, camera);
       }
-    },
   };
   stages.push(st);
   return st;
@@ -734,4 +810,4 @@ const screen = SCR.screen, brackets = SCR.brackets, caret = SCR.caret, terminal 
 const lintScreens = () => SCR.lintScreens(stages), screenTexts = () => SCR.screenTexts(stages);
 const DEVICES = DEV.SPEC;
 
-export {screen, lintScreens, screenTexts, brackets, caret, terminal, DEVICES, create, stages, ease, easeOut, lerp, lerp3, clamp01, hop, carry, blink, look, THREE};
+export {screen, lintScreens, screenTexts, brackets, caret, terminal, DEVICES, create, stages, ease, easeOut, lerp, lerp3, clamp01, hop, carry, blink, look, THREE_PAGE as THREE};

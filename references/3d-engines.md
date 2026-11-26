@@ -59,10 +59,11 @@ In order of what moved the picture most on the bench:
    for brushed metal, sheen for fabric, transmission + thickness + ior for one glass part over opaque ones, emissive
    strength for LEDs and screens. Use the kit finishes in Blender (`blender/kit/materials.py`) and export.
 
-Not in the kit, and why: whole-frame bloom (see pitfalls; glow belongs to emissive parts only, drawn as a mark or a
-selective pass); the WebGL path tracer (deprecated upstream, slower than Cycles here); WebGPU SSGI/SSR/TRAA
-(three.js r17x+ WebGPU-only, the kit is pinned at r169 with Remotion — revisit when the kit moves to WebGPURenderer
-and headless Chrome WebGPU capture is proven on this machine).
+Not in the kit, and why: whole-frame bloom (see pitfalls; glow belongs to emissive parts only: the stage's selective
+pass, `st.finish({bloom})`, director-toolbox "Lens and finish"); the WebGL path tracer (deprecated upstream, slower
+than Cycles here); WebGPU SSGI/SSR/TRAA (three.js r17x+ WebGPU-only; the stage runs three r180 on the WebGLRenderer,
+its own pin apart from Remotion's r169 — revisit when the kit moves to WebGPURenderer and headless Chrome WebGPU
+capture is proven on this machine).
 
 ## Blender at its ceiling (blender/kit; references/blender-plates.md for the scene API)
 

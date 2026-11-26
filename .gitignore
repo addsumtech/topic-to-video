@@ -5,6 +5,9 @@ __pycache__/
 tests/fixtures/deck.*
 tests/fixtures/images/
 
+# the 3D stage's own toolchain (assets/html/stage3d/package.json; `npm ci` there)
+assets/html/stage3d/node_modules/
+
 # per-project render caches (generated; never commit)
 .assets/
 .clips/
