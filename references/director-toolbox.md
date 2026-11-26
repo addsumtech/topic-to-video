@@ -259,6 +259,46 @@ survivors travel on one curve, changed text is struck and replaced, newcomers po
 `mark`, `rise`, `weigh`), timed by `Moments.wordTime(timeline, word)`. Starting values adapted from video-shotcraft
 (NOTICE); judge them on this film's frames.
 
+**Kinetic type and SVG moves (GSAP).** `assets/html/gsapseek.js` drives GSAP 3.15.1 (`assets/html/gsap/`: the pinned
+builds of the core, SplitText, DrawSVGPlugin and MorphSVGPlugin, free for commercial use under GSAP's standard licence,
+`gsap/LICENSE.md`) from the page's seek. Copy `gsap/` and `gsapseek.js` next to the page; plain `<script>`s, file://
+or http:
+
+    window.filmReady = (async () => {
+      await GsapSeek.ready();                    // every declared font loaded (split letters are measured), plugins registered
+      const film = GsapSeek.film();              // ONE paused timeline; never `await` it (a timeline is a thenable)
+      GsapSeek.roll(film, '#code', {at: 0.25, value: '1202'});
+      GsapSeek.trace(film, slotRects, {at: 1.6});
+      film.fromTo(slotRects, {attr: {'fill-opacity': 0}}, {attr: {'fill-opacity': 1}, duration: 2 / 30,
+                  stagger: 0.14, immediateRender: true}, 3.0);              // any GSAP tween, ON the film, at its time
+      GsapSeek.assemble(film, '#line', {at: 4.3});
+      window.seek = (t) => { GsapSeek.seek(film, t); /* Moments, a stage */ };
+    })();
+
+- `assemble(film, el, {at, each 0.032, dur 0.8, rise 115, tilt 7, from})` — a line of type assembles letter by
+  letter: each rises out of its line's lower edge (hidden until its own start), tipping up onto its baseline, and
+  settles (no overshoot) in the line's KERNED layout (split letters lose their kerning pairs; the helper measures the
+  typeset line first and puts each letter back). One line per element (`white-space: nowrap`).
+- `roll(film, el, {at, value, from '0000', dur 1.1, each 0.14, turns 0})` — a number rolls to its value digit by
+  digit, each column one window tall, landing left to right; tabular lining figures. Give the element a line-height.
+  Whole extra `turns` on a big figure cross ~180 px a frame and strobe (pan_speed_qa red): small figures only.
+- `trace(film, paths, {at, dur 0.7, each 0.09, to '100%'})` — strokes draw themselves on (DrawSVG) one after another
+  and stop at the shape they name (`to` stops a line part-way, at the box it points to).
+- `reshape(film, path, to, {at, dur 0.6, shapeIndex 'auto'})` — one shape becomes another (MorphSVG): a mark becomes
+  the icon it means. Both drawn in one style; the change is the shape.
+
+The seek rule: GSAP's ticker is switched off when `gsapseek.js` loads, so nothing moves unless a seek moves it; every
+tween goes on the film timeline at an absolute time (`GsapSeek.seek` refuses one left outside it, by its target);
+`fromTo` with both ends written, never `from` (it reads whatever state the playhead left); no callbacks for state
+(seeks suppress them; a per-frame drawing goes in `GsapSeek.draw(film, fn)`); `GsapSeek.seek` returns nothing (the
+frame tools await what seek returns, and a paused timeline never resolves). Each moving letter and digit carries the
+baseline unlock in its OWN transform, at rest too (on a parent, a letter at rest became a bare translate and later
+frames came out a quarter pixel off depending on the first frame the page drew), and transforms stay 2D (`force3D`
+off: a 3D letter is its own resampled layer, dropped on its last frame). Measured on a slow letter move (0.46 px a
+frame, `tests/test_gsapseek.py`): 0.08 px RMS against its true place with the unlock (Skia's quarter-pixel floor),
+0.29 px without it (a whole-pixel staircase). A per-letter split is not judged by `film_copy_qa` (one letter per
+element); read the settled line yourself.
+
 ## Maths that moves (step 6; `assets/html/math.js`)
 A derivation is shown as typeset maths that MOVES, never as an image of an equation or Unicode text: the Remotion
 tier's MathJax glyph outlines and its tuned moves (`remotion/src/runtime/mathCore.ts`: Write, TransformMatchingTex,

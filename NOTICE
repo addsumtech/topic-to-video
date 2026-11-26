@@ -13,3 +13,9 @@ contact shadow, the list drift and the strip-away. The code, its API and the two
 techniques built on the film's own material (the real-state morph and the keyword
 that performs on the voice's word clock) are this project's own. No video-shotcraft
 source file, template, recipe card or text is included.
+
+This product includes GSAP 3.15.1 (https://gsap.com): the unmodified minified builds of
+the core, SplitText, DrawSVGPlugin and MorphSVGPlugin in assets/html/gsap/, Copyright
+GreenSock / Webflow, used under GSAP's Standard "No Charge" License
+(https://gsap.com/standard-license; a copy in assets/html/gsap/LICENSE.md), not under
+this project's MIT License.
