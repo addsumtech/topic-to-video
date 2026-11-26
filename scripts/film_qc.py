@@ -221,7 +221,9 @@ def main(argv):
         out = (r.stdout + r.stderr).strip()
         warns = [l.strip() for l in out.splitlines() if l.lstrip("[").split("]")[-1].strip().startswith("WARN")
                  or " WARN " in l]
-        if r.returncode == 2 and "NOT MEASURED" in out:   # this machine cannot measure it: said, never passed off as OK
+        if r.returncode == 2 and "NOTHING TO JUDGE" in out:   # a film of type only: no textured picture can step
+            print("OK   %s (nothing to judge)" % name)
+        elif r.returncode == 2 and "NOT MEASURED" in out:   # this machine cannot measure it: said, never passed off as OK
             print("WARN %s (not measured)\n%s" % (name, "\n".join("     " + l for l in out.splitlines()[-3:])))
         elif r.returncode == 0 and warns:      # an ADVISORY finding: shown, never hidden behind an OK
             print("WARN %s\n%s" % (name, "\n".join("     " + l for l in warns[:6])))
