@@ -1202,6 +1202,13 @@ agent on the beats it points at.
   OpenStreetMap via Overpass (ODbL; three public servers with backoff; a failure is said, never "nothing there").
   Drawn by `assets/html/geo.js` (Geo.fit / Geo.svg / P.xy). Measured on Shenzhen (2026-11-20): place 1 s; admin_1 at
   10m 7 min on its first download (41 MB), then cached; the coast at OSM detail 1039 ways in ~60 s.
+- `scripts/photo_depth.py <image> [--out <depth.png>]` — a depth map for one still photo, for the 2.5D move drawn by
+  `assets/html/depthphoto.js` (toolbox "A real photograph that moves in 3D"): a 16-bit grayscale PNG, 65535 = nearest,
+  at the model's working size (short side 518, the photo's aspect), default `<stem>.depth.png` beside the image.
+  Depth Anything V2 Small as ONNX (onnx-community/depth-anything-v2-small, pinned revision + sha256; Apache-2.0 — Base
+  and Large are CC-BY-NC-4.0, never swap them in) on onnxruntime's CPU, fetched once to
+  `~/.topic-to-video/models/depth-anything-v2-small/` (`TTV_MODELS` overrides). Prints the weights' licence. Exit 2
+  with the reason when onnxruntime is missing or the model cannot be fetched.
 - `scripts/film_status.py <film_dir> [--json]` — where a director-path film stands, read off its folder: each step
   done / stale / skipped / to do (the script after the voice, page code after the frames, frames or mix after the
   encode, the encode after the last `film_qc` run recorded in `_qc.json`), NEXT with its command, the measured time of
