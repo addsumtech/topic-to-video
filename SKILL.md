@@ -33,7 +33,11 @@ or tied every round. The old flow is kept whole as the classic mode (`references
 parts are tools here.
 
 **Full effort, every time** (the user, 2026-11-14: "make the skill never shy away from effort, at any point; use your full potential and creativity"):
-never trade quality for less work. Re-cut, rebuild, re-render when the film needs it.
+never trade quality for less work. No anchor bias: each film is designed from its own subject as the most remarkable
+film it can be, with every technique the content can use. It is never a variant of the last film
+(`agents/film-designer.md`, "The mind you design with"). That effort is spent on the design: redesign the concepts,
+the keyframes and the animatic as many times as the film needs. After the animatic is approved, the build is one pass
+(step 6).
 
 ## Which path
 
