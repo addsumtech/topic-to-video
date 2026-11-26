@@ -192,7 +192,8 @@ and forgettable.
    otherwise a general-purpose agent given that file as its instructions), **with effort "high"** and a fresh
    context. Give it the brief, `script.json`, `timeline.json`, the purpose and length, the material in `input/`, and
    the user's taught taste (`python3 scripts/taste_ledger.py brief --stage design`, rules in the user's own words);
-   nothing about gates. It writes `design/story.md` (the viewer's journey: for a product film, how the product WORKS,
+   nothing about gates. The films this skill already delivered are strips in `~/.topic-to-video/films/` (kept by
+   `film_deliver`); the designer designs away from them. It writes `design/story.md` (the viewer's journey: for a product film, how the product WORKS,
    not only what it made), `design/concepts.md` (three concepts, the first always the product's OWN world, its
    characters, UI and marks, acting the journey out; and the choice), the three **hero moments** rendered as finished
    keyframes (`design/keyframes.jpg`, redesigned until each reads in a second and stays in the memory), a

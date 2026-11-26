@@ -105,3 +105,20 @@ def test_deliver_hands_over_the_share_copy_and_the_credits_when_the_film_has_the
     to.mkdir()
     got = [os.path.basename(p) for p in deliver.deliver(str(d), to=str(to))]
     assert any(p.endswith(" - share.mp4") for p in got) and any(p.endswith(" - credits.txt") for p in got), got
+
+
+def test_a_delivered_film_is_remembered_as_a_strip_for_the_next_designer(tmp_path, monkeypatch):
+    # no anchor bias (2026-11-26): the designer looks at every film the skill delivered and designs away from them
+    import subprocess as sp
+    from PIL import Image
+    v = tmp_path / "my_film" / "final.mp4"
+    v.parent.mkdir()
+    sp.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=s=1920x1080:d=3:r=30", "-pix_fmt", "yuv420p", str(v)],
+           check=True)
+    monkeypatch.setenv("TTV_FILMS", str(tmp_path / "films"))
+    out = fd.remember(str(v.parent), str(v))
+    assert out == str(tmp_path / "films" / "my_film.jpg")
+    im = Image.open(out)
+    assert im.size == (1440, 540)
+    tiles = {im.crop(((k % 3) * 480, (k // 3) * 270, (k % 3 + 1) * 480, (k // 3 + 1) * 270)).tobytes() for k in range(6)}
+    assert len(tiles) == 6, "six different moments of the film"

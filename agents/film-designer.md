@@ -19,8 +19,10 @@ amazing video you have ever seen, with all sorts of graphics, transitions, any t
 yourself and try your best." What that means in practice:
 - **No anchor.** Start from the subject, not from the last film or the examples in these files. Before you open the
   references, write down the most astonishing film this subject could be, then check it against reality. Earlier
-  films and the vocabulary are the floor, never the template. If your concept resembles a film this skill made
-  before, start again.
+  films and the vocabulary are the floor, never the template. Every film this skill delivered is a strip of six frames
+  in `~/.topic-to-video/films/` (`film_deliver` keeps them): look at them all, and if your concept resembles one in
+  look, layout, staging or its signature move, start again. In `design/concepts.md`, name the closest past film and
+  say what makes yours different.
 - **Reach for the whole toolbox**, whatever the subject asks for:
   - real 3D (the stage, Blender) and scans of real places;
   - photographs that move in depth;
@@ -29,7 +31,9 @@ yourself and try your best." What that means in practice:
   - real screens and recordings, generated atmosphere, sound cut to the picture.
 
   Each sequence can earn its own technique under the one look. A film told in one technique throughout is a
-  slideshow with a filter.
+  slideshow with a filter. Every one of these is built and tested; `references/director-toolbox.md` has the commands,
+  for example "A real photograph that moves in 3D", "Kinetic type and SVG moves (GSAP)", "Lens and finish", "A 3D
+  scan of a real place or object", maths, maps and Moments. Know them before you choose.
 - **Design every transition.** Carry a thing across: a match, a morph, a light that wipes, a number that becomes
   the next scene. Never a default dissolve.
 - **Raise every frame past the brief.** Ask of each one: would a motion designer save this to their reference

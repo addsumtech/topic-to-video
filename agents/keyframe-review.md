@@ -20,6 +20,13 @@ its line. For EACH frame, give a verdict and evidence:
   away while it should be read, a borrowed template (floating cards on a gradient, a feature grid, a pill timeline, a
   centred headline + subtitle, a logo wall).
 
+Then judge them against the designer's mind (`agents/film-designer.md`, "The mind you design with"):
+- **anchored**: compare with the films this skill already delivered, a strip of each in `~/.topic-to-video/films/`.
+  A frame that repeats one of them in look, layout, staging or signature move is a fail; name the film it repeats.
+- **too small**: is any frame something a motion designer would save to their reference folder? A frame that is
+  only correct is "clear but forgettable".
+- **one trick**: do the three frames use the techniques their content asks for, or one technique for everything?
+
 Before the frames one by one, judge the film's STYLE against its subject: does its register fit what the film is
 about (a real place, person or history told through its real photographs, maps and records; an invisible mechanism
 designed and simulated; a product through its own screens and characters)? A real city's history as a toy diorama,

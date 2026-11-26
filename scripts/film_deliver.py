@@ -17,7 +17,9 @@ Always:    `final.srt` beside the video, from timeline.json (each line chunked b
            every chunk starting on its first word); `out.cover.png`, the film's cover — the final film's first hero shot at its
            settled moment, drawn by film.html with its captions hidden (`data-caption`); then
            scripts/deliver.py copies the film, its .srt and the cover to the Desktop (a re-delivery takes the clean
-           name and moves the film's own earlier copy into work/superseded; a file the user made is never touched).
+           name and moves the film's own earlier copy into work/superseded; a file the user made is never touched),
+           and `remember` keeps a strip of six of its frames in ~/.topic-to-video/films/<film>.jpg (TTV_FILMS
+           overrides): the films this skill delivered, which the next designer must not repeat.
 Exit 0 done, 1 a step failed (named), 2 usage error / missing inputs.
 """
 import glob
@@ -148,6 +150,31 @@ def share(video, cap_mb=SHARE_CAP_MB):
     return out
 
 
+def films_dir():
+    """Where the strips of delivered films live: ~/.topic-to-video/films (TTV_FILMS overrides)."""
+    return os.environ.get("TTV_FILMS") or os.path.join(os.path.expanduser("~"), ".topic-to-video", "films")
+
+
+def remember(d, video):
+    """A strip of six frames from the delivered film (evenly spaced, 3x2 at 480x270) in films_dir()/<film>.jpg, so the
+    next film's designer can see every film this skill delivered and design away from them (no anchor bias:
+    agents/film-designer.md, 2026-11-26). Returns its path."""
+    from PIL import Image
+    dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", video],
+                               capture_output=True, text=True, check=True).stdout.strip())
+    sheet = Image.new("RGB", (3 * 480, 2 * 270))
+    for k in range(6):
+        png = subprocess.run(["ffmpeg", "-v", "error", "-ss", "%.3f" % (dur * (2 * k + 1) / 12), "-i", video,
+                              "-frames:v", "1", "-vf", "scale=480:270", "-f", "image2pipe", "-vcodec", "png", "-"],
+                             capture_output=True, check=True).stdout
+        import io
+        sheet.paste(Image.open(io.BytesIO(png)).convert("RGB"), ((k % 3) * 480, (k // 3) * 270))
+    os.makedirs(films_dir(), exist_ok=True)
+    out = os.path.join(films_dir(), os.path.basename(os.path.normpath(d)) + ".jpg")
+    sheet.save(out, quality=82)
+    return out
+
+
 def main(argv):
     _c.refuse_unknown(argv, valued=("frames", "audio", "grain"), switches=("encode", "no-copy"), usage=_USAGE)
     vals = {k: _c.argflag(argv, k, None) for k in ("frames", "audio", "grain")}
@@ -195,6 +222,7 @@ def main(argv):
             import deliver
             for p in deliver.deliver(d):
                 print("[film_deliver] delivered %s" % p)
+            print("[film_deliver] remembered %s (the next designer designs away from it)" % remember(d, video))
     except (subprocess.CalledProcessError, OSError) as e:
         print("film_deliver: %s" % e, file=sys.stderr)
         return 1
