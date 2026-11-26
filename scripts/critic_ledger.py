@@ -234,7 +234,7 @@ def _styled(out_dir):
     return isinstance((meta or {}).get("style"), dict)
 
 
-# THE DELIVERY GATES, ONE LIST PER TIER (SKILL.md 9d) — (label, script, args, timeout, blocking, applies).
+# THE DELIVERY GATES, ONE LIST PER TIER (classic step 9d) — (label, script, args, timeout, blocking, applies).
 # critic_brief.py RUNS them (`--gates` alone, or inside the brief) and records each exit code against the render id;
 # `--final` refuses a render whose record is MISSING one or holds a blocking failure, on every path — `none` included
 # (_gate_problems). It used to read whatever the brief happened to run: the remotion brief never ran film_energy_qa,
@@ -1271,7 +1271,7 @@ def _validate(out_dir, final=False):
                      "not whether the file plays." % str(wv.get("reason"))[:160]])
     # NO DEPTH RECORDED IS NOT A DEPTH. It used to mean `thorough` in silence, so a run that never asked the
     # question looked exactly like one where the user chose the full loop.
-    no_depth = ("no meta.%s recorded — ask the review-depth question (SKILL.md 9d: fast | standard | thorough "
+    no_depth = ("no meta.%s recorded — ask the review-depth question (classic step 9d: fast | standard | thorough "
                 "| none) and record the answer before delivery" % REVIEW_KEY) if rv is None and final else None
     path = os.path.join(out_dir, LEDGER_NAME)
     if not os.path.exists(path):

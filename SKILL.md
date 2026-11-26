@@ -358,7 +358,7 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
 - **An operating-steps film** (a recorded tutorial) sounds its real actions: a soft click on every recorded click and a
   key on every keystroke, placed on the second the edit plays them (`scripts/screenrec_cues.py`, then `sfx.py` and
   `mix.py --sfx`; the user, 2026-11-25: "可以适当加一些点击或者打字的声音特效对于这种类似情景").
-- **SFX** on a few real events, short and high-passed (`scripts/sfx.py --cues`: 15 synthesised sounds). Not every cut
+- **SFX** on a few real events, short and high-passed (`scripts/sfx.py --cues`: 14 synthesised sounds). Not every cut
   gets a sound. A product film speaks the film vocabulary (whoosh, impact, riser, sparkle) with real foley for
   visible actions, never game-feedback tones (`references/promo-shotcraft.md` §4).
 

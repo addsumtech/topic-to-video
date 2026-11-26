@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MERGE PARALLEL BUILDERS' WORK INTO THE BOARD — the join step of a parallel design pass (SKILL.md 3.6 ②, "Parallel
+"""MERGE PARALLEL BUILDERS' WORK INTO THE BOARD — the join step of a parallel design pass (classic step 3.6 ②, "Parallel
 build").
 
     python3 scripts/design_merge.py <out_dir> [--dry-run]

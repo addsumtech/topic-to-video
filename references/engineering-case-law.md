@@ -298,7 +298,7 @@ a FILM RUN; the rule itself lives in `SKILL.md` at the step where it is acted on
 points here for the why. They are numbered `W`, not `E`, so `critic_ledger.py` does not read them as library
 rules; append-only, like the rest of this file.
 
-**W1 · THE SCRIPT IS HEARD BEFORE IT IS SIGNED OFF** (SKILL.md step 5, `script_audition.py`).
+**W1 · THE SCRIPT IS HEARD BEFORE IT IS SIGNED OFF** (classic step 5 and director-path step 4, `script_audition.py`).
 > **Precedent — `164117a`:** a 37-beat script cleared every `voice_qa` metric (CV 0.45 · antithesis 8% ·
 > connectives 38% · aphorism endings 5%), passed two independent content critics, was read end-to-end by its
 > author — and the person it was made for said, on the first listen, 「脚本没有人的感觉，读起来也很机器」.
@@ -309,40 +309,40 @@ rules; append-only, like the rest of this file.
 > question (⑤) to the audition: choosing an engine before hearing anything was the most abstract question in
 > the interview, and the up-front interview shrank from two screens and seven questions to one screen.
 
-**W2 · A CAPABILITY THE RUN NEVER CALLS IS ABSENT** (SKILL.md step 3.6 ③, `seam_plan.py`).
+**W2 · A CAPABILITY THE RUN NEVER CALLS IS ABSENT** (classic step 3.6 ③, `seam_plan.py`).
 > **Precedent — `515cc8b`:** a 35-beat film shipped with all 34 of its cuts the same anonymous cross-fade and
 > a camera that never moved, while every gate stayed green. The seam vocabulary was complete, tested and
 > documented — and unreached, because nothing in the authoring path wrote `transition_in`. On screen,
 > unreached is the same as absent. `6976ab5` put the planner on the workflow path.
 
-**W3 · WARNINGS ARE TRIAGED OUT LOUD** (SKILL.md step 9a).
+**W3 · WARNINGS ARE TRIAGED OUT LOUD** (classic step 9a).
 > **Precedent — `28db3e1`:** a deck was delivered "all green" carrying **94** warnings, including 28 pages
 > flagged FLAT on a PAID image tier and every reveal-choreography defect on the deck. Grouped by kind the 94
 > collapsed to ~10. Warnings do not block, which is exactly why they ship.
 
-**W4 · A BOTH-TIERS GATE IS NEVER INTRODUCED BY A ONE-TIER SENTENCE** (SKILL.md step 9a, the `BOTH TIERS`
+**W4 · A BOTH-TIERS GATE IS NEVER INTRODUCED BY A ONE-TIER SENTENCE** (classic step 9a, the `BOTH TIERS`
 lead-ins; `tests/test_shared_gates_are_on_both_paths.py` holds it).
 > **Precedent — `c898edb`:** the `voice_qa` instruction sat between "On a remotion deck…" and "For an
 > HTML-tier deck…", so an html author reading down the page hit the remotion sentence, saw it was not their
 > tier, and skipped the voice gate with it. A rule that exists and is not on its reader's path is not a rule.
 
-**W5 · THE DELIVERY CRITERION NAMES EVERY GATE** (SKILL.md step 9f).
+**W5 · THE DELIVERY CRITERION NAMES EVERY GATE** (classic step 9f).
 > **Precedent — `c819c84`:** the criterion named only `validate.py` and `check_av.py`, and a deck shipped
 > "all green" while the gates that actually look at the pages were never consulted.
 
-**W6 · THE DIRECTION ROUTER NEVER PADS THE BALLOT** (SKILL.md step 3.6 ①).
+**W6 · THE DIRECTION ROUTER NEVER PADS THE BALLOT** (classic step 3.6 ①).
 > **Precedent — `0252348`:** `shot_templates.py --route` padded a short match list from a fixed fallback
 > order and put an unrelated direction on the ballot (a 3D craft look for an AI-office-agent film); its
 > scoring was ASCII-only, so a CJK topic matched nothing and got the padding every time. It now returns only
 > genuine keyword matches and prints the shortfall, which the shot-director fills by conceiving directions.
 
-**W7 · THE REVIEW LEDGER HAS EVERY ROW, AND THE DELIVERY REVIEWER IS NOT THE MAKER** (SKILL.md step 9e).
+**W7 · THE REVIEW LEDGER HAS EVERY ROW, AND THE DELIVERY REVIEWER IS NOT THE MAKER** (classic step 9e).
 > **Precedent — `c38f365`:** reporting only the FLAGGED beats made a dimension nobody looked at
 > indistinguishable from one checked and found clean. And the maker holds the intent — the intent is what
 > makes a wrong frame look right — so the delivery pass is a fresh subagent given only the out_dir path.
 
 **W8 · A FILM IS SHOWN ONLY AFTER ITS DELIVERY GATES, AND A PICTURE MUST NOT DEPEND ON WHICH TAB OR BEAT DREW IT**
-(SKILL.md 9d; `critic_brief.py --gates`, `motion_events_qa.py`).
+(classic step 9d; `critic_brief.py --gates`, `motion_events_qa.py`).
 > **Precedent — WorkBuddy re-light, 2026-11-11/12:** the film was handed over on a contact sheet with the delivery
 > gates skipped, and the user found, by watching, a jitter at the end of beat 11. Four root causes, none of them
 > visible on a still, three of them in the runtime every film shares:

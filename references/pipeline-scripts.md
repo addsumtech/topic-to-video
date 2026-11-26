@@ -1,6 +1,6 @@
 # Pipeline scripts — full reference
 
-Moved verbatim out of SKILL.md's "Pipeline scripts" section (2026-10-10). SKILL.md keeps a one-line index per
+The full entries behind the "Pipeline scripts" index in `classic-pipeline.md`, which keeps a one-line index per
 script plus every rule that binds at the moment a step runs; this file holds the full text: field semantics,
 flags, the measured history behind each rule, and the library-maintenance tooling. Read the entry for a script
 before you change how you call it, set a `meta.*` field it reads that the index does not explain, or act on a

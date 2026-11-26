@@ -308,7 +308,7 @@ def test_ground_reach_is_measured_again_once_the_luma_emits_have_written_the_row
 
 
 def test_a_film_the_user_shipped_without_a_critic_promotes_and_says_so(tmp_path, sandbox, monkeypatch):
-    # SKILL.md 9f makes promotion the USER's choice, and so is `none` at the review question — but a `none` film keeps a
+    # classic step 9f makes promotion the USER's choice, and so is `none` at the review question — but a `none` film keeps a
     # rewritten NOT_DELIVERED.md, so the GPS test film's user could not promote what they had just chosen to promote.
     # It is accepted when the user's waiver holds for THIS render with every delivery gate green, and the library
     # entry says the item was never critic-reviewed.

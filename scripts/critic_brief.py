@@ -27,7 +27,7 @@ It deliberately does NOT summarise the beats' meaning. That is the judgment bein
 over a summary of it would answer the question the critic is there to ask.
 
 `--gates` runs the same delivery gates (critic_ledger.DELIVERY_GATES, the tier's list) and records their exit codes
-against the render id WITHOUT writing a brief: the check before the review-depth question (SKILL.md 9d), and the
+against the render id WITHOUT writing a brief: the check before the review-depth question (classic step 9d), and the
 record a `none` answer is delivered on — `critic_ledger.py --final` refuses a render whose record is missing a gate
 or holds a failure, on every path. It exits 1 when a blocking gate failed, 2 when no render could be recorded.
 """
@@ -350,7 +350,7 @@ def _review_depth(meta, how, out_dir=None):
         want, why = _cl.preselect(out_dir)
         pre = " Its pre-selected option is computed, not chosen: `%s` (%s)." % (want, why)
     text = dict(how, none="the user waived the review — no critic should be running on this film.").get(
-        _tier, "NOT RECORDED — the review-depth question (SKILL.md 9d) has not been asked. Ask it before "
+        _tier, "NOT RECORDED — the review-depth question (classic step 9d) has not been asked. Ask it before "
                "dispatching the critic; critic_ledger.py --final refuses a film with no meta.review." + pre)
     return "**Review depth: `%s`** — %s" % (_tier or "?", text)
 

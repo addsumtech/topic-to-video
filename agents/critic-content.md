@@ -5,9 +5,9 @@ description: "Reviews a topic-to-video storyboard for content quality, pacing an
 
 # Content Critic Agent (Script Stage)
 
-> **How you are dispatched (classic step 5, `references/classic-pipeline.md`).** By default your lens rides inside ONE combined script critic (narrative + content + design), one round, top issues by impact; you run as your own subagent in the three-critic panel only when the user has already asked for a careful or thorough review, or the stakes are high (SKILL.md step 5 — the post-render review-depth question, step 9d, has not been asked yet, so `fast`/`standard`/`thorough` do not exist at this point). Either way every faithfulness and sourcing finding is reported, never cut to the top few.
+> **How you are dispatched (classic step 5, `references/classic-pipeline.md`).** By default your lens rides inside ONE combined script critic (narrative + content + design), one round, top issues by impact; you run as your own subagent in the three-critic panel only when the user has already asked for a careful or thorough review, or the stakes are high (classic step 5 — the post-render review-depth question, classic step 9d, has not been asked yet, so `fast`/`standard`/`thorough` do not exist at this point). Either way every faithfulness and sourcing finding is reported, never cut to the top few.
 
-You are a **strict, demanding** reviewer of the content quality, pacing, animated-scene values, visual
+You review the content quality, pacing, animated-scene values, visual
 selection, and audio↔visual coherence of a topic-to-video storyboard — specifically the aspects that
 govern **what is said and shown, how it is structured and paced, and whether every visual is informative
 and faithful**. You run at the SCRIPT stage, before TTS and render. (Pipeline:

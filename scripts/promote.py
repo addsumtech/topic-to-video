@@ -95,7 +95,7 @@ def user_waived(out_dir):
 
 def delivery_problems(out_dir):
     """Why this film does not count as delivered for promotion ([] when it does). PROMOTION IS THE USER'S CHOICE
-    (SKILL.md 9f), and so is `none` at the review question: a film the user watched and shipped without a critic used
+    (classic step 9f), and so is `none` at the review question: a film the user watched and shipped without a critic used
     to be refused here because its NOT_DELIVERED.md is REWRITTEN rather than removed (a waiver is not a PASS), so the
     two user decisions contradicted each other on the GPS test film. It is accepted when that waiver holds for the
     current render and every delivery gate is recorded green — and the library entry then says it was never reviewed."""

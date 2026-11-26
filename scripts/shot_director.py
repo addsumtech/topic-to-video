@@ -1179,7 +1179,7 @@ def main():
     # ...BUT NOT ON MATERIAL. In the design-first flow this run only PROPOSES a register per beat (verdict
     # `unjudged`); a camera written now is planned for a register the beat will probably not keep, and because it
     # is then on the board, seam_plan treats it as AUTHORED and skips the beat (the GPS test film's beat 1). The cut
-    # and camera plan waits for the routes: SKILL.md 3.6 ③ runs seam_plan.py after them.
+    # and camera plan waits for the routes: classic step 3.6 ③ runs seam_plan.py after them.
     _proposed = [sl.get("index") for sl in data.get("slides", [])
                  if isinstance(sl.get("shot_fit"), dict) and sl["shot_fit"].get("verdict") == "unjudged"]
     try:

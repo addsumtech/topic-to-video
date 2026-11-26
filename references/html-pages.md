@@ -21,7 +21,7 @@ progress `p=0..1`; `seek.js` freezes its CSS reveals so the entrance animates th
 </body></html>
 ```
 Use absolute `file://` paths. Order: `base.css` → `theme.css` (from `<out_dir>`) → `motifs.css` → **(9:16 only) `vertical.css`** (all from `assets/html/`). On a 16:9 deck, DROP the `vertical.css` line.
-**Register-contest candidate pages (SKILL.md 3.55) substitute the theme link:** they link their OWN
+**Register-contest candidate pages (classic step 3.55) substitute the theme link:** they link their OWN
 `<out_dir>/_contest/<key>/theme.css` instead — `<out_dir>/theme.css` doesn't exist yet at contest time.
 
 ## Form markup — the classes for each form (choosing the form is the design-director's)
@@ -204,7 +204,7 @@ historical scene), a REAL image DEMONSTRATES the point far better than generated
 faithful because it's the real, sourced thing. The design-director marks such beats
 `media.treatment:"documentary"` (see its "IMAGERY TREATMENT" decision procedure — **generated =
 atmosphere/abstract, scraped = show a real named thing; never GENERATE a stand-in for a real thing**).
-Fetch + place them like this (SKILL.md step 4c):
+Fetch + place them like this (classic step 4c):
 ```
 meta = imagefetch.fetch("Tokyo rail network map", "images/doc/railmap_raw.png", prefer="map")  # -> attrib dict or None
 imagefetch.duotone("images/doc/railmap_raw.png", "images/doc/railmap.png",           # treat to match a styled deck
@@ -262,7 +262,7 @@ that fights the content) and place them faithfully:
   subject; a background NEVER carries a fact, but it should never look like it belongs to a different video.
 
 ## Brand lockups (user-supplied `meta.brand` — cover + endcard)
-When `meta.brand` is set (SKILL.md "Brand assets"), the `"cover"`/`"endcard"` placements are
+When `meta.brand` is set (`classic-pipeline.md` "Brand assets"), the `"cover"`/`"endcard"` placements are
 AUTHORED into the first/last pages — `render.py` does not draw them (only the optional corner
 `bug` is render-level). Rules binding both patterns: the logo is `<img>`'d VERBATIM — size by
 `height` only + `width:auto` (never stretched), never recolored/filtered/shadowed; **clear space

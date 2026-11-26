@@ -394,7 +394,7 @@ A starting point measured on 20 official launch films (`references/craft-standar
 ## Sound (step 7)
 - Score: `python3 scripts/score.py --bpm 112 --seconds S [--climax T] score.wav` (a generated score on a beat grid).
 - SFX: `python3 scripts/sfx.py --cues cues.json --seconds S --out sfx.wav`, cues `[{"t": s, "cue": name, "gain": 0..1}]`
-  from 15 synthesised, deterministic sounds (`sfx.py --list`: click, key, tick, focus, whoosh, pop, riser, impact,
+  from 14 synthesised, deterministic sounds (`sfx.py --list`: click, key, tick, focus, whoosh, pop, riser, impact,
   sparkle, strike, chime, swell, settle, reveal); recorded takes in `assets/sfx/kenney/` (click, select, drop, glass:
   UI-game timbres; a product film prefers real-world foley, `promo-shotcraft.md` §4).
 - Mix: `python3 scripts/mix.py --voice audio/voice.wav --music audio/score.wav --sfx audio/sfx.wav --out audio/mix.wav`.

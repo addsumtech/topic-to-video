@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """shot_templates — whole-film AESTHETIC DIRECTIONS for the remotion bespoke-shot tier, and a topic router.
 
-The remotion analogue of the HTML register-contest (SKILL.md 3.55): rather than a uniform look, a "template"
+The remotion analogue of the HTML register-contest (classic step 3.55): rather than a uniform look, a "template"
 is a coherent DIRECTION that biases which register FAMILIES the film leans on (each beat is still its own
 design language — the template EMPHASIZES families, it does not make the film monotone). `route(topic)` returns
 the best ~3 templates so the user PICKS one (via AskUserQuestion) from a rendered representative still each;
@@ -67,7 +67,7 @@ DEFAULT_ORDER = ["product-demo", "kinetic-editorial", "cinematic-craft"]   # a d
 # (reveal complete, exit not begun) for all six — ALWAYS render the contest still with `--frame=CONTEST_FRAME`.
 CONTEST_FRAME = 110
 
-# Contest WIDTH by audacity — mirrors the html register-contest (SKILL.md 3.55): the risk budget scales how
+# Contest WIDTH by audacity — mirrors the html register-contest (classic step 3.55): the risk budget scales how
 # MANY directions diverge. conservative SKIPS the contest; the rest widen. These 6 templates are SEEDS — at
 # bold/experimental the shot-director CONCEIVES extra bespoke topic-specific directions to reach the width.
 AUDACITY_WIDTH = {"conservative": 0, "balanced": 3, "bold": 5, "experimental": 7}
