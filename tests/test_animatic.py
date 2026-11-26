@@ -108,3 +108,23 @@ def test_wrap_fits_the_width_in_both_scripts_and_never_starts_a_line_with_closin
         assert len(lines) >= 2 and all(f.getlength(l) <= 600 + f.getlength("，") for l in lines), lines
     assert not any(l[0] in "，。、；：！？" for l in zh), zh
     assert "".join(zh) == "所以中午，你不看太阳，随便看哪一块天，看到的都是被分子弹开的蓝光，它们从四面八方来到你的眼睛里。"
+
+
+@pytest.mark.skipif(not CHROME, reason="needs Chrome")
+def test_page_mode_draws_the_caption_at_its_home_and_a_shot_covering_the_home_is_red(tmp_path):
+    # Apollo 2026-11-26: the animatic showed the line only under the picture, and the shots were re-framed for the
+    # captions after approval. Now the caption is ON the picture at its home, and a shot parked on it fails here.
+    d = _film(tmp_path)
+    for p in list((d / "design" / "boards").glob("*")) + list((d / "design" / "keyframes").glob("*")):
+        p.unlink()
+    (d / "film.html").write_text("""<!doctype html><html><body style="margin:0"><canvas id="c" width="1920" height="1080"></canvas>
+<script>const g = document.getElementById('c').getContext('2d');
+window.seek = (t) => { g.fillStyle = '#20242a'; g.fillRect(0, 0, 1920, 1080);
+  if (t >= 1.8) { g.fillStyle = '#e8944e'; g.fillRect(700, 980, 520, 70); } };</script></body></html>""")
+    r = subprocess.run([sys.executable, SCRIPT, str(d), "--width", "640", "--page", "film.html"], capture_output=True,
+                       text=True, timeout=300)
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "CAPTION HOME  s03" in r.stdout and "CAPTION HOME  s01" not in r.stdout, r.stdout
+    im = _frame(d / "design" / "animatic.mp4", 0.6)               # "The first line." burned at the home
+    band = [im.getpixel((x, round(360 * 1012 / 1080))) for x in range(200, 440)]
+    assert max(sum(p) for p in band) > 600, "white caption ink at the home"

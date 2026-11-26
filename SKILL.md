@@ -211,7 +211,9 @@ and forgettable.
 Before the full build, block the WHOLE film in `film.html`: every shot placed on the timeline with its subject,
 framing and camera move, the heroes from the keyframes, the rest rough (grey boxes, plain colour) — no polish. Then
 `python3 scripts/animatic.py <film_dir> --page film.html` cuts it to the real voice in seconds (`design/animatic.mp4`,
-each shot at 20/50/85 %, the line under the picture; `design/boards/<shot>.png` overrides a shot). **Checkpoint 3:**
+each shot at 20/50/85 %, the caption drawn at its home; `design/boards/<shot>.png` overrides a shot). With `--page` it
+also runs the fast layout checks on the blocking: a caption home that is not clear ground, and words colliding or cut
+by the frame's edge. It exits 1 until they are fixed; fix them before the user sees the cut. **Checkpoint 3:**
 the user watches it and approves the rhythm, the cuts and what is on screen under each line, or names the shots to
 change. Problems found here cost minutes; after the build, a re-render each (a 1.5 s pull from close to wide, a
 scribble standing in for an idea, two shots of one framing were all visible in a Grok Bot animatic).
@@ -225,6 +227,18 @@ easing from the brand's energy and tone; two voices read as a patchwork), one **
 the logo's cursor that types the task) — the thing that, more than anything else, makes a film feel like one film.
 
 ### 6. Build — sequence by sequence
+
+**After the animatic is approved, the build is ONE pass** (the user, 2026-11-26: "skill服务于用户…制作的时间和消耗也要在一定程度内"
+— the skill serves the user, so the time and cost of making a film must stay within reason). Build every shot to its
+approved blocking, render, run `film_qc` on the whole film once, fix the reds and what the user named, re-render only
+those frames, deliver. Aim to render under ~1.5x the film's frames in all.
+- A flaw that no binding rule names (a nicer easing, a tighter crop) goes on a "could improve" list in `NOTES.md`,
+  offered at hand-off. It is not reworked silently: the user's review judges polish.
+- A red that is deliberate motion (a piece that drops and regrows, a light that flickers) is proved on its frames and
+  recorded, never re-rendered away.
+
+Apollo 1202 (2026-11-26) rendered 11,169 frames for a 3,639-frame film: 4.4 h of build after approval. The user had
+to ask, again and again, when it would be done.
 
 **The unit is the sequence.** Each sequence is one world (subject, ground, camera language) and flows inside
 itself; the world changes only at a seam. Within it, every shot has one focal point, appears with its words
@@ -292,11 +306,12 @@ moves (`assets/html/math.js`: a derivation written on and carried form to form, 
   building, look at a real reference (a photo, the source's figure) for each recurring drawn subject; label a
   schematic as one, in the film's language.
 - Nothing cut off, overlapping or unreadable.
-- **Captions sit ON the picture's own ground**, never on a band, strip or scrim added under the film, and cover nothing:
-  the picture fills the frame, each framing keeps empty ground where its captions go, and each caption is placed
-  where the frames under it are that empty ground for its whole time — measured by `scripts/caption_spots.py` on a
-  caption-free render, which also picks the ink for the ground (a Numbers tutorial, 2026-11-25; the user: "底下那个黑色块
-  …你可以让subtitle很好的融入背景且不影响内容吗"). No clean spot → change the edit, never the caption.
+- **Captions sit ON the picture's own ground**, never on a band, strip or scrim added under the film, and cover nothing
+  (a Numbers tutorial, 2026-11-25; the user: "底下那个黑色块…你可以让subtitle很好的融入背景且不影响内容吗"). **One
+  caption home for the whole film**, bottom centre, fixed at design: every framing leaves that band as its own empty
+  ground, the keyframes and the animatic show the caption there, and `scripts/caption_spots.py` verifies it on a
+  caption-free render and picks the ink. Captions that move shot to shot read as jumping (Apollo 2026-11-26; the user:
+  "caption的位置，我觉得忽上忽下不是很好"). A blocked home → change the shot, never the caption.
 - **Never draw a raster beyond its native pixels**; a real screenshot is cropped and pushed within its density.
 - Time runs one way: a state reached stays reached; nothing replays after a cut; nothing overshoots and shrinks back.
 - No slow constant creep on fine detail (hard edges shimmer); a camera move has a job and an end.

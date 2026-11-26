@@ -69,8 +69,10 @@ each sequence seam; no clipping, even loudness across lines.
 - The designer's brief includes the user's taught taste: `python3 scripts/taste_ledger.py brief --stage design`.
 - `python3 scripts/animatic.py <film_dir> [--page film.html] [--width 1280]` -> `design/animatic.mp4`: each shot's
   board (`design/boards/<shot>.png`, else the hero keyframes in hero order, else — with `--page` — the page itself at
-  20/50/85 % of the shot, else a grey card from the treatment marked BOARD MISSING), the shot id and line in a strip
-  under the picture, the voice on the timeline. Seconds to make; the user approves it before the full build.
+  20/50/85 % of the shot, else a grey card from the treatment marked BOARD MISSING), each caption ON the picture at the
+  film's caption home, the shot id and line in a strip under it, the voice on the timeline. With `--page` it runs the
+  fast layout checks on the blocking: the caption home must be clear ground, and it runs page_overlap_qa (~80 s for
+  2 minutes). It exits 1 until they pass. The user approves it before the full build.
 - `references/video-looks.md` (11 looks, a vocabulary) and `references/visual-styles.md` (palette and type
   sub-registers, with the vetoes).
 - `python3 scripts/theme.py <film_dir> --style <key>` writes `theme.css`: the style's contrast-safe palette and type as
@@ -80,11 +82,13 @@ each sequence seam; no clipping, even loudness across lines.
 **Pages.** One `film.html`, every frame a pure function of time (`window.seek(t)`), captured with headless Chrome.
 Icons: `references/icons.md` (one inline-SVG line family, Lucide). Captions: `python3 scripts/caption_words.py "…"`
 shows where a CJK caption may break; placement and line rules (on the frame's own ground, no strip, nothing else in
-the band) are `references/captions.md`. On a director-path page whose picture fills and moves across the frame, the
-caption's place is measured: render once with captions hidden (the page's own switch), write `[[t0, t1, text], ...]`,
-then `python3 scripts/caption_spots.py <film_dir> --caps caps.json` gives each caption a spot on uniform ground for
-its whole time and its ink (`"light"` ground → dark text); the page draws each at its spot (the Numbers film's
-`tools/build_page.py` is a worked example).
+the band) are `references/captions.md`. A director-path film has ONE caption home, bottom centre (SKILL.md step 6),
+kept clear by every framing. Verify it: render once with captions hidden (the page's own switch), write
+`[[t0, t1, text], ...]`, then run `python3 scripts/caption_spots.py <film_dir> --caps caps.json`. It checks that the
+home is uniform ground for each caption's whole time and gives the ink (`"light"` ground → dark text). A caption it
+cannot place there is red: reframe that shot. Only a film whose picture cannot keep one band clear (a screen
+recording filling the frame) passes explicit `--x/--y` candidate lists, which places each caption on the first clear
+spot. The Numbers film's `tools/build_page.py` is a worked example of the page drawing captions at their spots.
 
 **The 3D stage** — `assets/html/stage3d.js`, one classic script (three.js 0.169
 bundled from `remotion/node_modules` by `scripts/build_stage3d.sh`), so a film page loads it with a plain `<script>`:

@@ -127,15 +127,18 @@ move, and then at the real screen's proportions, scaled as one object (never one
 step 6); marks follow the tilted object they frame (`st.quad` + `Stage3D.brackets`) — the toolbox,
 "Devices, app screens, cards, marks".
 Every drawn object is checked against its real reference before it is drawn (`references/object-authoring.md`).
-The picture fills the frame: no caption band or strip under it. Captions sit on the picture's own empty ground, so
-every framing you plan leaves ground clear where its captions go, and a moment that sweeps the whole frame (a drag,
-a long pan) gets a pause in the voice (SKILL.md step 6, `scripts/caption_spots.py`; a black band read as a block to
-the user, 2026-11-25).
+The picture fills the frame: no caption band or strip under it. Captions sit on the picture's own empty ground, at
+ONE home for the whole film, bottom centre: every framing you plan leaves that band clear, and a moment that sweeps
+the whole frame (a drag, a long pan) gets a pause in the voice (SKILL.md step 6, `scripts/caption_spots.py`). A
+black band read as a block to the user (2026-11-25), and captions moved shot to shot read as jumping (2026-11-26).
+The home is decided here, never at the build: the Apollo film re-framed every shot for it after the animatic was
+approved, and that cost a full re-render.
 Say why, and what you take from the other two.
 
 ## 4. Hero keyframes — `design/keyframes/*.png` + `design/keyframes.jpg`
 Render the chosen concept's three hero moments as FINISHED frames (1920x1080, real assets, real type, real light), with
-the same engine the film will use — not sketches, not mood boards. Then judge each:
+the same engine the film will use — not sketches, not mood boards — each with its spoken caption drawn at the caption
+home. Then judge each:
 - Read it cold for one second: what does it say, and is that the line? Can every word and screen on it be read?
 - Would a viewer remember it? Is there ONE big thing, with depth and placed light?
 - Is anything in it on the mediocre catalogue? Does any element collide with another or with the type?

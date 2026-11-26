@@ -1220,7 +1220,10 @@ agent on the beats it points at.
   driver: `scripts/_filmpage.py` (local http, GPU, backlog sized for parallel pages).
 - `scripts/animatic.py <film_dir> [--page film.html] [--width 1280] [--fps 12]` — the film's boards cut to its real
   voice (checkpoint 3): own boards, hero keyframes, or (`--page`) the blocking page at 20/50/85 % of each shot; a grey
-  BOARD MISSING card from the treatment otherwise; the shot id and line in a strip under the picture.
+  BOARD MISSING card from the treatment otherwise; each caption drawn at the film's caption home (bottom centre), the
+  shot id and line in a strip under the picture. `--page` also runs the fast layout checks on the blocking (caption
+  home clear, page_overlap_qa). Exit 1 when one is red. Why: Apollo 2026-11-26 re-framed every shot for
+  the captions after the animatic was approved.
 - `scripts/film_deliver.py <film_dir> [--encode] [--grain 3] [--no-copy]` — the final encode (CRF 17, aq-mode 3, a
   fine temporal grain against banding: the Grok Bot night sky CAMBI 8.0 -> 4.1), `final.srt` from the timeline's
   words (the classic chunker), `out.cover.png` (the final film's hero shot, `data-caption` hidden), the Desktop copy.
@@ -1245,7 +1248,8 @@ agent on the beats it points at.
   blocks, and the user saw screens with nothing on them (2026-11-26): every screen shows real or declared demo
   content, and text too small to read is still drawn as text.
 - `scripts/caption_spots.py <film_dir> --caps caps.json [--frames work/frames] [--size 56] [--x …] [--y …] [--out …]` —
-  where each caption sits ON the picture's own ground: on a caption-free render, the first candidate centre (the
+  verifies each caption sits ON the picture's own ground at the film's ONE caption home (bottom centre, by default;
+  explicit --x/--y lists search candidates instead): on a caption-free render, the first candidate centre (the
   previous caption's spot first) whose box (text width at --size + 24 px) is one uniform ground on every frame the
   caption is up; its tone picks the ink. Writes `{index: [cx, cy, "light"|"dark"]}`; exit 1 names a caption with no
   clean spot (change the edit, never add a strip). Why: a black caption band under the Numbers tutorial (the user,

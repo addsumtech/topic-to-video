@@ -11,13 +11,27 @@ drawn from the shot's paragraph in `design/treatment.md` and marked BOARD MISSIN
 visible as such. Each frame carries the shot id and time (top left; it is a working cut) and the spoken line as a
 caption. The voice: `audio/voice.wav` when the film has one, else every line's clip placed at its start.
 `--page film.html`: the BLOCKING cut — every shot without its own board is captured from the film's page itself at
-20 / 50 / 85 % of its span (scripts/_filmpage.py) and shown as three steps, so the animatic is the real composition on
-the real clock, rough as it is; boards and keyframes still win where they exist.
+20 / 50 / 85 % of its span (scripts/_filmpage.py; the page's own captions hidden) and shown as three steps, so the
+animatic is the real composition on the real clock, rough as it is; boards and keyframes still win where they exist.
+
+THE CAPTION AT ITS HOME. Each caption chunk (the chunker film_deliver's .srt uses) is drawn ON the picture at the film's
+one caption home, bottom centre (caption_spots.HOME), at 56 px of 1080. The user approves the animatic with the
+captions where the film will have them. On 2026-11-26 the Apollo animatic showed the line only under the picture.
+Re-framing every shot for a fixed caption after approval cost a full re-render.
+
+THE LAYOUT CHECKS (with --page), before the user sees the cut: every capture's caption home must be one clear ground
+(caption_spots.ground), plus page_overlap_qa (words colliding, a readable line cut by the frame's edge; ~80 s for a
+2-minute film) on the blocking page. stage_contacts_qa is NOT run here: it took 29 min on Apollo's 2 minutes, longer
+than the whole animatic step. It, the placeholder check and the polish checks wait for the build's one film_qc: the
+blocking is rough by design. On Apollo (2026-11-26) a bar ran out past its panel and lines
+were cut at the edge. Those were found only after the full build, and each fix cost a re-render. Found here, they
+cost an edit to the blocking.
 
 WHY. A film with three hero keyframes went straight to the full build; its pacing faults (a 1.5 s pull from close to
 wide, a scribble standing in for "router", six shots of one framing) were found only after it was built, each fix a
 re-render (Grok Bot 2026-11-18). The industry's order is boards -> animatic -> build; the user approves this.
-Exit 0 written (prints how many shots lack a board), 2 usage error or missing plan/timeline.
+Exit 0 written (prints how many shots lack a board), 1 written but a layout check found something to fix in the
+blocking first (listed), 2 usage error or missing plan/timeline.
 """
 import glob
 import json
@@ -41,6 +55,9 @@ def page_boards(d, page, shots, have, td):
     out = {}
     try:
         p = _fp.FilmPage(port, page)
+        from film_deliver import CAPTION_SELECTORS
+        hide = ("document.querySelectorAll(%s).forEach(e => e.style.setProperty('visibility', 'hidden', 'important'))"
+                % json.dumps(CAPTION_SELECTORS))
         try:
             for s in shots:
                 if have.get(s["id"]):
@@ -50,7 +67,9 @@ def page_boards(d, page, shots, have, td):
                 for k, u in enumerate(STEPS):
                     path = os.path.join(td, "pg_%s_%d.jpg" % (s["id"], k))
                     p.seek(a + (b - a) * u)
-                    p.shot(path, "jpeg", 85)
+                    p.ev(hide)
+                    p.ev("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))", True)
+                    p.shot(path, "jpeg", 92)
                     out[s["id"]].append(path)
         finally:
             p.close()
@@ -170,6 +189,61 @@ def _voice(d, lines, total, out):
     return out
 
 
+def caption_chunks(lines):
+    """[(t0, t1, text)] the film's burned captions: each line chunked as film_deliver's .srt chunks it."""
+    import render
+    out = []
+    for ln in lines:
+        a, b = float(ln["start"]), float(ln["end"])
+        words = [{"w": w["w"], "t": float(w["t"]) - a} for w in ln.get("words") or []]
+        for c in render._captions_for({"narration": ln["text"], "duration": max(0.1, b - a)}, words or None):
+            out.append((a + c["start"], a + c["end"], c["text"]))
+    return out
+
+
+def caption_box(text, w, h):
+    """(lines, font, box) of a caption at the home in a w x h frame: 56 px of 1080, wrapped to 70 % of the width, the
+    last line on the home, earlier lines stacked above it; box (x0, y0, x1, y1) with caption_spots' margin."""
+    import caption_spots as cs
+    size = round(56 * h / 1080)
+    font = _font(size, True)
+    lines = wrap(text, font, 0.7 * w)
+    cx, cy, lh = w * cs.HOME[0], h * cs.HOME[1], size * 1.25
+    half = max(font.getlength(ln) for ln in lines) / 2 + cs.MARGIN
+    box = (int(cx - half), int(cy - (len(lines) - 1) * lh - size * 0.8), int(cx + half), int(cy + size * 0.8))
+    return lines, font, box
+
+
+def home_blocked(steps, shots, chunks):
+    """[(shot id, step %, caption)] where the caption home is not one clear ground on a page capture, for any caption
+    spoken in the shot."""
+    import numpy as np
+    from PIL import Image
+    import caption_spots as cs
+    out = []
+    for s in shots:
+        caps = [c[2] for c in chunks if c[0] < float(s["end"]) and c[1] > float(s["start"])]
+        if not steps.get(s["id"]) or not caps:
+            continue
+        for k, path in enumerate(steps[s["id"]]):
+            a = np.asarray(Image.open(path).convert("RGB"))
+            h, w = a.shape[:2]
+            for text in caps:
+                x0, y0, x1, y1 = caption_box(text, w, h)[2]
+                if x0 < 0 or y0 < 0 or x1 > w or y1 > h or not cs.ground([a[y0:y1, x0:x1]]):
+                    out.append((s["id"], int(STEPS[k] * 100), text))
+                    break
+    return out
+
+
+def page_checks(d, page):
+    """{name: findings text} of the page's fast layout checks that are not clean."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    r = subprocess.run([sys.executable, os.path.join(here, "page_overlap_qa.py"), d, "--page", page],
+                       capture_output=True, text=True)
+    return {"overlaps": (r.stdout + r.stderr).strip()} if r.returncode != 0 else {}
+
+
 def main(argv):
     _c.refuse_unknown(argv, valued=("out", "fps", "width", "page"), usage=_USAGE)
     vals = {k: _c.argflag(argv, k, None) for k in ("out", "fps", "width", "page")}
@@ -195,6 +269,7 @@ def main(argv):
     os.makedirs(os.path.dirname(out), exist_ok=True)
     para = treatment_lines(os.path.join(d, "design", "treatment.md"))
     bd = boards(d, shots)
+    chunks = caption_chunks(lines)
     from PIL import ImageDraw
     cache = {}
     with tempfile.TemporaryDirectory(prefix="animatic_") as td:
@@ -229,6 +304,12 @@ def main(argv):
             im = Image.new("RGB", (W, H + SH), (0, 0, 0))
             im.paste(cache[key], (0, 0))
             g = ImageDraw.Draw(im)
+            ch = next((c for c in chunks if c[0] <= t < c[1]), None)
+            if ch:                          # the burned caption, at the film's home
+                cl, cf, (bx0, by0, bx1, by1) = caption_box(ch[2], W, H)
+                for i, c in enumerate(cl):
+                    g.text((W / 2, by1 - cf.size * 0.8 - (len(cl) - 1 - i) * cf.size * 1.25), c, fill=(255, 255, 255),
+                           font=cf, anchor="mm", stroke_width=max(1, round(H / 360)), stroke_fill=(0, 0, 0))
             tag = "%s  %05.2fs  %s" % (shot["id"], t, "HERO" if shot.get("hero") else "")
             g.text((int(W * 0.012), H + int(SH * 0.08)), tag, fill=(255, 220, 120), font=_font(int(H * 0.03), True))
             ln = next((l for l in lines if float(l["start"]) <= t <= float(l["end"])), None)
@@ -244,10 +325,21 @@ def main(argv):
             cmd += ["-i", voice, "-shortest"]
         cmd += ["-vf", _c.BT709_VF, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "23", "-movflags", "+faststart", out]
         subprocess.run(cmd, check=True)
+        blocked = home_blocked(steps, shots, chunks) if steps else []
+    found = page_checks(d, vals["page"]) if vals["page"] else {}
     missing = [s["id"] for s in shots if not bd[s["id"]] and not steps.get(s["id"])]
     print("[animatic] %s  %.1f s, %d shots (%d with a board, %d BOARD MISSING%s)%s" % (
         os.path.relpath(out, d), total, len(shots), len(shots) - len(missing), len(missing),
         (": " + ", ".join(missing)) if missing else "", "" if voice else "  — NO VOICE found (audio/voice.wav or line clips)"))
+    for sid, pct, text in blocked:
+        print("CAPTION HOME  %s at %d %%: the bottom-centre caption home is not clear ground (\"%s\") — reframe the shot,"
+              " never move the caption" % (sid, pct, text))
+    for name, text in found.items():
+        print("%s\n%s" % (name.upper(), "\n".join("     " + l for l in text.splitlines()[-12:])))
+    if blocked or found:
+        print("[animatic] FIX the blocking before showing it: %d caption-home problem(s)%s" % (
+            len(blocked), "".join(", %s red" % n for n in found)))
+        return 1
     return 0
 
 

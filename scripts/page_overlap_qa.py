@@ -3,7 +3,7 @@
     python3 scripts/page_overlap_qa.py <film_dir> [--page film.html] [--every 0.25] [--frames A-B] [--json]
 
 A director-path film is one page whose every frame is `window.seek(t)` (SKILL.md step 6). This loads that page in
-headless Chrome, steps t through the film (`_plan.json` frames / fps), and at each step collects the VISIBLE text and
+headless Chrome, steps t through the film (`_plan.json` frames / fps, else timeline.json's duration), and at each step collects the VISIBLE text and
 controls — elements with their own text, buttons, inputs, [role=button], typeset equations ([data-math]) — with their
 on-screen boxes. Two of them COLLIDE when neither contains the other and their boxes overlap by more than a quarter
 of the smaller one. A collision that lasts at least MIN_S is reported with both elements' text and the time span.
@@ -148,6 +148,9 @@ def main(argv):
     if os.path.isfile(plan):
         p = json.load(open(plan, encoding="utf-8"))
         dur = float(p.get("frames", 0)) / float(p.get("fps", 30)) or dur
+    else:                                        # the blocking page, before the build: the voice's clock
+        import _filmpage
+        dur = (_filmpage.film_frames_count(d, 30) or dur * 30) / 30.0
     times = [round(i * every, 3) for i in range(int(dur / every))]
     if span:                                     # one builder's stretch only (film_qc --frames)
         times = [t for t in times if span[0] / 30.0 <= t < span[1] / 30.0]

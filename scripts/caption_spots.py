@@ -2,16 +2,24 @@
 """caption_spots — where each caption can sit ON the picture's own ground, covering nothing.
 
     python3 scripts/caption_spots.py <film_dir> --caps caps.json [--frames work/frames] [--size 56]
-        [--x 960,760,1180,560,1400,420,1600,1700] [--y 1012,944] [--out work/caption_spots.json]
+        [--x 960] [--y 1012] [--out work/caption_spots.json]
 
 WHY (2026-11-25). A Numbers tutorial put its captions on a black band under the picture; the user: "底下那个黑色块，
 虽然我知道是用于subtitle，但你可以让subtitle很好的融入背景且不影响内容吗" (that black block — make the subtitle blend into
 the background without affecting the content). A director-path film has no fixed caption zone: its picture fills
 the frame and moves (a chart dragged across, a popover, a push), so a caption's place is MEASURED, not assumed.
 
+ONE HOME, by default (2026-11-26). Every caption sits at the same spot, bottom centre (x = half the width, y = 1012
+of 1080). A search that moved each caption to wherever ground was clear made them jump shot to shot. The user: "caption的
+位置，我觉得忽上忽下不是很好" (captions bouncing up and down look bad). Re-framing every shot afterwards cost a
+re-render of the whole film. So the home is fixed at design: every framing leaves it clear, and this script
+VERIFIES it. A film whose picture cannot keep one band clear (a screen recording that fills the frame) may pass
+explicit --x/--y candidate lists. Then the search below runs, and the choice gets one line in NOTES.md.
+
 HOW. Render the film once with its captions hidden (the page's own switch), then run this. `caps.json` is
-[[t0, t1, text], ...] in film seconds. For each caption, the first candidate centre (the previous caption's spot
-first, so captions do not jump; then every --y row by every --x) whose box — the text's width at --size plus a
+[[t0, t1, text], ...] in film seconds (a caption starting before 0 is checked from frame 0). For each caption, the
+first candidate centre (the previous caption's spot first, so captions do not jump; then every --y row by every --x)
+whose box — the text's width at --size plus a
 margin — is ONE uniform ground on every frame while the caption is on screen (sampled every 2nd frame) wins:
 nothing drawn there, no edge or moving thing passing through. The ground's tone picks the ink: "light" ground →
 dark text, "dark" ground → light text. The page then draws each caption at its spot.
@@ -32,8 +40,9 @@ from PIL import Image, ImageFont
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _common as _c  # noqa: E402
 
-_USAGE = ("usage: caption_spots.py <film_dir> --caps caps.json [--frames work/frames] [--size 56] [--x 960,760,...] "
-          "[--y 1012,944] [--out work/caption_spots.json]")
+_USAGE = ("usage: caption_spots.py <film_dir> --caps caps.json [--frames work/frames] [--size 56] [--x 960] "
+          "[--y 1012] [--out work/caption_spots.json]")
+HOME = (0.5, 1012 / 1080)   # the caption's centre as a share of the frame's width and height
 FPS = 30
 MARGIN = 24          # px of empty ground kept around the text on each side
 OFF = 18             # a pixel this far (any channel) from the ground's median is not ground
@@ -66,7 +75,8 @@ def place(caps, frame_at, widths, xs, ys, size, frame_w, frame_h, n_frames):
     """caps [[t0, t1, text]], frame_at(i) -> HxWx3 array; returns ({index: [cx, cy, tone]}, [unplaced indices])."""
     spots, bad, prev = {}, [], None
     for k, (t0, t1, _text) in enumerate(caps):
-        f0, f1 = int(t0 * FPS), min(int(t1 * FPS), n_frames - 1)
+        f0 = min(max(0, int(t0 * FPS)), n_frames - 1)
+        f1 = max(f0, min(int(t1 * FPS), n_frames - 1))
         for c in ([prev] if prev else []) + [(x, y) for y in ys for x in xs]:
             b = box_of(c[0], c[1], widths[k], size, frame_w, frame_h)
             if b is None:
@@ -97,8 +107,6 @@ def main(argv):
               file=sys.stderr)
         return 2
     size = int(_c.argflag(argv, "size", None) or 56)
-    xs = [int(v) for v in (_c.argflag(argv, "x", None) or "960,760,1180,560,1400,420,1600,1700").split(",")]
-    ys = [int(v) for v in (_c.argflag(argv, "y", None) or "1012,944").split(",")]
     font = next((ImageFont.truetype(p, size) for p in FONTS if os.path.exists(p)), None)
     widths = [font.getlength(c[2]) if font else 0.55 * size * len(c[2]) for c in caps]
     cache = {}
@@ -110,6 +118,8 @@ def main(argv):
             cache[i] = np.asarray(Image.open(os.path.join(frames, "f_%05d.jpg" % i)).convert("RGB"))
         return cache[i]
     h, w = frame_at(0).shape[:2]
+    xs = [int(v) for v in (_c.argflag(argv, "x", None) or str(round(w * HOME[0]))).split(",")]
+    ys = [int(v) for v in (_c.argflag(argv, "y", None) or str(round(h * HOME[1]))).split(",")]
     spots, bad = place(caps, frame_at, widths, xs, ys, size, w, h, len(names))
     out = os.path.join(d, _c.argflag(argv, "out", None) or os.path.join("work", "caption_spots.json"))
     json.dump(spots, open(out, "w"), indent=0)

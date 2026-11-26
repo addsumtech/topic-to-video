@@ -56,3 +56,31 @@ def test_the_previous_spot_is_kept_while_it_stays_clean():
     caps = [[0.0, 1.0, "one"], [1.0, 2.0, "two"]]
     spots, _ = cs.place(caps, lambda i: fr[i], [200, 200], [1400, 960], [1012], 56, W, H, 90)
     assert spots["0"][:2] == spots["1"][:2] == [1400, 1012]
+
+
+def test_a_caption_starting_before_zero_is_checked_from_frame_zero():
+    # the film's first caption can lead its line by a few frames (Apollo 2026-11-26: t0 = -0.1 crashed the script)
+    fr = frames(60)
+    def frame_at(i):                                 # frames are files f_00000.jpg on: there is no frame -3
+        assert i >= 0, i
+        return fr[i]
+    spots, bad = cs.place([[-0.1, 1.0, "Houston"]], frame_at, [300], [960], [1012], 56, W, H, 60)
+    assert bad == [] and spots["0"][:2] == [960, 1012]
+
+
+def test_by_default_every_caption_has_one_home_and_a_blocked_home_is_red_not_moved(tmp_path):
+    # one bottom-centre home for the whole film: a shot that covers it is the shot's fault (the user, 2026-11-26:
+    # captions jumping up and down read badly), so the script reports it instead of moving the caption
+    import json
+    from PIL import Image
+    d = tmp_path / "film"
+    (d / "work" / "frames").mkdir(parents=True)
+    for i in range(60):
+        a = np.full((H, W, 3), 255, np.uint8)
+        if i >= 30:
+            a[980:1050, 800:1120] = (40, 90, 200)        # something parked on the home in the second caption
+        Image.fromarray(a).save(str(d / "work" / "frames" / ("f_%05d.jpg" % i)), quality=95)
+    (d / "caps.json").write_text(json.dumps([[0.0, 0.9, "one"], [1.0, 1.9, "two"]]))
+    assert cs.main([str(d), "--caps", "caps.json"]) == 1
+    spots = json.loads((d / "work" / "caption_spots.json").read_text())
+    assert spots == {"0": [960, 1012, "light"]}
