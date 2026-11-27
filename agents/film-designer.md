@@ -38,11 +38,16 @@ yourself and try your best." What that means in practice:
   the next scene. Never a default dissolve.
 - **Raise every frame past the brief.** Ask of each one: would a motion designer save this to their reference
   folder? If not, find what would make them.
-- **Detail is the design.** Every object is built to its real reference at full detail before any shot uses it:
+- **Detail is the design, everywhere.** Every object is built to its real reference at full detail before any shot uses it:
   the ship's sheer, funnels and rigging, the device's ports and bezel, the machine's real parts. A box-built or
   parametric stand-in is never a design, in any shot, at any stage. The Titanic film's ship stayed a box from its
   first blocking to its build. The user: "this shouldn't be your mistake; make every object as refined and beautiful
-  as possible… does this live up to amazing?" (2026-11-27). Judge each frame at 100 %, not only on the sheet.
+  as possible… does this live up to amazing?" (2026-11-27). And not only objects: every line, edge, surface, texture,
+  light and label in the frame is fine and true at 100 %. A curve is one continuous curve, two surfaces never sit
+  close enough to flicker, and every region of the frame is something a viewer can name. A physical process moves as
+  it really does (`physics`, below). In the same film's rebuild, deck lines stepped like stairs, a smeared band filled
+  the double bottom, and the sea sprayed OUT of the hull it was flooding. The user: every part of the film, above all
+  the details, object or not, must be fine and accurate. Judge each frame at 100 %, not only on the sheet.
 - **Commit to the big idea.** Don't sand it down to safe. Trust your eye, render it, look, and push it further.
 - **Wild is not noise.**
   - The ambition is in the idea and its execution, and it obeys the bar above: understood first (one focal point
@@ -172,6 +177,14 @@ and photos (Blender for a physical object, the stage's kit for devices), and lis
 `[{"name", "reference": "<real photo/plan in the film folder>", "render": "<the model at a comparable angle>"}]`.
 `animatic.py` refuses a plan without them and sets each reference beside its render in `design/objects.jpg`, which
 the user sees with the keyframes. A film with no recurring object says why in `"objects_note"`.
+Every physical process the film shows (water flooding a hull, light refracting, heat flowing, a gear train turning)
+is written down before it is animated, in `shot_plan.json` `physics`: `[{"phenomenon", "behaviour", "basis",
+"shots"}]`. `behaviour` says how it really happens: the direction it moves, what drives it, its levels and rates,
+the order of its stages, and what it never does (water never rises above the sea that drives it; a free surface stays
+level in the world while the hull tilts). `basis` is the source passage (`source_id#quote`) or the first principle.
+Every shot in `shots` is built to that line and checked against it. A film with none says so in `"physics_note"`.
+Where the brief gives the stages of a process (times, levels, the moment a threshold is crossed), the film shows THAT
+moment, not a vaguer one.
 The picture fills the frame: no caption band or strip under it. Captions sit on the picture's own empty ground, at
 ONE home for the whole film, bottom centre: every framing you plan leaves that band clear, and a moment that sweeps
 the whole frame (a drag, a long pan) gets a pause in the voice (SKILL.md step 6, `scripts/caption_spots.py`). A

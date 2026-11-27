@@ -25,6 +25,11 @@ WHAT IT WRITES (<out_dir>/_review/):
 DIRECTOR PATH (a <film_dir> with shot_plan.json; video final.mp4): a row per SHOT, at its opening (0.3 s in), 50 % and
 90 %. The opening is where a shot is soft or empty and a settled frame never shows it: the Airbnb film (2026-11-25)
 opened a phone out of focus for 1.2 s and the user saw it at once ("some pictures are very blurry at first").
+FULL SIZE (director path): `_review/full/<shot>.jpg`, every shot's settled frame (90 %) at the film's own size. A
+sheet cell is a third of the frame, and what it hides is exactly the detail a viewer sees: the Titanic film's deck
+lines built as stepped segments and a smeared band in the hull's double bottom were invisible on the sheet and the
+user saw both at once (2026-11-27). Open every one at full size and name every region of it; a region nobody can name
+is a defect.
 ADVISORY: it always exits 0. Its output is for the eye, the reviewer's checklist is in agents/shot-critic.md.
 """
 import json
@@ -88,6 +93,14 @@ def _frame(video, f, fps, w):
     return Image.open(io.BytesIO(r.stdout)).convert("RGB") if r.stdout else Image.new("RGB", (w, w * 9 // 16))
 
 
+def _full(video, f, fps):
+    from PIL import Image
+    import io
+    r = subprocess.run(["ffmpeg", "-v", "error", "-ss", "%.4f" % (f / fps), "-i", video, "-frames:v", "1", "-f",
+                        "image2pipe", "-vcodec", "png", "-"], capture_output=True)
+    return Image.open(io.BytesIO(r.stdout)).convert("RGB") if r.stdout else None
+
+
 def _strip(video, frames, fps, w):
     from PIL import Image
     ims = [_frame(video, f, fps, w) for f in frames]
@@ -102,6 +115,7 @@ def build(out_dir, video=None, rows=ROWS):
     video = video or default_video(out_dir)
     n, fps = _probe(video)
     rows_ = shot_rows(out_dir, n, fps)
+    director = rows_ is not None
     if rows_ is None:
         try:
             slides = json.load(open(os.path.join(out_dir, "storyboard.json"), encoding="utf-8")).get("slides") or []
@@ -141,6 +155,16 @@ def build(out_dir, video=None, rows=ROWS):
     ends_path = os.path.join(d, "ends.jpg")
     ends.save(ends_path, quality=84)
     index["ends"] = ends_path
+    if director:
+        fd = os.path.join(d, "full")
+        os.makedirs(fd, exist_ok=True)
+        index["full"] = []
+        for label, fs in rows_:
+            im = _full(video, fs[-1], fps)
+            if im is not None:
+                p = os.path.join(fd, "%s.jpg" % label.split()[1])
+                im.save(p, quality=92)
+                index["full"].append(p)
     with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
         json.dump(index, fh, ensure_ascii=False, indent=1)
     return index
@@ -160,6 +184,9 @@ def main(argv):
     idx = build(out_dir, video, int(argflag(argv, "rows", ROWS)))
     print("[review_sheet] LOOK at %d beat sheet(s) and the ends before hand-over: %s, %s"
           % (len(idx["sheets"]), ", ".join(idx["sheets"]), idx["ends"]))
+    if idx.get("full"):
+        print("[review_sheet] and OPEN every shot at full size (%d in %s): name every region; one nobody can name is a "
+              "defect" % (len(idx["full"]), os.path.dirname(idx["full"][0])))
     return 0
 
 

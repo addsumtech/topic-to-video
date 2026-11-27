@@ -38,6 +38,15 @@ user at the design checkpoint with the keyframes. A film with no recurring physi
 build, seen from 0:13 on. The keyframes never showed it whole, so nobody compared it with the ship. The user: "this
 shouldn't be your mistake; make every object as refined and beautiful as possible".
 
+THE PHYSICS (2026-11-27). A film that shows a physical process (water flooding a hull, light bending, a gear train,
+air through a wing) lists it: `"physics": [{"phenomenon", "behaviour", "basis", "shots"}]`: how it really happens
+(direction, what drives it, levels and rates, what it never does), the source passage or first principle it rests on,
+and the shots that show it. Every shot showing it is built and reviewed against that line. A film with none says so
+in `"physics_note"`. WHY: the Titanic film showed the sea spraying OUT of the hull where it was pushed in, a boiler
+room half full when the inquiry says water was only coming up from under its floor, and the moment the sea reached the
+top of the bulkhead (the inquiry's own turning point) never shown. Nobody had written down how the flooding behaves,
+so the build improvised it. The user: details must be accurate and true to life, "符合实际".
+
 Exit 0 written (prints how many shots lack a board), 1 written but a layout check or the objects list found something
 to fix first (listed), 2 usage error or missing plan/timeline.
 """
@@ -279,6 +288,31 @@ def object_sheet(d, plan):
     return probs, out
 
 
+def physics_list(plan, shots):
+    """(problems, entries): every physical process the film shows, with how it really behaves, its basis and shots."""
+    ph = plan.get("physics") if isinstance(plan, dict) else None
+    if ph is None:
+        if isinstance(plan, dict) and str(plan.get("physics_note") or "").strip():
+            return [], []
+        return ["shot_plan.json lists no `physics`: for each physical process the film shows, write how it really "
+                "behaves, its `basis` (a source passage or first principle) and its `shots`; or say why there is none "
+                "in `physics_note`"], []
+    ids = {s.get("id") for s in shots}
+    probs = []
+    for e in ph:
+        name = e.get("phenomenon") or "?"
+        miss = [k for k in ("phenomenon", "behaviour", "basis") if not str(e.get(k) or "").strip()]
+        if miss:
+            probs.append("physics %r: no %s" % (name, " / ".join(miss)))
+        bad = [x for x in (e.get("shots") or []) if x not in ids]
+        if not e.get("shots") or bad:
+            probs.append("physics %r: %s" % (name, "names no shots" if not e.get("shots")
+                                                 else "names shots not in the plan: " + ", ".join(map(str, bad))))
+    if not ph:
+        probs.append("`physics` is empty: list the processes, or replace it with `physics_note`")
+    return probs, ph
+
+
 def page_checks(d, page):
     """{name: findings text} of the page's fast layout checks that are not clean."""
     here = os.path.dirname(os.path.abspath(__file__))
@@ -371,6 +405,7 @@ def main(argv):
         blocked = home_blocked(steps, shots, chunks) if steps else []
     found = page_checks(d, vals["page"]) if vals["page"] else {}
     obj_probs, obj_sheet = object_sheet(d, plan)
+    ph_probs, ph = physics_list(plan, shots)
     missing = [s["id"] for s in shots if not bd[s["id"]] and not steps.get(s["id"])]
     print("[animatic] %s  %.1f s, %d shots (%d with a board, %d BOARD MISSING%s)%s" % (
         os.path.relpath(out, d), total, len(shots), len(shots) - len(missing), len(missing),
@@ -385,10 +420,16 @@ def main(argv):
               % os.path.relpath(obj_sheet, d))
     for p in obj_probs:
         print("OBJECTS  " + p)
-    if blocked or found or obj_probs:
-        print("[animatic] FIX the blocking before showing it: %d caption-home problem(s)%s%s" % (
+    for e in ph:
+        print("[animatic] physics: %s (%s) — %s" % (e.get("phenomenon"), ", ".join(map(str, e.get("shots") or [])),
+                                                    e.get("behaviour")))
+    for p in ph_probs:
+        print("PHYSICS  " + p)
+    if blocked or found or obj_probs or ph_probs:
+        print("[animatic] FIX the blocking before showing it: %d caption-home problem(s)%s%s%s" % (
             len(blocked), "".join(", %s red" % n for n in found),
-            ", %d object problem(s)" % len(obj_probs) if obj_probs else ""))
+            ", %d object problem(s)" % len(obj_probs) if obj_probs else "",
+            ", %d physics problem(s)" % len(ph_probs) if ph_probs else ""))
         return 1
     return 0
 

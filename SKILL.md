@@ -200,7 +200,8 @@ and forgettable.
    keyframes (`design/keyframes.jpg`, redesigned until each reads in a second and stays in the memory), a
    `design/treatment.md` with every shot's picture (not only the heroes'), and a draft `shot_plan.json` whose
    `objects` lists the film's recurring objects, each modelled to its real reference and rendered beside it
-   (`design/objects.jpg`, written by `animatic.py`). If a film on
+   (`design/objects.jpg`, written by `animatic.py`), and whose `physics` says how each physical process the film
+   shows really behaves, with its source. If a film on
    this subject already exists, give the designer its path: the new one is judged side by side with it.
 2. **Checkpoint 2.** Show the user the three concepts (one line each), `design/keyframes.jpg` and `design/objects.jpg`, and ask
    (`AskUserQuestion`): go with this concept, take another of the three, or push it further. **Non-interactive:** one
@@ -223,7 +224,7 @@ film's ship stayed a box from 0:13 to the build, 2026-11-27). Then
 `python3 scripts/animatic.py <film_dir> --page film.html` cuts it to the real voice in seconds (`design/animatic.mp4`,
 each shot at 20/50/85 %, the caption drawn at its home; `design/boards/<shot>.png` overrides a shot). With `--page` it
 also runs the fast layout checks on the blocking: a caption home that is not clear ground, and words colliding or cut
-by the frame's edge; and it refuses a plan without `objects` and writes their sheet. It exits 1 until they are fixed;
+by the frame's edge; and it refuses a plan without `objects` or `physics` and writes the objects' sheet. It exits 1 until they are fixed;
 fix them before the user sees the cut. Then ONE round of `agents/keyframe-review.md` in its animatic mode, on the
 animatic's sheet (`scripts/review_sheet.py <film_dir> --video=<film_dir>/design/animatic.mp4`) and
 `design/objects.jpg`, with the full taste brief: it judges EVERY shot and EVERY object, not only the heroes, and the
@@ -412,7 +413,9 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
    record both in `NOTES.md` (the checks' known blind spots are in the toolbox).
 2. **Look at the real film the way the user will** — every shot at its opening, middle and settled frame on one sheet
    (`python3 scripts/review_sheet.py <film_dir>` writes it to `_review/`; a shot that opens soft or empty shows only
-   there; `--video=design/animatic.mp4` sheets the animatic the same way), AND every object at its largest beside its
+   there; `--video=design/animatic.mp4` sheets the animatic the same way), AND every shot's settled frame at FULL
+   size (`_review/full/`: name every region; one nobody can name, a stepped curve or a flickering surface is a defect
+   the sheet hides), AND every physical process against its `physics` line, AND every object at its largest beside its
    reference (`design/objects.jpg`), AND the
    middle frame of every cut, AND frame by frame through every moving object and camera move (a defect in motion is
    between the settled frames: a card sunk into a head, two Bots double-exposed by a dissolve, an arrow that changed

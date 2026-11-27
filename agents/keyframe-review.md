@@ -54,7 +54,12 @@ reference beside it. Fail, and name the shot:
 - **unreadable**: dark on dark, a subject lost in its ground, words too small or cut;
 - **placeholder**: grey bars, empty screens, blank cards, a label standing in for a picture;
 - **repeated**: the same layout or staging shot after shot;
-- **ordinary**: correct, and nothing a viewer would remember, between heroes that are not.
+- **ordinary**: correct, and nothing a viewer would remember, between heroes that are not;
+- **untrue**: a physical process moving against its `physics` line in `shot_plan.json` (the wrong direction, a level
+  past what drives it, a stage shown too early or too full, a free surface tilting with its container). The Titanic
+  film sprayed the sea OUT of the hull it was flooding (2026-11-27);
+- **coarse**: at 100 %, a curve built of stepped segments, surfaces flickering into a mosaic, or any region you cannot
+  name. Open the frames at full size (`_review/full/`), not only the sheet.
 
 The rough parts of a blocking (timing, easing, unfinished light) are not faults; an object that is not yet its real
 model is. Be strict: the user is.

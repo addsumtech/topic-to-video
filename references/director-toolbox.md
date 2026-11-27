@@ -108,6 +108,18 @@ text and characters' edges stay crisp in the capture (the default 1 read as "low
 `dof` blurs with a few taps: anything far from the focus distance turns into offset ghost copies (icons, text), so
 keep it off when near objects carry marks or words, or set `focus` on them. Two objects never end in the same place
 (coplanar cards flicker through each other): send what has done its job out of frame and hide it.
+**Built fine, not only rendered fine** (Titanic 2026-11-27; pixelRatio 2 was on, and the user still saw both faults):
+- a line that follows a curve (a deck, a sheer, a waterline on a hull, a cable) is ONE geometry along the curve
+  (`TubeGeometry` on a `CatmullRomCurve3`, or a strip sampled densely), never a chain of short level boxes: those
+  step like stairs however well they are antialiased;
+- two surfaces closer than the depth buffer can separate at the shot's distance (water a few cm over a floor, a
+  plate on a shell) flicker into a smeared mosaic: give one of them a real gap, `polygonOffset`, or hide the one that is
+  covered; a cut section is closed by a solid cut face, never left showing the inside of the shell;
+- an outline handed to `Shape`/`ShapeGeometry`/`ExtrudeGeometry` is a SIMPLE polygon: a profile that can rise above its
+  own top (a keel climbing at bow and stern, a sheer under a deck) is clamped or trimmed first, or the triangulation
+  spills the face over the frame (the Titanic's double-bottom face covered the water in the rooms above it, leaving a
+  stray bright line). When a region will not name itself, colour each suspect mesh a flat red/green in a one-frame debug
+  copy of the page: what the region IS settles in one render.
 
 **An object at the stage's ceiling** (a product, a device, a scanner; the boundary with Cycles:
 `references/3d-engines.md`). Model it in Blender (a scene script, finishes from `blender/kit/materials.py`), export it,

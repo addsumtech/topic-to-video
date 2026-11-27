@@ -56,3 +56,15 @@ def test_a_director_film_gets_a_row_per_shot_with_its_opening(tmp_path):
     assert [r["seconds"] for r in idx["rows"]] == [[0.3, 1.5, 2.7], [3.2, 3.4, 3.7]]   # a short shot opens at 25 %
     assert "s01" in idx["rows"][0]["label"] and "hook · wide" in idx["rows"][0]["label"]
     assert rs.main([str(tmp_path)]) == 0
+
+
+def test_a_director_film_gets_every_shot_at_full_size(tmp_path):
+    """Titanic 2026-11-27: stepped deck lines and a smeared band hid in sheet cells a third of the frame's size."""
+    from PIL import Image
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30:duration=4",
+                    "-pix_fmt", "yuv420p", str(tmp_path / "final.mp4")], check=True)
+    (tmp_path / "shot_plan.json").write_text(json.dumps({"shots": [
+        {"id": "s01", "start": 0.0, "end": 2.0}, {"id": "s02", "start": 2.0, "end": 4.0}]}))
+    idx = rs.build(str(tmp_path))
+    assert [os.path.basename(p) for p in idx["full"]] == ["s01.jpg", "s02.jpg"]
+    assert all(Image.open(p).size == (1280, 720) for p in idx["full"]), "the film's own size, not a sheet cell"

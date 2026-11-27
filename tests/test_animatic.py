@@ -32,7 +32,8 @@ def _film(d):
         {"id": "s01", "start": 0, "end": 1.0, "technique": "open"},
         {"id": "s02", "start": 1.0, "end": 2.0, "technique": "the hero", "hero": True},
         {"id": "s03", "start": 2.0, "end": 3.0, "technique": "close"}],
-        "objects_note": "a test film of plain colour cards: no recurring object"}))
+        "objects_note": "a test film of plain colour cards: no recurring object",
+        "physics_note": "colour cards: no physical process shown"}))
     (d / "design" / "keyframes").mkdir(parents=True)
     Image.new("RGB", (1920, 1080), (200, 40, 40)).save(d / "design" / "keyframes" / "kf1.png")     # red: the hero
     (d / "design" / "boards").mkdir()
@@ -151,3 +152,23 @@ def test_the_objects_are_listed_with_their_reference_and_model_or_the_animatic_i
     sheet = Image.open(d / "design" / "objects.jpg")
     assert sheet.size == (1920, 588)
     assert sheet.getpixel((480, 300))[0] < 60 and sheet.getpixel((1440, 300))[0] > 150, "reference left, model right"
+
+
+def test_the_physics_the_film_shows_is_written_down_or_the_animatic_is_red(tmp_path):
+    # Titanic 2026-11-27: the sea sprayed OUT of the hull and a boiler room was half full where the inquiry says water
+    # was only coming up from under its floor: nobody had written down how the flooding behaves
+    d = _film(tmp_path)
+    plan = json.loads((d / "shot_plan.json").read_text())
+    plan.pop("physics_note")
+    (d / "shot_plan.json").write_text(json.dumps(plan))
+    r = subprocess.run([sys.executable, SCRIPT, str(d)], capture_output=True, text=True, timeout=300)
+    assert r.returncode == 1 and "lists no `physics`" in r.stdout, r.stdout + r.stderr
+    plan["physics"] = [{"phenomenon": "flooding", "behaviour": "the sea flows in; levels never exceed the sea",
+                        "shots": ["s02", "s09"]}]
+    (d / "shot_plan.json").write_text(json.dumps(plan))
+    r = subprocess.run([sys.executable, SCRIPT, str(d)], capture_output=True, text=True, timeout=300)
+    assert r.returncode == 1 and "no basis" in r.stdout and "not in the plan: s09" in r.stdout, r.stdout
+    plan["physics"][0].update(basis="gradeff#rose steadily", shots=["s02"])
+    (d / "shot_plan.json").write_text(json.dumps(plan))
+    r = subprocess.run([sys.executable, SCRIPT, str(d)], capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0 and "physics: flooding (s02)" in r.stdout, r.stdout + r.stderr
