@@ -89,7 +89,7 @@ technique is the start: bend it, combine it, invent past it. Train the eye with 
 good frames do, seen and judged) and give every frame its ten-second designer's pass.
 
 **Clever moments, in every film** (narrated explainer or short promo). Novelty is not only the big concept; what
-viewers call 精巧 lives in the small exact moments where ONE thing keeps its identity while it changes what it means:
+viewers call ingenious lives in the small exact moments where ONE thing keeps its identity while it changes what it means:
 a typed tag becomes a pill and takes its slot in the post; the chosen option stays while the rest fall away and the
 price is struck and replaced; a title steps down into the label of the section it opened; the torn QR corner scatters
 into its codewords; the progress line runs on and draws the next scene's frame; the number counts up while it is
@@ -234,8 +234,7 @@ the logo's cursor that types the task) — the thing that, more than anything el
 
 ### 6. Build — sequence by sequence
 
-**After the animatic is approved, the build is ONE pass** (the user, 2026-11-26: "skill服务于用户…制作的时间和消耗也要在一定程度内"
-— the skill serves the user, so the time and cost of making a film must stay within reason). Build every shot to its
+**After the animatic is approved, the build is ONE pass** (the user, 2026-11-26: "the skill serves the user… the time and cost of making a film should stay within reason"). Build every shot to its
 approved blocking, render, run `film_qc` on the whole film once, fix the reds and what the user named, re-render only
 those frames, deliver. Aim to render under ~1.5x the film's frames in all.
 - A flaw that no binding rule names (a nicer easing, a tighter crop) goes on a "could improve" list in `NOTES.md`,
@@ -270,7 +269,7 @@ only where its elements must MOVE (a morph, a press, rows landing) or no screens
 in the film folder (an official screenshot, measured), never from memory, and **at the real screen's proportions**:
 every text and box keeps its measured ratio to the rest of that screen, and the whole screen is scaled as ONE object.
 Never enlarge one element's text to make it readable (a WorkBuddy promo, 2026-11-21: the typed prompt set at 92 px in an
-input box whose placeholder was 34 px read as fake at once: "输入的字体很大"; the shotcraft film beside it kept the real
+input box whose placeholder was 34 px read as fake at once: "the typed text is so big"; the shotcraft film beside it kept the real
 screen and moved the camera in, and won); a terminal program
 is CAPTURED (`scripts/term_capture.py`, drawn by `Stage3D.terminal`: an imitated Claude Code read as fake, job-hunt
 2026-11-19); a desktop app's OPERATING STEPS (a tutorial: the
@@ -315,17 +314,17 @@ moves (`assets/html/math.js`: a derivation written on and carried form to form, 
   schematic as one, in the film's language.
 - Nothing cut off, overlapping or unreadable.
 - **Captions sit ON the picture's own ground**, never on a band, strip or scrim added under the film, and cover nothing
-  (a Numbers tutorial, 2026-11-25; the user: "底下那个黑色块…你可以让subtitle很好的融入背景且不影响内容吗"). **One
+  (a Numbers tutorial, 2026-11-25; the user: "that black block at the bottom… can the subtitle blend into the background without affecting the content?"). **One
   caption home for the whole film**, bottom centre, fixed at design: every framing leaves that band as its own empty
   ground, the keyframes and the animatic show the caption there, and `scripts/caption_spots.py` verifies it on a
   caption-free render and picks the ink. Captions that move shot to shot read as jumping (Apollo 2026-11-26; the user:
-  "caption的位置，我觉得忽上忽下不是很好"). A blocked home → change the shot, never the caption.
+  "the captions jumping up and down doesn't look good"). A blocked home → change the shot, never the caption.
 - **Never draw a raster beyond its native pixels**; a real screenshot is cropped and pushed within its density.
 - Time runs one way: a state reached stays reached; nothing replays after a cut; nothing overshoots and shrinks back.
 - No slow constant creep on fine detail (hard edges shimmer); a camera move has a job and an end.
 - No blank holds: every shot puts its subject on screen from its first frame (lead the cut by ~0.1 s).
 - Real pictures are shown sharp. A product screen or photo blurred for depth, a focus pull or a texture reads as a
-  blurry original, not as an effect (Airbnb 2026-11-25; the user: "不知道的以为是原始图片太糊了"). Push one back by size,
+  blurry original, not as an effect (Airbnb 2026-11-25; the user: "anyone who doesn't know would think the original picture is blurry"). Push one back by size,
   dimming or overlap; blur only as motion inside a whip (under 0.5 s). `blur` in film_qc (`blur_qa.py`) is red on a
   picture held out of focus; a blur that IS the point says why in `data-blur-ok="<why>"`.
 - Text on screen is labels, keywords and numbers, never the narration as body text.
@@ -381,7 +380,7 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
   own hand-set mix left its score 2 dB under the words, job-hunt 2026-11-19).
 - **An operating-steps film** (a recorded tutorial) sounds its real actions: a soft click on every recorded click and a
   key on every keystroke, placed on the second the edit plays them (`scripts/screenrec_cues.py`, then `sfx.py` and
-  `mix.py --sfx`; the user, 2026-11-25: "可以适当加一些点击或者打字的声音特效对于这种类似情景").
+  `mix.py --sfx`; the user, 2026-11-25: "add some click or typing sound effects in scenes like this").
 - **SFX** on a few real events, short and high-passed (`scripts/sfx.py --cues`: 14 synthesised sounds). Not every cut
   gets a sound. A product film speaks the film vocabulary (whoosh, impact, riser, sparkle) with real foley for
   visible actions, never game-feedback tones (`references/promo-shotcraft.md` §4).
