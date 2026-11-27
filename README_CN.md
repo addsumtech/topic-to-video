@@ -15,60 +15,61 @@
   <img alt="Free by default" src="https://img.shields.io/badge/voice-free_by_default-2f6feb">
 </p>
 
-> **一句话进去，一部成片出来。** 说一个主题、一个产品，或者丢给它一份幻灯片：它查资料、写讲稿并先让你试听、设计整部片、逐个镜头制作、配乐配字幕，并在交给你之前把每一帧都检查一遍。
+> **你当导演，它就是整个摄制组。** 说一句话，拿回一部查过资料、配好解说、设计过、检查过的成片：在你自己的电脑上做，默认免费。
 
-这是一个 Claude Code / Codex 技能。它像一个小型工作室那样做片，而不是让大模型去"画"每一帧：**每一帧都用代码搭建、再渲染出来**，文字、图表、3D 和数据都是真的。所以事实准确、标注不会错位，每一帧都能被检查。
+这是一个 Claude Code / Codex 技能，把你的智能体变成一间小型影视工作室：调研、编剧、配音、设计、3D 美术、声音和质检一应俱全。没有一帧是视频大模型"画"出来的：**每一帧都用代码搭建、再渲染出来**，文字、3D、数据和应用界面都是真的。所以事实准确、物理过程是算出来的，每一帧都能被检查。
 
 ## 用它做的片子
 
-下面每一部都起于聊天里的一句话请求。点击可在 **[video.addsum.top](https://video.addsum.top/cn/)** 观看。
+下面每一部都起于聊天里的一句话。点击即可观看，全部十七部在 **[video.addsum.top](https://video.addsum.top/cn/)**。
 
 <table>
   <tr>
-    <td width="33%"><a href="https://video.addsum.top/cn/#topic-to-video-promo"><img src="docs/assets/films/topic-to-video-promo.jpg" alt="topic-to-video 发布短片"></a><br/><sub><strong>topic-to-video 发布短片</strong> · 英文 · 2:00<br/>它自己的发布片，用这些成片的真实片段剪成</sub></td>
-    <td width="33%"><a href="https://video.addsum.top/cn/#mri-explainer"><img src="docs/assets/films/mri-explainer.jpg" alt="MRI 是怎么拍出身体内部的"></a><br/><sub><strong>MRI 是怎么拍出身体内部的</strong> · 英文 · 2:07<br/>一张真实脑切片由它自己的和弦重建；扫描仪用 Blender 渲染</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#titanic-sinking"><img src="docs/assets/films/titanic-sinking.jpg" alt="泰坦尼克号为什么用了 2 小时 40 分钟才沉没"></a><br/><sub><strong>泰坦尼克号为什么用了 2 小时 40 分钟才沉没</strong> · 英文 · 1:49<br/>船按 1911 年图纸在 Blender 里建模；进水过程依据 1912 年的调查报告</sub></td>
     <td width="33%"><a href="https://video.addsum.top/cn/#diamond-sparkle-3d"><img src="docs/assets/films/diamond-sparkle-3d.jpg" alt="钻石为什么会闪闪发光"></a><br/><sub><strong>钻石为什么会闪闪发光</strong> · 中文 · 1:44<br/>每颗钻石都用 Blender 渲染，火彩是真实的色散</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#mri-explainer"><img src="docs/assets/films/mri-explainer.jpg" alt="MRI 是怎么拍出身体内部的"></a><br/><sub><strong>MRI 是怎么拍出身体内部的</strong> · 英文 · 2:07<br/>一张真实脑切片由它自己的和弦重建；扫描仪用 Blender 渲染</sub></td>
   </tr>
   <tr>
-    <td width="33%"><a href="https://video.addsum.top/cn/#grok-bot-explainer"><img src="docs/assets/films/grok-bot-explainer.jpg" alt="Grok Bot 发布短片"></a><br/><sub><strong>Grok Bot 发布短片</strong> · 英文 · 2:02<br/>手机和应用界面按官方截图还原</sub></td>
-    <td width="33%"><a href="https://video.addsum.top/cn/#qr-torn-corner"><img src="docs/assets/films/qr-torn-corner.jpg" alt="二维码撕掉一角为什么还能扫"></a><br/><sub><strong>二维码撕掉一角为什么还能扫</strong> · 中文 · 1:45<br/>一张真实的二维码，每一种撕法都用真实解码器验证</sub></td>
-    <td width="33%"><a href="https://video.addsum.top/cn/#job-hunt-promo"><img src="docs/assets/films/job-hunt-promo.jpg" alt="job-hunt 发布短片"></a><br/><sub><strong>job-hunt 发布短片</strong> · 中文 · 2:14<br/>Claude Code 和 Codex 窗口录自真实程序</sub></td>
-  </tr>
-  <tr>
+    <td width="33%"><a href="https://video.addsum.top/cn/#shenzhen-border-town"><img src="docs/assets/films/shenzhen-border-town.jpg" alt="深圳是怎么变成超大城市的"></a><br/><sub><strong>深圳是怎么变成超大城市的</strong> · 中文 · 2:10<br/>用 1979 到 2025 年真实的 Landsat 卫星影像讲述</sub></td>
     <td width="33%"><a href="https://video.addsum.top/cn/#falling-cat"><img src="docs/assets/films/falling-cat.jpg" alt="猫为什么总能四脚着地"></a><br/><sub><strong>猫为什么总能四脚着地</strong> · 中文 · 2:03<br/>两节圆柱模型，画成孔版印刷的样子</sub></td>
-    <td width="33%"><a href="https://video.addsum.top/cn/#camera-lens"><img src="docs/assets/films/camera-lens.jpg" alt="镜头怎样拍出清晰的照片"></a><br/><sub><strong>镜头怎样拍出清晰的照片</strong> · 英文 · 2:01<br/>从一个光点讲到一锥光线重新会聚</sub></td>
-    <td width="33%"><a href="https://video.addsum.top/cn/#workbuddy-promo"><img src="docs/assets/films/workbuddy-promo.jpg" alt="WorkBuddy 发布短片"></a><br/><sub><strong>WorkBuddy 发布短片</strong> · 英文 · 1:02<br/>字标末尾的下划线变成全片的光标</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#qr-torn-corner"><img src="docs/assets/films/qr-torn-corner.jpg" alt="二维码撕掉一角为什么还能扫"></a><br/><sub><strong>二维码撕掉一角为什么还能扫</strong> · 中文 · 1:45<br/>一张真实的二维码，每一种撕法都用真实解码器验证</sub></td>
   </tr>
   <tr>
+    <td width="33%"><a href="https://video.addsum.top/cn/#grok-bot-promo-38s"><img src="docs/assets/films/grok-bot-promo-38s.jpg" alt="Grok Bot 38 秒宣传片"></a><br/><sub><strong>Grok Bot 38 秒宣传片</strong> · 英文 · 0:38<br/>只有文字和配乐，全程在应用的官方截图里</sub></td>
+    <td width="33%"><a href="https://video.addsum.top/cn/#camera-lens"><img src="docs/assets/films/camera-lens.jpg" alt="镜头怎样拍出清晰的照片"></a><br/><sub><strong>镜头怎样拍出清晰的照片</strong> · 英文 · 2:01<br/>从一个光点讲到一锥光线重新会聚</sub></td>
     <td width="33%"><a href="https://video.addsum.top/cn/#numbers-chart-tutorial"><img src="docs/assets/films/numbers-chart-tutorial.jpg" alt="在 Numbers 里做一张图表"></a><br/><sub><strong>在 Numbers 里做一张图表</strong> · 英文 · 1:16<br/>软件操作教程：每一次点击都录自真实软件</sub></td>
   </tr>
 </table>
 
 ## 它怎么做片
 
-```text
- 调研 ─▶ 讲稿 ─▶ 配音 ─▶ 设计 ─▶ 动态分镜 ─▶ 制作 ─▶ 声音 ─▶ 检查 ─▶ MP4 + SRT
-        └── 你来试听 ──┘   └──── 你来拍板 ────┘
-```
+<p align="center"><img src="docs/assets/how-it-works-cn.jpg" alt="一句话进去，调研、脚本、配音、设计、制作、声音、检查依次完成；你拍板四次；成片出来"></p>
 
-1. **调研。** 读你给的材料或上网查，解说里的每个日期和数字都对应它抓到的原文。
-2. **讲稿和配音。** 写成适合耳朵听的稿子，开工之前先让你*听到*讲稿、挑好声音。
-3. **设计。** 由专门的设计师出三个方向、整部片的招牌创意，以及三张完成度很高的关键帧，由你来选。
-4. **动态分镜。** 整部片的粗版，按真实配音的时间走一遍，趁改动还便宜时判断节奏。
-5. **制作。** 一种视觉风格贯穿全片，一段一段地做；题材需要时加上光影、材质和真正的 3D。多个制作者并行，各自边做边检查自己的镜头。
-6. **声音和检查。** 音效只配在真实发生的动作上；只有发布片才配乐，并压在人声之下。最后对渲染出来的成片跑最多 15 项自动检查，再逐个镜头看一遍。
-
-你只需要拍板四次：做什么、用哪个声音、选哪个设计、动态分镜行不行。其余的它自己跑完。
+你只需要拍板四次：做什么、用哪个声音（先听过讲稿）、选哪个设计、粗剪行不行。其余它自己跑完，成片 MP4 和字幕直接放到你的桌面。
 
 ## 有什么不同
 
-- 🔎 **有出处，不编造。** 画面和解说里的每个数字都能追溯到出处。找不到出处的数字，片子里只做定性描述。
-- 💡 **每部片都有招牌创意。** 只有这个题材才有的那一下：按真实色散渲染的钻石火彩、会唱出自己和弦的脑切片、在片子自己的画面上被解码的二维码。
-- 🧊 **真物件，真界面。** 玻璃、金属、机器用 Blender 渲染；有打光的手机、平板和笔记本；应用界面按官方截图还原；终端窗口逐格录自真实的 Claude Code、Codex 和 shell。
-- 🧪 **检查的是渲染出来的画面。** 闪帧、切镜后画面倒回、运镜一顿一顿而不顺滑、暗部渐变出现色带、文字重叠或被截断、物体互相穿模、说好藏住的转场其实是硬切、屏幕上任何找不到出处的文字，都会被查出来。
-- 🎵 **配乐看用途。** 讲解片不配乐，因为解说下面垫音乐会让观众记得更少；发布片配乐，并实测压在人声之下约 20 dB。
-- 🗣️ **任何语言，免费配音。** 默认用 edge-tts，字幕逐词同步，中文同样支持。英文幻灯片可以配中文解说，反过来也行。
-- ✏️ **审美由你把关。** 用大白话说要改哪里，只重做受影响的镜头。
+| | 视频生成大模型 | **topic-to-video** |
+| --- | --- | --- |
+| **画面** | 模型猜出来的像素，文字和数字经常是乱码 | 用代码搭建再渲染：准确的文字、真 3D、真数据、真实的应用界面 |
+| **事实** | 听起来对就行 | 每个数字都追溯到原文出处；找不到出处的只做定性描述 |
+| **物理** | 看起来像 | 算出来的：钻石的火彩来自真实色散，泰坦尼克号的进水依据 1912 年的调查报告 |
+| **时长** | 几秒的片段 | 1–3 分钟带解说的完整影片，字幕逐词同步，任何语言 |
+| **改一处** | 重新抽卡碰运气 | 用大白话说要改哪里，只重做受影响的镜头 |
+| **花费** | 按片段计费 | 默认免费：本地渲染，免费配音 |
+
+而且每部片都有一个只有这个题材才有的**招牌创意**：会唱出自己和弦的脑切片、在片子自己的画面上被解码的二维码、海水依次漫过泰坦尼克号的每一道隔墙。
+
+## 里面有什么
+
+| 角色 | 做什么 |
+| --- | --- |
+| **调研** | 读你给的材料或上网查，每个日期和数字都钉在它抓到的原文上 |
+| **编剧和配音** | 为耳朵写稿，先让你试听，再配音（默认免费的 edge-tts，可选 MiniMax 或 OpenAI），逐词计时，并把配音转写回来，查出漏读或读错的句子 |
+| **设计** | 三个方向、一个招牌创意和完成度很高的关键帧；再按真实配音把整部片做成粗剪 |
+| **制作** | 物件用 Blender 和带光影的 3D 舞台，文字用排版动效，真实的照片、地图和卫星影像，应用和终端录自真实程序 |
+| **声音** | 音效只配在真实发生的动作上；只有发布片才配乐，并压在人声之下 |
+| **质检** | 对渲染出来的成片跑最多 15 项自动检查（闪帧、运镜一顿一顿、色带、文字被截断或重叠、物体穿模），再把每个镜头放到原尺寸逐一查看 |
 
 ## 两条路径
 
