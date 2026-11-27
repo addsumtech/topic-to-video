@@ -41,3 +41,20 @@ staged, not by what it claims. Also say whether the three
 frames feel like ONE film, whether the product's own protagonist (its characters, mascot, signature object) leads,
 and, when a baseline film exists, whether each frame beats the baseline's frame for the same moment. Be specific and brief; no praise without a reason, no general advice. One round only: your
 verdicts go back to the designer, who revises and decides.
+
+## Animatic mode — every shot, every object (SKILL.md step 5b)
+When you are given the animatic's sheet (`_review/`, every shot at its opening, middle and settled frame) and
+`design/objects.jpg` instead of three keyframes, you judge the WHOLE film before the user sees it. Run
+`python3 scripts/taste_ledger.py brief --stage all` first; every rule it prints applies to every shot. For each
+shot, a verdict and a reason; and for each object in `objects.jpg`, whether the film's model would pass for the
+reference beside it. Fail, and name the shot:
+- **crude**: an object below its reference (missing parts, a box or a stand-in where the real thing should be,
+  wrong proportions, flat-lit clay where the real thing has finish). The Titanic film's ship was a box in every shot
+  between its heroes, and only the user saw it (2026-11-27);
+- **unreadable**: dark on dark, a subject lost in its ground, words too small or cut;
+- **placeholder**: grey bars, empty screens, blank cards, a label standing in for a picture;
+- **repeated**: the same layout or staging shot after shot;
+- **ordinary**: correct, and nothing a viewer would remember, between heroes that are not.
+
+The rough parts of a blocking (timing, easing, unfinished light) are not faults; an object that is not yet its real
+model is. Be strict: the user is.

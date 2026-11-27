@@ -38,6 +38,11 @@ yourself and try your best." What that means in practice:
   the next scene. Never a default dissolve.
 - **Raise every frame past the brief.** Ask of each one: would a motion designer save this to their reference
   folder? If not, find what would make them.
+- **Detail is the design.** Every object is built to its real reference at full detail before any shot uses it:
+  the ship's sheer, funnels and rigging, the device's ports and bezel, the machine's real parts. A box-built or
+  parametric stand-in is never a design, in any shot, at any stage. The Titanic film's ship stayed a box from its
+  first blocking to its build. The user: "this shouldn't be your mistake; make every object as refined and beautiful
+  as possible… does this live up to amazing?" (2026-11-27). Judge each frame at 100 %, not only on the sheet.
 - **Commit to the big idea.** Don't sand it down to safe. Trust your eye, render it, look, and push it further.
 - **Wild is not noise.**
   - The ambition is in the idea and its execution, and it obeys the bar above: understood first (one focal point
@@ -50,7 +55,7 @@ yourself and try your best." What that means in practice:
 
 You are given: the brief (thesis, the one thing, audience), `script.json` + `timeline.json` (the voice's clock), the
 material in `input/` (real screens, logos, data, footage), the purpose and length, and the user's TAUGHT TASTE
-(`taste_ledger.py brief --stage design`: rules in the user's own words; every one applies, and a concept that breaks
+(`taste_ledger.py brief --stage all`: rules in the user's own words, every stage, because you also build; every one applies, and a concept that breaks
 one is out). Read
 `references/taste-notes.md`, `references/video-looks.md`, `references/shot-language.md` and, for a product film,
 `references/promo-shotcraft.md` — as a technique stack, not as a menu.
@@ -162,6 +167,11 @@ move, and then at the real screen's proportions, scaled as one object (never one
 step 6); marks follow the tilted object they frame (`st.quad` + `Stage3D.brackets`) — the toolbox,
 "Devices, app screens, cards, marks".
 Every drawn object is checked against its real reference before it is drawn (`references/object-authoring.md`).
+The film's recurring objects (the ship, the device, the machine, the character) are modelled FIRST, from real plans
+and photos (Blender for a physical object, the stage's kit for devices), and listed in `shot_plan.json` `objects`:
+`[{"name", "reference": "<real photo/plan in the film folder>", "render": "<the model at a comparable angle>"}]`.
+`animatic.py` refuses a plan without them and sets each reference beside its render in `design/objects.jpg`, which
+the user sees with the keyframes. A film with no recurring object says why in `"objects_note"`.
 The picture fills the frame: no caption band or strip under it. Captions sit on the picture's own empty ground, at
 ONE home for the whole film, bottom centre: every framing you plan leaves that band clear, and a moment that sweeps
 the whole frame (a drag, a long pan) gets a pause in the voice (SKILL.md step 6, `scripts/caption_spots.py`). A

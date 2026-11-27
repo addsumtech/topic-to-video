@@ -192,15 +192,17 @@ and forgettable.
 1. **Dispatch the designer**: `agents/film-designer.md` (`topic-to-video:film-designer` when the plugin registers it;
    otherwise a general-purpose agent given that file as its instructions), **with effort "high"** and a fresh
    context. Give it the brief, `script.json`, `timeline.json`, the purpose and length, the material in `input/`, and
-   the user's taught taste (`python3 scripts/taste_ledger.py brief --stage design`, rules in the user's own words);
-   nothing about gates. The films this skill already delivered are strips in `~/.topic-to-video/films/` (kept by
+   the user's taught taste (`python3 scripts/taste_ledger.py brief --stage all`: every stage's rules in the user's own
+   words, because the designer also builds the objects and the blocking); nothing about gates. The films this skill already delivered are strips in `~/.topic-to-video/films/` (kept by
    `film_deliver`); the designer designs away from them. It writes `design/story.md` (the viewer's journey: for a product film, how the product WORKS,
    not only what it made), `design/concepts.md` (three concepts, the first always the product's OWN world, its
    characters, UI and marks, acting the journey out; and the choice), the three **hero moments** rendered as finished
    keyframes (`design/keyframes.jpg`, redesigned until each reads in a second and stays in the memory), a
-   `design/treatment.md` with every shot's picture (not only the heroes'), and a draft `shot_plan.json`. If a film on
+   `design/treatment.md` with every shot's picture (not only the heroes'), and a draft `shot_plan.json` whose
+   `objects` lists the film's recurring objects, each modelled to its real reference and rendered beside it
+   (`design/objects.jpg`, written by `animatic.py`). If a film on
    this subject already exists, give the designer its path: the new one is judged side by side with it.
-2. **Checkpoint 2.** Show the user the three concepts (one line each) and `design/keyframes.jpg`, and ask
+2. **Checkpoint 2.** Show the user the three concepts (one line each), `design/keyframes.jpg` and `design/objects.jpg`, and ask
    (`AskUserQuestion`): go with this concept, take another of the three, or push it further. **Non-interactive:** one
    round of `agents/keyframe-review.md` (a fresh-eyed reviewer, effort "high") on the keyframes, given each frame's
    spoken line and the baseline film when one exists; the designer revises
@@ -215,11 +217,17 @@ and forgettable.
 ### 5b. The animatic — the film on its real clock, rough (checkpoint 3)
 
 Before the full build, block the WHOLE film in `film.html`: every shot placed on the timeline with its subject,
-framing and camera move, the heroes from the keyframes, the rest rough (grey boxes, plain colour) — no polish. Then
+framing and camera move, the heroes from the keyframes, the rest rough in polish and motion, but every recurring
+object already its real model from `objects` (a box stand-in in the blocking becomes the build's object: the Titanic
+film's ship stayed a box from 0:13 to the build, 2026-11-27). Then
 `python3 scripts/animatic.py <film_dir> --page film.html` cuts it to the real voice in seconds (`design/animatic.mp4`,
 each shot at 20/50/85 %, the caption drawn at its home; `design/boards/<shot>.png` overrides a shot). With `--page` it
 also runs the fast layout checks on the blocking: a caption home that is not clear ground, and words colliding or cut
-by the frame's edge. It exits 1 until they are fixed; fix them before the user sees the cut. **Checkpoint 3:**
+by the frame's edge; and it refuses a plan without `objects` and writes their sheet. It exits 1 until they are fixed;
+fix them before the user sees the cut. Then ONE round of `agents/keyframe-review.md` in its animatic mode, on the
+animatic's sheet (`scripts/review_sheet.py <film_dir> --video=<film_dir>/design/animatic.mp4`) and
+`design/objects.jpg`, with the full taste brief: it judges EVERY shot and EVERY object, not only the heroes, and the
+designer fixes what it fails. **Checkpoint 3:**
 the user watches it and approves the rhythm, the cuts and what is on screen under each line, or names the shots to
 change. Problems found here cost minutes; after the build, a re-render each (a 1.5 s pull from close to wide, a
 scribble standing in for an idea, two shots of one framing were all visible in a Grok Bot animatic).
@@ -244,6 +252,9 @@ those frames, deliver. Aim to render under ~1.5x the film's frames in all.
 
 Apollo 1202 (2026-11-26) rendered 11,169 frames for a 3,639-frame film: 4.4 h of build after approval. The user had
 to ask, again and again, when it would be done.
+
+Before building, read the user's whole taught taste again (`python3 scripts/taste_ledger.py brief --stage all`):
+every rule applies to every shot, the heroes and the shots between them alike.
 
 **The unit is the sequence.** Each sequence is one world (subject, ground, camera language) and flows inside
 itself; the world changes only at a seam. Within it, every shot has one focal point, appears with its words
@@ -401,7 +412,8 @@ with a fine grain finish: an 8-bit dark gradient otherwise bands after encoding)
    record both in `NOTES.md` (the checks' known blind spots are in the toolbox).
 2. **Look at the real film the way the user will** — every shot at its opening, middle and settled frame on one sheet
    (`python3 scripts/review_sheet.py <film_dir>` writes it to `_review/`; a shot that opens soft or empty shows only
-   there; `--video=design/animatic.mp4` sheets the animatic the same way), AND the
+   there; `--video=design/animatic.mp4` sheets the animatic the same way), AND every object at its largest beside its
+   reference (`design/objects.jpg`), AND the
    middle frame of every cut, AND frame by frame through every moving object and camera move (a defect in motion is
    between the settled frames: a card sunk into a head, two Bots double-exposed by a dissolve, an arrow that changed
    shape between render pages were all invisible on a contact sheet). One layout repeated, a frame cut off, a

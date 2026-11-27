@@ -109,3 +109,16 @@ def test_an_unwritable_ledger_folder_is_a_named_error(tmp_path, monkeypatch):
         assert tl.main(["add", "--said", "x", "--rule", "a rule", "--stage", "design"]) == 1
     finally:
         d.chmod(0o700)
+
+
+def test_brief_all_gives_the_director_every_active_rule_of_every_stage(ledger):
+    # the director path's designer also builds: a build-stage rule briefed only to classic builders never reached it,
+    # and the Titanic film's hero ship was a box (2026-11-27)
+    tl.add("背景要按实际来", "environment per beat from its subject", "design")
+    tl.add("物体要精细", "every drawn object is refined and accurate", "build")
+    tl.add("锯齿", "3D renders supersampled", "render")
+    tl.add("旧的", "an old rule", "build")
+    tl.retire("an-old-rule", gate="some_qa")
+    assert tl.brief("all") == ["[design] environment per beat from its subject",
+                               "[build] every drawn object is refined and accurate",
+                               "[render] 3D renders supersampled"]

@@ -30,8 +30,16 @@ cost an edit to the blocking.
 WHY. A film with three hero keyframes went straight to the full build; its pacing faults (a 1.5 s pull from close to
 wide, a scribble standing in for "router", six shots of one framing) were found only after it was built, each fix a
 re-render (Grok Bot 2026-11-18). The industry's order is boards -> animatic -> build; the user approves this.
-Exit 0 written (prints how many shots lack a board), 1 written but a layout check found something to fix in the
-blocking first (listed), 2 usage error or missing plan/timeline.
+THE OBJECTS (2026-11-27). `shot_plan.json` lists the film's recurring objects: `"objects": [{"name", "reference",
+"render"}]`, the reference a real photo or plan in the film folder and the render the model the film draws, at a
+comparable angle. The animatic writes `design/objects.jpg`, each reference beside its render, which is shown to the
+user at the design checkpoint with the keyframes. A film with no recurring physical object says why in
+`"objects_note"`. WHY: the Titanic film's hero, the ship, was a box-built stand-in from its first blocking to its
+build, seen from 0:13 on. The keyframes never showed it whole, so nobody compared it with the ship. The user: "this
+shouldn't be your mistake; make every object as refined and beautiful as possible".
+
+Exit 0 written (prints how many shots lack a board), 1 written but a layout check or the objects list found something
+to fix first (listed), 2 usage error or missing plan/timeline.
 """
 import glob
 import json
@@ -236,6 +244,41 @@ def home_blocked(steps, shots, chunks):
     return out
 
 
+def object_sheet(d, plan):
+    """(problems, sheet path or None): every listed object's reference beside its render in design/objects.jpg."""
+    from PIL import Image, ImageDraw
+    objs = plan.get("objects") if isinstance(plan, dict) else None
+    if objs is None:
+        if isinstance(plan, dict) and str(plan.get("objects_note") or "").strip():
+            return [], None
+        return ["shot_plan.json lists no `objects`: name each recurring object with its real `reference` (a photo or "
+                "plan in the film folder) and a `render` of the model the film draws, or say why there is none in "
+                "`objects_note`"], None
+    probs, rows = [], []
+    for o in objs:
+        name = o.get("name") or "?"
+        ref, ren = (os.path.join(d, o.get(k) or "") for k in ("reference", "render"))
+        miss = [k for k, p in (("reference", ref), ("render", ren)) if not o.get(k) or not os.path.isfile(p)]
+        if miss:
+            probs.append("object %r: no %s file" % (name, " / ".join(miss)))
+        else:
+            rows.append((name, ref, ren))
+    if not rows:
+        return probs or ["`objects` is empty: list them, or replace it with `objects_note`"], None
+    W, H = 960, 540
+    sheet = Image.new("RGB", (2 * W, len(rows) * (H + 48)), (14, 15, 17))
+    g = ImageDraw.Draw(sheet)
+    for i, (name, ref, ren) in enumerate(rows):
+        y = i * (H + 48)
+        g.text((12, y + 10), "%s — reference (left) and the film's model (right)" % name, fill=(255, 220, 120),
+               font=_font(26, True))
+        for k, p in enumerate((ref, ren)):
+            sheet.paste(_fit(p, W, H), (k * W, y + 48))
+    out = os.path.join(d, "design", "objects.jpg")
+    sheet.save(out, quality=88)
+    return probs, out
+
+
 def page_checks(d, page):
     """{name: findings text} of the page's fast layout checks that are not clean."""
     here = os.path.dirname(os.path.abspath(__file__))
@@ -327,6 +370,7 @@ def main(argv):
         subprocess.run(cmd, check=True)
         blocked = home_blocked(steps, shots, chunks) if steps else []
     found = page_checks(d, vals["page"]) if vals["page"] else {}
+    obj_probs, obj_sheet = object_sheet(d, plan)
     missing = [s["id"] for s in shots if not bd[s["id"]] and not steps.get(s["id"])]
     print("[animatic] %s  %.1f s, %d shots (%d with a board, %d BOARD MISSING%s)%s" % (
         os.path.relpath(out, d), total, len(shots), len(shots) - len(missing), len(missing),
@@ -336,9 +380,15 @@ def main(argv):
               " never move the caption" % (sid, pct, text))
     for name, text in found.items():
         print("%s\n%s" % (name.upper(), "\n".join("     " + l for l in text.splitlines()[-12:])))
-    if blocked or found:
-        print("[animatic] FIX the blocking before showing it: %d caption-home problem(s)%s" % (
-            len(blocked), "".join(", %s red" % n for n in found)))
+    if obj_sheet:
+        print("[animatic] objects: %s (each reference beside the film's model; show it with the keyframes)"
+              % os.path.relpath(obj_sheet, d))
+    for p in obj_probs:
+        print("OBJECTS  " + p)
+    if blocked or found or obj_probs:
+        print("[animatic] FIX the blocking before showing it: %d caption-home problem(s)%s%s" % (
+            len(blocked), "".join(", %s red" % n for n in found),
+            ", %d object problem(s)" % len(obj_probs) if obj_probs else ""))
         return 1
     return 0
 

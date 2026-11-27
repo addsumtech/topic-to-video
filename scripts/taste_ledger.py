@@ -4,7 +4,7 @@
     python3 scripts/taste_ledger.py add --said "<the user's words>" --rule "<the rule>" --stage design [--film F]
     python3 scripts/taste_ledger.py list
     python3 scripts/taste_ledger.py retire <id> --gate "<the gate that now enforces it>"
-    python3 scripts/taste_ledger.py brief --stage design|plan|build|render
+    python3 scripts/taste_ledger.py brief --stage design|plan|build|render|all
     python3 scripts/taste_ledger.py check <out_dir>
 
 WHY. Every design correction so far came from the user, not from the skill: header titles on a video ("视频不是
@@ -122,7 +122,12 @@ def active(path=None, stage=None):
 
 
 def brief(stage, path=None):
-    """The active rules a director at `stage` applies, one line each."""
+    """The active rules a director at `stage` applies, one line each. `all`: every active rule of every stage, each
+    tagged with its stage. The director path's designer also builds the objects, the blocking and often the film, so it
+    takes `all`: a build-stage rule ("every drawn object is refined and accurate") briefed only to the classic
+    builders never reached the Titanic designer, whose box-built ship the user rejected (2026-11-27)."""
+    if stage == "all":
+        return ["[%s] %s" % (e.get("stage"), e["rule"]) for s in STAGES for e in active(path, s)]
     if stage not in STAGES:
         raise ValueError("stage must be one of %s, got %r" % (", ".join(STAGES), stage))
     return [e["rule"] for e in active(path, stage)]
@@ -204,7 +209,7 @@ def main(argv):
     r.add_argument("id")
     r.add_argument("--gate", required=True)
     b = sub.add_parser("brief")
-    b.add_argument("--stage", required=True, choices=STAGES)
+    b.add_argument("--stage", required=True, choices=STAGES + ("all",))
     c = sub.add_parser("check")
     c.add_argument("out_dir")
     args = ap.parse_args(argv)
@@ -221,7 +226,8 @@ def main(argv):
             print("[taste] retired %s — enforced by %s" % (e["id"], e["gate"]))
         elif args.cmd == "brief":
             lines = brief(args.stage)
-            print("[taste] %d taught rule(s) for the %s stage — apply every one:" % (len(lines), args.stage))
+            print("[taste] %d taught rule(s) for %s — apply every one:" % (
+                len(lines), "every stage" if args.stage == "all" else "the %s stage" % args.stage))
             for line in lines:
                 print("  - " + line)
         elif args.cmd == "check":

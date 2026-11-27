@@ -31,7 +31,8 @@ def _film(d):
     (d / "shot_plan.json").write_text(json.dumps({"shots": [
         {"id": "s01", "start": 0, "end": 1.0, "technique": "open"},
         {"id": "s02", "start": 1.0, "end": 2.0, "technique": "the hero", "hero": True},
-        {"id": "s03", "start": 2.0, "end": 3.0, "technique": "close"}]}))
+        {"id": "s03", "start": 2.0, "end": 3.0, "technique": "close"}],
+        "objects_note": "a test film of plain colour cards: no recurring object"}))
     (d / "design" / "keyframes").mkdir(parents=True)
     Image.new("RGB", (1920, 1080), (200, 40, 40)).save(d / "design" / "keyframes" / "kf1.png")     # red: the hero
     (d / "design" / "boards").mkdir()
@@ -128,3 +129,25 @@ window.seek = (t) => { g.fillStyle = '#20242a'; g.fillRect(0, 0, 1920, 1080);
     im = _frame(d / "design" / "animatic.mp4", 0.6)               # "The first line." burned at the home
     band = [im.getpixel((x, round(360 * 1012 / 1080))) for x in range(200, 440)]
     assert max(sum(p) for p in band) > 600, "white caption ink at the home"
+
+
+
+def test_the_objects_are_listed_with_their_reference_and_model_or_the_animatic_is_red(tmp_path):
+    # Titanic 2026-11-27: the hero ship was a box-built stand-in from blocking to build; nobody set it beside the ship
+    d = _film(tmp_path)
+    plan = json.loads((d / "shot_plan.json").read_text())
+    plan.pop("objects_note")
+    (d / "shot_plan.json").write_text(json.dumps(plan))
+    r = subprocess.run([sys.executable, SCRIPT, str(d)], capture_output=True, text=True, timeout=300)
+    assert r.returncode == 1 and "lists no `objects`" in r.stdout, r.stdout + r.stderr
+    Image.new("RGB", (1200, 800), (30, 30, 30)).save(d / "design" / "ref.jpg")
+    plan["objects"] = [{"name": "the ship", "reference": "design/ref.jpg", "render": "design/model.png"}]
+    (d / "shot_plan.json").write_text(json.dumps(plan))
+    r = subprocess.run([sys.executable, SCRIPT, str(d)], capture_output=True, text=True, timeout=300)
+    assert r.returncode == 1 and "no render file" in r.stdout, r.stdout
+    Image.new("RGB", (1920, 1080), (200, 200, 200)).save(d / "design" / "model.png")
+    r = subprocess.run([sys.executable, SCRIPT, str(d)], capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0 and "design/objects.jpg" in r.stdout, r.stdout + r.stderr
+    sheet = Image.open(d / "design" / "objects.jpg")
+    assert sheet.size == (1920, 588)
+    assert sheet.getpixel((480, 300))[0] < 60 and sheet.getpixel((1440, 300))[0] > 150, "reference left, model right"

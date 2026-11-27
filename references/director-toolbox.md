@@ -66,7 +66,7 @@ Editing the clips: trim leading/trailing silence, cap pauses inside a line (~0.2
 each sequence seam; no clipping, even loudness across lines.
 
 ## Look (step 5) and the animatic (step 5b)
-- The designer's brief includes the user's taught taste: `python3 scripts/taste_ledger.py brief --stage design`.
+- The designer's brief includes the user's taught taste, every stage: `python3 scripts/taste_ledger.py brief --stage all`.
 - `python3 scripts/animatic.py <film_dir> [--page film.html] [--width 1280]` -> `design/animatic.mp4`: each shot's
   board (`design/boards/<shot>.png`, else the hero keyframes in hero order, else — with `--page` — the page itself at
   20/50/85 % of the shot, else a grey card from the treatment marked BOARD MISSING), each caption ON the picture at the
