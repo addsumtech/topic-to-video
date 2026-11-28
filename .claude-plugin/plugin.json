@@ -3,7 +3,7 @@
   "name": "topic-to-video",
   "displayName": "Topic to Video",
   "description": "Make a finished short film from a topic, a product or a slide deck: explainers and launch films. It researches and sources every fact, lets you hear the script and pick the voice, designs the film (concepts, hero keyframes, an animatic), builds it in code with real 3D where it fits (Three.js, Blender), adds sound and captions, and checks every rendered frame before copying the MP4 and SRT to your Desktop. Any language; free voice by default.",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "author": {
     "name": "Addsum",
     "url": "https://github.com/addsumtech"
